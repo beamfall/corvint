@@ -2,15 +2,18 @@ package store_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -340,10 +343,10 @@ func TestCALV0074_AdmissionRunsLaunchCheck(t *testing.T) {
 
 // TestCALV0074_NoExecCancelBeforeRelease proves that a launch refused after
 // admission cancels the attempt while its owner still holds the program. In
-// the window before the cancel the owner is unreleased, so a competing owner
-// is refused and cannot fence the cancel. A failure in that window, standing
-// in for a crash, leaves a stopped attempt that a reopen with the original
-// config cancels, releasing the claim.
+// the window before the cancel the program is FINISHED with proved quiescence
+// but unreleased, so a competing owner is refused as long as this owner is
+// live and cannot fence the cancel; the owner is released only after the
+// cancel has released the claim.
 func TestCALV0074_NoExecCancelBeforeRelease(t *testing.T) {
 	ctx := context.Background()
 	f := newClaudeFixture(t, supervisor.HostClaudeCode)
@@ -358,12 +361,22 @@ func TestCALV0074_NoExecCancelBeforeRelease(t *testing.T) {
 	if err = os.Chmod(f.config.Executable, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	crash := errors.New("simulated crash before cancel")
-	var window snapshot.Program
+	windows := map[string]snapshot.Program{}
+	phases := map[string]string{}
 	var competing error
-	restore := store.CALTestNoExecCancelHook(func() error {
-		window = f.program(t, "program")
-		other := window
+	restore := store.CALTestNoExecHook(func(point string) error {
+		windows[point] = f.program(t, "program")
+		attempts, e := store.ProgramAttempts(ctx, f.s.repo)
+		if e != nil {
+			return e
+		}
+		if a := attempts["program"]; a != nil {
+			phases[point] = a.Phase
+		}
+		if point != "cancel" {
+			return nil
+		}
+		other := windows[point]
 		other.OwnerPID = os.Getppid()
 		if other.OwnerStarted, competing = supervisor.ProcessIdentity(other.OwnerPID); competing == nil {
 			var r *store.Report
@@ -372,44 +385,145 @@ func TestCALV0074_NoExecCancelBeforeRelease(t *testing.T) {
 				competing = fmt.Errorf("refused: %+v", r)
 			}
 		}
-		return crash
+		return nil
 	})
 	_, err = w.RunRole(ctx, "implementer", "")
 	restore()
-	if !errors.Is(err, crash) {
-		t.Fatalf("want the simulated crash, got %v", err)
+	if err == nil {
+		t.Fatal("refused launch reported success")
 	}
-	if window.OwnerReleased || window.Phase == "FINISHED" {
-		t.Fatalf("owner released before cancel: %+v", window)
+	for _, point := range []string{"cancel", "release"} {
+		p := windows[point]
+		if p.OwnerReleased || p.Phase != "FINISHED" || p.Quiescence != "PROVED" || p.ResultClass != "NO_EXEC" {
+			t.Fatalf("%s window program %+v", point, p)
+		}
+	}
+	if phases["cancel"] != "WAITING" || phases["release"] != "CANCELLED" {
+		t.Fatalf("attempt phases by window: %v", phases)
 	}
 	if competing == nil || !strings.Contains(competing.Error(), "live owner") {
 		t.Fatalf("competing owner not refused as live-owned: %v", competing)
 	}
-	p := f.program(t, "program")
-	attempts, err := store.ProgramAttempts(ctx, f.s.repo)
-	if err != nil {
-		t.Fatal(err)
+	if p := f.program(t, "program"); !p.OwnerReleased || p.Phase != "FINISHED" {
+		t.Fatalf("owner not released after cancel: %+v", p)
 	}
-	a := attempts["program"]
-	if p.OwnerReleased || a == nil || a.Supervision == nil || a.Supervision.Worker || a.Quiescence != "PROVED" || a.Phase != "WAITING" {
-		t.Fatalf("crash window left program %+v attempt %+v", p, a)
-	}
-	// Recovery: reopen with the original config and pin, then cancel.
 	if err = os.Chmod(f.config.Executable, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	again, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
-	if err != nil {
-		t.Fatalf("reopen: %v", err)
-	}
-	if err = again.Cancel(); err != nil {
-		t.Fatalf("cancel: %v", err)
-	}
-	if again.Attempt().Phase != "CANCELLED" {
-		t.Fatalf("attempt not cancelled: %+v", again.Attempt())
-	}
 	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err != nil {
-		t.Fatalf("reclaim after recovery: %v", err)
+		t.Fatalf("reclaim after cancel: %v", err)
+	}
+}
+
+// noExecCrashEnv names the interruption point for the child process of
+// TestCALV0074_NoExecCrashTakeover.
+const noExecCrashEnv = "CORVINT_TEST_NOEXEC_CRASH"
+
+// TestCALV0074_NoExecCrashChild is the owner process of
+// TestCALV0074_NoExecCrashTakeover. It opens the program, makes the pinned
+// runtime unlaunchable and exits at the named NO_EXEC point without any
+// further write, standing in for an owner crash. It is skipped otherwise.
+func TestCALV0074_NoExecCrashChild(t *testing.T) {
+	point := os.Getenv(noExecCrashEnv)
+	if point == "" {
+		t.Skip("child of TestCALV0074_NoExecCrashTakeover")
+	}
+	var c store.ProgramConfig
+	if err := json.Unmarshal([]byte(os.Getenv(noExecCrashEnv+"_CONFIG")), &c); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := intent.Resolve(os.Getenv(noExecCrashEnv + "_ROOT"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := store.OpenWorkflow(context.Background(), repo, operator(), "program", self, c, os.Getenv(noExecCrashEnv+"_TICKET"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err = os.Chmod(c.Executable, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store.CALTestNoExecHook(func(at string) error {
+		if at == point {
+			os.Exit(3)
+		}
+		return nil
+	})
+	_, err = w.RunRole(context.Background(), "implementer", "")
+	t.Fatalf("owner was not interrupted at %s: %v", point, err)
+}
+
+// TestCALV0074_NoExecCrashTakeover proves that an owner dying inside a
+// cancelling NO_EXEC settlement leaves a program that a genuinely different
+// process takes over after the original owner exits: before the cancel the
+// replacement cancels the stopped attempt and the ticket is reclaimable;
+// after the cancel but before the release the replacement reassigns the
+// program and claims the ticket again.
+func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
+	for _, point := range []string{"cancel", "release"} {
+		t.Run(point, func(t *testing.T) {
+			ctx := context.Background()
+			f := newClaudeFixture(t, supervisor.HostClaudeCode)
+			config, err := json.Marshal(f.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			child := exec.Command(os.Args[0], "-test.run=^TestCALV0074_NoExecCrashChild$", "-test.count=1")
+			child.Env = append(os.Environ(), noExecCrashEnv+"="+point, noExecCrashEnv+"_CONFIG="+string(config), noExecCrashEnv+"_ROOT="+f.s.repo.PrimaryWorktree, noExecCrashEnv+"_TICKET="+f.ticketID)
+			out, err := child.CombinedOutput()
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 3 {
+				t.Fatalf("child did not stop at %s: %v\n%s", point, err, out)
+			}
+			p := f.program(t, "program")
+			if p.OwnerPID != child.Process.Pid || p.OwnerReleased {
+				t.Fatalf("interrupted program %+v", p)
+			}
+			attempts, err := store.ProgramAttempts(ctx, f.s.repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			old := attempts["program"]
+			want := map[string]string{"cancel": "WAITING", "release": "CANCELLED"}[point]
+			if old == nil || old.Supervision == nil || old.Supervision.Worker || old.Quiescence != "PROVED" || old.Phase != want {
+				t.Fatalf("interrupted attempt %+v", old)
+			}
+			if err = os.Chmod(f.config.Executable, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			again, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("takeover: %v", err)
+			}
+			q := f.program(t, "program")
+			if q.OwnerPID != os.Getpid() || q.Epoch != p.Epoch+1 || p.Phase != "FINISHED" || p.Quiescence != "PROVED" {
+				t.Fatalf("takeover did not bind this process: %+v", q)
+			}
+			if point == "cancel" {
+				if err = again.Cancel(); err != nil {
+					t.Fatalf("cancel after takeover: %v", err)
+				}
+				if again.Attempt().Phase != "CANCELLED" {
+					t.Fatalf("attempt not cancelled: %+v", again.Attempt())
+				}
+				if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err != nil {
+					t.Fatalf("reclaim after takeover: %v", err)
+				}
+				return
+			}
+			a := again.Attempt()
+			if a == nil || a.AttemptID == old.AttemptID && a.Generation == old.Generation || !a.Live() {
+				t.Fatalf("takeover did not reassign the released ticket: %+v", a)
+			}
+		})
 	}
 }
 

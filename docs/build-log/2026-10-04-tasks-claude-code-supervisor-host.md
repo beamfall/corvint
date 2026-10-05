@@ -208,3 +208,25 @@ confirmed by inspection before the fix.
 - P2, root-run test. The test expected `/bin/sh` to be unprotected under UID 0, but the check does
   not depend on the runner. The expectation now comes from a filesystem oracle. The negative case
   and the replacement test use a world-writable directory, so they hold for any runner.
+
+### Review round 4
+
+Codex reviewed `e620c35b..6a86d6c9` and confirmed the ACL layout, the UID-independent test and the
+cancel-before-release order. It found one P2, confirmed by mutation before the fix.
+
+- P2, crash recovery. After a launch refusal the program stayed `STOPPING` until the release. A
+  replacement process could not take it over: recovery evidence is produced only for an attempt
+  that still has a worker, and `STOPPING` is not a safe takeover phase. The round 3 test missed this
+  because it reopened under the original process identity. The fix: before the cancel, `noExec`
+  records the program `FINISHED` with proved quiescence while the owner still holds it, then
+  cancels, then releases the owner with a second `FINISHED` write. `FINISHED` is a safe takeover
+  phase, so a replacement takes over once the owner is gone, while a live owner still refuses a
+  competitor.
+  - Witnesses: `TestCALV0074_NoExecCrashTakeover` runs the owner as a child process that exits at
+    the cancel point or at the release point. The parent, a different process, then takes the
+    program over. At the cancel point it cancels the attempt and another program reclaims the
+    ticket. At the release point it reassigns the program to the released ticket. With the
+    `FINISHED` record removed, both takeovers are refused. `TestCALV0074_NoExecCancelBeforeRelease`
+    now checks both windows in one process: the program is `FINISHED` and unreleased, the attempt is
+    `WAITING` and then `CANCELLED`, and a competing owner is refused as live-owned.
+

@@ -1110,14 +1110,18 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 	return w.step("ATTACH", transaction.SupervisorChange{})
 }
 
-// noExecCancelHook, when set by a test, runs after the stage settles and
-// before its cancel; it is nil in the product.
-var noExecCancelHook func() error
+// noExecHook, when set by a test, runs at a named point of a cancelling
+// NO_EXEC settlement: "cancel" after the quiescent program is recorded and
+// before the cancel, "release" after the cancel and before the owner is
+// released. It is nil in the product.
+var noExecHook func(point string) error
 
-// noExec settles the dispatched stage as NO_EXEC. With cancel, the attempt is
-// cancelled while this owner still holds the program, so no other owner can
-// fence the cancel; the owner is released only after the claim and
-// reservation are (CAL-V0-074).
+// noExec settles the dispatched stage as NO_EXEC. With cancel, the program is
+// first recorded FINISHED with proved quiescence while this owner still holds
+// it, so no live competing owner can fence the cancel, yet a replacement owner
+// can take over that safe phase if this one dies. The attempt is then
+// cancelled, releasing its claim and reservation, and only afterwards is the
+// owner released (CAL-V0-074).
 func (w *Workflow) noExec(reason string, cancel bool) error {
 	if w.program.Phase == "SPAWNING" {
 		if e := w.persist("STOPPING"); e != nil {
@@ -1132,21 +1136,32 @@ func (w *Workflow) noExec(reason string, cancel bool) error {
 			return e
 		}
 	}
+	w.program.Quiescence = "PROVED"
+	w.program.ResultClass = "NO_EXEC"
+	w.program.ResultSHA256 = supervisor.Digest(nil)
 	if cancel {
-		if noExecCancelHook != nil {
-			if e := noExecCancelHook(); e != nil {
-				return e
-			}
+		if e := w.persist("FINISHED"); e != nil {
+			return e
+		}
+		if e := w.noExecPoint("cancel"); e != nil {
+			return e
 		}
 		if e := w.step("CANCEL", transaction.SupervisorChange{}); e != nil {
 			return e
 		}
+		if e := w.noExecPoint("release"); e != nil {
+			return e
+		}
 	}
-	w.program.Quiescence = "PROVED"
-	w.program.ResultClass = "NO_EXEC"
-	w.program.ResultSHA256 = supervisor.Digest(nil)
 	w.program.OwnerReleased = true
 	return w.persist("FINISHED")
+}
+
+func (w *Workflow) noExecPoint(point string) error {
+	if noExecHook == nil {
+		return nil
+	}
+	return noExecHook(point)
 }
 
 // codexStageArgv is the pinned Codex invocation for one supervised stage. A

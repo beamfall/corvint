@@ -1381,14 +1381,17 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
 
   If launch is refused after admission, for example because the file changed in between, only a
   refusal made before the lane leader is forked counts. The dispatched stage then settles as
-  `NO_EXEC` with quiescence proved, the attempt is cancelled, which releases its claim and
-  reservation, and only then is the owner released. While the owner is unreleased no other owner
-  can take the program, so none can fence the cancel. The stage returns `CAPABILITY_UNAVAILABLE`.
-  Known limit: the stop, the cancel and the owner release are separate journal writes, because the
-  attempt and program records have no combined transition. If the owner dies after the stop and
-  before the cancel, the attempt stays `WAITING`, stopped and quiescent, and keeps its claim and
-  reservation. Reopening the program with its original config and pin and cancelling it releases
-  them. A failure after the
+  `NO_EXEC` with quiescence proved and the program is recorded `FINISHED` while its owner still
+  holds it. The attempt is then cancelled, which releases its claim and reservation, and only then
+  is the owner released. While the owner is live and unreleased no other owner can take the
+  program, so none can fence the cancel. The stage returns `CAPABILITY_UNAVAILABLE`.
+  The stop, the cancel and the owner release are separate journal writes, because the attempt and
+  program records have no combined transition. If the owner dies between them, the program is
+  already `FINISHED`, a phase a replacement process may take over once the owner is gone. Before
+  the cancel the attempt stays `WAITING`, stopped and quiescent, with its claim and reservation,
+  and a replacement that reopens the program with its original config and pin and cancels it
+  releases them. After the cancel the claim is already released and a reopen reassigns the
+  program. A failure after the
   fork never settles as `NO_EXEC`, even when it carries no outcome class: it keeps the drain result,
   and an unproved drain leaves the attempt in `BLOCKED_RECOVERY`. This also names the existing Codex
   refusal, which was previously the unnamed `MALFORMED`. The Core
@@ -1616,7 +1619,7 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
 | Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later refusal before the leader fork settles the stage `NO_EXEC` and cancels the attempt (CAL-V0-074) |
 | Pinned executable replaced between the leader's check and its acknowledgment | Unchecked bytes would run | The leader runs the verified object: a root-protected path with no ACL on it or any ancestor, or a private copy of the verified bytes (CAL-V0-074) |
-| Owner dies between a launch refusal's stop and its cancel | The stopped attempt keeps its claim and reservation | Known limit: the owner is released only after the cancel, so no other owner fences it; reopening with the original config and cancelling releases the claim (CAL-V0-074) |
+| Owner dies between a launch refusal's stop and its owner release | The program stays `FINISHED` and unreleased; before the cancel the stopped attempt keeps its claim and reservation | A replacement process takes over the `FINISHED` program once the owner is gone, then cancels the attempt or, after the cancel, reassigns the program (CAL-V0-074) |
 | Leader fails after the fork with no outcome class, and its drain is unproved | A spawned host would be recorded as never run and its claim released | Only a pre-fork refusal settles `NO_EXEC`; the attempt stays in `BLOCKED_RECOVERY` (CAL-V0-074) |
 | Policy host changes under an existing idle or completed program | A reopen would reassign and claim work under the old host | Reopen refuses `UNSUPPORTED` before reassignment, claim or attach; a live attempt keeps drain and cancel only (CAL-V0-074) |
 | Runtime pin changes while a drained `claude-code` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-074) |
@@ -1700,7 +1703,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
 | CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
-| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
