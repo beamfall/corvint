@@ -338,6 +338,28 @@ warning names the wait and says the read is retryable. A dispatcher that still s
 retry the read rather than treat it as a failed command; `REDO_PENDING` that outlives the budget
 means a writer crashed inside the window and the next mutating command redoes its receipt.
 
+## Retry by the `retryable` member
+
+Every non-`OK` result that carries a code also carries `retryable` (CAL-V0-078); `OK` and uncoded
+results do not. Branch on that boolean instead of matching codes. It is true only when every code
+is one of these three, and then the same command with the same `--request-id` can succeed after a
+bounded backoff:
+
+- `LOCK_TIMEOUT`: another writer held the store lock or a preparation admission past the wait;
+  nothing was locked or written. This is the `ERROR` a renew or heartbeat reports under heavy
+  concurrency while the lease is still FRESH; retry it before `expiresAt`.
+- `SNAPSHOT_MOVED`: the store, head, intent tree or worktree moved during the read or before commit.
+  A release or attestation candidate whose head no longer matches, and a criterion capture that
+  wraps a refused read, repeat until the caller's input changes.
+- `REDO_PENDING`: a writer is between receipt link-in and head rename. One that outlives the
+  budget crashed there, and the next mutating command redoes its receipt.
+
+Every other code is false, including `FENCED`, `BOOT_FENCED` and `SUPERVISOR_LOST` (the attempt
+really lost; start a new one), `LIMIT_EXCEEDED`, `JOURNAL_SATURATED` and `UNSUPPORTED_FILESYSTEM`.
+`attempt run` reports false once its child has run, whatever the code, because a retry would run
+the child again. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
+"V1-0780 retryable result amendment" lists every code with its reason.
+
 ## Observe holders and retry debt
 
 Send `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id FRESH_ID`

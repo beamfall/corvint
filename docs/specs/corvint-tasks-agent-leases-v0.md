@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -15,6 +15,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
+ticket V1-0780, the owner's follow-up to [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-078),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
@@ -26,10 +27,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs); Amendments to TCP-00; Failure modes.
+- Read next: V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -1319,6 +1320,11 @@ see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 Accepting this spec accepts these amendments; each keeps the existing ID space.
 The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
 
+- A19: CAL-V0-078 adds an absent-only optional boolean `retryable` to TCP-00 §3.3's closed
+  `taskman-command-result/0` envelope, present exactly on a non-`OK` result that carries at least
+  one §11 code. `OK` and uncoded envelopes keep their bytes, and decoders accept the earlier coded
+  bytes without the member, so the profile stays `taskman-command-result/0`.
+
 - A18: CAL-V0-045 raises the admitted retry bound to 16 without changing legacy value-3
   semantics. CAL-V0-046 adds absent-only optional `handoffEvidence` to the closed attempt codec
   and conditional evidence to RELEASE preimages. Existing absent-member bytes are unchanged.
@@ -1633,3 +1639,79 @@ removes the flag; no store, wire or journal state depends on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-073 | `TestCALV0073_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0073_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |
+
+## V1-0780 retryable result amendment
+
+Authoritative input: ticket V1-0780, the follow-up the owner filed to
+[issue 494](https://github.com/beamfall/corvint/issues/494): at about 8,900 receipts with 13
+concurrent sessions, lease renew and heartbeat returned `ERROR`/`LOCK_TIMEOUT` while the lease was
+FRESH, and the client runner killed healthy runs. Its client now matches a private list of codes.
+The owner asked that Tasks document which result codes are retryable and mark each result with an
+explicit `retryable` fact so callers stop pattern-matching codes.
+
+- `CAL-V0-078`: Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
+  retryable or not, with a stated condition, in one table (`wire.RetryOf`). A code is retryable
+  only when every in-tree producer reports it before anything was decided or written, and its
+  usual cause is a concurrent writer, so that reissuing the same command with the same
+  `--request-id` after a bounded backoff can succeed once that writer finishes; the producers
+  whose cause is the caller's own stale input are named below and repeat until it changes. The retryable set is exactly `LOCK_TIMEOUT` (the store lock or a
+  preparation admission was held past the wait budget), `SNAPSHOT_MOVED` (the store, head, intent
+  tree or worktree moved during a read or before commit) and `REDO_PENDING` (a writer sits between
+  receipt link-in and head rename; one that outlives the budget is redone by the next mutating
+  command). Fencing codes (`FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST`) MUST never be retryable,
+  and a code whose producers are mixed, uncertain or absent MUST be classified not retryable, with
+  the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
+  whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. A
+  command that already ran an external effect a retry would repeat MUST report false whatever
+  its codes; `attempt run` does so once its child has run. `OK` and uncoded results MUST NOT carry
+  the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
+  `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
+  that is not retryable.
+
+The classification, as `wire.RetryOf` records it:
+
+| Codes | Retryable | Condition or reason |
+| --- | --- | --- |
+| `LOCK_TIMEOUT` | yes | Lock or preparation admission held by another writer past the wait; nothing locked or written |
+| `SNAPSHOT_MOVED` | yes | Store, head, intent tree or worktree moved during a read or before commit; nothing decided. A release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes |
+| `REDO_PENDING` | yes | A writer is between receipt link-in and head rename; the next mutating command redoes a crashed writer's receipt |
+| `FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST` | no | Fencing: the attempt or generation really lost; start a new attempt |
+| `LIMIT_EXCEEDED` | no | Mostly static size bounds; the transient preparation-slot and active-attempt caps share the code |
+| `JOURNAL_SATURATED`, `UNSUPPORTED_FILESYSTEM` | no | Capacity, I/O or filesystem-identity conditions that backoff is not known to clear |
+| `STALE_TICKET`, `STALE_POLICY`, `STALE_TREE` | no | A recorded fact moved; re-read and rebuild the request |
+| `REQUEST_ID_CONFLICT`, `MALFORMED`, `DUPLICATE_ID`, `CYCLE`, `DEPENDENCY_MISSING`, `INVALID_PRIORITY`, `GATE_UNKNOWN`, `ADOPT_UNSUPPORTED_FIELD`, `OUT_OF_SCOPE`, `UNSUPPORTED`, `UNSUPPORTED_VERSION`, `INTENT_BRANCH_MISMATCH`, `DIRTY_WORKTREE` | no | The request or local input must change first |
+| `ATTEMPT_LIVE`, `RESOURCE_COLLISION`, `PAUSED`, `DEPENDENCY_UNSATISFIED`, `TICKET_HELD`, `TICKET_STATE`, `APPROVAL_MISSING`, `APPROVAL_REVOKED`, `CUTOVER_MISSING`, `QUIESCENCE_UNPROVED`, `RETRY_EXHAUSTED`, `GATE_FAILED`, `GATE_STALE`, `MISSING_GATE`, `MISSING_EVIDENCE`, `BUDGET_UNKNOWN`, `COVERAGE_UNKNOWN`, `EXTERNAL_UNBOUNDED`, `UNINITIALIZED`, `RESTORE_INCOMPLETE`, `INTENT_DIVERGED`, `JOURNAL_FORKED` | no | Another actor, the owner or a recorded state must change first |
+| `NOEXEC`, `SURVIVORS` | no | Execution results that the same inputs reproduce |
+| `HANDOFF`, `REVIEW_RETURNED`, `DEVELOPMENT_MODE` | no | Dispositions, not failures |
+| `ADJUDICATION`, `BOOT_TIMEOUT`, `BUDGET_EXCEEDED`, `CAPABILITY_UNAVAILABLE`, `CEM_MISSING`, `CONTAMINATED`, `CUTOVER_IN_PROGRESS`, `DOCS_MISSING`, `EFFECT_OWNED`, `INDEPENDENCE_UNVERIFIED`, `OCM_MISSING`, `PLAN_STALE`, `RESTORED`, `REVIEW_INCOMPLETE`, `REVIEW_REJECTED`, `SIGNAL_REFUSED_IDENTITY`, `UNCERTAIN_EFFECT`, `UNPUBLISHED`, `UNRESOLVED_FINDING` | no | Reserved in §11 with no in-tree producer |
+
+The issue 494 client list also names `STALE`, `STORAGE_FAILED` and `HEAD_MOVED`. None is a §11
+code: `STALE` is a gate or review status, `STORAGE_FAILED` is a `taskman-outcome/0` mutation
+outcome (its envelope carries the code beside it, or none), and `HEAD_MOVED` has no producer. The
+member therefore cannot classify them; a `STORAGE_FAILED` mutation reported without a code carries
+no `retryable` member.
+
+Non-goals: no new code, no recoding of an existing producer, no change to `outcomeFor`, exit
+status, `taskman-outcome/0` or the receipt profiles, no retry or backoff inside Tasks, no member on
+`OK` or uncoded results, and no retry budget or deadline advice. `retryable` states that a retry can
+succeed, not that it will, and a retry still reruns any gate or pool command the command executes.
+A renew retried after the lease's `expiresAt` can still be refused or fenced.
+
+Failure modes: a new §11 code without a classification fails
+`TestCALV0078_ClassificationCoversEveryCode`; a fencing code marked retryable fails
+`TestCALV0078_FencingNeverRetryable`. A consumer built before this amendment that decodes the
+closed envelope exactly (the earlier `wire.DecodeResult`, or the companion release's 10-key
+`taskEnvelope` check) refuses a coded non-`OK` envelope that carries the member; no in-tree
+consumer reads such envelopes, because every in-tree closed reader accepts only `OK` results or
+the uncoded `attempt` `NOT_RUN`. Mixed producers keep a code not retryable: `LIMIT_EXCEEDED` for the
+64 live preparation slots and the active-attempt cap, and `SNAPSHOT_MOVED` for a candidate head
+mismatch, which repeats until the caller changes its input.
+
+Acceptance evidence is the traceability row below plus unchanged bytes for `OK` and uncoded
+results under the existing `internal/tasks` tests. Rollback removes the member from
+`Result.Value`, the decoder's optional key and the `attempt run` override; earlier decoders then
+read every envelope again, and no store, journal or receipt state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable` (`internal/tasks/cli`) |
