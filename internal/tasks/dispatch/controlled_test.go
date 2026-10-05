@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 )
 
 // fakeControl is a LaunchControl whose admissions and boundaries a test
@@ -319,5 +321,95 @@ func TestSERVICE500_CancelBeforeAccountingReachesNoBoundary(t *testing.T) {
 	d.progressSave = nil
 	if err := d.Run(context.Background(), 1); !errors.Is(err, ErrSettled) || len(f.bounds) != 1 {
 		t.Fatalf("completed tick: %v boundaries %v", err, f.bounds)
+	}
+}
+
+// SERVICE500-003: a ledger save counts as durable only after its directory
+// sync, so a rename that succeeded but whose sync failed keeps the launch
+// intent unrecorded and the boundary unrecorded until a later synced save.
+func TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded(t *testing.T) {
+	c := testConfig(t, "/bin/sleep 60")
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	f := &fakeControl{admit: true}
+	d, err := OpenControlled("prog", c, q, io.Discard, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	t.Cleanup(func() { syncDir = syncDirectory })
+	f.onAdmit = func() { syncDir = func(string) error { return errors.New("injected directory sync failure") } }
+	if err := d.Run(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	if !reflect.DeepEqual(f.released, []bool{false}) || !reflect.DeepEqual(f.bounds, [][2]bool{{false, false}}) {
+		f.mu.Unlock()
+		t.Fatalf("unsynced save: releases %v bounds %v", f.released, f.bounds)
+	}
+	f.onAdmit, f.admit = nil, false
+	f.mu.Unlock()
+	// The rename itself landed: only its durability is unproven.
+	if l, err := LoadLedger(d.dir, "prog"); err != nil || !Records(l, f.intents[0]) {
+		t.Fatalf("renamed ledger does not hold the worker: %v", err)
+	}
+	syncDir = syncDirectory
+	if err := d.Run(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.bounds[len(f.bounds)-1]; got != [2]bool{true, false} {
+		t.Fatalf("synced live worker boundary %v", got)
+	}
+	for _, w := range d.ledger.Workers {
+		_, _ = killTree(w, time.Second)
+	}
+}
+
+// SERVICE500-003: a launch that started but whose identity could not be
+// read is uncertain, not failed: the dispatcher keeps its pid and wait
+// channel, releases the admission unrecorded, and never again reports a
+// recorded or settled boundary even though its later saves succeed.
+func TestSERVICE500_PostStartIdentityFailureStaysUnresolved(t *testing.T) {
+	c := testConfig(t, "/bin/sleep 60")
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	f := &fakeControl{admit: true, stop: true}
+	d, err := OpenControlled("prog", c, q, io.Discard, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	t.Cleanup(func() { processIdentity = supervisor.ProcessIdentity })
+	f.onAdmit = func() {
+		processIdentity = func(int) (string, error) { return "", errors.New("injected identity failure") }
+	}
+	if err := d.Run(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	processIdentity = supervisor.ProcessIdentity
+	f.mu.Lock()
+	if d.Running() != 0 || !reflect.DeepEqual(f.released, []bool{false}) || !reflect.DeepEqual(f.bounds, [][2]bool{{false, false}}) {
+		f.mu.Unlock()
+		t.Fatalf("post-start failure: running %d releases %v bounds %v", d.Running(), f.released, f.bounds)
+	}
+	f.onAdmit, f.admit = nil, false
+	f.mu.Unlock()
+	if len(d.uncertain) != 1 || d.uncertain[0].pid <= 0 || d.uncertain[0].exit == nil {
+		t.Fatalf("started launch not retained: %+v", d.uncertain)
+	}
+	select {
+	case <-d.uncertain[0].exit:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the started leader was not killed")
+	}
+	if err := d.Run(context.Background(), 2); err != nil {
+		t.Fatalf("an uncertain launch settled the run: %v", err)
+	}
+	l, err := LoadLedger(d.dir, "prog")
+	if err != nil || !Settled(l) {
+		t.Fatalf("later saves failed: %v", err)
+	}
+	for i, b := range f.bounds {
+		if b != [2]bool{false, false} {
+			t.Fatalf("boundary %d %v cleared an uncertain launch", i, b)
+		}
 	}
 }

@@ -478,7 +478,7 @@ func writeAtomic(path string, raw []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	return syncedRename(tmp.Name(), path)
 }
 
 func readBounded(path string, max int64) ([]byte, error) {
@@ -699,4 +699,28 @@ func textOf(v map[string]any) string {
 		}
 	}
 	return ""
+}
+
+// syncedRename publishes tmp at path and then fsyncs the parent directory:
+// a ledger write counts as durable only once the rename itself is durable
+// (SERVICE500-003), so a launch intent is never resolved by a rename a power
+// loss could still undo.
+func syncedRename(tmp, path string) error {
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+// syncDir fsyncs a directory; tests replace it to inject a failed sync
+// after a successful rename.
+var syncDir = syncDirectory
+
+func syncDirectory(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
 }

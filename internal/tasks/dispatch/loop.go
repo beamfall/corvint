@@ -60,6 +60,10 @@ type Dispatcher struct {
 	control LaunchControl
 	// tickSaved reports that the last tick's final ledger save succeeded.
 	tickSaved bool
+	// uncertain holds launches that started but could not be identified:
+	// their trees may outlive the group kill unrecorded, so a controlled
+	// dispatcher never reports its boundaries recorded again.
+	uncertain []*startedError
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -916,7 +920,13 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				d.ledger.Backoff[a.Key] = b
 			}
 			b.CooldownUntil = now.Add(time.Duration(d.Config.TickSeconds) * time.Second * 10)
-			release(true)
+			// Only a failure proven before spawn resolves the intent; a
+			// started but unidentified tree keeps it unresolved.
+			var started *startedError
+			if errors.As(err, &started) {
+				d.uncertain = append(d.uncertain, started)
+			}
+			release(started == nil)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
@@ -1372,6 +1382,19 @@ func (d *Dispatcher) boundary(ctx context.Context, last error) bool {
 	if d.control == nil || ctx.Err() != nil {
 		return false
 	}
-	settled := d.tickSaved && last == nil && d.sweepJob == nil && Settled(d.ledger)
-	return d.control.Boundary(d.tickSaved, settled)
+	recorded := d.tickSaved && len(d.uncertain) == 0
+	settled := recorded && last == nil && d.sweepJob == nil && Settled(d.ledger)
+	return d.control.Boundary(recorded, settled)
 }
+
+// startedError is a launch that started a process but failed after it, so
+// its effect is uncertain rather than proven absent. It keeps the owned pid
+// and wait channel.
+type startedError struct {
+	pid  int
+	exit <-chan int
+	err  error
+}
+
+func (e *startedError) Error() string { return e.err.Error() }
+func (e *startedError) Unwrap() error { return e.err }
