@@ -6,7 +6,7 @@ work deferred `LIMIT_EXCEEDED`. Owner answer 2026-10-05 (D1) chose option (a): c
 selections at the pool's free eligible members, defer the excess `RESOURCE_COLLISION` outside the
 window, add no policy setting, and report a per-pool resource-deferred count.
 
-Requirement: `CAL-V0-078` (S22) in `docs/specs/corvint-tasks-agent-leases-v0.md`, with TCP-00
+Requirement: `CAL-V0-097` (S22) in `docs/specs/corvint-tasks-agent-leases-v0.md`, with TCP-00
 amendment A19. The ID is at least three above CAL-V0-073, the highest on
 `origin/claude/batch-2026-10-05`; the coordinator may renumber it (and S22/A19) on integration.
 
@@ -60,10 +60,31 @@ Limits: live dispatcher or multi-agent qualification is NOT_RUN. The fixture wou
 lane-free tickets under the old code, which blocked the pool tickets instead. The observed
 starvation came from pool-waiting tickets without `requiresPool`, which this change cannot detect.
 
-Dispatcher exposure: `dispatch.Ticket` carries no `requiresPool`, so a role with `planSelected`
-now matches `SELECTED` pool tickets that were previously `BLOCKED`. A worker command that claims
-without `--pool` is refused and counts toward cooldown and parking. No dispatcher code changed;
-this is an open owner question.
+Dispatcher routing (independent review, Codex CHANGES_REQUIRED): the first revision left
+`dispatch.Ticket` without `requiresPool`, so a generic `planSelected` role matched the newly
+`SELECTED` pool tickets, its worker's claim without `--pool` was refused, the ticket cooled down and
+parked, and the pool ticket kept holding the dispatcher's window from lane-free work. The fix
+carries `requiresPool` into the dispatcher's ticket view, adds the role field `match.pool` (a pool
+ticket matches only a role naming its pool, which binds `{pool}`; a role naming a pool takes only
+that pool's tickets), and plans the dispatcher's view with `ClaimablePools` set to the pools the
+ticket roles name, so an unclaimable pool's tickets defer before they count against
+`maxActiveAttempts`. `TestCALV0097_DispatchRoutesPoolTicketsAndKeepsLaneFreeProgress` runs real
+dispatcher ticks and CLI workers on a native store (`maxActiveAttempts` 1, one free member, a P0
+pool ticket, a P2 lane-free ticket, `parkAfter` 1): the generic role claims the lane-free ticket and
+never names the pool ticket in launch, cooldown or park events, and a `match.pool` role then
+receives the pool ticket and its `--pool` claim is admitted. With the routing and plan changes
+reverted the test fails at the first tick, where the generic role launches on the pool ticket.
+`plan preview` and `claim --next` plans are unchanged by this (nil `ClaimablePools`).
 
-Rollback: revert the planner, claim-next filter and `resourceDeferred` member together. No store,
-journal or wire state depends on them.
+Core compatibility: Core's closed `taskman-plan/0` decoder refused the new `resourceDeferred` member
+and pool blockers. It now validates the rows (pool label, unique; `OBSERVED` with a count or
+`NOT_OBSERVED` with null; counted `selected` and `deferred`) and accepts a pool blocker only on a
+`DEFERRED RESOURCE_COLLISION` entry whose pool has a row
+(`TestCALV0097_CoreDecodesResourceDeferredPlan`).
+
+Numbering: the requirement was first drafted as the next free CAL number, which V1-0780 also took;
+it is now `CAL-V0-097`, defined inside `## Requirements` so an OCM over the spec enumerates it
+(`TestAgentLeasesSpecEnumeratesCALV0097`).
+
+Rollback: revert the planner, claim-next filter, `resourceDeferred` member, dispatcher routing and
+`match.pool`, and the Core decoder rows together. No store, journal or wire state depends on them.

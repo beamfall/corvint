@@ -150,3 +150,20 @@ func TestSessionContextDividendSpecEnumeratesEveryObligation(t *testing.T) {
 		t.Fatalf("registry locates %v in %s; want %v", registered, path, want)
 	}
 }
+
+// CAL-V0-097 is defined inside the agent-leases Requirements section, so an
+// OCM over that spec enumerates it.
+func TestAgentLeasesSpecEnumeratesCALV0097(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(requirements, "CAL-V0-097") {
+		t.Fatalf("OCM enumerates %v; want CAL-V0-097", requirements)
+	}
+}

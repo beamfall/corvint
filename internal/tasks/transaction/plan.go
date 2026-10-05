@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -30,6 +31,11 @@ type PlanInput struct {
 	Barrier        bool
 	Reservations   *snapshot.ReservationSet
 	Attempts       map[string]*snapshot.Attempt
+	// ClaimablePools, when non-nil, limits the default plan to the pools its
+	// consumer can claim: an entry requiring any other pool is deferred
+	// naming that pool before it can use the window (CAL-V0-097). Nil, as in
+	// plan preview and claim, leaves every declared pool claimable.
+	ClaimablePools []string
 }
 
 // PlanEntry is one planned ticket. Resources are what a claim of it would
@@ -45,7 +51,7 @@ type PlanEntry struct {
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
-// Pools is the default plan's per-pool selection summary (CAL-V0-078): one
+// Pools is the default plan's per-pool selection summary (CAL-V0-097): one
 // row per policy pool, in policy order, and nil for a --pool plan.
 type TicketPlan struct {
 	MaxActiveAttempts, AvailableWorkers wire.Count
@@ -84,7 +90,7 @@ func PriorityFirst(in PlanInput) TicketPlan {
 	return plan
 }
 
-// poolSelections summarizes a default plan by required pool (CAL-V0-078).
+// poolSelections summarizes a default plan by required pool (CAL-V0-097).
 func poolSelections(in PlanInput, entries []PlanEntry) []PoolSelection {
 	if in.Pool != "" || len(in.Policy.Pools) == 0 {
 		return nil
@@ -272,7 +278,7 @@ func blockerRefs(blockers []ticket.Blocker) []string {
 // spent. In the default plan an entry requiring pool P is also deferred,
 // naming P, once the earlier selections requiring P use up P's free
 // eligible members, or when P's member state was not observed
-// (CAL-V0-078). A deferred entry is not a selection, so it never counts
+// (CAL-V0-097), or when the plan's consumer cannot claim P. A deferred entry is not a selection, so it never counts
 // against maxActiveAttempts.
 func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
 	e.State, e.Reason = PlanDeferred, wire.CodeResourceCollision
@@ -289,7 +295,7 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
 				using++
 			}
 		}
-		if !observed || using >= free {
+		if !observed || using >= free || (in.ClaimablePools != nil && !slices.Contains(in.ClaimablePools, pool)) {
 			e.Blockers, e.poolDeferred = []string{pool}, true
 			return e
 		}
@@ -335,7 +341,7 @@ func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record, l
 // blocks a ticket that requires another pool, and every ticket once the
 // requested pool has no eligible free member. The default plan blocks only a
 // ticket whose required pool the policy does not declare; member capacity
-// defers it in choose instead (CAL-V0-078).
+// defers it in choose instead (CAL-V0-097).
 func poolAvailable(in PlanInput, rec *ticket.Record) bool {
 	if in.Pool == "" {
 		return rec.RequiresPool == "" || in.Policy.Pool(rec.RequiresPool) != nil

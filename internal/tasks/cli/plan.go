@@ -124,7 +124,7 @@ func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 		}
 		// The audited state proves pools.json absent when no member was
 		// ever occupied; that is the empty pool state a claim reads, so
-		// the default plan observes every member free (CAL-V0-078).
+		// the default plan observes every member free (CAL-V0-097).
 		in.Pools = &snapshot.PoolState{QueueID: rc.snap.Head.QueueID, Entries: []snapshot.PoolEntry{}}
 		if raw := proofPools.Records["pools.json"].Raw; len(raw) > 0 {
 			in.Pools, e = snapshot.DecodePools(raw)
@@ -188,7 +188,7 @@ func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPla
 }
 
 // resourceDeferredValue is the default plan's additive per-pool summary
-// (CAL-V0-078), present only when the policy declares pools and no --pool
+// (CAL-V0-097), present only when the policy declares pools and no --pool
 // was requested: free eligible members (null when member state is
 // NOT_OBSERVED), and the entries requiring each pool that were selected or
 // deferred for want of a free member.

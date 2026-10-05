@@ -150,7 +150,10 @@ free eligible member left for it (unreserved members, or those reserved for `--s
 It defers the rest `RESOURCE_COLLISION` with the pool as blocker, outside `maxActiveAttempts`, so
 they do not crowd out lane-free work; the plan's `resourceDeferred` rows give each pool's free,
 selected and deferred counts. Unobservable member state reports `NOT_OBSERVED` and defers.
-`claim --next` without `--pool` skips `SELECTED` pool tickets; claim them with their pool. This
+`claim --next` without `--pool` skips `SELECTED` pool tickets; claim them with their pool. Under
+`corvint-tasks dispatch`, a pool ticket goes only to a role whose `match.pool` names its pool (its
+host should claim with `--pool {pool}`); a pool no role names is deferred in the dispatcher's plan
+so it never takes the window from lane-free roles. This
 only helps tickets that record `requiresPool`: a ticket that waits for an environment without
 declaring it is planned as lane-free and still fills the window (open bugs V1-0754, V1-0758 and
 V1-0759). Record `requiresPool` on create or refine for every ticket that needs a member.

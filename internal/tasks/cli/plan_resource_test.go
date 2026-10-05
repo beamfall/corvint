@@ -10,12 +10,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-078: the default preview defers pool-needing tickets beyond the
+// CAL-V0-097: the default preview defers pool-needing tickets beyond the
 // pool's free eligible members without consuming the window, reports the
 // per-pool summary, and stays a pure read; claim-next without --pool claims
 // the first lane-free SELECTED ticket and an explicit --pool claim admits a
 // SELECTED pool ticket.
-func TestCALV0078_DefaultPreviewIsResourceAware(t *testing.T) {
+func TestCALV0097_DefaultPreviewIsResourceAware(t *testing.T) {
 	r := fixture.TempRepo(t)
 	v := fixture.PolicyValue()
 	b, _ := v.Obj.Get("budgets")

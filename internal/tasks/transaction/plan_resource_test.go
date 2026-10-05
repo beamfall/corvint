@@ -86,10 +86,10 @@ func countPlan(t *testing.T, plan TicketPlan) planCounts {
 	return c
 }
 
-// CAL-V0-078: the issue 584 fixture. Six higher-priority tickets wait for a
+// CAL-V0-097: the issue 584 fixture. Six higher-priority tickets wait for a
 // fully occupied pool; they defer without consuming the window, so the eight
 // free slots go to lane-free work.
-func TestCALV0078_PoolWaitingTicketsDoNotConsumeWindow(t *testing.T) {
+func TestCALV0097_PoolWaitingTicketsDoNotConsumeWindow(t *testing.T) {
 	in := resourcePlanInput(t, 8, 6, 28, 2, 2)
 	plan := PriorityFirst(in)
 	c := countPlan(t, plan)
@@ -104,9 +104,9 @@ func TestCALV0078_PoolWaitingTicketsDoNotConsumeWindow(t *testing.T) {
 	}
 }
 
-// CAL-V0-078: pool-needing selections are capped at the free eligible members;
+// CAL-V0-097: pool-needing selections are capped at the free eligible members;
 // the excess defers with the pool as blocker and the window stays open.
-func TestCALV0078_CapAtFreeEligibleMembers(t *testing.T) {
+func TestCALV0097_CapAtFreeEligibleMembers(t *testing.T) {
 	in := resourcePlanInput(t, 8, 6, 28, 3, 1)
 	plan := PriorityFirst(in)
 	c := countPlan(t, plan)
@@ -129,8 +129,8 @@ func TestCALV0078_CapAtFreeEligibleMembers(t *testing.T) {
 	}
 }
 
-// CAL-V0-078: unobservable member state defers and is never a selection.
-func TestCALV0078_UnobservedPoolStateDefers(t *testing.T) {
+// CAL-V0-097: unobservable member state defers and is never a selection.
+func TestCALV0097_UnobservedPoolStateDefers(t *testing.T) {
 	in := resourcePlanInput(t, 0, 2, 1, 2, 0)
 	in.Pools = nil
 	plan := PriorityFirst(in)
@@ -146,8 +146,8 @@ func TestCALV0078_UnobservedPoolStateDefers(t *testing.T) {
 	}
 }
 
-// CAL-V0-078: an undeclared pool still blocks; every refusal stays definite.
-func TestCALV0078_UndeclaredPoolBlocks(t *testing.T) {
+// CAL-V0-097: an undeclared pool still blocks; every refusal stays definite.
+func TestCALV0097_UndeclaredPoolBlocks(t *testing.T) {
 	in := resourcePlanInput(t, 0, 1, 1, 1, 0)
 	in.Policy.Pools = nil
 	plan := PriorityFirst(in)
@@ -165,10 +165,10 @@ func TestCALV0078_UndeclaredPoolBlocks(t *testing.T) {
 	}
 }
 
-// CAL-V0-078 and CAL-V0-034: the --pool plan is unchanged. It caps all
+// CAL-V0-097 and CAL-V0-034: the --pool plan is unchanged. It caps all
 // selections at the requested pool's free members, blocks tickets requiring
 // another pool, and reports no default-plan summary.
-func TestCALV0078_PoolPlanUnchanged(t *testing.T) {
+func TestCALV0097_PoolPlanUnchanged(t *testing.T) {
 	in := resourcePlanInput(t, 0, 2, 3, 3, 1)
 	in.Policy.Pools = append(in.Policy.Pools, intent.Pool{ID: "other", Members: []string{"o"}})
 	in.Pool = "lanes"
@@ -197,4 +197,28 @@ func mustGet(t *testing.T, in PlanInput, local string) *ticket.Record {
 		t.Fatal(local)
 	}
 	return rec
+}
+
+// CAL-V0-097: Codex's dispatcher shape. With maxActiveAttempts 1, a free
+// member and a higher-priority pool ticket, a consumer that can claim no
+// pool (ClaimablePools empty) defers the pool ticket before it uses the
+// window, so the lane-free ticket is selected; naming the pool restores the
+// pool selection, and nil plans as preview does.
+func TestCALV0097_UnclaimablePoolsDoNotConsumeWindow(t *testing.T) {
+	in := resourcePlanInput(t, 0, 1, 1, 1, 0)
+	in.Policy.MaxActiveAttempts = "1"
+	for _, tc := range []struct {
+		pools []string
+		want  planCounts
+	}{
+		{nil, planCounts{poolSelected: 1, limit: 1}},
+		{[]string{}, planCounts{poolDeferred: 1, freeSelected: 1}},
+		{[]string{"other"}, planCounts{poolDeferred: 1, freeSelected: 1}},
+		{[]string{"lanes"}, planCounts{poolSelected: 1, limit: 1}},
+	} {
+		in.ClaimablePools = tc.pools
+		if c := countPlan(t, PriorityFirst(in)); c != tc.want {
+			t.Fatalf("pools %#v: counts %+v, want %+v", tc.pools, c, tc.want)
+		}
+	}
 }

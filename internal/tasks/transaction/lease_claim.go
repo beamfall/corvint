@@ -309,7 +309,7 @@ func (p TicketPlan) refusal() (string, string) {
 		return wire.CodeTicketState, "no ticket is OPEN or HELD"
 	}
 	if s := p.Selected(); s != nil {
-		// Every SELECTED entry requires a pool this claim did not request (CAL-V0-078).
+		// Every SELECTED entry requires a pool this claim did not request (CAL-V0-097).
 		return wire.CodeResourceCollision, "no SELECTED ticket is claimable without --pool; the first, " + s.Ticket.TicketID.Raw + ", requires pool " + s.Ticket.RequiresPool
 	}
 	first := p.Entries[0]

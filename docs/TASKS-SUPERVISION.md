@@ -86,8 +86,10 @@ worker ID as holder, and the dispatcher writes only `release` (HANDOFF) and `rea
 A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `globalCap`,
 `killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
 `{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
-`roles` (match by labels/kinds/idGlob/states/statuses/planSelected, or a quarantined pool `lane`;
-cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`.
+`roles` (match by labels/kinds/idGlob/states/statuses/planSelected/pool, or a quarantined pool
+`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. A ticket that
+records `requiresPool` matches only a role whose `match.pool` names that pool, with `{pool}` bound
+for its host's `claim ... --pool {pool}`; other roles never see it (CAL-V0-097).
 
 ```sh
 corvint-tasks dispatch --program night --config dispatch.json

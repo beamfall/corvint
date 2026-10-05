@@ -11,6 +11,7 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -123,6 +124,20 @@ func (c *Config) Escalates() bool {
 	return false
 }
 
+// TicketPools is the sorted set of pools the ticket roles' workers claim:
+// the only pools whose tickets the dispatcher's plan may select (CAL-V0-097).
+// It is empty, never nil, when no role names a pool.
+func (c *Config) TicketPools() []string {
+	out := []string{}
+	for _, r := range c.Roles {
+		if r.Match != nil && r.Match.Pool != "" && !slices.Contains(out, r.Match.Pool) {
+			out = append(out, r.Match.Pool)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Match is a conjunction; an empty list matches anything. Statuses defaults
 // to OPEN. States and ExcludeStates name work states (NONE when the reader
 // found none); UNKNOWN never matches a rule that names states. IDGlob matches
@@ -136,6 +151,10 @@ type Match struct {
 	ExcludeStates []string `json:"excludeStates,omitempty"`
 	Statuses      []string `json:"statuses,omitempty"`
 	PlanSelected  bool     `json:"planSelected,omitempty"`
+	// Pool is the pool the role's workers claim with `--pool {pool}`. A
+	// ticket that requires a pool matches only a role naming that pool, and
+	// a role naming a pool matches only its tickets (CAL-V0-029, CAL-V0-097).
+	Pool string `json:"pool,omitempty"`
 	// Gates is a conjunction of ERG-V0-009 native external review predicates.
 	Gates []GateMatch `json:"gates,omitempty"`
 }
@@ -297,6 +316,9 @@ func (c *Config) validate() error {
 			}
 			if err := validGates(m.Gates); err != nil {
 				return fail("role %s gates: %v", r.Name, err)
+			}
+			if len(m.Pool) > 64 {
+				return fail("role %s match pool is longer than 64 bytes", r.Name)
 			}
 		}
 		if l := r.Lane; l != nil && (l.Pool == "" || len(l.Pool) > 64) {
