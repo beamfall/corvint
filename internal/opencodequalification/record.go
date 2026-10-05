@@ -108,6 +108,33 @@ func digest(path string) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
+
+// maxEvidenceBytes bounds every host- or harness-produced file this package reads.
+const maxEvidenceBytes = 16 << 20
+
+var errEvidenceBound = errors.New("evidence stream exceeds bound")
+
+// readBounded reads at most limit bytes, refusing a longer file after limit+1 bytes
+// instead of allocating all of it (V1-0747).
+func readBounded(path string, limit int64) ([]byte, error) {
+	f, e := os.Open(path)
+	if e != nil {
+		return nil, e
+	}
+	defer f.Close()
+	b, e := io.ReadAll(io.LimitReader(f, limit+1))
+	if e != nil {
+		return nil, e
+	}
+	if int64(len(b)) > limit {
+		return nil, errEvidenceBound
+	}
+	return b, nil
+}
+
+// decode admits any JSON object. Evidence rows and reports are open Object maps by
+// design: their producers (the OpenCode host, the harness and the gate probes) may add
+// fields, so unknown members are accepted, and every gate reads only the fields it names.
 func decode(b []byte) (Object, error) {
 	var x Object
 	e := json.Unmarshal(b, &x)
@@ -117,7 +144,7 @@ func decode(b []byte) (Object, error) {
 	return x, e
 }
 func readObject(path string) (Object, error) {
-	b, e := os.ReadFile(path)
+	b, e := readBounded(path, maxEvidenceBytes)
 	if e != nil {
 		return nil, e
 	}

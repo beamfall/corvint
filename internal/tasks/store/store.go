@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -76,6 +77,10 @@ type Report struct {
 	// published receipt. The top-level no-argument reap remains a receiptless
 	// survey; these entries never imply one aggregate transaction.
 	ReapReceipts []ReapReceipt
+	// Escalation is the typed refusal of an ESCALATE or ANSWER, and
+	// EscalationEvents the events a committed or replayed one posted.
+	Escalation       *transaction.EscalationRefusal
+	EscalationEvents []ticket.EscalationEvent
 }
 
 // ReapReceipt identifies one fresh per-attempt reap transaction.

@@ -371,11 +371,18 @@ func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextinde
 	if entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
 		return contextindex.Source{}, fail("input is not a regular Git blob")
 	}
-	data, err := auth.BlobBytes(ctx, entry.OID)
+	var data []byte
+	over := false
+	if limit < gitauth.MaxBlobBytes {
+		// Refuse an over-bound blob from its header, before allocating its body (V1-0747).
+		data, over, err = auth.BlobBytesWithin(ctx, entry.OID, limit)
+	} else {
+		data, err = auth.BlobBytes(ctx, entry.OID)
+	}
 	if err != nil {
 		return contextindex.Source{}, err
 	}
-	if len(data) > limit {
+	if over || len(data) > limit {
 		return contextindex.Source{}, fail("input bound exceeded")
 	}
 	return contextindex.Source{Path: p, BlobHash: entry.OID, Data: data, Mode: entry.Mode}, nil
