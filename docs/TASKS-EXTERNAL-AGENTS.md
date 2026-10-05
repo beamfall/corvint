@@ -145,6 +145,16 @@ corvint-tasks queue status
 corvint-tasks plan preview --pool test-env --stage implement
 ```
 
+The default `plan preview` (no `--pool`) selects a `requiresPool` ticket only while its pool has a
+free eligible member left for it (unreserved members, or those reserved for `--stage` when given).
+It defers the rest `RESOURCE_COLLISION` with the pool as blocker, outside `maxActiveAttempts`, so
+they do not crowd out lane-free work; the plan's `resourceDeferred` rows give each pool's free,
+selected and deferred counts. Unobservable member state reports `NOT_OBSERVED` and defers.
+`claim --next` without `--pool` skips `SELECTED` pool tickets; claim them with their pool. This
+only helps tickets that record `requiresPool`: a ticket that waits for an environment without
+declaring it is planned as lane-free and still fills the window (open bugs V1-0754, V1-0758 and
+V1-0759). Record `requiresPool` on create or refine for every ticket that needs a member.
+
 To avoid a known member for a particular claim or preview, repeat the single-value
 `--exclude-member` flag:
 

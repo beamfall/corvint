@@ -41,12 +41,26 @@ type PlanEntry struct {
 	ClosureComplete bool
 	State, Reason   string
 	Blockers        []string
+	poolDeferred    bool
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
+// Pools is the default plan's per-pool selection summary (CAL-V0-078): one
+// row per policy pool, in policy order, and nil for a --pool plan.
 type TicketPlan struct {
 	MaxActiveAttempts, AvailableWorkers wire.Count
 	Entries                             []PlanEntry
+	Pools                               []PoolSelection
+}
+
+// PoolSelection is one pool's row of a default plan: whether its member
+// state was observed, its free eligible members (meaningful only when
+// observed), and how many entries requiring it were selected or deferred
+// for want of a free member.
+type PoolSelection struct {
+	PoolID                   string
+	Observed                 bool
+	Free, Selected, Deferred int
 }
 
 // PriorityFirst plans the OPEN and HELD tickets by TCP-00 §4.3 with the
@@ -66,7 +80,45 @@ func PriorityFirst(in PlanInput) TicketPlan {
 		}
 		plan.Entries = append(plan.Entries, e)
 	}
+	plan.Pools = poolSelections(in, plan.Entries)
 	return plan
+}
+
+// poolSelections summarizes a default plan by required pool (CAL-V0-078).
+func poolSelections(in PlanInput, entries []PlanEntry) []PoolSelection {
+	if in.Pool != "" || len(in.Policy.Pools) == 0 {
+		return nil
+	}
+	out := make([]PoolSelection, 0, len(in.Policy.Pools))
+	for _, p := range in.Policy.Pools {
+		free, observed := defaultPoolFree(in, p.ID)
+		row := PoolSelection{PoolID: p.ID, Observed: observed, Free: free}
+		for _, e := range entries {
+			if e.Ticket.RequiresPool != p.ID {
+				continue
+			}
+			if e.State == PlanSelected {
+				row.Selected++
+			} else if e.poolDeferred {
+				row.Deferred++
+			}
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// ClaimNext is the entry CLAIM_NEXT claims from this plan (CAL-V0-008): the
+// first SELECTED entry it can admit. Without a requested pool a claim
+// consumes no pool (CAL-V0-029), so it skips SELECTED entries that require
+// one; those remain claimable by an explicit claim naming their pool.
+func (p TicketPlan) ClaimNext(pool string) *PlanEntry {
+	for i := range p.Entries {
+		if e := &p.Entries[i]; e.State == PlanSelected && (pool != "" || e.Ticket.RequiresPool == "") {
+			return e
+		}
+	}
+	return nil
 }
 
 // Selected is the first SELECTED entry, or nil.
@@ -184,6 +236,10 @@ func RecordedClaimability(in PlanInput, rec *ticket.Record) (wire.Value, string)
 	e := planEntry(in, rec)
 	// Unknown blockers must not hide definite reservation/capacity conflicts.
 	e = choose(in, e, nil)
+	if e.poolDeferred && in.Pools == nil {
+		// Unobserved member state is never reported as a definite refusal.
+		return wire.Null(), string(ticket.NotObserved)
+	}
 	if e.State != PlanSelected {
 		return wire.Bool(false), e.Reason
 	}
@@ -213,12 +269,30 @@ func blockerRefs(blockers []ticket.Blocker) []string {
 
 // choose selects an eligible entry unless it collides with a live
 // reservation or an earlier selection, or the active-attempt capacity is
-// spent.
+// spent. In the default plan an entry requiring pool P is also deferred,
+// naming P, once the earlier selections requiring P use up P's free
+// eligible members, or when P's member state was not observed
+// (CAL-V0-078). A deferred entry is not a selection, so it never counts
+// against maxActiveAttempts.
 func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
 	e.State, e.Reason = PlanDeferred, wire.CodeResourceCollision
 	if in.Pool != "" && len(selected) >= poolSlots(in) {
 		e.Blockers = []string{wire.CodeResourceCollision}
 		return e
+	}
+	if in.Pool == "" && e.Ticket != nil && e.Ticket.RequiresPool != "" {
+		pool := e.Ticket.RequiresPool
+		free, observed := defaultPoolFree(in, pool)
+		using := 0
+		for _, s := range selected {
+			if s.Ticket.RequiresPool == pool {
+				using++
+			}
+		}
+		if !observed || using >= free {
+			e.Blockers, e.poolDeferred = []string{pool}, true
+			return e
+		}
 	}
 	for _, en := range in.Reservations.Entries {
 		if ticket.Collide(e.Resources, en.Resources) {
@@ -257,22 +331,49 @@ func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record, l
 	return last != nil && last.TicketRevision == rec.AcceptanceRevision && exhaustedAttempt(last, limit)
 }
 
+// poolAvailable is the pool part of the claim predicate. A --pool plan
+// blocks a ticket that requires another pool, and every ticket once the
+// requested pool has no eligible free member. The default plan blocks only a
+// ticket whose required pool the policy does not declare; member capacity
+// defers it in choose instead (CAL-V0-078).
 func poolAvailable(in PlanInput, rec *ticket.Record) bool {
+	if in.Pool == "" {
+		return rec.RequiresPool == "" || in.Policy.Pool(rec.RequiresPool) != nil
+	}
 	if rec.RequiresPool != "" && rec.RequiresPool != in.Pool {
 		return false
 	}
-	if in.Pool == "" {
-		return true
-	}
 	return poolSlots(in) > 0
 }
+
+// defaultPoolFree is the default plan's count of poolID's free eligible
+// members for the plan's stage, with no exclusions, and whether pool member
+// state was observed at all. Without that observation the count is unknown,
+// never assumed free.
+func defaultPoolFree(in PlanInput, poolID string) (int, bool) {
+	if in.Pools == nil {
+		return 0, false
+	}
+	return freePoolMembers(in, poolID, nil), true
+}
+
 func poolSlots(in PlanInput) int {
-	p := in.Policy.Pool(in.Pool)
-	if CheckPoolExclusions(in.Pool, in.ExcludeMembers, in.Policy) != nil || p == nil {
+	if CheckPoolExclusions(in.Pool, in.ExcludeMembers, in.Policy) != nil {
+		return 0
+	}
+	return freePoolMembers(in, in.Pool, in.ExcludeMembers)
+}
+
+// freePoolMembers counts poolID's members eligible under the claim's stage
+// order and exclusions (CAL-V0-029, CAL-V0-065) that no pool state entry
+// other than the prepared allocation occupies. Health probes never run.
+func freePoolMembers(in PlanInput, poolID string, excluded []string) int {
+	p := in.Policy.Pool(poolID)
+	if p == nil {
 		return 0
 	}
 	slots := 0
-	for _, m := range OrderedPoolMembers(p, in.Stage, in.ExcludeMembers) {
+	for _, m := range OrderedPoolMembers(p, in.Stage, excluded) {
 		busy := false
 		if in.Pools != nil {
 			for _, en := range in.Pools.Entries {
