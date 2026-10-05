@@ -84,8 +84,19 @@ func TestCALV0098_RequestShape(t *testing.T) {
 		}
 	}
 	prep.TicketID, prep.ExcludeAuthors = "", ""
-	if _, err := leaseValue(&prep, q); err != nil {
+	v, err := leaseValue(&prep, q)
+	if err != nil {
 		t.Fatalf("unbound preparation refused: %v", err)
+	}
+	// Exact pre-change POOL_PREPARE preimage and digest, captured at base
+	// 16d3a7d9: an unbound preparation must not gain an excludeAuthors member.
+	want := `{"allocation":"","attemptId":null,"base":null,"branch":null,"evidence":"dd1b3c312cf7d816130354452e9629ce39355b0c534129dd26a08cd9a4502ede","generation":null,"holder":"builder","leaseMinutes":null,"member":"a","pool":"db","reason":null,"scope":null,"stage":"review","ticketId":null,"verb":"POOL_PREPARE","wholeRepository":false}`
+	got := wire.Encode(v)
+	if string(got) != want {
+		t.Fatalf("legacy preparation preimage changed: %s", got)
+	}
+	if d := wire.Sum(got); d != "b2a21d07dd4714be4c88a5e047c6bfcc16e7cd6ef5b2fc1297f0fc7b6e47f9e0" {
+		t.Fatalf("legacy preparation digest changed: %s", d)
 	}
 }
 

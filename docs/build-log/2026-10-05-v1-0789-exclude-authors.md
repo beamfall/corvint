@@ -32,6 +32,8 @@ CAL-V0-074..075 V1-0755, 078 V1-0780, 079..081 V1-0793, 082..085 V1-0790, 095 V1
   derivation, which can go stale before preparation commits. `POOL_PREPARE` now carries the ticket
   and mode and rederives at its own snapshot, refusing an excluded or unverified member before
   `PREPARING` is recorded; the store then reruns the claim for a fresh derivation.
+  A preparation without the fields keeps its exact pre-change preimage, pinned by bytes and
+  digest in `TestCALV0098_RequestShape` (Codex round 2 P3).
 - Plan: the same derivation is a per-ticket blocker in `PriorityFirst`, so `claim --next`, its
   outside-lock scope deriver and `plan preview` agree. As in a named claim, it is evaluated before
   pool capacity (Codex review finding 2), so an exhausted pool keeps `INDEPENDENCE_UNVERIFIED` and
