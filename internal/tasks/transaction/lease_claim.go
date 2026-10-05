@@ -195,6 +195,23 @@ func (c leaseContext) baseCommit() (string, error) {
 	return base, nil
 }
 
+// pinnedEscalationAnswers copies the same-acceptance answered references from
+// the audited record (ESC-V0-005). Entries are already sorted by request ID.
+// The guidance bound needs no blob read here: every escalation write re-selects
+// these answers under GUIDANCE_CAPACITY, and only such writes change the set.
+func pinnedEscalationAnswers(rec *ticket.Record) []snapshot.EscalationAnswerRef {
+	if rec.Escalations == nil {
+		return nil
+	}
+	var out []snapshot.EscalationAnswerRef
+	for _, e := range rec.Escalations.Entries {
+		if e.State == "ANSWERED" && e.AcceptanceRevision == rec.AcceptanceRevision {
+			out = append(out, snapshot.EscalationAnswerRef{RequestID: e.RequestID, OriginSha256: e.OriginSha256, HeadSha256: e.HeadSha256})
+		}
+	}
+	return out
+}
+
 // admitted builds the RUNNING attempt at the next queue generation
 // (TM-V0-011): a retry keeps the prior identity and records the fenced
 // generation it closes.
@@ -215,6 +232,7 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	a.Stage = c.l.Stage
 	a.RetryAccounting = &snapshot.RetryAccounting{Disposition: "NONE"}
 	a.OperatorNote = rec.OperatorNote
+	a.EscalationAnswers = pinnedEscalationAnswers(rec)
 	a.PoolAllocation, e = c.allocate(a)
 	if e != nil {
 		return nil, e

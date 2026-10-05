@@ -169,6 +169,9 @@ type Attempt struct {
 	LaneUntouchedAttestation *LaneUntouchedAttestation
 	// OperatorNote pins the ticket's note reference at admission (ON-V0-007).
 	OperatorNote *ticket.OperatorNoteReference
+	// EscalationAnswers pins the same-acceptance answered escalations at
+	// admission, sorted by request ID (ESC-V0-005). Absent when none.
+	EscalationAnswers []EscalationAnswerRef
 
 	// HandoffTo and HandoffReason are the CAL-V0-082/083 recorded target of
 	// a clean terminal hand-off; empty when none was recorded.
@@ -320,6 +323,42 @@ func readBudget(r *wire.Reader) map[string]BudgetField {
 	return out
 }
 
+// EscalationAnswerRef names one answered escalation by its origin and head
+// event digests. The blobs live in the evidence store.
+type EscalationAnswerRef struct {
+	RequestID    string
+	OriginSha256 wire.Digest
+	HeadSha256   wire.Digest
+}
+
+// MaxEscalationAnswerRefs matches the ticket's escalation entry bound.
+const MaxEscalationAnswerRefs = 64
+
+func readEscalationAnswers(r *wire.Reader) []EscalationAnswerRef {
+	out := []EscalationAnswerRef{}
+	for _, x := range r.Array(MaxEscalationAnswerRefs, true) {
+		x.Closed("requestId", "originSha256", "headSha256")
+		ref := EscalationAnswerRef{RequestID: x.Field("requestId").Identifier(), OriginSha256: x.Field("originSha256").Digest(), HeadSha256: x.Field("headSha256").Digest()}
+		if r.Err() == nil && len(out) > 0 && out[len(out)-1].RequestID >= ref.RequestID {
+			x.Fail(wire.CodeMalformed, "escalation answers must be strictly sorted by requestId")
+		}
+		out = append(out, ref)
+	}
+	if r.Err() == nil && len(out) == 0 {
+		r.Fail(wire.CodeMalformed, "escalationAnswers must be absent when empty")
+	}
+	return out
+}
+
+// EscalationAnswersValue encodes pinned answer references in request order.
+func EscalationAnswersValue(refs []EscalationAnswerRef) wire.Value {
+	vals := make([]wire.Value, 0, len(refs))
+	for _, x := range refs {
+		vals = append(vals, wire.ObjectValue(wire.NewObject().Set("requestId", wire.String(x.RequestID)).Set("originSha256", wire.String(string(x.OriginSha256))).Set("headSha256", wire.String(string(x.HeadSha256)))))
+	}
+	return wire.Array(vals...)
+}
+
 func readPriorGenerations(r *wire.Reader) []PriorGeneration {
 	out := []PriorGeneration{}
 	for _, p := range r.Array(-1, true) {
@@ -423,7 +462,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -443,6 +482,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 			return nil, err
 		}
 		a.OperatorNote = note
+	}
+	if wire.Has(v, "escalationAnswers") {
+		a.EscalationAnswers = readEscalationAnswers(r.Field("escalationAnswers"))
 	}
 	if wire.Has(v, "lastHeartbeatAt") {
 		x := r.Field("lastHeartbeatAt").Timestamp()
@@ -674,6 +716,9 @@ func (a *Attempt) Encode() ([]byte, error) {
 	}
 	if a.OperatorNote != nil {
 		o.Set("operatorNote", a.OperatorNote.Value())
+	}
+	if len(a.EscalationAnswers) > 0 {
+		o.Set("escalationAnswers", EscalationAnswersValue(a.EscalationAnswers))
 	}
 	if a.LastHeartbeatAt != nil {
 		o.Set("lastHeartbeatAt", wire.String(string(*a.LastHeartbeatAt)))

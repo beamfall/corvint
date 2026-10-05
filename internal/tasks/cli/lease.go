@@ -557,4 +557,28 @@ func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
 	if d.OperatorNote.Err != nil {
 		res.Warnings = append(res.Warnings, "operator note unavailable ("+noteErrCode(d.OperatorNote.Err)+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
 	}
+	res.Items[0].Obj.Set("escalationAnswers", claimedAnswersValue(d))
+	if d.EscalationAnswers.Err != nil {
+		res.Warnings = append(res.Warnings, "escalation answers unavailable ("+wire.CodeOf(escalationReadError(d.EscalationAnswers.Err))+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
+	}
+}
+
+// claimedAnswersValue is the `escalationAnswers` member of a claim or
+// claim-next result (ESC-V0-005): the answers pinned by the claim's own
+// admission, separate from operatorNote. Unresolvable material is UNAVAILABLE
+// with its code and the pinned references, never an empty answer list.
+func claimedAnswersValue(d *store.ClaimDelivery) wire.Value {
+	a := d.EscalationAnswers
+	o := wire.NewObject().Set("sourceTicketRecordSha256", wire.String(string(d.TicketRecordSha256)))
+	if a.Err != nil {
+		o.Set("state", wire.String("UNAVAILABLE")).Set("code", wire.String(wire.CodeOf(escalationReadError(a.Err))))
+		o.Set("references", snapshot.EscalationAnswersValue(a.Refs)).Set("answers", wire.Null())
+		return wire.ObjectValue(o)
+	}
+	answers := a.Value
+	if len(a.Refs) == 0 {
+		answers = wire.Array()
+	}
+	o.Set("state", wire.String("CURRENT")).Set("answers", answers)
+	return wire.ObjectValue(o)
 }

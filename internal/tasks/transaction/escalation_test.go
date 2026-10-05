@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -569,4 +570,93 @@ func TestIssue502_AnswerGrantAndEmptyShorthand(t *testing.T) {
 	esc502Refuse(t, short, so, "NO_OPEN_QUESTION")
 	exact, eo := esc502Answer(o, "a3", "missing")
 	esc502Refuse(t, exact, eo, "QUESTION_NOT_FOUND")
+}
+
+// TestESCV0005_ClaimPinsAndResolvesAnswers: admission pins only the record's
+// same-acceptance ANSWERED references, and the resolver rebuilds exactly the
+// reducer's guidance from immutable blobs, refusing missing or cross-bound
+// material instead of dropping it.
+func TestESCV0005_ClaimPinsAndResolvesAnswers(t *testing.T) {
+	d := func(c string) wire.Digest { return wire.Digest(strings.Repeat(c, 64)) }
+	rec := &ticket.Record{AcceptanceRevision: "2", Escalations: &ticket.EscalationRefs{Entries: []ticket.EscalationRef{
+		{RequestID: "a", OriginSha256: d("1"), HeadSha256: d("2"), AcceptanceRevision: "2", State: "ANSWERED"},
+		{RequestID: "b", OriginSha256: d("3"), HeadSha256: d("3"), AcceptanceRevision: "2", State: "OPEN"},
+		{RequestID: "c", OriginSha256: d("4"), HeadSha256: d("5"), AcceptanceRevision: "1", State: "ANSWERED"},
+		{RequestID: "d", OriginSha256: d("6"), HeadSha256: d("7"), AcceptanceRevision: "2", State: "SUPERSEDED"},
+		{RequestID: "e", OriginSha256: d("8"), HeadSha256: d("9"), AcceptanceRevision: "2", State: "ANSWERED"},
+	}}}
+	got := pinnedEscalationAnswers(rec)
+	if len(got) != 2 || got[0] != (snapshot.EscalationAnswerRef{RequestID: "a", OriginSha256: d("1"), HeadSha256: d("2")}) || got[1].RequestID != "e" {
+		t.Fatalf("pinned %+v", got)
+	}
+	if pinnedEscalationAnswers(&ticket.Record{AcceptanceRevision: "1"}) != nil {
+		t.Fatal("a record without escalations pinned answers")
+	}
+
+	r, o := esc502Fixture()
+	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	a, ao := esc502Answer(o, "answer", "")
+	pinned := esc502Post(o.Snapshot, esc502Apply(t, a, ao))
+	o.Snapshot = pinned
+	r.RequestID = "next"
+	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	a, ao = esc502Answer(o, "answer-next", "next")
+	latest := esc502Post(o.Snapshot, esc502Apply(t, a, ao))
+	refs := pinnedEscalationAnswers(&ticket.Record{AcceptanceRevision: pinned.AcceptanceRevision, Escalations: pinned.Refs})
+	want, e := SelectEscalationAnswers(pinned)
+	if e != nil || len(refs) != 1 {
+		t.Fatalf("fixture: %v %+v", e, refs)
+	}
+	views, value, e := ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, refs, latest.Blobs)
+	if e != nil || !bytes.Equal(esc502JSON(views), esc502JSON(want)) || len(value.Arr) != 1 {
+		t.Fatalf("resolved %v %+v, want %+v", e, views, want)
+	}
+	if id, _ := value.Arr[0].Obj.Get("requestId"); id.Str != refs[0].RequestID {
+		t.Fatalf("value %+v", value)
+	}
+	if _, value, e := ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, nil, nil); e != nil || len(value.Arr) != 0 {
+		t.Fatalf("empty pin: %v", e)
+	}
+
+	missing := map[wire.Digest][]byte{refs[0].OriginSha256: latest.Blobs[refs[0].OriginSha256]}
+	_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, refs, missing)
+	esc502Code(t, e, "MISSING_EVIDENCE")
+	swapped := []snapshot.EscalationAnswerRef{{RequestID: refs[0].RequestID, OriginSha256: refs[0].HeadSha256, HeadSha256: refs[0].OriginSha256}}
+	_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, swapped, latest.Blobs)
+	esc502Code(t, e, "ANSWER_BINDING")
+	var nextHead wire.Digest
+	for _, x := range latest.Refs.Entries {
+		if x.RequestID == "next" {
+			nextHead = x.HeadSha256
+		}
+	}
+	cross := []snapshot.EscalationAnswerRef{{RequestID: refs[0].RequestID, OriginSha256: refs[0].OriginSha256, HeadSha256: nextHead}}
+	_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, cross, latest.Blobs)
+	esc502Code(t, e, "ANSWER_BINDING")
+	_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID+"9", refs, latest.Blobs)
+	esc502Code(t, e, "EVENT_IDENTITY")
+
+	// A rehashed answer that keeps its origin and source binding but breaks
+	// the terminal chain (previous event or revision) is refused, as validate
+	// refuses it for the ticket's own references.
+	for name, edit := range map[string]func(*wire.Object){
+		"previous": func(o *wire.Object) { o.Set("previousSha256", wire.String(string(nextHead))) },
+		"revision": func(o *wire.Object) {
+			o.Set("revision", wire.String("3")).Set("resolvedPreviousRevision", wire.String("2"))
+		},
+	} {
+		v, err := wire.Parse(latest.Blobs[refs[0].HeadSha256])
+		if err != nil {
+			t.Fatal(err)
+		}
+		edit(v.Obj)
+		raw := wire.EncodeFile(v)
+		blobs := map[wire.Digest][]byte{refs[0].OriginSha256: latest.Blobs[refs[0].OriginSha256], wire.Sum(raw): raw}
+		rehashed := []snapshot.EscalationAnswerRef{{RequestID: refs[0].RequestID, OriginSha256: refs[0].OriginSha256, HeadSha256: wire.Sum(raw)}}
+		_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, rehashed, blobs)
+		if e == nil {
+			t.Fatalf("%s: rehashed answer resolved", name)
+		}
+		esc502Code(t, e, "TERMINAL_CHAIN")
+	}
 }
