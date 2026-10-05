@@ -38,10 +38,10 @@ Requirements: `ERG-V0-011` in `docs/specs/corvint-tasks-external-reviews-v0.md`,
 - Byte identity: tickets without review references, and queues whose policy declares no gates,
   render exactly as before. The CLI test compares the encoded bytes.
 - Executable gate results are not part of the offer predicate. They stay NOT_OBSERVED in these
-  reads. Whether they should withhold the offer is recorded as an open question in the spec's Open
-  decisions, together with whether `queue status` and `roadmap` should carry the offer and how the
-  required gate set is chosen. Withholding on NOT_OBSERVED would make the offer unreachable in a
-  queue with required executable gates.
+  reads. The owner decided on 2026-10-05, in the spec's Open decisions, that they do not withhold
+  the offer, that `queue status` and `roadmap` do not carry it, and that the required set stays
+  every review gate the policy declares plus every one the ticket references. Withholding on NOT_OBSERVED would make the offer unreachable
+  in a queue with required executable gates.
 - A DEFERRED plan entry may still offer. A resource collision with other work or the attempt limit
   is not a fact about the ticket, and it does not block a manual completion.
 - `queue status` and `roadmap` are unchanged and still report `admit` for an offered ticket. The
