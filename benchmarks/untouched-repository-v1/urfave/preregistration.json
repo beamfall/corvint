@@ -1,0 +1,191 @@
+{
+  "profile": "corvint-untouched-repository-preregistration/0",
+  "benchmark": "untouched-repository-v1/urfave",
+  "ticket": "V1-0019",
+  "requirements": [
+    "PRS-V1-008"
+  ],
+  "authoredAt": "2026-09-29",
+  "repository": "https://github.com/urfave/cli.git",
+  "repositorySelection": "Owner selected urfave/cli on 2026-09-29, conditioned on a final provenance check finding no prior Corvint use. The bounded declared/historical corpus identity check found none; its scope and limits are retained in the admission packet. The pin is the public main HEAD advertised before any corpus derivation. Decision 0427 records the owner selection, the admission correction and the search scope. The sole integration coordinator reserved that number before this packet was sealed.",
+  "pin": "7389061eb0182169c496021a09729735ac2b797b",
+  "module": "github.com/urfave/cli/v3",
+  "targetVersion": "1.0.0-rc.2",
+  "candidate": "no source build: run --candidate-dir DIR takes the verified 1.0.0-rc.2 release-artifact-v0 directory; the harness selects the host corvint_<goos>_<goarch>.tar.gz, requires its SHA-256 to equal its SHA256SUMS line and the retainedArchive.sha256 of that target in verification-report.json whose verdict is PASS (a missing archive refuses candidate-archive-missing, a missing SHA256SUMS candidate-checksums-missing, a missing verification-report.json candidate-report-missing, a report that is not a JSON object candidate-report-malformed, a verdict other than PASS, no revision or another retained digest candidate-report-mismatch), extracts the single regular-file member whose basename is corvint (zero, several or a link refuses), refuses candidate-binary-not-executable when --version cannot execute, times out after 60 s or exits non-zero, refuses candidate-version-mismatch unless the --version output reads Corvint targetVersion, and records the archive SHA-256, the binary SHA-256, the --version output and the report revision as candidateCommit; no other binary is scored",
+  "harness": "benchmarks/untouched-repository-v1/harness.py run --benchmark-dir DIR; identical bytes to the V1-0432/0433 harness retained for Corvint and Beamfall deviation 1; no harness change for this repository",
+  "runsPerMeasurement": 3,
+  "jobs": {
+    "orientation": {
+      "useCaseId": "UC-TASK-ORIENTATION",
+      "question": "Before editing, does the packet show every file a reviewer must see?",
+      "cases": "corpus cases with orientation.eligible true",
+      "task": "single-parent commit: its subject with a trailing ' (#N)' removed, then the conventional prefix stripped; merge: oldest non-merge commit subject in parent..branchTip not matching chore: (bind|seal|rebind), conventional prefix stripped",
+      "treatment": "corvint --root WT context --task TASK --limit 20 at the first parent; packet = distinct results[].evidence[].path",
+      "baseline": "plain git grep: task tokens of at least 4 characters minus stopwords, git grep -l -i -F per token at the first parent, rank by distinct matched tokens then path, keep the top 20 paths",
+      "critical": "files existing at the first parent that the commit modified or deleted",
+      "abstention": "exit status non-zero or ok not true; an abstention scores an empty packet and fails the job"
+    },
+    "consequence": {
+      "useCaseId": "UC-CHANGE-CONSEQUENCE",
+      "question": "After editing, does the loop select every changed Go package for verification?",
+      "cases": "every corpus case runs; only cases with consequence.eligible true are scored",
+      "treatment": "corvint --root WT affected --base FIRST_PARENT at the commit; covered = go: unit IDs in plan.selected plus the go: unit named by each plan.unknown entry with reason NO_SELECTABLE_TEST (daily-loop amendment 1). Also recorded, unscored: corvint impact --base FIRST_PARENT --range-profile expanded-256 --limit 20",
+      "baseline": "plain git: changed root-module Go package import paths plus every root-module package whose .go files contain the quoted import path (git grep -l -F)",
+      "critical": "root-module Go packages (import paths under the module path read from go.mod at the commit) containing a .go file the commit added or modified; nested modules, testdata and _ or . directories excluded",
+      "abstention": "exit status non-zero or ok not true; an abstention scores an empty selection and fails the job"
+    },
+    "completion": {
+      "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION",
+      "question": "Does the loop refuse to call a change complete when its evidence is missing or stale?",
+      "cemLevel": {
+        "cases": "the map that loop L0 run 1 committed, checked out at that bind commit in a copy of the L0 run 1 clone, base PIN^; no case when L0 run 1 committed no map",
+        "positiveControl": "corvint cem status --map .corvint/change.cem.json --expected-base BASE --target BIND --max-unknown K --max-mechanical 0, K = unknown hunks in the unmutated map; runsPerMeasurement runs",
+        "reencodedControl": "M0: the unmutated map re-encoded by the harness and committed on top of BIND must be COMPLETE",
+        "designatedMissingEvidence": {
+          "M1-stale-target": "a commit on top of BIND appends to a changed path; target = that commit",
+          "M2-hunk-removed": "the first supported hunk removed; orphaned evidence pruned; committed",
+          "M3-basis-removed": "the first supported hunk keeps disposition supported with an empty basis; committed",
+          "M4-evidence-digest-staled": "the spanSha256 of the evidence cited by the first supported hunk replaced; committed",
+          "M5-wrong-base": "the unmutated map checked against --expected-base BIND^",
+          "M6-supported-to-unknown": "the first supported hunk marked unknown/no-evidence with the ceiling left at K; committed"
+        },
+        "expectedRefusal": {
+          "M1-stale-target": "patch-digest-mismatch",
+          "M2-hunk-removed": "uncited-hunk",
+          "M3-basis-removed": "unsupported-without-basis",
+          "M4-evidence-digest-staled": "fabricated-evidence-id",
+          "M5-wrong-base": "base-revision-mismatch",
+          "M6-supported-to-unknown": "max-unknown-exceeded"
+        },
+        "verdict": "COMPLETE iff exit status 0; any other exit is REFUSED"
+      },
+      "loopLevel": {
+        "base": "PIN^ = afa0a306aca344a64200a1d680bd8de46dfaad7b",
+        "target": "PIN",
+        "sequence": "fresh plain clone of --repo on branch rehearsal at PIN; append the six adopter ignore entries docs/DOGFOOD.md gives under DCW-V0-023 (.corvint/dogfood-report.json, .corvint/change.ocm-intents, .corvint/change.ocm-status.json, .corvint/change.ocm.*.json, .corvint/self-observations.jsonl, .context-corvint/) to the clone's .git/info/exclude, which no commit carries, so the repository content stays untouched; corvint dogfood change BASE; write citations (one README.md 1:3 specification row per worklist hunk); corvint dogfood change BASE; git add -f .corvint/change.cem.json and commit 'chore: bind change evidence'; corvint dogfood change BASE; corvint dogfood check BASE; a failed add or bind commit makes the run HARNESS-FAILURE whatever dogfood check prints",
+        "inputs": "DOGFOOD_TASK is PIN's subject verbatim; DOGFOOD_INTENTS_FILE holds #no-intent-declared; DOGFOOD_VERIFY_FILE holds go test -count=1 ./...; DOGFOOD_OUTCOME=passed; DOGFOOD_CITATIONS as above; every other inherited DOGFOOD_* variable is removed",
+        "gitIsolation": "every Git and Corvint subprocess the harness starts runs without inherited GIT_* or CORVINT_* variables and with GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1, GIT_CONFIG_SYSTEM=/dev/null and author and committer bench <bench@invalid>, so no host Git configuration or identity reaches a run; commit dates are not fixed because no score depends on a commit SHA",
+        "observations": "every Corvint invocation records its exit status, wall time, stdout size and digest, stdout and stderr tails, every dogfood output line containing NOT_PRODUCED (notProduced) and the coordination-time-impact NOT_PRODUCED reason (impactAbstention, null when impact produced)",
+        "citationSpan": "README.md lines 1-3 at PIN^ are the project welcome heading, a blank line and the Go Reference badge. README.md is unchanged in PIN^..PIN; the span is a literal protocol citation fixture, not evidence that every changed hunk is semantically justified.",
+        "positiveRuns": "L0 runsPerMeasurement fresh runs",
+        "controls": {
+          "L0c-restored-in-place-control": "L0 run 1 restored in place unchanged; controls for the restore itself",
+          "L3c-reencoded-control": "L0 run 1 restored in place, then the committed map rewritten as compact JSON without indentation, with identical content, and committed on top of the bind, then corvint dogfood change BASE rerun before dogfood check; the CEM contract requires strict JSON but no byte encoding, so the map means the same and only the bytes and HEAD change; controls for a commit past the bind carrying valid evidence followed by the change rerun, which L1-L3 make and L4 does not"
+        },
+        "harnessFailure": "a control or designated mutation whose mutation or commit does not happen, or whose re-encoded bytes equal the committed bytes, is HARNESS-FAILURE and neither dogfood change nor dogfood check is run for it; a non-zero dogfood change exit in a variant is recorded as data, not a harness failure; a HARNESS-FAILURE control or positive run is not COMPLETE and a HARNESS-FAILURE designated case is not informative; when L0 run 1 committed no bind, L0c, L3c and L1-L4 have no evidence to act on and are each HARNESS-FAILURE",
+        "placement": "L0c, L3c and L1-L4 each run at the L0 run 1 path, restored in place beforehand from a copy of that clone taken after L0 run 1, and the clone is restored once more before the CEM level copies it; L3c and L1-L3, whose mutation commits past the bind, rerun corvint dogfood change BASE and then run corvint dogfood check BASE, as the adopter loop does after a commit (docs/DOGFOOD.md section 4, DCW-V0-023), and both steps are recorded while the verdict comes from dogfood check alone; L0c and L4 make no commit and run dogfood check only, because a check-only run after a new commit is refused dogfood-report-drift whatever its evidence; when impact abstains, dogfood check requires the --root recorded in the impact argv to name the checked worktree, so a copy at another path is refused context-abstention-evidence-drift whatever its evidence",
+        "designatedMissingEvidence": {
+          "L1-stale-after-bind": "a commit after the bind appends to the first file PIN^..PIN added or modified (suggestions.go)",
+          "L2-cem-removed": "the committed map removed in a later commit",
+          "L3-cem-tampered": "the committed map's first hunk basis emptied in a later commit",
+          "L4-local-outcome-removed": ".git/corvint/local-outcome.json deleted",
+          "L5-verify-missing": "a fresh loop without DOGFOOD_VERIFY_FILE",
+          "L6-citations-missing": "a fresh loop without DOGFOOD_CITATIONS"
+        },
+        "expectedRefusal": {
+          "L1-stale-after-bind": "dogfood-check: REFUSE dirty-worktree",
+          "L2-cem-removed": "dogfood-check: REFUSE dirty-worktree",
+          "L3-cem-tampered": "dogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete",
+          "L4-local-outcome-removed": "dogfood-check: FAIL local-outcome-evidence-drift",
+          "L5-verify-missing": "dogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete",
+          "L6-citations-missing": "dogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete"
+        },
+        "verdict": "COMPLETE iff corvint dogfood check exits 0 and its stdout has the exact line dogfood-check: PASS (internal/dogfoodflow/check.go:389); the no-change variant dogfood-check: PASS no-change-clean-worktree does not match"
+      },
+      "baseline": "plain git (git diff --stat and git log over the range) emits no evidence verdict; its latency is recorded and its correctness is NOT_APPLICABLE",
+      "informative": "a CEM mutant is informative only if its positive control and M0 are COMPLETE; L1-L3 only if L0c and L3c, which makes the same commit and change rerun with valid evidence, are COMPLETE; L4 only if L0c is COMPLETE; L5-L6 only if L0 run 1 is COMPLETE; a HARNESS-FAILURE designated case is never informative; a REFUSED designated case is informative only if its expectedRefusal (cemLevel.expectedRefusal, loopLevel.expectedRefusal) is among its refusals: for a CEM mutant the cem status output's code, verification.issues codes and policyIssues codes, for a loop case every line matching ^dogfood-(change|check): (FAIL|REFUSE) \\S+ in the output of its final dogfood check and, for L1-L3, of the dogfood change rerun before it"
+    },
+    "differencesFromDailyLoop": [
+      "corpus: the 20 most recent first-parent commits ending at the pin (git log --first-parent -n 20 PIN), single-parent commits included, instead of every first-parent merge; the corpus also records module and window",
+      "task: a single-parent commit uses its subject with a trailing ' (#N)' removed and the conventional prefix stripped; merges keep the daily-loop rule; an empty task is excluded as E3-no-task",
+      "no path exclusions or corpus pathspec are added: all top-20 first-parent commits are derived with the inherited E1-E5 eligibility/exclusion rules",
+      "orientation critical has no CEM-cited evidence paths, and a case is eligible only with at most 100 changed files and a non-empty critical set (an add-only commit has no critical file to miss)",
+      "consequence critical reads the module path from go.mod at the commit (github.com/urfave/cli/v3); scoring is otherwise identical, amendment 1 included",
+      "completion runs the product verbs corvint dogfood change/check BASE, because urfave/cli has no dogfood Makefile targets",
+      "loop base and target are PIN^ and PIN of urfave/cli, not candidateCommit and a --rehearsal-target; the clone is of --repo on branch rehearsal",
+      "citations cite README.md 1:3 instead of AGENTS.md 26:28; intents are #no-intent-declared instead of a spec path; verify is go test -count=1 ./... instead of py_compile; DOGFOOD_TASK is PIN's subject",
+      "the loop verdict needs the exact stdout line dogfood-check: PASS rather than any PASS text",
+      "each loop clone gets the DCW-V0-023 adopter ignore entries in .git/info/exclude, because urfave/cli, unlike Corvint, does not ignore Corvint's outputs",
+      "loop controls and L1-L4 run at the L0 run 1 path restored from a pristine copy, not in copies at other paths (loopLevel.placement)",
+      "L1 appends to the first file PIN^..PIN added or modified, with no exclusion filter",
+      "the CEM level runs on the L0 run 1 bind in a copy of that clone, because urfave/cli carries no sealed CEMs; the daily-loop E5 rule has no analogue",
+      "the candidate is the verified 1.0.0-rc.2 release archive, not a harness source build; receipts carry the report revision as repositoryRevision; the result records externalRepository and externalRepositoryRevision, and the receipt binds them through the result and preregistration digests, since the sealed-benchmark attestation is a closed field set",
+      "run refuses unless the corpus head equals pin, the corpus module equals module, and the corpus re-derives byte-identically",
+      "run computes the preregistration digest from the committed file and refuses preregistration-digest-mismatch when it differs from the sealed value in preregistration.sha256, and preregistration-digest-argument-mismatch when --prereg-sha256 differs from it; the daily loop trusts the operator-supplied digest",
+      "loop clones remove every inherited DOGFOOD_* variable before setting the documented inputs; the daily loop passes the host environment through",
+      "every Git and Corvint subprocess runs under jobs.completion.loopLevel.gitIsolation; the daily loop inherits the host Git configuration and identity",
+      "run refuses run-id-invalid unless --run-id matches ^[a-z0-9][a-z0-9-]{0,63}$, refuses run-id-already-used when runs/RUN_ID.json or runs/RUN_ID.started.json exists, and writes runs/RUN_ID.started.json before any execution against the repository",
+      "a missing SHA256SUMS or verification-report.json, a malformed report and a binary that does not execute are named refusals",
+      "each Corvint observation records notProduced and impactAbstention (jobs.completion.loopLevel.observations)",
+      "L3c re-encodes the committed map as non-canonical JSON so its bytes differ, and every mutation and bind commit is checked (jobs.completion.loopLevel.harnessFailure); the daily-loop L3c rewrites identical bytes and ignores the commit status",
+      "L4 needs only L0c, because it makes no commit past the bind; L1-L3 need L0c and L3c",
+      "L1-L3 and L3c rerun corvint dogfood change BASE after their commit and before dogfood check (loopLevel.placement); the daily loop runs dogfood check alone after the commit, which is refused dogfood-report-drift whatever the evidence",
+      "a REFUSED designated case is informative only with its declared expectedRefusal (informative); the daily loop counts any refusal"
+    ]
+  },
+  "thresholds": {
+    "C1-orientation": "PASS iff zero treatment-only critical misses and zero abstentions over the scored cases",
+    "C2-consequence": "PASS iff zero treatment-only critical misses and zero abstentions over the scored cases",
+    "C3-completion": "PASS iff zero false complete-evidence verdicts over the designated missing-evidence cases and every designated case is informative",
+    "treatmentOnlyCriticalMiss": "a critical path or package the treatment omitted and the fixed baseline included",
+    "costSavings": "a savings claim requires observed complete task cost for both arms on the same unique cases, every observation row well formed and no treatment human failure, with at least 25% lower median and at least 20% lower p75 complete task tokens (the PCCO-V0 promotion gate) and C1-C3 PASS; otherwise the result is 'measured, no savings claim', and a malformed, duplicate or unmatched observation file is named under invalidObservations",
+    "descriptiveOnly": "latency, packet bytes, selected-package counts and invocation counts are reported without a threshold and support no claim; wall-clock latency is recorded with the host CPU count and load averages at start and end because the host is shared"
+  },
+  "notObservedWithoutLiveAgent": {
+    "completeTaskCost": "tokens per solved task need a live model-driven agent; supply --agent-observations JSONL rows {arm, caseId, completeTaskTokens, humanFailure} to record them",
+    "humanFailureRate": "needs a human reviewer outcome per task; recorded through the same JSONL rows"
+  },
+  "retries": "a positive-run loop step expected to succeed (post-commit dogfood change and dogfood check) that exits non-zero is an unexpected failure; the sequence is fixed and never retried, so a retry count above the documented sequence is structurally zero and reported as such",
+  "exclusions": {
+    "E1": "a commit with no parent has nothing to diff against",
+    "E2": "a commit whose diff against its first parent is empty",
+    "E3-no-task": "a commit whose task text is empty under the task rule",
+    "E4": "orientation does not score cases with more than 100 changed files or with an empty critical set",
+    "E5": "consequence cases without a changed root-module Go package run but are not scored"
+  },
+  "partition": {
+    "orientation": "held-out prospective: this preparation used only Git-derived repository/corpus metadata; no Corvint output on urfave/cli was observed. No prior use was found in the enumerated declared/historical corpus identity search; unrecorded private use is not observable.",
+    "consequence": "held-out prospective: this preparation used only Git-derived repository/corpus metadata; no Corvint output on urfave/cli was observed. No prior use was found in the enumerated declared/historical corpus identity search; unrecorded private use is not observable.",
+    "completion": "held-out prospective: this preparation used only Git-derived repository/corpus metadata; no Corvint output on urfave/cli was observed. No prior use was found in the enumerated declared/historical corpus identity search; unrecorded private use is not observable."
+  },
+  "preSealObservations": [
+    "Owner selection and a targeted declared/historical corpus identity provenance check preceded source pinning. No prior urfave/cli use was found; search scope, refs and exclusions are retained in admission evidence. This is not an assertion about unrecorded private experiments.",
+    "The source pin is the full main HEAD returned by git ls-remote --symref before deriving any cases. A complete no-checkout clone contains that commit/tree; no source tests, Corvint index/query/context/affected/dogfood invocation or scoring was run against it.",
+    "The corpus was derived by the existing byte-identical harness corpus command using Git log, diff, ls-tree and show only; no case was filtered using candidate output. No pathspec or path exclusions were added.",
+    "Only structural loop inputs were checked: PIN has a parent, root go.mod supplies its module, README.md lines 1-3 exist unchanged, PIN^..PIN has an added/modified path and adds no sealed CEM. This is not a loop smoke or a C3 verdict.",
+    "The independent reviewer must approve the exact draft preregistration/corpus/harness digests before preregistration.sha256 is written; public integration and preregistration publication must precede candidate execution.",
+    "The candidate is not frozen in this preparation. targetVersion stays 1.0.0-rc.2 under the existing next-run protocol; changing it requires a prospective deviation and reseal before execution. The implementation and all fixes must be frozen before the first Corvint invocation against these cases."
+  ],
+  "freeze": "Seal and publish the independently reviewed preregistration before any Corvint execution against urfave/cli. Freeze implementation and exact candidate bytes before the first case run. A Corvint change after first observation invalidates that candidate and burns observed cases for future tuning; a harness change requires a new numbered preregistration and retained prior bytes/results.",
+  "invalidation": [
+    "the digest of this committed file differs from preregistration.sha256 or from --prereg-sha256, or the digest of corpus.json or harness.py differs from the sealed value: the run refuses",
+    "corpus.json differs from a fresh derivation of the 20 first-parent commits ending at pin, or its head or module differs from pin or module: the run refuses",
+    "a scored binary not extracted by the harness from the verified 1.0.0-rc.2 archive",
+    "changing the corpus, rules or thresholds after the first corpus observation; a changed harness is a new numbered preregistration and the earlier runs stay",
+    "output that differs across runs of one measurement is marked deterministic false and scored on run 1",
+    "no run file or receipt is deleted",
+    "no Corvint change is made to improve this benchmark's score (no tuning of the candidate)"
+  ],
+  "deviations": [
+    {
+      "number": 1,
+      "date": "2026-09-29",
+      "reason": "Prospective repository substitution after admission found spf13/cobra at its exact pin already scored in retained development results. Owner selected urfave/cli conditioned on the bounded final provenance check; no prior urfave/cli use was found.",
+      "supersedesSelection": "decision 0425 item 4 only; chi and cobra preregistrations, seals and historical runs remain immutable",
+      "protocolChange": "repository URL, pin, module, corpus and repository-specific loop descriptions only; existing harness, top-20 first-parent selection, thresholds, controls, measurement count and exclusions are unchanged",
+      "candidateExecution": "NOT_RUN",
+      "publication": "NOT_RUN",
+      "decision": "0427"
+    }
+  ],
+  "outputs": {
+    "result": "benchmarks/untouched-repository-v1/urfave/runs/RUN_ID.json (corvint-untouched-repository-result/0)",
+    "receipts": "benchmarks/untouched-repository-v1/urfave/receipts/RUN_ID/USE_CASE_ID.json in corvint-use-case-evidence/0 sealed-benchmark form; result and attestation outcome are PASS or FAIL per job, repositoryRevision is candidateCommit, the attestation is the closed sealed-benchmark set, and subjects are this file, corpus.json and the result",
+    "startedMarker": "benchmarks/untouched-repository-v1/urfave/runs/RUN_ID.started.json (corvint-untouched-repository-started/0), written after the candidate is verified and before any execution against the repository, never removed; a marker without a result records an aborted run, and a run id with a marker or a result refuses run-id-already-used",
+    "losingRuns": "every run file, started marker and receipt is kept, whatever its outcome"
+  },
+  "sealed": {
+    "corpusSha256": "b9cf140717e58ab1656111dd962240e37866fa0b4356402a221d4d33a5ed48cc",
+    "harnessSha256": "b67cc95abd92ffffeef9bf1bccfce4d0316e270716d6cd065948e802994f9eb2"
+  }
+}

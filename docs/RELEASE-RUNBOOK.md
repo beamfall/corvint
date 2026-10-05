@@ -176,7 +176,7 @@ Public tags and published assets are never moved, deleted or rewritten. To roll 
    the installer never replaces a version in place, so the previous store is intact.
 3. Fix on main, then run this runbook from step 1 for `X.Y.Z+1`. Do not re-tag `vX.Y.Z`.
 4. If the defect is a security issue, follow [SECURITY.md](../SECURITY.md): the withdrawn release
-   is outside the support window the moment its successor is published.
+   is outside the support window immediately upon withdrawal (decision 0433).
 
 ## Existing security evidence and remaining qualification
 

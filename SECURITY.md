@@ -2,15 +2,26 @@
 
 ## Supported versions
 
-Support window for every 0.x version: only the latest published release receives security fixes.
-A release is outside the window the moment its successor is published, and a withdrawn release
-(see the [release runbook](docs/RELEASE-RUNBOOK.md)) is outside it immediately. The 1.0 support
-window is set by the owner at V1-0021 (accept and promote Corvint 1.0 stable) and recorded here.
+Historical support window for every 0.x version: only the latest published release receives
+security fixes. A 0.x release is outside the window when its successor is published; a withdrawn
+release is outside it immediately.
+
+From 1.0.0, security fixes cover the latest published, non-withdrawn **stable Corvint release
+artifact set** until its next stable successor is published (decision
+[0433](docs/decisions/0433-rc2-stable-signing-and-support-policy-2026-09-29.md)). A prerelease does
+not end the current stable release's support. Withdrawn releases are unsupported immediately.
+Release candidates are evaluation builds with no stable support guarantee. Exact independently
+versioned component support is listed with the release artifacts; experimental and FALLBACK
+surfaces do not gain a stable Core promise.
 
 | Version | Supported |
 |---|---|
-| latest published 0.x release | yes |
-| any earlier 0.x release | no |
+| latest published, non-withdrawn stable release from 1.0.0 | yes, until its next stable successor |
+| earlier stable or withdrawn release | no |
+| release candidate | no stable support guarantee |
+
+No older-version backport promise or fix-time SLA is made. The private reporting channel and
+seven-day acknowledgment target below remain unchanged.
 
 ## Reporting a vulnerability
 
