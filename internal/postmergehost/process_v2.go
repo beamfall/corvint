@@ -103,6 +103,9 @@ const (
 	processExecutableLimitV2 = 1 << 30
 	// processSweepLimitV2 is the fixed observer recipe's PID inventory bound.
 	processSweepLimitV2 = 1 << 15
+	// processWaitDelayV2 bounds how long Wait keeps copying output that an
+	// escaped process still holds open after the leader exited.
+	processWaitDelayV2 = 3 * time.Second
 )
 
 func processRefusedV2(detail string) error {
@@ -160,7 +163,9 @@ func (c *ProcessCollectorV2) SupervisorCapture() int { return c.supervisor }
 // Start launches cmd as an owned process, waits for its exec to settle,
 // captures its birth and then delivers stdin and closes it. cmd must be
 // unstarted, have no preset Stdin and an explicit Env inside the verifier's
-// invocation allowlist; a nil Env would inherit unrecorded variables.
+// invocation allowlist; a nil Env would inherit unrecorded variables. A
+// zero WaitDelay is set to a bound, so an escaped process holding its output
+// cannot stall Wait.
 func (c *ProcessCollectorV2) Start(ctx context.Context, cmd *exec.Cmd, spec OwnedLaunchSpecV2, stdin []byte) (*OwnedProcessV2, error) {
 	if err := c.checkSpec(spec); err != nil {
 		return nil, err
@@ -206,11 +211,11 @@ func (c *ProcessCollectorV2) AwaitChild(ctx context.Context, path string, argv, 
 		pid = childProcessV2(parent.pid, want)
 		return pid != 0
 	}); err != nil {
-		return nil, err
+		return nil, c.fail(err)
 	}
 	index, err := c.capture(ctx, spec.Phase, pid)
 	if err != nil {
-		return nil, err
+		return nil, c.fail(err)
 	}
 	// The parent is still its captured birth after the child's capture, so
 	// its PID named that one process throughout discovery: a PID is never
@@ -262,7 +267,14 @@ func (c *ProcessCollectorV2) Capture(ctx context.Context, p *OwnedProcessV2, pha
 	if phase != "during-run" {
 		return 0, processRefusedV2("an extra capture must be during-run")
 	}
-	return c.capture(ctx, phase, p.pid)
+	if c.sealed {
+		return 0, processRefusedV2("no workload capture follows the final sweep")
+	}
+	index, err := c.capture(ctx, phase, p.pid)
+	if err != nil {
+		return 0, c.fail(err)
+	}
+	return index, nil
 }
 
 // SetOutcome records native cancellation or timeout of an owned launch.
@@ -272,7 +284,9 @@ func (c *ProcessCollectorV2) SetOutcome(p *OwnedProcessV2, cancelled, timedOut b
 
 // Retire waits until the owned process is an unreaped zombie, captures that
 // retirement, reaps it and records its exact wait status. The launch is then
-// completed with its reaped retirement.
+// completed with its reaped retirement. A Wait error other than the exit
+// status, such as output still held open after the Wait delay, fails the
+// collection.
 func (c *ProcessCollectorV2) Retire(ctx context.Context, p *OwnedProcessV2) error {
 	if p.Cmd == nil || p.Cmd.Process == nil || p.Cmd.ProcessState != nil {
 		return processRefusedV2("only an unreaped collector-started process can be retired")
@@ -293,7 +307,7 @@ func (c *ProcessCollectorV2) Retire(ctx context.Context, p *OwnedProcessV2) erro
 	if _, _, start, ok := statFieldsV2(c.proof.Captures[p.Capture].StatBefore); ok {
 		c.reaped[procBirthV2{pid: p.pid, start: start}] = true
 	}
-	_ = p.Cmd.Wait()
+	waitErr := p.Cmd.Wait()
 	capture := &c.proof.Captures[index]
 	if status, ok := p.Cmd.ProcessState.Sys().(syscall.WaitStatus); ok && status.Signaled() {
 		signal := int(status.Signal())
@@ -304,6 +318,10 @@ func (c *ProcessCollectorV2) Retire(ctx context.Context, p *OwnedProcessV2) erro
 	}
 	launch := &c.proof.Launches[p.Launch]
 	launch.RetirementCaptureIndex, launch.Completed = &index, true
+	var exit *exec.ExitError
+	if waitErr != nil && !errors.As(waitErr, &exit) {
+		return c.fail(processFailedV2("wait for "+strconv.Itoa(p.pid), waitErr))
+	}
 	return nil
 }
 
@@ -441,6 +459,9 @@ func (c *ProcessCollectorV2) start(ctx context.Context, cmd *exec.Cmd, spec Owne
 	if stdout != nil {
 		cmd.Stdout = &limitedBufferV2{buffer: stdout, limit: processStdoutLimitV2}
 	}
+	if cmd.WaitDelay == 0 {
+		cmd.WaitDelay = processWaitDelayV2
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, processFailedV2("stdin pipe", err)
@@ -483,8 +504,8 @@ func (c *ProcessCollectorV2) fail(err error) error {
 }
 
 // abandonFailed retires the owned tree of a collector-started process after
-// a failed step, reaps its leader and records the failure. A cleanup that
-// leaves a descendant running is part of the returned failure.
+// a failed step, reaps its leader within the Wait delay and records the
+// failure. An unresolved cleanup is part of the returned failure.
 func (c *ProcessCollectorV2) abandonFailed(p *OwnedProcessV2, err error) error {
 	if p.stdin != nil {
 		_ = p.stdin.Close()
@@ -501,60 +522,178 @@ func (c *ProcessCollectorV2) abandonFailed(p *OwnedProcessV2, err error) error {
 	return c.fail(err)
 }
 
-// retireTreeV2 is the owned cleanup boundary of a failed launch. It stops
-// the leader and then every live descendant reachable through PPID links,
-// reading a member's children only once that member is stopped: a stopped
-// member cannot fork, and its exited children stay unreaped zombies, so no
-// child PID can be reused during the walk. It then kills the descendants and
-// the leader and waits, within a bound, until no descendant birth is still
-// running. A descendant already reparented away before the walk, such as a
-// double fork, is outside the boundary, as it is for the final sweep.
+// retireTreeListedV2 lets a test act on a frozen member's listed children
+// before the walk freezes them; it is nil outside tests.
+var retireTreeListedV2 func(member int, children []procBirthV2) []procBirthV2
+
+// retireTreeV2 is the owned cleanup boundary of a failed launch. It freezes
+// the leader and then every descendant reachable through PPID links, and
+// signals each one only through a pidfd whose process still has the listed
+// birth, so a recycled PID is never signalled or walked. A member counts as
+// frozen only when every one of its threads is stopped: a frozen member
+// cannot fork, and its exited children stay unreaped, so its listed children
+// are stable. The walk repeats until a pass finds every member frozen and no
+// new child. It then kills the members and waits, within a bound, until none
+// is still running. Any member that exited or changed before its freeze was
+// confirmed may have had children that were reparented away; that, a
+// recycled PID or a member still running is reported as unresolved. A
+// descendant already reparented away before the walk, such as a double
+// fork, is outside the boundary, as it is for the final sweep.
 func retireTreeV2(leader int) error {
-	deadline := time.Now().Add(processSettleV2)
-	_, _, start, ok := processStatV2(leader)
-	if !ok {
+	if !procfs.Supported {
 		return nil
 	}
-	members := map[int]uint64{leader: start}
-	_ = syscall.Kill(leader, syscall.SIGSTOP)
-	var failure error
-	for queue := []int{leader}; len(queue) > 0 && failure == nil; queue = queue[1:] {
-		pid := queue[0]
-		if failure = waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "stop of "+strconv.Itoa(pid), func() bool {
-			state, _, start, ok := processStatV2(pid)
-			return !ok || start != members[pid] || state == 'T' || state == 't' || state == 'Z' || state == 'X'
-		}); failure != nil {
+	deadline := time.Now().Add(processSettleV2)
+	var unresolved []string
+	members := map[procBirthV2]int{}
+	defer func() {
+		for _, fd := range members {
+			_ = syscall.Close(fd)
+		}
+	}()
+	_, _, start, ok := processStatV2(leader)
+	if !ok {
+		return errors.New("unresolved: leader " + strconv.Itoa(leader) + " is not observable")
+	}
+	seen := map[procBirthV2]bool{{pid: leader, start: start}: true}
+	queue := []procBirthV2{{pid: leader, start: start}}
+	for settled := false; !settled; {
+		if time.Now().After(deadline) {
+			unresolved = append(unresolved, "the walk did not settle")
 			break
 		}
-		for _, child := range childBirthsV2(pid) {
-			if _, seen := members[child.pid]; !seen {
-				members[child.pid] = child.start
-				_ = syscall.Kill(child.pid, syscall.SIGSTOP)
-				queue = append(queue, child.pid)
+		for _, birth := range queue {
+			fd, err := freezeMemberV2(birth, -1, deadline)
+			if err != nil {
+				unresolved = append(unresolved, err.Error())
+				continue
+			}
+			members[birth] = fd
+		}
+		queue, settled = nil, true
+		for birth, fd := range members {
+			if !frozenV2(fd, birth) {
+				settled = false
+				if _, err := freezeMemberV2(birth, fd, deadline); err != nil {
+					unresolved = append(unresolved, err.Error())
+					_ = syscall.Close(fd)
+					delete(members, birth)
+					continue
+				}
+			}
+			children := childBirthsV2(birth.pid, true)
+			if !frozenV2(fd, birth) {
+				settled = false
+				continue
+			}
+			if retireTreeListedV2 != nil {
+				children = retireTreeListedV2(birth.pid, children)
+			}
+			for _, child := range children {
+				if !seen[child] {
+					seen[child], settled = true, false
+					queue = append(queue, child)
+				}
 			}
 		}
 	}
-	for pid, start := range members {
-		if _, _, now, ok := processStatV2(pid); ok && now == start {
-			_ = syscall.Kill(pid, syscall.SIGKILL)
-		}
+	for _, fd := range members {
+		_ = signalProcessV2(fd, syscall.SIGKILL)
 	}
 	running := func() []string {
 		var out []string
-		for pid, start := range members {
-			if state, _, now, ok := processStatV2(pid); pid != leader && ok && now == start && state != 'Z' && state != 'X' {
-				out = append(out, strconv.Itoa(pid))
+		for birth, fd := range members {
+			if state, ok := observeMemberV2(fd, birth); ok && state != 'Z' && state != 'X' {
+				out = append(out, strconv.Itoa(birth.pid))
 			}
 		}
 		slices.Sort(out)
 		return out
 	}
-	if err := waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "descendant exit", func() bool {
+	if err := waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "member exit", func() bool {
 		return len(running()) == 0
 	}); err != nil {
-		return errors.New("descendants still running: " + strings.Join(running(), ","))
+		unresolved = append(unresolved, "still running: "+strings.Join(running(), ","))
 	}
-	return failure
+	if len(unresolved) != 0 {
+		slices.Sort(unresolved)
+		return errors.New("unresolved: " + strings.Join(unresolved, "; "))
+	}
+	return nil
+}
+
+// freezeMemberV2 opens a pidfd for birth when fd is negative, confirms the
+// birth through it, stops the process and waits until all its threads are
+// stopped. It returns the pidfd, or an error naming why the member could not
+// be confirmed frozen; the pidfd is then closed when this call opened it.
+func freezeMemberV2(birth procBirthV2, fd int, deadline time.Time) (int, error) {
+	name := "pid " + strconv.Itoa(birth.pid)
+	opened := fd < 0
+	if opened {
+		var err error
+		if fd, err = openProcessV2(birth.pid); errors.Is(err, syscall.ESRCH) {
+			return -1, errors.New(name + " exited before its freeze was confirmed")
+		} else if err != nil {
+			return -1, errors.New(name + " could not be opened: " + err.Error())
+		}
+	}
+	fail := func(detail string) (int, error) {
+		if opened {
+			_ = syscall.Close(fd)
+		}
+		return -1, errors.New(name + " " + detail)
+	}
+	state, ok := observeMemberV2(fd, birth)
+	if !ok {
+		return fail("is no longer its listed birth")
+	}
+	if state == 'Z' || state == 'X' {
+		return fail("exited before its freeze was confirmed")
+	}
+	if err := signalProcessV2(fd, syscall.SIGSTOP); err != nil {
+		return fail("could not be stopped: " + err.Error())
+	}
+	var exited bool
+	if err := waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "freeze of "+name, func() bool {
+		if state, ok := observeMemberV2(fd, birth); !ok || state == 'Z' || state == 'X' {
+			exited = true
+		}
+		return exited || frozenV2(fd, birth)
+	}); err != nil {
+		return fail("was not confirmed frozen")
+	}
+	if exited {
+		return fail("exited before its freeze was confirmed")
+	}
+	return fd, nil
+}
+
+// observeMemberV2 reads the state of birth and confirms through its pidfd
+// that the PID still named that process during the read; ok is false once
+// the process was reaped or the PID names another birth.
+func observeMemberV2(fd int, birth procBirthV2) (byte, bool) {
+	state, _, start, ok := processStatV2(birth.pid)
+	if !ok || start != birth.start || signalProcessV2(fd, 0) != nil {
+		return 0, false
+	}
+	return state, true
+}
+
+// frozenV2 reports whether every thread of birth is stopped; the leader's
+// state alone would let another thread fork before the group stop ends.
+func frozenV2(fd int, birth procBirthV2) bool {
+	tasks, err := os.ReadDir("/proc/" + strconv.Itoa(birth.pid) + "/task")
+	if err != nil || len(tasks) == 0 {
+		return false
+	}
+	for _, task := range tasks {
+		data, err := os.ReadFile("/proc/" + strconv.Itoa(birth.pid) + "/task/" + task.Name() + "/stat")
+		if state, _, _, ok := statFieldsV2(data); err != nil || !ok || state != 'T' {
+			return false
+		}
+	}
+	state, ok := observeMemberV2(fd, birth)
+	return ok && state == 'T'
 }
 
 // deliver retains and writes stdin, closes it and finishes the invocation.
@@ -829,8 +968,9 @@ func processZombieV2(pid int) bool {
 	return ok && state == 'Z'
 }
 
-// childBirthsV2 lists the live (non-zombie) children of parent.
-func childBirthsV2(parent int) []procBirthV2 {
+// childBirthsV2 lists the children of parent, without zombies unless
+// zombies is set.
+func childBirthsV2(parent int, zombies bool) []procBirthV2 {
 	var out []procBirthV2
 	entries, _ := os.ReadDir("/proc")
 	for _, entry := range entries {
@@ -838,7 +978,7 @@ func childBirthsV2(parent int) []procBirthV2 {
 		if err != nil {
 			continue
 		}
-		if state, ppid, start, ok := processStatV2(pid); ok && ppid == parent && state != 'Z' && state != 'X' {
+		if state, ppid, start, ok := processStatV2(pid); ok && ppid == parent && (zombies || (state != 'Z' && state != 'X')) {
 			out = append(out, procBirthV2{pid: pid, start: start})
 		}
 	}
@@ -847,7 +987,7 @@ func childBirthsV2(parent int) []procBirthV2 {
 
 // childProcessV2 finds the live child of parent whose argv is exactly argv.
 func childProcessV2(parent int, argv []byte) int {
-	for _, child := range childBirthsV2(parent) {
+	for _, child := range childBirthsV2(parent, false) {
 		if cmdline, _ := os.ReadFile("/proc/" + strconv.Itoa(child.pid) + "/cmdline"); bytes.Equal(cmdline, argv) {
 			return child.pid
 		}

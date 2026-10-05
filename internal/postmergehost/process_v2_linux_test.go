@@ -11,11 +11,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -294,5 +297,222 @@ func TestProcessCollectorV2OwnsObserverCommand(t *testing.T) {
 	args[0] = "--internal-envelope"
 	if c.observer.Args[0] != "--internal-process-observer" {
 		t.Fatal("observer argv follows caller mutation")
+	}
+}
+
+func startOwnedV2(t *testing.T, c *ProcessCollectorV2, cmd *exec.Cmd) *OwnedProcessV2 {
+	t.Helper()
+	p, err := c.Start(context.Background(), cmd, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if cmd.ProcessState == nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	})
+	return p
+}
+
+func killBirthV2(b procBirthV2) {
+	if runningV2(b) {
+		_ = syscall.Kill(b.pid, syscall.SIGKILL)
+	}
+}
+
+// listedHookV2 installs the walk's test hook for one test.
+func listedHookV2(t *testing.T, hook func(member int, children []procBirthV2) []procBirthV2) {
+	retireTreeListedV2 = hook
+	t.Cleanup(func() { retireTreeListedV2 = nil })
+}
+
+func expectUnresolvedV2(t *testing.T, err error, detail string) {
+	t.Helper()
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+	if !strings.Contains(err.Error(), "owned cleanup: unresolved:") || !strings.Contains(err.Error(), detail) {
+		t.Fatalf("cleanup not reported unresolved with %q: %v", detail, err)
+	}
+}
+
+// The walk never signals or walks a PID whose process is not the listed
+// birth. The hook gives the listed child another start time, the controlled
+// stand-in for a PID recycled between listing and signalling: the real
+// process is neither stopped nor killed and the cleanup is unresolved.
+func TestProcessCollectorV2CleanupSkipsRecycledPID(t *testing.T) {
+	c, err := NewProcessCollectorV2(context.Background(), "recycled", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := shellV2(t, "sleep 31.1 & wait")
+	p := startOwnedV2(t, c, cmd)
+	child, ok := findProcessV2("sleep", "31.1")
+	if !ok {
+		t.Fatal("no sleep child")
+	}
+	t.Cleanup(func() { killBirthV2(child) })
+	listedHookV2(t, func(_ int, children []procBirthV2) []procBirthV2 {
+		for i := range children {
+			if children[i] == child {
+				children[i].start++
+			}
+		}
+		return children
+	})
+	expectUnresolvedV2(t, c.abandonFailed(p, errors.New("test cleanup")), "is no longer its listed birth")
+	if state, _, start, ok := processStatV2(child.pid); !ok || start != child.start || state == 'T' || state == 'Z' {
+		t.Fatalf("the stand-in process was signalled: state %c", state)
+	}
+	if cmd.ProcessState == nil {
+		t.Fatal("leader not reaped")
+	}
+}
+
+// A child of a parent that ignores SIGCHLD is reaped as soon as it exits,
+// freeing its PID. One that exits between listing and freezing is reported
+// unresolved, never treated as retired.
+func TestProcessCollectorV2CleanupReportsAutoReapedChild(t *testing.T) {
+	perl, err := exec.LookPath("perl")
+	if err != nil {
+		t.Skip("NOT_OBSERVED: no perl: " + err.Error())
+	}
+	c, err := NewProcessCollectorV2(context.Background(), "auto-reaped", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(perl, "-e", `$SIG{CHLD} = "IGNORE"; exec "sleep", "31.2" unless fork; sleep 30`)
+	cmd.Env = shellV2(t, "").Env
+	p := startOwnedV2(t, c, cmd)
+	child, ok := findProcessV2("sleep", "31.2")
+	if !ok {
+		t.Fatal("no sleep child")
+	}
+	t.Cleanup(func() { killBirthV2(child) })
+	var reaped bool
+	listedHookV2(t, func(member int, children []procBirthV2) []procBirthV2 {
+		if member == p.pid && !reaped {
+			_ = syscall.Kill(child.pid, syscall.SIGKILL)
+			for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline) && !reaped; time.Sleep(processPollV2) {
+				_, _, start, ok := processStatV2(child.pid)
+				reaped = !ok || start != child.start
+			}
+		}
+		return children
+	})
+	err = c.abandonFailed(p, errors.New("test cleanup"))
+	if !reaped {
+		t.Fatal("the child was not reaped automatically")
+	}
+	expectUnresolvedV2(t, err, "exited before its freeze was confirmed")
+}
+
+// A child that forks a grandchild and exits after it was listed but before
+// it was frozen leaves the grandchild reparented outside the tree. Cleanup
+// reports that unresolved instead of success.
+func TestProcessCollectorV2CleanupReportsForkAndExit(t *testing.T) {
+	c, err := NewProcessCollectorV2(context.Background(), "fork-exit", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fifo := filepath.Join(t.TempDir(), "release")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := shellV2(t, `sh -c 'read x <"$0"; sleep 31.3 & exit 0' `+fifo+` & sleep 30.5 & wait`)
+	p := startOwnedV2(t, c, cmd)
+	var grandchild procBirthV2
+	var released bool
+	t.Cleanup(func() { killBirthV2(grandchild) })
+	listedHookV2(t, func(member int, children []procBirthV2) []procBirthV2 {
+		if member != p.pid || released {
+			return children
+		}
+		released = true
+		if err := os.WriteFile(fifo, []byte("go\n"), 0o600); err != nil {
+			t.Error(err)
+			return children
+		}
+		grandchild, _ = findProcessV2("sleep", "31.3")
+		for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline); time.Sleep(processPollV2) {
+			for _, child := range children {
+				if state, _, _, _ := processStatV2(child.pid); state == 'Z' {
+					return children
+				}
+			}
+		}
+		t.Error("the released child did not exit")
+		return children
+	})
+	expectUnresolvedV2(t, c.abandonFailed(p, errors.New("test cleanup")), "exited before its freeze was confirmed")
+	if !runningV2(grandchild) {
+		t.Fatal("the fixture's grandchild did not escape, so the case was not exercised")
+	}
+}
+
+// TestProcessHelperV2 is a multithreaded Go process for the cleanup tests;
+// it runs only when re-executed with the helper argument.
+func TestProcessHelperV2(t *testing.T) {
+	if flag.Arg(0) != "process-helper-sleep" {
+		t.Skip("helper process only")
+	}
+	time.Sleep(30 * time.Second)
+}
+
+// A multithreaded member counts as frozen only once every thread is
+// stopped, and such a member is still retired cleanly.
+func TestProcessCollectorV2CleanupFreezesAllThreads(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewProcessCollectorV2(context.Background(), "threads", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(self, "-test.run=^TestProcessHelperV2$", "--", "process-helper-sleep")
+	cmd.Env = []string{}
+	p := startOwnedV2(t, c, cmd)
+	threads := 0
+	for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline) && threads < 2; time.Sleep(processPollV2) {
+		tasks, _ := os.ReadDir("/proc/" + strconv.Itoa(p.pid) + "/task")
+		threads = len(tasks)
+	}
+	if threads < 2 {
+		t.Fatal("helper is not multithreaded")
+	}
+	if err := c.abandonFailed(p, errors.New("test cleanup")); err == nil || err.Error() != "test cleanup" {
+		t.Fatalf("multithreaded cleanup: %v", err)
+	}
+	if cmd.ProcessState == nil {
+		t.Fatal("leader not reaped")
+	}
+}
+
+// An escaped process that holds the leader's output open cannot stall the
+// leader's reaping beyond the Wait delay.
+func TestProcessCollectorV2EscapedOutputDoesNotStallWait(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var orphan procBirthV2
+	t.Cleanup(func() { killBirthV2(orphan) })
+	retain := hookRetainV2{memRetainV2: memRetainV2{}, id: "held/launch/1/invocation", before: func() {
+		orphan, _ = findProcessV2("sleep", "31.7")
+		time.AfterFunc(200*time.Millisecond, cancel)
+	}}
+	c, err := NewProcessCollectorV2(context.Background(), "held", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, retain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := shellV2(t, "(sleep 31.7 &); sleep 30")
+	cmd.Stdout = new(bytes.Buffer)
+	began := time.Now()
+	p, err := c.Start(ctx, cmd, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"},
+		bytes.Repeat([]byte("x"), processStdinLimitV2))
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+	if p != nil || cmd.ProcessState == nil || time.Since(began) > processSettleV2+2*processWaitDelayV2 {
+		t.Fatalf("held output: handle %v, reaped %v, after %s", p, cmd.ProcessState != nil, time.Since(began))
+	}
+	if !runningV2(orphan) {
+		t.Fatal("no escaped process held the output, so the case was not exercised")
 	}
 }

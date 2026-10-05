@@ -107,18 +107,28 @@ reaped or a retirement-phase capture, and requires the parent to still hold its 
 and stat start time, not a zombie) before discovery and after the child capture, with both child stat
 brackets naming that parent; a reused parent PID therefore cannot donate a child. Every owned launch's
 `/proc/PID/environ` must equal its declared invocation environment, in `Start` and `AwaitChild`.
-After a launch has started, any failure runs an owned cleanup boundary: the leader is stopped, its
-descendants are walked through stopped members only (a stopped process cannot fork and its exited
-children stay unreaped), all matching births are killed, and the cleanup waits within a bound until
-none is still running. Stdin delivery honours cancellation by closing the pipe. The observer reads
+After a launch has started, any failure runs an owned cleanup boundary. It signals a member only
+through a pidfd whose process is confirmed to hold the listed birth (PID and start time), so a
+recycled PID is never signalled or walked. A member counts as frozen only when every thread is
+stopped; only a frozen member's children are listed, and the walk repeats until a pass finds every
+member frozen and no new child. The members are then killed, and the cleanup waits within a bound
+until none is running. Fail-closed choice: no subreaper containment. A member that exited, was
+reaped or changed birth before its freeze was confirmed may have had children reparented away, so
+the cleanup is reported unresolved in the BLOCKED detail, as is a member still running; the failure
+is already latched, so no proof follows. A command's zero `WaitDelay` is set to a bound, so an escaped process that
+holds an output pipe cannot stall reaping, and any other `Wait` error at retirement fails the
+collection. Stdin delivery honours cancellation by closing the pipe. The observer reads
 its input against a context that the launcher derives from SIGTERM and interrupt, and refuses
 `process-observer-refused` when cancelled. The observer mode is routed only from the first argument.
-The first failure is retained, a successful final sweep is tracked separately, and `Proof` refuses
+The first failure is retained, including a failed during-run capture and a failed child discovery
+or capture, a successful final sweep is tracked separately, and `Proof` refuses
 `process-collection-failed` after any failed step, so a failed sweep never yields proof bytes.
 Retained limits: the environ check is a collector-side guard, not retained proof evidence; the
 verifier trusts the invocation preimage, so producer wiring must establish that the preimages
-describe the launch. A descendant that double-forked and was reparented before the cleanup walk is
-outside the cleanup boundary, as it is outside the final sweep.
+describe the launch. A descendant that double-forked and was reparented before the cleanup walk, or
+whose intermediate parent exited and was reaped before the walk could list it, is outside the cleanup boundary, as it is
+outside the final sweep. Tree members that resume or stop one another during the walk are outside
+the trusted-local model.
 
 Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
 `process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,
@@ -238,7 +248,7 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes, TestProcessCollectorV2AwaitChildRefusesReusedParent, TestProcessCollectorV2FailedLaunchRetiresDescendants, TestProcessCollectorV2CancelledDeliveryRetires, TestProcessObserverV2CancelledInput, TestProcessCollectorV2OwnsObserverCommand, TestHostCollectorV2FailedSweepEmitsNoProof, TestInternalProcessObserverStopsOnSIGTERM (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode, TestInternalProcessObserverRoutingBoundary; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
+| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes, TestProcessCollectorV2AwaitChildRefusesReusedParent, TestProcessCollectorV2FailedLaunchRetiresDescendants, TestProcessCollectorV2CancelledDeliveryRetires, TestProcessObserverV2CancelledInput, TestProcessCollectorV2OwnsObserverCommand, TestHostCollectorV2FailedSweepEmitsNoProof, TestHostCollectorV2FailedCaptureEmitsNoProof, TestProcessCollectorV2CleanupSkipsRecycledPID, TestProcessCollectorV2CleanupReportsAutoReapedChild, TestProcessCollectorV2CleanupReportsForkAndExit, TestProcessCollectorV2CleanupFreezesAllThreads, TestProcessCollectorV2EscapedOutputDoesNotStallWait, TestInternalProcessObserverStopsOnSIGTERM (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode, TestInternalProcessObserverRoutingBoundary; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
 | PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
 
 ## Remaining work and promotion boundary

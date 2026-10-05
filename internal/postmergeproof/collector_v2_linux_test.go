@@ -92,14 +92,17 @@ type collectorRun struct {
 	graph     postmergeproof.GraphBindingV2
 	proof     postmergeproof.ProcessProofV2
 	bytes     []byte
-	// sweepErr and proofErr are set when failID made the final sweep fail.
-	sweepErr, proofErr error
+	// sweepErr and proofErr are set when failID made the final sweep fail;
+	// captureErr and proofErr when failCapture made a capture fail.
+	sweepErr, captureErr, proofErr error
 }
 
 // collect runs one owned execution. A non-empty failID names one artifact
 // whose retention fails during the final sweep; collect then returns the
-// sweep and proof errors instead of a proof.
-func collect(t *testing.T, name string, retireRunner bool, failID string) *collectorRun {
+// sweep and proof errors instead of a proof. failCapture makes a during-run
+// capture of the runner fail through a cancelled context; collect then
+// completes the sweep and returns the capture and proof errors.
+func collect(t *testing.T, name string, retireRunner bool, failID string, failCapture bool) *collectorRun {
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -188,6 +191,13 @@ func collect(t *testing.T, name string, retireRunner bool, failID string) *colle
 	if err != nil {
 		t.Fatal(err)
 	}
+	if failCapture {
+		cancelled, cancel := context.WithCancel(ctx)
+		cancel()
+		if _, r.captureErr = c.Capture(cancelled, runner, "during-run"); r.captureErr == nil {
+			t.Fatal("a cancelled capture succeeded")
+		}
+	}
 	if retireRunner {
 		c.SetOutcome(runner, true, false)
 		if err := killChild(rootCmd.Process.Pid); err != nil {
@@ -216,6 +226,10 @@ func collect(t *testing.T, name string, retireRunner bool, failID string) *colle
 	}
 	if failID != "" {
 		t.Fatal("a failed final sweep retention was not reported")
+	}
+	if failCapture {
+		_, r.proofErr = c.Proof()
+		return r
 	}
 	if _, err := c.Start(ctx, exec.Command(sleep, "1"), postmergehost.OwnedLaunchSpecV2{Purpose: "runner", Parent: root.Capture, Phase: "during-run"}, nil); err == nil {
 		t.Fatal("a launch after the final sweep was accepted")
@@ -251,7 +265,7 @@ func killChild(parent int) error {
 }
 
 func TestHostCollectorV2OwnedExecution(t *testing.T) {
-	r := collect(t, "collector-owned", true, "")
+	r := collect(t, "collector-owned", true, "", false)
 	logical, err := postmergeproof.VerifyRawLogicalForTestV2(context.Background(), r.policy, r.policyRef.SHA256, r.graph, r.bytes, r.store)
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +296,7 @@ func TestHostCollectorV2OwnedExecution(t *testing.T) {
 }
 
 func TestHostCollectorV2SweepFindsSurvivor(t *testing.T) {
-	r := collect(t, "collector-survivor", false, "")
+	r := collect(t, "collector-survivor", false, "", false)
 	_, err := postmergeproof.VerifyRawLogicalForTestV2(context.Background(), r.policy, r.policyRef.SHA256, r.graph, r.bytes, r.store)
 	expectProcessRefusal(t, err, "REJECTED", "process-sweep-survivor")
 }
@@ -298,7 +312,15 @@ func expectProcessRefusal(t *testing.T, err error, outcome, code string) {
 // A final sweep whose retention fails leaves the collection sealed but
 // unswept: Proof must refuse instead of returning bytes.
 func TestHostCollectorV2FailedSweepEmitsNoProof(t *testing.T) {
-	r := collect(t, "collector-failed-sweep", true, "collector-failed-sweep/absence-sweep")
+	r := collect(t, "collector-failed-sweep", true, "collector-failed-sweep/absence-sweep", false)
 	expectProcessRefusal(t, r.sweepErr, "BLOCKED", "process-collection-failed")
+	expectProcessRefusal(t, r.proofErr, "BLOCKED", "process-collection-failed")
+}
+
+// A during-run capture that fails is latched: a later successful final sweep
+// still yields no proof.
+func TestHostCollectorV2FailedCaptureEmitsNoProof(t *testing.T) {
+	r := collect(t, "collector-failed-capture", true, "", true)
+	expectProcessRefusal(t, r.captureErr, "BLOCKED", "process-collection-failed")
 	expectProcessRefusal(t, r.proofErr, "BLOCKED", "process-collection-failed")
 }
