@@ -521,6 +521,10 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 			t.Plan, t.PlanReason = e.State, e.Reason
 		}
 		t.EscalationPending = r.EscalationPending()
+		t.NextStage = dispatch.StateNone
+		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
+			t.NextStage = s.Str
+		}
 		out = append(out, t)
 	}
 	return out

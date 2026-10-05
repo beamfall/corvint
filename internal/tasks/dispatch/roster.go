@@ -37,6 +37,10 @@ type Ticket struct {
 	// request IDs of current OPEN decision, scope or blocked questions. A
 	// workState program cannot supply it. A held ticket is never rostered.
 	EscalationPending []string
+	// NextStage is the advisory CAL-V0-084 recorded hand-off target:
+	// implement, review, integrate, STALE, or NONE when none is observed.
+	// It comes from the native queue, never from a workState program.
+	NextStage string
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -77,6 +81,7 @@ type Queue interface {
 // one CAL-V0-057 escalation tier (0 is the base model).
 type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
+	NextStage                                     string
 	Slot, Tier                                    int
 }
 
@@ -177,7 +182,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if !ok {
 				prio = len(priorityRank)
 			}
-			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
+			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {

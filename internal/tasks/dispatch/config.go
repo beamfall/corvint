@@ -164,7 +164,7 @@ type Heal struct {
 }
 
 // Placeholders are the only substitutions in argv, env and prompts.
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}"}
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}"}
 
 var (
 	namePattern  = regexp.MustCompile(`^[a-z][a-z0-9-]{0,23}$`)

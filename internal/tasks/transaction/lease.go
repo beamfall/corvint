@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"slices"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -57,7 +58,10 @@ type LeaseRequest struct {
 	AttemptID                                 string
 	Generation                                wire.Size
 	Reason                                    string
-	Tree, Gate, Commit                        string
+	// HandoffTo and HandoffReason are the CAL-V0-082/083 recorded next
+	// stage of a clean RELEASE; empty when not requested.
+	HandoffTo, HandoffReason string
+	Tree, Gate, Commit       string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -105,6 +109,7 @@ const (
 	fieldExclusions
 	fieldLaneUntouched
 	fieldSweepSeconds
+	fieldHandoff
 )
 
 type leaseShape struct{ required, allowed int }
@@ -123,7 +128,7 @@ var leaseShapes = map[string]leaseShape{
 	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
 	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched},
+	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched | fieldHandoff},
 	LeaseReap:            {0, fieldAttempt | fieldGeneration},
 	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
 	LeaseSubmit:          {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
@@ -135,7 +140,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -243,6 +248,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			}
 		}
 	}
+	if e := checkHandoffRequest(l); e != nil {
+		return e
+	}
 	if l.TicketID != "" {
 		id, e := wire.ParseTicketID("ticketId", l.TicketID)
 		if e != nil {
@@ -300,6 +308,21 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	return checkGateFields(l)
 }
 
+// checkHandoffRequest applies the CAL-V0-082/083 rules a request alone can
+// decide; the stage-dependent reason rules wait for the attempt.
+func checkHandoffRequest(l *LeaseRequest) error {
+	if l.HandoffTo == "" && l.HandoffReason == "" {
+		return nil
+	}
+	if l.HandoffReason != "" && !slices.Contains(snapshot.HandoffReasons, l.HandoffReason) {
+		return malformed("unknown handoff reason")
+	}
+	if l.HandoffTo == "" {
+		return malformed("a handoff reason requires a handoff target")
+	}
+	return snapshot.CheckHandoffTarget("handoffTo", l.Reason, "", l.HandoffTo, "")
+}
+
 func optionalString(v string) wire.Value {
 	if v == "" {
 		return wire.Null()
@@ -337,6 +360,13 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	// CAL-V0-065: omission preserves every historical request preimage.
 	if l.ExcludeMembers != nil {
 		v.Obj.Set("excludeMembers", wire.Strings(l.ExcludeMembers))
+	}
+	// CAL-V0-082: omission keeps every historical RELEASE preimage.
+	if l.HandoffTo != "" {
+		v.Obj.Set("handoffTo", s(l.HandoffTo))
+	}
+	if l.HandoffReason != "" {
+		v.Obj.Set("handoffReason", s(l.HandoffReason))
 	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
@@ -573,10 +603,14 @@ func planRelease(c leaseContext) leaseOutcome {
 		if refusal := c.verifyHandoff(a); refusal != nil {
 			return *refusal
 		}
+		if err := snapshot.CheckHandoffTarget("handoffReason", c.l.Reason, a.Stage, c.l.HandoffTo, c.l.HandoffReason); err != nil {
+			return c.fail(err)
+		}
 		accounting := *a.RetryAccounting
 		accounting.Disposition = c.l.Reason
 		next.RetryAccounting = &accounting
 		next.HandoffEvidence = c.l.Evidence
+		next.HandoffTo, next.HandoffReason = c.l.HandoffTo, c.l.HandoffReason
 	}
 	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.Cause = "CANCELLED", c.seq, "FENCED", nil
 	if c.l.Reason != "" {
