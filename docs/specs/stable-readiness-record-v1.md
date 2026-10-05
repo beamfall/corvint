@@ -15,7 +15,7 @@ in `public-release-v0.md`, ARTIFACT-RDY-V0-001 and ARTIFACT-GO-V0-008 in
 - Claim: One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.
 - Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-012 are coded: the internal package and the `corvint-readiness-record` command.
 - Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, `cmd/corvint-readiness-record` over them, and tests named after each requirement.
-- Blocked on: first use on the `1.0.0-rc.1` candidate (V1-0018 AC2, V1-0020 AC3); no release has used the record yet.
+- Blocked on: first use on the `1.0.0-rc.2` candidate (V1-0020 AC3); no release has used the record yet, and `1.0.0-rc.1` was published without one.
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -31,8 +31,8 @@ operator runs each gate, keeps the log, and passes the log's path. The builder r
 file's SHA-256, and missing evidence stays NOT_RUN or FALLBACK, never PASS (product invariant 2).
 Decision 0420 fixes four dispositions, which this spec encodes:
 
-- (a) 1.0.0-rc.1 ships with no signing: SHA256SUMS only, publisher identity NOT_VERIFIED. 1.0.0
-  stable needs its own selection.
+- (a) 1.0.0-rc.1 ships with no signing: SHA256SUMS only, publisher identity NOT_VERIFIED. Decision
+  0433 makes the same selection for 1.0.0-rc.2 and 1.0.0 stable.
 - (b) native performance stays NOT_RUN under GOC-V0-005.
 - (c) The Core vulnerability check is a require-free Core `go.mod` plus the pinned toolchain.
 - (d) linux/amd64 stays FALLBACK until native evidence exists from a hosted ubuntu-24.04 runner.
@@ -93,7 +93,8 @@ Non-goals:
   row `owner/toolchain-security-review` MUST stay NOT_RUN: the owner compares the toolchain against
   Go security releases before tagging.
 - `SRR-V1-009`: For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decision
-  0420, "No signing: SHA256SUMS only; publisher identity NOT_VERIFIED". Operator evidence for it
+  0420, "No signing: SHA256SUMS only; publisher identity NOT_VERIFIED"; for versions `1.0.0-rc.2`
+  and `1.0.0` it MUST be the same fixed row with decision 0433. Operator evidence for it
   MUST be refused. For any other version the operator MUST supply the signing selection, and it
   defaults to NOT_RUN. `policy/native-performance` MUST be fixed NOT_RUN under GOC-V0-005 and
   decision 0420.
@@ -191,7 +192,7 @@ Non-goals:
 
 SRR-V1-001 to SRR-V1-012 are covered by the focused tests below, which run against a git fixture
 and a Core-only 1.0.0-rc.1 candidate fixture. Decision 0422 accepts this spec, and decision 0420 is
-accepted. No release has used the record yet; its first use is the `1.0.0-rc.1` candidate.
+accepted. No release has used the record yet; its first use is the `1.0.0-rc.2` candidate.
 
 Rollback deletes `cmd/corvint-readiness-record`, `internal/releasecandidate/readiness.go` and
 their tests, and inlines `runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or

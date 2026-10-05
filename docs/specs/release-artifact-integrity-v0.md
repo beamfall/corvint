@@ -454,8 +454,9 @@ and the checklist's publication block to the prior unconditional `NOT_RUN`. Rest
 
 Decision 0108 selected **No signing** for the historical `0.4.0a4` candidate. Decision 0329 expressly
 selects **No signing** for the `0.5.0a3` alpha prerelease, and decision 0420 selects **No signing**
-for the `1.0.0-rc.1` prerelease only, with publisher identity stated as `NOT_VERIFIED`. Any later
-prerelease or stable release needs a new selection. No agent may generate, import, store, rotate, request, or use
+for the `1.0.0-rc.1` prerelease, and decision 0433 selects **No signing** for the `1.0.0-rc.2`
+prerelease and the `1.0.0` stable release, each with publisher identity stated as `NOT_VERIFIED`. Any
+other later prerelease or release needs a new selection. No agent may generate, import, store, rotate, request, or use
 a signing key or identity, and no signature is a publication or promotion authorization.
 
 | Option | Identity source and tool | Verifier checks | Trade-off |

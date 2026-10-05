@@ -436,7 +436,7 @@ func testSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain(t *testing.T) 
 }
 
 func TestSRRV1009PolicyRowsFollowDecision0420(t *testing.T) {
-	t.Run("SRR-V1-009 rc.1 signing and native performance rows are fixed by decision 0420", testSRRV1009PolicyRowsFollowDecision0420)
+	t.Run("SRR-V1-009 rc.1, rc.2 and 1.0.0 signing and native performance rows are fixed by decisions 0420 and 0433", testSRRV1009PolicyRowsFollowDecision0420)
 }
 
 func testSRRV1009PolicyRowsFollowDecision0420(t *testing.T) {
@@ -449,9 +449,18 @@ func testSRRV1009PolicyRowsFollowDecision0420(t *testing.T) {
 	if _, _, err := BuildReadinessRecord(t.Context(), ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: map[string]ReadinessEvidence{"policy/signing": {Status: "PASS", Path: fixture.file(t, "sig", "sig\n")}}}); err == nil {
 		t.Fatal("rc.1 signing override admitted")
 	}
-	stable, err := readinessRows(readinessRules("1.0.0"), map[string]ReadinessEvidence{"policy/signing": {Status: "NOT_RUN", Decision: "0421", Reason: "selection pending"}})
-	if err != nil || stable[12].ID != "policy/signing" || stable[12].Decision != "0421" {
-		t.Fatalf("stable signing selection not operator-owned: %#v %v", stable, err)
+	for _, version := range []string{"1.0.0-rc.2", "1.0.0"} {
+		rows, err := readinessRows(readinessRules(version), nil)
+		if err != nil || rows[12].ID != "policy/signing" || rows[12].Status != "NOT_RUN" || rows[12].Decision != "0433" || !strings.HasPrefix(rows[12].Reason, "No signing") {
+			t.Fatalf("%s signing row not fixed by decision 0433: %#v %v", version, rows, err)
+		}
+		if _, err := readinessRows(readinessRules(version), map[string]ReadinessEvidence{"policy/signing": {Status: "NOT_RUN", Decision: "0421", Reason: "selection pending"}}); err == nil {
+			t.Fatalf("%s signing override admitted", version)
+		}
+	}
+	later, err := readinessRows(readinessRules("1.0.1"), map[string]ReadinessEvidence{"policy/signing": {Status: "NOT_RUN", Decision: "0421", Reason: "selection pending"}})
+	if err != nil || later[12].ID != "policy/signing" || later[12].Decision != "0421" {
+		t.Fatalf("later signing selection not operator-owned: %#v %v", later, err)
 	}
 }
 

@@ -28,7 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = "1.0.0-rc.1"
+const version = "1.0.0-rc.2"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
