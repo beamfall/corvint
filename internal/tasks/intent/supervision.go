@@ -18,6 +18,12 @@ const DefaultStageWallMinutes = 60
 // longer than the lane cap (CAL-V0-063); a larger value would have no effect.
 const MaxStageWallMinutes = wire.MaxLaneWallMinutes
 
+// MaxStageContinuations bounds the optional checkpointed continuations of one
+// supervised stage run (CAL-V0-089). Each continuation is another dispatched
+// turn, so the lane turn cap and the program turn and wall caps still bound
+// the total.
+const MaxStageContinuations = 16
+
 type SupervisionPolicy struct {
 	MaxRepairCycles, Turns, WallClockMinutes wire.Count
 	InputTokens, OutputTokens                wire.Size
@@ -34,6 +40,10 @@ type SupervisionPolicy struct {
 	// Host is the owner-selected supervised host the pinned runtime speaks
 	// (CAL-V0-074, CAL-V0-076): "claude-code", "opencode", or empty for Codex.
 	Host string
+	// Continuations is how many times one stage run that reaches its stage
+	// wall may continue its preserved session and worktree (CAL-V0-089);
+	// empty means none, so a wall interruption waits for an operator.
+	Continuations wire.Count
 }
 
 // AllowsEffort reports whether the policy admits effort for stage. A nil
@@ -58,8 +68,17 @@ func (p *SupervisionPolicy) StageWallSeconds() int {
 	return int(p.StageWallMinutes.Int()) * 60
 }
 
+// StageContinuations is the policy's checkpointed continuation bound for one
+// stage run; a nil policy or an absent key allows none.
+func (p *SupervisionPolicy) StageContinuations() int {
+	if p == nil || p.Continuations == "" {
+		return 0
+	}
+	return int(p.Continuations.Int())
+}
+
 func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories", "host")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories", "host", "continuations")...)
 	if r.Field("profile").String() != "taskman-codex-supervisor/0" || !r.Field("contextRequired").Bool() {
 		r.Fail(wire.CodeUnsupported, "supervision profile/context")
 	}
@@ -96,6 +115,9 @@ func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
 	}
 	if wire.Has(r.Value(), "stageWallMinutes") {
 		p.StageWallMinutes = boundCount(r.Field("stageWallMinutes"), 1, MaxStageWallMinutes)
+	}
+	if wire.Has(r.Value(), "continuations") {
+		p.Continuations = boundCount(r.Field("continuations"), 1, MaxStageContinuations)
 	}
 	if wire.Has(r.Value(), "repositories") {
 		p.Repositories = readSupervisedRepositories(r.Field("repositories"))

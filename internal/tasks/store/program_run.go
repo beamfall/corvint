@@ -199,6 +199,30 @@ func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error
 	return nil
 }
 
+// checkContinuations refuses a policy's checkpointed continuation that the
+// supervised host or the token budget cannot support (CAL-V0-089). A host that
+// reports its session only in its final result cannot resume a stage stopped
+// at its wall. No supported host reports the token usage of an interrupted
+// turn, which leaves the lane and program usage unobserved, so a nonzero lane
+// or program token cap would refuse every continuation dispatch.
+func checkContinuations(host string, policy *intent.Policy) error {
+	if policy == nil || policy.Supervision.StageContinuations() == 0 {
+		return nil
+	}
+	name := host
+	if name == "" {
+		name = supervisor.HostCodex
+	}
+	if v, ok := supervisor.HostVocabulary(host); !ok || !v.InterruptedSession {
+		return wire.Errorf(wire.CodeUnsupported, "continuations", "host %s reports its session only in its final result, so a stage stopped at its wall cannot resume; checkpointed continuation is unsupported", name)
+	}
+	s := policy.Supervision
+	if policy.Lane.InputTokens.Uint64() > 0 || policy.Lane.OutputTokens.Uint64() > 0 || s.InputTokens.Uint64() > 0 || s.OutputTokens.Uint64() > 0 {
+		return wire.Errorf(wire.CodeUnsupported, "continuations", "host %s does not report the token usage of an interrupted turn, so a lane or program token cap would refuse every continuation; declare zero lane and program token caps or remove supervision.continuations", name)
+	}
+	return nil
+}
+
 // ProgramRepository names one extra repository of a multi-repository
 // supervised program (CAL-V0-071): a policy-declared name and the absolute
 // checkout whose path digest the policy pins. IntegrationBranch optionally

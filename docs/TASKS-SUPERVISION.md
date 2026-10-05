@@ -124,6 +124,26 @@ Pool allocations always enter quarantine after a stage and require explicit safe
 Every stage acquires a health-qualified member under the same native pool protocol; the bounded
 stage prompt includes its exact allocation/member/config reference. Credentials are not inferred.
 
+Checkpointed continuation (stages longer than one wall): optional policy
+`supervision.continuations` (`"1"`..`"16"`) lets a stage that its own `wallSeconds` deadline stopped
+continue in the same role invocation. The stage first stops cleanly into WAIT; an implement stage
+commits its partial work to a per-turn ref under `refs/corvint/tasks/`. The supervisor then answers
+`checkpointed continuation N of M` and resumes the recorded host session in the same worktree,
+at most M times. Each continuation is another dispatched turn, so the lane `turns` cap, the program
+`turns` and `wallClockMinutes` caps and ticket/policy revision fencing still apply; when one leaves
+no room, or a `drain` or `cancel` is pending, or the program wall rather than the stage wall ended
+the run, the attempt stays WAITING unanswered and the command returns the deadline error. An
+integrate continuation reuses its recorded grant and lands once. Host support: Codex resumes with
+`exec resume`, OpenCode with `--session S --fork`; Claude Code reports its session only in its final
+result, so a policy with `continuations` is refused `UNSUPPORTED` for it before any record. No host
+reports the token usage of an interrupted turn, so `continuations` also requires the lane and program
+`inputTokens` and `outputTokens` caps to be `"0"`, otherwise it is refused `UNSUPPORTED`. `run`
+never continues a waiting checkpoint by itself; after the cause is resolved, continue it with
+`corvint-tasks retry --program P --config C --role implementer` (or `--role integrator`; an
+integrate checkpoint keeps its grant, and a different `--grant` is refused `APPROVAL_MISSING`).
+Live Codex and OpenCode qualification of continuation is NOT_RUN; see
+[S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354).
+
 Turns and active wall deadlines are enforced locally. Input/output tokens are observed from
 qualified JSONL, with missing/cache dimensions reported NOT_OBSERVED. Token cutoffs prevent later
 dispatch; they cannot stop provider consumption mid-turn and may overshoot by one admitted turn

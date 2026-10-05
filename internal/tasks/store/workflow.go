@@ -39,6 +39,10 @@ type Workflow struct {
 	// departed reports that, during the current RunRole, the attempt left the
 	// phase that `run --role` selects and has not been seen back in it.
 	departed bool
+	// wallStop reports that the last stage stopped only because its own stage
+	// wall elapsed: not the program wall, a control, a lost heartbeat, a
+	// failed watch read, or the caller's context (CAL-V0-089).
+	wallStop bool
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -311,7 +315,8 @@ func (w *Workflow) candidateCommit() (string, error) {
 	return resolveObject(w.repo.PrimaryWorktree, ref, "commit")
 }
 func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome, error) {
-	if e := CheckProgramConfig(w.cfg, w.policy.Supervision); e != nil {
+	w.wallStop = false
+	if e := w.checkConfig(); e != nil {
 		return supervisor.Outcome{}, e
 	}
 	w.program.OwnerReleased = false
@@ -522,6 +527,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	if laneWall < remaining {
 		remaining = laneWall
 	}
+	programBound := false
 	if cap := w.policy.Supervision; cap != nil {
 		proof, e := readLeaseProof(ctx, w.repo)
 		if e != nil {
@@ -540,6 +546,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 				left := time.Until(start.Add(time.Duration(cap.WallClockMinutes.Int()) * time.Minute))
 				if left < remaining {
 					remaining = left
+					programBound = true
 				}
 			}
 		}
@@ -600,6 +607,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	out, runErr := supervisor.Run(deadline, w.self, dir, capsule, journal)
 	close(watcherStop)
 	<-watcherDone
+	// Only the stage's own deadline ends a run with DeadlineExceeded while the
+	// caller's context is live; the watcher's stops cancel instead.
+	w.wallStop = out.Class == "INTERRUPTED" && errors.Is(runErr, context.DeadlineExceeded) && ctx.Err() == nil && !programBound
 	var refused *supervisor.PrelaunchError
 	if errors.As(runErr, &refused) {
 		// Run refused before forking the lane leader (capsule validation or
@@ -725,6 +735,9 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 		// an existing one stays drainable and cancellable after a policy
 		// narrowing, and is re-checked before every stage launch instead.
 		if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
+			return nil, e
+		}
+		if e = checkContinuations(c.Host, policy); e != nil {
 			return nil, e
 		}
 	}
@@ -942,14 +955,34 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 		}
 		// The stage launch re-checks the config; refusing first keeps a grant
 		// from being recorded for a stage that cannot launch.
-		if e = CheckProgramConfig(w.cfg, w.policy.Supervision); e != nil {
+		if e = w.checkConfig(); e != nil {
 			return w.attempt, e
 		}
-		if e = w.step("GRANT", transaction.SupervisorChange{Grant: grant}); e != nil {
+		// An answered integrate-stage wait resumes under the grant it already
+		// recorded, which INTEGRATE_INTENT re-validates against the exact
+		// candidate, base and repositories (CAL-V0-089); GRANT applies only
+		// from READY_FOR_INTEGRATION.
+		recorded := w.attempt.Supervision.IntegrationGrant
+		if w.attempt.Phase == "WAITING" && w.attempt.Stage == "integrate" && w.attempt.Supervision.Answer != "" && recorded != "" {
+			if grant != "" && grant != recorded {
+				return w.attempt, wire.Errorf(wire.CodeApprovalMissing, "grant", "integration grant %q differs from the recorded grant %q", grant, recorded)
+			}
+		} else if e = w.step("GRANT", transaction.SupervisorChange{Grant: grant}); e != nil {
 			return w.attempt, e
 		}
 	}
 	_, e := w.stage(ctx, stage)
+	// A stage stopped only by its own wall continues its preserved session and
+	// worktree while the policy allows (CAL-V0-089). Each continuation answers
+	// the recorded question and dispatches another turn, so ticket and policy
+	// fencing, the turn caps and the program wall still apply.
+	for n := 1; e != nil && w.continuable(ctx, stage, n); n++ {
+		answer := fmt.Sprintf("checkpointed continuation %d of %d: the stage reached its wall time; continue the same task from the preserved worktree", n, w.policy.Supervision.StageContinuations())
+		if ae := w.Answer(w.attempt.Supervision.QuestionID, answer, w.attempt.TicketRevision); ae != nil {
+			return w.attempt, fmt.Errorf("checkpointed continuation %d refused: %w", n, ae)
+		}
+		_, e = w.stage(ctx, stage)
+	}
 	if e != nil {
 		return w.attempt, e
 	}
@@ -998,6 +1031,55 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 	}
 	return w.attempt, nil
 }
+
+// checkConfig is CheckProgramConfig plus the continuation check that needs
+// the full policy (CAL-V0-089).
+func (w *Workflow) checkConfig() error {
+	if e := CheckProgramConfig(w.cfg, w.policy.Supervision); e != nil {
+		return e
+	}
+	return checkContinuations(w.cfg.Host, w.policy)
+}
+
+// continuable reports whether the stage that just stopped may run its nth
+// checkpointed continuation (CAL-V0-089): a clean stop at its own stage wall,
+// within the policy bound, of an attempt that waits unanswered on that stage
+// with a host session, a preserved worktree and proved quiescence, while no
+// program control is pending and the lane turn cap and the program turn and
+// wall caps leave room for another turn. Anything else keeps the wait for an
+// operator.
+func (w *Workflow) continuable(ctx context.Context, stage string, n int) bool {
+	a, cap := w.attempt, w.policy.Supervision
+	if !w.wallStop || ctx.Err() != nil || cap == nil || n > cap.StageContinuations() {
+		return false
+	}
+	if a.Phase != "WAITING" || a.Stage != stage || a.Supervision == nil || a.Supervision.Answer != "" || a.Supervision.SessionID == "" || a.Supervision.Worker || a.Quiescence != "PROVED" || a.WorktreePath == nil {
+		return false
+	}
+	if a.Supervision.Turns.Int() >= w.policy.Lane.Turns.Int() {
+		return false
+	}
+	entries, e := ProgramRecords(ctx, w.repo)
+	if e != nil {
+		return false
+	}
+	turns := uint64(0)
+	for _, p := range entries {
+		if p.ID == w.program.ID && p.Control != "" {
+			return false
+		}
+		if p.Group != w.program.Group {
+			continue
+		}
+		turns += p.Turns
+		start, e := time.Parse(time.RFC3339, p.StartedAt)
+		if e != nil || time.Until(start.Add(time.Duration(cap.WallClockMinutes.Int())*time.Minute)) <= 0 {
+			return false
+		}
+	}
+	return turns < uint64(cap.Turns.Int())
+}
+
 func (w *Workflow) integrate() error {
 	root := w.repo.PrimaryWorktree
 	if e := w.integrationIdentity(); e != nil {

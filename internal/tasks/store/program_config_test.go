@@ -73,6 +73,26 @@ func TestCALV0062_StageRechecksCurrentPolicy(t *testing.T) {
 	}
 }
 
+// TestCALV0089_StageRechecksContinuations proves every stage launch, not only
+// program admission, refuses a continuation policy that the host or the token
+// caps cannot support, before any record or host process.
+func TestCALV0089_StageRechecksContinuations(t *testing.T) {
+	for _, tc := range []struct {
+		host   string
+		policy *intent.Policy
+		refuse string
+	}{
+		{"claude-code", &intent.Policy{Supervision: &intent.SupervisionPolicy{Host: "claude-code", Continuations: wire.CountOf(2)}}, "reports its session only in its final result"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2)}, Lane: intent.LaneBudget{OutputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2), InputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+	} {
+		w := &Workflow{cfg: ProgramConfig{Effort: "low", WallSeconds: 60, Host: tc.host}, policy: tc.policy}
+		if _, e := w.stage(context.Background(), "implement"); wire.CodeOf(e) != wire.CodeUnsupported || !strings.Contains(e.Error(), tc.refuse) {
+			t.Fatalf("host %q continuation policy reached launch: %v", tc.host, e)
+		}
+	}
+}
+
 func TestCALV0063_CheckProgramConfigStageWall(t *testing.T) {
 	long := &intent.SupervisionPolicy{StageWallMinutes: wire.CountOf(240)}
 	for _, tc := range []struct {
