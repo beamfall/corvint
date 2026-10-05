@@ -28,6 +28,11 @@ type PoolSweepReport struct {
 	Evidence wire.Digest
 	Result   []byte
 	Pending  bool
+	// Unretryable reports that a fresh sweep committed its owner and then
+	// failed: phase programs may have run, and a same-request retry only
+	// reconciles committed receipts, so it never recovers a lost observation
+	// and the result is never retryable (CAL-V0-078).
+	Unretryable bool
 }
 
 // Response fault injection is private to package tests; it runs after the real writer.
@@ -72,7 +77,16 @@ func sweepCompleted(r *Report, e error) error {
 
 // PoolSweep prepares all selected allocation owners once, then runs outside every writer lock.
 // Replaying the original request never reads mutable source/configuration/environment or executes.
-func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Binding, c PoolSweepChoice) (*PoolSweepReport, error) {
+func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Binding, c PoolSweepChoice) (swept *PoolSweepReport, sweptErr error) {
+	committed := false
+	defer func() {
+		if committed && sweptErr != nil {
+			if swept == nil {
+				swept = &PoolSweepReport{}
+			}
+			swept.Unretryable = true
+		}
+	}()
 	choice := LeaseChoice{QueueID: c.QueueID, RequestID: c.RequestID, Root: c.Root, Lease: transaction.LeaseRequest{Verb: transaction.LeasePoolSweep, Member: c.Member, Allocation: c.Allocation, SweepSeconds: c.TimeoutSeconds}}
 	request := transaction.Request{Operation: transaction.Lease, QueueID: c.QueueID, RequestID: c.RequestID, Actor: actor, Lease: &choice.Lease}
 	if c.ExpectedDefinition != "" {
@@ -206,6 +220,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	if initial.Kind == "Replay" {
 		return reconcileSweep(run, repo, actor, c, owner, initial)
 	}
+	committed = true
 	results := []wire.Value{}
 	for _, member := range members {
 		en := member.en

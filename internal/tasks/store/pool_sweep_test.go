@@ -316,3 +316,32 @@ func TestPSRFirstCleanupProbeFailureRetiresChild(t *testing.T) {
 	}
 	t.Log("FIRST_CLEANUP_PROBE_FAILURE_REACHED_CHILD_RETIRED", pid)
 }
+
+// CAL-V0-078: a fresh sweep that ran a phase and then lost that phase's
+// observation to contention is not retryable; a same-request retry only
+// reconciles committed receipts and never reruns the phase.
+func TestCALV0078_SweepContentionAfterExecutionIsNotRetryable(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "reached")
+	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
+	ctx := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
+		if c.Lease.Verb == transaction.LeasePoolObserve {
+			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention after execution")
+		}
+		return e
+	})
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "contended", Root: s.root, TimeoutSeconds: "15"}
+	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
+	if wire.CodeOf(e) != wire.CodeLockTimeout || out == nil || !out.Unretryable {
+		t.Fatalf("contention after execution reported retryable: %+v %v", out, e)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("reset not reached once: %q", raw)
+	}
+	replay, e := store.PoolSweep(context.Background(), s.repo, operator(), choice)
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("same-request retry reran the phase: %q (%+v %v)", raw, replay, e)
+	}
+	if e == nil && replay != nil && !replay.Pending {
+		t.Fatalf("same-request retry recovered the lost observation: %+v", replay)
+	}
+}

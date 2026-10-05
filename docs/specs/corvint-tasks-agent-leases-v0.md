@@ -1333,8 +1333,11 @@ Source, classification table, limits and evidence: the V1-0780 retryable result 
   the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
   whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. The
   commands that run a program a retry would run again MUST report false whatever their codes:
-  `attempt run` once its child has run, `gate run` once its gate program has started, and
-  `health` or `pool cleanup` once the member's program has started. `OK` and uncoded results MUST NOT carry
+  `attempt run` once its child has run, and `gate run` once its gate program has started. A
+  command that commits a first step it may then fail to finish MUST also report false, because a
+  same-request retry replays that step without finishing it: `health` and `pool cleanup` once
+  their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
+  owner. `OK` and uncoded results MUST NOT carry
   the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
   `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
   that is not retryable.
@@ -1718,9 +1721,9 @@ mismatch, which repeats until the caller changes its input.
 
 Acceptance evidence is the traceability row below plus unchanged bytes for `OK` and uncoded
 results under the existing `internal/tasks` tests. Rollback removes the member from
-`Result.Value`, the decoder's optional key, `Report.Executed` and the `attempt run` override; earlier decoders then
+`Result.Value`, the decoder's optional key, `Report.Unretryable`, `PoolSweepReport.Unretryable` and the `attempt run` override; earlier decoders then
 read every envelope again, and no store, journal or receipt state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution` (`internal/tasks/store`) |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepContentionAfterExecutionIsNotRetryable` (`internal/tasks/store`) |

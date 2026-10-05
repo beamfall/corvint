@@ -27,11 +27,22 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   otherwise invite a retry that runs the child again.
 - Independent review found the same hazard in `gate run`: the gate program runs before the
   recording `Lease` call, and lock contention there returned a retryable `LOCK_TIMEOUT`, while a
-  same-request retry reruns the gate before replay detection. `store.Report.Executed` now records
+  same-request retry reruns the gate before replay detection. `store.Report.Unretryable` now records
   that a program started; `GateRun` sets it on every return after the gate starts, `PoolCommand`
   after the member's program starts (a retry there replays the prepare and never records the
   observation), and the lease CLI maps it to `NotRetryable`. A regression holds the store lock
-  after the gate program has run and checks `LOCK_TIMEOUT` with `Executed`.
+  after the gate program has run and checks `LOCK_TIMEOUT` with `Unretryable`.
+- A second review found two committed-but-unfinished paths. `PoolCommand` read the snapshot after
+  its preparation or cleanup receipt committed, and a `REDO_PENDING` or `SNAPSHOT_MOVED` there came
+  back retryable, while a same-request retry replays that receipt and reports success with the
+  allocation left `PREPARING` or `CLEANING`. `Unretryable` is now set as soon as that receipt
+  commits. `PoolSweep` lost an executed phase's observation write to contention and also came back
+  retryable, while a same-request retry only reconciles committed receipts. `PoolSweepReport`
+  now carries `Unretryable` for every error after a fresh sweep commits its owner, and the sweep
+  CLI maps it to `NotRetryable`. Regressions inject a failure right after the preparation commit
+  (`SetPoolPreparedFaultForTest`) and `LOCK_TIMEOUT` on the first observation write; each checks
+  the flag and that a same-request retry neither runs the program again nor finishes the step.
+  Both fail with the fix removed.
 - Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
   (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
   a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)

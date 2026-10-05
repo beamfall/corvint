@@ -356,8 +356,10 @@ bounded backoff:
 
 Every other code is false, including `FENCED`, `BOOT_FENCED` and `SUPERVISOR_LOST` (the attempt
 really lost; start a new one), `LIMIT_EXCEEDED`, `JOURNAL_SATURATED` and `UNSUPPORTED_FILESYSTEM`.
-`attempt run`, `gate run`, `health` and `pool cleanup` report false once their program has
-started, whatever the code, because a retry would run it again. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
+`attempt run` and `gate run` report false once their program has started, whatever the code,
+because a retry would run it again. `health` and `pool cleanup` report false once their
+preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its owner,
+because a retry then replays that step without running the program or recording what it saw. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
 "V1-0780 retryable result amendment" lists every code with its reason.
 
 ## Observe holders and retry debt

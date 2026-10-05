@@ -273,7 +273,7 @@ func TestPoolReplayReturnsOriginalAllocation(t *testing.T) {
 }
 
 // TestCALV0078_PoolCommandReportsExecution: a direct pool health command
-// reports Executed once the member's program ran, so the CLI marks any coded
+// reports Unretryable once the member's program ran, so the CLI marks any coded
 // result not retryable; a command refused before running does not.
 func TestCALV0078_PoolCommandReportsExecution(t *testing.T) {
 	s := newLeaseStore(t)
@@ -290,10 +290,53 @@ func TestCALV0078_PoolCommandReportsExecution(t *testing.T) {
 	choice := func(id, member string) store.LeaseChoice {
 		return store.LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, Lease: transaction.LeaseRequest{Member: member}}
 	}
-	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-none", "absent"), "health"); wire.CodeOf(e) != wire.CodeUnsupported || rep == nil || rep.Executed {
+	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-none", "absent"), "health"); wire.CodeOf(e) != wire.CodeUnsupported || rep == nil || rep.Unretryable {
 		t.Fatalf("refused before running: %+v %v", rep, e)
 	}
-	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-a", "a"), "health"); e != nil || rep == nil || !rep.Executed {
+	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-a", "a"), "health"); e != nil || rep == nil || !rep.Unretryable {
 		t.Fatalf("health ran: %+v %v", rep, e)
+	}
+}
+
+// CAL-V0-078: once health commits its preparation receipt, a later failure is
+// not retryable, because a same-request retry replays that receipt and never
+// runs the program or records its observation.
+func TestCALV0078_PreparedPoolCommandIsNotRetryable(t *testing.T) {
+	s := newLeaseStore(t)
+	marker := filepath.Join(t.TempDir(), "ran")
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	budgets, _ := v.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	health := obj("argv", wire.Strings([]string{"/bin/sh", "-c", "printf x >> " + marker}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3"))
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a"}), "memberConfig", obj("a", obj("health", health)))))
+	if rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("prepared-policy", "2", wire.EncodeFile(v)), now(t)); e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", rep, e)
+	}
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "prep-1", Root: s.root, Lease: transaction.LeaseRequest{Member: "a"}}
+	restore := store.SetPoolPreparedFaultForTest(func() error {
+		return wire.Errorf(wire.CodeRedoPending, "head", "injected post-preparation read failure")
+	})
+	rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice, "health")
+	restore()
+	if wire.CodeOf(e) != wire.CodeRedoPending || rep == nil || !rep.Unretryable {
+		t.Fatalf("committed preparation reported retryable: %+v %v", rep, e)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("program ran before the injected failure: %v", err)
+	}
+	if entries := psrPools(t, s).Entries; len(entries) != 1 || entries[0].State == "FREE" {
+		t.Fatalf("preparation not committed: %+v", entries)
+	}
+	replay, e := store.PoolCommand(context.Background(), s.repo, operator(), choice, "health")
+	if e != nil || replay == nil || replay.Kind != "Replay" {
+		t.Fatalf("same-request retry: %+v %v", replay, e)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("same-request retry ran the program: %v", err)
+	}
+	if entries := psrPools(t, s).Entries; len(entries) != 1 || entries[0].State == "FREE" {
+		t.Fatalf("same-request retry finished the preparation: %+v", entries)
 	}
 }

@@ -42,7 +42,7 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			if report == nil {
 				report = &Report{}
 			}
-			report.Executed = true
+			report.Unretryable = true
 		}
 	}()
 	redone, err := settleLease(ctx, repo)
