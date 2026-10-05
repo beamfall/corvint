@@ -167,7 +167,13 @@ func escalationSubmit(cmd []string, fl map[string]string, req ticket.EscalationR
 	}
 	raw, err := ticket.EncodeEscalationRequest(req)
 	if err != nil {
-		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "request", "%v", err))
+		// Keep a typed bound refusal such as LIMIT_EXCEEDED; only untyped
+		// codec errors become MALFORMED.
+		var typed *wire.Error
+		if !errors.As(err, &typed) {
+			err = wire.Errorf(wire.CodeMalformed, "request", "%v", err)
+		}
+		return errorResult(cmd, err)
 	}
 	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
@@ -407,12 +413,11 @@ func escalationReadError(err error) error {
 	if !errors.As(err, &r) {
 		return err
 	}
-	code := wire.CodeMalformed
-	switch r.Code {
-	case "MISSING_EVIDENCE":
+	// The record already decoded, so every other refusal is stored material
+	// that disagrees with it: journal damage, never malformed caller input.
+	code := wire.CodeJournalForked
+	if r.Code == "MISSING_EVIDENCE" {
 		code = wire.CodeMissingEvidence
-	case "JOURNAL_FORKED":
-		code = wire.CodeJournalForked
 	}
 	return wire.Errorf(code, "/escalations", "escalation material refused %s", r.Code)
 }
@@ -567,6 +572,9 @@ func escalationHistory(env Env, cmd []string, args []string) *wire.Result {
 			return err
 		}
 		chain, err := escalationChain(rc.repo, rc.store.Queue.QueueID.Raw, rec, ref, m.blobs)
+		// Each event carries the question's original time, age, applicability
+		// and source, so a page that starts at an answer keeps its provenance.
+		summary := escalationEntryValue(rec, ref, m, time.Now().UTC(), false)
 		if err != nil {
 			return err
 		}
@@ -584,7 +592,9 @@ func escalationHistory(env Env, cmd []string, args []string) *wire.Result {
 		}
 		end := min(start+int(limit.Int()), len(chain))
 		for _, ev := range chain[start:end] {
-			items = append(items, escalationEventValue(ev))
+			v := escalationEventValue(ev)
+			v.Obj.Set("escalation", summary)
+			items = append(items, v)
 		}
 		total := wire.CountOf(int64(len(chain)))
 		pg = &wire.Page{Offset: wire.CountOf(int64(start)), Limit: limit, Total: &total, Truncated: end < len(chain)}

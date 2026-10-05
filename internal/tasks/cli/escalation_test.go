@@ -75,6 +75,12 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 	ok(atm(t, root, nil, "ticket", "escalate", "--attempt", a.AttemptID, "--claim-receipt", string(*a.Outcome.ReceiptSeq),
 		"--kind", "scope", "--question", "Widen?", "--request-id", "q-2"))
 
+	big := atm(t, root, nil, "ticket", "escalate", "--attempt", a.AttemptID, "--claim-receipt", a.Receipt,
+		"--kind", "decision", "--question", strings.Repeat("q", 4097), "--request-id", "q-big")
+	if big.res.Outcome == wire.OutcomeOK || !hasCode(big.res, wire.CodeLimitExceeded) {
+		t.Fatalf("oversized question = %+v", big.res)
+	}
+
 	ambiguous := atm(t, root, nil, "ticket", "answer", "--target", a.Ticket, "--text", "yes", "--request-id", "ans-0")
 	if ambiguous.res.Outcome != wire.OutcomeRefused || field(ambiguous.res.Items[0], "escalationCode").Str != "AMBIGUOUS_OPEN_QUESTIONS" {
 		t.Fatalf("ambiguous answer = %+v", ambiguous.res)
@@ -170,6 +176,12 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 		field(history.res.Items[0], "previousSha256").Str != field(history.res.Items[1], "sha256").Str {
 		t.Fatalf("history = %+v", history.res)
 	}
+	for _, it := range history.res.Items {
+		if p := field(it, "escalation"); field(p, "recordedAt").Str != field(history.res.Items[1], "recordedAt").Str ||
+			field(field(p, "source"), "holder").Str != "holder" || field(p, "applicability").Str != "CURRENT" {
+			t.Fatalf("history provenance = %+v", it)
+		}
+	}
 	tail := atm(t, root, nil, "ticket", "escalation", "history", a.Ticket, "q-1", "--limit", "1", "--cursor", field(history.res.Items[0], "previousSha256").Str)
 	if len(tail.res.Items) != 1 || field(tail.res.Items[0], "text").Str != "Which store?" || tail.res.Page.Offset != "1" {
 		t.Fatalf("history page = %+v", tail.res)
@@ -191,6 +203,17 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 	}
 	if x := atm(t, root, nil, "ticket", "escalation", "show", b.Ticket, "q-3"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeMissingEvidence) {
 		t.Fatalf("damaged show = %+v", x.res)
+	}
+
+	// A rewritten answer event is journal damage, not malformed input.
+	head := field(show, "headSha256").Str
+	if err := os.WriteFile(filepath.Join(stateDir, "evidence", head), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, verb := range []string{"show", "history"} {
+		if x := atm(t, root, nil, "ticket", "escalation", verb, a.Ticket, "q-1"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeJournalForked) {
+			t.Fatalf("rewritten event %s = %+v", verb, x.res)
+		}
 	}
 	if !strings.HasPrefix(a.Receipt, "0") {
 		t.Fatalf("claim receipt name %q is not the padded form", a.Receipt)

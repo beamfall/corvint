@@ -31,13 +31,27 @@ reads, after the writer slice. Contract: `docs/specs/corvint-tasks-escalations-v
 
 These were agent design choices under the owner's request; none changes an accepted decision.
 
+## Review
+
+The independent Codex review found three minor issues and no blocker. All three are fixed:
+
+- Stored material that the validator refuses was reported as `MALFORMED`. The record has already
+  decoded, so every refusal other than `MISSING_EVIDENCE` is now `JOURNAL_FORKED`. The test
+  witnesses a rewritten answer event. The other validator codes share the mapping but have no
+  witness of their own.
+- History rows lacked the question's age and provenance. Each row now carries the entry summary
+  under `escalation`: original time, age, applicability and source.
+- A bound refusal from the request codec, such as an oversized question, was rewritten to
+  `MALFORMED`. Typed codes are now kept.
+
 ## Evidence
 
 - `TestIssue502_EscalationCLIWritesAndReads` runs every verb against real claim receipts. It
   covers open via both receipt forms, replay, a mismatched receipt, ambiguous shorthand, a stale
   ticket CAS, exact and shorthand answers, a blocked question, all list filters, the cursor and
-  limit bound, show, history with its cursor, read purity of the state directory, and a deleted
-  origin.
+  limit bound, show, history with its cursor, read purity of the state directory, a deleted
+  origin, an oversized question (`LIMIT_EXCEEDED`), history provenance and a rewritten event
+  (`JOURNAL_FORKED`).
 - The help inventory test covers the five new verbs.
 
 ## NOT_RUN
