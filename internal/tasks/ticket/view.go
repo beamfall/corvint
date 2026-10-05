@@ -418,6 +418,11 @@ func (v View) Value(includeRecord bool) wire.Value {
 	if len(rec.ExecutionPrerequisites) > 0 {
 		o.Set("executionPrerequisites", PrerequisitesValue(rec.ExecutionPrerequisites))
 	}
+	// TEA-V0-001: attached evidence is listed beside the record; it is
+	// informational and never satisfies a gate or acceptance criterion.
+	if len(rec.AttachedEvidence) > 0 {
+		o.Set("attachedEvidence", AttachedEvidenceValue(rec.AttachedEvidence))
+	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))
 	o.Set("publication", wire.String(string(v.Publication)))

@@ -110,6 +110,21 @@ The gate worktree must be clean. Resubmitting invalidates earlier gate results. 
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes
 only the `releaseReasonCodes` returned by `help` (for example `GATE_FAILED`); free prose refuses.
 
+To record evidence on an OPEN ticket without changing it, an OWNER (or an OPERATOR whose policy
+row explicitly names `ATTACH_EVIDENCE`) attaches 1..16 sorted, unique sha256 digests and a nonblank
+reason of at most 512 bytes:
+
+```sh
+corvint-tasks ticket attach-evidence --target "$ticket" --expected-revision "$revision" --request-id evidence-a \
+  --payload '{"evidence":["<64 lowercase hex>"],"reason":"focused go test log"}'
+```
+
+The write bumps the ticket revision only; acceptanceRevision, status, gates and completion are
+unchanged, and attached evidence never satisfies a gate or criterion. `ticket show` lists the
+entries under `attachedEvidence` with the actor, time and acceptance revision. A digest already
+attached at the current acceptance revision refuses `DUPLICATE_ID`; non-OPEN or imported tickets
+refuse `TICKET_STATE`; an identical retry replays (TEA-V0-001).
+
 ## Payloads and shared worktrees
 
 Payloads use sorted object keys, compact JSON, literal UTF-8 (not `\u00a7` for `§`), and sorted,
