@@ -212,6 +212,7 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	a.RetryReasons = emptyRetryReasons()
 	a.Stage = c.l.Stage
 	a.RetryAccounting = &snapshot.RetryAccounting{Disposition: "NONE"}
+	a.OperatorNote = rec.OperatorNote
 	a.PoolAllocation, e = c.allocate(a)
 	if e != nil {
 		return nil, e

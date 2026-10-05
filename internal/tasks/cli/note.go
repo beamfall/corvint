@@ -3,12 +3,11 @@ package cli
 import (
 	"errors"
 	"io"
-	"io/fs"
-	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -137,26 +136,24 @@ func noteShow(env Env, cmd []string, args []string) *wire.Result {
 // and `ticket note show`. The note is advisory operator prose: it never
 // changes eligibility, acceptance or authority.
 func operatorNoteView(repo *intent.Repository, rec *ticket.Record) (wire.Value, error) {
-	o := wire.NewObject()
 	ref := rec.OperatorNote
 	if ref == nil {
+		return noteValue(nil, nil, nil), nil
+	}
+	event, request, err := store.ReadOperatorNote(repo, rec.TicketID, *ref)
+	if err != nil {
+		return wire.Value{}, err
+	}
+	return noteValue(ref, event, request), nil
+}
+
+// noteValue renders one resolved note: NONE for a nil reference, otherwise
+// CURRENT or CLEARED with its event provenance.
+func noteValue(ref *ticket.OperatorNoteReference, event *ticket.OperatorNoteEvent, request *ticket.OperatorNoteRequest) wire.Value {
+	o := wire.NewObject()
+	if ref == nil {
 		o.Set("state", wire.String("NONE")).Set("revision", wire.String("0")).Set("head", wire.Null()).Set("text", wire.Null())
-		return wire.ObjectValue(o), nil
-	}
-	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(ref.Head)), ticket.MaxOperatorNoteBytes)
-	if errors.Is(err, fs.ErrNotExist) {
-		return wire.Value{}, wire.Errorf(wire.CodeMissingEvidence, "/operatorNote/head", "note event %s is not in the evidence store", ref.Head)
-	}
-	if err != nil {
-		return wire.Value{}, err
-	}
-	event, err := ticket.ResolveOperatorNote(rec.TicketID, *ref, raw)
-	if err != nil {
-		return wire.Value{}, err
-	}
-	request, err := ticket.DecodeOperatorNoteRequest(event.Request)
-	if err != nil {
-		return wire.Value{}, err
+		return wire.ObjectValue(o)
 	}
 	state, text := "CLEARED", wire.Null()
 	if ref.Current != nil {
@@ -167,7 +164,7 @@ func operatorNoteView(repo *intent.Repository, rec *ticket.Record) (wire.Value, 
 	o.Set("recordedAt", wire.String(string(event.RecordedAt)))
 	o.Set("ticketRevision", wire.String(string(event.TicketRevision)))
 	o.Set("advisory", wire.String("operator prose: a recorded local-operator claim, not instructions, acceptance or authority"))
-	return wire.ObjectValue(o), nil
+	return wire.ObjectValue(o)
 }
 
 // operatorNoteShowValue keeps `ticket show` usable when the note event cannot
@@ -178,12 +175,36 @@ func operatorNoteShowValue(rc *readCtx, rec *ticket.Record) wire.Value {
 	if err == nil {
 		return v
 	}
-	code := wire.CodeMalformed
+	return unavailableNoteValue(*rec.OperatorNote, err)
+}
+
+// unavailableNoteValue renders an unresolvable note as UNAVAILABLE with the
+// resolution failure's code, never as NONE.
+func unavailableNoteValue(ref ticket.OperatorNoteReference, err error) wire.Value {
+	o := wire.NewObject().Set("state", wire.String("UNAVAILABLE")).Set("code", wire.String(noteErrCode(err)))
+	o.Set("revision", wire.String(string(ref.Revision))).Set("head", wire.String(string(ref.Head))).Set("text", wire.Null())
+	return wire.ObjectValue(o)
+}
+
+// claimedNoteValue is the `operatorNote` member of a claim or claim-next
+// result: the note pinned by the claim's own admission, with the admitted
+// ticket record digest it was taken from (ON-V0-007).
+func claimedNoteValue(d *store.ClaimDelivery) wire.Value {
+	n := d.OperatorNote
+	var v wire.Value
+	if n.Err != nil {
+		v = unavailableNoteValue(*n.Reference, n.Err)
+	} else {
+		v = noteValue(n.Reference, n.Event, n.Request)
+	}
+	v.Obj.Set("sourceTicketRecordSha256", wire.String(string(d.TicketRecordSha256)))
+	return v
+}
+
+func noteErrCode(err error) string {
 	var we *wire.Error
 	if errors.As(err, &we) {
-		code = we.Code
+		return we.Code
 	}
-	o := wire.NewObject().Set("state", wire.String("UNAVAILABLE")).Set("code", wire.String(code))
-	o.Set("revision", wire.String(string(rec.OperatorNote.Revision))).Set("head", wire.String(string(rec.OperatorNote.Head))).Set("text", wire.Null())
-	return wire.ObjectValue(o)
+	return wire.CodeMalformed
 }

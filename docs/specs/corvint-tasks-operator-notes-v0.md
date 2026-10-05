@@ -11,16 +11,17 @@ reviewed precision corrections, adopted with limits by owner-delegated decision 
 decided); the owner's direct acceptance of this profile with its drafted defaults on 2026-10-04,
 given through a structured question in the orchestrator session; and the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md). The second delivery adds the native writer,
-the record and Core codecs, the `ticket note` CLI and the `ticket show` view; claim delivery,
-anchored history, per-event receipt-audit binding and durable qualification come later. The older TCP-00 task-store recovery contract remains partially
+the record and Core codecs, the `ticket note` CLI and the `ticket show` view. The third delivery
+adds claim delivery (ON-V0-007) and per-event receipt-audit and redo binding (ON-V0-006); anchored
+history and durable qualification come later. The older TCP-00 task-store recovery contract remains partially
 unrecovered; it is not the unrelated `task-context-packet-v0.md`/TCP-V0 spec. This extension
 restates its own required ticket/mutation/receipt boundaries without waiving that recovery limitation.
 
 ## Agent digest
 - Claim: Operators attach one current advisory note to a ticket, retain immutable history, and deliver the exact admitted note with each successful claim.
-- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claims do not yet deliver notes.
-- Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads with focused and native-store tests.
-- Blocked on: claim-time delivery (ON-V0-007), anchored history pages, per-event receipt-audit and redo binding (ON-V0-006), durable qualification, and the existing TCP-00 active-staging recovery limit.
+- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claim and claim-next deliver the note pinned by their own admission; receipt audit and redo bind every note transition.
+- Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads, the attempt `operatorNote` pin with claim-result delivery, and journal replay binding of each note receipt, with focused and native-store tests.
+- Blocked on: anchored history pages, dispatch/supervised-run rendering of the delivered note, durable qualification, the checkpoint-tail detection limit below, and the existing TCP-00 active-staging recovery limit.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -53,11 +54,31 @@ existed but nothing called them. The second delivery wires them:
   mutation verb as MUTATE, so any other operation carrying an event is refused as UNSUPPORTED before
   staging.
 
-Existing claim admission binds TicketRecordSha256 and acceptanceRevision; claims do not yet deliver
-the note. An `evidence/` post on a receipt still downgrades receipt-audit semantic coverage to
-UNKNOWN, as gate and REOPEN evidence already do; no per-event semantic binding exists yet, so a
-store with any note write reports UNKNOWN semantic coverage, and `ticket note set|clear --help` says
-so. Existing active-stage redo refusal remains.
+The third delivery adds claim delivery and journal binding:
+
+- Claim admission copies the admitted ticket's `operatorNote` reference onto the receipt POST
+  attempt beside its TicketRecordSha256 (absent when the ticket has none, so legacy attempt bytes
+  are unchanged). Claim and claim-next results, fresh or exact replay, resolve that pinned reference
+  from the content-addressed evidence store into a top-level `operatorNote` member: NONE, CLEARED,
+  CURRENT with text and provenance, or UNAVAILABLE with its code, always with
+  `sourceTicketRecordSha256`. A result carrying it is marked untrusted. A later note change affects
+  only later admissions.
+- The journal step loop observes each receipt's ticket, policy and note-event posts. A receipt with
+  a note event must be one completed MUTATION on its target ticket, with exactly that ticket post and
+  no policy post. Its retained request must hash to the event's and the receipt's request digest.
+  Its posted ticket and event must equal, byte for byte, the ordinary NOTE_SET/NOTE_CLEAR Apply path
+  replayed from the exact retained pre-ticket, pre-policy and prior event bytes the audited chain
+  names. Every receipt without a note event must leave each walked ticket's reference unchanged.
+  Failures are JOURNAL_FORKED with an `operator note:` prefix. A note event that binds counts as
+  semantically covered, so a store whose only evidence is notes no longer reports UNKNOWN; every
+  other evidence profile still does. Redo is authorized by the same PRE_OR_POST audit, so a pending
+  note receipt replays only when it binds.
+- A checkpoint-resumed read (CAL-V0-061) never reads a receipt before its checkpoint. A note event
+  whose pre-ticket or pre-policy precedes the checkpoint falls back to the complete audit. A
+  non-note receipt changing a reference first posted before the checkpoint is not detected by that
+  read; mutations, redo and receipt audit always run the complete audit, which detects it.
+
+Existing active-stage redo refusal remains.
 
 ## Requirements
 
@@ -127,9 +148,9 @@ under "Required integrated evidence" remain NOT_RUN.
 | ON-V0-002 | NOTE501-002 | ticket event codec; evidence storage | `TestIssue501_NoteCodec`, `TestIssue501_NoteCASAndBounds`; `TestONV0006_NativeNoteSetClearReplayAndAudit` (SET then CLEAR chain stored in evidence and resolved) | history pages over a long chain |
 | ON-V0-003 | NOTE501-003 | mutation payload/Apply; native writer; CLI | `TestIssue501_NoteTransition`, `TestIssue501_NoteMaterialBindings`; `TestONV0006_NativeNoteSetClearReplayAndAudit`, `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (identical replay writes no receipt, stale supersedes is REVISION_CONFLICT); `TestONV0003_ApplyNoteRefusalMapping` (through Apply: missing prior event is MISSING_EVIDENCE, revision capacity is VALIDATION_FAILED/LIMIT_EXCEEDED, ARCHIVED is BLOCKED/TICKET_STATE, a non-null expectedRevision mismatch is REVISION_CONFLICT) | concurrent CAS between two processes |
 | ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds`; `TestONV0004_NotePolicyNeedsAnExplicitOperatorRow` (OPERATOR needs an explicit row naming the verb, OWNER default allows, a narrowed OWNER row refuses, a WORKER row naming NOTE_SET does not decode); `TestCTSV0003_ImportApplyRefusals` (an IMPORT_APPLY record cannot add, rewrite or drop an operator-note reference) | import-owned ticket refusal through the writer |
-| ON-V0-005 | NOTE501-005 | whole canonical post adapter/finalizer; ADOPT_FILE | `TestONV0006_NativeNoteSetClearReplayAndAudit` (acceptance revision unchanged, REFINE preserves the reference); `TestONV0005_AdoptFileRefusesNoteReferenceChanges` | rehashed unrelated-field attacks in receipt audit |
-| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | `TestONV0006_DerivedEventSlotMeasuredAndNarrow` (worst case 6/6 artifacts and 1669/1670 bytes; second event, queue, request, oversized, wrong-address and non-MUTATE widenings refuse, each with its named refusal); `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` (REFINE and every other non-note operation carrying a derived event is refused UNSUPPORTED and stages nothing); `TestONV0006_NativeNoteSetClearReplayAndAudit` (store digest unchanged after replay and conflict) | per-event receipt-audit binding and supported redo |
-| ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer | none | replacement between commit/materialization, generation refresh, missing-evidence replay |
+| ON-V0-005 | NOTE501-005 | whole canonical post adapter/finalizer; ADOPT_FILE | `TestONV0006_NativeNoteSetClearReplayAndAudit` (acceptance revision unchanged, REFINE preserves the reference); `TestONV0005_AdoptFileRefusesNoteReferenceChanges`; `TestONV0006_ForgedNoteHistoryIsJournalForked` (a rehashed note receipt with an altered title fails whole-record replay) | rehashed attacks on approvals, gates and dependencies in receipt audit |
+| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | `TestONV0006_DerivedEventSlotMeasuredAndNarrow` (worst case 6/6 artifacts and 1669/1670 bytes; second event, queue, request, oversized, wrong-address and non-MUTATE widenings refuse, each with its named refusal); `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` (REFINE and every other non-note operation carrying a derived event is refused UNSUPPORTED and stages nothing); `TestONV0006_NativeNoteSetClearReplayAndAudit` (store digest unchanged after replay and conflict); `TestONV0006_ReceiptAuditBindsNoteHistory` (SET, REFINE, CLEAR and SET audit with known semantic coverage); `TestONV0006_ForgedNoteHistoryIsJournalForked` (altered post, removed event, and a REFINE dropping the reference are JOURNAL_FORKED); `TestONV0006_RedoBindsAPendingNoteReceipt` (a pending note receipt redoes; a forged one refuses); `TestONV0006_NoteReceiptBindsOnlyItsOwnTransition` (a rehashed note receipt that also posts `reservations.json`, or whose receipt and request index were consistently renamed away from the retained request's ID, is JOURNAL_FORKED in a settled audit and refuses redo with nothing published); `TestONV0006_CheckpointTailNeverReadsThePrefix` (a tail REFINE keeps the checkpoint read; a tail CLEAR falls back to the complete audit) | active-staging recovery; crash witnesses between stage and commit |
+| ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer | `TestONV0007_ClaimDeliversTheNotePinnedByItsAdmission` (NONE with legacy attempt bytes; CURRENT pinned with the attempt digest; a later SET changes neither response nor exact replay; a new generation and claim-next re-snapshot, including CLEARED); `TestONV0007_UnresolvableNoteFailsClosed` (a missing event reads MISSING_EVIDENCE and the claim replay refuses JOURNAL_FORKED, never NONE); `TestONV0007_ClaimResultCarriesTheDeliveredNote` (result member, untrusted marking, UNAVAILABLE with a replay-not-reclaim warning); `TestONV0007_AttemptPinsTheAdmittedNote` (attempt codec) | response materialization failure after commit through a live process; dispatch and supervised-run rendering |
 | ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition`; `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (NONE, CURRENT and CLEARED views; a missing event is MISSING_EVIDENCE in `ticket note show` and JOURNAL_FORKED in `ticket show`, never NONE); `TestONV0008_TicketShowRendersAnUnresolvableNoteAsUnavailable` (without a journal audit, a missing or mismatched event renders UNAVAILABLE with its code) | anchored history reads, page bounds, read-only proof over noted stores |
 | ON-V0-009 | NOTE501-009 | foundation and dependency layering | the first-delivery pure tests; `ticket` does not import `mutation` | no premature promotion |
 | ON-V0-010 | NOTE501-010 | qualification and delivery | none | exact-source review, integration, evidence and compatible rollback |
@@ -157,10 +178,18 @@ under "Required integrated evidence" remain NOT_RUN.
 - Retries: as for other CLI mutations, issuedAt defaults to now, so a retry passes `--issued-at`
   to replay.
 
+- Lease contract: claim delivery needs no amendment to the agent lease contract. The optional
+  attempt `operatorNote` member and the claim result's `operatorNote` member are defined by this
+  profile; claims without a noted ticket keep their exact attempt bytes and add only the NONE
+  result member. No claim input, scope or resource authority changes.
+- Delivery seam: the store `ClaimDelivery` value carries the admitted TicketRecordSha256 and one
+  member per delivered profile, today `OperatorNote`. A later profile (for example #502 escalation
+  answers) adds its own optional attempt member copied at admission, its own `ClaimDelivery`
+  member, and its own top-level claim-result key beside `operatorNote`, without reshaping these.
+
 ## Unresolved decisions
 
-- Whether claim delivery needs an amendment to the agent lease contract, decided in the
-  claim-delivery slice.
+None for this delivery.
 
 Kill criterion: stop or narrow the capability if bounded original material cannot be recovered
 without an unauthorized general recovery rewrite.
@@ -172,5 +201,9 @@ before any note is written reverts the writer, CLI, codec and stage-slot changes
 INDEX and README entries, its generated REQUIREMENTS.tsv rows and the build-log entries. Once notes
 exist, an older reader refuses noted tickets (closed key set), so rollback first disables further
 writes and keeps the immutable events; deleting history or claiming an older closed reader is
-compatible is not rollback. Promotion requires claim delivery, receipt-audit binding, the complete
-evidence matrix and native closeout.
+compatible is not rollback. The attempt `operatorNote` member follows the same rule: an older
+reader refuses attempts that carry it, so rollback after a noted claim keeps those attempts and
+disables new writes rather than stripping the member. Notes have not shipped in a release, so no
+released store holds a legacy attempt beside a noted ticket; such an attempt simply delivers NONE.
+Reverting the journal binding returns note receipts to UNKNOWN coverage and is otherwise
+compatible. Promotion requires history pages, the complete evidence matrix and native closeout.

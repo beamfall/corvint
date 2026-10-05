@@ -245,6 +245,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	if len(report.ReapReceipts) > 0 {
 		o.Set("reapReceipts", reapReceiptsValue(report.ReapReceipts))
 	}
+	if report.Delivery != nil {
+		claimDeliveryResult(res, report.Delivery)
+	}
 	return res
 }
 
@@ -494,4 +497,17 @@ func gateWorktree(cwd, worktree string) string {
 		return worktree
 	}
 	return filepath.Join(cwd, worktree)
+}
+
+// claimDeliveryResult adds what a claim or claim-next delivers from its
+// admission beside the existing members (ON-V0-007); a later delivered field
+// sits beside operatorNote. Delivered prose is untrusted data. An unresolvable
+// note never fails the committed claim: the result keeps its attempt,
+// generation and receipt, and an exact replay retries delivery.
+func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
+	res.Items[0].Obj.Set("operatorNote", claimedNoteValue(d))
+	res.Untrusted = true
+	if d.OperatorNote.Err != nil {
+		res.Warnings = append(res.Warnings, "operator note unavailable ("+noteErrCode(d.OperatorNote.Err)+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
+	}
 }

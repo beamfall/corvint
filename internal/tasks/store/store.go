@@ -36,6 +36,8 @@ type Report struct {
 	LaneUntouchedAttestation *snapshot.LaneUntouchedAttestation
 
 	PoolAllocation *snapshot.PoolAllocation
+	// Delivery is what a claim or claim-next delivers from its admission.
+	Delivery *ClaimDelivery
 	// Outcome is the model's outcome, unchanged.
 	Outcome mutation.Outcome
 	// Coverage is the model's coverage, unchanged: an axis stays

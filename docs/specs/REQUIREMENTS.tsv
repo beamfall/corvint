@@ -1917,16 +1917,16 @@ OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	61	A ticket's body is the contiguou
 OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	62	A declared form that yields no requirement fails `missing-requirements`, more th
 OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	63	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma
 OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	64	The capability is experimental: help labels the flag experimental, and no releas
-ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	64	The ticket MUST carry at most one optional closed operatorNote reference, omitte
-ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	67	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma
-ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	70	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req
-ON-V0-004	docs/specs/corvint-tasks-operator-notes-v0.md	73	Fresh note writes MUST respect existing ticket ownership/state and explicitly gr
-ON-V0-005	docs/specs/corvint-tasks-operator-notes-v0.md	76	A fresh note-only transition MUST preserve the complete audited ticket except it
-ON-V0-006	docs/specs/corvint-tasks-operator-notes-v0.md	79	Note mutation, receipt audit and supported redo MUST prove the same complete ori
-ON-V0-007	docs/specs/corvint-tasks-operator-notes-v0.md	82	Every successful fresh or replayed claim and claim-next MUST deliver the operato
-ON-V0-008	docs/specs/corvint-tasks-operator-notes-v0.md	85	Current-note and anchored-history reads MUST be bounded, immutable reads with ex
-ON-V0-009	docs/specs/corvint-tasks-operator-notes-v0.md	88	The codec/transition foundation and integrated capability MUST have distinct evi
-ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	91	Promotion and rollback MUST preserve all existing evidence and explicit integrat
+ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	85	The ticket MUST carry at most one optional closed operatorNote reference, omitte
+ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	88	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma
+ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	91	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req
+ON-V0-004	docs/specs/corvint-tasks-operator-notes-v0.md	94	Fresh note writes MUST respect existing ticket ownership/state and explicitly gr
+ON-V0-005	docs/specs/corvint-tasks-operator-notes-v0.md	97	A fresh note-only transition MUST preserve the complete audited ticket except it
+ON-V0-006	docs/specs/corvint-tasks-operator-notes-v0.md	100	Note mutation, receipt audit and supported redo MUST prove the same complete ori
+ON-V0-007	docs/specs/corvint-tasks-operator-notes-v0.md	103	Every successful fresh or replayed claim and claim-next MUST deliver the operato
+ON-V0-008	docs/specs/corvint-tasks-operator-notes-v0.md	106	Current-note and anchored-history reads MUST be bounded, immutable reads with ex
+ON-V0-009	docs/specs/corvint-tasks-operator-notes-v0.md	109	The codec/transition foundation and integrated capability MUST have distinct evi
+ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	112	Promotion and rollback MUST preserve all existing evidence and explicit integrat
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc

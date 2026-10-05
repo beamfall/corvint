@@ -138,6 +138,7 @@ func claimedTicket(repo *intent.Repository, verb string, report *Report, err err
 	}
 	report.Ticket = a.TicketID.Raw
 	report.PoolAllocation = a.PoolAllocation
+	report.Delivery = claimDelivery(repo, a)
 	return nil
 }
 

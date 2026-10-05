@@ -78,6 +78,8 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 type Attempt struct {
 	DirectPoolAdmission      *DirectPoolAdmission
 	LaneUntouchedAttestation *LaneUntouchedAttestation
+	// OperatorNote pins the ticket's note reference at admission (ON-V0-007).
+	OperatorNote *ticket.OperatorNoteReference
 
 	LastHeartbeatAt         *wire.Timestamp
 	RetryReasons            map[string]wire.Count
@@ -230,7 +232,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -243,6 +245,13 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "laneUntouchedAttestation") {
 		a.LaneUntouchedAttestation = readLaneUntouched(r.Field("laneUntouchedAttestation"))
+	}
+	if wire.Has(v, "operatorNote") {
+		note, err := ticket.OperatorNoteReferenceFromValue(r.Field("operatorNote").Value())
+		if err != nil {
+			return nil, err
+		}
+		a.OperatorNote = note
 	}
 	if wire.Has(v, "lastHeartbeatAt") {
 		x := r.Field("lastHeartbeatAt").Timestamp()
@@ -443,6 +452,9 @@ func (a *Attempt) Encode() ([]byte, error) {
 	}
 	if a.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", LaneUntouchedAttestationValue(a.LaneUntouchedAttestation))
+	}
+	if a.OperatorNote != nil {
+		o.Set("operatorNote", a.OperatorNote.Value())
 	}
 	if a.LastHeartbeatAt != nil {
 		o.Set("lastHeartbeatAt", wire.String(string(*a.LastHeartbeatAt)))
