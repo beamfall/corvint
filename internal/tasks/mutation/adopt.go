@@ -120,6 +120,9 @@ func Adopt(ctx Context, requestID string, canonical *ticket.Record, file []byte)
 		return plan.refused(refuse(OutcomeBlocked, wire.CodeTicketState, "ticket is ARCHIVED; only RESTORE is permitted and ADOPT_FILE composes none"))
 	}
 	diff := differingFields(canonical, fileRec)
+	if r := adoptOperatorNote(canonical, fileRec); r != nil {
+		return plan.refused(r)
+	}
 	// Protected fields first, in the contract's order, so the refusal names
 	// the first unsupported difference and nothing is composed.
 	var protected []string
@@ -347,4 +350,21 @@ func adoptStatusCovered(canonical, work, file *ticket.Record) *refusal {
 		return nil
 	}
 	return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "file status %s is not the status %s derived by the composition rule", file.Status, work.Status)
+}
+
+// adoptOperatorNote refuses any operatorNote difference, in either direction:
+// the note reference changes only through NOTE_SET/NOTE_CLEAR (ON-V0-004),
+// so a diverged intent file can neither inject, rewrite nor drop it.
+func adoptOperatorNote(canonical, file *ticket.Record) *refusal {
+	var a, b []byte
+	if canonical.OperatorNote != nil {
+		a = wire.Encode(canonical.OperatorNote.Value())
+	}
+	if file.OperatorNote != nil {
+		b = wire.Encode(file.OperatorNote.Value())
+	}
+	if string(a) != string(b) {
+		return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "file differs in protected field operatorNote; adopt refused, ticket stays diverged")
+	}
+	return nil
 }

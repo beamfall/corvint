@@ -634,3 +634,38 @@ func TestTMV0007_AS35_ActorAndReplay(t *testing.T) {
 		t.Fatalf("composition %v %v", first.Composed, first.Post.Body)
 	}
 }
+
+// TestONV0005_AdoptFileRefusesNoteReferenceChanges: ADOPT_FILE is never a
+// note writer. A file that adds, removes or rewrites the operatorNote
+// reference is refused whole with VALIDATION_FAILED/ADOPT_UNSUPPORTED_FIELD,
+// even alongside an otherwise adoptable title edit.
+func TestONV0005_AdoptFileRefusesNoteReferenceChanges(t *testing.T) {
+	head := wire.Sum([]byte("event"))
+	other := wire.Sum([]byte("other"))
+	noted := fixture.Ticket("AT-NOTE")
+	noted.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &head, Head: head}
+	for name, c := range map[string]struct {
+		canonical *ticket.Record
+		edit      func(*ticket.Record)
+	}{
+		"add": {fixture.Ticket("AT-NOTE"), func(r *ticket.Record) {
+			r.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &head, Head: head}
+		}},
+		"remove": {noted, func(r *ticket.Record) { r.OperatorNote = nil }},
+		"rewrite": {noted, func(r *ticket.Record) {
+			r.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &other, Head: other}
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			before := string(c.canonical.Encode())
+			ctx := newCtx(t, owner, nil, c.canonical)
+			file := fileOf(t, c.canonical, func(r *ticket.Record) {
+				r.Title = "renamed"
+				c.edit(r)
+			})
+			plan := adopt(t, ctx, c.canonical, file)
+			want(t, plan, mutation.OutcomeValidationFailed, wire.CodeAdoptUnsupportedField)
+			stillDiverged(t, plan, c.canonical, before)
+		})
+	}
+}
