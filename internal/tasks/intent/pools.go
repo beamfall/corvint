@@ -25,6 +25,9 @@ type Pool struct {
 	Members      []string
 	ReservedFor  map[string]string
 	MemberConfig map[string]MemberConfig
+	// PriorityAdmission opts the pool into CAL-V0-101 priority-yield
+	// admission. Omission, like an explicit false, keeps the old admission.
+	PriorityAdmission bool
 }
 
 func ReadConfigRef(r *wire.Reader) *ConfigRef {
@@ -52,8 +55,11 @@ func readPools(r *wire.Reader, env []string) []Pool {
 	out := []Pool{}
 	ids, members, refs := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, x := range r.Array(64, false) {
-		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig")...)
+		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig", "priorityAdmission")...)
 		p := Pool{ID: x.Field("id").Label(), Members: x.Field("members").Strings(MaxPoolMembers, false, (*wire.Reader).Label), ReservedFor: map[string]string{}, MemberConfig: map[string]MemberConfig{}}
+		if wire.Has(x.Value(), "priorityAdmission") {
+			p.PriorityAdmission = x.Field("priorityAdmission").Bool()
+		}
 		if ids[p.ID] || len(p.Members) == 0 {
 			x.Fail(wire.CodeMalformed, "duplicate or empty pool")
 		}
