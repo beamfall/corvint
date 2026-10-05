@@ -130,8 +130,9 @@ func resolveIntentWorktree(r *Repository) {
 }
 
 // ShellQuote quotes s as one POSIX shell word: it is wrapped in single quotes
-// and each embedded single quote becomes '\''. Repair commands quote paths and
-// branches this way so `$`, backticks and spaces are pasted literally.
+// and each embedded single quote closes the word, is backslash-escaped and
+// reopens it. Repair commands quote paths and branches this way so `$`,
+// backticks and spaces are pasted literally.
 func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
