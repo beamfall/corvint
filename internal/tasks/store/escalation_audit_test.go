@@ -1,6 +1,8 @@
 package store_test
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -401,6 +404,59 @@ func TestESCV0010_OpenFenceIsAudited(t *testing.T) {
 				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming %q", err, c.want)
 			}
 		})
+	}
+}
+
+// TestESCV0010_AnswerGuidanceCapacityIsAudited: answers with long questions
+// fill the delivered guidance until the writer refuses a long answer as
+// GUIDANCE_CAPACITY; the same question then takes a short answer. Rewriting
+// that committed answer to the refused text, with every digest rehashed and
+// the request entry rebound, is refused because the audit restates the
+// writer's aggregate 256 KiB bound.
+func TestESCV0010_AnswerGuidanceCapacityIsAudited(t *testing.T) {
+	s, id, src := escalationClaim(t)
+	long := strings.Repeat("a", 8192)
+	var last *store.Report
+	for i := 0; last == nil; i++ {
+		if i == 40 {
+			t.Fatal("did not reach the guidance boundary")
+		}
+		q, err := ticket.DecodeEscalationRequest(openRequest(t, fmt.Sprintf("q-%02d", i), src, "", ""))
+		if err != nil {
+			t.Fatal(err)
+		}
+		q.Open.Question = strings.Repeat("q", 4096)
+		raw, err := ticket.EncodeEscalationRequest(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		committed(t, escalate(t, s, holder, raw, 1), "OPEN")
+		a, err := ticket.DecodeEscalationRequest(answerRequest(t, fmt.Sprintf("a-%02d", i), id, holder, q.RequestID, "1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.Answer.Text = long
+		raw, err = ticket.EncodeEscalationRequest(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		report, err := store.AnswerEscalation(context.Background(), s.repo, holder, fixture.QueueID, raw, s.at(t, 1))
+		if err == nil && report.Outcome.Outcome == mutation.OutcomeCompleted {
+			continue
+		}
+		if !strings.Contains(fmt.Sprint(err, report), "GUIDANCE_CAPACITY") {
+			t.Fatalf("long answer %d: %v %+v, want GUIDANCE_CAPACITY", i, err, report)
+		}
+		last = answer(t, s, holder, answerRequest(t, fmt.Sprintf("b-%02d", i), id, holder, q.RequestID, "1"), 1)
+		committed(t, last, "ANSWER")
+	}
+	if _, err := noteAudit(t, s.repo); err != nil {
+		t.Fatalf("audit before forgery: %v", err)
+	}
+	forgeEvent(t, s, last.Receipt, true, func(ev *ticket.EscalationEvent) { ev.OriginalRequest.Answer.Text = long })
+	_, err := noteAudit(t, s.repo)
+	if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "capacity") {
+		t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the guidance capacity", err)
 	}
 }
 

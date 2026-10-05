@@ -288,6 +288,7 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 	}
 	events := map[string]ticket.EscalationEvent{}
 	digests := map[string]wire.Digest{}
+	posted := map[wire.Digest][]byte{}
 	var request *ticket.EscalationRequest
 	var requestSha wire.Digest
 	for _, raw := range a.events {
@@ -310,6 +311,7 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 		}
 		events[ev.EscalationID] = ev
 		digests[ev.EscalationID] = wire.Sum(raw)
+		posted[wire.Sum(raw)] = raw
 		r := ev.OriginalRequest
 		request, requestSha = &r, ev.RequestSha256
 	}
@@ -446,7 +448,72 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 			sources[id] = src
 		}
 	}
+	if request.Operation == "ANSWER" {
+		// Only an answer grows the guidance; the pre-state already fit.
+		return a.guidanceCapacity(path, post, posted)
+	}
 	return nil
+}
+
+// guidanceCapacity restates the writer's post-proposal GUIDANCE_CAPACITY
+// refusal (transaction.escalationView.guidance; journal cannot import
+// transaction): the encoded array of the current acceptance revision's
+// answers, each built from its origin and head events, fits the delivered
+// bound. Events posted before the first walked receipt fall back to the
+// complete audit.
+func (a *escalationAudit) guidanceCapacity(path string, post *ticket.Record, posted map[wire.Digest][]byte) error {
+	encoded := []wire.Value{}
+	for _, e := range post.Escalations.Entries {
+		if e.State != "ANSWERED" || e.AcceptanceRevision != post.AcceptanceRevision {
+			continue
+		}
+		originRaw, err := a.eventBlob(e.OriginSha256, posted)
+		if err != nil {
+			return err
+		}
+		headRaw, err := a.eventBlob(e.HeadSha256, posted)
+		if err != nil {
+			return err
+		}
+		origin, err := ticket.DecodeEscalationEvent(originRaw)
+		if err != nil {
+			return err
+		}
+		head, err := ticket.DecodeEscalationEvent(headRaw)
+		if err != nil {
+			return err
+		}
+		original, err := wire.Parse(originRaw)
+		if err != nil {
+			return err
+		}
+		if origin.OriginalRequest.Open == nil || head.OriginalRequest.Answer == nil {
+			return escalationForked(path, "request %s answered guidance lacks its question or answer", e.RequestID)
+		}
+		open := origin.OriginalRequest.Open
+		obj := wire.NewObject().Set("requestId", wire.String(e.RequestID)).Set("originSha256", wire.String(string(e.OriginSha256))).Set("headSha256", wire.String(string(e.HeadSha256))).Set("question", wire.String(open.Question)).Set("options", wire.Strings(append([]string{}, open.Options...))).Set("kind", wire.String(open.Kind)).Set("source", original.Obj.Vals["source"]).Set("answer", wire.String(head.OriginalRequest.Answer.Text)).Set("actor", wire.String(head.Actor)).Set("actorRole", wire.String(head.ActorRole)).Set("recordedAt", wire.String(string(head.RecordedAt))).Set("eventRevision", wire.String(string(head.Revision)))
+		encoded = append(encoded, wire.ObjectValue(obj))
+	}
+	if n := len(wire.EncodeFile(wire.Array(encoded...))); n > wire.EscalationMaxGuidanceBytes {
+		return escalationForked(path, "answered guidance encodes to %d bytes, over the %d-byte capacity", n, wire.EscalationMaxGuidanceBytes)
+	}
+	return nil
+}
+
+// eventBlob reads an event this receipt posts, or its audited afterimage.
+func (a *escalationAudit) eventBlob(d wire.Digest, posted map[wire.Digest][]byte) ([]byte, error) {
+	if raw, ok := posted[d]; ok {
+		return raw, nil
+	}
+	p := "evidence/" + string(d)
+	raw, err := a.preRecord(p)
+	if err != nil {
+		return nil, err
+	}
+	if raw == nil || wire.Sum(raw) != d {
+		return nil, escalationForked(p, "answered guidance names an event that is not an audited post")
+	}
+	return raw, nil
 }
 
 // admittedSource proves an OPEN's source is a walked successful claim

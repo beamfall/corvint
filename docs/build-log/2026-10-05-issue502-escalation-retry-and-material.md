@@ -90,7 +90,7 @@ slot and Rollout sections are updated in this change.
   - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
-  - `TestESCV0010_*`: 9 tests in `internal/tasks/journal` and `internal/tasks/store`.
+  - `TestESCV0010_*`: 10 tests in `internal/tasks/journal` and `internal/tasks/store`.
 - **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
   tests (every forgery, the redo and the checkpoint case). The original was then restored.
 - **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
@@ -212,6 +212,18 @@ regressions that fail without the fix:
   ticket or undefined gate audited clean, while the writer refuses `BLOCKED_RELATION_UNKNOWN`. The
   audit now checks both against the pre-state and pre-policy. Regression: the
   `absent blocked ticket` and `undefined gate` subtests of `TestESCV0010_OpenFenceIsAudited`.
+
+Round 7 (over `d524530f..5204e37f`) reported one P2 finding, verified and fixed with a regression
+that fails without the fix:
+
+- **P2, guidance capacity not audited:** the writer refuses any proposal whose post-state answer
+  array encodes past 256 KiB (`GUIDANCE_CAPACITY`), but the audit never restated that bound, so a
+  committed answer consistently rewritten to a longer text audited clean. An answer receipt now
+  rebuilds the current acceptance revision's encoded guidance from each answered entry's origin
+  and head events (posted in the receipt, or read back as audited afterimages) and refuses
+  `JOURNAL_FORKED` past the bound, now shared as `wire.EscalationMaxGuidanceBytes`. Only an answer
+  grows the array, so other receipts skip the check. Regression:
+  `TestESCV0010_AnswerGuidanceCapacityIsAudited`, which audits clean without the fix.
 
 ## NOT_RUN
 

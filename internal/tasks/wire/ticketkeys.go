@@ -21,3 +21,8 @@ var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escala
 // acceptance revision (ESC-V0-002). Stale OPEN questions do not count toward
 // it. The native codec and Core's read-only planner both enforce it.
 const EscalationMaxCurrentOpen = 16
+
+// EscalationMaxGuidanceBytes bounds the encoded answer array delivered to a
+// claim (ESC-V0-005). The writer refuses a proposal past it and the journal
+// audit restates that refusal (ESC-V0-010).
+const EscalationMaxGuidanceBytes = 256 * 1024
