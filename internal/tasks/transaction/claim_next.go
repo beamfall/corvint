@@ -19,7 +19,7 @@ func NextClaimTicket(queueID string, in Input, choice ...LeaseRequest) (*ticket.
 		return nil, err
 	}
 	plan := PriorityFirst(PlanInput{Pool: l.Pool, Stage: l.Stage, ExcludeMembers: l.ExcludeMembers, Pools: state.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
-	chosen := plan.Selected()
+	chosen := plan.ClaimNext(l.Pool)
 	if chosen == nil {
 		return nil, nil
 	}

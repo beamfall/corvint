@@ -25,7 +25,9 @@ type Ticket struct {
 	Labels                                      []string
 	Plan, PlanReason                            string
 	State                                       string
-	ProgressToken, ProgressDigest               string
+	// RequiresPool is the pool a claim of the ticket must name, or empty.
+	RequiresPool                  string
+	ProgressToken, ProgressDigest string
 	// Gates is the native ERG-V0-009 external review state by gate ID. A
 	// workState program cannot supply it; absent means no record.
 	Gates map[string]GateView
@@ -182,7 +184,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if !ok {
 				prio = len(priorityRank)
 			}
-			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
+			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
@@ -279,6 +281,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 }
 
 func matches(m *Match, t Ticket) bool {
+	if t.RequiresPool != m.Pool {
+		return false // a worker claiming without the ticket's pool is refused (CAL-V0-097)
+	}
 	statuses := m.Statuses
 	if len(statuses) == 0 {
 		statuses = []string{"OPEN"}
