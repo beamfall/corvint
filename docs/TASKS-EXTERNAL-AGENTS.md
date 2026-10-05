@@ -357,7 +357,7 @@ reviews, a live attempt, any unknown, or a planner blocker such as a queue pause
 `ticket show` and `ticket blockers` then keep their existing `nextAction` (for example `admit` or
 `wait-attempt`) without `suggestedEvidence`; a `plan preview` entry carries neither member.
 Executable gate results are not part of the offer; they remain NOT_OBSERVED in these reads, and
-whether they should withhold it is an open owner question.
+the owner decided on 2026-10-05 that they do not withhold it.
 
 The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
 policyVersion and reservedFor entries for other members in the exact allocated pool may differ.

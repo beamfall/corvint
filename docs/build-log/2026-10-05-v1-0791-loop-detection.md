@@ -85,11 +85,11 @@ durability, which the fault injection (a close failure and lost ledger state) do
 
 - Acknowledgement reuses owner `ticket reopen` instead of a new verb. It bumps the acceptance
   revision and also restarts the retry budget through the fresh attempt. Whether a lighter
-  operator acknowledgement is wanted is an open owner question.
+  operator acknowledgement is wanted was raised with the owner, who kept reopen (2026-10-05).
 - The dispatcher escalation is an event, not a native escalation record: the ESC-V0-010 OPEN
   writer requires an active lease and a matched reservation, which a held ticket has not got.
-  Whether the escalation writer should gain a dispatcher- or operator-origin OPEN is an open owner
-  question.
+  Whether the escalation writer should gain a dispatcher- or operator-origin OPEN was raised with
+  the owner, who kept the event (2026-10-05).
 - Evidence is recorded only under the opt-in, so history written before it is UNKNOWN and a loop
   that began earlier is detected only after enough newly recorded generations.
 - A hand-off with `--evidence` but no tree counts as no progress; work outside the candidate tree,
