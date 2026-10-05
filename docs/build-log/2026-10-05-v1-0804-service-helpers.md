@@ -57,7 +57,10 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
     as dropped; a write that completes later changes no counter.
   - **Counters:** one publisher goroutine writes `status.json` (4096B bound), so a stalled filesystem
     never blocks supervision. Close waits at most 2s for the final counters. Only the wrapper holding
-    the helper lock opens and publishes that helper's logs.
+    the helper lock opens and publishes that helper's logs, and it keeps the lock until every log
+    writer and the publisher have actually exited.
+  - **Opens:** log files are opened no-follow and nonblocking and must be private regular files, so
+    a planted FIFO blocks neither a writer nor status.
   - **Status:** reports the counters and the byte count of a sanitized no-follow tail excerpt (4KiB
     bound), but withholds the excerpt text.
 - **Routes:** the CLI route `service run-helper --program P --manifest ABS --helper H` and its help. The
@@ -129,6 +132,26 @@ Codex round 1 (gpt-6-astra, read-only) returned CHANGES_REQUIRED with six findin
    released. Witness: the extended TestSERVICE500_HelperSingleController. The managed main has no
    separate U lock in this slice; a manually started duplicate main can still overwrite main log
    counters, as it already can its pulse (recorded limit).
+
+Codex round 2 confirmed the round-1 repairs and returned CHANGES_REQUIRED with three P2 findings, all
+repaired:
+
+1. **Log I/O outlives U.** After a bounded close timed out, a late writer or publisher could still
+   touch the files a successor had opened. The wrapper now keeps U until every log writer and the
+   publisher have exited; process exit releases it otherwise. Witness:
+   TestSERVICE500_LogStallKeepsHelperLockUntilRetired.
+2. **Settlement retry undoes a resume.** If the record was written but the intent removal failed
+   after the unlink, a resume could reset the debt, and the retry then wrote HOLD over it. A
+   settlement now remembers that its record was written. A retry only removes a remaining intent and
+   never rewrites the record. A settlement whose intent vanished before its record was written holds
+   UNCERTAIN_EFFECT and writes nothing (fail-closed; the operator restarts the wrapper). Witness:
+   TestSERVICE500_HelperSettlementRetryKeepsResumedRecord; the REPLAY leg of
+   TestSERVICE500_HelperRestartDebtChargesAndHolds now replays with its intent present.
+3. **FIFO blocks status.** `logExcerpt` now opens through `safeopen.File` (no-follow in every
+   component, nonblocking), and the stream writer opens with O_NONBLOCK. Witness:
+   TestSERVICE500_LogFIFONeverBlocks.
+
+All three witnesses failed with their fix removed.
 
 ## Owner questions
 

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/tasks/safeopen"
 )
 
 // Service runtime logging (SERVICE500-007). Each managed unit (the main and
@@ -198,7 +200,9 @@ func (s *logSink) open() error {
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.path(), os.O_WRONLY|os.O_APPEND|os.O_CREATE|noFollow, 0o600)
+	// O_NONBLOCK: a FIFO planted at the path fails instead of blocking
+	// the writer before the regular-file check.
+	f, err := os.OpenFile(s.path(), os.O_WRONLY|os.O_APPEND|os.O_CREATE|noFollow|nonBlock, 0o600)
 	if err != nil {
 		return err
 	}
@@ -309,8 +313,9 @@ func (u *unitLogs) write() {
 
 // close closes every stream concurrently, each within the close bound,
 // then requests the final counters and waits at most the close bound for
-// the publisher.
-func (u *unitLogs) close() {
+// the publisher. It reports whether every writer and the publisher
+// retired; otherwise their late I/O is still outstanding (see wait).
+func (u *unitLogs) close() bool {
 	var wg sync.WaitGroup
 	for _, n := range u.names {
 		wg.Add(1)
@@ -323,6 +328,33 @@ func (u *unitLogs) close() {
 	case <-u.done:
 	case <-time.After(u.bound):
 	}
+	return u.retired()
+}
+
+// retired reports, without blocking, whether every stream writer and the
+// publisher have exited.
+func (u *unitLogs) retired() bool {
+	for _, n := range u.names {
+		select {
+		case <-u.streams[n].done:
+		default:
+			return false
+		}
+	}
+	select {
+	case <-u.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// wait blocks until every stream writer and the publisher have exited.
+func (u *unitLogs) wait() {
+	for _, n := range u.names {
+		<-u.streams[n].done
+	}
+	<-u.done
 }
 
 // readLogStatus reads one unit's published counters for Status.
@@ -342,10 +374,11 @@ func (h Host) readLogStatus(root, unit string) (map[string]LogStats, error) {
 // bytes: the final symlink is not followed, the file must be the user's
 // private regular file, control characters other than newline and tab are
 // replaced and invalid UTF-8 is replaced. It is user-private diagnostic
-// text and is not secret-screened.
+// text and is not secret-screened. The open is no-follow in every
+// component and nonblocking, so a planted FIFO cannot block status.
 func (h Host) logExcerpt(root, unit, stream string) (string, error) {
 	path := filepath.Join(root, logDir, unit, stream+".log")
-	f, err := os.OpenFile(path, os.O_RDONLY|noFollow, 0)
+	f, err := safeopen.File(path)
 	if err != nil {
 		return "", err
 	}

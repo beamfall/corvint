@@ -292,6 +292,25 @@ type helperSettlement struct {
 	err         error
 	charge      bool
 	termination string
+	// recorded marks that this generation's record was durably written and
+	// only the intent removal remains. A retry then never rewrites the
+	// record: once the intent is gone a reconciled resume may own it.
+	recorded bool
+}
+
+// releaseHelperLock closes the helper's logs and then releases U. When the
+// bounded close leaves log I/O outstanding (a stalled filesystem), U stays
+// held until that I/O actually retires, so a successor wrapper never
+// shares the log files with a late writer or publisher; process exit
+// releases it otherwise.
+func releaseHelperLock(logs *unitLogs, unlock func()) {
+	if logs != nil && !logs.close() {
+		go func() { logs.wait(); unlock() }()
+		return
+	}
+	if unlock != nil {
+		unlock()
+	}
 }
 
 // RunHelper is the foreground helper wrapper. It runs helper H only while
@@ -348,14 +367,7 @@ func (w *helperWrapper) loop() error {
 	// Only the wrapper holding U opens and publishes the helper's logs, and
 	// it closes them before releasing U, so a refused duplicate never
 	// overwrites the owner's counters.
-	defer func() {
-		if w.logs != nil {
-			w.logs.close()
-		}
-		if unlock != nil {
-			unlock()
-		}
-	}()
+	defer func() { releaseHelperLock(w.logs, unlock) }()
 	ticker := time.NewTicker(w.o.Poll)
 	defer ticker.Stop()
 	var pulseAt time.Time
@@ -725,6 +737,22 @@ func (w *helperWrapper) record(s *helperSettlement, boot string, now uint64, kno
 	if in != nil && in.Token != s.token {
 		return wire.Errorf(wire.CodeUncertainEffect, "/"+helperFile(id, helperIntentSuffix), "helper intent belongs to another wrapper")
 	}
+	intentPath := filepath.Join(w.root, helperFile(id, helperIntentSuffix))
+	if s.recorded {
+		// Only the intent removal remains. Resume refuses while the intent
+		// exists, so the record is still this generation's; once the
+		// intent is gone the record may already be reconciled by resume.
+		if in == nil {
+			return nil
+		}
+		return w.o.removeExact(intentPath, wire.Sum(raw))
+	}
+	if in == nil {
+		// The intent was removed before this generation's outcome was
+		// recorded (an operator recovery): the record may be reconciled
+		// already, so writing this outcome could undo it. Hold.
+		return wire.Errorf(wire.CodeUncertainEffect, "/"+helperFile(id, helperIntentSuffix), "helper intent was removed before this generation's outcome was recorded")
+	}
 	if rec.Generation != s.gen {
 		return wire.Errorf(wire.CodeUncertainEffect, "/"+helperFile(id, helperRecordSuffix), "helper record generation changed")
 	}
@@ -754,12 +782,8 @@ func (w *helperWrapper) record(s *helperSettlement, boot string, now uint64, kno
 	if err := writeHelperRecord(w.root, rec); err != nil {
 		return err
 	}
-	if in != nil {
-		if err := w.o.removeExact(filepath.Join(w.root, helperFile(id, helperIntentSuffix)), wire.Sum(raw)); err != nil {
-			return err
-		}
-	}
-	return nil
+	s.recorded = true
+	return w.o.removeExact(intentPath, wire.Sum(raw))
 }
 
 // resumeHelpers is resume's helper reconciliation under F: it refuses

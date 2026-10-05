@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -604,11 +605,16 @@ func TestSERVICE500_HelperRestartDebtChargesAndHolds(t *testing.T) {
 		t.Fatalf("starts=%d retires=%d", starts, retires)
 	}
 
-	// A record retry for the same generation is a REPLAY: no second charge.
+	// A record retry for the same generation (its intent still present
+	// after a partly published record) is a REPLAY: no second charge.
+	_, ident := s.manifest(t)
+	if _, err := writeHelperIntent(s.root(t), helperIntent{Helper: "web", ManifestSha256: ident, Token: "t", Generation: rec.Generation, State: "RUNNING"}); err != nil {
+		t.Fatal(err)
+	}
 	w := &helperWrapper{o: HelperOptions{RunOptions: s.runOptions(t, nil), Helper: "web"}, root: s.root(t), ctx: context.Background()}
 	settled := &helperSettlement{gen: rec.Generation, token: "t", exit: "exited", reason: "helper exited", charge: true, termination: "PROVED_TERMINATED"}
-	if err := w.record(settled, "boot-1", 1<<40, true); err != nil {
-		t.Fatal(err)
+	if err := w.record(settled, "boot-1", 1<<40, true); err != nil || s.helperIntent(t) != nil {
+		t.Fatalf("replay %v", err)
 	}
 	if again := s.helperRecord(t); again.Debt.Failures != 6 || again.State != "HOLD" || again.Hold != rec.Hold {
 		t.Fatalf("replay changed the record: %+v", again)
@@ -807,4 +813,45 @@ func mustRead(t *testing.T, path string) []byte {
 		t.Fatal(err)
 	}
 	return raw
+}
+
+// A settlement retry never overwrites a record that a resume reconciled
+// after the intent was removed, and an outcome whose intent vanished
+// before it was recorded holds instead of being written.
+func TestSERVICE500_HelperSettlementRetryKeepsResumedRecord(t *testing.T) {
+	s, _ := newHelperHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	root := s.root(t)
+	tree := &fakeTree{root: root, autoExit: true}
+	stop := s.runHelper(t, tree, steppingClock())
+	waitFor(t, "SERVICE_RESTART_HOLD", func() bool { return s.helperRecord(t).State == "HOLD" })
+	stop()
+	gen := s.helperRecord(t).Generation
+	if _, err := s.h.Stop("site", "stop-1", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.h.Resume("site", "resume-1"); err != nil {
+		t.Fatal(err)
+	}
+	resumed := s.helperRecord(t)
+	if resumed.State != "RETIRED" || resumed.Debt.Failures != 0 {
+		t.Fatalf("resume %+v", resumed)
+	}
+	w := &helperWrapper{o: HelperOptions{RunOptions: s.runOptions(t, nil), Helper: "web"}, root: root, ctx: context.Background()}
+	// Recorded before the intent removal failed: the retry finds the
+	// intent gone and leaves the resumed record alone.
+	recorded := &helperSettlement{gen: gen, token: "t", exit: "exited", reason: "helper exited", charge: true, termination: "PROVED_TERMINATED", recorded: true}
+	if err := w.record(recorded, "boot-1", 1<<40, true); err != nil {
+		t.Fatal(err)
+	}
+	// Never recorded and its intent is gone: HOLD, nothing written.
+	unrecorded := &helperSettlement{gen: gen, token: "t", exit: "exited", reason: "helper exited", charge: true, termination: "PROVED_TERMINATED"}
+	if err := w.record(unrecorded, "boot-1", 1<<40, true); wire.CodeOf(err) != wire.CodeUncertainEffect {
+		t.Fatalf("unrecorded settlement without its intent: %v", err)
+	}
+	if again := s.helperRecord(t); !reflect.DeepEqual(again, resumed) {
+		t.Fatalf("a settlement retry overwrote the resumed record:\n%+v\n%+v", again, resumed)
+	}
 }

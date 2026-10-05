@@ -138,6 +138,41 @@ func TestSERVICE500_LogStatusPublicationNeverBlocks(t *testing.T) {
 	}
 }
 
+// A close that leaves log I/O outstanding keeps the helper lock until that
+// I/O retires, so a successor never shares the files with a late writer.
+func TestSERVICE500_LogStallKeepsHelperLockUntilRetired(t *testing.T) {
+	u := openUnitLogs(t.TempDir(), helperUnit("web"), "stdout", "stderr")
+	u.bound = 50 * time.Millisecond
+	gate := make(chan struct{})
+	u.streams["stdout"].write = func(f *os.File, b []byte) (int, error) { <-gate; return f.Write(b) }
+	_, _ = u.streams["stdout"].Write([]byte("x"))
+	waitFor(t, "writer busy", func() bool { return u.streams["stdout"].pendingLen() == 0 })
+	unlocked := make(chan struct{})
+	start := time.Now()
+	releaseHelperLock(u, func() { close(unlocked) })
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("release blocked for %v", d)
+	}
+	select {
+	case <-unlocked:
+		t.Fatal("U released while a log writer was still outstanding")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(gate)
+	select {
+	case <-unlocked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("U not released after the log writer retired")
+	}
+
+	idle := openUnitLogs(t.TempDir(), helperUnit("web"), "stdout")
+	released := false
+	releaseHelperLock(idle, func() { released = true })
+	if !released {
+		t.Fatal("U not released synchronously after a clean close")
+	}
+}
+
 func TestSERVICE500_LogStatusAndExcerptAreBounded(t *testing.T) {
 	root := t.TempDir()
 	u := openUnitLogs(root, "main", "stderr")
