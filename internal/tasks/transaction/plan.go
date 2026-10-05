@@ -132,15 +132,21 @@ func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
 	return all
 }
 
-// Preserve unknown provenance while keeping the planner's original blocker order.
-func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unknown []ticket.Blocker) {
+// ObservedBlocker is one planner claim blocker; Observed is false for a
+// NOT_OBSERVED unknown.
+type ObservedBlocker struct {
+	ticket.Blocker
+	Observed bool
+}
+
+// ClaimBlockerObservations is the planner's claim-blocker derivation for
+// rec in planClaim's order, keeping unknown provenance. Read-only views such
+// as critical-path (CAL-V0-081) reuse it so they never diverge from `plan`.
+// A nil Reservations set leaves attempt liveness NOT_OBSERVED.
+func ClaimBlockerObservations(in PlanInput, rec *ticket.Record) []ObservedBlocker {
+	var out []ObservedBlocker
 	add := func(b ticket.Blocker, observed bool) {
-		all = append(all, b)
-		if observed {
-			known = append(known, b)
-		} else {
-			unknown = append(unknown, b)
-		}
+		out = append(out, ObservedBlocker{Blocker: b, Observed: observed})
 	}
 	if !poolAvailable(in, rec) {
 		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
@@ -154,7 +160,11 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
-	v, _ := in.Tickets.View(rec.TicketID.Raw, ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Attempts: entryOracle{in.Reservations}})
+	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback}
+	if in.Reservations != nil {
+		ctx.Attempts = entryOracle{in.Reservations}
+	}
+	v, _ := in.Tickets.View(rec.TicketID.Raw, ctx)
 	for _, b := range v.Blockers {
 		if b.Code != wire.CodeCoverageUnknown {
 			add(b, true)
@@ -167,6 +177,19 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 	}
 	if retryExhausted(in.Attempts, rec, in.Policy.AdmissionsPerRevision.Int()) {
 		add(ticket.Blocker{Code: wire.CodeRetryExhausted}, true)
+	}
+	return out
+}
+
+// Preserve unknown provenance while keeping the planner's original blocker order.
+func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unknown []ticket.Blocker) {
+	for _, b := range ClaimBlockerObservations(in, rec) {
+		all = append(all, b.Blocker)
+		if b.Observed {
+			known = append(known, b.Blocker)
+		} else {
+			unknown = append(unknown, b.Blocker)
+		}
 	}
 	return all, known, unknown
 }

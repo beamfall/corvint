@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -16,6 +16,7 @@ owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-069),
+owner request [issue 588](https://github.com/beamfall/corvint/issues/588) with owner answer 2026-10-05 (D8) (CAL-V0-079..081),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04) and its split native tickets V1-0755 (CAL-V0-074..075) and V1-0756 (CAL-V0-076..077),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
@@ -27,10 +28,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -2137,6 +2138,54 @@ traceability table, including the fake-host end-to-end `TestCALV0077_OpenCodePro
 Live OpenCode qualification on a disposable program is `NOT_RUN`; see
 `docs/build-log/2026-10-04-tasks-opencode-supervisor-host.md`.
 
+### V1-0793 critical-path read (issue 588)
+
+Authority: owner answer 2026-10-05 (D8), profile `taskman-critical-path/0`.
+
+- `CAL-V0-079`: `corvint-tasks critical-path <ticketId|local>` MUST return one
+  `taskman-critical-path/0` item for any ticket (a gate ticket is an ordinary ticket). The closure
+  starts at that ticket and follows, transitively, every dependency obligation that is not
+  satisfied: `COMPLETED` unless the dependency is `COMPLETED` or archived from `COMPLETED`, and
+  `GATE_PASSED` unless the gate oracle observes it satisfied (an unobservable gate result is
+  followed with observation `NOT_OBSERVED`, never treated as satisfied). `chains` holds, for each
+  frontier node (a closure node the walk follows no edge from), the longest root-to-frontier path,
+  root first; chains are ordered longest first, then by the frontier's planning order. Each
+  `nodes` entry carries `ticketId`, `status`, `priority`, `eligibility`, `depth` (nodes on its
+  longest path from the root), `firstBlocker`, `blockers`, `holds`, `waitingOn` and `attempt`.
+  `attempt` carries `observation` (`LIVE`, `NONE`, or `NOT_OBSERVED` when the journal is absent)
+  and `attemptId`, `phase`, `holder` (lease holder), `stage`, `member` (pool member),
+  `lastProgressSeq` (the attempt's `phaseSinceSeq`) and `lastProgressAt` (its recorded
+  `lastHeartbeatAt`); each is the string `NOT_OBSERVED` when the reader did not observe it. The
+  item also carries `estimate`, which is always `NOT_OBSERVED` in v0, and `human`, a short human
+  form: one header line, one line per returned chain and one line per cycle.
+- `CAL-V0-080`: The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
+  `nodesReturned`, `chainsTotal` and `chainsReturned`, and `truncated: true` when either bound is
+  exceeded. At most 256 nodes are returned (nodes on returned chains first, in chain order, then
+  the rest of the closure root-first) and at most 32 chains, each with `length` and at most 256
+  `ticketIds` (`truncated: true` on a cut chain). Edges between members of one dependency cycle are
+  not followed, so the walk terminates; every reached cycle is listed once in `cycles` with the
+  existing code `CYCLE` and its sorted members, the members appear as nodes with their `CYCLE`
+  blocker, and a member first reached through its cycle is placed one step after the member that
+  reached it. Cycle membership is computed once per component, the walk keeps only compact node
+  records, and node details and blockers are derived only for returned nodes and human chain
+  nodes, so the read stays linear in the closure even for a large cycle.
+- `CAL-V0-081`: The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
+  (journal-absent stores use the same inventory projection): it takes no lock, writes no file,
+  ledger or journal record, and carries `mutationAuthority: false` (product invariant 4).
+  `blockers` is the planner's claim-blocker derivation for the recorded default external-agent
+  plan (`blockerScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`), in planner order: pool collision,
+  pause barrier, cutover, enforced-budget, ticket-view blockers and unknowns except
+  `COVERAGE_UNKNOWN`, then `RETRY_EXHAUSTED`; certain entries carry `observation: CERTAIN` and
+  unknowns `NOT_OBSERVED`. `firstBlocker` is the first certain entry, else the first unknown, else
+  null, which matches the reason `plan preview` reports; `eligibility` is `BLOCKED` with a certain
+  blocker and otherwise `UNKNOWN` when blockers remain. A journal-absent store observes no barrier,
+  attempt or pool, so attempt liveness stays `NOT_OBSERVED`. Blocker codes are
+  an open set and `waitingOn` entries carry `kind` (`DEPENDENCY` in v0): execution prerequisites
+  (V1-0787), `LOOP_DETECTED` (V1-0791) and derived `ESCALATION_PENDING` holds MUST appear later as
+  further `blockers` entries or `waitingOn` kinds of the same shape, without a profile change.
+  Readers MUST treat an unknown code or kind as an opaque blocker. `critical-path` is listed in
+  the command verb inventory and answers `--help` without I/O (CAL-V0-047).
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -2481,3 +2530,33 @@ removes the flag; no store, wire or journal state depends on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-073 | `TestCALV0073_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0073_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |
+
+## V1-0793 critical-path read amendment
+
+Authoritative inputs: owner request [issue 588](https://github.com/beamfall/corvint/issues/588)
+(ticket V1-0793) and owner answer 2026-10-05 (D8): a new profile `taskman-critical-path/0`,
+bounded to 256 nodes and 32 chains, with no duration estimates in v0. On 2026-10-04 two handoffs
+circulated a wrong path to a gate because finding the real open dependencies took manual
+`ticket show` walks. This amendment adds one read verb. It changes no record, journal, writer,
+plan or existing wire profile.
+
+The normative requirements CAL-V0-079 to CAL-V0-081 are defined in the Requirements section under
+"V1-0793 critical-path read (issue 588)"; this amendment records their scope and evidence.
+
+Non-goals: duration or completion-time estimates (D8 defers them; `estimate` stays
+`NOT_OBSERVED`), dispatcher-private progress tokens (CAL-V0-064 history is not read), execution
+prerequisites and loop or escalation holds before their own specs land, owner-set bounds, paging,
+and any change to eligibility, planning or claim behavior.
+
+Failure modes: an unknown or foreign ticket refuses as `ticket show` does; a malformed argument is
+`MALFORMED`; a dependency cycle never loops the walk; a missing dependency remains a
+`DEPENDENCY_MISSING` blocker on its dependent and is not a node; an unobservable fact is
+`NOT_OBSERVED`, never inferred. The 256-node bound keeps the item well under the 16 MiB list-result
+bound even when every node has the maximum 64 dependencies. Rollback removes the verb; no store,
+journal or wire state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-079 | `TestCALV0079_CriticalPathChainsAndNodeFacts`, `TestCALV0079_CriticalPathLiveAttemptFacts` (`internal/tasks/cli`) |
+| CAL-V0-080 | `TestCALV0080_CriticalPathBoundsAndCycles`, `TestCALV0080_CriticalPathLargeCycleIsBounded` (10,000-ticket ring) (`internal/tasks/cli`) |
+| CAL-V0-081 | `TestCALV0081_CriticalPathBlockersMatchPlanner` (pool, coverage, gate observation, archived completion, budget; `plan preview` parity), `TestCALV0081_CriticalPathRetryAndPauseMatchPlanner`, `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
