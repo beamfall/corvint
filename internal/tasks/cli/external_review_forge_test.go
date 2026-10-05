@@ -213,10 +213,15 @@ func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 						}
 					}
 					tickets, err := cli.ObserveTickets(root)
+					if err != nil {
+						t.Fatal(err)
+					}
+					found := false
 					for _, x := range tickets {
 						if x.ID != id {
 							continue
 						}
+						found = true
 						if tc.forge == nil && (!x.GatesObserved || x.GateState(ergGate) == dispatch.GateNone) {
 							t.Fatalf("control: the real verdict is not observed: %+v", x)
 						}
@@ -224,8 +229,8 @@ func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 							t.Fatalf("a forged settled verdict is observable: %+v", x)
 						}
 					}
-					if tc.forge == nil && err != nil {
-						t.Fatal(err)
+					if !found {
+						t.Fatalf("the observation lost ticket %s", id)
 					}
 					if x := atm(t, root, nil, "receipt", "audit"); (x.res.Outcome == wire.OutcomeOK) != (tc.forge == nil) {
 						t.Fatalf("receipt audit: %s", x.stdout)

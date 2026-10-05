@@ -1,0 +1,40 @@
+{
+  "baseRevision": "2af3252df0ee296286772bfbb7c7a44b3686f9f3",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3780,
+        "start": 3294
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1d538124a25980914666d4ee6cd21a48b3068c95a419f8e7be85085d8a8ba195",
+      "newRange": {
+        "count": 8,
+        "start": 178
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 178
+      },
+      "path": "docs/build-log/2026-10-05-tasks-multirepo-continuation.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "120169a1eae2598c980d41b9eef5a695fab86c144e01abf484fd899f31e3375d",
+  "spec": "cem/0.2"
+}

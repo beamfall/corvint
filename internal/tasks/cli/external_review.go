@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -24,8 +25,8 @@ import (
 // record, read through the pure adapter against its current binding. fold is
 // the receipt history's binding audit (store.FoldExternalReviews); it names
 // the submissions that superseded a subject (ERG-V0-006).
-func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, fold *transaction.ExternalReviewReceiptAudit) (map[string]dispatch.GateView, error) {
-	views, err := externalReviewViews(repo, rec, policy, attempts, fold)
+func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, fold *transaction.ExternalReviewReceiptAudit) (map[string]dispatch.GateView, error) {
+	views, err := externalReviewViews(repo, rec, policy, fold)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +36,16 @@ func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy
 		if v.Verdict != nil {
 			g.Verdict = *v.Verdict
 		}
+		if c := v.Candidate; c != nil {
+			g.Candidate = dispatch.GateCandidate{Kind: c.Kind, TreeOID: c.TreeOID, Sha256: string(c.Sha256), Bytes: string(c.Bytes)}
+		}
+		if q := v.Subject; q != nil {
+			g.Subject = dispatch.GateSubject{AttemptID: q.AttemptID, Generation: string(q.Generation), ReceiptSeq: string(q.ReceiptSeq), ReceiptSha256: string(q.ReceiptSha256), AttemptSha256: string(q.AttemptSha256)}
+		}
+		g.Trust = dispatch.GateTrust{ActorAuthentication: v.ActorAuthentication, Independence: v.Independence, Source: v.TrustSource}
+		if v.EvidenceSha256 != nil {
+			g.EvidenceSha256 = string(*v.EvidenceSha256)
+		}
 		out[gate] = g
 	}
 	return out, nil
@@ -42,13 +53,13 @@ func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy
 
 // externalReviewViews reads every gate reference on the record through the
 // pure adapter against its current binding (ERG-V0-009).
-func externalReviewViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, fold *transaction.ExternalReviewReceiptAudit) (map[string]transaction.ExternalReviewView, error) {
+func externalReviewViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, fold *transaction.ExternalReviewReceiptAudit) (map[string]transaction.ExternalReviewView, error) {
 	refs := map[string]snapshot.ExternalReviewRef{}
 	for gate, ref := range rec.ExternalReviews {
 		refs[gate] = snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}
 	}
 	blob := store.ExternalReviewBlob(repo)
-	return transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, attempts, blob, fold.Superseded))
+	return transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, blob, fold.Superseded))
 }
 
 // completionOffers derives the ERG-V0-011 read-only completion offer for
@@ -77,7 +88,7 @@ func (o *completionOffers) evidence(rec *ticket.Record) []wire.Digest {
 	if o.fold == nil {
 		return nil
 	}
-	views, err := externalReviewViews(o.rc.repo, rec, policy, o.in.Attempts, o.fold)
+	views, err := externalReviewViews(o.rc.repo, rec, policy, o.fold)
 	if err != nil {
 		return nil
 	}
@@ -112,6 +123,10 @@ type reviewFlags struct {
 	gate, verdict, subject, reviewer, author, priorReturn string
 	expectedGeneration, expectedRevision                  string
 	reasons                                               []string
+	// candidate is --candidate-evidence SHA256:BYTES (or derived from
+	// --from-acceptance); evidence holds each --evidence LABEL=SHA256:BYTES.
+	candidate, acceptance string
+	evidence              []string
 }
 
 // gateReviewCommand runs `gate record|resubmit` (ERG-V0-009). It composes the
@@ -129,9 +144,10 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	set := map[string]*string{
 		"--gate": &f.gate, "--subject-receipt": &f.subject, "--expected-generation": &f.expectedGeneration,
 		"--expected-revision": &f.expectedRevision, "--request-id": &f.requestID, "--issued-at": &f.issuedAt, "--role": &f.role,
+		"--candidate-evidence": &f.candidate,
 	}
 	if operation == mutation.OpReviewRecord {
-		set["--verdict"], set["--reviewer-attempt"] = &f.verdict, &f.reviewer
+		set["--verdict"], set["--reviewer-attempt"], set["--from-acceptance"] = &f.verdict, &f.reviewer, &f.acceptance
 	} else {
 		set["--author-attempt"], set["--prior-return"] = &f.author, &f.priorReturn
 	}
@@ -140,8 +156,12 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 		if i+1 >= len(rest) {
 			return usage(cmd, rest[i]+" needs a value")
 		}
-		if rest[i] == "--reason" {
-			f.reasons = append(f.reasons, rest[i+1])
+		if rest[i] == "--reason" || rest[i] == "--evidence" {
+			if rest[i] == "--reason" {
+				f.reasons = append(f.reasons, rest[i+1])
+			} else {
+				f.evidence = append(f.evidence, rest[i+1])
+			}
 			i++
 			continue
 		}
@@ -151,6 +171,11 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 		}
 		i++
 		*dest = rest[i]
+	}
+	if f.acceptance != "" {
+		if err := acceptanceFlags(&f); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	if f.requestID == "" || f.gate == "" || f.subject == "" || f.expectedGeneration == "" || f.expectedRevision == "" {
 		return usage(cmd, "--request-id, --gate, --subject-receipt, --expected-generation and --expected-revision are required")
@@ -181,6 +206,51 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	payload := wire.NewObject().Set("request", request)
 	return submitMutation(env, cmd, operation, actor, f.mutateFlags, wire.ObjectValue(payload))
+}
+
+// acceptanceFlags reads an issue 394 acceptance report (`corvint tests
+// accept`) and derives the verdict and EVIDENCE candidate it supports: the
+// report's own digest and size, which the writer admits only when an
+// executable gate run of the subject retained exactly those bytes, and
+// accepted to PASS or rejected to RETURN (owner decision 2026-10-04). A
+// blocked report supports no verdict and refuses as MISSING_EVIDENCE; a
+// file that is not such a report, or a conflicting --verdict or
+// --candidate-evidence, is malformed. The writer re-applies the mapping to
+// the retained artifact, so this composition is not authority.
+func acceptanceFlags(f *reviewFlags) error {
+	raw, err := intent.ReadFile(f.acceptance, wire.MaxGateOutputBytes)
+	if err != nil {
+		return err
+	}
+	verdict, report, err := transaction.ExternalAcceptanceVerdict(raw)
+	switch {
+	case err != nil:
+		return err
+	case !report:
+		return wire.Errorf(wire.CodeMalformed, "--from-acceptance", "the file is not a corvint-new-e2e-assessment report")
+	case verdict == "":
+		return wire.Errorf(wire.CodeMissingEvidence, "--from-acceptance", "acceptance verdict blocked supports no review verdict")
+	}
+	candidate := string(wire.Sum(raw)) + ":" + strconv.Itoa(len(raw))
+	if (f.verdict != "" && f.verdict != verdict) || (f.candidate != "" && f.candidate != candidate) {
+		return wire.Errorf(wire.CodeMalformed, "--from-acceptance", "the report supports verdict %s on candidate %s", verdict, candidate)
+	}
+	f.verdict, f.candidate = verdict, candidate
+	return nil
+}
+
+// artifactArg parses SHA256:BYTES.
+func artifactArg(flag, arg string) (wire.Digest, wire.Size, error) {
+	sha, n, ok := strings.Cut(arg, ":")
+	d, err := wire.ParseDigest(flag, sha)
+	if err != nil || !ok {
+		return "", "", wire.Errorf(wire.CodeMalformed, flag, "an artifact is SHA256:BYTES")
+	}
+	size, err := wire.ParseSize(flag, n)
+	if err != nil {
+		return "", "", err
+	}
+	return d, size, nil
 }
 
 // retainedReviewRequest makes a retry reproducible (ERG-V0-009): when the
@@ -277,13 +347,25 @@ func retainedChainRequest(rc *readCtx, id, operation string, actor mutation.Bind
 func retainedReviewMatches(e *snapshot.ExternalReviewEvent, operation string, actor mutation.Binding, f reviewFlags) bool {
 	q := e.Request
 	if e.ActorID != actor.ID || e.ActorRole != actor.Role || string(q.ExpectedGeneration) != f.expectedGeneration || string(q.ExpectedRevision) != f.expectedRevision ||
-		string(q.Subject.ReceiptSeq) != f.subject || len(q.Reasons) != len(f.reasons) {
+		string(q.Subject.ReceiptSeq) != f.subject || len(q.Reasons) != len(f.reasons) || len(q.Evidence) != len(f.evidence) {
 		return false
 	}
 	for i, r := range q.Reasons {
 		if r.Code+":"+r.Text != f.reasons[i] {
 			return false
 		}
+	}
+	for i, e := range q.Evidence {
+		if e.Label+"="+string(e.Sha256)+":"+string(e.Bytes) != f.evidence[i] {
+			return false
+		}
+	}
+	if candidate := ""; q.Candidate.Kind == "EVIDENCE" {
+		if candidate = string(q.Candidate.Sha256) + ":" + string(q.Candidate.Bytes); candidate != f.candidate {
+			return false
+		}
+	} else if f.candidate != "" {
+		return false
 	}
 	if operation == mutation.OpReviewRecord {
 		reviewer := ""
@@ -323,6 +405,21 @@ func composeReviewRequest(rc *readCtx, operation string, actor mutation.Binding,
 	}
 	if q.Subject, q.Candidate, err = reviewSubject(rc.repo, f.subject); err != nil {
 		return wire.Value{}, err
+	}
+	if f.candidate != "" {
+		sha, n, err := artifactArg("--candidate-evidence", f.candidate)
+		if err != nil {
+			return wire.Value{}, err
+		}
+		q.Candidate = snapshot.ExternalReviewCandidate{Kind: "EVIDENCE", Sha256: sha, Bytes: n}
+	}
+	for _, e := range f.evidence {
+		label, artifact, ok := strings.Cut(e, "=")
+		sha, n, err := artifactArg("--evidence", artifact)
+		if !ok || err != nil {
+			return wire.Value{}, wire.Errorf(wire.CodeMalformed, "--evidence", "evidence is LABEL=SHA256:BYTES")
+		}
+		q.Evidence = append(q.Evidence, snapshot.GateEvidence{Label: label, Sha256: sha, Bytes: n})
 	}
 	lease := func(attemptID string) (*snapshot.ExternalReviewLease, error) {
 		a := in.Attempts[attemptID]
@@ -476,4 +573,79 @@ func gateHistory(env Env, args []string) *wire.Result {
 	}
 	res.Untrusted = true
 	return res
+}
+
+// gateState runs `gate state <ticket>`: the native ERG-V0-009 workState of
+// every external review gate the ticket references, one item per gate in
+// byte order, each with the closed field set
+// {gate,verdict,generation,revision,resubmitted,status,candidate,subject,
+// trust,evidenceSha256}. It is read from typed events through the receipt
+// binding fold and the same adapter the dispatcher uses, never from prose. A
+// ticket without references has no items. A refused fold or an unreadable
+// gate set fails the read rather than reporting a guess.
+func gateState(env Env, args []string) *wire.Result {
+	cmd := []string{"gate", "state"}
+	if len(args) != 1 || strings.HasPrefix(args[0], "--") {
+		return usage(cmd, "the only argument is the ticket id or local token")
+	}
+	var views map[string]transaction.ExternalReviewView
+	rc, err := withStore(env, func(rc *readCtx) error {
+		id, err := resolveTicketArg(rc, args[0])
+		if err != nil {
+			return err
+		}
+		rec, ok := rc.store.Inventory.Get(id)
+		if !ok {
+			return wire.Errorf(wire.CodeMalformed, "ticket", "ticket %s does not exist in this queue", id)
+		}
+		if len(rec.ExternalReviews) == 0 {
+			return nil
+		}
+		if rc.journalAbsent {
+			return wire.Errorf(wire.CodeMissingEvidence, "gate state", "no journal: review references cannot be audited")
+		}
+		fold, err := store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+		if err != nil {
+			return err
+		}
+		views, err = externalReviewViews(rc.repo, rec, rc.store.Policy, fold)
+		return err
+	})
+	if err != nil {
+		return failure(cmd, rc, err)
+	}
+	res := success(cmd, rc)
+	res.Items = []wire.Value{}
+	gates := make([]string, 0, len(views))
+	for g := range views {
+		gates = append(gates, g)
+	}
+	sort.Strings(gates)
+	for _, g := range gates {
+		res.Items = append(res.Items, gateStateValue(g, views[g]))
+	}
+	return res
+}
+
+// gateStateValue is one gate's closed ERG-V0-009 workState object.
+func gateStateValue(gate string, v transaction.ExternalReviewView) wire.Value {
+	candidate, subject, trust, evidence := wire.Null(), wire.Null(), wire.Null(), wire.Null()
+	if v.Candidate != nil {
+		candidate = v.Candidate.Value()
+	}
+	if v.Subject != nil {
+		subject = v.Subject.Value()
+	}
+	if v.TrustSource != "" {
+		trust = wire.ObjectValue(wire.NewObject().Set("actorAuthentication", wire.String(v.ActorAuthentication)).
+			Set("independence", wire.String(v.Independence)).Set("source", wire.String(v.TrustSource)))
+	}
+	if v.EvidenceSha256 != nil {
+		evidence = wire.String(string(*v.EvidenceSha256))
+	}
+	o := wire.NewObject().Set("gate", wire.String(gate)).Set("verdict", wire.StringOrNull(v.Verdict)).
+		Set("generation", wire.String(string(v.Generation))).Set("revision", wire.String(string(v.Revision))).
+		Set("resubmitted", wire.Bool(v.Resubmitted)).Set("status", wire.String(v.Status)).
+		Set("candidate", candidate).Set("subject", subject).Set("trust", trust).Set("evidenceSha256", evidence)
+	return wire.ObjectValue(o)
 }

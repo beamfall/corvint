@@ -155,6 +155,10 @@ type Record struct {
 	// (CAL-V0-099), omitted when empty. It is not acceptance-relevant and is
 	// excluded from cycle detection, completion and requiredGates.
 	ExecutionPrerequisites []Prerequisite
+	// AttachedEvidence is the optional evidence-attachment list (TEA-V0-001),
+	// omitted when empty. It is not acceptance-relevant and is changed only
+	// by ATTACH_EVIDENCE.
+	AttachedEvidence []AttachedEvidence
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -202,6 +206,9 @@ func FromValue(v wire.Value) (*Record, error) {
 	}
 	if wire.Has(v, "executionPrerequisites") {
 		rec.ExecutionPrerequisites = ReadPrerequisites(r.Field("executionPrerequisites"))
+	}
+	if wire.Has(v, "attachedEvidence") {
+		rec.AttachedEvidence = ReadAttachedEvidence(r.Field("attachedEvidence"))
 	}
 	rec.TicketID = r.Field("ticketId").TicketID()
 	rec.Revision = r.Field("revision").Count()
@@ -431,6 +438,9 @@ func (rec *Record) validate() error {
 	if err := rec.validatePrerequisites(); err != nil {
 		return err
 	}
+	if err := rec.validateAttachedEvidence(); err != nil {
+		return err
+	}
 	// §3.1 source: IMPORT names its source item; NATIVE has none.
 	if rec.Source.Kind == "IMPORT" && rec.Source.SourceItemID == nil {
 		return wire.Errorf(wire.CodeMalformed, "/source/sourceItemId", "IMPORT source must name sourceItemId")
@@ -510,6 +520,9 @@ func (rec *Record) Value() wire.Value {
 	}
 	if len(rec.ExecutionPrerequisites) > 0 {
 		o.Set("executionPrerequisites", PrerequisitesValue(rec.ExecutionPrerequisites))
+	}
+	if len(rec.AttachedEvidence) > 0 {
+		o.Set("attachedEvidence", AttachedEvidenceValue(rec.AttachedEvidence))
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

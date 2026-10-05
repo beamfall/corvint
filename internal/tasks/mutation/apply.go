@@ -494,6 +494,33 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt: ctx.Now,
 		}
 		work.Status = ticket.StatusCompleted
+	case *AttachEvidencePayload:
+		// TEA-V0-001: evidence is attached to an OPEN native ticket only, at
+		// its current acceptance revision. Actor and time come from the
+		// trusted context; nothing acceptance-relevant changes, so finalize
+		// bumps revision alone.
+		if work.Status != ticket.StatusOpen {
+			return refuse(OutcomeBlocked, wire.CodeTicketState, "ATTACH_EVIDENCE requires status OPEN (is %s)", work.Status)
+		}
+		if work.Source.Kind != "NATIVE" {
+			return refuse(OutcomeBlocked, wire.CodeTicketState, "ATTACH_EVIDENCE requires a native record (source.kind is %s)", work.Source.Kind)
+		}
+		for _, d := range p.Evidence {
+			if ticket.AttachedAt(work.AttachedEvidence, work.AcceptanceRevision, d) {
+				return refuse(OutcomeValidationFailed, wire.CodeDuplicateID, "digest %s is already attached at acceptanceRevision %s", d, work.AcceptanceRevision)
+			}
+		}
+		if len(work.AttachedEvidence) >= wire.AttachedEvidenceMaxEntries {
+			return refuse(OutcomeValidationFailed, wire.CodeLimitExceeded, "more than %d attached evidence entries", wire.AttachedEvidenceMaxEntries)
+		}
+		entry := ticket.AttachedEvidence{
+			AcceptanceRevision: work.AcceptanceRevision,
+			Actor:              ctx.Binding.ID,
+			Evidence:           append([]wire.Digest{}, p.Evidence...),
+			Reason:             p.Reason,
+			RecordedAt:         ctx.Now,
+		}
+		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
 	case *GrantApprovalPayload:
 		if p.Actor != ctx.Binding.ID {
 			return refuse(OutcomeUnauthorized, "", "grant actor %q is not the invoking actor %q", p.Actor, ctx.Binding.ID)

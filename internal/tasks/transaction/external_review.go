@@ -197,6 +197,11 @@ func ApplyExternalReview(q snapshot.ExternalReviewRequest, o ExternalReviewObser
 		if old == nil || old.Request.Verdict == nil || *old.Request.Verdict != "RETURN" || q.PriorReturn == nil || *q.PriorReturn != o.Current.Head {
 			return fail("prior RETURN binding")
 		}
+		// A resubmission is the author's act. A REVIEWER actor never resubmits,
+		// even holding an author-stage lease (fail-closed choice, 2026-10-05).
+		if o.Actor.Role == "REVIEWER" {
+			return fail("resubmit role")
+		}
 		if !externalLeaseMatches(q.AuthorLease, o.Author, o.Actor, q.TicketID, o.Policy.AuthorStages) {
 			return fail("author lease")
 		}

@@ -118,6 +118,8 @@ type ExternalReviewReceiptAudit struct {
 	// is unavailable (never posted, unreadable or undecodable).
 	policy    *intent.Policy
 	policyErr string
+	// artifacts indexes every admitted artifact link (ERG-V0-002).
+	artifacts map[ExternalArtifact]bool
 }
 
 type externalSubmission struct {
@@ -150,6 +152,7 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 		a.refs = map[string]map[string]ticket.ExternalReviewRef{}
 		a.receipts = map[uint64]externalSubmission{}
 		a.latest = map[string]map[string]uint64{}
+		a.artifacts = map[ExternalArtifact]bool{}
 		a.policyErr = "no policy was posted"
 	}
 	events := map[wire.Digest]bool{}
@@ -235,9 +238,23 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 				return a.fail(rc, "gate %s preceding head event is absent", gate)
 			}
 		}
+		for _, e := range q.Evidence {
+			if !a.linked(q.TicketID, built, e.Sha256, e.Bytes) {
+				return a.fail(rc, "gate %s evidence reference %s is not an artifact link of its subject", gate, e.Sha256)
+			}
+		}
+		if q.Candidate.Kind == "EVIDENCE" {
+			artifact, ok := blob(q.Candidate.Sha256)
+			if !ok || wire.Sum(artifact) != q.Candidate.Sha256 {
+				return a.fail(rc, "gate %s candidate artifact is absent", gate)
+			}
+			if detail, _ := externalAcceptanceCheck(q, artifact); detail != "" {
+				return a.fail(rc, "gate %s: %s", gate, detail)
+			}
+		}
 		binding := ExternalReviewBinding{GateID: gate, TicketID: rec.TicketID.Raw, AcceptanceRevision: rec.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: q.PolicySha256,
 			Subject:   snapshot.ExternalReviewSubject{AttemptID: built.AttemptID, Generation: built.Generation, ReceiptSeq: built.Seq, ReceiptSha256: a.receipts[built.Seq.Uint64()].sum, AttemptSha256: built.AttemptSha256},
-			Candidate: snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: built.Tree}}
+			Candidate: q.Candidate}
 		if err := ValidateExternalReviewRecovery(ev, *externalRefOf(ref), externalReplayObservations(rc, q, binding, def, prior, priorEvent)); err != nil {
 			return a.fail(rc, "gate %s head event is not the transition from its preceding reference: %v", gate, err)
 		}
@@ -246,6 +263,9 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 	posts, err := ExternalBuiltPosts(rc, blob)
 	if err != nil {
 		return a.fail(rc, "attempt post: %v", err)
+	}
+	for _, l := range ExternalArtifactPosts(rc, blob) {
+		a.artifacts[l] = true
 	}
 	if len(posts) != 0 {
 		a.receipts[rc.Seq.Uint64()] = externalSubmission{sum: sum, posts: posts}
@@ -279,7 +299,9 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 
 // subject finds the request's subject among the folded submissions: the
 // retained BUILT receipt at its sequence and digest that posted the same
-// attempt, attempt digest, ticket, generation and TREE candidate.
+// attempt, attempt digest, ticket and generation with a candidate tree, and
+// whose candidate is that TREE or an EVIDENCE artifact linked to it
+// (ERG-V0-002) by a receipt folded before this event.
 func (a *ExternalReviewReceiptAudit) subject(q snapshot.ExternalReviewRequest) (ExternalBuilt, bool) {
 	s := q.Subject
 	sub, ok := a.receipts[s.ReceiptSeq.Uint64()]
@@ -287,12 +309,21 @@ func (a *ExternalReviewReceiptAudit) subject(q snapshot.ExternalReviewRequest) (
 		return ExternalBuilt{}, false
 	}
 	for _, b := range sub.posts {
-		if b.AttemptID == s.AttemptID && b.AttemptSha256 == s.AttemptSha256 && b.TicketID == q.TicketID && b.Generation == s.Generation && b.Tree != "" &&
-			q.Candidate == (snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: b.Tree}) {
+		if b.AttemptID != s.AttemptID || b.AttemptSha256 != s.AttemptSha256 || b.TicketID != q.TicketID || b.Generation != s.Generation || b.Tree == "" {
+			continue
+		}
+		c := q.Candidate
+		if c == (snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: b.Tree}) || (c.Kind == "EVIDENCE" && a.linked(q.TicketID, b, c.Sha256, c.Bytes)) {
 			return b, true
 		}
 	}
 	return ExternalBuilt{}, false
+}
+
+// linked reports whether an artifact {sha,bytes} of the subject submission
+// b's attempt, generation and tree was linked before the receipt in fold.
+func (a *ExternalReviewReceiptAudit) linked(ticketID string, b ExternalBuilt, sha wire.Digest, n wire.Size) bool {
+	return a.artifacts[ExternalArtifact{TicketID: ticketID, AttemptID: b.AttemptID, Generation: b.Generation, Tree: b.Tree, Sha256: sha, Bytes: n}]
 }
 
 // externalReplayObservations reconstructs the observations under which the

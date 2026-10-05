@@ -269,6 +269,15 @@ event for its own operations in the transaction model rather than rely on stage 
 the event in receipt audit and redo (NOT_RUN until implemented), and refuse the `escalations`
 reference in raw import (`importChain`) as well as in CREATE, REFINE and ADOPT.
 
+Decided 2026-10-05 (ticket V1-0699, issue 502): the owner accepted issue 502 with qualification
+`NOT_RUN` on the delivery merged to main (#574, #610, #612 and #614, which added the kinds and ages of
+open requests to `dispatch status` for ESC-V0-009). A live dispatcher over a native store with a real
+worker, a process kill between reservation and spawn, a live answer-then-refine sequence, and `make gate` are `NOT_RUN`
+and tracked by follow-up V1-0823; whether receipt audit must bound aggregate claim guidance over
+forged history is V1-0833. An independent lane for the same requirements
+(`docs/build-log/2026-10-05-issue502-escalation-retry-and-material.md`) was superseded by main and
+not integrated.
+
 ## Rollout and rollback
 
 This delivery adds unreferenced pure code and intent only. It installs no feature and changes no

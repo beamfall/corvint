@@ -110,6 +110,21 @@ The gate worktree must be clean. Resubmitting invalidates earlier gate results. 
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes
 only the `releaseReasonCodes` returned by `help` (for example `GATE_FAILED`); free prose refuses.
 
+To record evidence on an OPEN ticket without changing it, an OWNER (or an OPERATOR whose policy
+row explicitly names `ATTACH_EVIDENCE`) attaches 1..16 sorted, unique sha256 digests and a nonblank
+reason of at most 512 bytes:
+
+```sh
+corvint-tasks ticket attach-evidence --target "$ticket" --expected-revision "$revision" --request-id evidence-a \
+  --payload '{"evidence":["<64 lowercase hex>"],"reason":"focused go test log"}'
+```
+
+The write bumps the ticket revision only; acceptanceRevision, status, gates and completion are
+unchanged, and attached evidence never satisfies a gate or criterion. `ticket show` lists the
+entries under `attachedEvidence` with the actor, time and acceptance revision. A digest already
+attached at the current acceptance revision refuses `DUPLICATE_ID`; non-OPEN or imported tickets
+refuse `TICKET_STATE`; an identical retry replays (TEA-V0-001).
+
 ## Payloads and shared worktrees
 
 Payloads use sorted object keys, compact JSON, literal UTF-8 (not `\u00a7` for `§`), and sorted,
@@ -322,6 +337,16 @@ event) expose the derived `nextStage`: the latest generation's target, `null` (`
 dispatcher) when none is observed, and `STALE` after the acceptance revision changed. It is
 advisory; claims for another stage are not refused. Older binaries refuse attempt records that
 contain the new keys, so do not downgrade a store after recording a target.
+
+Operator notes (experimental, `corvint-tasks-operator-notes-v0.md`): `ticket note history <ticket>
+[--limit 1..50] [--cursor C]` reads superseded and cleared notes newest first as a pure read, with
+an opaque cursor anchored to the head the first page read. A dispatcher role prompt may include
+`{operatorNote}`; it renders nothing for a never-noted ticket and otherwise a launch-time copy of
+the current note, labelled advisory. The claim result's `operatorNote` remains the authoritative
+note for the admitted attempt. The placeholder is refused in host argv, env and activity paths, and a role using it needs a host
+that passes `{prompt}` as one whole argv element, has no other placeholder in argv, names no shell or interpreter (`sh`, `bash`,
+`env`, `python`, `node` and similar) and takes no code-string option such as `-c`, `+c`, `-e`,
+`--eval` or `--command`; use a wrapper executable when a shell is needed.
 
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry

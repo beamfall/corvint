@@ -99,23 +99,36 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 					later.Built = append(later.Built, b)
 				}
 			}
+			for _, l := range transaction.ExternalArtifactPosts(rc, blob) {
+				if l.TicketID == q.TicketID {
+					later.Artifacts = append(later.Artifacts, l)
+				}
+			}
 		}
 		previous = wire.Sum(raw)
 	}
 	if head.LastReceiptSha256 == nil || previous != *head.LastReceiptSha256 {
 		return nil, nil, nil, wire.Errorf(wire.CodeJournalForked, "head.json", "receipt chain differs from the head")
 	}
+	if q.Candidate.Kind == "EVIDENCE" {
+		// An absent or unreadable artifact leaves Artifact nil, so the
+		// candidate link reads UNKNOWN and the request refuses.
+		later.Artifact, _ = blob(q.Candidate.Sha256)
+	}
 	return prior, subject, later, nil
 }
 
-// ExternalReviewBlob reads one retained event by digest from evidence/. The
-// pure readers re-hash every byte, so an absent or altered file is UNKNOWN.
+// ExternalReviewBlob reads one retained blob by digest from evidence/: a
+// review event, a blob-backed post or an EVIDENCE candidate artifact (a
+// captured gate output, hence the gate-output bound). The pure readers
+// re-hash every byte and bound each decoded kind, so an absent or altered
+// file is UNKNOWN.
 func ExternalReviewBlob(repo *intent.Repository) transaction.ExternalReviewBlob {
 	return func(d wire.Digest) ([]byte, bool) {
 		if _, err := wire.ParseDigest("head", string(d)); err != nil {
 			return nil, false
 		}
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(d)), wire.MaxReceiptFileBytes)
+		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(d)), wire.MaxGateOutputBytes)
 		return raw, err == nil
 	}
 }

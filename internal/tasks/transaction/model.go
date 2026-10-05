@@ -232,13 +232,28 @@ func canonical(raw []byte) error {
 	return nil
 }
 
+// ActorAdmitted reports whether the invoking role may enter the transaction
+// model. OWNER and OPERATOR may; REVIEWER and WORKER may only for a
+// REVIEW_RECORD or REVIEW_RESUBMIT mutation, whose authority is the external
+// review reducer's recorder roles and live leases, never the role matrix
+// (ERG-V0-001).
+func ActorAdmitted(r Request) bool {
+	switch r.Actor.Role {
+	case "OWNER", "OPERATOR":
+		return true
+	case "REVIEWER", "WORKER":
+		return reviewMutation(r)
+	}
+	return false
+}
+
 // Digest computes the closed administrative preimage. ADOPT delegates its exact
 // digest to the existing reducer; timestamps and head state never enter it.
 func Digest(r Request) (wire.Digest, error) {
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return "", e
 	}
-	if r.Actor.Role != "OWNER" && r.Actor.Role != "OPERATOR" {
+	if !ActorAdmitted(r) {
 		return "", wire.Errorf(wire.CodeUnsupported, "actor", "outside hypothetical administrative role subset")
 	}
 	q, e := wire.ParseQueueID("queueId", r.QueueID)
@@ -451,7 +466,7 @@ func Model(r Request, in Input) Result {
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "hypothetical actor malformed")
 	}
-	if r.Actor.Role != "OWNER" && r.Actor.Role != "OPERATOR" {
+	if !ActorAdmitted(r) {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
 	}
 	if r.Operation == Mutate {
@@ -1006,6 +1021,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if e := importOperatorNote(post, pre, where); e != nil {
 		return e
 	}
+	if e := importAttachedEvidence(post, pre, where); e != nil {
+		return e
+	}
 	path := "intent/tickets/" + post.TicketID.Local + ".json"
 	if pre == nil {
 		if _, exists := inv.files[path]; exists {
@@ -1247,6 +1265,20 @@ func importOperatorNote(post, pre *ticket.Record, where string) error {
 	}
 	if !bytes.Equal(want, got) {
 		return wire.Errorf(wire.CodeMalformed, where+"/operatorNote", "an imported record cannot add, rewrite or drop the operator-note reference")
+	}
+	return nil
+}
+
+// importAttachedEvidence keeps an IMPORT batch from adding, rewriting or
+// dropping attached evidence (TEA-V0-001): only ATTACH_EVIDENCE writes it, so
+// an imported record carries exactly the list of the record it replaces.
+func importAttachedEvidence(post, pre *ticket.Record, where string) error {
+	var want []ticket.AttachedEvidence
+	if pre != nil {
+		want = pre.AttachedEvidence
+	}
+	if !wire.Equal(ticket.AttachedEvidenceValue(want), ticket.AttachedEvidenceValue(post.AttachedEvidence)) {
+		return wire.Errorf(wire.CodeMalformed, where+"/attachedEvidence", "an imported record cannot add, rewrite or drop attached evidence")
 	}
 	return nil
 }

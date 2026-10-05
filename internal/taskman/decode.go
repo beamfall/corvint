@@ -62,6 +62,7 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 	"escalations":            escalationRefs,
 	"externalReviews":        externalReviews,
 	"executionPrerequisites": executionPrerequisites,
+	"attachedEvidence":       attachedEvidence,
 }
 
 // ticketObject checks the closed ticket record object and returns the
@@ -585,6 +586,62 @@ func externalReviews(m wire.Value, _, _ uint64) error {
 		}
 		if head := value(ref, "head"); head.Kind != wire.KindString || !digest(head.Str) {
 			return errors.New("external review head")
+		}
+	}
+	return nil
+}
+
+// attachedEvidence validates the optional TEA-V0-001 list: 1..32 closed
+// entries in append order, each naming an acceptance revision in
+// 1..acceptance that never decreases, 1..16 sorted unique digests that do not
+// repeat within one acceptance revision, a label actor, a nonblank prose
+// reason of at most 512 bytes and a timestamp. Absence is valid.
+func attachedEvidence(v wire.Value, _, acceptance uint64) error {
+	entries, e := array(v, taskswire.AttachedEvidenceMaxEntries)
+	if e != nil || len(entries) == 0 {
+		return errors.New("attached evidence entries")
+	}
+	seen := map[string]bool{}
+	var prev uint64
+	for _, x := range entries {
+		if e = object(x, "acceptanceRevision actor evidence reason recordedAt"); e != nil {
+			return errors.New("attached evidence entry")
+		}
+		n, e := number(value(x, "acceptanceRevision"), 2147483647)
+		if e != nil || n == 0 || n > acceptance || n < prev {
+			return errors.New("attached evidence acceptance revision")
+		}
+		prev = n
+		if a := value(x, "actor"); a.Kind != wire.KindString {
+			return errors.New("attached evidence actor")
+		} else if _, e = taskswire.ParseLabel("actor", a.Str); e != nil {
+			return errors.New("attached evidence actor")
+		}
+		r := value(x, "reason")
+		if r.Kind != wire.KindString || strings.TrimSpace(r.Str) == "" {
+			return errors.New("attached evidence reason")
+		}
+		if _, e = taskswire.ParseProse("reason", r.Str, 1, taskswire.AttachedEvidenceMaxReasonBytes); e != nil {
+			return errors.New("attached evidence reason")
+		}
+		if t := value(x, "recordedAt"); t.Kind != wire.KindString {
+			return errors.New("attached evidence time")
+		} else if _, e = taskswire.ParseTimestamp("recordedAt", t.Str); e != nil {
+			return errors.New("attached evidence time")
+		}
+		ds, e := array(value(x, "evidence"), taskswire.AttachedEvidenceMaxDigests)
+		if e != nil || len(ds) == 0 {
+			return errors.New("attached evidence digests")
+		}
+		for i, d := range ds {
+			if d.Kind != wire.KindString || !digest(d.Str) || (i > 0 && ds[i-1].Str >= d.Str) {
+				return errors.New("attached evidence digest")
+			}
+			key := count(n) + ":" + d.Str
+			if seen[key] {
+				return errors.New("attached evidence digest repeated within an acceptance revision")
+			}
+			seen[key] = true
 		}
 	}
 	return nil

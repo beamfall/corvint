@@ -172,3 +172,26 @@ func TestCALV0075_ClaudeDuplicateMembers(t *testing.T) {
 		t.Fatalf("same name in distinct objects refused: %v", e)
 	}
 }
+
+// TestCALV0089_InterruptedSessionCapability binds each host's declared
+// InterruptedSession capability to its vocabulary: the retained output of a
+// run stopped before its final result names a session exactly when the host
+// declares the capability, so a checkpointed continuation never resumes a
+// session the host did not report.
+func TestCALV0089_InterruptedSessionCapability(t *testing.T) {
+	cases := []struct{ host, raw string }{
+		{HostCodex, `{"type":"thread.started","thread_id":"thread-1"}` + "\n" + `{"type":"turn.started"}` + "\n"},
+		{HostOpenCode, `{"type":"step_start","timestamp":1,"sessionID":"ses_1","part":{"type":"step-start"}}` + "\n"},
+		{HostClaudeCode, ""},
+		{HostClaudeCode, `{"type":"result","session_id":"sess-1"`},
+	}
+	for _, c := range cases {
+		v, ok := HostVocabulary(c.host)
+		if !ok {
+			t.Fatalf("%s: no vocabulary", c.host)
+		}
+		if named := v.Session([]byte(c.raw)) != ""; named != v.InterruptedSession {
+			t.Fatalf("%s: interrupted output names a session %v, capability %v", c.host, named, v.InterruptedSession)
+		}
+	}
+}
