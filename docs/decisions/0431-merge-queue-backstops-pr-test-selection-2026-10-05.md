@@ -1,10 +1,11 @@
 # Decision 0431 — A merge queue backstops PR test selection
 
-Date: 2026-10-05. Status: proposed (owner acceptance pending). Owner request 2026-10-05: CI should
-"only run the tests that need running". Tickets: V1-0616 (umbrella), `ci-shadow-historical-compat`,
-V1-0760. Contract: `docs/specs/affected-plan-v0.md`. Would amend `AFP-V0-013`, `AFP-V0-014`,
+Date: 2026-10-05. Status: accepted (owner answer 2026-10-05: all four open questions as
+recommended). Owner request 2026-10-05: CI should "only run the tests that need running".
+Tickets: V1-0616 (umbrella), `ci-shadow-historical-compat`,
+V1-0760. Contract: `docs/specs/affected-plan-v0.md`. Amends `AFP-V0-013`, `AFP-V0-014`,
 `AFP-V0-016`, `AFP-V0-017`, `AFP-V0-026`, the `AFP-V0-022` promotion sentence and the closing
-sentence of the bounded documentation CI exception. Would add `AFP-V0-028` (queue-backstopped PR
+sentence of the bounded documentation CI exception. Adds `AFP-V0-028` (queue-backstopped PR
 narrowing), `AFP-V0-029` (forward qualification rows) and `AFP-V0-030` (kill switch). The IDs are
 provisional (`AFP-V0-027` is the V1-0809 `ci:batched` constituent skip), and the spec amendment
 assigns the final IDs. Amends decisions 0289 and 0320 where cited; keeps 0319 and 0390.
@@ -204,7 +205,8 @@ Speedup on batch PRs is not claimed.
 
 ## Acceptance evidence
 
-- **To accept:** the owner accepts this record and the amended requirement text.
+- **To accept:** the owner accepted this record on 2026-10-05. The amended requirement text is
+  written by the spec amendment, which assigns the final IDs and is reviewed before item 1 lands.
 - **To enable shadow:** a real PR merged through the queue with `go-product`, `doc-gates` and
   `ci-control-plane` reported on the queue commit. `main` equals that commit, and
   `dogfood-check` reads its seal.
@@ -224,7 +226,10 @@ Speedup on batch PRs is not claimed.
 - **R3:** revert the spec amendment and `AFP-V0-028` to `AFP-V0-030`. This restores the decision
   0289/0320 contract, in which the `AFP-V0-014` artifact is again required to narrow.
 
-## Open questions for the owner
+## Owner answers (2026-10-05)
+
+The owner answered all four as recommended: "agree with all four, accept it".
+
 
 1. **Scope `UNKNOWN`:** the item 4 allowlist, or always FULL? Recommended: the allowlist, because
    always-FULL never narrowed on the replay.
