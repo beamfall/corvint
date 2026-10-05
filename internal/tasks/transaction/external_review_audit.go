@@ -3,6 +3,7 @@ package transaction
 import (
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -10,40 +11,79 @@ import (
 )
 
 // ExternalBuilt is one fresh entry of an attempt into BUILT, read from the
-// receipt that posts the attempt record inline: the durable submission
-// history that decides subject currency (ERG-V0-006). It does not depend on
-// the attempt's present phase, so a newer submission that later leaves BUILT
-// still supersedes an older subject.
+// receipt that posts the attempt record: the durable submission history that
+// decides subject currency (ERG-V0-006). It does not depend on the attempt's
+// present phase, so a newer submission that later leaves BUILT still
+// supersedes an older subject. Generation and Tree are the submitted
+// attempt's generation and candidate tree ("" when it has none).
 type ExternalBuilt struct {
 	TicketID, Stage, AttemptID string
-	Seq                        wire.Size
+	Seq, Generation            wire.Size
 	AttemptSha256              wire.Digest
+	Tree                       string
 }
 
-// ExternalBuiltPosts returns the attempt records rc posts inline whose phase
-// enters BUILT at rc's own sequence.
-func ExternalBuiltPosts(rc *snapshot.Receipt) ([]ExternalBuilt, error) {
+// externalPostBytes returns the bytes a post entry names, inline or
+// blob-backed, re-hashed against the entry's digest. A blob that is absent
+// or differs is an error: currency and binding never skip a post they cannot
+// read.
+func externalPostBytes(p snapshot.PostEntry, blob ExternalReviewBlob) ([]byte, error) {
+	var raw []byte
+	switch {
+	case p.Record != nil:
+		raw = wire.EncodeFile(*p.Record)
+	case p.BlobSha256 != nil && blob != nil:
+		var ok bool
+		if raw, ok = blob(*p.BlobSha256); !ok {
+			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "post bytes evidence/%s are absent", *p.BlobSha256)
+		}
+	default:
+		return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "post bytes are not retained")
+	}
+	if wire.Sum(raw) != *p.Sha256 {
+		return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "post bytes differ from their digest")
+	}
+	return raw, nil
+}
+
+// ExternalBuiltPosts returns the attempt records rc posts, inline or
+// blob-backed, whose phase enters BUILT at rc's own sequence. An attempt post
+// whose bytes cannot be read or decoded is an error, never a skipped entry.
+func ExternalBuiltPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) ([]ExternalBuilt, error) {
 	var out []ExternalBuilt
 	for _, p := range rc.Post {
-		if !strings.HasPrefix(p.Path, "attempts/") || p.Record == nil || p.Sha256 == nil || p.Record.Obj == nil {
+		if !strings.HasPrefix(p.Path, "attempts/") || p.Sha256 == nil {
 			continue
 		}
-		phase, _ := p.Record.Obj.Get("phase")
-		since, _ := p.Record.Obj.Get("phaseSinceSeq")
-		if phase.Str != "BUILT" || since.Str != string(rc.Seq) {
-			continue
-		}
-		a, err := snapshot.DecodeAttempt(wire.EncodeFile(*p.Record))
+		raw, err := externalPostBytes(p, blob)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, ExternalBuilt{TicketID: a.TicketID.Raw, Stage: a.Stage, AttemptID: a.AttemptID, Seq: rc.Seq, AttemptSha256: *p.Sha256})
+		v, err := wire.Parse(raw)
+		if err != nil || v.Obj == nil {
+			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "attempt post is not a record")
+		}
+		phase, _ := v.Obj.Get("phase")
+		since, _ := v.Obj.Get("phaseSinceSeq")
+		if phase.Str != "BUILT" || since.Str != string(rc.Seq) {
+			continue
+		}
+		a, err := snapshot.DecodeAttempt(raw)
+		if err != nil {
+			return nil, err
+		}
+		b := ExternalBuilt{TicketID: a.TicketID.Raw, Stage: a.Stage, AttemptID: a.AttemptID, Seq: rc.Seq, Generation: a.Generation, AttemptSha256: *p.Sha256}
+		if a.CandidateTreeOid != nil {
+			b.Tree = *a.CandidateTreeOid
+		}
+		out = append(out, b)
 	}
 	return out, nil
 }
 
 // ExternalSuperseded reports whether built names a submission of ticketID in
-// one of stages after seq.
+// one of stages after seq. It scans built once; the receipt fold answers the
+// same question from its per-stage index instead.
 func ExternalSuperseded(built []ExternalBuilt, ticketID string, stages []string, seq wire.Size) bool {
 	for _, b := range built {
 		if b.TicketID == ticketID && externalHas(stages, b.Stage) && b.Seq.Uint64() > seq.Uint64() {
@@ -57,18 +97,29 @@ func ExternalSuperseded(built []ExternalBuilt, ticketID string, stages []string,
 // records it (ERG-V0-009, the operator-notes slot-reuse rule). Receipts are
 // folded in sequence order; a ticket post that adds or changes a gate
 // reference must be a MUTATION receipt that changes exactly one gate and
-// posts exactly that head event. The event must name a retained BUILT
-// submission of the ticket that no later same-stage submission superseded,
-// and it must be exactly the event the pure transition produces from the
-// audited preceding reference, its head event and this receipt's actor,
+// posts exactly that head event. The gate definition and policy digest must
+// be those of the policy the history had posted when the event was recorded,
+// and the event's subject (attempt, generation, receipt and attempt digests)
+// and TREE candidate must be exactly a retained author-stage BUILT
+// submission of the ticket that no later submission in one of that
+// definition's author stages superseded. The event must then be exactly the
+// one the pure transition produces from the audited preceding reference, its
+// head event, the retained subject and definition, and this receipt's actor,
 // time and sequence: counters, generation, predecessor, prior RETURN, trust
-// source and lease holder are all replayed. Historical policy, lease
-// liveness and author stages are not re-observed. A dropped reference is
-// refused. It is pure: blob returns retained evidence bytes by digest.
+// source and lease holder are all replayed. Lease liveness and lease stages
+// are not re-observed. A dropped reference is refused. Each receipt costs
+// O(posts + author stages): supersession reads a latest-submission index by
+// ticket and stage, never the accumulated history. It is pure: blob returns
+// retained evidence bytes by digest.
 type ExternalReviewReceiptAudit struct {
 	refs     map[string]map[string]ticket.ExternalReviewRef
 	receipts map[uint64]externalSubmission
-	built    []ExternalBuilt
+	// latest is the newest BUILT submission sequence by ticket and stage.
+	latest map[string]map[string]uint64
+	// policy is the newest retained intent/policy.json; policyErr is why it
+	// is unavailable (never posted, unreadable or undecodable).
+	policy    *intent.Policy
+	policyErr string
 }
 
 type externalSubmission struct {
@@ -81,13 +132,18 @@ func (a *ExternalReviewReceiptAudit) fail(rc *snapshot.Receipt, f string, args .
 }
 
 // Superseded reports whether the folded history holds a submission of
-// ticketID in one of stages after seq.
+// ticketID in one of stages after seq, in O(len(stages)).
 // A nil audit observed no history, so every subject reads as superseded.
 func (a *ExternalReviewReceiptAudit) Superseded(ticketID string, stages []string, seq wire.Size) bool {
 	if a == nil {
 		return true
 	}
-	return ExternalSuperseded(a.built, ticketID, stages, seq)
+	for _, stage := range stages {
+		if a.latest[ticketID][stage] > seq.Uint64() {
+			return true
+		}
+	}
+	return false
 }
 
 // Step folds one validated receipt whose bytes hash to sum.
@@ -95,6 +151,8 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 	if a.refs == nil {
 		a.refs = map[string]map[string]ticket.ExternalReviewRef{}
 		a.receipts = map[uint64]externalSubmission{}
+		a.latest = map[string]map[string]uint64{}
+		a.policyErr = "no policy was posted"
 	}
 	events := map[wire.Digest]bool{}
 	for _, p := range rc.Post {
@@ -113,14 +171,9 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 			}
 			continue
 		}
-		var raw []byte
-		if p.Record != nil {
-			raw = wire.EncodeFile(*p.Record)
-		} else if p.BlobSha256 != nil {
-			var ok bool
-			if raw, ok = blob(*p.BlobSha256); !ok {
-				return a.fail(rc, "%s post bytes are absent", path)
-			}
+		raw, err := externalPostBytes(p, blob)
+		if err != nil {
+			return a.fail(rc, "%s post: %v", path, err)
 		}
 		rec, err := ticket.Decode(raw)
 		if err != nil {
@@ -162,11 +215,18 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 		if q.TicketID != rec.TicketID.Raw || q.GateID != gate || q.RequestID != *rc.RequestID || q.AcceptanceRevision != rec.AcceptanceRevision {
 			return a.fail(rc, "gate %s head event does not record this receipt's transition", gate)
 		}
-		stage, ok := a.subjectStage(q)
-		if !ok {
-			return a.fail(rc, "gate %s subject is not a retained BUILT submission of the ticket", gate)
+		if a.policy == nil {
+			return a.fail(rc, "gate %s definition cannot be recovered: %s", gate, a.policyErr)
 		}
-		if a.Superseded(q.TicketID, []string{stage}, q.Subject.ReceiptSeq) {
+		def := a.policy.ExternalReview(gate)
+		if def == nil || def.Sha256 != q.DefinitionSha256 || wire.Sum(a.policy.Raw) != q.PolicySha256 {
+			return a.fail(rc, "gate %s definition is not the retained policy in effect", gate)
+		}
+		built, ok := a.subject(q)
+		if !ok || !externalHas(def.AuthorStages, built.Stage) {
+			return a.fail(rc, "gate %s subject is not a retained author-stage BUILT submission of the ticket", gate)
+		}
+		if a.Superseded(q.TicketID, def.AuthorStages, built.Seq) {
 			return a.fail(rc, "gate %s subject was superseded before this event", gate)
 		}
 		var prior *snapshot.ExternalReviewRef
@@ -177,45 +237,74 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 				return a.fail(rc, "gate %s preceding head event is absent", gate)
 			}
 		}
-		if err := ValidateExternalReviewRecovery(ev, *externalRefOf(ref), externalReplayObservations(rc, q, prior, priorEvent)); err != nil {
+		binding := ExternalReviewBinding{GateID: gate, TicketID: rec.TicketID.Raw, AcceptanceRevision: rec.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: q.PolicySha256,
+			Subject:   snapshot.ExternalReviewSubject{AttemptID: built.AttemptID, Generation: built.Generation, ReceiptSeq: built.Seq, ReceiptSha256: a.receipts[built.Seq.Uint64()].sum, AttemptSha256: built.AttemptSha256},
+			Candidate: snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: built.Tree}}
+		if err := ValidateExternalReviewRecovery(ev, *externalRefOf(ref), externalReplayObservations(rc, q, binding, def, prior, priorEvent)); err != nil {
 			return a.fail(rc, "gate %s head event is not the transition from its preceding reference: %v", gate, err)
 		}
 		a.refs[path] = rec.ExternalReviews
 	}
-	posts, err := ExternalBuiltPosts(rc)
+	posts, err := ExternalBuiltPosts(rc, blob)
 	if err != nil {
 		return a.fail(rc, "attempt post: %v", err)
 	}
 	if len(posts) != 0 {
 		a.receipts[rc.Seq.Uint64()] = externalSubmission{sum: sum, posts: posts}
-		a.built = append(a.built, posts...)
+		for _, b := range posts {
+			if a.latest[b.TicketID] == nil {
+				a.latest[b.TicketID] = map[string]uint64{}
+			}
+			if b.Seq.Uint64() > a.latest[b.TicketID][b.Stage] {
+				a.latest[b.TicketID][b.Stage] = b.Seq.Uint64()
+			}
+		}
+	}
+	for _, p := range rc.Post {
+		if p.Path != "intent/policy.json" {
+			continue
+		}
+		a.policy, a.policyErr = nil, "the retained policy was removed"
+		if p.Sha256 == nil {
+			continue
+		}
+		raw, err := externalPostBytes(p, blob)
+		if err == nil {
+			a.policy, err = intent.DecodePolicy(raw)
+		}
+		if err != nil {
+			a.policy, a.policyErr = nil, "the retained policy is unreadable: "+err.Error()
+		}
 	}
 	return nil
 }
 
-// subjectStage finds the request's subject among the folded submissions and
-// returns the submitted attempt's stage.
-func (a *ExternalReviewReceiptAudit) subjectStage(q snapshot.ExternalReviewRequest) (string, bool) {
+// subject finds the request's subject among the folded submissions: the
+// retained BUILT receipt at its sequence and digest that posted the same
+// attempt, attempt digest, ticket, generation and TREE candidate.
+func (a *ExternalReviewReceiptAudit) subject(q snapshot.ExternalReviewRequest) (ExternalBuilt, bool) {
 	s := q.Subject
 	sub, ok := a.receipts[s.ReceiptSeq.Uint64()]
 	if !ok || sub.sum != s.ReceiptSha256 {
-		return "", false
+		return ExternalBuilt{}, false
 	}
 	for _, b := range sub.posts {
-		if b.AttemptID == s.AttemptID && b.AttemptSha256 == s.AttemptSha256 && b.TicketID == q.TicketID {
-			return b.Stage, true
+		if b.AttemptID == s.AttemptID && b.AttemptSha256 == s.AttemptSha256 && b.TicketID == q.TicketID && b.Generation == s.Generation && b.Tree != "" &&
+			q.Candidate == (snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: b.Tree}) {
+			return b, true
 		}
 	}
-	return "", false
+	return ExternalBuilt{}, false
 }
 
 // externalReplayObservations reconstructs the observations under which the
 // pure transition reproduces a retained event: the receipt's actor, time and
-// sequence, the audited preceding reference and its head event, and the
-// request's own binding, stages and leases. Facts that history cannot
-// re-observe (policy, lease liveness, configured stages) are taken as the
-// request states them, so the replay checks the material transition only.
-func externalReplayObservations(rc *snapshot.Receipt, q snapshot.ExternalReviewRequest, prior *snapshot.ExternalReviewRef, priorEvent []byte) ExternalReviewObservations {
+// sequence, the audited preceding reference and its head event, the binding
+// derived from the retained BUILT submission and policy, and the retained
+// definition's recorder roles. Lease liveness and lease stages cannot be
+// re-observed from history, so the request's leases are taken as live in a
+// stage both lease checks admit; the replay checks the material transition.
+func externalReplayObservations(rc *snapshot.Receipt, q snapshot.ExternalReviewRequest, binding ExternalReviewBinding, def *intent.ExternalReviewDefinition, prior *snapshot.ExternalReviewRef, priorEvent []byte) ExternalReviewObservations {
 	const stage = "historical"
 	queue := ""
 	if id, err := wire.ParseTicketID("/ticketId", q.TicketID); err == nil {
@@ -234,8 +323,8 @@ func externalReplayObservations(rc *snapshot.Receipt, q snapshot.ExternalReviewR
 	return ExternalReviewObservations{
 		Actor:       mutation.Binding{ID: rc.ActorID, Role: rc.ActorRole},
 		PolicyState: "VERIFIED", SubjectState: "VERIFIED", CandidateLinkState: "VERIFIED", EvidenceState: "VERIFIED",
-		Binding:      ExternalReviewBinding{GateID: q.GateID, TicketID: q.TicketID, AcceptanceRevision: q.AcceptanceRevision, DefinitionSha256: q.DefinitionSha256, PolicySha256: q.PolicySha256, Subject: q.Subject, Candidate: q.Candidate},
-		Policy:       ExternalReviewPolicy{RecorderRoles: []string{rc.ActorRole}, ReviewStages: []string{stage}, AuthorStages: []string{stage}},
+		Binding:      binding,
+		Policy:       ExternalReviewPolicy{RecorderRoles: def.RecorderRoles, ReviewStages: []string{stage}, AuthorStages: []string{stage}},
 		Reviewer:     lease(q.ReviewerLease),
 		Author:       lease(q.AuthorLease),
 		Current:      prior,

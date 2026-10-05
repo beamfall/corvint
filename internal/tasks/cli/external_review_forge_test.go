@@ -92,10 +92,11 @@ func ergReceiptForge(t *testing.T, repo *intent.Repository, seq uint64, forge fu
 }
 
 // TestERGV0009_ForgedReviewEventsRefuseAtRecovery covers the crash boundary
-// and the dispatcher read: a rehashed review event whose actor, counters or
-// prior RETURN do not reproduce its receipt's transition refuses redo as
-// JOURNAL_FORKED with the projection unchanged, and once settled leaves the
-// dispatcher's gates unobserved rather than actionable (ERG-V0-006/-009).
+// and the dispatcher read: a rehashed review event whose actor, counters,
+// prior RETURN, subject generation or candidate tree do not reproduce its
+// receipt's transition refuses redo as JOURNAL_FORKED with the projection
+// unchanged, and once settled leaves the dispatcher's gates unobserved
+// rather than actionable (ERG-V0-006/-009).
 func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	t.Setenv("ATM_ACTOR", "tester")
@@ -115,6 +116,10 @@ func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 			d := wire.Sum([]byte("not the prior RETURN"))
 			e.Request.PriorReturn = &d
 		}},
+		// The subject's generation and TREE candidate must be the retained
+		// BUILT submission's, not whatever the request states.
+		{"subject-generation", func(e *snapshot.ExternalReviewEvent) { e.Request.Subject.Generation = "7" }},
+		{"candidate-tree", func(e *snapshot.ExternalReviewEvent) { e.Request.Candidate.TreeOID = strings.Repeat("ab", 20) }},
 	}
 	for _, tc := range cases {
 		for _, settled := range []bool{false, true} {

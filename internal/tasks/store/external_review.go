@@ -72,6 +72,7 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 		return prior, nil, nil, nil
 	}
 	later = &transaction.ExternalSubmissionHistory{}
+	blob := ExternalReviewBlob(repo)
 	var previous wire.Digest
 	for at := seq; at <= head.LastSeq.Uint64(); at++ {
 		raw, err := readReceiptBytes(repo, at)
@@ -89,7 +90,7 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 			if rc.Prev == nil || *rc.Prev != previous {
 				return nil, nil, nil, wire.Errorf(wire.CodeJournalForked, receiptPath(at), "receipt does not chain to its predecessor")
 			}
-			built, err := transaction.ExternalBuiltPosts(rc)
+			built, err := transaction.ExternalBuiltPosts(rc, blob)
 			if err != nil {
 				return nil, nil, nil, err
 			}

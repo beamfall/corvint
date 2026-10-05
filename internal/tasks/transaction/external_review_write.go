@@ -36,9 +36,11 @@ func externalSubjectCurrent(attempts map[string]*snapshot.Attempt, ticketID stri
 	return !superseded && a != nil && a.TicketID.Raw == ticketID && a.Generation == s.Generation && a.CandidateTreeOid != nil && *a.CandidateTreeOid == tree && (a.Phase != "BUILT" || a.PhaseSinceSeq == s.ReceiptSeq)
 }
 
-// ExternalReviewHistory is the store's scan of the receipts after a review
-// subject up to the audited head, each linked to its predecessor and the last
-// to the head digest: every attempt submission they post (ERG-V0-006).
+// ExternalSubmissionHistory is the store's scan of the receipts after a
+// review subject up to the audited head, each linked to its predecessor and
+// the last to the head digest: every attempt submission they post, inline or
+// blob-backed (ERG-V0-006). The writer reads it once per request, so its
+// cost is O(receipts after the subject).
 type ExternalSubmissionHistory struct {
 	Built []ExternalBuilt
 }

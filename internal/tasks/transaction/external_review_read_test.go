@@ -148,3 +148,34 @@ func TestIssue504AnchoredHistory(t *testing.T) {
 	moved.Generation = "1"
 	refuse("head generation", moved, lookup, "G1", nil, 0)
 }
+
+// TestERGV0006_BuiltPostsNeverSkipUnreadable proves currency reads every
+// attempt post: an absent blob, an unretained encoding, bytes that differ from
+// their digest or a non-record body is JOURNAL_FORKED, never a skipped entry.
+func TestERGV0006_BuiltPostsNeverSkipUnreadable(t *testing.T) {
+	body := []byte("not a record")
+	good := wire.Sum(body)
+	other := wire.Sum([]byte("other"))
+	blobs := map[wire.Digest][]byte{good: body}
+	lookup := func(d wire.Digest) ([]byte, bool) { b, ok := blobs[d]; return b, ok }
+	for _, tc := range []struct {
+		name string
+		post snapshot.PostEntry
+		blob ExternalReviewBlob
+		want string
+	}{
+		{"absent-blob", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &other, BlobSha256: &other}, lookup, "absent"},
+		{"no-blob-reader", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &good, BlobSha256: &good}, nil, "not retained"},
+		{"digest-mismatch", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &other, BlobSha256: &good}, func(wire.Digest) ([]byte, bool) { return body, true }, "differ"},
+		{"not-a-record", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &good, BlobSha256: &good}, lookup, "not a record"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rc := &snapshot.Receipt{Seq: wire.SizeOf(2), Post: []snapshot.PostEntry{tc.post}}
+			got, err := ExternalBuiltPosts(rc, tc.blob)
+			we, ok := err.(*wire.Error)
+			if !ok || we.Code != wire.CodeJournalForked || !strings.Contains(we.Msg, tc.want) || got != nil {
+				t.Fatalf("ExternalBuiltPosts = %v, %v; want JOURNAL_FORKED %q", got, err, tc.want)
+			}
+		})
+	}
+}

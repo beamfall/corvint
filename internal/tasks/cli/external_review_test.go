@@ -37,16 +37,25 @@ func ergStore(t *testing.T) (root, tree string) {
 // ergPolicyUpdate installs the review policy at version (from version-1).
 func ergPolicyUpdate(t *testing.T, root, version string) {
 	t.Helper()
+	ergPolicyUpdateStages(t, root, version, []string{"implement"})
+}
+
+// ergPolicyUpdateStages installs the review policy at version with the
+// gate's author stages; no stages leaves the gate undeclared.
+func ergPolicyUpdateStages(t *testing.T, root, version string, authorStages []string) {
+	t.Helper()
 	policy := fixture.PolicyValue()
 	policy.Obj.Set("policyVersion", wire.String(version))
 	budgets, _ := policy.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
 	capacity := wire.NewObject().Set("classes", wire.Array()).Set("maxActiveAttempts", wire.String("4")).Set("maxWorkersTotal", wire.String("4"))
 	policy.Obj.Set("capacity", wire.ObjectValue(capacity))
-	def := wire.NewObject().Set("authorStages", wire.Strings([]string{"implement"})).Set("gateId", wire.String(ergGate)).
-		Set("purpose", wire.String("ROUTING_ONLY")).Set("recorderRoles", wire.Strings([]string{"OPERATOR", "OWNER"})).
-		Set("requireReviewerLease", wire.Bool(false)).Set("reviewStages", wire.Strings([]string{"review"}))
-	policy.Obj.Set("externalReviews", wire.Array(wire.ObjectValue(def)))
+	if len(authorStages) != 0 {
+		def := wire.NewObject().Set("authorStages", wire.Strings(authorStages)).Set("gateId", wire.String(ergGate)).
+			Set("purpose", wire.String("ROUTING_ONLY")).Set("recorderRoles", wire.Strings([]string{"OPERATOR", "OWNER"})).
+			Set("requireReviewerLease", wire.Bool(false)).Set("reviewStages", wire.Strings([]string{"review"}))
+		policy.Obj.Set("externalReviews", wire.Array(wire.ObjectValue(def)))
+	}
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -254,13 +263,30 @@ func TestERGV0009_ReviewRetriesReplay(t *testing.T) {
 	}
 	replayed("immediate resubmit", resubmit)
 	replayed("record after the head moved", record)
-	changed := append(append([]string{}, resubmit[:len(resubmit)-6]...), "--reason", "FIXED:a different fix", "--request-id", "resubmit-1", "--issued-at", "2026-10-04T12:01:00Z")
-	if x := atm(t, root, nil, changed...); x.res.Outcome == wire.OutcomeOK || field(x.res.Items[0], "outcome").Str != mutation.OutcomeRequestIDConflict {
-		t.Fatalf("a changed retry was not a request-id conflict: %s", x.stdout)
+	// A retained request id with any changed input refuses at once as
+	// REQUEST_ID_CONFLICT, whatever a fresh composition would have hit.
+	changedResubmit := append(append([]string{}, resubmit[:len(resubmit)-6]...), "--reason", "FIXED:a different fix", "--request-id", "resubmit-1", "--issued-at", "2026-10-04T12:01:00Z")
+	changedRecord := append(append([]string{}, record[:len(record)-6]...), "--reason", "TESTS:another case", "--request-id", "review-1", "--issued-at", "2026-10-04T12:00:00Z")
+	conflict := func(name string, args []string) {
+		t.Helper()
+		if x := atm(t, root, nil, args...); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeRequestIDConflict) {
+			t.Fatalf("%s: a changed retry was not a request-id conflict: %s", name, x.stdout)
+		}
 	}
+	conflict("changed resubmit", changedResubmit)
+	conflict("changed record", changedRecord)
 
 	ergPolicyUpdate(t, root, "3")
 	runOK("release", "--attempt", attempt, "--generation", generation, "--reason", wire.CodeHandoff, "--request-id", "release-a")
 	replayed("resubmit after policy and lease change", resubmit)
 	replayed("record after policy change", record)
+	// Without the author lease a fresh resubmit composition would refuse as
+	// MALFORMED; the retained request id decides first.
+	conflict("changed resubmit after policy and lease change", changedResubmit)
+	conflict("changed record after policy change", changedRecord)
+	// With the gate undeclared a fresh composition would refuse as
+	// GATE_UNKNOWN; the retained request id still decides first.
+	ergPolicyUpdateStages(t, root, "4", nil)
+	conflict("changed record after the gate was undeclared", changedRecord)
+	conflict("changed resubmit after the gate was undeclared", changedResubmit)
 }

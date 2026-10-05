@@ -51,8 +51,38 @@ gate state, without Markdown parsing. Its contract is the updated current-state 
 - **P2-4, retries.** A retry whose request id and inputs match a retained event resubmits that
   event's request bytes, so it replays after a head, policy or lease change.
 - **Cost (V1-0645).** REVIEW_* writes keep one extra full audit and add an O(receipts after the
-  subject) scan; redo of a ticket-posting receipt and the dispatcher observation add an O(receipts)
-  fold. The writer hunks in `store/mutate.go` and `store/redo.go` stay at three lines each.
+  subject) scan. The writer hunks in `store/mutate.go` and `store/redo.go` stay at three lines each.
+  The O(receipts) claim for the fold was wrong; the second repair below corrects it.
+
+## Second review repair (Codex CHANGES_REQUIRED at c0d36bd2)
+
+- **P1-1, blob-backed submissions.** `ExternalBuiltPosts` skipped attempt posts that carried
+  `blobSha256` instead of an inline record, so a blob-backed newer submission did not stale a PASS.
+  It now reads both encodings through the evidence blob store and re-hashes them. An absent,
+  unretained, mismatched or non-record attempt post is JOURNAL_FORKED and is never skipped.
+- **P1-2, author stages.** Recovery checked supersession only against the subject's own stage. It
+  now checks every author stage of the retained definition, and it requires the subject itself to be
+  in one of those stages.
+- **P1-3, subject and candidate binding.** Recovery did not bind the subject's attempt generation or
+  candidate tree. The fold now retains each BUILT post's generation and tree. It requires the
+  event's subject and candidate to match them, and it checks the event's definition and policy
+  digests against the policy retained in effect at that receipt. The binding it replays is built
+  from those retained facts.
+- **P2-4, retries.** `retainedReviewRequest` used to fall through to fresh composition on a mismatch.
+  It now refuses as REQUEST_ID_CONFLICT before any policy lookup, so the refusal holds after a policy
+  change or with the gate undeclared.
+- **P2-5, cost.** The fold rescanned all earlier submissions for every event, which is Θ(N²). It now
+  keeps a ticket→stage→latest-BUILT-sequence index:
+  - building it costs O(receipts × posts per receipt);
+  - each supersession check costs O(author stages);
+  - the writer's own check stays a linear scan of the receipts after the subject.
+
+  `TestERGV0006_BlobBackedSubmissionSupersedes` bounds the lookup time across 16 and 4096 folded
+  submissions. That bound is only a ratio check, not a benchmark.
+- **V1-0645 interaction.** The fold now resolves blob-backed attempt posts and decodes retained
+  policy posts, so it reads more per receipt. Its asymptotic cost is unchanged and it remains a full
+  O(receipts) pass for each consumer. V1-0645's writer-cost work should treat the fold as one more
+  full pass to cache or amortise.
 
 ## Evidence
 
@@ -60,6 +90,9 @@ Focused tests (all passing):
 - `TestERGV0009_NativeVerdictsThroughTheCLI`;
 - `TestERGV0009_ForgedReviewEventsRefuseAtRecovery`;
 - `TestERGV0009_ReviewRetriesReplay`;
+- `TestERGV0006_BlobBackedSubmissionSupersedes`, `TestERGV0006_RecoveryChecksEveryAuthorStage` and
+  `TestERGV0006_BuiltPostsNeverSkipUnreadable`. Each of these, and the new forged and retry cases,
+  failed when its fix was temporarily reverted;
 - `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`;
 - `TestERGV0009_TicketReviewReferencesCodec`;
 - `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences`;

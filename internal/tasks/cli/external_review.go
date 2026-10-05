@@ -132,9 +132,9 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 // request matches every caller input (action, counters, subject, verdict,
 // reasons, leases, prior RETURN when given, actor), the retained request
 // bytes are resubmitted instead of a fresh composition, so a later policy,
-// lease or head change cannot alter a retry's envelope. A mismatching input
-// falls through to fresh composition, which the writer then refuses as a
-// request-id conflict or on its own checks.
+// lease or head change cannot alter a retry's envelope. A retained event for
+// --request-id whose request differs in any caller input refuses at once as
+// REQUEST_ID_CONFLICT, before any fresh composition or policy lookup.
 func retainedReviewRequest(rc *readCtx, operation string, actor mutation.Binding, f reviewFlags) (wire.Value, bool, error) {
 	id, err := resolveTicketArg(rc, f.target)
 	if err != nil {
@@ -161,7 +161,7 @@ func retainedReviewRequest(rc *readCtx, operation string, actor mutation.Binding
 		}
 		if e.Request.RequestID == f.requestID {
 			if !retainedReviewMatches(e, operation, actor, f) {
-				return wire.Value{}, false, nil
+				return wire.Value{}, false, wire.Errorf(wire.CodeRequestIDConflict, "--request-id", "request %s is retained on gate %s with different inputs", f.requestID, f.gate)
 			}
 			body, err := e.Request.Encode()
 			if err != nil {
