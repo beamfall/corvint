@@ -8,19 +8,30 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // ClaimDelivery is the context a successful claim or claim-next delivers from
 // its own original admission (ON-V0-007). claimedTicket resolves it from the
 // claim receipt's POST attempt for fresh and replayed claims alike, so a later
-// note change moves neither the response nor its replay. Further admitted
-// context, such as escalation answers (ESC-V0-005), is one more field beside
-// OperatorNote, pinned on the same attempt and resolved here the same way.
+// note change moves neither the response nor its replay. Escalation answers
+// (ESC-V0-005) are pinned on the same attempt and resolved the same way.
 type ClaimDelivery struct {
 	// TicketRecordSha256 is the admitted ticket record the snapshot came from.
 	TicketRecordSha256 wire.Digest
 	OperatorNote       ClaimedNote
+	EscalationAnswers  ClaimedAnswers
+}
+
+// ClaimedAnswers is the admitted answer references (empty when none) and,
+// when every event resolves, the delivered guidance array. Err keeps missing
+// or mismatched material visible; exact replay retries delivery. Delivery
+// never consumes or acknowledges an answer.
+type ClaimedAnswers struct {
+	Refs  []snapshot.EscalationAnswerRef
+	Value wire.Value
+	Err   error
 }
 
 // ClaimedNote is the admitted note reference (nil means NONE) and, when it
@@ -38,7 +49,25 @@ func claimDelivery(repo *intent.Repository, a *snapshot.Attempt) *ClaimDelivery 
 	if a.OperatorNote != nil {
 		d.OperatorNote.Event, d.OperatorNote.Request, d.OperatorNote.Err = ReadOperatorNote(repo, a.TicketID, *a.OperatorNote)
 	}
+	d.EscalationAnswers = readClaimedAnswers(repo, a)
 	return d
+}
+
+// readClaimedAnswers resolves the attempt's pinned answers from the evidence
+// store, never from the current ticket. A missing blob is left absent so the
+// resolver reports MISSING_EVIDENCE. It writes nothing.
+func readClaimedAnswers(repo *intent.Repository, a *snapshot.Attempt) ClaimedAnswers {
+	c := ClaimedAnswers{Refs: a.EscalationAnswers}
+	blobs := map[wire.Digest][]byte{}
+	for _, ref := range a.EscalationAnswers {
+		for _, d := range []wire.Digest{ref.OriginSha256, ref.HeadSha256} {
+			if c.Err = readEvidence(repo, d, ticket.EscalationMaxEventBytes, blobs); c.Err != nil {
+				return c
+			}
+		}
+	}
+	_, c.Value, c.Err = transaction.ResolveEscalationAnswers(a.TicketID.QueueID(), a.TicketID.Raw, a.EscalationAnswers, blobs)
+	return c
 }
 
 // ReadOperatorNote resolves one note reference against the content-addressed

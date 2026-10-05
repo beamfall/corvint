@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -89,5 +90,34 @@ func TestONV0007_ClaimResultCarriesTheDeliveredNote(t *testing.T) {
 	}
 	if plain := leaseResult([]string{"release"}, &store.Report{Kind: "Release", Outcome: ok}); plain.Untrusted {
 		t.Fatal("a non-claim result became untrusted")
+	}
+}
+
+// TestESCV0005_ClaimResultCarriesPinnedAnswers: a claim result always names
+// escalationAnswers beside operatorNote: CURRENT and empty without pins, and
+// UNAVAILABLE with the pinned references and a retry-by-replay warning when
+// the pinned material does not resolve, never an empty answer list.
+func TestESCV0005_ClaimResultCarriesPinnedAnswers(t *testing.T) {
+	ok := mutation.Outcome{Outcome: mutation.OutcomeCompleted}
+	digest := wire.Digest("ab" + strings.Repeat("0", 62))
+	none := leaseResult([]string{"claim"}, &store.Report{Kind: "Claim", Outcome: ok, Delivery: &store.ClaimDelivery{TicketRecordSha256: digest}})
+	answers, found := none.Items[0].Obj.Get("escalationAnswers")
+	list, _ := answers.Obj.Get("answers")
+	if !found || objectString(answers, "state") != "CURRENT" || list.Kind != wire.KindArray || len(list.Arr) != 0 || objectString(answers, "sourceTicketRecordSha256") != string(digest) || containsWarning(none.Warnings, "escalation answers") {
+		t.Fatalf("empty delivery = %+v warnings=%v", answers, none.Warnings)
+	}
+	refs := []snapshot.EscalationAnswerRef{{RequestID: "q-1", OriginSha256: wire.Digest(strings.Repeat("c", 64)), HeadSha256: wire.Digest(strings.Repeat("d", 64))}}
+	missing := &transaction.EscalationRefusal{Code: "MISSING_EVIDENCE"}
+	res := leaseResult([]string{"claim"}, &store.Report{Kind: "Claim", Outcome: ok, Delivery: &store.ClaimDelivery{TicketRecordSha256: digest, EscalationAnswers: store.ClaimedAnswers{Refs: refs, Err: missing}}})
+	answers, _ = res.Items[0].Obj.Get("escalationAnswers")
+	list, _ = answers.Obj.Get("answers")
+	pinned, _ := answers.Obj.Get("references")
+	if objectString(answers, "state") != "UNAVAILABLE" || objectString(answers, "code") != wire.CodeMissingEvidence || list.Kind != wire.KindNull || len(pinned.Arr) != 1 || !containsWarning(res.Warnings, "escalation answers unavailable (MISSING_EVIDENCE)") || !res.Untrusted {
+		t.Fatalf("UNAVAILABLE delivery = %+v warnings=%v", answers, res.Warnings)
+	}
+	forked := leaseResult([]string{"claim"}, &store.Report{Kind: "Claim", Outcome: ok, Delivery: &store.ClaimDelivery{TicketRecordSha256: digest, EscalationAnswers: store.ClaimedAnswers{Refs: refs, Err: &transaction.EscalationRefusal{Code: "ANSWER_BINDING"}}}})
+	answers, _ = forked.Items[0].Obj.Get("escalationAnswers")
+	if objectString(answers, "code") != wire.CodeJournalForked {
+		t.Fatalf("mismatched material = %+v", answers)
 	}
 }

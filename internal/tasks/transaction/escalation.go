@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -553,38 +554,60 @@ func (s *escalationView) answers() ([]EscalationAnswerView, error) {
 	if e := s.validate(); e != nil {
 		return nil, e
 	}
+	var pinned []snapshot.EscalationAnswerRef
+	if s.Refs != nil {
+		for _, ref := range s.Refs.Entries {
+			if ref.State == "ANSWERED" && ref.AcceptanceRevision == s.AcceptanceRevision {
+				pinned = append(pinned, snapshot.EscalationAnswerRef{RequestID: ref.RequestID, OriginSha256: ref.OriginSha256, HeadSha256: ref.HeadSha256})
+			}
+		}
+	}
+	out, _, e := s.guidance(pinned)
+	return out, e
+}
+
+// ResolveEscalationAnswers rebuilds the guidance a claim pinned at admission
+// (ESC-V0-005) from the immutable event blobs. It checks each origin and head
+// binding but not the current ticket, so later answers never leak into a
+// replay. The value is the delivered array, at most 256 KiB.
+func ResolveEscalationAnswers(queueID, ticketID string, pinned []snapshot.EscalationAnswerRef, blobs map[wire.Digest][]byte) ([]EscalationAnswerView, wire.Value, error) {
+	return newEscalationView(EscalationSnapshot{QueueID: queueID, TicketID: ticketID, Blobs: blobs}).guidance(pinned)
+}
+
+func (s *escalationView) guidance(pinned []snapshot.EscalationAnswerRef) ([]EscalationAnswerView, wire.Value, error) {
 	out := []EscalationAnswerView{}
 	encoded := []wire.Value{}
-	if s.Refs == nil {
-		return out, nil
-	}
-	for _, ref := range s.Refs.Entries {
-		if ref.State != "ANSWERED" || ref.AcceptanceRevision != s.AcceptanceRevision {
-			continue
-		}
+	for _, ref := range pinned {
 		origin, e := s.record(ref.OriginSha256)
 		if e != nil {
-			return nil, e
+			return nil, wire.Value{}, e
 		}
 		head, e := s.record(ref.HeadSha256)
 		if e != nil {
-			return nil, e
+			return nil, wire.Value{}, e
 		}
-		out = append(out, EscalationAnswerView{ref.RequestID, ref.OriginSha256, ref.HeadSha256, origin.OriginalRequest.Open.Question, append([]string{}, origin.OriginalRequest.Open.Options...), ref.Kind, origin.Source, head.OriginalRequest.Answer.Text, head.Actor, head.ActorRole, head.RecordedAt, head.Revision})
+		if origin.Operation != "OPEN" || origin.EscalationID != ref.RequestID || head.Operation != "ANSWER" || head.EscalationID != ref.RequestID || head.QuestionOriginSha256 == nil || *head.QuestionOriginSha256 != ref.OriginSha256 || head.Source != origin.Source || origin.OriginalRequest.Open == nil || head.OriginalRequest.Answer == nil {
+			return nil, wire.Value{}, escalationFailure("ANSWER_BINDING")
+		}
+		v := EscalationAnswerView{ref.RequestID, ref.OriginSha256, ref.HeadSha256, origin.OriginalRequest.Open.Question, append([]string{}, origin.OriginalRequest.Open.Options...), origin.OriginalRequest.Open.Kind, origin.Source, head.OriginalRequest.Answer.Text, head.Actor, head.ActorRole, head.RecordedAt, head.Revision}
+		out = append(out, v)
 
 		original, err := wire.Parse(s.Blobs[ref.OriginSha256])
 		if err != nil {
-			return nil, err
+			return nil, wire.Value{}, err
 		}
-		v := out[len(out)-1]
 		obj := wire.NewObject().Set("requestId", wire.String(v.RequestID)).Set("originSha256", wire.String(string(v.OriginSha256))).Set("headSha256", wire.String(string(v.HeadSha256))).Set("question", wire.String(v.Question)).Set("options", wire.Strings(v.Options)).Set("kind", wire.String(v.Kind)).Set("source", original.Obj.Vals["source"]).Set("answer", wire.String(v.Answer)).Set("actor", wire.String(v.Actor)).Set("actorRole", wire.String(v.ActorRole)).Set("recordedAt", wire.String(string(v.RecordedAt))).Set("eventRevision", wire.String(string(v.EventRevision)))
 		encoded = append(encoded, wire.ObjectValue(obj))
 	}
-	if len(wire.EncodeFile(wire.Array(encoded...))) > 256*1024 {
-		return nil, escalationFailure("GUIDANCE_CAPACITY")
+	value := wire.Array(encoded...)
+	if len(wire.EncodeFile(value)) > MaxEscalationGuidanceBytes {
+		return nil, wire.Value{}, escalationFailure("GUIDANCE_CAPACITY")
 	}
-	return out, nil
+	return out, value, nil
 }
+
+// MaxEscalationGuidanceBytes bounds the delivered answer array (ESC-V0-005).
+const MaxEscalationGuidanceBytes = 256 * 1024
 
 // EscalationHolds derives typed request IDs only, never ticket status or prose.
 // Infrastructure IDs are observations for a later qualified dispatcher adapter.
