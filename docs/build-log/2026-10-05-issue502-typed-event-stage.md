@@ -25,7 +25,7 @@ Agent decision, 2026-10-05, under the owner's in-task delegation; the owner may 
   TRANSITION posting one ticket, rebuilds the typed LEASE request digest from the event's original
   request and the receipt's actor and binds it to the posted request entry, requires the verb's
   grant in the retained policy, requires an OPEN's source to be exactly a folded completed claim
-  admission of an attempt never posted with supervision, and replays the pure reducer and the
+  admission that is still the current, unsupervised, reserved and unexpired attempt, and replays the pure reducer and the
   ticket finalizer to the posted bytes. It runs in one pass with the external-review fold for
   receipt audit and both redo paths (`FoldReceiptBindings`).
 
