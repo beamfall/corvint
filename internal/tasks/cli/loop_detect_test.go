@@ -82,7 +82,7 @@ func TestCALV0102_CLILoopHoldSurfaces(t *testing.T) {
 			}
 			if !opted {
 				for name, out := range map[string][]byte{"show": show.stdout, "blockers": blockers.stdout, "plan": plan.stdout} {
-					if strings.Contains(string(out), "LOOP_DETECTED") || strings.Contains(string(out), "no-progress loop") {
+					if strings.Contains(string(out), "LOOP_DETECTED") || strings.Contains(string(out), "no-progress loop") || strings.Contains(string(out), `"loop"`) {
 						t.Fatalf("policy-absent %s mentions a loop: %s", name, out)
 					}
 				}
@@ -100,7 +100,21 @@ func TestCALV0102_CLILoopHoldSurfaces(t *testing.T) {
 			if len(entries) != 1 || field(entries[0], "reason").Str != wire.CodeLoopDetected {
 				t.Fatalf("plan: %s", plan.stdout)
 			}
-			if !hasCode(claim.res, wire.CodeLoopDetected) {
+			// The plain plan entry carries the hold's evidence, not only its code.
+			loop := field(entries[0], "loop")
+			if loop.Kind != wire.KindObject || field(loop, "signal").Str != "NO_PROGRESS" || len(field(loop, "generations").Arr) != 3 || field(loop, "limit").Str != "2" || field(loop, "acceptanceRevision").Str == "" {
+				t.Fatalf("plan entry loop evidence: %s", plan.stdout)
+			}
+			gens := make([]string, 0, 3)
+			for _, g := range field(loop, "generations").Arr {
+				gens = append(gens, g.Str)
+			}
+			evidence := "no-progress loop NO_PROGRESS at acceptanceRevision " + field(loop, "acceptanceRevision").Str + ": generations " + strings.Join(gens, ",") + " exceed the policy bound 2"
+			next := handoffCLI(t, root, "claim", "--next", "--holder", "late-next", "--stage", "implement", "--request-id", "claim-next-late")
+			if !hasCode(next.res, wire.CodeLoopDetected) || !strings.Contains(string(next.stdout), evidence) {
+				t.Fatalf("claim --next lacks %q: %s", evidence, next.stdout)
+			}
+			if !hasCode(claim.res, wire.CodeLoopDetected) || !strings.Contains(string(claim.stdout), evidence) {
 				t.Fatalf("claim: %s", claim.stdout)
 			}
 			if h := obs.Tickets[0].Loop; h == nil || h.Signal != "NO_PROGRESS" || len(h.Generations) != 3 {

@@ -349,8 +349,10 @@ ended in a clean `HANDOFF` with no new candidate tree, no gate result and no ext
 more implement-`HANDOFF`/review-`REVIEW_RETURNED` pairs than `maxAlternatingReturns` alternate,
 the ticket is held `LOOP_DETECTED`: `ticket show`, `ticket blockers`, `plan preview`, `claim`,
 `claim --next` and `dispatch status` (`loopDetected`) report it with the counted generations and
-next action `reopen`, and the dispatcher skips the ticket and emits one `needs-owner` event
-(`kind: blocked`) per episode. Generations recorded without evidence (before the opt-in, legacy
+next action `reopen`; a held `plan preview` entry also carries
+`loop {signal, acceptanceRevision, generations, limit}`. The dispatcher skips the ticket and emits
+one `needs-owner` event (`kind: blocked`) per episode, retrying it while the event log is
+unwritable. Generations recorded without evidence (before the opt-in, legacy
 or supervised) are UNKNOWN and never count. The ticket status is not changed.
 
 The hold clears when the acceptance revision changes, for example through the owner's

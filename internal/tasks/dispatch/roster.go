@@ -54,6 +54,10 @@ type Ticket struct {
 type LoopHold struct {
 	Signal      string   `json:"signal"`
 	Generations []string `json:"generations"`
+	// Pending marks, in the ledger only, an episode whose needs-owner event
+	// is not yet appended to the event log, so the next tick and a restart
+	// retry it (CAL-V0-103).
+	Pending bool `json:"pending,omitempty"`
 }
 
 // Attempt is the dispatcher's view of one attempt.

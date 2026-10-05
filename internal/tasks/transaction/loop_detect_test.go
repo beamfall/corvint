@@ -167,10 +167,14 @@ func TestCALV0102_ClaimHonoursLoopHold(t *testing.T) {
 			t.Fatalf("claim %s %q", code, detail)
 		}
 		code, detail := issue502Refused(planClaimNext(held(LeaseClaimNext, "")))
-		if code != wire.CodeLoopDetected || !strings.HasSuffix(detail, "is BLOCKED LOOP_DETECTED") {
+		if code != wire.CodeLoopDetected || !strings.HasSuffix(detail, "is BLOCKED LOOP_DETECTED: "+want) {
 			t.Fatalf("claim-next %s %q", code, detail)
 		}
 		in := PlanInput{Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts}
+		// The ordinary plan, with no author exclusion, keeps the evidence.
+		if e := PriorityFirst(in).Entries; len(e) != 1 || e[0].Loop == nil || e[0].Loop.Detail() != want {
+			t.Fatalf("plan entry loop evidence %+v", e)
+		}
 		if got, reason := RecordedClaimability(in, rec); got.Kind != wire.KindBool || got.Bool || reason != wire.CodeLoopDetected {
 			t.Fatalf("claimability %s %s", wire.Encode(got), reason)
 		}

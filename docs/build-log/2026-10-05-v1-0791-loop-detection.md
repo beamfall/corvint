@@ -34,6 +34,24 @@ taken by V1-0780 in the same batch).
   also admits a loop-held ticket. A ticket that is neither exhausted nor held still refuses
   `RETRY_BUDGET_NOT_EXHAUSTED`.
 
+### Review round 1
+
+Codex r1 returned three P2 findings, all fixed with regression tests:
+
+- The ledger reader ran its strict member check only beside `progress` or `poolSweeps`, so a ledger
+  carrying only `seen.loops` admitted aliases and duplicate members. Any member folding to `seen`
+  that holds a member folding to `loops` now requires the strict reader, which also refuses a
+  `null` map or hold (`TestCALV0103_LedgerLoopsStrictWithoutProgress`).
+- Plan and claim-next kept blocker detail only under author exclusion, so they reported
+  `LOOP_DETECTED` without its evidence. A held plan entry now carries the optional member
+  `loop {signal, acceptanceRevision, generations, limit}`, and a claim-next refusal appends the
+  hold's detail; both are absent without the policy (`TestCALV0102_CLILoopHoldSurfaces`,
+  `TestCALV0102_ClaimHonoursLoopHold`).
+- The dispatcher recorded an episode before its event was appended and ignored the append error,
+  so an unwritable event log lost the event for good. An episode whose append fails is now kept
+  with the optional ledger member `pending: true` and retried on the next tick or after a restart
+  (`TestCALV0103_LoopEscalationSurvivesEventAppendFailure`).
+
 ### Decisions and limits
 
 - Acknowledgement reuses owner `ticket reopen` instead of a new verb. It bumps the acceptance

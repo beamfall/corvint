@@ -352,6 +352,8 @@ func (p TicketPlan) refusal() (string, string) {
 		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
 	case first.Reason == wire.CodePrerequisiteUnsatisfied:
 		detail += ": " + strings.Join(first.prerequisites, "; ")
+	case first.Reason == wire.CodeLoopDetected && first.Loop != nil:
+		detail += ": " + first.Loop.Detail()
 	case first.Detail != "":
 		detail += ": " + first.Detail
 	}

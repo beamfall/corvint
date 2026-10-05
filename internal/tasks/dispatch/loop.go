@@ -1011,19 +1011,24 @@ func (d *Dispatcher) escalated(r *Role, a Assignment, model string) *Event {
 // loopEscalations raises the CAL-V0-102 typed blocked escalation once per
 // LOOP_DETECTED episode: when the dispatcher first observes a hold, including
 // in its baseline observation, or a hold whose newest counted generation
-// differs from the one it last recorded. The persisted Seen state keeps a
-// restart from raising an episode twice. The native escalation writer
+// differs from the one it last recorded, or one still pending. The
+// persisted Seen state keeps a restart from raising an episode twice. An
+// episode whose event cannot be appended stays pending, so the next tick
+// or a restart raises it again (CAL-V0-103). The native escalation writer
 // needs the worker's live claim, so this is a dispatcher event only.
 func (d *Dispatcher) loopEscalations(obs *Observation, old, now *Seen) {
 	for _, id := range slices.Sorted(maps.Keys(now.Loops)) {
 		h := now.Loops[id]
 		if old != nil {
-			if was, ok := old.Loops[id]; ok && len(was.Generations) > 0 && was.Generations[len(was.Generations)-1] == h.Generations[len(h.Generations)-1] {
+			if was, ok := old.Loops[id]; ok && !was.Pending && len(was.Generations) > 0 && was.Generations[len(was.Generations)-1] == h.Generations[len(h.Generations)-1] {
 				continue
 			}
 		}
 		gens := strings.Join(h.Generations, ",")
-		d.emit(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "generations": gens}})
+		if err := d.record(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "generations": gens}}); err != nil {
+			h.Pending = true
+			now.Loops[id] = h
+		}
 	}
 }
 
@@ -1130,16 +1135,22 @@ func sortedKeys(m map[string]string) []string {
 	return out
 }
 
-func (d *Dispatcher) emit(e Event) {
+func (d *Dispatcher) emit(e Event) { _ = d.record(e) }
+
+// record is emit returning the event-log append failure, for a caller that
+// must retry an event it cannot lose.
+func (d *Dispatcher) record(e Event) error {
 	d.ledger.EventSeq++
 	e.Profile, e.Seq, e.Program = EventProfile, d.ledger.EventSeq, d.Program
 	e.At = d.Now().UTC().Format(time.RFC3339)
-	if err := appendEvent(d.dir, e); err != nil && d.Out != nil {
+	err := appendEvent(d.dir, e)
+	if err != nil && d.Out != nil {
 		fmt.Fprintf(d.Out, "%s alert event log unwritable: %v\n", e.At, err)
 	}
 	if d.Out != nil {
 		fmt.Fprintf(d.Out, "%s %s %s\n", e.At, e.Kind, e.Message)
 	}
+	return err
 }
 
 // pressureBudget samples host pressure once and advances its hysteresis

@@ -213,6 +213,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 			break
 		}
 	}
+	// CAL-V0-103: a recorded loop hold is closed whether or not the ledger
+	// carries progress, so its presence alone requires the strict reader.
+	if seenCarriesLoops(raw) && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+		return nil, errors.New("dispatch state: malformed loops JSON")
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var l Ledger
@@ -296,7 +301,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "seen":
 				fields = []string{"tickets", "claims", "lanes", "escalations", "loops"}
 			case "loop-hold":
-				fields = []string{"signal", "generations"}
+				fields = []string{"signal", "generations", "pending"}
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
@@ -341,6 +346,10 @@ func strictProgressJSON(raw []byte) bool {
 					}
 				case "loops":
 					child = "loop-hold"
+				case "loop-hold":
+					if key == "pending" {
+						child = "loop-pending"
+					}
 				}
 				if !value(depth+1, child) {
 					return false
@@ -378,6 +387,12 @@ func strictProgressJSON(raw []byte) bool {
 			if strings.HasPrefix(schema, "sweep-") || schema == "poolSweeps" {
 				return token != nil
 			}
+			switch schema {
+			case "loops", "loop-hold":
+				return false // a loops map and each recorded hold are objects
+			case "loop-pending":
+				return token == true // written only as true
+			}
 			return true
 		}
 	}
@@ -386,6 +401,70 @@ func strictProgressJSON(raw []byte) bool {
 	}
 	var extra any
 	return d.Decode(&extra) == io.EOF
+}
+
+// seenCarriesLoops reports whether any member named like "seen", including
+// a duplicate, holds a member named like "loops", folding case as the
+// struct decoder does. Malformed JSON reports true, so the strict reader
+// decides.
+func seenCarriesLoops(raw []byte) bool {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	skip := func() bool {
+		depth := 0
+		for {
+			t, err := d.Token()
+			if err != nil {
+				return false
+			}
+			switch t {
+			case json.Delim('{'), json.Delim('['):
+				depth++
+			case json.Delim('}'), json.Delim(']'):
+				depth--
+			}
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	if t, err := d.Token(); err != nil || t != json.Delim('{') {
+		return true
+	}
+	for d.More() {
+		k, err := d.Token()
+		if err != nil {
+			return true
+		}
+		if name, _ := k.(string); !strings.EqualFold(name, "seen") {
+			if !skip() {
+				return true
+			}
+			continue
+		}
+		t, err := d.Token()
+		if err != nil {
+			return true
+		}
+		if t != json.Delim('{') {
+			continue
+		}
+		for d.More() {
+			k, err := d.Token()
+			if err != nil {
+				return true
+			}
+			if name, _ := k.(string); strings.EqualFold(name, "loops") {
+				return true
+			}
+			if !skip() {
+				return true
+			}
+		}
+		if _, err := d.Token(); err != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (l *Ledger) validateProgress() error {
