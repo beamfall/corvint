@@ -273,6 +273,8 @@ func endedHistory(prior *snapshot.Attempt) *snapshot.GenerationHistory {
 		pool, member := x.PoolID, x.MemberID
 		h.PoolID, h.MemberID = &pool, &member
 	}
+	// CAL-V0-082: the ended generation's recorded hand-off moves with it.
+	h.HandoffTo, h.HandoffReason = prior.HandoffTo, prior.HandoffReason
 	return h
 }
 

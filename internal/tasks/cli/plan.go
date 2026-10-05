@@ -189,6 +189,7 @@ func planEntryValue(e transaction.PlanEntry) (wire.Value, error) {
 	o.Set("ticketId", wire.String(e.Ticket.TicketID.Raw))
 	o.Set("ticketRevision", wire.String(string(e.Ticket.AcceptanceRevision)))
 	o.Set("retries", e.Retries)
+	o.Set("nextStage", e.NextStage)
 	o.Set("resources", resources)
 	o.Set("closureComplete", wire.Bool(e.ClosureComplete))
 	o.Set("state", wire.String(e.State))
