@@ -1020,7 +1020,6 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			return err
 		}
 		v, _ := rc.store.Inventory.View(id, ctx)
-		val := v.Value(includeRecord)
 		attempts := map[string]*snapshot.Attempt{}
 		var in transaction.PlanInput
 		if !rc.journalAbsent {
@@ -1031,6 +1030,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			}
 			attempts = in.Attempts
 		}
+		// ERG-V0-011: a read-only complete-manual offer when every required
+		// external review gate is a CURRENT PASS; never a write.
+		offers := completionOffers{rc: rc, in: in}
+		offers.offer(&v)
+		val := v.Value(includeRecord)
 		if includeRecord {
 			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}

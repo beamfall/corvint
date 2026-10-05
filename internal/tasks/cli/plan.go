@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"slices"
@@ -92,7 +93,7 @@ func planPreview(env Env, args []string) *wire.Result {
 			item = selectedPlanValue(rc, plan)
 			return nil
 		}
-		item, err = planValue(rc, digest, plan, authors != "")
+		item, err = planValue(rc, digest, plan, authors != "", planOffers(rc, in, plan))
 		return err
 	})
 	if err != nil {
@@ -169,11 +170,49 @@ func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 	return in, wire.Sum(raw), nil
 }
 
-// planValue renders a taskman-plan/0 object (TCP-00 §4.3).
-func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPlan, authors bool) (wire.Value, error) {
+// planOffers is the ERG-V0-011 read-only completion offer for each plan
+// entry, by ticket ID, from the same ticket view `ticket show` derives. Only
+// tickets carrying a review reference under a policy declaring review gates
+// are viewed, so every other entry renders exactly as before.
+func planOffers(rc *readCtx, in transaction.PlanInput, plan transaction.TicketPlan) map[string][]wire.Digest {
+	if rc.journalAbsent || len(rc.store.Policy.ExternalReviews) == 0 {
+		return nil
+	}
+	var out map[string][]wire.Digest
+	var ctx *ticket.Context
+	offers := completionOffers{rc: rc, in: in}
+	for _, e := range plan.Entries {
+		if len(e.Ticket.ExternalReviews) == 0 || e.State == transaction.PlanBlocked {
+			continue
+		}
+		if ctx == nil {
+			c, err := ticketContext(rc)
+			if err != nil {
+				return nil
+			}
+			ctx = &c
+		}
+		v, ok := rc.store.Inventory.View(e.Ticket.TicketID.Raw, *ctx)
+		if !ok {
+			continue
+		}
+		offers.offer(&v)
+		if v.SuggestedEvidence != nil {
+			if out == nil {
+				out = map[string][]wire.Digest{}
+			}
+			out[e.Ticket.TicketID.Raw] = v.SuggestedEvidence
+		}
+	}
+	return out
+}
+
+// planValue renders a taskman-plan/0 object (TCP-00 §4.3). offers names the
+// entries carrying the ERG-V0-011 completion offer.
+func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPlan, authors bool, offers map[string][]wire.Digest) (wire.Value, error) {
 	entries := make([]wire.Value, 0, len(plan.Entries))
 	for _, e := range plan.Entries {
-		v, err := planEntryValue(e, authors)
+		v, err := planEntryValue(e, authors, offers[e.Ticket.TicketID.Raw])
 		if err != nil {
 			return wire.Value{}, err
 		}
@@ -222,7 +261,10 @@ func resourceDeferredValue(pools []transaction.PoolSelection) wire.Value {
 	return wire.Array(rows...)
 }
 
-func planEntryValue(e transaction.PlanEntry, authors bool) (wire.Value, error) {
+// planEntryValue renders one entry. offer, when non-nil, adds the additive
+// ERG-V0-011 members nextAction (complete-manual) and suggestedEvidence;
+// without it the entry is byte-identical to one rendered before the offer.
+func planEntryValue(e transaction.PlanEntry, authors bool, offer []wire.Digest) (wire.Value, error) {
 	resources, err := snapshot.ResourcesValue("resources", e.Resources)
 	if err != nil {
 		return wire.Value{}, err
@@ -241,6 +283,10 @@ func planEntryValue(e transaction.PlanEntry, authors bool) (wire.Value, error) {
 	if authors {
 		o.Set("detail", optionalText(e.Detail))
 		o.Set("excludedAuthors", authorsValue(e.Authors))
+	}
+	if offer != nil {
+		o.Set("nextAction", wire.String(ticket.NextActionCompleteManual))
+		o.Set("suggestedEvidence", ticket.DigestsValue(offer))
 	}
 	return wire.ObjectValue(o), nil
 }
