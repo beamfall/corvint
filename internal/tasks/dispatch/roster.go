@@ -49,6 +49,11 @@ type Ticket struct {
 	// OPEN or ANSWERED infrastructure requests at AcceptanceRevision, so an
 	// ended session is classified by its own typed request (ESC-V0-008).
 	Infrastructure []string
+	// OpenRequests lists the ticket's current OPEN escalation requests of
+	// every kind, with the original OPEN time, sorted by request ID, so
+	// status can show kinds and ages (ESC-V0-009). A workState program
+	// cannot supply it.
+	OpenRequests []OpenRequest
 	// EscalationUnknown is set when the ticket's escalation material could
 	// not be validated: its revision binding and infrastructure observation
 	// are UNKNOWN, never progress. A workState program cannot clear it.

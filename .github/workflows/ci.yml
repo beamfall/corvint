@@ -125,7 +125,7 @@ jobs:
         working-directory: trusted-docs
         env:
           GH_TOKEN: ${{ github.token }}
-          REUSE_SHARDS: "4"
+          REUSE_SHARDS: "6"
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           src="$GITHUB_WORKSPACE/source"
@@ -198,7 +198,10 @@ jobs:
 
   go-product-shard:
     needs: docs-plan
-    if: ${{ always() && !cancelled() }}
+    # AFP-V0-027: a pull request labelled ci:batched is a constituent of a batch pull request
+    # that runs this suite on the combined tree, so its own race shards never start. The
+    # skipped shard job fails go-product below; the label never makes a PR mergeable.
+    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection intersects those same disjoint partitions; mixed full
     # fallbacks cannot omit selected packages. go-product remains the required check.
@@ -207,7 +210,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5]
     # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
     # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
     env:
@@ -436,6 +439,9 @@ jobs:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
         run: |
+          if [ "$SHARDS_RESULT" = skipped ]; then
+            echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
+          fi
           test "$SHARDS_RESULT" = success
           test "$DOCS_RESULT" = success
 
