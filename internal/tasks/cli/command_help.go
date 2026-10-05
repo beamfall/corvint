@@ -82,6 +82,9 @@ func commandHelp(args []string) *wire.Result {
 	if strings.HasPrefix(name, "ticket escalation ") {
 		o.Set("note", wire.String("Pure read: writes no ledger and hydrates no evidence. program is UNKNOWN and retryState NOT_OBSERVED until a producer mapping and dispatcher ledger exist; ageSeconds is clockUncertain when the local clock is behind the recorded time."))
 	}
+	if name == "critical-path" {
+		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -108,6 +111,7 @@ var commandUsage = map[string]string{
 	"ticket export":     "corvint-tasks ticket export [--offset N] [--limit N]",
 	"queue status":      "corvint-tasks queue status",
 	"roadmap":           "corvint-tasks roadmap [--offset N] [--limit N]",
+	"critical-path":     "corvint-tasks critical-path <ticketId|local>",
 	"gate list":         "corvint-tasks gate list",
 	"gate show":         "corvint-tasks gate show <gateId>",
 	"receipt audit":     "corvint-tasks receipt audit",

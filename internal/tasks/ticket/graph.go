@@ -126,6 +126,16 @@ func (inv *Inventory) findCycles() {
 	}
 }
 
+// CycleMembers returns the sorted members of the dependency cycle (strongly
+// connected component) that contains id, or nil when id is in no cycle.
+func (inv *Inventory) CycleMembers(id string) []string {
+	comp, ok := inv.inCycle[id]
+	if !ok {
+		return nil
+	}
+	return append([]string(nil), comp...)
+}
+
 // Problem is one structural dependency problem of a ticket.
 type Problem struct {
 	Code     string // DEPENDENCY_MISSING or CYCLE

@@ -57,7 +57,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
-	"queue status", "roadmap", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
+	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -199,6 +199,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
 	case "roadmap":
 		return emit(env.Stdout, roadmap(env, args[1:]))
+	case "critical-path":
+		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
