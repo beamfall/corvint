@@ -1400,6 +1400,21 @@ read before the inventory read it. An overwritten request projection, an edited
 `reservations.json` or a stray `barrier.json` is refused `JOURNAL_FORKED`, a projection replaced by
 a symlink `UNSUPPORTED_FILESYSTEM`, and an edited ticket `INTENT_DIVERGED`.
 
+Descriptor budget (macOS). kqueue needs one open descriptor per watched path, and the soft
+descriptor limit is often 10240, below a populated store's file count. Every directory and
+ancestor is always registered with kqueue. Regular files take a kqueue descriptor only while the
+regular-file descriptors held by all live watches in the process stay within half the soft limit
+read when the watch starts; the other half is left for directories, the audit's reads and
+concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
+device, inode, mode, size, modification time and change time, read before and after registration
+and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
+change. The directory watch still reports any entry created, removed or renamed. Store size alone
+therefore never refuses the watch with too many open files; any other registration failure is
+refused as before. Beyond the budget a write that leaves size, modification time and change time
+unchanged, possible only through a timestamp collision, is seen only by the content check, which
+every path that relies on the watch already requires. Linux inotify holds no descriptor per
+watched path and needs no budget.
+
 A write through a shared writable mapping is the case only the content check sees. Probes of
 `authority.WatchChanges` on this host's APFS (macOS, kqueue) and in a Linux arm64 container on
 tmpfs (inotify) found that reads returned the new bytes at once on both. On Linux the watch
