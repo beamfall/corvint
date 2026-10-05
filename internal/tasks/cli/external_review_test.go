@@ -54,10 +54,14 @@ func ergPolicyUpdateLease(t *testing.T, root, version string, authorStages, revi
 	ergPolicyUpdateRoles(t, root, version, authorStages, reviewStages, []string{"OPERATOR", "OWNER"}, requireLease)
 }
 
-// ergPolicyUpdateRoles is ergPolicyUpdateLease with the gate's recorder roles.
-func ergPolicyUpdateRoles(t *testing.T, root, version string, authorStages, reviewStages, recorderRoles []string, requireLease bool) {
+// ergPolicyUpdateRoles is ergPolicyUpdateLease with the gate's recorder roles
+// and, when given, the policy's executable gates in place of the fixture's.
+func ergPolicyUpdateRoles(t *testing.T, root, version string, authorStages, reviewStages, recorderRoles []string, requireLease bool, gates ...wire.Value) {
 	t.Helper()
 	policy := fixture.PolicyValue()
+	if len(gates) != 0 {
+		policy.Obj.Set("gates", wire.Array(gates...))
+	}
 	policy.Obj.Set("policyVersion", wire.String(version))
 	budgets, _ := policy.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))

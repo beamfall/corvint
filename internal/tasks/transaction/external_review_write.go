@@ -45,6 +45,11 @@ func externalSubjectCurrent(superseded bool) bool {
 // cost is O(receipts after the subject).
 type ExternalSubmissionHistory struct {
 	Built []ExternalBuilt
+	// Artifacts are the artifact links the same receipts post (ERG-V0-002),
+	// and Artifact the retained evidence/ bytes of an EVIDENCE candidate
+	// (nil when the request names none or they are absent).
+	Artifacts []ExternalArtifact
+	Artifact  []byte
 }
 
 // externalReviewSubject verifies the request's subject against the supplied
@@ -100,6 +105,36 @@ func externalReviewSubject(in Input, st inputState, q *snapshot.ExternalReviewRe
 	return snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: *a.CandidateTreeOid}, ""
 }
 
+// externalArtifactStates observes the candidate link and evidence
+// references of q against the artifact links posted after the subject
+// (ERG-V0-002). tree is the TREE candidate the subject proves. A TREE
+// request binds tree; an EVIDENCE request binds its own candidate only when
+// a link of the subject attempt, generation and tree names exactly its
+// sha256 and bytes and the retained artifact bytes hash to it, and is
+// otherwise UNKNOWN. Every evidence reference needs such a link too.
+func externalArtifactStates(later *ExternalSubmissionHistory, q *snapshot.ExternalReviewRequest, tree snapshot.ExternalReviewCandidate) (link, evidence string, bound snapshot.ExternalReviewCandidate) {
+	link, evidence, bound = "VERIFIED", "VERIFIED", tree
+	var links []ExternalArtifact
+	if later != nil {
+		links = later.Artifacts
+	}
+	if q.Candidate.Kind == "EVIDENCE" {
+		c := q.Candidate
+		if later == nil || !externalLinked(links, q.TicketID, q.Subject, tree.TreeOID, c.Sha256, c.Bytes) ||
+			wire.Sum(later.Artifact) != c.Sha256 || wire.SizeOf(uint64(len(later.Artifact))) != c.Bytes {
+			link = "UNKNOWN"
+		} else {
+			bound = c
+		}
+	}
+	for _, e := range q.Evidence {
+		if !externalLinked(links, q.TicketID, q.Subject, tree.TreeOID, e.Sha256, e.Bytes) {
+			evidence = "UNKNOWN"
+		}
+	}
+	return link, evidence, bound
+}
+
 func externalLeaseObservation(st inputState, l *snapshot.ExternalReviewLease, now wire.Timestamp) ExternalReviewLeaseObservation {
 	if l == nil {
 		return ExternalReviewLeaseObservation{State: "ABSENT"}
@@ -148,10 +183,15 @@ func externalReviewPost(r Request, in Input, st inputState, env *mutation.Envelo
 	if detail != "" {
 		return externalReviewRefusal(mutation.OutcomeBlocked, wire.CodeStaleTree, detail)
 	}
-	evidence := "VERIFIED"
-	if len(q.Evidence) != 0 {
-		// Evidence references are not yet verified natively; they fail closed.
-		evidence = "UNKNOWN"
+	link, evidence, bound := externalArtifactStates(in.ExternalReviewLater, q, candidate)
+	if link == "VERIFIED" && q.Candidate.Kind == "EVIDENCE" {
+		// A VERIFIED EVIDENCE link implies a non-nil history holding the
+		// candidate's bytes.
+		if detail, blocked := externalAcceptanceCheck(*q, in.ExternalReviewLater.Artifact); blocked {
+			return externalReviewRefusal(mutation.OutcomeBlocked, wire.CodeMissingEvidence, detail)
+		} else if detail != "" {
+			return externalReviewRefusal(mutation.OutcomeValidationFailed, wire.CodeMalformed, detail)
+		}
 	}
 	var current *snapshot.ExternalReviewRef
 	if ref, ok := pre.ExternalReviews[q.GateID]; ok {
@@ -163,8 +203,8 @@ func externalReviewPost(r Request, in Input, st inputState, env *mutation.Envelo
 	}
 	o := ExternalReviewObservations{
 		Actor:       r.Actor,
-		PolicyState: "VERIFIED", SubjectState: "VERIFIED", CandidateLinkState: "VERIFIED", EvidenceState: evidence,
-		Binding:      ExternalReviewBinding{GateID: q.GateID, TicketID: q.TicketID, AcceptanceRevision: pre.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: wire.Sum(st.policy.Raw), Subject: q.Subject, Candidate: candidate},
+		PolicyState: "VERIFIED", SubjectState: "VERIFIED", CandidateLinkState: link, EvidenceState: evidence,
+		Binding:      ExternalReviewBinding{GateID: q.GateID, TicketID: q.TicketID, AcceptanceRevision: pre.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: wire.Sum(st.policy.Raw), Subject: q.Subject, Candidate: bound},
 		Policy:       ExternalReviewPolicy{RecorderRoles: def.RecorderRoles, ReviewStages: def.ReviewStages, AuthorStages: def.AuthorStages, RequireReviewerLease: def.RequireReviewerLease},
 		Reviewer:     externalLeaseObservation(st, q.ReviewerLease, in.RecordedAt),
 		Author:       externalLeaseObservation(st, q.AuthorLease, in.RecordedAt),
@@ -205,7 +245,11 @@ func externalReviewPost(r Request, in Input, st inputState, env *mutation.Envelo
 // while it is still the current author candidate; a superseded subject's
 // binding cannot equal the event's, so the view is STALE. An undeclared gate
 // has no binding and reads UNKNOWN. superseded answers from the durable
-// submission history (ExternalReviewReceiptAudit).
+// submission history (ExternalReviewReceiptAudit). A TREE or EVIDENCE
+// candidate is taken from the head event: the receipt fold that every
+// caller runs first admitted it only against the subject's BUILT tree or a
+// journal-backed artifact link of that subject, and both are immutable
+// history, so the candidate changes only with the subject.
 func ExternalReviewCurrentBindings(rec *ticket.Record, policy *intent.Policy, blob ExternalReviewBlob, superseded func(ticketID string, stages []string, seq wire.Size) bool) map[string]*ExternalReviewBinding {
 	out := map[string]*ExternalReviewBinding{}
 	if rec == nil || policy == nil {
@@ -222,7 +266,7 @@ func ExternalReviewCurrentBindings(rec *ticket.Record, policy *intent.Policy, bl
 			continue
 		}
 		b := &ExternalReviewBinding{GateID: gate, TicketID: rec.TicketID.Raw, AcceptanceRevision: rec.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: wire.Sum(policy.Raw), Subject: e.Request.Subject, Candidate: e.Request.Candidate}
-		if e.Request.Candidate.Kind != "TREE" || superseded == nil || !externalSubjectCurrent(superseded(rec.TicketID.Raw, def.AuthorStages, e.Request.Subject.ReceiptSeq)) {
+		if superseded == nil || !externalSubjectCurrent(superseded(rec.TicketID.Raw, def.AuthorStages, e.Request.Subject.ReceiptSeq)) {
 			b.Subject.ReceiptSha256 = ""
 		}
 		out[gate] = b
