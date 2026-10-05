@@ -67,6 +67,49 @@ type EscalationState struct {
 	Tiers  map[string]int `json:"tiers,omitempty"`
 }
 
+// Infrastructure retry episode states (ESC-V0-007). WAITING has a reserved
+// retry ordinal and cooldown deadline; RESERVED has also written its launch
+// identity before spawn; RUNNING is that launch's recorded worker; IDLE keeps
+// the debt with no retry pending; RECOVERED followed checked work progress.
+// EXHAUSTED, DISABLED, NATIVE_EXHAUSTED and UNKNOWN hold the ticket.
+const (
+	InfraWaiting         = "WAITING"
+	InfraReserved        = "RESERVED"
+	InfraRunning         = "RUNNING"
+	InfraIdle            = "IDLE"
+	InfraRecovered       = "RECOVERED"
+	InfraExhausted       = "EXHAUSTED"
+	InfraDisabled        = "DISABLED"
+	InfraNativeExhausted = "NATIVE_EXHAUSTED"
+	InfraUnknown         = "UNKNOWN"
+)
+
+// InfraEpisode is one ticket's ESC-V0-007 infrastructure retry episode at
+// one acceptance revision, shared across roles and request IDs. Sessions
+// counts ended infrastructure sessions, each once; Charged counts reserved
+// retry ordinals; Limit is the maxRetries the episode started with, which a
+// configuration reload can only narrow. Nothing here resets automatically.
+type InfraEpisode struct {
+	AcceptanceRevision string    `json:"acceptanceRevision"`
+	State              string    `json:"state"`
+	Sessions           int       `json:"sessions"`
+	Charged            int       `json:"charged"`
+	Limit              int       `json:"limit"`
+	CooldownUntil      time.Time `json:"cooldownUntil"`
+	Launch             string    `json:"launch,omitempty"`
+}
+
+// Holds reports whether the episode keeps its ticket from launching at now.
+func (e *InfraEpisode) Holds(now time.Time) bool {
+	switch e.State {
+	case InfraExhausted, InfraDisabled, InfraNativeExhausted, InfraUnknown:
+		return true
+	case InfraWaiting:
+		return e.CooldownUntil.After(now)
+	}
+	return false
+}
+
 // Backoff is the CAL-V0-057 per-key no-progress record.
 type BackoffState struct {
 	NoProgress      int       `json:"noProgress"`
@@ -105,6 +148,8 @@ type Ledger struct {
 	Pressure   *PressureRecord             `json:"pressure,omitempty"`
 	// Escalation is present only while the configuration has a ladder.
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
+	// InfraRetry is present only once an ESC-V0-007 episode exists.
+	InfraRetry map[string]*InfraEpisode `json:"infraRetry,omitempty"`
 }
 
 const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
@@ -213,6 +258,13 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 			break
 		}
 	}
+	// ESC-V0-007: an infrastructure retry episode always needs the strict
+	// reader, whether or not the ledger carries progress.
+	for name := range members {
+		if strings.EqualFold(name, "infraRetry") && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+			return nil, errors.New("dispatch state: malformed infraRetry JSON")
+		}
+	}
 	// CAL-V0-103: a recorded loop hold is closed whether or not the ledger
 	// carries progress, so its presence alone requires the strict reader.
 	if seenCarriesLoops(raw) && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
@@ -237,6 +289,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if err := l.validateSeenEscalations(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	if err := l.validateInfraRetry(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if err := l.validateSeenLoops(); err != nil {
@@ -287,7 +342,7 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -306,6 +361,8 @@ func strictProgressJSON(raw []byte) bool {
 				fields = []string{"current", "seen"}
 			case "escalation-state":
 				fields = []string{"streak", "tiers"}
+			case "infra-episode":
+				fields = []string{"acceptanceRevision", "state", "sessions", "charged", "limit", "cooldownUntil", "launch"}
 			}
 			seen := map[string]bool{}
 			for d.More() {
@@ -318,7 +375,7 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" {
 						child = key
 					}
 				case "worker":
@@ -340,6 +397,10 @@ func strictProgressJSON(raw []byte) bool {
 					child = "sweep-scalar"
 				case "escalation":
 					child = "escalation-state"
+				case "infraRetry":
+					child = "infra-episode"
+				case "infra-episode":
+					child = "infra-scalar"
 				case "seen":
 					if key == "loops" {
 						child = key
@@ -365,6 +426,15 @@ func strictProgressJSON(raw []byte) bool {
 			if schema == "sweep-result" && !seen["pending"] {
 				return false
 			}
+			// Every episode member but launch is written, so an omitted
+			// one cannot decode as zero debt or an elapsed deadline.
+			if schema == "infra-episode" {
+				for _, key := range fields {
+					if key != "launch" && !seen[key] {
+						return false
+					}
+				}
+			}
 			end, err := d.Token()
 			return err == nil && end == json.Delim('}')
 		case json.Delim('['):
@@ -388,8 +458,10 @@ func strictProgressJSON(raw []byte) bool {
 				return token != nil
 			}
 			switch schema {
-			case "loops", "loop-hold":
-				return false // a loops map and each recorded hold are objects
+			case "loops", "loop-hold", "infraRetry", "infra-episode":
+				return false // these maps and their records are objects
+			case "infra-scalar":
+				return token != nil // a null would decode as zero
 			case "loop-pending":
 				return token == true // written only as true
 			}
@@ -914,3 +986,50 @@ func (l *Ledger) validateSeenLoops() error {
 
 // MaxLoopGenerations bounds the generations one recorded loop hold names.
 const MaxLoopGenerations = 1024
+
+// maxInfraEpisodes bounds the ESC-V0-007 episodes, like progress histories.
+const maxInfraEpisodes = 8192
+
+// validateInfraRetry admits only episodes the dispatcher writes: canonical
+// ticket keys and acceptance revisions, a known state, bounded counts, a
+// launch identity exactly while one is reserved or running, and a charged
+// retry with its deadline while one waits, is reserved or runs.
+func (l *Ledger) validateInfraRetry() error {
+	if l.InfraRetry != nil && len(l.InfraRetry) == 0 || len(l.InfraRetry) > maxInfraEpisodes {
+		return errors.New("invalid infraRetry episodes")
+	}
+	for key, e := range l.InfraRetry {
+		if _, err := wire.ParseTicketID("infraRetry key", key); err != nil || e == nil {
+			return errors.New("invalid infraRetry episode")
+		}
+		if _, err := wire.ParseCount("infraRetry acceptance revision", e.AcceptanceRevision); err != nil {
+			return errors.New("invalid infraRetry episode")
+		}
+		if e.Sessions < 1 || e.Sessions > 1024 || e.Charged < 0 || e.Charged > 10 || e.Charged > e.Sessions || e.Limit < 0 || e.Limit > 10 {
+			return errors.New("invalid infraRetry counts")
+		}
+		switch e.State {
+		case InfraWaiting, InfraReserved, InfraRunning:
+			if e.Charged < 1 || e.CooldownUntil.IsZero() || e.State == InfraWaiting && e.Charged > e.Limit {
+				return errors.New("invalid infraRetry retry")
+			}
+		}
+		switch e.State {
+		case InfraReserved, InfraRunning:
+			if e.Launch == "" {
+				return errors.New("invalid infraRetry launch")
+			}
+		case InfraWaiting:
+		case InfraIdle, InfraRecovered, InfraExhausted, InfraDisabled, InfraNativeExhausted, InfraUnknown:
+			if e.Launch != "" {
+				return errors.New("invalid infraRetry launch")
+			}
+		default:
+			return errors.New("invalid infraRetry state")
+		}
+		if len(e.Launch) > 128 {
+			return errors.New("invalid infraRetry launch")
+		}
+	}
+	return nil
+}

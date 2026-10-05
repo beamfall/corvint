@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -287,11 +288,52 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
+	if len(l.InfraRetry) > 0 {
+		o.Set("infrastructureRetry", dispatchInfraRetryValue(c, l))
+	}
 	if l.Pressure != nil {
 		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
 	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchInfraRetryValue is the ESC-V0-007 view: a dispatcher observation
+// of each ticket's infrastructure retry episode, apart from parked keys and
+// native requests. The policy is ABSENT when the configuration has none;
+// its recorded episodes are then inert but keep their debt.
+func dispatchInfraRetryValue(c *dispatch.Config, l *dispatch.Ledger) wire.Value {
+	labels := map[string]string{dispatch.InfraExhausted: "INFRA_RETRY_EXHAUSTED", dispatch.InfraDisabled: "INFRA_RETRY_DISABLED", dispatch.InfraNativeExhausted: "NATIVE_RETRY_EXHAUSTED"}
+	keys := make([]string, 0, len(l.InfraRetry))
+	for k := range l.InfraRetry {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	episodes := make([]wire.Value, 0, len(keys))
+	for _, k := range keys {
+		e := l.InfraRetry[k]
+		o := wire.NewObject()
+		o.Set("ticket", wire.String(k))
+		o.Set("acceptanceRevision", wire.String(e.AcceptanceRevision))
+		state := e.State
+		if label, ok := labels[state]; ok {
+			state = label
+		}
+		o.Set("state", wire.String(state))
+		o.Set("sessions", wire.String(strconv.Itoa(e.Sessions)))
+		o.Set("charged", wire.String(strconv.Itoa(e.Charged)))
+		o.Set("limit", wire.String(strconv.Itoa(e.Limit)))
+		o.Set("cooldownUntil", wire.String(e.CooldownUntil.UTC().Format("2006-01-02T15:04:05Z")))
+		if e.Launch != "" {
+			o.Set("launch", wire.String(e.Launch))
+		}
+		episodes = append(episodes, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	o := wire.NewObject()
+	o.Set("source", wire.String("DISPATCHER_OBSERVATION"))
+	o.Set("policy", wire.String(map[bool]string{true: "PRESENT", false: "ABSENT"}[c.InfrastructureRetry != nil]))
+	o.Set("episodes", wire.Value{Kind: wire.KindArray, Arr: episodes})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
 }
 
@@ -415,6 +457,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		}
 		in.ClaimablePools = q.pools // pool tickets no role can claim never use the window (CAL-V0-097)
 		obs.Tickets = dispatchTickets(in)
+		for i := range obs.Tickets {
+			if r, _ := in.Tickets.Get(obs.Tickets[i].ID); r.Escalations != nil {
+				observeEscalations(rc.repo, in.Queue.QueueID.Raw, r, &obs.Tickets[i])
+			}
+		}
 		// The review binding fold runs once, and only when a gate exists; a
 		// fold that refuses leaves every gate unobserved (ERG-V0-009).
 		var fold *transaction.ExternalReviewReceiptAudit
@@ -538,6 +585,30 @@ func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
 	return held
 }
 
+// observeEscalations validates one ticket's escalation material and records
+// the holders of its current infrastructure requests (ESC-V0-007). Material
+// that cannot be validated leaves the ticket's binding UNKNOWN, never progress
+// (ESC-V0-008).
+func observeEscalations(repo *intent.Repository, queueID string, r *ticket.Record, t *dispatch.Ticket) {
+	m := loadEscalations(repo, queueID, r)
+	if m.err != nil {
+		t.EscalationUnknown = true
+		return
+	}
+	for _, ref := range r.Escalations.Entries {
+		if ref.Kind != "infrastructure" || ref.AcceptanceRevision != r.AcceptanceRevision || (ref.State != "OPEN" && ref.State != "ANSWERED") {
+			continue
+		}
+		origin, err := ticket.DecodeEscalationEvent(m.blobs[ref.OriginSha256])
+		if err != nil {
+			t.EscalationUnknown, t.Infrastructure = true, nil
+			return
+		}
+		t.Infrastructure = append(t.Infrastructure, origin.Source.Holder)
+	}
+	sort.Strings(t.Infrastructure)
+}
+
 // dispatchTickets is the ticket half of the native observation: each
 // ticket's plan state and primary reason, plus its ESC-V0-006 hold derived
 // apart from that reason, so a hold behind another blocker still reaches the
@@ -550,7 +621,12 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 	var out []dispatch.Ticket
 	for _, id := range in.Tickets.IDs() {
 		r, _ := in.Tickets.Get(id)
-		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels, RequiresPool: r.RequiresPool}
+		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels, RequiresPool: r.RequiresPool, AcceptanceRevision: string(r.AcceptanceRevision)}
+		// ESC-V0-008: a typed-only control write is not work progress, so
+		// the work revision stands in while it is the latest write.
+		if e := r.Escalations; e != nil && e.LastControlTicketRevision == r.Revision {
+			t.Revision = string(e.WorkRevision)
+		}
 		if e, ok := planned[id]; ok {
 			t.Plan, t.PlanReason = e.State, e.Reason
 		}

@@ -42,6 +42,17 @@ type Ticket struct {
 	// Loop is the native CAL-V0-102 LOOP_DETECTED hold, nil when none. A
 	// workState program cannot supply it. A held ticket is never rostered.
 	Loop *LoopHold
+	// AcceptanceRevision is the native acceptance revision that scopes an
+	// ESC-V0-007 infrastructure retry episode.
+	AcceptanceRevision string
+	// Infrastructure lists the holders (dispatcher worker IDs) of current
+	// OPEN or ANSWERED infrastructure requests at AcceptanceRevision, so an
+	// ended session is classified by its own typed request (ESC-V0-008).
+	Infrastructure []string
+	// EscalationUnknown is set when the ticket's escalation material could
+	// not be validated: its revision binding and infrastructure observation
+	// are UNKNOWN, never progress. A workState program cannot clear it.
+	EscalationUnknown bool
 	// NextStage is the advisory CAL-V0-084 recorded hand-off target:
 	// implement, review, integrate, STALE, or NONE when none is observed.
 	// It comes from the native queue, never from a workState program.
