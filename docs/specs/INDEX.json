@@ -2279,7 +2279,7 @@
     "reqPrefix": "PMR-V2",
     "intent": "accepted",
     "delivery": "partial",
-    "claim": "Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only its process verifier slice exists.",
+    "claim": "Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only process verifier and collector slices exist.",
     "dependsOn": [
       "docs/specs/postmerge-runtime-v1.md",
       "docs/specs/postmerge-connectors-v0.md",

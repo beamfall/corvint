@@ -5,14 +5,14 @@ Date: 2026-10-03
 Intent status: accepted
 Delivery status: partial
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
-Only the PMR-V2-006 process verifier slice is implemented; no /2 workflow runtime, host qualification
-or qualified positive replay is claimed.
+Only the PMR-V2-006 process verifier and host collector slices are implemented; no /2 workflow
+runtime, host qualification or qualified positive replay is claimed.
 
 ## Agent digest
-- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only its process verifier slice exists.
-- Status: accepted; partial; PMR-V2-006 process verifier slice only, qualification NOT_OBSERVED.
-- Exists: This spec, `conformance/postmerge-runtime-v2/` and the `internal/postmergeproof` verifier; no /2 workflow. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
-- Blocked on: #394 producer decision (needs a qualified PMR-V2-006 process proof), provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
+- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only process verifier and collector slices exist.
+- Status: accepted; partial; PMR-V2-006 process verifier and host collector slices only, qualification NOT_OBSERVED.
+- Exists: This spec, `conformance/postmerge-runtime-v2/`, the `internal/postmergeproof` verifier and the `internal/postmergehost` process collector and observer role; no /2 workflow. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
+- Blocked on: #394 producer decision (needs a qualified PMR-V2-006 process proof), collector wiring into the native producer run, provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
 - Read next: Requirements; Closed executable profiles; Remaining work and promotion boundary.
 
 ## Authority
@@ -28,6 +28,11 @@ Project authority, the existing /1 runtime and native producer contracts govern 
 Owner decision 2026-10-04, given through the orchestrator session's question to the owner: the
 process verifier's host tuple identity, SHA-256 over the domain `postmerge-host-tuple/2`, NUL and the
 wire-canonical `HostTupleV2` JSON, is ratified as chosen. The frozen conformance data is unchanged.
+Owner decisions 2026-10-05, given through the orchestrator session: the pinned process observer is
+accepted as a mode of the host launcher binary (`--internal-process-observer`), not a second pinned
+executable. The owner also authorized the PMR-V2-006 qualification campaign in local disposable Linux
+containers, prerequisites first; admission remains a separate later step on the actual evidence.
+That authorization is not a run, a qualification or an admission; none has happened.
 
 This one owning spec registers the producer decision, process proof and connector admission helpers
 because they share the deterministic historical replay outcome and its promotion gate. The provisional
@@ -68,12 +73,65 @@ the opaque `VerifiedProcessesV2` token, which no other package can construct. `V
 zero or differently bound token. The `procfs` subpackage reads bracketed Linux birth captures and
 final `/proc` sweeps on amd64 and arm64; other hosts report NOT_OBSERVED with
 `process-observation-unsupported`. No real qualification campaign has been admitted, so every
-production call stays BLOCKED with `process-qualification-unavailable`. No collector, producer,
-workflow or connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired. Retained
+production call stays BLOCKED with `process-qualification-unavailable`. No producer, workflow or
+connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired. Retained
 limitations: a double-forked descendant reparented to PID 1 outside the captured tree escapes the
 final sweep, and no token field carries that gap; each proof must use one native start tool, but
 neither policy nor qualification pins it; the host supervisor's state is
 `outside-workload/exit:unknown` because nothing observes its liveness.
+
+Since 2026-10-04 the PMR-V2-006 host collector slice (#395) also exists. `ProcessCollectorV2` in
+`internal/postmergehost` records its own supervisor as the context-0 host-supervisor launch, starts
+owned launches with an allowlisted environment, retains each executable from the start path before
+exec, waits until `/proc/PID/cmdline` shows the requested argv, captures birth, during-run and
+retirement brackets, and only then delivers retained stdin. Children an owned process starts are
+collected by exact parent and argv. The pinned observer is a separate launch of the host launcher
+binary (`--internal-process-observer`): `trusted-start` starts at the barrier before the workflow
+root and receives its `TrustedStartV2`, which names the root's capture, only after that capture;
+`absence-sweep EXECUTION_ID` sweeps `/proc` in its own process only after the parent closes its
+empty stdin, which the parent does after capturing the observer's birth. After the sweep starts no
+owned launch is accepted. The collector emits only the raw `postmerge-process-proof/2` bytes plus
+retained preimages; it never constructs a token, so its output still reaches `VerifyProcessV2` and
+stays BLOCKED without an admitted qualification. On a host without the Linux procfs profile both
+the collector and the observer report NOT_OBSERVED with `process-observation-unsupported`. Collector
+misuse (started or preconfigured command, environment outside the allowlist, invalid phase or
+parent, launch after the sweep, proof before trusted start and sweep) is BLOCKED
+`process-collection-refused`; a capture, retention, settle or exit failure is BLOCKED
+`process-collection-failed`; an unknown observer mode, foreign observer identity, non-empty sweep
+stdin or failed sweep is BLOCKED `process-observer-refused`. Retained limitations: the collector is
+not yet wired into the native producer run or host launcher request path, artifact retention is
+the caller's `ProcessRetainerV2` with no protected on-disk store, and provenance stays trusted-local.
+
+The collector's own lifecycle is fail-closed. `AwaitChild` refuses a parent whose launch it already
+reaped or a retirement-phase capture, and requires the parent to still hold its captured birth (PID
+and stat start time, not a zombie) before discovery and after the child capture, with both child stat
+brackets naming that parent; a reused parent PID therefore cannot donate a child. Every owned launch's
+`/proc/PID/environ` must equal its declared invocation environment, in `Start` and `AwaitChild`.
+After a launch has started, any failure runs an owned cleanup boundary. It signals a member only
+through a pidfd whose process is confirmed to hold the listed birth (PID and start time), so a
+recycled PID is never signalled or walked. A member counts as frozen only when every thread is
+stopped; only a frozen member's children are listed, and the walk repeats until a pass finds every
+member frozen and no new child, such as an orphan a subreaper member adopted after it was listed.
+Every confirmed pidfd, including one whose freeze was never confirmed, is then killed, and the
+cleanup waits within its own bound until none is running. Fail-closed choice: no subreaper
+containment. A member that exited, was reaped or changed birth before its freeze was confirmed may
+have had children reparented away, so the cleanup is reported unresolved in the BLOCKED detail, as
+is a member never confirmed frozen and a member still running; the failure
+is already latched, so no proof follows. A command's zero `WaitDelay` is set to a bound, so an escaped process that
+holds an output pipe cannot stall reaping, and any other `Wait` error at retirement fails the
+collection. Stdin delivery honours cancellation by closing the pipe. The observer reads
+its input against a context that the launcher derives from SIGTERM and interrupt, and refuses
+`process-observer-refused` when cancelled. The observer mode is routed only from the first argument.
+The first failure is retained, including a failed during-run capture and a failed child discovery
+or capture, a successful final sweep is tracked separately, and `Proof` refuses
+`process-collection-failed` after any failed step, so a failed sweep never yields proof bytes.
+Retained limits: the environ check is a collector-side guard, not retained proof evidence; the
+verifier trusts the invocation preimage, so producer wiring must establish that the preimages
+describe the launch. A descendant that double-forked and was reparented before the cleanup walk, or
+whose intermediate parent exited and was reaped before the walk could list it, is outside the cleanup boundary, as it is
+outside the final sweep. Tree members that resume or stop one another during the walk are outside
+the trusted-local model. A late child created with `CLONE_PARENT` takes the same repeated pass as an
+adopted orphan but has no separate fixture.
 
 Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
 `process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,
@@ -162,7 +220,7 @@ real intake/delta/author/scope/check/metrics/applicable-corpus stages, triageabl
 generated/human-verified expectations, two fresh complete attachments and equal decisions/requests.
 Qualify actual local OR CI execution for the exact tuple; neither both nor remote hosting is required.
 Private schema/hash readback and Gate A PASS are design evidence only. The process verifier source
-checks named in Traceability now exist; every other product test, independent source review, process
+checks and host collector tests named in Traceability now exist; every other product test, independent source review, process
 qualification, full historical workflow and native completion remain NOT_RUN/NOT_PRODUCED.
 
 ## Rollout, rollback and drift
@@ -193,10 +251,18 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost`, `internal/procgroup` | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); collector integration and actual tuple qualification NOT_PRODUCED |
+| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes, TestProcessCollectorV2AwaitChildRefusesReusedParent, TestProcessCollectorV2FailedLaunchRetiresDescendants, TestProcessCollectorV2CancelledDeliveryRetires, TestProcessObserverV2CancelledInput, TestProcessCollectorV2OwnsObserverCommand, TestHostCollectorV2FailedSweepEmitsNoProof, TestHostCollectorV2FailedCaptureEmitsNoProof, TestProcessCollectorV2CleanupSkipsRecycledPID, TestProcessCollectorV2CleanupReportsAutoReapedChild, TestProcessCollectorV2CleanupReportsForkAndExit, TestProcessCollectorV2CleanupFreezesAllThreads, TestProcessCollectorV2CleanupKillsPartlyStoppedMember, TestProcessCollectorV2CleanupWalksLateChild, TestProcessCollectorV2EscapedOutputDoesNotStallWait, TestInternalProcessObserverStopsOnSIGTERM (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode, TestInternalProcessObserverRoutingBoundary; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
 | PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
 
 ## Remaining work and promotion boundary
+
+Remaining PMR-V2-006 work after the collector slice: wire `ProcessCollectorV2` into the native
+producer run and host launcher request path with protected on-disk retention; native process
+locators and references (fresh-process, app-instance, descendant); the `playwright-node-worker/0`
+and `chromium-switch-role` roles; and the actual exact-tuple qualification campaign (owner-authorized
+2026-10-05 for local disposable Linux containers, prerequisites first, NOT_RUN) followed by its
+separate admission on that actual evidence. Only then can the PMR-V2-002 decision emitter consume a
+verified token.
 
 Root must admit the seed and implementation resource scopes, actual base, own-object repositories,
 closed environment/cache/process effects and shared GEN lane before execution. The first producer/
