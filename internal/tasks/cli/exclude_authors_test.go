@@ -9,10 +9,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-085: both parsers accept the bare flag and =all once, for a pooled
+// CAL-V0-098: both parsers accept the bare flag and =all once, for a pooled
 // review or integrate claim; preview renders each ticket's derivation only
 // when asked, and stays a pure read; claim binds the mode to its request.
-func TestCALV0085_CLIExcludeAuthors(t *testing.T) {
+func TestCALV0098_CLIExcludeAuthors(t *testing.T) {
 	r := exclusionCLIRepo(t)
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatal(x.res)

@@ -12,9 +12,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-085: an absent mode keeps historical preimage bytes, and the mode
+// CAL-V0-098: an absent mode keeps historical preimage bytes, and the mode
 // (not a derived member set) binds the request digest.
-func TestCALV0085_PreimageBindsMode(t *testing.T) {
+func TestCALV0098_PreimageBindsMode(t *testing.T) {
 	q, _ := wire.ParseQueueID("", fixture.QueueID)
 	base := LeaseRequest{Verb: LeaseClaim, TicketID: "ticket:acme:main:AT-001", Holder: "builder", LeaseMinutes: "60", Pool: "db", Stage: "review"}
 	absent, err := leaseValue(&base, q)
@@ -43,9 +43,9 @@ func TestCALV0085_PreimageBindsMode(t *testing.T) {
 	}
 }
 
-// CAL-V0-085: the mode requires an explicit pool and a review or integrate
+// CAL-V0-098: the mode requires an explicit pool and a review or integrate
 // stage, is closed, and is accepted only by CLAIM and CLAIM_NEXT.
-func TestCALV0085_RequestShape(t *testing.T) {
+func TestCALV0098_RequestShape(t *testing.T) {
 	q, _ := wire.ParseQueueID("", fixture.QueueID)
 	base := LeaseRequest{Verb: LeaseClaim, TicketID: "ticket:acme:main:AT-001", Holder: "builder", LeaseMinutes: "60", Pool: "db", Stage: "review", ExcludeAuthors: ExcludeAuthorsLatest}
 	for name, mutate := range map[string]func(*LeaseRequest){
@@ -110,9 +110,9 @@ func members(x *AuthorExclusion) []string {
 	return out
 }
 
-// CAL-V0-085: derivation walks the ticket's generations newest first, skips
+// CAL-V0-098: derivation walks the ticket's generations newest first, skips
 // review and integrate generations, and refuses unverifiable history.
-func TestCALV0085_DeriveAuthors(t *testing.T) {
+func TestCALV0098_DeriveAuthors(t *testing.T) {
 	const tk = "ticket:acme:main:AT-001"
 	impl := func(m string) *snapshot.GenerationHistory { return authorHistory("implement", "db", m) }
 	rev := authorHistory("review", "db", "r")

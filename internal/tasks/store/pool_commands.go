@@ -218,7 +218,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		}
 		excluded := choice.Lease.ExcludeMembers
 		if choice.Lease.ExcludeAuthors != "" {
-			// CAL-V0-085: probe only what the model's own derivation leaves eligible.
+			// CAL-V0-098: probe only what the model's own derivation leaves eligible.
 			if report == nil || report.AuthorExclusion == nil {
 				return report, nil
 			}

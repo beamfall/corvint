@@ -104,7 +104,7 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 	return out, nil
 }
 
-// excludeAuthorsMode parses one CAL-V0-085 flag: bare for the most recent
+// excludeAuthorsMode parses one CAL-V0-098 flag: bare for the most recent
 // implement generation, =all for every recorded one; it never repeats.
 func excludeAuthorsMode(flag, prior string) (string, error) {
 	if prior != "" {

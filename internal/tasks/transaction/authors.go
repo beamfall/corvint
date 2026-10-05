@@ -9,7 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// --exclude-authors modes (CAL-V0-085): the ticket's most recent implement
+// --exclude-authors modes (CAL-V0-098): the ticket's most recent implement
 // generation (owner decision D5), or every recorded implement generation.
 const (
 	ExcludeAuthorsLatest = "LATEST"
@@ -18,14 +18,14 @@ const (
 
 // Author is one implement generation whose recorded pool member a review or
 // integrate claim excludes. The label is a recorded member fact, not an
-// authenticated identity (CAL-V0-085).
+// authenticated identity (CAL-V0-098).
 type Author struct {
 	AttemptID        string
 	Generation       wire.Size
 	PoolID, MemberID string
 }
 
-// AuthorExclusion is what one CAL-V0-085 derivation found for a ticket:
+// AuthorExclusion is what one CAL-V0-098 derivation found for a ticket:
 // the implement-generation authors and the effective requested-pool
 // exclusion set, the explicit members unioned with the authors' members in
 // that pool (nil when empty).
@@ -84,7 +84,7 @@ func (g endedGeneration) name() string {
 	return "generation " + string(g.generation) + " of " + g.attemptID
 }
 
-// DeriveAuthors applies CAL-V0-085 to one ticket. Walking newest first, it
+// DeriveAuthors applies CAL-V0-098 to one ticket. Walking newest first, it
 // skips recorded review and integrate generations; every other generation it
 // reaches must be an implement generation with a recorded pool member, or
 // the derivation is unverified and the detail says why. LATEST stops at the

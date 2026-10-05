@@ -7,10 +7,11 @@ by default exclude only the most recent implement generation's member (D5); offe
 `--exclude-authors=all` for every recorded implement generation, under which any `NOT_OBSERVED`
 generation in scope also refuses; no new codes; no backfill of legacy member facts.
 
-Requirement: `CAL-V0-085` in `docs/specs/corvint-tasks-agent-leases-v0.md`, defined inside
-`## Requirements` (V1-0789 subsection) so the OCM reader enumerates it. CAL-V0-080..084 are left to
-coordinated unlanded work. The text names the V1-0788 prior-generation history rather than its
-requirement ID, which that lane is renumbering.
+Requirement: `CAL-V0-098` in `docs/specs/corvint-tasks-agent-leases-v0.md`, defined inside
+`## Requirements` (V1-0789 subsection) so the OCM reader enumerates it. It was first drafted as
+CAL-V0-085, which collided with V1-0790, and was renumbered on the coordinator's allocation:
+CAL-V0-074..075 V1-0755, 078 V1-0780, 079..081 V1-0793, 082..085 V1-0790, 095 V1-0781, 096 V1-0788
+(prior-generation history, merged here from its repair commit 16d3a7d9), 097 V1-0786, 098 V1-0789.
 
 ### Change
 
@@ -48,10 +49,10 @@ requirement ID, which that lane is renumbering.
 
 ### Evidence
 
-- Focused tests: `TestCALV0085_*` in `internal/tasks/{transaction,store,cli}`, with the
+- Focused tests: `TestCALV0098_*` in `internal/tasks/{transaction,store,cli}`, with the
   transaction and store packages and the cli lease/plan/pool subset run in full (see the handoff for
   results); gofmt, `go vet` of touched packages, `go build ./...`, `GOOS=windows` cross-build, the
   CI doc gates and use-case receipt checks.
-- OCM enumeration: `requirementsFromBlob` on the spec lists `CAL-V0-085` (scratch check, not retained).
+- OCM enumeration: `TestAgentLeasesSpecEnumeratesCALV0098` (`internal/lrfrepo`) asserts `requirementsFromBlob` lists `CAL-V0-098`.
 - NOT_RUN: `make gate`, the repository-wide suite, interop, live multi-agent qualification and the
   dogfood bind/seal (owned by the coordinator after review).

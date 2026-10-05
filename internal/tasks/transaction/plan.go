@@ -22,7 +22,7 @@ const (
 type PlanInput struct {
 	Pool, Stage    string
 	ExcludeMembers []string
-	// ExcludeAuthors applies CAL-V0-085 per planned ticket.
+	// ExcludeAuthors applies CAL-V0-098 per planned ticket.
 	ExcludeAuthors string
 	Pools          *snapshot.PoolState
 	Prepared       wire.Digest
@@ -43,7 +43,7 @@ type PlanEntry struct {
 	ClosureComplete bool
 	State, Reason   string
 	Blockers        []string
-	// Detail explains the reason, and Authors is the CAL-V0-085 derivation;
+	// Detail explains the reason, and Authors is the CAL-V0-098 derivation;
 	// both are set only when the plan excludes authors.
 	Detail  string
 	Authors *AuthorExclusion
@@ -135,7 +135,7 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 	return e
 }
 
-// authorPlan is the CAL-V0-085 derivation for one planned ticket, or the
+// authorPlan is the CAL-V0-098 derivation for one planned ticket, or the
 // INDEPENDENCE_UNVERIFIED detail.
 func authorPlan(in PlanInput, rec *ticket.Record) (*AuthorExclusion, string) {
 	return DeriveAuthors(in.Attempts, rec.TicketID.Raw, in.ExcludeAuthors, in.Pool, in.ExcludeMembers)
@@ -163,7 +163,7 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 	if !poolAvailable(in, rec) {
 		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
 	} else if in.ExcludeAuthors != "" {
-		// CAL-V0-085: the claim's derivation and the same capacity predicate per ticket.
+		// CAL-V0-098: the claim's derivation and the same capacity predicate per ticket.
 		if x, why := authorPlan(in, rec); x == nil {
 			add(ticket.Blocker{Code: wire.CodeIndependenceUnverified, Detail: why}, true)
 		} else if poolSlotsExcluding(in, x.Excluded) == 0 {
@@ -296,7 +296,7 @@ func poolSlots(in PlanInput) int {
 }
 
 // poolSlotsExcluding counts free eligible members after excluded, which is
-// the explicit set or its CAL-V0-085 union with one ticket's authors.
+// the explicit set or its CAL-V0-098 union with one ticket's authors.
 func poolSlotsExcluding(in PlanInput, excluded []string) int {
 	p := in.Policy.Pool(in.Pool)
 	if CheckPoolExclusions(in.Pool, in.ExcludeMembers, in.Policy) != nil || p == nil {

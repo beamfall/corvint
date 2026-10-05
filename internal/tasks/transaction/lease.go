@@ -54,7 +54,7 @@ type LeaseRequest struct {
 	Scope                                     []string
 	ExcludeMembers                            []string
 	// ExcludeAuthors is "", ExcludeAuthorsLatest or ExcludeAuthorsAll
-	// (CAL-V0-085).
+	// (CAL-V0-098).
 	ExcludeAuthors     string
 	WholeRepository    bool
 	AttemptID          string
@@ -345,7 +345,7 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.ExcludeMembers != nil {
 		v.Obj.Set("excludeMembers", wire.Strings(l.ExcludeMembers))
 	}
-	// CAL-V0-085: likewise omitted when absent.
+	// CAL-V0-098: likewise omitted when absent.
 	if l.ExcludeAuthors != "" {
 		v.Obj.Set("excludeAuthors", s(l.ExcludeAuthors))
 	}
@@ -405,7 +405,7 @@ type leaseContext struct {
 	in  Input
 	st  inputState
 	seq wire.Size
-	// authors is the CAL-V0-085 derivation of a fresh claim, nil without
+	// authors is the CAL-V0-098 derivation of a fresh claim, nil without
 	// --exclude-authors.
 	authors *AuthorExclusion
 }

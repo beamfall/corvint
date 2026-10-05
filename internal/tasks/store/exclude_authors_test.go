@@ -42,10 +42,10 @@ func reviewOf(id, mode string, exclude ...string) transaction.LeaseRequest {
 	return c
 }
 
-// CAL-V0-085: a review claim excludes the implement author's member, unions
+// CAL-V0-098: a review claim excludes the implement author's member, unions
 // it with explicit exclusions, reports exhaustion with the author named,
 // binds the mode into replay, and refuses unverifiable history.
-func TestCALV0085_ClaimExcludesImplementAuthor(t *testing.T) {
+func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	id := s.ticket(t, "authored")
@@ -94,9 +94,9 @@ func TestCALV0085_ClaimExcludesImplementAuthor(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-085: CLAIM_NEXT skips a ticket whose authors are unverifiable and
+// CAL-V0-098: CLAIM_NEXT skips a ticket whose authors are unverifiable and
 // claims the next one on a member its author did not hold.
-func TestCALV0085_ClaimNextExcludesAuthors(t *testing.T) {
+func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	s.ticket(t, "unverified")
@@ -118,8 +118,8 @@ func TestCALV0085_ClaimNextExcludesAuthors(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-085: health preparation never probes an excluded author.
-func TestCALV0085_HealthSkipsAuthor(t *testing.T) {
+// CAL-V0-098: health preparation never probes an excluded author.
+func TestCALV0098_HealthSkipsAuthor(t *testing.T) {
 	s := newLeaseStore(t)
 	markers := t.TempDir()
 	touch := func(name string) wire.Value {

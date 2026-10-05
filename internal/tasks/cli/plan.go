@@ -221,7 +221,7 @@ func optionalText(s string) wire.Value {
 	return wire.String(s)
 }
 
-// authorsValue renders a CAL-V0-085 derivation: the implement generations
+// authorsValue renders a CAL-V0-098 derivation: the implement generations
 // whose recorded members were excluded, or null when it was unverified.
 func authorsValue(x *transaction.AuthorExclusion) wire.Value {
 	if x == nil {

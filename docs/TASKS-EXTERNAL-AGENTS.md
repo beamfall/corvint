@@ -165,7 +165,7 @@ after release, a successor or a permitted policy change; a changed valid exclusi
 set conflicts under the same request ID.
 
 For a review or integrate claim, `--exclude-authors` derives the exclusions from the ticket's
-recorded history instead (CAL-V0-085). The bare flag excludes the member of the ticket's most recent
+recorded history instead (CAL-V0-098). The bare flag excludes the member of the ticket's most recent
 implement generation; `--exclude-authors=all` excludes the member of every recorded implement
 generation:
 
