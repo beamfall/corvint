@@ -78,6 +78,14 @@ func TestSERVICE500_CLIRoutesRefusalsAndPureReads(t *testing.T) {
 		t.Fatal("refused install created a unit directory")
 	}
 	refused(wire.CodeUnsupported, "service", "run", "--program", "site", "--manifest", filepath.Join(home, "manifest.json"))
+	refused(wire.CodeUnsupported, "service", "run-helper", "--program", "site", "--manifest", filepath.Join(home, "manifest.json"), "--helper", "web")
+	refused("", "service", "run-helper", "--program", "site", "--manifest", filepath.Join(home, "manifest.json"))
+	if r := refused("", "service"); !strings.Contains(string(r.stdout), "run-helper") {
+		t.Fatalf("service usage omits run-helper: %s", r.stdout)
+	}
+	if _, err := os.Stat(state); !os.IsNotExist(err) {
+		t.Fatal("refused run-helper created state")
+	}
 
 	// dispatch status keeps its exact shape when no service binds it.
 	config := map[string]any{

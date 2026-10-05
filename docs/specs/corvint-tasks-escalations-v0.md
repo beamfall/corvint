@@ -20,9 +20,9 @@ agent session.
 
 ## Agent digest
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
-- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation, the optional record key, the native writer, derived `ESCALATION_PENDING` admission holds, the CLI writes and reads, and claim delivery; no dispatcher retry or native completion, so no installed escalation capability.
-- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals, an operation-scoped grant check and a per-call decode memo, plus focused tests and a near-capacity benchmark. The native ticket record carries the optional tool-owned `escalations` key: ordinary mutations and re-import keep it, ADOPT_FILE, CREATE and import cannot set or change it, and Core's read-only planner validates it. The native writer (`store.Escalate`, `store.AnswerEscalation`) commits OPEN, supersession and ANSWER as LEASE transactions that audit the claim receipt, bind the actor before replay and check operation-scoped `ESCALATE`/`ANSWER` grants. A current OPEN decision, scope or blocked question is a derived `ESCALATION_PENDING` hold, computed by one shared `internal/tasks/wire` predicate in native eligibility, direct claim, claim-next, recorded claimability, Core's planner and the dispatcher's roster and status; a refusal names the sorted request IDs (at most 16). `ticket escalate` reads the origin from the claim receipt and attempt the claim returned, `ticket answer` takes `--target`, and `ticket escalation list|show|history` are pure, paged reads with honest age and provenance. Claim and claim-next pin the same-acceptance answered references on the admitted attempt and deliver `escalationAnswers` from the claim receipt's POST attempt, so replay returns the original snapshot.
-- Blocked on: a distinct typed-event stage and material branch (ESC-V0-010), kinds and ages in the `dispatch status` escalation section, dispatcher retry and 499 tier composition.
+- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation, the optional record key, the native writer, derived `ESCALATION_PENDING` admission holds, the CLI writes and reads, claim delivery, dispatcher session classification with bounded infrastructure retry, and the closed `ESCALATION` typed-event stage with the receipt binding fold; no native completion, so no installed escalation capability.
+- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals, an operation-scoped grant check and a per-call decode memo, plus focused tests and a near-capacity benchmark. The native ticket record carries the optional tool-owned `escalations` key: ordinary mutations and re-import keep it, ADOPT_FILE, CREATE and import cannot set or change it, and Core's read-only planner validates it. The native writer (`store.Escalate`, `store.AnswerEscalation`) commits OPEN, supersession and ANSWER as LEASE transactions that audit the claim receipt, bind the actor before replay and check operation-scoped `ESCALATE`/`ANSWER` grants. A current OPEN decision, scope or blocked question is a derived `ESCALATION_PENDING` hold, computed by one shared `internal/tasks/wire` predicate in native eligibility, direct claim, claim-next, recorded claimability, Core's planner and the dispatcher's roster and status; a refusal names the sorted request IDs (at most 16). `ticket escalate` reads the origin from the claim receipt and attempt the claim returned, `ticket answer` takes `--target`, and `ticket escalation list|show|history` are pure, paged reads with honest age and provenance. Claim and claim-next pin the same-acceptance answered references on the admitted attempt and deliver `escalationAnswers` from the claim receipt's POST attempt, so replay returns the original snapshot. The dispatcher classifies each ended session before no-progress parking: an infrastructure request raised by that session's own holder charges a restart-safe, reserved retry under the optional `infrastructureRetry` policy instead of parking, and keeps the selected 499 tier; a session ending behind a typed hold is held, not counted; a typed-only control write is not progress. A committed escalation stages under the closed `ESCALATION` operation (one request, one ticket, one or two content-addressed events, at most the ticket blob; at most 7 artifacts and 1879 descriptor bytes), and receipt audit and every redo replay each question reference change against its request entry, retained grant, claim admission and the pure reducer.
+- Blocked on: kinds and ages in the `dispatch status` escalation section (ESC-V0-009), and integrated witnesses on a live store.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -75,8 +75,8 @@ writer, stage, CLI or dispatch file changes.
 - `ESC-V0-009`: `ticket escalation list`, show and history MUST be bounded, non-mutating native reads with honest age and provenance.
   Filters are kind, state, target and program. Pages are 1..50 (default 20) and at most 1 MiB, with cursors anchored to immutable heads and strict chain identity, decrement and cycle checks. Each entry shows original RecordedAt, nonnegative ageSeconds, clockUncertain, current or stale applicability and source generation and holder. Program appears only from an admitted producer mapping, otherwise UNKNOWN; caller text never supplies it. The native list reports retryState NOT_OBSERVED, and dispatcher retry state is labelled a dispatcher observation for an explicitly named program. `dispatch status` shows open request kinds, ages and holds separately from parked keys, retry state and 499 tiers. Reads write no ledger and hydrate no evidence.
 
-- `ESC-V0-010`: Escalation writes MUST use the existing writer, receipt and request-index pipeline through issue 501's single derived-event MUTATE slot, declared per operation, with a closed escalation material branch.
-  Owner decision 2026-10-04 chose this slot over a distinct typed-event stage. OPEN and ANSWER each post one ticket and one event in a MUTATE whose operation explicitly declares the derived event in the transaction model; stage shape alone is not authority. Native supersession, which needs two events posted atomically, is deferred until a distinct typed-event stage fits the existing StageLease limits of 11 artifacts and 2658 descriptor bytes; until then it refuses as unsupported. Attempts, reservations and gates are untouched. The slot gains no generic evidence-path permission, the MUTATE limits stay binding, and the maximal descriptor is measured before promotion. Receipt audit and redo bind the derived event. Material validation checks the nested request, source receipt and grant, audited holder, generation and acceptance, expected revisions, old and new heads, content and work revision arithmetic, immutable origin, queue time and all posted bytes. Replay recovers the resolved shorthand target, answer, clock and outcome after later questions. Capacity overflow refuses before commit.
+- `ESC-V0-010`: Escalation writes MUST use the existing writer, receipt and request-index pipeline through a distinct closed typed-event stage, declared per operation, with a closed escalation material branch.
+  Owner decision 2026-10-04 first chose issue 501's single derived-event MUTATE slot; decision 0428 item 7 then put the writer on the LEASE pipeline with supersession inside the StageLease limits of 11 artifacts and 2658 descriptor bytes. This revision (agent decision 2026-10-05 under the owner's in-task delegation; the owner may redirect) adds the distinct stage that decision anticipated. A committed OPEN, supersession or ANSWER stages as the closed `ESCALATION` operation: its request entry, exactly one ticket, one or two events at their content addresses (two only for a supersession) and at most one evidence blob, which must be that ticket's record. No attempt, reservation, pool, program or gate output is admitted, and the maximal descriptor, measured at 7 artifacts and 1879 bytes, stays within the StageLease limits; stage shape alone is not authority. Unrecorded refusals never stage. Attempts, reservations and gates are untouched, and the stage gains no generic evidence-path permission. Receipt audit and redo bind the derived event: a question reference may change only in the one ticket of a completed TRANSITION receipt, and is never dropped. Material validation checks the nested request, source receipt and grant, audited holder, generation and acceptance, expected revisions, old and new heads, content and work revision arithmetic, immutable origin, queue time and all posted bytes. Replay recovers the resolved shorthand target, answer, clock and outcome after later questions. Capacity overflow refuses before commit.
 
 - `ESC-V0-011`: The pure foundation and the integrated capability MUST keep distinct evidence and layering boundaries.
   The four files `internal/tasks/ticket/escalation.go`, `internal/tasks/ticket/escalation_test.go`, `internal/tasks/transaction/escalation.go` and `internal/tasks/transaction/escalation_test.go` compute proposed references and events only. Every proposal reports ActorAuthentication and Durability as NOT_OBSERVED. `ticket` imports only the wire codec and never transaction, mutation or snapshot. Supplied ALLOWED, AUDITED or VALIDATED observations are checked for consistency, not authenticity. Passing pure tests cannot establish native writes, replay, races, holds, claim delivery, dispatcher retry, capacity or recovery. Full delivery requires those integrated witnesses, the existing CAL claim, generation-fence, retry, recovery, failed-exemption and progress suites, independent integrated review, current-main integration and native completion.
@@ -120,10 +120,10 @@ appear.
 | ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand naming its open questions, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict); `TestIssue502_AnswerGrantAndEmptyShorthand` (OPEN grant cannot answer and ANSWER grant cannot open, empty shorthand `NO_OPEN_QUESTION`, exact unknown `QUESTION_NOT_FOUND`); native `TestIssue502_AnswerRaceHasOneWinner` (two CAS answers through the store lock, one winner, the other `STALE_QUESTION_CAS`) and `TestIssue502_OpenAnswerCommitsTicketAndEvents` (shorthand answer reports its resolved target), `TestIssue502_ShorthandAnswerReplaysAfterLaterOpen` (a shorthand answer replays its original target after a later OPEN), `TestIssue502_OperatorAnswersThroughExplicitGrant` (OPERATOR refused by default, answers under an explicit row; a WORKER row naming ANSWER is refused); CLI `TestIssue502_EscalationCLIWritesAndReads` (ambiguous shorthand names both open request IDs, stale `--expected-revision` refuses `STALE_TICKET`, exact and shorthand answers report their resolved request) | compiled-binary run |
 | ESC-V0-005 | ESC502-005 | lease admission; original-receipt materializer | `TestIssue502_ImmutableClaimAnswerSelection` (pinned selection, guidance capacity); `TestESCV0005_ClaimDeliversTheAnswersPinnedByItsAdmission` (no-answer claim omits the pin, an open infrastructure question admits the claim and is not delivered, a later answer moves neither the claim nor its exact replay, claim-next re-snapshots); `TestESCV0005_ClaimPinsAndResolvesAnswers` (same-acceptance ANSWERED only; missing, swapped, cross-bound and broken-chain material refused); `TestESCV0005_AttemptPinsTheAdmittedAnswers`; `TestESCV0005_ClaimResultCarriesPinnedAnswers` (UNAVAILABLE with references and replay warning; an oversized event is `JOURNAL_FORKED`) | missing-receipt replay, a 1 MiB output witness (bounded by argument: 256 KiB guidance, a 64 KiB note event and the claim base), a compiled-binary claim |
 | ESC-V0-006 | ESC502-006 | shared wire predicate; native eligibility, claim and claim-next; Core planner; dispatcher roster, launch and status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs); `TestIssue502_EscalationPendingPredicate` (wire predicate: four kinds, stale, answered, superseded, unknown kind, noncanonical revision, sorted and deduplicated, 20 current questions bounded to 16); `TestIssue502_EscalationPendingView` (native eligibility blocks as `ESCALATION_PENDING` naming sorted IDs with next action `answer`; stale, infrastructure, answered and superseded admit; the record is unchanged; writes the shared case fixture); `TestIssue502_ClaimHonoursEscalationHold` (eligibility, direct claim, claim-next, recorded claimability and plan all refuse with sorted IDs and write nothing; admitted cases claim; claim-next passes over a held ticket; sixteen current IDs named); Core `TestIssue502_HoldAgreement` (Core's planner names the same holds as the Tasks reader for every shared case and blocks as `ESCALATION_PENDING`) and `TestIssue502_PlannerBlocksUnmodelledConstraints`; `TestIssue502_DispatchStatusShowsEscalationPending` (status lists held tickets with sorted request IDs from the dispatcher's own ledger, apart from parked); `TestIssue502_DispatchNeverLaunchesForEscalationHold` (the native observation carries decision, scope and blocked holds; no role, with or without a selected-plan requirement, rosters the ticket and no session launches; stale, answered, superseded and infrastructure questions launch); `TestIssue502_DispatchStatusKeepsHoldBehindOtherBlockers` (with pool, pause and ordinary-hold primary reasons, the hold survives the observation, ledger and status and is never rostered); `TestIssue502_LedgerKeepsEscalationsBesideProgress` and `TestIssue502_LedgerKeepsEscalationsBesidePoolSweeps` (a ledger carrying the hold beside progress or a pool sweep saves, loads and survives restart; the answered hold drops); `TestIssue502_LedgerRefusesMalformedEscalations` (aliased, duplicate, unsorted, repeated, empty or malformed holds are refused without a rewrite); `TestIssue502_DispatchStatusLoadsHoldBesideStrictMembers` (status loads and lists the hold beside progress and beside a pool sweep); native `TestIssue502_WriterReferenceHoldsAndReleases` (a writer-produced OPEN decision holds direct claim and claim-next after release, both refusing `ESCALATION_PENDING` naming `q-1`, refusals write nothing, the writer's ANSWER lifts the hold and the ticket claims) | a writer-produced reference through Core's planner and a live dispatcher; kinds and ages in dispatch status (ESC-V0-009) |
-| ESC-V0-007 | ESC502-007 | dispatch ledger, loop and status | none | restart before/after spawn, failed save, duplicate session, final allowed and next exhausted launch, cooldown caps |
-| ESC-V0-008 | ESC502-008 | dispatch roster/fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision) | refine/escalate/answer sequence, mixed 499 tier witness |
+| ESC-V0-007 | ESC502-007 | dispatch config, ledger, loop and status | `TestIssue502_InfraRetryPolicyBoundsAndCooldown` (defaults 3/30/300, bounds refused, doubling cooldown saturating at the cap); `TestIssue502_InfraSessionChargesWithoutParking` (no launch before the deadline, the due retry RUNNING under its identity in the saved ledger, the final allowed retry then `INFRA_RETRY_EXHAUSTED` with no launch, holders still listed from earlier sessions counted once each, an operator unpark releases without refilling); `TestIssue502_InfraRetryDisabledAndNativeExhausted` (`INFRA_RETRY_DISABLED`, `NATIVE_RETRY_EXHAUSTED`); `TestIssue502_InfraReservationAcrossRestart` (restart before spawn republishes the same identity with no extra charge; a possible spawn holds `INFRA_RETRY_UNKNOWN` and launches nothing; after slot churn the identity launches in its reserved slot; a roster that now selects another role holds `INFRA_RETRY_UNKNOWN` instead of a new identity; a widened reload changes neither limit nor deadline, a narrowed one holds, an absent policy keeps the debt); `TestIssue502_InfraReservationSavedBeforeSpawn` (at the launch fence, before any spawn, the saved ledger holds the reservation with its identity, charge and deadline; interrupted there, a reopen launches that identity with no extra charge); `TestIssue502_InfraReservationSaveFailure` (an unsaved reservation launches nothing and the next tick reuses its identity and charge); `TestIssue502_InfraRecoveredAndNewAcceptance` (checked progress marks RECOVERED keeping the debt; a new acceptance revision drops the old episode); `TestIssue502_LedgerRefusesMalformedInfraRetry` (strict round trip; alias, duplicate, null, unknown or aliased member, bad state, RUNNING without launch, charged above 10 or above sessions, no sessions, bad key, noncanonical acceptance and an empty map refused; every member null and every member but launch omitted refused; a waiting, reserved or running retry without a charge or deadline, and a waiting one above its limit, refused; idle and disabled episodes load); CLI `TestIssue502_DispatchStatusShowsInfraRetry` | a live dispatcher over a native store with a real worker raising the request, a process kill between reservation and spawn |
+| ESC-V0-008 | ESC502-008 | native observation; dispatch classification and fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision); CLI `TestIssue502_ObserveNamesInfrastructureHolders` (the observation names the holder of a current infrastructure request, a decision request is a hold and not an infrastructure holder, and an escalate write leaves the observed revision unchanged); `TestIssue502_InfraClassificationNeedsTheHoldersOwnRequest` (another holder's request, an absent policy and UNKNOWN material are ordinary no-progress and park); `TestIssue502_HeldSessionIsNotFailureParked` (no count, no ladder step, session `held`); `TestIssue502_HoldOutranksInfrastructure` (a retry that raised both an infrastructure and a decision request is `held`: no charge, no exhaustion hold, and it launches once answered); `TestIssue502_InfraSessionKeepsTierAndResetsSuffix` (mixed 499 witness: two failures, an infrastructure session resets the streak to the selected tier's threshold, and two more failures climb only after the full threshold) | answer and refine in one sequence on a live dispatcher |
 | ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | CLI `TestIssue502_EscalationCLIWritesAndReads` (list filters by kind, state, target and program, `program` UNKNOWN with a warning for a named program, origin-digest cursor and offset, limit 51 refused; show with answer and blockedBy, missing request refused; history newest first with a chain cursor; the state directory is byte-identical across every read; a deleted origin marks list entries UNAVAILABLE and refuses show `MISSING_EVIDENCE`; history rows carry the question's age and source; a rewritten answer event refuses show and history `JOURNAL_FORKED`) | the `dispatch status` section, a clock-behind witness, the 1 MiB page cut, a forked history chain |
-| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions); native `TestIssue502_SupersedePostsBothEvents` (one LEASE transaction posts the ticket and both events: 6 artifacts and 1421 descriptor bytes against 11 and 2658; replay after a later question returns the original OPEN) and `TestIssue502_RedoRepublishesTheTicket` (crash point C2 redo, then replay) and `TestIssue502_DeletedEventIsJournalDamage` (a missing event refuses `JOURNAL_FORKED`) | a distinct typed-event stage and material branch, interrupted paired publication at each artifact |
+| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions); `TestESCV0010_EscalationStageNarrow` and `TestTMV0002_AS10_StageCodecActualMaxima` (the `ESCALATION` shape refuses zero or three events, an attempt or reservation post, an event off its content address, a blob that is not the ticket, a missing ticket and an oversized event; measured maximum 7 artifacts and 1879 bytes); native `TestIssue502_SupersedePostsBothEvents` (one transaction stages as `ESCALATION` and posts the ticket and both events within the `ESCALATION` and StageLease bounds; replay after a later question returns the original OPEN), `TestIssue502_InterruptedSupersessionRedoes` (a fault at every published artifact of a supersession, then a retry that commits once and redoes exactly when the receipt was published), `TestIssue502_RedoRepublishesTheTicket` (crash point C2 redo, then replay), `TestIssue502_DeletedEventIsJournalDamage` (a missing event refuses `JOURNAL_FORKED`), `TestIssue502_ForgedEventRefusesAsJournalDamage` (a self-consistent forged time, question or actor passes the generic journal audit but the binding fold refuses it settled, and refuses the pending redo `JOURNAL_FORKED` leaving head and ticket unchanged), `TestIssue502_EscalationBindingFoldRefusals` (a reference change outside a TRANSITION, no request entry, no recoverable grant, a source that is not a retained admission, an extra post, a source attempt removed, no matching reservation, an expired lease, a dropped reference, and an unreferenced event blob accepted) and `TestIssue502_SupervisedSinceClaimFoldRefuses` (supervision posted after the claim) | a live-store integrated witness, a ticket over the inline POST bound taking the blob slot, a supervised generation followed by an unsupervised one of the same attempt ID |
 | ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`, `TestIssue502_StaleOpenReleasesCapacity`, `TestIssue502_ReadersRefuseOpenOverflow`, `TestIssue502_AnswerGrantAndEmptyShorthand`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
 
 ## Unresolved decisions
@@ -160,12 +160,9 @@ Findings from the independent review of the first delivery and their disposition
 
 Findings from the writer slice and their disposition:
 
-- ESC-V0-010 is not delivered at the stage level. The writer uses the existing LEASE stage and
-  request-index pipeline, adds no stage permission and stays inside the StageLease bounds, but its
-  event POSTs use the lease stage's existing evidence allowance (the gate-output key, at most two),
-  and stage material validation is the generic request-afterimage and receipt binding. A distinct
-  closed typed-event stage and material branch remains a later slice; until then the planner, not
-  the stage classifier, is what checks the escalation material.
+- ESC-V0-010 was not delivered at the stage level by the writer slice: its event POSTs used the
+  lease stage's evidence allowance and only the planner checked the material. The typed-event
+  stage slice closes this (below).
 - The actor is part of the request digest, so the store binds the invoking actor to the request
   before its replay lookup: another actor retrying a committed request gets `ACTOR_BINDING`, not
   `REQUEST_ID_CONFLICT`.
@@ -192,9 +189,77 @@ Findings from the writer slice and their disposition:
   outlives one exported call, so a blob changed between calls is re-verified. A quiet-host figure
   is NOT_RUN.
 
+Findings from the dispatcher retry slice and their disposition (agent decisions, 2026-10-05,
+within ESC-V0-007 and ESC-V0-008 as written):
+
+- Without the `infrastructureRetry` policy the dispatcher keeps its legacy accounting: an
+  infrastructure session is ordinary no-progress and parks. Recorded episodes stay in the ledger,
+  inert, so removing and re-adding the policy cannot refill debt.
+- A session is an infrastructure session only when the native observation names its own worker ID
+  as the `Source.Holder` of a current OPEN or ANSWERED infrastructure request at the ticket's
+  acceptance revision. The dispatcher's `{holder}` is the worker ID, so each ended session counts
+  once however many earlier requests stay listed, and another holder's request is no-progress.
+- Any current typed hold on the ticket when its session ends makes the session `held`: it is not
+  counted, parked or stepped on the 499 ladder, whether or not the policy is configured. The hold
+  outranks the session's own infrastructure request, so such a session spends no retry and leaves
+  no infrastructure hold behind the owner's answer.
+- Unreadable escalation material makes the observation UNKNOWN. The session is then neither
+  progress nor infrastructure: it is accounted as ordinary no-progress, the dispatcher alerts, and
+  progress detection and automatic unparking treat the ticket as UNKNOWN.
+- `INFRA_RETRY_EXHAUSTED`, `INFRA_RETRY_DISABLED`, `NATIVE_RETRY_EXHAUSTED` and `INFRA_RETRY_UNKNOWN`
+  are dispatcher event and status labels, not wire detail codes, so the TCP-00 code set is
+  unchanged. A hold emits `needs-owner` naming `dispatch unpark`; an unpark releases the hold and
+  keeps sessions, charges and limit, so the next infrastructure session holds again at once.
+- No-spawn is proved by the absence of the reserved worker's log directory, which launch creates
+  before it starts the process. A reservation with the directory present and no recorded worker
+  is UNKNOWN and never replaced automatically. A republish keeps the reserved role and slot: it
+  waits while that slot is in use, and if the roster now selects another role the ticket holds
+  `INFRA_RETRY_UNKNOWN` rather than launching under a new identity.
+- The ledger reader requires every episode member but `launch` and refuses nulls, and a waiting,
+  reserved or running retry must carry its charge and deadline, so a damaged ledger cannot decode
+  as spendable debt or an elapsed cooldown.
+- One retry per ticket runs at a time, shared across roles. A reload lowers the limit to the
+  configured `maxRetries` and holds a waiting ordinal above it; it never raises the limit or moves
+  a recorded deadline.
+- Episodes of tickets the observation no longer has, and of an older acceptance revision once
+  nothing of theirs runs, are dropped. The ledger holds at most 8192 episodes; past that an
+  infrastructure session alerts and is accounted as ordinary no-progress.
+- For the 499 tiers an infrastructure session lowers the failure streak to the largest selected
+  tier threshold across roles, so every role keeps the tier it would launch at.
+
+Findings from the typed-event stage slice and their disposition (agent decision, 2026-10-05,
+under the owner's in-task delegation; the owner may redirect):
+
+- A distinct closed `ESCALATION` stage operation, rather than more lease-stage allowances, keeps the
+  LEASE shape unchanged and makes an escalation's stage admit nothing but its own artifacts. The
+  writer, its LEASE request digest and native supersession are unchanged. Only a committed
+  ESCALATE or ANSWER selects the operation; its refusals are unrecorded and never stage.
+- The native store never persists the descriptor's operation: it lives in the frozen plan and is
+  validated when the plan freezes. Rollout and rollback therefore turn on in-flight plans only.
+- The material branch is the receipt binding fold (`EscalationReceiptAudit`), folded with the
+  external-review fold in one pass for receipt audit and both redo paths. Its memory is the ticket
+  projection plus one source per completed ADMIT receipt and the supervised attempt IDs. A claim
+  admission's queue is read from the admitted attempt, because ADMIT receipts name no ticket.
+- The lease-path redo (`redoLeaseProof`) skipped the binding fold that the mutation redo runs, so
+  a self-consistent forged event in an interrupted escalation would have been republished. It now
+  runs the same fold before republishing posts.
+- An OPEN's source must still be current where the receipt sits in history, as the writer
+  observes it: the latest folded attempt is the same generation, holder, ticket record and
+  acceptance, live, unsupervised, unexpired at the receipt's time, and matched by the latest
+  folded reservations. Supervision is read from that latest attempt, as the writer reads it, so a
+  later unsupervised generation of the same attempt ID is not refused for an earlier one.
+- A bound transition posts nothing but its request entry, its one ticket and the replayed events.
+  An event blob that no reference change binds is accepted as opaque evidence: every referenced
+  event is replayed from the reducer, so such a blob installs nothing, and a gate may legitimately
+  capture identical bytes (an earlier draft refused it, which falsely refused that history).
+- Events are reported in receipt POST order, which is digest order, so tests compare event sets.
+- The fold does not re-observe a blocked-by relation; the writer checks it before commit.
+
 ### Integration slot
 
-Owner decision 2026-10-04: the native escalation writer reuses issue 501's single derived-event
+Superseded in part: decision 0428 item 7 moved the writer to the LEASE pipeline with supersession,
+and the typed-event stage slice gives it the closed `ESCALATION` stage (ESC-V0-010). The original
+owner decision 2026-10-04 read: the native escalation writer reuses issue 501's single derived-event
 MUTATE slot, and supersession is deferred (ESC-V0-010). That slot admits exactly one derived
 evidence event per MUTATE, measured at 6 of 6 artifacts and 1669 of 1670 descriptor bytes. OPEN
 and ANSWER fit that one-event shape; paired supersession (ESC-V0-003) does not, and it waits for a
@@ -203,6 +268,15 @@ reaches main, so the slot is adopted rather than copied. The writer must declare
 event for its own operations in the transaction model rather than rely on stage shape alone, bind
 the event in receipt audit and redo (NOT_RUN until implemented), and refuse the `escalations`
 reference in raw import (`importChain`) as well as in CREATE, REFINE and ADOPT.
+
+Decided 2026-10-05 (ticket V1-0699, issue 502): the owner accepted issue 502 with qualification
+`NOT_RUN` on the delivery merged to main (#574, #610 and #612). The kinds and ages of open requests in
+`dispatch status` (ESC-V0-009), a live dispatcher over a native store with a real worker, a process
+kill between reservation and spawn, a live answer-then-refine sequence, and `make gate` are `NOT_RUN`
+and tracked by follow-up V1-0823; whether receipt audit must bound aggregate claim guidance over
+forged history is V1-0833. An independent lane for the same requirements
+(`docs/build-log/2026-10-05-issue502-escalation-retry-and-material.md`) was superseded by main and
+not integrated.
 
 ## Rollout and rollback
 
@@ -234,6 +308,18 @@ The claim delivery slice adds the optional `escalationAnswers` attempt key and t
 field. A no-answer attempt keeps its exact bytes. Before any claim pins an answer, rollback is a
 plain revert. After that, journal audit decodes the pinned attempt POSTs, so rollback keeps the
 attempt codec and stops only pinning and delivery.
+The dispatcher retry slice adds the optional `infrastructureRetry` config member and the optional
+`infraRetry` dispatch ledger member, read strictly. A dispatcher built before it refuses a config
+naming the policy and a ledger carrying episodes. Downgrade by removing the policy from the config,
+stopping that program's dispatcher, backing up its `state.json` and removing only `infraRetry` as for
+`seen.escalations`; the backup keeps the retry debt for a later upgrade, and the older binary
+parks those tickets by ordinary no-progress accounting instead.
+The typed-event stage slice adds the `ESCALATION` stage operation and the receipt binding fold.
+No stored byte format changes: the native store never persists the stage operation, so receipts,
+posts and an interrupted write's journal are the same bytes under either binary, and an older
+binary recovers them through its own generic redo. Downgrade at any time is therefore safe but
+drops the fold's checks from audit and redo. Escalations committed before this slice replay through
+the same fold, because it reads receipts, not stage operations. Rollback is reverting the change.
 Later slices rebase onto current main and integrate in order: codecs, writer and material, holds,
 CLI and reads, 501 claim delivery, then dispatcher retry with 499 composition. Once writes exist,
 rollback disables new mutations and automation but keeps readers, references, questions, answers

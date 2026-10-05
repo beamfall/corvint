@@ -27,8 +27,9 @@ type RunOptions struct {
 	// Executable is this process's resolved executable path.
 	Executable string
 	// Open takes dispatcher ownership with control as its launch control
-	// (dispatch.OpenControlled).
-	Open func(program string, c *dispatch.Config, control dispatch.LaunchControl) (Controller, error)
+	// (dispatch.OpenControlled); out is the main's bounded, non-blocking
+	// log sink for dispatcher output.
+	Open func(program string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (Controller, error)
 	// Poll is the control/pin observation interval; Pulse the liveness
 	// write interval; Retry the delay after a failed or busy Open.
 	Poll, Pulse, Retry time.Duration
@@ -45,10 +46,15 @@ type desiredRun struct {
 	// control state observed under the fence.
 	legacy  *string
 	desired string
+	// manifest and profile are the observed installation, set when the
+	// observation may run.
+	manifest *Manifest
+	profile  *Profile
 }
 
 type exeStamp struct {
 	path        string
+	resolved    string
 	size        int64
 	mod         time.Time
 	sha         wire.Digest
@@ -82,6 +88,8 @@ func Run(ctx context.Context, o RunOptions) error {
 		o.Retry = 30 * time.Second
 	}
 	self, _ := supervisor.ProcessIdentity(os.Getpid())
+	logs := openUnitLogs(root, "main", "stderr")
+	defer logs.close()
 	var (
 		ctl      Controller
 		cancel   context.CancelFunc
@@ -131,7 +139,7 @@ func Run(ctx context.Context, o RunOptions) error {
 			var c Controller
 			lc, err := o.control(root, d.ident, d.legacy)
 			if err == nil {
-				c, err = o.Open(o.Program, d.config, lc)
+				c, err = o.Open(o.Program, d.config, lc, logs.streams["stderr"])
 			}
 			if err == nil && !o.boundAfterOpen(root, d.ident, d.config) {
 				// A stop saved before Open took ownership is seen here; one
@@ -169,6 +177,7 @@ func Run(ctx context.Context, o RunOptions) error {
 				pulseAt, pulsed = o.now(), state
 			}
 		}
+		logs.publish()
 		select {
 		case <-ctx.Done():
 			return nil
@@ -225,7 +234,7 @@ func (o RunOptions) observe(root string, stamp *exeStamp) desiredRun {
 		d.hold = "dispatch config does not bind the installed roots"
 		return d
 	}
-	d.config, d.run, d.legacy = cfg, true, p.LegacyStopFile
+	d.config, d.run, d.legacy, d.desired, d.manifest, d.profile = cfg, true, p.LegacyStopFile, c.Desired, m, p
 	return d
 }
 
@@ -239,18 +248,26 @@ func (o RunOptions) readBound(path string, max int) ([]byte, error) {
 // executableSha rehashes this process's executable only when its stat
 // identity changed since the last observation.
 func (o RunOptions) executableSha(s *exeStamp) (wire.Digest, error) {
-	fi, err := os.Stat(o.Executable)
+	sha, _, err := o.fileSha(o.Executable, s)
+	return sha, err
+}
+
+// fileSha returns the digest and resolved path of the pinned executable at
+// path, rehashing only when its stat identity changed since the last
+// observation recorded in s.
+func (o RunOptions) fileSha(path string, s *exeStamp) (wire.Digest, string, error) {
+	fi, err := os.Stat(path)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	dev, inode := fileID(fi)
-	if s.initialized && s.path == o.Executable && s.size == fi.Size() && s.mod.Equal(fi.ModTime()) && s.dev == dev && s.inode == inode {
-		return s.sha, nil
+	if s.initialized && s.path == path && s.size == fi.Size() && s.mod.Equal(fi.ModTime()) && s.dev == dev && s.inode == inode {
+		return s.sha, s.resolved, nil
 	}
-	f, _, err := o.observeFile(o.Executable, 0)
+	f, _, err := o.observeFile(path, 0)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	*s = exeStamp{path: o.Executable, size: fi.Size(), mod: fi.ModTime(), sha: f.Sha256, dev: dev, inode: inode, initialized: true}
-	return f.Sha256, nil
+	*s = exeStamp{path: path, resolved: f.Path, size: fi.Size(), mod: fi.ModTime(), sha: f.Sha256, dev: dev, inode: inode, initialized: true}
+	return f.Sha256, f.Path, nil
 }

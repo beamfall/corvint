@@ -372,11 +372,20 @@ func DecodeManifest(raw []byte) (*Manifest, error) {
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ManifestName); err != nil {
 		return nil, err
 	}
-	if len(r.Field("helperExecutables").Array(8, false)) != 0 {
-		return nil, wire.Errorf(wire.CodeUnsupported, "/helperExecutables", "helper units are not supported by this service runtime")
-	}
+	helpers := r.Field("helperExecutables").Array(8, true)
 	m := &Manifest{HelperExecutables: map[string]FileFacts{}, Program: r.Field("program").String(), Manager: r.Field("manager").String(), Domain: r.Field("domain").String(), UID: r.Field("uid").Size(), Generation: r.Field("generation").Size(), QueueID: r.Field("queueId").String(), CanonicalStore: r.Field("store").String(), ConfigRoot: r.Field("configRoot").String(), StateRoot: r.Field("stateRoot").String(), UnitRoot: r.Field("unitRoot").String(), Path: r.Field("manifestPath").String(), DispatchStateRoot: r.Field("dispatchStateRoot").String(), Executable: r.Field("executable").String(), Namespace: r.Field("namespace").Digest(), ProfileSha256: r.Field("profileSha256").Digest(), ExecutableSha256: r.Field("executableSha256").Digest(), DispatchConfigSha256: r.Field("dispatchConfigSha256").Digest(), Previous: r.Field("previous").DigestOrNull()}
 	m.ProfileRaw = wire.EncodeFile(r.Field("config").Value())
+	// Helper identities decode to the facts the manifest encodes; the
+	// canonical re-encode below proves order, binding and completeness. The
+	// owner and mode were proved at install and are not re-recorded.
+	for _, x := range helpers {
+		x.Closed("id", "declaredPath", "resolvedPath", "sha256")
+		id := x.Field("id").String()
+		if _, dup := m.HelperExecutables[id]; dup {
+			x.Fail(wire.CodeMalformed, "duplicate helper identity")
+		}
+		m.HelperExecutables[id] = FileFacts{State: "VERIFIED", DeclaredPath: x.Field("declaredPath").String(), Path: x.Field("resolvedPath").String(), Sha256: x.Field("sha256").Digest(), Owner: m.UID, Regular: true, Executable: true, SafeAncestors: true, NoReplacementSymlink: true}
+	}
 	units := r.Field("units").Array(9, false)
 	if err := r.Err(); err != nil {
 		return nil, err

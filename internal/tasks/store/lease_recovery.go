@@ -76,6 +76,9 @@ func redoLeaseProof(repo *intent.Repository, session *authority.Session, proof *
 	if rc.Seq.Uint64() != head.LastSeq.Uint64()+1 || rc.Prev == nil || head.LastReceiptSha256 == nil || *rc.Prev != *head.LastReceiptSha256 {
 		return wire.Errorf(wire.CodeJournalForked, "redo", "pending receipt does not chain to head")
 	}
+	if err := redoReviewBinding(repo, rc, raw); err != nil {
+		return err
+	}
 	if err := redoPosts(repo, session, rc); err != nil {
 		return err
 	}

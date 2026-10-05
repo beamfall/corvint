@@ -696,6 +696,7 @@
     "closableToday": false,
     "implementation": [
       "internal/tasks/mutation",
+      "internal/tasks/snapshot",
       "internal/tasks/store",
       "internal/tasks/ticket",
       "internal/tasks/transaction"

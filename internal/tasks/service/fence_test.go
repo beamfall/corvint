@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +40,7 @@ func (s *serviceHome) writeLedger(t *testing.T, workers ...string) {
 	}
 }
 
-func (s *serviceHome) runOptions(t *testing.T, open func(string, *dispatch.Config, dispatch.LaunchControl) (Controller, error)) RunOptions {
+func (s *serviceHome) runOptions(t *testing.T, open func(string, *dispatch.Config, dispatch.LaunchControl, io.Writer) (Controller, error)) RunOptions {
 	t.Helper()
 	root := s.root(t)
 	return RunOptions{Host: s.h, Program: "site", Manifest: filepath.Join(root, manifestFile), Executable: s.exe, Open: open, Poll: 5 * time.Millisecond, Pulse: 5 * time.Millisecond, Retry: 5 * time.Millisecond}
@@ -241,7 +242,7 @@ func TestSERVICE500_DrainSupervisesThenSettlesStopped(t *testing.T) {
 	controls := make(chan dispatch.LaunchControl, 8)
 	var recorded, settled atomic.Bool
 	recorded.Store(true)
-	open := func(_ string, _ *dispatch.Config, control dispatch.LaunchControl) (Controller, error) {
+	open := func(_ string, _ *dispatch.Config, control dispatch.LaunchControl, _ io.Writer) (Controller, error) {
 		controls <- control
 		return &boundaryController{control: control, recorded: &recorded, settled: &settled, closed: closed}, nil
 	}
@@ -312,7 +313,7 @@ func TestSERVICE500_ResumeDuringDrainWins(t *testing.T) {
 	}
 	opened, closed := make(chan struct{}, 8), make(chan struct{}, 8)
 	controls := make(chan dispatch.LaunchControl, 8)
-	open := func(_ string, _ *dispatch.Config, control dispatch.LaunchControl) (Controller, error) {
+	open := func(_ string, _ *dispatch.Config, control dispatch.LaunchControl, _ io.Writer) (Controller, error) {
 		controls <- control
 		return &fakeController{opened: opened, closed: closed}, nil
 	}

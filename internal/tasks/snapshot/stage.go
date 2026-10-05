@@ -49,6 +49,18 @@ const StageLease = "LEASE"
 // receipt kind.
 const StageQualification = "QUALIFICATION"
 
+// StageEscalation carries one committed typed escalation (ESC-V0-010): an
+// ESCALATE or ANSWER lease transaction whose TRANSITION receipt posts its
+// request, the ticket and one or two escalation events (two only for a
+// supersession), with at most the ticket's own blob as evidence. Nothing
+// else is admitted: no attempt, reservation, pool, program or gate output.
+// Its maximum stays inside the StageLease bounds (decision 0428 item 7).
+const StageEscalation = "ESCALATION"
+
+// MaxEscalationEventBytes bounds one escalation event POST; it equals
+// ticket.EscalationMaxEventBytes, which snapshot does not import.
+const MaxEscalationEventBytes = 65536
+
 type StageBase struct {
 	LastSeq           wire.Size
 	LastReceiptSha256 wire.Digest
@@ -92,6 +104,8 @@ func StageLimits(op string) (int, int) {
 		return 11, 2658
 	case StageQualification:
 		return 6, 1680
+	case StageEscalation:
+		return 7, 1879
 	}
 	return 0, 0
 }
@@ -129,7 +143,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -221,6 +235,9 @@ func (d StageDescriptor) shape() error {
 			if d.Operation == StageAuthoritySwitch || d.Operation == StageQualification {
 				cap = wire.MaxQueueFileBytes
 			}
+			if d.Operation == StageEscalation {
+				cap = wire.MaxTicketFileBytes
+			}
 			if d.Operation == StageLease {
 				cap = wire.MaxReservationSetBytes
 				if cap < MaxPoolStateBytes {
@@ -236,7 +253,7 @@ func (d StageDescriptor) shape() error {
 					cap = 551
 				}
 				// A LEASE request is at most REVISION_CONFLICT with FENCED.
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification {
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease || d.Operation == StageQualification || d.Operation == StageEscalation {
 					cap = 579
 				}
 			case strings.HasPrefix(a.Target, "attempts/") && d.Operation == StageLease:
@@ -258,7 +275,7 @@ func (d StageDescriptor) shape() error {
 			case a.Target == "barrier.json" && d.Operation == StagePause:
 				key = "barrier"
 				cap = 4096
-			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageImportApply || d.Operation == StageLease):
+			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageImportApply || d.Operation == StageLease || d.Operation == StageEscalation):
 				local := strings.TrimSuffix(strings.TrimPrefix(a.Target, "intent/tickets/"), ".json")
 				q := strings.TrimPrefix(d.QueueID, "queue:")
 				id, e := wire.ParseTicketID("target", "ticket:"+q+":"+local)
@@ -293,6 +310,12 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "gate"
 				cap = wire.MaxGateOutputBytes
+			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageEscalation:
+				if a.Target != "evidence/"+string(a.Sha256) {
+					return stageMalformed("escalation event identity")
+				}
+				key = "escalation-event"
+				cap = MaxEscalationEventBytes
 			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageQualification:
 				if a.Target != "evidence/"+string(a.Sha256) {
 					return stageMalformed("qualification run identity")
@@ -358,6 +381,8 @@ func (d StageDescriptor) shape() error {
 	case StageQualification:
 		required["queue"] = 1
 		required["run"] = 1
+	case StageEscalation:
+		required["ticket"] = 1
 	case StageRelease:
 		required["release"] = 1
 		if counts["discard"] != 0 {
@@ -393,6 +418,13 @@ func (d StageDescriptor) shape() error {
 		delete(counts, "ticket")
 		delete(counts, "gate")
 	}
+	// OPEN and ANSWER post one event; only a supersession posts two.
+	if d.Operation == StageEscalation {
+		if counts["escalation-event"] < 1 || counts["escalation-event"] > 2 {
+			return stageMalformed("escalation event count")
+		}
+		delete(counts, "escalation-event")
+	}
 	// An import batch posts one or more ticket records; the slot cap bounds it.
 	if d.Operation == StageImportApply && counts["ticket"] >= 1 {
 		delete(counts, "ticket")
@@ -412,7 +444,7 @@ func (d StageDescriptor) shape() error {
 	switch d.Operation {
 	case StageInit:
 		maxEvidence = 3
-	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch, StageQualification:
+	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch, StageQualification, StageEscalation:
 		maxEvidence = 1
 	case StageLease:
 		// Reservation, completed ticket and pool projection may all be blobs.
@@ -442,6 +474,22 @@ func (d StageDescriptor) shape() error {
 			}
 			if !matched {
 				return stageMalformed("INIT blob has no matching post")
+			}
+		}
+	}
+	// The one escalation blob can only be the ticket record over the inline
+	// post bound: events are already posted at their evidence paths.
+	if d.Operation == StageEscalation {
+		for _, a := range d.Artifacts {
+			if a.Role != "EVIDENCE" {
+				continue
+			}
+			matched := false
+			for _, p := range d.Artifacts {
+				matched = matched || (p.Role == "POST" && strings.HasPrefix(p.Target, "intent/tickets/") && p.Sha256 == a.Sha256 && p.Bytes == a.Bytes)
+			}
+			if !matched {
+				return stageMalformed("escalation blob is not the ticket record")
 			}
 		}
 	}
