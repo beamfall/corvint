@@ -64,8 +64,18 @@ Already on main before this change, and not redone here:
 - `TestERGV0009_ReviewDescriptorMeasured` measures a maximal review record descriptor at 5 of 6
   artifacts and 1342 of 1670 bytes. A blob-backed ticket post adds one EVIDENCE artifact and stays
   under the generic 1669-byte maximum (`TestONV0006`).
-- Focused suite: `go test ./internal/tasks/... ./cmd/corvint-tasks/...`; gofmt and `go vet
-  ./internal/tasks/...`.
+- Focused suite `go test ./internal/tasks/... ./cmd/corvint-tasks/...` on the round-0 commit: every
+  package passed except `internal/tasks/store`. That run took 1794 s on a host shared with other
+  lanes, and these tests failed:
+  - TestPSRSweep*;
+  - TestPSRRequestConflictAndOrphan/live-unknown-gone;
+  - TestCALV0078_SupervisedGateRecordFailureIsNotRetryable.
+
+  Rerun alone, all but live-unknown-gone passed. That subtest then failed 1 of 3 runs on base
+  `d524530f` and 0 of 3 on this head. These are known host-load flakes (V1-0724, V1-0779, V1-0796),
+  so this change is not their cause.
+- On the final code, `internal/tasks/cli`, `transaction`, `dispatch` and `snapshot` pass. gofmt is
+  clean and `go vet ./internal/tasks/...` passes.
 
 ## Review
 
@@ -80,6 +90,8 @@ Already on main before this change, and not redone here:
     dispatcher, an observation error or a missing ticket would have passed. Both forgery tests now
     require a successful observation that holds the ticket with its gates unobserved. Verified by
     forcing the dispatcher to ignore a refused fold: all three settled cases fail.
+- Codex round 3 approved `d524530f..a2027ceb` with no P0-P3 findings. The review was static,
+  because Codex's read-only sandbox cannot build Go.
 
 ## NOT_RUN
 
