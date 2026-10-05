@@ -198,6 +198,14 @@ were repaired and the third was declined, then repaired after round 4:
    retry arriving after its eviction is treated as a new request, the existing ledger limit for
    every control verb.
 
+Codex round 5 traced the journal across every crash boundary and confirmed the debt-preservation
+repair. It returned CHANGES_REQUIRED with one P2: the unfinished journal's request id was not
+reserved across verbs, so a stop, install or uninstall could reuse it. Repaired:
+`pendingResumeConflict` is now consulted, before any effect, by `controlReplay` (stop, resume) and
+by the operation `journal` check (install, uninstall). Only the original resume, with its own hash,
+may reuse the id; anything else is REQUEST_ID_CONFLICT. The witness test gained stop, uninstall and
+install legs, and removing either check fails it.
+
 ## Owner questions
 
 1. **Recovery of a held intent.** Recovering a helper intent left by a killed wrapper is manual, by

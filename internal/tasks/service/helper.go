@@ -930,6 +930,20 @@ func (h Host) readResumeOperation(root, program string) (*resumeOperation, []byt
 	return &op, raw, nil
 }
 
+// pendingResumeConflict reserves the request id of an unfinished resume
+// operation for every service verb: only that resume, with its own hash,
+// may reuse it. The state root is the program's own.
+func (h Host) pendingResumeConflict(root, request string, hash wire.Digest) error {
+	op, _, err := h.readResumeOperation(root, filepath.Base(root))
+	if err != nil {
+		return err
+	}
+	if op != nil && op.RequestID == request && op.RequestSha256 != hash {
+		return wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id is reserved by an unfinished resume operation")
+	}
+	return nil
+}
+
 // resumeHelpers is resume's helper reconciliation under F. It refuses while
 // any helper tree is not proved retired, binds (or finds) this request's
 // durable operation and applies it, resetting each declared helper's

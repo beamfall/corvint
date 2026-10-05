@@ -90,6 +90,9 @@ func (h Host) journal(root, request string, sum wire.Digest, limit int) (*Operat
 	if prior, ok := lookupRequest(rs, request); ok && prior != sum {
 		return nil, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different service request")
 	}
+	if err := h.pendingResumeConflict(root, request, sum); err != nil {
+		return nil, err
+	}
 	for _, o := range ops {
 		if !o.finished() {
 			return nil, wire.Errorf(wire.CodeResourceCollision, "/operations", "operation %s is unfinished (%s); rerun it with its own request id first", o.RequestID, o.Phase)
@@ -919,6 +922,9 @@ func (h Host) controlReplay(root string, c *Control, request string, hash wire.D
 			return nil, false, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different control change")
 		}
 		return rs, true, nil
+	}
+	if err := h.pendingResumeConflict(root, request, hash); err != nil {
+		return nil, false, err
 	}
 	ops, err := h.operations(root)
 	if err != nil {

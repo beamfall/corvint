@@ -915,6 +915,16 @@ func TestSERVICE500_ResumeJournalNeverErasesLaterHelperDebt(t *testing.T) {
 	if _, err := os.Stat(journal); err != nil {
 		t.Fatalf("partial resume left no journal: %v", err)
 	}
+	// The unfinished resume reserves its request id for every verb.
+	_, err := s.h.Stop("site", "resume-a", false)
+	codeIs(t, err, wire.CodeRequestIDConflict)
+	_, err = s.h.Uninstall("site", "resume-a")
+	codeIs(t, err, wire.CodeRequestIDConflict)
+	_, err = s.install(t, "resume-a", true)
+	codeIs(t, err, wire.CodeRequestIDConflict)
+	if *s.control(t) != before {
+		t.Fatal("a conflicting request changed control")
+	}
 	out, err := s.h.Resume("site", "resume-a")
 	if err != nil {
 		t.Fatal(err)
