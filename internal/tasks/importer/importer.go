@@ -201,6 +201,12 @@ func record(sourceQueue string, item Item, st Store, current map[string]*ticket.
 	}
 	o.Set("completion", completion)
 	chain(o, pre, now)
+	// The escalation reference is tool-owned control state the export cannot
+	// carry (TicketKeys); a re-import keeps it, as it keeps createdAt.
+	if pre != nil && pre.Escalations != nil {
+		esc, _ := pre.Value().Obj.Get("escalations")
+		o.Set("escalations", esc)
+	}
 	rec, err := ticket.FromValue(wire.ObjectValue(o))
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeOf(err), id.Raw, "%v", err)
