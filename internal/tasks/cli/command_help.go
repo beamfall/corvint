@@ -175,6 +175,9 @@ func init() {
 	commandUsage["ticket escalation list"] = "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]"
 	commandUsage["ticket escalation show"] = "corvint-tasks ticket escalation show <ticketId|local> <requestId>"
 	commandUsage["ticket escalation history"] = "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]"
+	commandUsage["gate record"] = "corvint-tasks gate record <ticketId|local> --gate GATE --verdict PASS|RETURN --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [--reason CODE:TEXT] [--reviewer-attempt ID] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["gate resubmit"] = "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID [--prior-return SHA256] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["gate history"] = "corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 

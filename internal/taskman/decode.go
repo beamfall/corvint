@@ -59,7 +59,8 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 		}
 		return nil
 	},
-	"escalations": escalationRefs,
+	"escalations":     escalationRefs,
+	"externalReviews": externalReviews,
 }
 
 // ticketObject checks the closed ticket record object and returns the
@@ -495,6 +496,33 @@ func operatorNote(n wire.Value, _, _ uint64) error {
 	current := value(n, "current")
 	if current.Kind != wire.KindNull && (current.Kind != wire.KindString || current.Str != head.Str) {
 		return errors.New("operator note current")
+	}
+	return nil
+}
+
+// externalReviews validates the optional ERG-V0-009 gate reference map: 1..16
+// label keys, each a closed {generation,revision,head} with
+// 1 <= generation <= revision <= 4096 and head a digest. Absence is valid.
+func externalReviews(m wire.Value, _, _ uint64) error {
+	if m.Kind != wire.KindObject || len(m.Obj.Keys) == 0 || len(m.Obj.Keys) > 16 {
+		return errors.New("external review references")
+	}
+	for _, gate := range m.Obj.Keys {
+		if _, e := taskswire.ParseLabel("externalReviews", gate); e != nil {
+			return errors.New("external review gate")
+		}
+		ref := m.Obj.Values[gate]
+		if e := object(ref, "generation revision head"); e != nil {
+			return errors.New("external review reference")
+		}
+		g, e1 := number(value(ref, "generation"), 4096)
+		r, e2 := number(value(ref, "revision"), 4096)
+		if e1 != nil || e2 != nil || g == 0 || g > r {
+			return errors.New("external review counters")
+		}
+		if head := value(ref, "head"); head.Kind != wire.KindString || !digest(head.Str) {
+			return errors.New("external review head")
+		}
 	}
 	return nil
 }

@@ -17,10 +17,13 @@ func TestONV0006_DerivedEventSlotClosedToDeclaringOperations(t *testing.T) {
 	for _, op := range intent.Operations {
 		posts := map[string][]byte{}
 		e := derivedEventPost(op, event, posts)
-		if mutation.DeclaresDerivedEvent(op) != mutation.IsNoteOperation(op) {
-			t.Fatalf("%s: only note operations declare a derived event", op)
+		// ERG-V0-009 review operations declare the slot too; their receipt
+		// audit binding is ExternalReviewReceiptAudit (slot-reuse rule).
+		declares := mutation.IsNoteOperation(op) || mutation.IsReviewOperation(op)
+		if mutation.DeclaresDerivedEvent(op) != declares {
+			t.Fatalf("%s: only note and review operations declare a derived event", op)
 		}
-		if mutation.IsNoteOperation(op) {
+		if declares {
 			if e != nil || len(posts) != 1 || string(posts["evidence/"+string(wire.Sum(event))]) != string(event) {
 				t.Fatalf("%s: declared event not posted: %v %v", op, e, posts)
 			}

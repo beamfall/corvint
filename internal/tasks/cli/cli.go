@@ -69,6 +69,7 @@ var ReadVerbs = []string{
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show",
+	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
@@ -206,7 +207,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history"))
 		}
 		switch args[1] {
 		case "list":
@@ -215,6 +216,10 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateShow(env, args[2:]))
 		case "run":
 			return emit(env.Stdout, leaseCommand(env, "gate run", args[2:]))
+		case "record", "resubmit":
+			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
+		case "history":
+			return emit(env.Stdout, gateHistory(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
 
@@ -359,6 +364,8 @@ func helpResult() *wire.Result {
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
+		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
+		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",

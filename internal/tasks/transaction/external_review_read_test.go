@@ -148,3 +148,44 @@ func TestIssue504AnchoredHistory(t *testing.T) {
 	moved.Generation = "1"
 	refuse("head generation", moved, lookup, "G1", nil, 0)
 }
+
+// TestERGV0006_BuiltPostsNeverSkipUnreadable proves currency reads every
+// attempt post: an absent blob, an unretained encoding, bytes that differ from
+// their digest, a non-record body or a record that is not a well-formed
+// attempt (whatever phase it claims) is JOURNAL_FORKED, never a skipped entry.
+func TestERGV0006_BuiltPostsNeverSkipUnreadable(t *testing.T) {
+	body := []byte("not a record")
+	good := wire.Sum(body)
+	other := wire.Sum([]byte("other"))
+	blobs := map[wire.Digest][]byte{good: body}
+	lookup := func(d wire.Digest) ([]byte, bool) { b, ok := blobs[d]; return b, ok }
+	// Valid JSON objects whose attempt fields are missing or mistyped.
+	malformed := func(raw string) snapshot.PostEntry {
+		d := wire.Sum([]byte(raw))
+		blobs[d] = []byte(raw)
+		return snapshot.PostEntry{Path: "attempts/a.json", Sha256: &d, BlobSha256: &d}
+	}
+	for _, tc := range []struct {
+		name string
+		post snapshot.PostEntry
+		blob ExternalReviewBlob
+		want string
+	}{
+		{"absent-blob", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &other, BlobSha256: &other}, lookup, "absent"},
+		{"no-blob-reader", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &good, BlobSha256: &good}, nil, "not retained"},
+		{"digest-mismatch", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &other, BlobSha256: &good}, func(wire.Digest) ([]byte, bool) { return body, true }, "differ"},
+		{"not-a-record", snapshot.PostEntry{Path: "attempts/a.json", Sha256: &good, BlobSha256: &good}, lookup, "not an attempt record"},
+		{"built-missing-fields", malformed(`{"phase":"BUILT","phaseSinceSeq":"2"}` + "\n"), lookup, "not an attempt record"},
+		{"other-phase-missing-fields", malformed(`{"phase":"CLAIMED","phaseSinceSeq":"2"}` + "\n"), lookup, "not an attempt record"},
+		{"mistyped-phase", malformed(`{"phase":7,"phaseSinceSeq":"2"}` + "\n"), lookup, "not an attempt record"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rc := &snapshot.Receipt{Seq: wire.SizeOf(2), Post: []snapshot.PostEntry{tc.post}}
+			got, err := ExternalBuiltPosts(rc, tc.blob)
+			we, ok := err.(*wire.Error)
+			if !ok || we.Code != wire.CodeJournalForked || !strings.Contains(we.Msg, tc.want) || got != nil {
+				t.Fatalf("ExternalBuiltPosts = %v, %v; want JOURNAL_FORKED %q", got, err, tc.want)
+			}
+		})
+	}
+}

@@ -124,6 +124,9 @@ func Adopt(ctx Context, requestID string, canonical *ticket.Record, file []byte)
 	if r := adoptOperatorNote(canonical, fileRec); r != nil {
 		return plan.refused(r)
 	}
+	if r := adoptExternalReviews(canonical, fileRec); r != nil {
+		return plan.refused(r)
+	}
 	// Protected fields first, in the contract's order, so the refusal names
 	// the first unsupported difference and nothing is composed.
 	var protected []string
@@ -377,6 +380,16 @@ func adoptOperatorNote(canonical, file *ticket.Record) *refusal {
 	}
 	if string(a) != string(b) {
 		return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "file differs in protected field operatorNote; adopt refused, ticket stays diverged")
+	}
+	return nil
+}
+
+// adoptExternalReviews refuses any externalReviews difference, in either
+// direction: review heads change only through REVIEW_RECORD/REVIEW_RESUBMIT
+// (ERG-V0-004), so a diverged intent file can neither inject nor erase them.
+func adoptExternalReviews(canonical, file *ticket.Record) *refusal {
+	if !wire.Equal(ticket.ExternalReviewsValue(canonical.ExternalReviews), ticket.ExternalReviewsValue(file.ExternalReviews)) {
+		return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "file differs in protected field externalReviews; adopt refused, ticket stays diverged")
 	}
 	return nil
 }
