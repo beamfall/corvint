@@ -123,14 +123,16 @@ func TestCALV0071_CheckProgramConfigRepositories(t *testing.T) {
 		refuse string
 	}{
 		{policy, nil, ""},
-		{policy, []ProgramRepository{{"docs", docs}, {"site", site}}, ""},
-		{nil, []ProgramRepository{{"docs", docs}}, "not declared by policy"},
-		{policy, []ProgramRepository{{"wiki", docs}}, "not declared by policy"},
-		{policy, []ProgramRepository{{"site", site}, {"docs", docs}}, "sorted by unique name"},
-		{policy, []ProgramRepository{{"docs", docs}, {"docs", docs}}, "sorted by unique name"},
-		{policy, []ProgramRepository{{"docs", "work/docs"}}, "absolute clean path"},
-		{policy, []ProgramRepository{{"docs", "/work/../work/docs"}}, "absolute clean path"},
-		{policy, []ProgramRepository{{"docs", site}}, "differs from the policy path pin"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "site", Checkout: site}}, ""},
+		{nil, []ProgramRepository{{Name: "docs", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "wiki", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "site", Checkout: site}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "/work/../work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: site}}, "differs from the policy path pin"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "main"}}, ""},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "ma\nin"}}, "integrationBranch is not a branch label"},
 	} {
 		e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, Repositories: tc.repos}, tc.policy)
 		if tc.refuse == "" && e != nil {

@@ -221,16 +221,17 @@ func freshRepositories(repos []snapshot.RepositoryRecord) bool {
 	return true
 }
 
-// sameRepositories keeps a program's extra repository set, checkouts and Git
-// identities immutable; a base moves only on reassignment, which also clears
-// the candidate (CAL-V0-071, CAL-V0-072).
+// sameRepositories keeps a program's extra repository set, checkouts, Git
+// identities and integration designations immutable; a base moves only on
+// reassignment, which also clears the candidate (CAL-V0-071, CAL-V0-072,
+// CAL-V0-087).
 func sameRepositories(old, next []snapshot.RepositoryRecord, reassign bool) bool {
 	if len(old) != len(next) {
 		return false
 	}
 	for i := range old {
 		o, n := old[i], next[i]
-		if o.Name != n.Name || o.Checkout != n.Checkout || o.CommonIdentity != n.CommonIdentity {
+		if o.Name != n.Name || o.Checkout != n.Checkout || o.CommonIdentity != n.CommonIdentity || o.IntegrationBranch != n.IntegrationBranch || o.IntegrationIdentity != n.IntegrationIdentity {
 			return false
 		}
 		if reassign && n.Candidate != "" || !reassign && o.Base != n.Base {

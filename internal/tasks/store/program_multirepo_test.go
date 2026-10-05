@@ -66,23 +66,21 @@ type multiFixture struct {
 // then (in a read-only stage) accepts every claim.
 func newMultiFixture(t *testing.T, touch ...string) *multiFixture {
 	t.Helper()
-	return buildMultiFixture(t, false, touch...)
+	return buildProgramFixture(t, false, true, nil, touch...)
 }
 
-// buildMultiFixture is newMultiFixture; keepGates retains the fixture
-// policy's required `verify` gate.
-func buildMultiFixture(t *testing.T, keepGates bool, touch ...string) *multiFixture {
-	t.Helper()
-	return buildProgramFixture(t, keepGates, true, nil, touch...)
-}
-
-// buildProgramFixture is buildMultiFixture; without multi it declares no
+// buildProgramFixture is newMultiFixture; keepGates retains the fixture
+// policy's required `verify` gate, and without multi it declares no
 // extra repository and the fake host edits only the queue worktree. A
 // non-nil gates replaces the policy's gates with one required gate per id,
 // each a command that exits 0. While the file "escape" exists in scripts,
 // the implement stage leaves a setsid process holding the host output past
 // the drain, so the stage stops without proved quiescence; while "slow"
-// exists, the implement stage runs for three seconds.
+// exists, the implement stage runs for three seconds; while "docs-unchanged"
+// exists, it leaves the docs repository unchanged; while "no-docs-context"
+// exists, the fake Core refuses a query from a docs worktree. The implement
+// stage records its argv in "implement-args" and its prompt in
+// "implement-prompt".
 func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, touch ...string) *multiFixture {
 	t.Helper()
 	s := newLeaseStore(t)
@@ -100,6 +98,7 @@ func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, to
 		t.Fatalf("create %+v", report)
 	}
 	multiCommitted(t, s.repo.PrimaryWorktree, "hello.txt", "base\n")
+	scripts := fixture.TempDirOutside(t)
 	extra, docsEdit := "", ""
 	if multi {
 		extra = filepath.Join(fixture.TempDirOutside(t), "docs")
@@ -107,14 +106,14 @@ func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, to
 			t.Fatal(err)
 		}
 		multiCommitted(t, extra, "note.txt", "base\n")
-		docsEdit = "  printf 'changed\\n' > \"$PWD@docs/note.txt\"\n"
+		docsEdit = "  if [ ! -f \"" + scripts + "/docs-unchanged\" ]; then printf 'changed\\n' > \"$PWD@docs/note.txt\"; fi\n"
 	}
 
-	scripts := fixture.TempDirOutside(t)
 	claim := string(wire.Sum([]byte("it exists")))
 	codex := filepath.Join(scripts, "codex")
 	codexRaw := multiScript(t, codex, `#!/bin/sh
-case "$(cat)" in
+input="$(cat)"
+case "$input" in
 *"Read-only integration verification"*)
   echo '{"type":"thread.started","thread_id":"integrate-session"}'
   echo '{"type":"turn.started"}'
@@ -126,6 +125,7 @@ esac
 case " $* " in
 *" workspace-write "*)
   printf '%s\n' "$*" > "`+scripts+`/implement-args"
+  printf '%s\n' "$input" > "`+scripts+`/implement-prompt"
   if [ -f "`+scripts+`/escape" ]; then perl -e 'use POSIX; POSIX::setsid(); sleep 5' & fi
   if [ -f "`+scripts+`/slow" ]; then sleep 3; fi
   printf 'changed\n' > hello.txt
@@ -143,7 +143,7 @@ esac
 echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
 `)
 	core := filepath.Join(scripts, "core")
-	coreRaw := multiScript(t, core, "#!/bin/sh\nprintf '{\"ok\":true,\"context\":{\"state\":\"READY\",\"revision\":\"%s\",\"freshness\":{\"state\":\"fresh\"}}}\\n' \"$(git rev-parse HEAD^{tree})\"\n")
+	coreRaw := multiScript(t, core, "#!/bin/sh\ncase \"$PWD\" in *@docs) if [ -f \""+scripts+"/no-docs-context\" ]; then exit 3; fi;; esac\nprintf '{\"ok\":true,\"context\":{\"state\":\"READY\",\"revision\":\"%s\",\"freshness\":{\"state\":\"fresh\"}}}\\n' \"$(git rev-parse HEAD^{tree})\"\n")
 
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -191,9 +191,12 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
 // over the queue repository and one declared extra repository through the
 // pinned fake host: implement edits both, the candidate binds a composite
 // tree whose gitlink names the extra repository's preserved commit, review
-// binds to that composite, and integration fails closed.
+// binds to that composite, and integration of the changed extra repository
+// without an integration designation is refused UNSUPPORTED before a grant is
+// recorded or any checkout moves (CAL-V0-087).
 func TestCALV0071_MultiRepositoryProgramFakeHost(t *testing.T) {
 	f := newMultiFixture(t)
+	f.config.OwnIntegrationCheckout = true
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -246,11 +249,18 @@ func TestCALV0071_MultiRepositoryProgramFakeHost(t *testing.T) {
 	if args, err = os.ReadFile(filepath.Join(f.scripts, "review-args")); err != nil || strings.Contains(string(args), "writable_roots") {
 		t.Fatalf("review argv widened writable roots: %s %v", args, err)
 	}
-	if _, err = w.RunRole(ctx, "integrator", "grant"); err == nil || !strings.Contains(err.Error(), "multi-repository integration is not yet supported") {
-		t.Fatalf("multi-repository integration did not fail closed: %v", err)
+	queueBase := multiGit(t, f.s.repo.PrimaryWorktree, "rev-parse", "HEAD")
+	if _, err = w.RunRole(ctx, "integrator", "grant"); wire.CodeOf(err) != wire.CodeUnsupported || !strings.Contains(err.Error(), "repository docs changed but has no integration designation") {
+		t.Fatalf("undesignated extra repository integration did not fail closed: %v", err)
 	}
 	if head := multiGit(t, f.extra, "rev-parse", "HEAD"); head != extraBase {
 		t.Fatal("extra checkout HEAD moved after integration refusal")
+	}
+	if head := multiGit(t, f.s.repo.PrimaryWorktree, "rev-parse", "HEAD"); head != queueBase {
+		t.Fatal("queue checkout HEAD moved after integration refusal")
+	}
+	if stored := f.s.attempt(t, a.AttemptID); stored.Supervision.IntegrationGrant != "" || len(stored.PendingEffects) != 0 {
+		t.Fatalf("refusal recorded grant %q effects %v", stored.Supervision.IntegrationGrant, stored.PendingEffects)
 	}
 }
 
@@ -306,11 +316,14 @@ func TestCALV0071_ExtraRepositoryPathsAreScoped(t *testing.T) {
 	}
 }
 
-// TestCALV0072_MultiRepositoryGatesFailClosed proves a reviewed
-// multi-repository program whose policy requires a gate refuses before any
-// gate runs and never reaches READY_FOR_INTEGRATION (CAL-V0-072).
+// TestCALV0072_MultiRepositoryGatesFailClosed proves required gates of a
+// multi-repository program run against, and bind, the whole composite
+// candidate: an extra repository sibling worktree that is dirtied before its
+// gate runs refuses the gate, records no result and never reaches
+// READY_FOR_INTEGRATION (CAL-V0-072). The passing composite gate is proved by
+// TestCALV0087_DesignatedMultiRepositoryIntegration.
 func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
-	f := buildMultiFixture(t, true)
+	f := buildProgramFixture(t, true, true, []string{"verify"})
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -323,12 +336,22 @@ func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
 	if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "BUILT" {
 		t.Fatalf("implement: %v", err)
 	}
+	restore := store.SetRunFaultForTest(func(point string) error {
+		if point == "gate:verify" {
+			return os.WriteFile(*w.Attempt().WorktreePath+"@docs/stray.txt", []byte("stray\n"), 0o644)
+		}
+		return nil
+	})
 	a, err := w.RunRole(ctx, "reviewer", "")
-	if err == nil || !strings.Contains(err.Error(), "multi-repository gate evaluation is not yet supported") {
-		t.Fatalf("multi-repository gates did not fail closed: %v", err)
+	restore()
+	if wire.CodeOf(err) != wire.CodeDirtyWorktree {
+		t.Fatalf("dirty extra repository worktree did not refuse its gate: %v", err)
 	}
 	if a.Phase == "READY_FOR_INTEGRATION" || len(a.GateResults) != 0 {
 		t.Fatalf("refused program reached phase %s with %d gate results", a.Phase, len(a.GateResults))
+	}
+	if stored := f.s.attempt(t, a.AttemptID); stored.Phase == "READY_FOR_INTEGRATION" || len(stored.GateResults) != 0 {
+		t.Fatalf("stored attempt reached phase %s with %d gate results", stored.Phase, len(stored.GateResults))
 	}
 }
 

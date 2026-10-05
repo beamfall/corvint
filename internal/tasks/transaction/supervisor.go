@@ -61,10 +61,12 @@ func planSupervisor(c leaseContext) leaseOutcome {
 	}
 	owner := false
 	recovered := false
+	var repositories []snapshot.RepositoryRecord
 	for _, p := range programs.Entries {
 		if p.ID == f.ProgramID && p.OwnerPID == f.OwnerPID && p.OwnerStarted == f.OwnerStarted && p.CurrentAttempt == a.AttemptID && p.CurrentGeneration == string(a.Generation) {
 			owner = true
 			recovered = p.Phase == "FINISHED" && p.Quiescence == "PROVED"
+			repositories = p.Repositories
 		}
 	}
 	if !owner {
@@ -358,7 +360,7 @@ func planSupervisor(c leaseContext) leaseOutcome {
 				next.Supervision.IntegrationCommit = f.Commit
 			}
 		case "INTEGRATE_INTENT":
-			if out := c.supervisedReady(a, true); out != nil {
+			if out := c.supervisedReady(a, true, repositories); out != nil {
 				return *out
 			}
 			if a.Phase != "READY_FOR_INTEGRATION" || a.Supervision.IntegrationGrant == "" || a.Supervision.Worker || a.Quiescence != "PROVED" {
@@ -387,7 +389,7 @@ func planSupervisor(c leaseContext) leaseOutcome {
 			}
 			next.Supervision.Answer = f.Answer
 		case "READY":
-			if out := c.supervisedReady(a, false); out != nil {
+			if out := c.supervisedReady(a, false, nil); out != nil {
 				return *out
 			}
 			if a.Phase != "CHECKING" || a.Supervision.ReviewDigest == "" {
@@ -401,7 +403,7 @@ func planSupervisor(c leaseContext) leaseOutcome {
 			rec, _ := c.st.tickets.Get(a.TicketID.Raw)
 			found := false
 			for _, grant := range rec.Approvals {
-				if grant.GrantID == f.Grant && grant.Operation == "INTEGRATE" && !grant.Revoked && grant.TargetRevision == a.TicketRevision && len(grant.Scope) == 1 && a.CandidateTreeOid != nil && grant.Scope[0] == IntegrationScope(a.BaseCommit, *a.CandidateTreeOid, c.st.queue.IntentBranch) {
+				if grant.GrantID == f.Grant && grant.Operation == "INTEGRATE" && !grant.Revoked && grant.TargetRevision == a.TicketRevision && len(grant.Scope) == 1 && a.CandidateTreeOid != nil && grant.Scope[0] == ProgramIntegrationScope(a.BaseCommit, *a.CandidateTreeOid, c.st.queue.IntentBranch, repositories) {
 					found = true
 				}
 			}
@@ -481,7 +483,24 @@ func IntegrationScope(base, tree, branch string) string {
 	return "taskman-integration:" + string(wire.Sum([]byte(base+"\x00"+tree+"\x00"+branch)))
 }
 
-func (c leaseContext) supervisedReady(a *snapshot.Attempt, grant bool) *leaseOutcome {
+// ProgramIntegrationScope is the exact integration grant scope of a
+// supervised program. A multi-repository program also binds, in name order,
+// each extra repository's name and designated integration branch (empty when
+// undesignated), so a grant names every target the supervisor may move; the
+// composite tree already binds each repository's candidate (CAL-V0-087).
+// Without extra repositories it is IntegrationScope.
+func ProgramIntegrationScope(base, tree, branch string, repositories []snapshot.RepositoryRecord) string {
+	if len(repositories) == 0 {
+		return IntegrationScope(base, tree, branch)
+	}
+	bound := base + "\x00" + tree + "\x00" + branch
+	for _, r := range repositories {
+		bound += "\x00" + r.Name + "\x00" + r.IntegrationBranch
+	}
+	return "taskman-integration:" + string(wire.Sum([]byte(bound)))
+}
+
+func (c leaseContext) supervisedReady(a *snapshot.Attempt, grant bool, repositories []snapshot.RepositoryRecord) *leaseOutcome {
 	refuse := func(code, detail string) *leaseOutcome {
 		o := c.refuse(mutation.OutcomeBlocked, code, detail)
 		return &o
@@ -518,7 +537,7 @@ func (c leaseContext) supervisedReady(a *snapshot.Attempt, grant bool) *leaseOut
 	if grant {
 		found := false
 		for _, g := range rec.Approvals {
-			if g.GrantID == a.Supervision.IntegrationGrant && g.Operation == "INTEGRATE" && !g.Revoked && g.TargetRevision == a.TicketRevision && len(g.Scope) == 1 && g.Scope[0] == IntegrationScope(a.BaseCommit, *a.CandidateTreeOid, c.st.queue.IntentBranch) {
+			if g.GrantID == a.Supervision.IntegrationGrant && g.Operation == "INTEGRATE" && !g.Revoked && g.TargetRevision == a.TicketRevision && len(g.Scope) == 1 && g.Scope[0] == ProgramIntegrationScope(a.BaseCommit, *a.CandidateTreeOid, c.st.queue.IntentBranch, repositories) {
 				found = true
 			}
 		}

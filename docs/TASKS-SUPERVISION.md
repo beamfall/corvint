@@ -24,17 +24,32 @@ and the program's remaining `wallClockMinutes`; expiry returns a resumable WAIT 
 The config `effort` must itself be `low`, `medium` or `high` even when `stageEfforts` overrides
 every stage.
 
-Multi-repository programs (experimental, partial): declare each extra checkout in the policy as
+Multi-repository programs: declare each extra checkout in the policy as
 `supervision.repositories` `{"<name>": {"pathSha256": "<SHA-256 of the absolute path>"}}` (1..8
 names, lowercase letter first, then `[a-z0-9-]`, at most 32 bytes) and list it in the config as
-`"repositories": [{"name": "<name>", "checkout": "<absolute path>"}]`, sorted by name. The program
-records each checkout's common Git identity and current `HEAD` as its base; implement runs in the
-detached sibling worktree `<worktree>@<name>`, which is the only extra Codex writable root. Ticket
-touch paths address extra repositories as `@<name>/...`. Each changed repository gets a candidate
-commit under its `refs/corvint/tasks/`, and the program candidate is a composite tree (`.queue` plus
-one gitlink per repository) that review binds. Gates and integration of such programs are refused
-until a later slice defines cross-repository landing; operator checkouts are never moved. See
-[S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354-partial).
+`"repositories": [{"name": "<name>", "checkout": "<absolute path>", "integrationBranch": "<branch>"}]`,
+sorted by name; `integrationBranch` is optional. The program records each checkout's common Git
+identity and current `HEAD` as its base; implement runs in the detached sibling worktree
+`<worktree>@<name>`, which is the only extra writable root. Ticket touch paths address extra
+repositories as `@<name>/...`. Each changed repository gets a candidate commit under its
+`refs/corvint/tasks/`, and the program candidate is a composite tree (`.queue` plus one gitlink per
+repository) that review binds. Every stage also needs a READY, fresh Core packet for each extra
+repository, queried in its sibling worktree; without one the stage is refused
+`repository <name>: CONTEXT_UNAVAILABLE` before the host starts, and the prompt carries the packets
+as `repositoryContext`. Required gates run in the primary stage worktree with each sibling at
+`<worktree>@<name>`, observe the composite tree, and refuse `DIRTY_WORKTREE` when any of those
+worktrees has uncommitted or untracked changes.
+
+Integration of a changed extra repository needs a designation: set `ownIntegrationCheckout` and
+that repository's `integrationBranch` in the config before the program starts, and keep that
+checkout clean, on that branch and at its recorded base. A changed repository without a designation
+is refused `UNSUPPORTED` before any grant; an unchanged one is never moved. The integrator lands
+every changed repository by fast-forward, in name order, before the queue checkout, and a restart
+after an interruption skips any repository already at its candidate, so no candidate lands twice.
+The store lock does not stop other Git writers: if one advances a later checkout after an earlier
+repository landed, integration stops `TARGET_ADVANCED`, keeps that landing and waits until the
+advanced checkout is back at its base or candidate. See
+[S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354).
 
 Claude Code host: set `"host": "claude-code"` in both the policy `supervision` object and the
 config, and pin the Claude Code executable as the same `taskman-codex-supervisor/0` runtime (one
@@ -95,8 +110,10 @@ requires both a different holder and different Codex session, plus every accepta
 
 Before integration, use the existing `ticket grant-approval` command with operation INTEGRATE,
 current acceptance revision and exact scope `taskman-integration:` followed by SHA256 of
-`baseCommit + NUL + candidateTree + NUL + intentBranch`. Then run the integrator role with
-`--grant GRANT_ID`. The designated checkout must still be clean at that original base; a later tip
+`baseCommit + NUL + candidateTree + NUL + intentBranch`. A multi-repository program appends, for
+each repository in name order, `NUL + name + NUL + integrationBranch` (empty when undesignated)
+before hashing, so one grant names every landing. Then run the integrator role with
+`--grant GRANT_ID`. Each designated checkout must still be clean at its original base; a later tip
 requires a fresh candidate/review/gates/grant. No remote push is performed. Native completion and
 receipt audit remain the delivery boundary.
 

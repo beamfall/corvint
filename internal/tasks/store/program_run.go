@@ -201,10 +201,14 @@ func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error
 
 // ProgramRepository names one extra repository of a multi-repository
 // supervised program (CAL-V0-071): a policy-declared name and the absolute
-// checkout whose path digest the policy pins.
+// checkout whose path digest the policy pins. IntegrationBranch optionally
+// designates the checkout, on that branch, as the integration target of the
+// repository's changed candidate when the config also owns its integration
+// checkout (CAL-V0-087); absent keeps the config bytes unchanged.
 type ProgramRepository struct {
-	Name     string `json:"name"`
-	Checkout string `json:"checkout"`
+	Name              string `json:"name"`
+	Checkout          string `json:"checkout"`
+	IntegrationBranch string `json:"integrationBranch,omitempty"`
 }
 
 // knownEffort keeps the default effort a supervised effort even when every
@@ -238,6 +242,11 @@ func checkProgramRepositories(repos []ProgramRepository, policy *intent.Supervis
 		}
 		if wire.Sum([]byte(r.Checkout)) != pin {
 			return fmt.Errorf("repository %q checkout differs from the policy path pin", r.Name)
+		}
+		if r.IntegrationBranch != "" {
+			if _, e := wire.ParseLabel("integrationBranch", r.IntegrationBranch); e != nil {
+				return fmt.Errorf("repository %q integrationBranch is not a branch label", r.Name)
+			}
 		}
 	}
 	return nil
