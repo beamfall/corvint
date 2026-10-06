@@ -24,6 +24,8 @@ type inventoryHooks struct {
 	read             func(*os.Root, string, string, int) ([]byte, error)
 	closeGuard       func(*authority.ChangeGuard) error
 	closePreparation func(*authority.PreparationLock) error
+	// commitStage observes commitLease reaching "sweep" and then "lock".
+	commitStage func(string)
 }
 
 func hooksForInventory(ctx context.Context) inventoryHooks {
@@ -48,6 +50,9 @@ func hooksForInventory(ctx context.Context) inventoryHooks {
 	}
 	if h.closePreparation == nil {
 		h.closePreparation = (*authority.PreparationLock).Close
+	}
+	if h.commitStage == nil {
+		h.commitStage = func(string) {}
 	}
 	return h
 }

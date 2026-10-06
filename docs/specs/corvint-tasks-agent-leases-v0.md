@@ -1419,7 +1419,8 @@ read when the watch starts; the other half is left for directories, the audit's 
 concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
 device, inode, mode, size, modification time and change time, read before and after registration
 and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
-change. The directory watch still reports any entry created, removed or renamed. Regular files
+change, and the watch keeps reporting it. The directory watch still reports any entry created,
+removed or renamed. Regular files
 therefore no longer exhaust descriptors as a store grows. Directories are not budgeted, so a
 directory-heavy tree or many concurrent watches can still be refused with too many open files, as
 can any other registration failure. Two limits apply beyond the budget:
@@ -1427,9 +1428,23 @@ can any other registration failure. Two limits apply beyond the budget:
   timestamp collision, is missed by the watch. Only a path that rereads the file's bytes can catch
   it, and an inventory built from audit observations reuses cached digests (the exposure recorded
   above as V1-0775).
-- Each `Check` re-reads the over-budget files' stat tuples. Lease commits call `Check` while holding
-  the writer lock, so locked work then grows with the number of files beyond the budget, contrary
-  to CAL-V0-026's bound (V1-0845).
+- Lease commits keep the re-read out of the writer lock (V1-0845). Just before taking the lock they
+  `Sweep` the over-budget stat tuples, and under the lock they call `CheckEvents`, which only polls
+  kqueue and the result kept from earlier reads, so guard polling under the lock does not grow with
+  the store. This does not by itself meet CAL-V0-026's locked-work bound: `retainCheckpoint`, still
+  called under the lock, traverses, sorts and encodes the whole canonical map, a remaining
+  store-size cost tracked separately. A store writer changes files only by creating, linking,
+  renaming or removing entries (`authority.Session`), which a watched directory reports whenever it
+  happens, so no store write between the sweep and the locked check is lost; no Tasks writer edits a
+  watched file in place. The accepted bound is an in-place write or mode change to an over-budget
+  file by an actor that does not take the writer lock (an external editor or tool), made after the
+  sweep read that file: the locked check does not see it. The lease then commits on the canonical
+  journal content, because `commitLease` rebinds only `head.json` and not the intent tree. The next
+  audit refuses a content edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or
+  a ticket); a mode change that leaves the file readable and its content unchanged can pass that
+  audit, because projection validation compares content digests and compares mode only between
+  observations within one audit. Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
 
 Linux inotify holds no descriptor per watched path and needs no budget.
 

@@ -14,17 +14,24 @@ import (
 )
 
 // ChangeGuard binds an optimistic store observation to a later writer lock.
-// It is transient and never writes files. Check is bounded independently of
-// the number of watched files; Close must run after releasing the writer lock.
+// It is transient and never writes files. Check re-reads files a kernel watch
+// does not cover (macOS files beyond the descriptor budget); a check under the
+// writer lock calls Sweep before acquiring it and CheckEvents while holding it,
+// whose cost does not depend on the number of watched files (CAL-V0-026).
+// Close must run after releasing the writer lock.
 type ChangeGuard struct {
 	watch      changeWatch
 	membership wire.Digest
 	closed     bool
 }
 
+// poll reports kernel events and any difference an earlier sweep found, in
+// time independent of the number of watched paths. sweep re-reads what no
+// kernel event covers; a difference it finds is kept for every later poll.
 type changeWatch interface {
 	add(string, bool) (os.FileInfo, error)
-	changed() (bool, error)
+	poll() (bool, error)
+	sweep() bool
 	close() error
 }
 
@@ -120,11 +127,36 @@ func WatchChanges(repo *intent.Repository) (_ *ChangeGuard, err error) {
 // a valid inventory cannot contain. It is supplementary to content digests.
 func (g *ChangeGuard) Membership() wire.Digest { return g.membership }
 
-func (g *ChangeGuard) Check() error {
+// Check reports any change since registration, re-reading uncovered files.
+func (g *ChangeGuard) Check() error { return g.check(true) }
+
+// Sweep re-reads the files no kernel event covers and keeps any difference for
+// the next check. Lease commits call it just before taking the writer lock, so
+// that CheckEvents under the lock still reports a change made before the sweep.
+// Store writers (authority.Session) change files only by creating, linking,
+// renaming or removing entries, which watched directories report at any time.
+// Only an in-place write or mode change to an uncovered file by an actor
+// outside the writer lock, made after the sweep read it, goes unreported; no
+// Tasks writer edits a watched file in place, and the next journal audit
+// refuses such an edit to an intent projection as INTENT_DIVERGED.
+func (g *ChangeGuard) Sweep() {
+	if g != nil && !g.closed {
+		g.watch.sweep()
+	}
+}
+
+// CheckEvents is Check without the sweep. Its cost does not depend on the
+// number of watched files, so it is the check made under the writer lock.
+func (g *ChangeGuard) CheckEvents() error { return g.check(false) }
+
+func (g *ChangeGuard) check(sweep bool) error {
 	if g == nil || g.closed {
 		return wire.Errorf(wire.CodeSnapshotMoved, "change guard", "closed observation")
 	}
-	changed, err := g.watch.changed()
+	changed, err := g.watch.poll()
+	if err == nil && !changed && sweep {
+		changed = g.watch.sweep()
+	}
 	if err != nil {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, "change guard", "%v", err)
 	}
