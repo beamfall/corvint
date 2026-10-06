@@ -299,7 +299,8 @@ func mutationStage(ctx context.Context, stage string) {
 }
 
 // observeMutation returns Mutate's inventory, its selection and the canonical
-// audit of that selection (CAL-V0-070). The inventory is always read fresh.
+// audit of that selection (CAL-V0-070). The inventory is always read fresh;
+// under the watch it is read through pinned parent roots (pinnedInventory).
 // The merged audit's records stand in for a second Audit only when every file
 // that audit read has the same digest and size in the inventory, and watch,
 // registered before that audit read anything, has seen nothing change in the
@@ -314,7 +315,7 @@ func mutationStage(ctx context.Context, stage string) {
 func observeMutation(ctx context.Context, repo *intent.Repository, reader journal.Reader, audit *journal.MutationAudit, watch *authority.ChangeGuard) (*transaction.Inventory, []string, *journal.Result, error) {
 	mutationStage(ctx, "audited")
 	if watch != nil {
-		inv, err := inventory(repo)
+		inv, err := pinnedInventory(ctx, repo)
 		reuse := err == nil && readUnchanged(inv, audit.Physical.Files)
 		var paths []string
 		var canonical *journal.Result
