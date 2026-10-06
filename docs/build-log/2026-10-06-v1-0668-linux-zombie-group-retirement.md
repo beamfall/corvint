@@ -130,3 +130,9 @@ pinning, the bounds or the build tags. Neither finding allows a false RELEASED.
 Revert this change. Linux then returns to `ReapAfterSuccessfulSignal` with no pre-reap proof, and
 the verifier's stable lifecycle cases become Darwin-only again. The change adds no persisted state
 or wire format.
+
+Re-review of `3a352248..969614a0` (same reviewer and settings): no P1, P2 or P3 findings. It
+checked the `Threads:` semantics against Linux 6.8 `fs/proc/array.c` and `kernel/exit.c`.
+
+Coverage limit it noted: the thread cases use a synthetic `/proc`. No test drives real kernel
+thread churn or a timed late `setpgid` join.
