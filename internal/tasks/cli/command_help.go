@@ -108,7 +108,7 @@ func commandHelp(args []string) *wire.Result {
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
-// lockWaitHelp documents the CAL-V0-109 --lock-wait of release and attempt
+// lockWaitHelp documents the CAL-V0-111 --lock-wait of release and attempt
 // heartbeat.
 const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
 

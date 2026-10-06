@@ -65,10 +65,10 @@ func lockTimedOut(t *testing.T, x run, elapsed time.Duration, wait time.Duration
 	}
 }
 
-// TestCALV0109_LockWaitFlag: only release and attempt heartbeat accept
+// TestCALV0111_LockWaitFlag: only release and attempt heartbeat accept
 // --lock-wait, its value is whole seconds from 1 to the documented maximum,
 // every refusal is MALFORMED without a write, and help lists it.
-func TestCALV0109_LockWaitFlag(t *testing.T) {
+func TestCALV0111_LockWaitFlag(t *testing.T) {
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	before := fixture.TreeSnapshot(t, repo.StateDir)
 	limit := int64(authority.MaxCallerLockWait / time.Second)
@@ -111,10 +111,10 @@ func TestCALV0109_LockWaitFlag(t *testing.T) {
 	}
 }
 
-// TestCALV0109_LockWaitBoundsContendedRelease: with --lock-wait a contended
+// TestCALV0111_LockWaitBoundsContendedRelease: with --lock-wait a contended
 // release or heartbeat waits for the caller's bound on preparation admission
 // and on the store lock, and a holder that leaves within the bound admits it.
-func TestCALV0109_LockWaitBoundsContendedRelease(t *testing.T) {
+func TestCALV0111_LockWaitBoundsContendedRelease(t *testing.T) {
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	before := fixture.TreeSnapshot(t, repo.StateDir)
 	held := holdPreparation(t, repo)
@@ -159,11 +159,11 @@ func TestCALV0109_LockWaitBoundsContendedRelease(t *testing.T) {
 	}
 }
 
-// TestCALV0110_SameRequestHandoffReplayAfterLockTimeout: an evidence HANDOFF
+// TestCALV0112_SameRequestHandoffReplayAfterLockTimeout: an evidence HANDOFF
 // release that timed out wrote nothing; re-submitting the same request ID
 // commits it once, a further re-submission (with or without --lock-wait)
 // replays that receipt without a write, and the handoff charges no retry.
-func TestCALV0110_SameRequestHandoffReplayAfterLockTimeout(t *testing.T) {
+func TestCALV0112_SameRequestHandoffReplayAfterLockTimeout(t *testing.T) {
 	root, repo, id, attempt, generation := lockWaitStore(t)
 	handoff := []string{"release", "--attempt", attempt, "--generation", generation, "--request-id", "release-2671", "--reason", "HANDOFF", "--evidence", "local:review-result"}
 	before := fixture.TreeSnapshot(t, repo.StateDir)
@@ -206,10 +206,10 @@ func TestCALV0110_SameRequestHandoffReplayAfterLockTimeout(t *testing.T) {
 	}
 }
 
-// TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged: a plain release
+// TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged: a plain release
 // that follows a timed-out HANDOFF for the same attempt and generation stays
 // a plain release and is charged; nothing converts it into a HANDOFF.
-func TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged(t *testing.T) {
+func TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged(t *testing.T) {
 	root, repo, id, attempt, generation := lockWaitStore(t)
 	held := holdPreparation(t, repo)
 	start := time.Now()

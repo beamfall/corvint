@@ -60,10 +60,10 @@ var leaseValueFlags = map[string]bool{
 	"--lock-wait": true,
 }
 
-// lockWaitVerbs are the lease commands that take the CAL-V0-109 --lock-wait.
+// lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait.
 var lockWaitVerbs = map[string]bool{"release": true, "attempt heartbeat": true}
 
-// parseLockWait reads one CAL-V0-109 --lock-wait value: whole seconds in
+// parseLockWait reads one CAL-V0-111 --lock-wait value: whole seconds in
 // canonical decimal, from 1 to authority.MaxCallerLockWait.
 func parseLockWait(value string) (time.Duration, error) {
 	limit := int64(authority.MaxCallerLockWait / time.Second)

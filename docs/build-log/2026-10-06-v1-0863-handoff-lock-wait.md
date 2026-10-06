@@ -10,9 +10,9 @@ release as a HANDOFF when evidence exists.
 
 ## Change
 
-- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-109..111 in a V1-0863 subsection,
+- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-111..113 in a V1-0863 subsection,
   with non-goals, failure modes, acceptance evidence and rollback. It also adds a slices row,
-  traceability rows, the issue-637 input, a CAL-V0-109 exception to the issue-494 30-second wait
+  traceability rows, the issue-637 input, a CAL-V0-111 exception to the issue-494 30-second wait
   sentence, and the delivery status (mirrored in `docs/specs/README.md` and `INDEX.json`).
   `docs/TASKS-EXTERNAL-AGENTS.md` documents the flag under `LOCK_TIMEOUT`.
 - `authority.LockOptions.CallerWait` is an explicit caller bound clamped to `MaxCallerLockWait`
@@ -29,12 +29,12 @@ release as a HANDOFF when evidence exists.
 
 ## Decisions
 
-- **Same-request replay already held, so CAL-V0-110 adds tests, not code.** Both lock refusals
+- **Same-request replay already held, so CAL-V0-112 adds tests, not code.** Both lock refusals
   happen before any write, and the wait is outside the request digest. So a same-ID resubmission
   commits once, and later ones replay the committed receipt sequence with no write and no retry
   charge. The CLI replay envelope reports `replayed: true` with an empty `receipt` (existing
   behaviour). The store test pins the replayed `ReceiptSeq` to the committed one.
-- **Option 3 is rejected (CAL-V0-111).** Turning a plain release into a HANDOFF would silently change
+- **Option 3 is rejected (CAL-V0-113).** Turning a plain release into a HANDOFF would silently change
   the retry accounting the caller asked for, based on a heuristic. A maintained test shows that a
   plain release after a timed-out HANDOFF records no evidence and is charged.
 - **One bound for both locks.** Preparation admission alone would still leave the writer-lock rounds
@@ -44,7 +44,7 @@ release as a HANDOFF when evidence exists.
   - `clearLeaseOrphans` (`internal/tasks/store/lease_recovery.go`) took the writer lock with default
     options whenever `staging/` was not empty. So `--lock-wait 1` could still wait 30 s, and
     `--lock-wait 60` could fail at 30 s. It now spends the caller's bound.
-    `TestCALV0109_OrphanCleanupSpendsCallerWait` covers it: with the fix reverted, it failed with
+    `TestCALV0111_OrphanCleanupSpendsCallerWait` covers it: with the fix reverted, it failed with
     "lock acquisition exceeded 30s after 30.0s".
   - Codex found no replay or concurrency defect. Its sandbox could not run the Go tests.
   - Checked and left unchanged: `settleLease` and `probeLeaseRecovery` take default locks but serve
@@ -55,15 +55,15 @@ release as a HANDOFF when evidence exists.
 All runs were on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -timeout 30m`.
 
 - `-count=1` PASSED:
-  - `TestCALV0109_CallerWaitBound` and `TestCALV0109_CallerWaitOutlastsDefault` (authority). In the
+  - `TestCALV0111_CallerWaitBound` and `TestCALV0111_CallerWaitOutlastsDefault` (authority). In the
     second, both locks are held for 31 s; caller waiters of 40 s acquire after the default, while
     default waiters beside them refuse LOCK_TIMEOUT.
-  - `TestCALV0110_HandoffReleaseReplaysAfterLockTimeout` and
-    `TestCALV0109_OrphanCleanupSpendsCallerWait` (store; the second was added after review).
-  - `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease`,
-    `TestCALV0110_SameRequestHandoffReplayAfterLockTimeout` and
-    `TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged` (cli).
-- `-count=3 -run 'TestCALV0109_|TestCALV0110_|TestCALV0111_'` over authority, store and cli PASSED,
+  - `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` and
+    `TestCALV0111_OrphanCleanupSpendsCallerWait` (store; the second was added after review).
+  - `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease`,
+    `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` and
+    `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (cli).
+- `-count=3 -run 'TestCALV0111_|TestCALV0112_|TestCALV0113_'` over authority, store and cli PASSED,
   and the store package again after the review fix.
 - `-count=1 -run 'Help|Usage|CALV00(26|69|78|81|95)|CALV0044|Lease|Release|Heartbeat|Preparation|Lock|GH494'`
   over the same three packages PASSED.

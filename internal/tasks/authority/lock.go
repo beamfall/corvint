@@ -21,7 +21,7 @@ type LockOptions struct {
 	// Poll is the interval between non-blocking attempts while contended.
 	// Zero or negative means DefaultLockPoll.
 	Poll time.Duration
-	// CallerWait is a bound the caller chose explicitly (CAL-V0-109). When
+	// CallerWait is a bound the caller chose explicitly (CAL-V0-111). When
 	// positive it replaces Wait and may exceed MaxLockWait up to
 	// MaxCallerLockWait; a larger value is clamped. Only a validated caller
 	// choice sets it, so every other acquisition keeps the §1 wait.

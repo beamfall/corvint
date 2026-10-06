@@ -7,7 +7,7 @@ import (
 
 type leaseLockWaitKey struct{}
 
-// WithLeaseLockWait carries a caller-chosen lock wait (CAL-V0-109, the
+// WithLeaseLockWait carries a caller-chosen lock wait (CAL-V0-111, the
 // `--lock-wait` of release and attempt heartbeat) to the lease writes under
 // ctx. It bounds their preparation admission and writer-lock acquisition in
 // place of the 30-second default. It is never part of the request, its digest

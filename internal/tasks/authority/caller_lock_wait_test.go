@@ -13,10 +13,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-109: a caller wait outlasts the 30-second default on both the
+// CAL-V0-111: a caller wait outlasts the 30-second default on both the
 // preparation admission and the writer lock, while a default waiter beside it
 // still refuses LOCK_TIMEOUT at the §1 bound.
-func TestCALV0109_CallerWaitOutlastsDefault(t *testing.T) {
+func TestCALV0111_CallerWaitOutlastsDefault(t *testing.T) {
 	if testing.Short() {
 		t.Skip("holds both locks past the 30-second default")
 	}

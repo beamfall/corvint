@@ -23,7 +23,7 @@ func clearLeaseOrphans(ctx context.Context, repo *intent.Repository, operation s
 		return err
 	}
 	// The cleanup lock is part of the lease transaction, so it spends the
-	// caller's CAL-V0-109 bound like every other acquisition in it.
+	// caller's CAL-V0-111 bound like every other acquisition in it.
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	if err != nil {
 		return err

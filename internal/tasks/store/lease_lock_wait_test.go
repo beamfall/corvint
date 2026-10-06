@@ -15,12 +15,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0110_HandoffReleaseReplaysAfterLockTimeout: an evidence HANDOFF
+// TestCALV0112_HandoffReleaseReplaysAfterLockTimeout: an evidence HANDOFF
 // release refused LOCK_TIMEOUT under a caller wait wrote nothing. The same
 // request ID then commits exactly once, and every later submission of it
 // replays that receipt sequence without a write. The next claim of the ticket
 // carries no retry charge.
-func TestCALV0110_HandoffReleaseReplaysAfterLockTimeout(t *testing.T) {
+func TestCALV0112_HandoffReleaseReplaysAfterLockTimeout(t *testing.T) {
 	s := newLeaseStore(t)
 	id := s.ticket(t, "one")
 	claim := claimOf(id, "src/")
@@ -84,11 +84,11 @@ func TestCALV0110_HandoffReleaseReplaysAfterLockTimeout(t *testing.T) {
 	}
 }
 
-// CAL-V0-109: with an orphan stage left by a killed writer, the lease
+// CAL-V0-111: with an orphan stage left by a killed writer, the lease
 // transaction first takes the writer lock to clear it. That acquisition spends
 // the caller's bound too, so a short wait refuses before the default and a
 // later same-request retry clears the orphan and commits.
-func TestCALV0109_OrphanCleanupSpendsCallerWait(t *testing.T) {
+func TestCALV0111_OrphanCleanupSpendsCallerWait(t *testing.T) {
 	s := newLeaseStore(t)
 	id := s.ticket(t, "one")
 	claim := claimOf(id, "src/")

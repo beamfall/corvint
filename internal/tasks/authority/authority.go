@@ -40,7 +40,7 @@ const (
 	// larger request is clamped, never honoured.
 	MaxLockWait = 30 * time.Second
 	// MaxCallerLockWait bounds an explicit caller wait (LockOptions.CallerWait,
-	// the CAL-V0-109 `--lock-wait` of release and attempt heartbeat). It never
+	// the CAL-V0-111 `--lock-wait` of release and attempt heartbeat). It never
 	// changes the §1 default, which applies whenever no caller chose a bound.
 	MaxCallerLockWait = 300 * time.Second
 	// DefaultLockPoll is the interval between non-blocking flock attempts.

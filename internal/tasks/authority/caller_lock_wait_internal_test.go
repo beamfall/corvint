@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// CAL-V0-109: an explicit caller wait replaces the §1 default up to
+// CAL-V0-111: an explicit caller wait replaces the §1 default up to
 // MaxCallerLockWait; without one, the frozen 30-second bound applies.
-func TestCALV0109_CallerWaitBound(t *testing.T) {
+func TestCALV0111_CallerWaitBound(t *testing.T) {
 	for _, c := range []struct {
 		opts LockOptions
 		want time.Duration
