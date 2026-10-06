@@ -584,7 +584,7 @@ and container qualification; full fallback remains available.
   most 64 KiB. `units` names, strictly ascending, the test directories of the admitted
   unbounded test units: units with tests that rule (d) selects on any dirty path because
   neither a literal nor a declared read scope (AFP-V0-023) bounds their reads. `reasons`
-  records, for some of those directories, why a package's reads cannot be declared.
+  records, for each of those directories (AFP-V0-028), why a package's reads cannot be declared.
   `tools/unbounded-readers` builds the same unit graph the planner builds and
   `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail, naming the
   directories, when an unbounded test unit is not in `units` or shares its directory with
@@ -651,6 +651,21 @@ and container qualification; full fallback remains available.
   the batching agent and nothing checks that a batch pull request actually contains the
   constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
   the job condition and the `go-product` message.
+- **AFP-V0-028:** (owner-directed, proposed, 2026-10-06; V1-0868) Every `units` directory of
+  `.corvint/unbounded-readers.json` (AFP-V0-025) SHALL have a `reasons` entry that names the
+  unbounded read, the call, literal, inherited dependency or path set that leaves the package's
+  reads unbounded, and why an AFP-V0-023 declaration cannot bound it, such as a read of `.git`, a
+  listing of the repository root or of a whole top-level tree, an open of the filesystem root,
+  a nested build or a test that skips when a read fails. `make unbounded-readers-check` MUST fail,
+  naming the directories, when a `units` directory, current or stale, has no entry; the report
+  lists them as `unreasoned`. A declaration that takes a package out of `units` SHALL be measured
+  the AFP-V0-023 way: the per-test `go test -json` outcomes, unconfined and under the wrapper with
+  exactly the declared entries, are identical, and a test that skips in either run, or tolerates a
+  failed read, keeps the package undeclared unless its skip is shown not to depend on a
+  repository read. When the evidence is missing or ambiguous the package stays in `units`. Limits:
+  a reason is a reviewed statement from the source and a container measurement, not a proof that
+  no narrower declaration exists; the measurement covers the Linux test files only. Rollback
+  restores the optional `reasons` check; the reasons themselves stay as documentation.
 
 ## Non-goals and authority
 
@@ -709,6 +724,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
 | AFP-V0-024 | `tools/ci-reuse-plan`; `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; local replay of the push step against the live API returned FULL; hosted reuse `NOT_OBSERVED` |
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
+| AFP-V0-028 | `unreasoned` in `tools/unbounded-readers`; the `reasons` of `.corvint/unbounded-readers.json` | `TestAFPV0028EveryUnitNamesItsUnboundedRead` (a live or stale unit without a reason fails and is named; both failures are reported together); `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord` (each addition carries its reason); `make unbounded-readers-check` passes with a reason for every unit; per-package container measurements in build log 2026-10-06-unbounded-reader-reasons |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |

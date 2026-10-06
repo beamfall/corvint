@@ -32,6 +32,7 @@ type report struct {
 	Count      int      `json:"count"`
 	Units      []string `json:"units"`
 	Unrecorded []string `json:"unrecorded"`
+	Unreasoned []string `json:"unreasoned"`
 	Stale      []string `json:"stale"`
 }
 
@@ -42,8 +43,10 @@ type record struct {
 }
 
 // readRecord reads the closed {profile, units, reasons} record. units names the
-// admitted unbounded test directories, strictly ascending; reasons maps some of
-// them to why their reads cannot be declared (AFP-V0-023).
+// admitted unbounded test directories, strictly ascending; reasons maps them to
+// the unbounded read and why it cannot be declared (AFP-V0-023). A unit without
+// a reason is reported by run (AFP-V0-028), not refused here, so the message
+// names it.
 func readRecord(root string) (record, error) {
 	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(recordPath)))
 	if err != nil {
@@ -97,7 +100,7 @@ func run(root string, stdout, stderr io.Writer) int {
 	units := unboundedTests(graph)
 	// A set, not a count: two changes that each add a unit and its entry merge to a
 	// record that still names both, where two identical edits of a count would not.
-	unrecorded, stale := []string{}, []string{}
+	unrecorded, unreasoned, stale := []string{}, []string{}, []string{}
 	for i, directory := range units {
 		// A second unbounded unit in one directory has no entry of its own.
 		if !slices.Contains(recorded.Units, directory) || i > 0 && units[i-1] == directory {
@@ -108,8 +111,13 @@ func run(root string, stdout, stderr io.Writer) int {
 		if !slices.Contains(units, directory) {
 			stale = append(stale, directory)
 		}
+		// Every admitted unit names its unbounded read (AFP-V0-028); a stale one
+		// still needs it, so removing a reason never passes in place of the entry.
+		if _, ok := recorded.Reasons[directory]; !ok {
+			unreasoned = append(unreasoned, directory)
+		}
 	}
-	out := report{Profile: profile, OK: len(unrecorded) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Stale: stale}
+	out := report{Profile: profile, OK: len(unrecorded) == 0 && len(unreasoned) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Unreasoned: unreasoned, Stale: stale}
 	encoded, err := json.Marshal(out, jsontext.WithIndent("  "))
 	if err != nil {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
@@ -124,6 +132,12 @@ func run(root string, stdout, stderr io.Writer) int {
 	if len(unrecorded) > 0 {
 		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
+	}
+	if len(unreasoned) > 0 {
+		fmt.Fprintf(stderr, "unbounded-readers: %v in units of %s have no entry in reasons. Name the read that is unbounded and why %s cannot declare it (AFP-V0-028).\n",
+			unreasoned, recordPath, affected.ReadScopesPath)
+	}
+	if !out.OK {
 		return 1
 	}
 	return 0
