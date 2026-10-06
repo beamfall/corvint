@@ -1,6 +1,6 @@
 # Decision 0415 — Release gates run on hosted runners
 
-Date: 2026-09-25. Status: accepted. Authority: repository owner request "as this is open source why
+Date: 2026-09-25. Status: accepted; items 1 and 3 amended by decision 0435 (2026-10-06). Authority: repository owner request "as this is open source why
 can't we have the gates run on github so they don't hammer this machine and multiple ones can run
 at once?" and owner answer "linux evidence is fine, run full-gate on macos too" (2026-09-25).
 Amended 2026-09-26 by the owner decision recorded as decision 0420 item 2: linux/amd64 becomes a
