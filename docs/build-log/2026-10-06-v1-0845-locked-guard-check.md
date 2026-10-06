@@ -55,7 +55,9 @@ after the sweep read that file and before the locked check, is not seen by that 
 writer edits a watched file in place, so only such external actors reach this window. The real
 consequence: the lease commits on the canonical journal content, because `commitLease` rebinds only
 `head.json` (it does not call `bindObservation` and ordinary leases pass no `beforeCommit`), and the
-next journal audit refuses the edit, `INTENT_DIVERGED` for an intent projection. Such an actor is not
+next journal audit refuses a content edit, `INTENT_DIVERGED` for an intent projection. A mode change
+that leaves the file readable and its content unchanged can pass that audit: projection validation
+compares content digests, and mode only between observations within one audit. Such an actor is not
 ordered against the writer lock; under V1-0841 the same write made just after the locked check had
 the same consequence, so the stat re-read under the lock only moved where that window began, by the
 lock wait. Within the budget, and on Linux, nothing changes.

@@ -1428,9 +1428,11 @@ can any other registration failure. Two limits apply beyond the budget:
   watched file in place. The accepted bound is an in-place write or mode change to an over-budget
   file by an actor that does not take the writer lock (an external editor or tool), made after the
   sweep read that file: the locked check does not see it. The lease then commits on the canonical
-  journal content, because `commitLease` rebinds only `head.json` and not the intent tree, and the
-  next audit refuses the edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or a
-  ticket). Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  journal content, because `commitLease` rebinds only `head.json` and not the intent tree. The next
+  audit refuses a content edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or
+  a ticket); a mode change that leaves the file readable and its content unchanged can pass that
+  audit, because projection validation compares content digests and compares mode only between
+  observations within one audit. Such an actor is not ordered against the lock, so the stat re-read under the lock only
   moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
 
 Linux inotify holds no descriptor per watched path and needs no budget.
