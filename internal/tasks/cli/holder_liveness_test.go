@@ -45,14 +45,14 @@ func holderTTLPolicy(t *testing.T, root, ttl string) {
 	}
 }
 
-// TestCALV0115_PolicyTTLDrivesHolderReads: a claim-initialized signal about
+// TestCALV0120_PolicyTTLDrivesHolderReads: a claim-initialized signal about
 // six minutes old under a renewed (live) work lease reads FRESH_HOLDER under
 // the 600-second default and STALE_HOLDER under a 300-second policy TTL.
 // The stale observation is derived on read: reads write nothing, the
 // attempt keeps its lease, phase and reservation, and another holder still
 // cannot claim the ticket. A current-generation heartbeat makes it fresh
 // again without moving the lease; an older generation is fenced.
-func TestCALV0115_PolicyTTLDrivesHolderReads(t *testing.T) {
+func TestCALV0120_PolicyTTLDrivesHolderReads(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	// leaseCLIStore claims at base+10m with a five-minute lease.
 	root, claims := leaseCLIStore(t, 1, now.Add(-16*time.Minute))
@@ -108,12 +108,12 @@ func TestCALV0115_PolicyTTLDrivesHolderReads(t *testing.T) {
 	}
 }
 
-// TestCALV0116_StaleHolderCoordinatorHandoff: under a steady policy TTL a
+// TestCALV0121_StaleHolderCoordinatorHandoff: under a steady policy TTL a
 // stale holder stays RUNNING with its reservation until a coordinator
 // chooses an evidence HANDOFF release through the ordinary fenced writer;
 // that release charges no retry. release --help names STALE_HOLDER as
 // advisory input, not authority.
-func TestCALV0116_StaleHolderCoordinatorHandoff(t *testing.T) {
+func TestCALV0121_StaleHolderCoordinatorHandoff(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	root, claims := leaseCLIStoreWith(t, 1, now.Add(-16*time.Minute), func(p *wire.Object) {
 		p.Set("holderLiveness", wire.ObjectValue(wire.NewObject().Set("heartbeatTTLSeconds", wire.String("300"))))

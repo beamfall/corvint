@@ -123,13 +123,13 @@ type Policy struct {
 	// LoopDetection is the optional CAL-V0-102 no-progress loop policy;
 	// nil (the key absent) disables loop detection.
 	LoopDetection *LoopDetection
-	// HolderLiveness is the optional CAL-V0-115 heartbeat observation
+	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
 	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
 	HolderLiveness *HolderLiveness
 	Raw            []byte
 }
 
-// HolderLiveness sets the CAL-V0-115 heartbeat observation TTL. It changes
+// HolderLiveness sets the CAL-V0-120 heartbeat observation TTL. It changes
 // only how reads classify a recorded heartbeat; it never fences, renews,
 // releases or reaps an attempt.
 type HolderLiveness struct {
@@ -140,7 +140,7 @@ type HolderLiveness struct {
 // the policy omits holderLiveness.
 const DefaultHeartbeatTTLSeconds = 600
 
-// Heartbeat TTL bounds (CAL-V0-115). The minimum stays above the 240-second
+// Heartbeat TTL bounds (CAL-V0-120). The minimum stays above the 240-second
 // `attempt run` heartbeat interval, so a running supervised command is never
 // reported stale between its own heartbeats.
 const (

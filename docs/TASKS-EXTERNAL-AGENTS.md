@@ -549,14 +549,14 @@ Send `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id F
 periodically while holding a work lease. Each fresh request records lastHeartbeatAt; replaying
 one does not refresh it. Claims initialize the signal and readmission resets it. The
 observation TTL is 600 seconds unless the policy sets `{"holderLiveness":{"heartbeatTTLSeconds":"N"}}`
-with N from 300 to 86400 (CAL-V0-115); reads report the effective value as `heartbeatTTLSeconds`.
+with N from 300 to 86400 (CAL-V0-120); reads report the effective value as `heartbeatTTLSeconds`.
 Heartbeat does not renew the work lease. `attempt show` and
 `queue status` report FRESH_HOLDER or STALE_HOLDER for a recorded signal with a live work lease,
 LEASE_EXPIRED or TERMINAL for those states, CLOCK_BEFORE_HEARTBEAT for a backwards observation,
 and NOT_OBSERVED for a legacy record without the signal. Stale means a missing recent signal;
 it does not establish process death, physical quiescence or permission to release a holder.
 A coordinator may use STALE_HOLDER to choose an evidence `release --reason HANDOFF` for that
-attempt (CAL-V0-116). The release keeps every ordinary fence and HANDOFF precondition, and nothing
+attempt (CAL-V0-121). The release keeps every ordinary fence and HANDOFF precondition, and nothing
 releases, reaps or hands off a stale holder automatically. A TTL change is a policy change and
 fences live evidence handoffs `STALE_POLICY`, so set it before claims.
 

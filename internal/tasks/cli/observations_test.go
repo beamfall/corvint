@@ -42,10 +42,10 @@ func TestCALV0048_HolderObservationBoundaries(t *testing.T) {
 	}
 }
 
-// TestCALV0115_HolderObservationUsesPolicyTTL classifies the same recorded
+// TestCALV0120_HolderObservationUsesPolicyTTL classifies the same recorded
 // signal against the effective policy TTL and reports that TTL; legacy
 // absence stays NOT_OBSERVED, never STALE_HOLDER, at any TTL.
-func TestCALV0115_HolderObservationUsesPolicyTTL(t *testing.T) {
+func TestCALV0120_HolderObservationUsesPolicyTTL(t *testing.T) {
 	at := wire.Timestamp("2026-10-01T00:00:00Z")
 	base, e := time.Parse(time.RFC3339, string(at))
 	if e != nil {

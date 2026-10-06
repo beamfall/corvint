@@ -13,10 +13,10 @@ func holderLivenessDef(ttl string) *wire.Object {
 	return wire.NewObject().Set("heartbeatTTLSeconds", wire.String(ttl))
 }
 
-// TestCALV0115_PolicyHolderLivenessOptIn pins the optional holderLiveness
+// TestCALV0120_PolicyHolderLivenessOptIn pins the optional holderLiveness
 // policy key: omission keeps the canonical bytes and the 600-second default,
 // a closed in-range definition sets the TTL, and anything else refuses.
-func TestCALV0115_PolicyHolderLivenessOptIn(t *testing.T) {
+func TestCALV0120_PolicyHolderLivenessOptIn(t *testing.T) {
 	raw := fixture.PolicyBytes()
 	p, err := intent.DecodePolicy(raw)
 	if err != nil || p.HolderLiveness != nil || p.HeartbeatTTLSeconds() != intent.DefaultHeartbeatTTLSeconds || intent.DefaultHeartbeatTTLSeconds != 600 || !bytes.Equal(p.Raw, raw) || bytes.Contains(raw, []byte("holderLiveness")) {
@@ -38,18 +38,21 @@ func TestCALV0115_PolicyHolderLivenessOptIn(t *testing.T) {
 			t.Fatalf("ttl %s effective %s", ttl, got)
 		}
 	}
-	for name, bad := range map[string]wire.Value{
-		"below minimum":  wire.ObjectValue(holderLivenessDef("299")),
-		"zero":           wire.ObjectValue(holderLivenessDef("0")),
-		"above maximum":  wire.ObjectValue(holderLivenessDef("86401")),
-		"not a count":    wire.ObjectValue(holderLivenessDef("ten")),
-		"unknown member": wire.ObjectValue(holderLivenessDef("600").Set("autoRelease", wire.Bool(true))),
-		"null":           wire.Null(),
-		"empty":          wire.ObjectValue(wire.NewObject()),
-		"not an object":  wire.String("600"),
+	for name, tc := range map[string]struct {
+		def  wire.Value
+		code string
+	}{
+		"below minimum":  {wire.ObjectValue(holderLivenessDef("299")), wire.CodeLimitExceeded},
+		"zero":           {wire.ObjectValue(holderLivenessDef("0")), wire.CodeLimitExceeded},
+		"above maximum":  {wire.ObjectValue(holderLivenessDef("86401")), wire.CodeLimitExceeded},
+		"not a count":    {wire.ObjectValue(holderLivenessDef("ten")), wire.CodeMalformed},
+		"unknown member": {wire.ObjectValue(holderLivenessDef("600").Set("autoRelease", wire.Bool(true))), wire.CodeMalformed},
+		"null":           {wire.Null(), wire.CodeMalformed},
+		"empty":          {wire.ObjectValue(wire.NewObject()), wire.CodeMalformed},
+		"not an object":  {wire.String("600"), wire.CodeMalformed},
 	} {
-		if _, _, err := decode(bad); err == nil {
-			t.Fatalf("%s: accepted", name)
+		if _, _, err := decode(tc.def); wire.CodeOf(err) != tc.code {
+			t.Fatalf("%s: got %v, want %s", name, err, tc.code)
 		}
 	}
 }

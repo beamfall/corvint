@@ -10,7 +10,7 @@ import (
 )
 
 // Heartbeat freshness describes a recorded signal, never physical quiescence.
-// ttlSeconds is the effective policy TTL (CAL-V0-115); the status is derived
+// ttlSeconds is the effective policy TTL (CAL-V0-120); the status is derived
 // on every read and never written.
 func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time, ttlSeconds int64) {
 	status := "NOT_OBSERVED"
