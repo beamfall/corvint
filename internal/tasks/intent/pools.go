@@ -2,17 +2,35 @@ package intent
 
 import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"path"
 	"sort"
 )
 
 const MaxPoolMembers = 256
 
+// MaxPoolCommandSeconds bounds one memberConfig health or cleanup command
+// (CAL-V0-033, PSR-V0-011). Inside pool sweep the member's shared safeReuse
+// deadline and the sweep's total budget still bound it.
+const MaxPoolCommandSeconds = 3600
+
+// CwdRepository and CwdPinned are the pool command working-directory kinds.
+const (
+	CwdRepository = "REPOSITORY"
+	CwdPinned     = "PINNED_REPOSITORY"
+)
+
 var StageRoles = []string{"implement", "review", "integrate"}
 
 type ConfigRef struct{ Revision, Path, Blob string }
+
+// PinnedCwd names an external Git worktree (PSR-V0-012). A command declaring
+// it runs there only while that worktree's HEAD is Revision and its inputs are
+// clean; otherwise it refuses and never runs elsewhere.
+type PinnedCwd struct{ Path, Revision string }
 type PoolCommand struct {
 	Argv, Env      []string
 	Cwd            string
+	Pinned         *PinnedCwd
 	TimeoutSeconds wire.Count
 }
 type MemberConfig struct {
@@ -40,9 +58,26 @@ func ConfigRefValue(c *ConfigRef) wire.Value {
 	}
 	return wire.ObjectValue(wire.NewObject().Set("revision", wire.String(c.Revision)).Set("path", wire.String(c.Path)).Set("blob", wire.String(c.Blob)))
 }
+
+// readPoolCwd accepts "REPOSITORY" or a closed pinned external worktree
+// {kind:"PINNED_REPOSITORY",path,revision}: a clean absolute path and a full
+// Git object id. Validation is host-independent; execution verifies the pin.
+func readPoolCwd(r *wire.Reader) (string, *PinnedCwd) {
+	if r.Value().Kind != wire.KindObject {
+		return r.Enum(CwdRepository), nil
+	}
+	r.Closed("kind", "path", "revision")
+	r.Field("kind").Exact(CwdPinned)
+	p := &PinnedCwd{Path: r.Field("path").PathText(), Revision: r.Field("revision").OID()}
+	if r.Err() == nil && (path.Clean(p.Path) != p.Path || p.Path == "/") {
+		r.Fail(wire.CodeMalformed, "pinned cwd path must be a clean absolute directory")
+	}
+	return CwdPinned, p
+}
 func readPoolCommand(r *wire.Reader) *PoolCommand {
 	r.Closed("argv", "cwd", "env", "timeoutSeconds")
-	c := &PoolCommand{Cwd: r.Field("cwd").Enum("REPOSITORY"), Env: r.Field("env").Strings(64, false, (*wire.Reader).Label), TimeoutSeconds: boundCount(r.Field("timeoutSeconds"), 1, 300)}
+	c := &PoolCommand{Env: r.Field("env").Strings(64, false, (*wire.Reader).Label), TimeoutSeconds: boundCount(r.Field("timeoutSeconds"), 1, MaxPoolCommandSeconds)}
+	c.Cwd, c.Pinned = readPoolCwd(r.Field("cwd"))
 	for _, arg := range r.Field("argv").Array(128, true) {
 		c.Argv = append(c.Argv, arg.Prose(1, 4096))
 	}

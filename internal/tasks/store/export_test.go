@@ -1,6 +1,9 @@
 package store
 
-import "github.com/Beamfall/corvint/internal/tasks/transaction"
+import (
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"time"
+)
 
 var ReconcileBeforeCommitForTest = reconcile
 
@@ -49,4 +52,12 @@ func SetRunFaultForTest(f func(point string) error) func() {
 	old := runFault
 	runFault = f
 	return func() { runFault = old }
+}
+
+// SetPoolCommandSecondForTest shortens the unit of a health/cleanup
+// timeoutSeconds bound until the returned restore is called.
+func SetPoolCommandSecondForTest(d time.Duration) func() {
+	prev := poolCommandSecond
+	poolCommandSecond = d
+	return func() { poolCommandSecond = prev }
 }

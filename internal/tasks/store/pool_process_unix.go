@@ -75,7 +75,7 @@ func executePool(ctx context.Context, def *intent.PoolCommand, root string, env 
 	readDone := make(chan struct{})
 	go func() { _, _ = io.Copy(out, pipeRead); close(readDone) }()
 	stopped := make(chan struct{})
-	timer := time.NewTimer(time.Duration(def.TimeoutSeconds.Int()) * time.Second)
+	timer := time.NewTimer(time.Duration(def.TimeoutSeconds.Int()) * poolCommandSecond)
 	defer timer.Stop()
 	reason := make(chan string, 1)
 	watcherDone := make(chan struct{})

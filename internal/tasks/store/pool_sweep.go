@@ -183,6 +183,12 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 					if e = sweepConfig(run, c.Root, en.ConfigRef); e != nil {
 						return transaction.LeaseFacts{}, e
 					}
+					// PSR-V0-012: every pinned phase cwd must match before admission.
+					for _, def := range []*intent.PoolCommand{config.Cleanup, &config.SafeReuse.Reset} {
+						if _, e = poolCommandDir(run, def, c.Root); e != nil {
+							return transaction.LeaseFacts{}, e
+						}
+					}
 					keys := append([]string{}, config.SafeReuse.Reset.Env...)
 					if config.Cleanup != nil {
 						keys = append(keys, config.Cleanup.Env...)
@@ -292,10 +298,20 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				revision, tree, sourceErr := sweepSource(attemptCtx, c.Root)
 				result.Class = sweepSourceClass(sourceErr)
 				if sourceErr == nil && revision == en.CommandRevision && tree == en.Sweep.Tree {
-					result = executePoolCaptured(attemptCtx, def, c.Root, env)
-					after, afterTree, err := sweepSource(attemptCtx, c.Root)
-					if err != nil || after != revision || afterTree != tree {
-						result.Class = sweepSourceClass(err)
+					// PSR-V0-012: a pinned cwd is re-verified around each phase;
+					// a mismatch runs nothing and records a failed phase.
+					dir, pinErr := poolCommandDir(attemptCtx, def, c.Root)
+					result.Class = sweepSourceClass(pinErr)
+					if pinErr == nil {
+						result = executePoolCaptured(attemptCtx, def, dir, env)
+						_, pinErr = poolCommandDir(attemptCtx, def, c.Root)
+						after, afterTree, err := sweepSource(attemptCtx, c.Root)
+						if err == nil {
+							err = pinErr
+						}
+						if err != nil || after != revision || afterTree != tree {
+							result.Class = sweepSourceClass(err)
+						}
 					}
 				}
 			}
