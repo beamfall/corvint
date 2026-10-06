@@ -1419,14 +1419,19 @@ can any other registration failure. Two limits apply beyond the budget:
   above as V1-0775).
 - Lease commits keep the re-read out of the writer lock (V1-0845). Just before taking the lock they
   `Sweep` the over-budget stat tuples, and under the lock they call `CheckEvents`, which only polls
-  kqueue and the result kept from earlier reads, so locked work does not grow with the store
-  (CAL-V0-026). A store writer changes files only by creating, linking, renaming or removing
-  entries (`authority.Session`), which a watched directory reports whenever it happens, so no store
-  write between the sweep and the locked check is lost. The accepted bound is an in-place write or
-  mode change to an over-budget file by an actor that does not take the writer lock, made after
-  the sweep read that file: the locked check does not see it, and it is met as an edit made after
-  the check is (below). Such an actor is not ordered against the lock, so the stat re-read under
-  the lock only moved where that window began. Other `Check` callers still re-read every tuple.
+  kqueue and the result kept from earlier reads, so guard polling under the lock does not grow with
+  the store. This does not by itself meet CAL-V0-026's locked-work bound: `retainCheckpoint`, still
+  called under the lock, traverses, sorts and encodes the whole canonical map, a remaining
+  store-size cost tracked separately. A store writer changes files only by creating, linking,
+  renaming or removing entries (`authority.Session`), which a watched directory reports whenever it
+  happens, so no store write between the sweep and the locked check is lost; no Tasks writer edits a
+  watched file in place. The accepted bound is an in-place write or mode change to an over-budget
+  file by an actor that does not take the writer lock (an external editor or tool), made after the
+  sweep read that file: the locked check does not see it. The lease then commits on the canonical
+  journal content, because `commitLease` rebinds only `head.json` and not the intent tree, and the
+  next audit refuses the edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or a
+  ticket). Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
 
 Linux inotify holds no descriptor per watched path and needs no budget.
 

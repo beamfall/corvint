@@ -381,33 +381,33 @@ CAL-V0-067	docs/specs/corvint-tasks-agent-leases-v0.md	1177	RELEASE MAY accept a
 CAL-V0-068	docs/specs/corvint-tasks-agent-leases-v0.md	1242	The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
 CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	538	`claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolea
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1355	`store.Mutate` MUST take its request lookup and its canonical intent records fro
-CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1746	The optional policy `supervision` object MAY carry `repositories`, a closed obje
-CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1764	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	3332	`corvint-tasks ticket create --template` MUST return, in one
-CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1926	The optional policy `supervision` object MAY carry `host`, whose admitted
-CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2002	A `claude-code` stage MUST invoke the pinned executable with the prompt on
-CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2136	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
-CAL-V0-077	docs/specs/corvint-tasks-agent-leases-v0.md	2146	An `opencode` stage MUST invoke the pinned executable with the prompt on standar
-CAL-V0-078	docs/specs/corvint-tasks-agent-leases-v0.md	2781	Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
-CAL-V0-079	docs/specs/corvint-tasks-agent-leases-v0.md	2306	`corvint-tasks critical-path <ticketId|local>` MUST return one
-CAL-V0-080	docs/specs/corvint-tasks-agent-leases-v0.md	2322	The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
-CAL-V0-081	docs/specs/corvint-tasks-agent-leases-v0.md	2333	The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
-CAL-V0-082	docs/specs/corvint-tasks-agent-leases-v0.md	2408	`release` MUST accept `--handoff-to implement|review|integrate` (the closed
-CAL-V0-083	docs/specs/corvint-tasks-agent-leases-v0.md	2421	The `--handoff-reason` set is closed: `CHANGES_REQUESTED` returns review or
-CAL-V0-084	docs/specs/corvint-tasks-agent-leases-v0.md	2426	`ticket show`, each `plan preview` entry and the dispatcher's native ticket
-CAL-V0-085	docs/specs/corvint-tasks-agent-leases-v0.md	2436	A release without the new flags MUST keep its exact request preimage, replay and
-CAL-V0-086	docs/specs/corvint-tasks-agent-leases-v0.md	2938	An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
-CAL-V0-087	docs/specs/corvint-tasks-agent-leases-v0.md	1773	A config `repositories` entry MAY carry `integrationBranch`, a label naming the
-CAL-V0-088	docs/specs/corvint-tasks-agent-leases-v0.md	1811	Every stage of a multi-repository program MUST obtain, besides the primary packe
-CAL-V0-089	docs/specs/corvint-tasks-agent-leases-v0.md	1816	The optional policy `supervision` object MAY carry `continuations`, a canonical
-CAL-V0-095	docs/specs/corvint-tasks-agent-leases-v0.md	2530	`queue status` MUST add one `preparationAdmission` object to its item, observed
-CAL-V0-096	docs/specs/corvint-tasks-agent-leases-v0.md	2359	When a CLAIM or CLAIM_NEXT admits the next generation of an
-CAL-V0-097	docs/specs/corvint-tasks-agent-leases-v0.md	2480	In the default plan (no `--pool`), a ticket whose `requiresPool` names a pool th
-CAL-V0-098	docs/specs/corvint-tasks-agent-leases-v0.md	2674	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusi
-CAL-V0-099	docs/specs/corvint-tasks-agent-leases-v0.md	2569	A ticket record MAY carry the optional key `executionPrerequisites`. Its value i
-CAL-V0-101	docs/specs/corvint-tasks-agent-leases-v0.md	2713	A policy pool MAY set the optional boolean `priorityAdmission`; omission and
-CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2819	A policy MAY carry the optional top-level key `loopDetection`, a closed object
-CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2853	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
+CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1751	The optional policy `supervision` object MAY carry `repositories`, a closed obje
+CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1769	After `implement`, each repository with changes MUST receive a candidate commit
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	3337	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1931	The optional policy `supervision` object MAY carry `host`, whose admitted
+CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2007	A `claude-code` stage MUST invoke the pinned executable with the prompt on
+CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2141	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
+CAL-V0-077	docs/specs/corvint-tasks-agent-leases-v0.md	2151	An `opencode` stage MUST invoke the pinned executable with the prompt on standar
+CAL-V0-078	docs/specs/corvint-tasks-agent-leases-v0.md	2786	Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
+CAL-V0-079	docs/specs/corvint-tasks-agent-leases-v0.md	2311	`corvint-tasks critical-path <ticketId|local>` MUST return one
+CAL-V0-080	docs/specs/corvint-tasks-agent-leases-v0.md	2327	The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
+CAL-V0-081	docs/specs/corvint-tasks-agent-leases-v0.md	2338	The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
+CAL-V0-082	docs/specs/corvint-tasks-agent-leases-v0.md	2413	`release` MUST accept `--handoff-to implement|review|integrate` (the closed
+CAL-V0-083	docs/specs/corvint-tasks-agent-leases-v0.md	2426	The `--handoff-reason` set is closed: `CHANGES_REQUESTED` returns review or
+CAL-V0-084	docs/specs/corvint-tasks-agent-leases-v0.md	2431	`ticket show`, each `plan preview` entry and the dispatcher's native ticket
+CAL-V0-085	docs/specs/corvint-tasks-agent-leases-v0.md	2441	A release without the new flags MUST keep its exact request preimage, replay and
+CAL-V0-086	docs/specs/corvint-tasks-agent-leases-v0.md	2943	An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
+CAL-V0-087	docs/specs/corvint-tasks-agent-leases-v0.md	1778	A config `repositories` entry MAY carry `integrationBranch`, a label naming the
+CAL-V0-088	docs/specs/corvint-tasks-agent-leases-v0.md	1816	Every stage of a multi-repository program MUST obtain, besides the primary packe
+CAL-V0-089	docs/specs/corvint-tasks-agent-leases-v0.md	1821	The optional policy `supervision` object MAY carry `continuations`, a canonical
+CAL-V0-095	docs/specs/corvint-tasks-agent-leases-v0.md	2535	`queue status` MUST add one `preparationAdmission` object to its item, observed
+CAL-V0-096	docs/specs/corvint-tasks-agent-leases-v0.md	2364	When a CLAIM or CLAIM_NEXT admits the next generation of an
+CAL-V0-097	docs/specs/corvint-tasks-agent-leases-v0.md	2485	In the default plan (no `--pool`), a ticket whose `requiresPool` names a pool th
+CAL-V0-098	docs/specs/corvint-tasks-agent-leases-v0.md	2679	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusi
+CAL-V0-099	docs/specs/corvint-tasks-agent-leases-v0.md	2574	A ticket record MAY carry the optional key `executionPrerequisites`. Its value i
+CAL-V0-101	docs/specs/corvint-tasks-agent-leases-v0.md	2718	A policy pool MAY set the optional boolean `priorityAdmission`; omission and
+CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2824	A policy MAY carry the optional top-level key `loopDetection`, a closed object
+CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2858	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

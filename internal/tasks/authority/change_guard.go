@@ -136,8 +136,9 @@ func (g *ChangeGuard) Check() error { return g.check(true) }
 // Store writers (authority.Session) change files only by creating, linking,
 // renaming or removing entries, which watched directories report at any time.
 // Only an in-place write or mode change to an uncovered file by an actor
-// outside the writer lock, made after the sweep read it, goes unreported; it
-// is met as an edit made after the check is.
+// outside the writer lock, made after the sweep read it, goes unreported; no
+// Tasks writer edits a watched file in place, and the next journal audit
+// refuses such an edit to an intent projection as INTENT_DIVERGED.
 func (g *ChangeGuard) Sweep() {
 	if g != nil && !g.closed {
 		g.watch.sweep()

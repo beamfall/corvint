@@ -44,6 +44,19 @@ var (
 	sweepLstat             = os.Lstat
 )
 
+// SetVnodeTestHooks is a seam for tests in other packages: watches started
+// before restore runs use budget regular-file descriptors, and observe sees
+// every over-budget stat read. Production code never calls it.
+func SetVnodeTestHooks(budget int64, observe func(path string)) (restore func()) {
+	budgetOf, lstat := vnodeFileBudget, sweepLstat
+	vnodeFileBudget = func() int64 { return budget }
+	sweepLstat = func(path string) (os.FileInfo, error) {
+		observe(path)
+		return lstat(path)
+	}
+	return func() { vnodeFileBudget, sweepLstat = budgetOf, lstat }
+}
+
 // defaultVnodeFileBudget leaves half of the soft descriptor limit for
 // directories, the reads that follow registration and concurrent work.
 func defaultVnodeFileBudget() int64 {

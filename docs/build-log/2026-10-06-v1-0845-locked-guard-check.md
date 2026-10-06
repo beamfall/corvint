@@ -5,7 +5,7 @@
 Ticket V1-0845 (agent-filed from an independent review of the V1-0841 fix): on macOS, files beyond
 the kqueue descriptor budget are tracked by a stat tuple that every `ChangeGuard.Check` re-read.
 Lease commits call `Check` twice while holding the writer lock, so once a store exceeds the budget
-the locked work grew with the number of over-budget files, contrary to CAL-V0-026. Governing
+the locked guard work grew with the number of over-budget files, contrary to CAL-V0-026. Governing
 contract: `docs/specs/corvint-tasks-agent-leases-v0.md`, CAL-V0-026 and the descriptor-budget
 paragraph of the change-guard section.
 
@@ -20,6 +20,14 @@ paragraph of the change-guard section.
   points. Because the sweep's finding is sticky, the locked check reports it at the same point in the
   locked sequence, so the order of refusals is unchanged.
 - The spec's second descriptor-budget limit is replaced by the accepted bound below.
+- Test seams only: `authority.SetVnodeTestHooks` (darwin; budget and an observer of over-budget
+  stat reads) and an unexported `commitStage` field in the store's inventory hooks, called with
+  `sweep` before `Sweep` and `lock` before `AcquireLock`.
+
+Scope of the claim: guard polling under the writer lock is now independent of store size. CAL-V0-026
+is not yet met for lease commits: `retainCheckpoint` (`lease_write.go` → `journal/checkpoint.go`,
+`store/guards.go`) still traverses, sorts and encodes the whole canonical map under the lock. That
+cost predates V1-0845 and remains, recorded for a follow-up ticket.
 
 ## Decision: sweep before the lock, directory events cover store writers
 
@@ -42,12 +50,15 @@ Of the ticket's directions:
   state under their own configured roots.
 
 Accepted bound: an in-place write or mode change to an over-budget file by an actor that does not
-take the writer lock (an editor or tool writing a ticket file in place), made after the sweep read
-that file and before the locked check, is not seen by that check. Such an actor is not ordered
-against the writer lock; under V1-0841 the same write made just after the locked check was equally
-unseen, so the stat re-read under the lock only moved where that window began, by the lock wait.
-The edit is met as an edit made after the check is (pre-apply binding and the next audit). Within
-the budget, and on Linux, nothing changes.
+take the writer lock (an external editor or tool writing a ticket or `policy.json` in place), made
+after the sweep read that file and before the locked check, is not seen by that check. No Tasks
+writer edits a watched file in place, so only such external actors reach this window. The real
+consequence: the lease commits on the canonical journal content, because `commitLease` rebinds only
+`head.json` (it does not call `bindObservation` and ordinary leases pass no `beforeCommit`), and the
+next journal audit refuses the edit, `INTENT_DIVERGED` for an intent projection. Such an actor is not
+ordered against the writer lock; under V1-0841 the same write made just after the locked check had
+the same consequence, so the stat re-read under the lock only moved where that window began, by the
+lock wait. Within the budget, and on Linux, nothing changes.
 
 ## Evidence
 
@@ -58,6 +69,18 @@ the budget, and on Linux, nothing changes.
   `TestCALV0026_SweepThenLockedCheckLosesNoChange` (a change before the sweep and a rename, link,
   remove or sibling create after it are all reported by `CheckEvents` with no stat read; the
   in-place write after the sweep is the recorded bound and a later `Check` reports it).
+  The rename and link cases stage their file outside the watched trees and first assert a clean
+  `CheckEvents`, so the single entry operation alone must produce the report.
+- Maintained darwin store tests in `internal/tasks/store/lease_guard_darwin_test.go` drive a real
+  claim through `Lease` with budget 0:
+  `TestCALV0026_LeaseCommitSweepsOutsideWriterLock` probes writer-lock ownership with a second
+  `flock(LOCK_EX|LOCK_NB)` on each over-budget stat read and requires 0 reads under the lock and
+  more than 0 between the `sweep` and `lock` stages (12 observed). Mutation checks: reverting the
+  first locked `CheckEvents` to `Check` (12 locked reads), moving `Sweep` under the lock (12 locked,
+  0 in the window) and removing `Sweep` (0 in the window) each fail it.
+  `TestCALV0026_InPlaceIntentEditAfterCommitSweep` edits `policy.json` in place: at the `lock` stage
+  the claim commits and the next `Lease` is refused `INTENT_DIVERGED`; at the `sweep` stage the claim
+  is refused (`INTENT_DIVERGED`) with no receipt.
 - Existing darwin guard tests updated to the split methods and passing; the broken-watch test now
   covers `CheckEvents`.
 - Targeted store lease tests (`TestCALV0026_*` audit/guarded inventory/reuse/preparation,
@@ -70,4 +93,4 @@ the budget, and on Linux, nothing changes.
 ## Rollback
 
 Revert the commit. The guard returns to re-reading over-budget tuples under the lock, which is
-correct but violates CAL-V0-026's locked-work bound beyond the budget.
+correct but adds store-size guard work under the lock beyond the budget.

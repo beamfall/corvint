@@ -281,6 +281,12 @@ func TestCALV0026_SweepThenLockedCheckLosesNoChange(t *testing.T) {
 			if len(g.watch.(*vnodeWatch).stats) != 1 {
 				t.Fatal("x.json not over budget")
 			}
+			// The rename and link stages sit outside the watched trees on the
+			// same filesystem, so the one entry operation is the only event.
+			stage := filepath.Join(t.TempDir(), "stage")
+			if err := os.WriteFile(stage, []byte("cccc"), 0600); err != nil {
+				t.Fatal(err)
+			}
 			change := func() error {
 				switch name {
 				case "before-sweep-in-place", "after-sweep-in-place":
@@ -288,18 +294,9 @@ func TestCALV0026_SweepThenLockedCheckLosesNoChange(t *testing.T) {
 				case "before-sweep-chmod":
 					return os.Chmod(file, 0640)
 				case "after-sweep-rename-replace":
-					if err := os.WriteFile(file+".tmp", []byte("cccc"), 0600); err != nil {
-						return err
-					}
-					return os.Rename(file+".tmp", file)
+					return os.Rename(stage, file)
 				case "after-sweep-link":
-					if err := os.WriteFile(file+".tmp", []byte("cccc"), 0600); err != nil {
-						return err
-					}
-					if err := os.Remove(file); err != nil {
-						return err
-					}
-					return os.Link(file+".tmp", file)
+					return os.Link(stage, filepath.Join(filepath.Dir(file), "y.json"))
 				case "after-sweep-remove":
 					return os.Remove(file)
 				default:
@@ -314,6 +311,9 @@ func TestCALV0026_SweepThenLockedCheckLosesNoChange(t *testing.T) {
 			}
 			g.Sweep()
 			if !before {
+				if err := g.CheckEvents(); err != nil {
+					t.Fatalf("clean store reported before the change: %v", err)
+				}
 				if err := change(); err != nil {
 					t.Fatal(err)
 				}

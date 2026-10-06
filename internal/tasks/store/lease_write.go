@@ -390,8 +390,12 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 		return p.fatalError()
 	}
 	// The sweep re-reads over-budget files outside the lock; the locked checks
-	// below only poll events, so locked work stays independent of store size.
+	// below only poll events, so guard work under the lock does not grow with
+	// the store.
+	stage := hooksForInventory(ctx).commitStage
+	stage("sweep")
 	p.guard.Sweep()
+	stage("lock")
 	timing, wait := leaseTimingOf(ctx), time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	timing.LockWait += time.Since(wait)
