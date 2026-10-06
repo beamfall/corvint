@@ -1,6 +1,10 @@
 package store
 
-import "github.com/Beamfall/corvint/internal/tasks/transaction"
+import (
+	"errors"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"time"
+)
 
 var ReconcileBeforeCommitForTest = reconcile
 
@@ -49,4 +53,24 @@ func SetRunFaultForTest(f func(point string) error) func() {
 	old := runFault
 	runFault = f
 	return func() { runFault = old }
+}
+
+// SetPoolCommandSecondForTest shortens the unit of a health/cleanup
+// timeoutSeconds bound until the returned restore is called.
+func SetPoolCommandSecondForTest(d time.Duration) func() {
+	prev := poolCommandSecond
+	poolCommandSecond = d
+	return func() { poolCommandSecond = prev }
+}
+
+// SetPoolPinStepForTest installs a hook after each pinned-cwd proof step.
+func SetPoolPinStepForTest(hook func(step string) error) func() {
+	prev := poolPinStep
+	poolPinStep = hook
+	return func() { poolPinStep = prev }
+}
+
+// PoolBoundedProbeErrorForTest is a bounded Git probe failure of class.
+func PoolBoundedProbeErrorForTest(class string) error {
+	return sweepGitBounded{class: class, err: errors.New("bounded probe " + class)}
 }

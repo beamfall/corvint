@@ -648,7 +648,7 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   The proposed CAL-V0-067 profile MUST refuse every tracked started, pending, interrupted or
   uncertain use; missing command metadata alone MUST NOT qualify an allocation for that profile.
 - `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
-  a clean repository outside `.taskman`, a 1..300 second timeout and at most 64 KiB captured output.
+  a clean repository outside `.taskman`, a 1..3600 second timeout (PSR-V0-011) and at most 64 KiB captured output.
   Observations retain the output digest, not raw output. The implementation MUST join cancellation
   handling and stop/check the owned process group after normal exit, timeout and interruption;
   unproved cleanup MUST refuse admission. Detached processes, external services and a killed host
@@ -667,7 +667,8 @@ The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:ST
 memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}},
 priorityAdmission:BOOL}]` (`priorityAdmission` is CAL-V0-101's opt-in priority yield).
 Each map is closed over declared member names; each nested addition is optional. A command is
-`{argv:[ARG],cwd:"REPOSITORY",env:[NAME],timeoutSeconds:"N"}`. Git references return only identity,
+`{argv:[ARG],cwd:"REPOSITORY"|PINNED,env:[NAME],timeoutSeconds:"N"}`, where PINNED is PSR-V0-012's
+`{kind:"PINNED_REPOSITORY",path,revision}`. Git references return only identity,
 never configuration bodies. Duplicate identical configuration references refuse; differently named
 references cannot prove distinct physical environments. The command interpreter and external services
 are operator-provided dependencies, not attested deployed lineage. Commands run in the caller's

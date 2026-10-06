@@ -52,7 +52,9 @@ func poolGroupLiveContext(ctx context.Context, pid int) (bool, error) {
 
 // Trusted commands are confined to an owned process group. Detached processes
 // are outside this qualification; uncertain exit/pipe cleanup never admits.
-func executePool(ctx context.Context, def *intent.PoolCommand, root string, env []string) (class string, clean bool, digest wire.Digest) {
+// A non-nil guard runs immediately before Start; its failure starts nothing
+// and records SOURCE_CHANGED (PSR-V0-012).
+func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root string, env []string, guard func() error) (class string, clean bool, digest wire.Digest) {
 	out := &cappedOutput{}
 	cmd := exec.Command(def.Argv[0], def.Argv[1:]...)
 	cmd.Dir = root
@@ -67,6 +69,10 @@ func executePool(ctx context.Context, def *intent.PoolCommand, root string, env 
 	cmd.WaitDelay = time.Second
 	containGate(cmd)
 	out.kill = func() { killGate(cmd) }
+	if guard != nil && guard() != nil {
+		pipeWrite.Close()
+		return "SOURCE_CHANGED", true, wire.Sum(nil)
+	}
 	if e := cmd.Start(); e != nil {
 		pipeWrite.Close()
 		return "SPAWN_FAILED", true, wire.Sum(nil)
@@ -75,7 +81,7 @@ func executePool(ctx context.Context, def *intent.PoolCommand, root string, env 
 	readDone := make(chan struct{})
 	go func() { _, _ = io.Copy(out, pipeRead); close(readDone) }()
 	stopped := make(chan struct{})
-	timer := time.NewTimer(time.Duration(def.TimeoutSeconds.Int()) * time.Second)
+	timer := time.NewTimer(time.Duration(def.TimeoutSeconds.Int()) * poolCommandSecond)
 	defer timer.Stop()
 	reason := make(chan string, 1)
 	watcherDone := make(chan struct{})
@@ -192,7 +198,7 @@ func (w sweepWriter) Write(p []byte) (int, error) {
 }
 
 // Owned process-group observations have an absolute post-execution cleanup deadline.
-func executePoolCaptured(ctx context.Context, def *intent.PoolCommand, root string, env []string) (result poolCommandResult) {
+func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, root string, env []string, guard func() error) (result poolCommandResult) {
 	start := time.Now()
 	waited := start
 	defer func() {
@@ -229,6 +235,10 @@ func executePoolCaptured(ctx context.Context, def *intent.PoolCommand, root stri
 	cmd.Stdout = sweepWriter{true, captured}
 	cmd.Stderr = sweepWriter{false, captured}
 	cmd.Cancel = func() error { killGate(cmd); return nil }
+	if guard != nil && guard() != nil {
+		result.Class = "SOURCE_CHANGED"
+		return result
+	}
 	if e := cmd.Start(); e != nil {
 		return result
 	}

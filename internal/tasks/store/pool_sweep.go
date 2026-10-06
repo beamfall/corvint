@@ -183,6 +183,12 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 					if e = sweepConfig(run, c.Root, en.ConfigRef); e != nil {
 						return transaction.LeaseFacts{}, e
 					}
+					// PSR-V0-012: every pinned phase cwd must match before admission.
+					for _, def := range []*intent.PoolCommand{config.Cleanup, &config.SafeReuse.Reset} {
+						if _, _, e = poolCommandDir(run, def, c.Root); e != nil {
+							return transaction.LeaseFacts{}, e
+						}
+					}
 					keys := append([]string{}, config.SafeReuse.Reset.Env...)
 					if config.Cleanup != nil {
 						keys = append(keys, config.Cleanup.Env...)
@@ -280,6 +286,17 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				def = &member.config.SafeReuse.Verify
 			}
 			env, envDigest := member.env.phase(def.Env)
+			// phasePasses is the phase predicate on the command's own result,
+			// before any post-exit proof.
+			phasePasses := func(r poolCommandResult) bool {
+				if !r.Clean || r.Exit == nil {
+					return false
+				}
+				if phase != "verify" {
+					return r.Class == "EXIT_ZERO" && r.Exit.Int() == 0
+				}
+				return (r.Class == "EXIT_ZERO" || r.Class == "EXIT_NONZERO") && r.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && strings.Contains(string(r.Stdout), member.config.SafeReuse.ExpectStdout)
+			}
 			// An ALL barrier forbids launching any further phase command; the
 			// owned sweep only publishes its terminal observation.
 			probe, e := snapshot.Probe(repo.StateDir)
@@ -288,14 +305,30 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				return out, e
 			}
 			result := poolCommandResult{Class: "INTERRUPTED", Clean: true}
+			var proofErr error
 			if probe.Barrier == nil || probe.Barrier.Scope != "ALL" {
 				revision, tree, sourceErr := sweepSource(attemptCtx, c.Root)
 				result.Class = sweepSourceClass(sourceErr)
 				if sourceErr == nil && revision == en.CommandRevision && tree == en.Sweep.Tree {
-					result = executePoolCaptured(attemptCtx, def, c.Root, env)
-					after, afterTree, err := sweepSource(attemptCtx, c.Root)
-					if err != nil || after != revision || afterTree != tree {
-						result.Class = sweepSourceClass(err)
+					// PSR-V0-012: a pinned cwd is re-verified around each phase;
+					// a mismatch runs nothing and records a failed phase.
+					dir, guard, pinErr := poolCommandDir(attemptCtx, def, c.Root)
+					result.Class = sweepSourceClass(pinErr)
+					if pinErr == nil {
+						result = executePoolCapturedGuarded(attemptCtx, def, dir, env, guard)
+						_, _, pinErr = poolCommandDir(attemptCtx, def, c.Root)
+						after, afterTree, err := sweepSource(attemptCtx, c.Root)
+						if err == nil && (after != revision || afterTree != tree) {
+							err = wire.Errorf(wire.CodeStaleTree, "sweep", "source changed during the phase")
+						}
+						if err == nil {
+							err = pinErr
+						}
+						// PSR-V0-012: a normal exit may satisfy verify's expectExit, so a
+						// failed post-exit proof replaces either exit class and the
+						// phase can never pass without a successful proof.
+						proofErr = err
+						result.Class = poolPostClass(result.Class, phasePasses(result), err)
 					}
 				}
 			}
@@ -306,9 +339,8 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				}
 			}
 
-			passed := result.Clean && result.Exit != nil && result.Exit.Int() == 0 && (result.Class == "EXIT_ZERO")
+			passed := proofErr == nil && phasePasses(result)
 			if phase == "verify" {
-				passed = result.Clean && result.Exit != nil && result.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && (result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO") && strings.Contains(string(result.Stdout), member.config.SafeReuse.ExpectStdout)
 				if !passed && result.Class == "EXIT_ZERO" {
 					result.Class = "STDOUT_MISMATCH"
 				}

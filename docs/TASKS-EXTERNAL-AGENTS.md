@@ -266,8 +266,11 @@ receipt-bound allocation, including after a retry has acquired a successor. Rele
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
 
 Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
-`health`/`cleanup` commands. Each command has `argv`, `cwd:"REPOSITORY"`, declared `env` names and
-`timeoutSeconds` from 1 to 300. Health failures are skipped and reported in occupancy with reason,
+`health`/`cleanup` commands. Each command has `argv`, `cwd`, declared `env` names and
+`timeoutSeconds` from 1 to 3600. `cwd` is `"REPOSITORY"` or a pinned external checkout
+`{"kind":"PINNED_REPOSITORY","path":"/abs","revision":"<full sha>"}`, which runs only while that
+worktree's HEAD is the revision and its tree is clean (otherwise STALE_TREE, DIRTY_WORKTREE or
+MISSING_EVIDENCE, nothing runs). Inside `pool sweep` a cleanup still shares the safeReuse deadline. Health failures are skipped and reported in occupancy with reason,
 command kind and observation digest. Commands require clean repository inputs outside `.taskman`.
 The runner bounds captured output to 64 KiB and retains its digest only. It cleans the owned process
 group; detached processes and external databases remain the operator's responsibility.

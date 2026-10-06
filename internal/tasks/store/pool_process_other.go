@@ -12,7 +12,7 @@ import (
 func poolRunnerIdentity(int) (string, error) {
 	return "", wire.Errorf(wire.CodeUnsupported, "pool", "process identity unavailable")
 }
-func executePool(context.Context, *intent.PoolCommand, string, []string) (string, bool, wire.Digest) {
+func executePoolGuarded(context.Context, *intent.PoolCommand, string, []string, func() error) (string, bool, wire.Digest) {
 	return "UNKNOWN", false, wire.Sum(nil)
 }
 
@@ -28,6 +28,6 @@ type poolCommandResult struct {
 func poolRunnerIdentityContext(context.Context, int) (string, error) {
 	return "", wire.Errorf(wire.CodeUnsupported, "pool", "process identity unavailable")
 }
-func executePoolCaptured(context.Context, *intent.PoolCommand, string, []string) poolCommandResult {
+func executePoolCapturedGuarded(context.Context, *intent.PoolCommand, string, []string, func() error) poolCommandResult {
 	return poolCommandResult{Class: "UNKNOWN"}
 }
