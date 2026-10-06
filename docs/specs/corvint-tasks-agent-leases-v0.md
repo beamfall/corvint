@@ -1441,8 +1441,9 @@ refuses a changed `head.json` or intent tree `SNAPSHOT_MOVED`. `barrier.json` an
 file is seen by the next audit. Only the refusal code is claimed: with two or more diverged files,
 the path a refusal names follows Go map order, before this change as after it.
 
-The watch is not free: on macOS it holds one descriptor per watched path, and registering and
-closing it costs 5–11% of an after-change `Mutate`'s CPU time, growing with history (see below).
+The watch is not free: on macOS it holds one descriptor per watched path within the descriptor
+budget above, and registering and closing it costs 5–11% of an after-change `Mutate`'s CPU time,
+growing with history (see below; measured before the budget).
 Where it cannot be registered (a platform other than macOS or Linux, the entry bound, a path that
 is neither a regular file nor a directory, or an exhausted watch limit), `Mutate` runs the separate
 passes at their old cost.
