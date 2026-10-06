@@ -34,6 +34,17 @@ Invariant 7 rules out a permanent daemon.
   runner's status.
 - **Liveness is the recorded PID plus `supervisor.ProcessIdentity`, never a bare PID.** The run record
   is private runtime state: it is never evidence or authority, and `RUN_OUTCOME` stays the native record.
+- **Independent review (Codex, read-only) of the first commit found five issues, all fixed:**
+  - The `RUNNING` record write and fsync ran before the timeout and heartbeat timers existed. It now
+    runs beside the runner, and `FINISHED` waits for it. The spec now says that run-file writes have
+    no time bound but start only after the group is retired.
+  - The launcher reported `OK` for a `RUNNING` record without checking that its supervisor was still
+    live. It now checks the exit of its child and the recorded identity.
+  - The record decoder accepted trailing `]` or `}` and terminal facts on unfinished records. It now
+    requires end of input and state-consistent facts.
+  - The 64-run cap could be exceeded by concurrent launches, and directory listings were unbounded.
+    Listings now read at most 65 entries, and a launcher recounts after reserving its directory.
+  - The fence test measured from before the launch. It now measures from the release.
 - **Dispatcher integration is deferred.** It is listed as remaining work in the spec. CAL-V0-056
   `refreshTree` adopts children of recorded members by parent PID, and the heal hand-off releases an
   ended worker's attempt, which fences the run. Changing either one needs an owner decision on
@@ -55,10 +66,14 @@ All runs were on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count
   - TestATRV0009_DetachedPreLaunchRefusalIsReplayed.
   - TestATRV0012_AttachRefusesAProcessIdentityMismatch.
   - TestATRV0011_DetachAndAttachUsage.
-- `-count=3 -run 'TestATRV0008_|TestATRV0013_'` PASSED.
+  - TestATRV0010_RunRecordFactsMustAgreeWithItsState and TestATRV0010_DetachedRunsPerAttemptAreCapped
+    (added after review).
+- `-count=3 -run 'TestATRV0008_|TestATRV0013_'` PASSED, and again after the review fixes with
+  `TestATRV0010_|TestATRV0012_` included.
 - Mutation checks, each reverted afterwards:
   - Dropping `Setsid` failed TestATRV0008 ("launcher group still has members").
   - Trusting a bare PID failed TestATRV0012.
+  - Restoring the old `dec.More()` trailing-data check failed TestATRV0010_RunRecordFactsMustAgreeWithItsState.
 - `go vet ./internal/tasks/cli/` PASSED for GOOS darwin, linux and windows. `gofmt -l` was clean.
 - These checks PASSED: `make spec-requirements-check requirement-definitions-check
   line-citations-check traceability-tests-check unbounded-readers-check error-code-ownership-check
@@ -69,6 +84,8 @@ All runs were on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count
 - NOT_RUN: Linux execution (`/proc` start identity and setsid launch), Windows execution (ATR-V0-014 is
   vet only), `make gate`, the full `internal/tasks/cli` and `cmd/corvint` suites, live dispatcher and
   agent-host qualification, CEM dogfood binding, and native completion of V1-0856.
+- Not covered by a test: a supervisor that dies just after its `RUNNING` write (no hook was added
+  for it), and a concurrent launch at the cap.
 
 ## Rollback
 

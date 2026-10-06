@@ -214,7 +214,6 @@ func TestATRV0013_FencedAttemptKillsTheDetachedCommand(t *testing.T) {
 	root, a := attemptStore(t)
 	detachedEnv(t)
 	pidFile := filepath.Join(t.TempDir(), "pid")
-	start := time.Now()
 	launched := runAttempt(t, root, a, gen(a), []string{"--timeout", "60", "--detach"}, "/bin/sh", "-c", "echo $$ > "+pidFile+".tmp && mv "+pidFile+".tmp "+pidFile+"; sleep 60 & wait")
 	if launched.code != 0 || field(launched.res.Items[0], "state").Str != "RUNNING" {
 		t.Fatalf("launch: code %d %s", launched.code, launched.stdout)
@@ -225,6 +224,7 @@ func TestATRV0013_FencedAttemptKillsTheDetachedCommand(t *testing.T) {
 			_ = syscall.Kill(-group, syscall.SIGKILL)
 		}
 	})
+	released := time.Now()
 	releaseAttempt(t, root, a, "release-under-detached-run")
 	r := attach(t, root, a, "--wait", "60")
 	if r.code != 125 || r.res.Outcome != wire.OutcomeRefused || !hasCode(r.res, wire.CodeFenced) {
@@ -236,8 +236,9 @@ func TestATRV0013_FencedAttemptKillsTheDetachedCommand(t *testing.T) {
 	if err := syscall.Kill(-group, 0); !errors.Is(err, syscall.ESRCH) {
 		t.Fatalf("command group survived the fence: %v", err)
 	}
-	if elapsed := time.Since(start); elapsed > 30*time.Second {
-		t.Fatalf("fence took %s", elapsed)
+	// Beats are 200ms apart here; a fence that waits for the 60s timeout fails.
+	if elapsed := time.Since(released); elapsed > 45*time.Second {
+		t.Fatalf("fence took %s after the release", elapsed)
 	}
 }
 
@@ -279,10 +280,14 @@ func writeRecord(t *testing.T, base, runID string, rec map[string]any) string {
 }
 
 func plantedRecord(a *store.Report, runID, state string, pid int, identity string) map[string]any {
-	return map[string]any{"profile": "taskman-attempt-run-record/0", "runId": runID, "attemptId": a.AttemptID, "generation": gen(a),
+	rec := map[string]any{"profile": "taskman-attempt-run-record/0", "runId": runID, "attemptId": a.AttemptID, "generation": gen(a),
 		"argvSha256": strings.Repeat("0", 64), "timeoutSeconds": 60, "state": state, "launchedAt": "2026-10-06T00:00:00Z",
 		"supervisorPid": pid, "supervisorIdentity": identity, "commandPid": pid, "commandIdentity": nil,
 		"endedAt": nil, "exitStatus": nil, "resultSha256": nil, "outputBytes": 0, "outputDroppedBytes": 0}
+	if state == "STARTING" {
+		rec["commandPid"] = nil
+	}
+	return rec
 }
 
 // TestATRV0012_AttachRefusesAProcessIdentityMismatch: a recorded PID whose
@@ -337,6 +342,88 @@ func TestATRV0012_AttachRefusesAProcessIdentityMismatch(t *testing.T) {
 	// Several runs and no --run: listed, not guessed.
 	if r := attach(t, root, a); r.code != 1 || r.res.Outcome != wire.OutcomeRefused || len(r.res.Items) != 5 {
 		t.Fatalf("ambiguous attach: code %d %s", r.code, r.stdout)
+	}
+}
+
+// TestATRV0010_RunRecordFactsMustAgreeWithItsState: trailing data, terminal
+// facts on an unfinished record, an exit status outside 0..255 and output
+// totals that disagree are MALFORMED; nothing is replayed or waited on.
+func TestATRV0010_RunRecordFactsMustAgreeWithItsState(t *testing.T) {
+	root, a := attemptStore(t)
+	base, err := cli.RunDirForTest(root, a.AttemptID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := supervisor.ProcessIdentity(os.Getpid())
+	if err != nil || self == "" {
+		t.Fatalf("own identity: %q %v", self, err)
+	}
+	finished := func(runID string) map[string]any {
+		rec := plantedRecord(a, runID, "FINISHED", os.Getpid(), self)
+		rec["endedAt"], rec["exitStatus"], rec["resultSha256"] = "2026-10-06T00:00:01Z", 0, strings.Repeat("0", 64)
+		return rec
+	}
+	cases := map[string]map[string]any{}
+	cases["00000000000000b1"] = plantedRecord(a, "00000000000000b1", "RUNNING", os.Getpid(), self)
+	cases["00000000000000b1"]["exitStatus"] = 0
+	cases["00000000000000b2"] = finished("00000000000000b2")
+	cases["00000000000000b2"]["exitStatus"] = 300
+	cases["00000000000000b3"] = finished("00000000000000b3")
+	cases["00000000000000b3"]["resultSha256"] = strings.Repeat("A", 64)
+	cases["00000000000000b4"] = plantedRecord(a, "00000000000000b4", "RUNNING", os.Getpid(), self)
+	cases["00000000000000b4"]["outputDroppedBytes"] = 1
+	cases["00000000000000b5"] = plantedRecord(a, "00000000000000b5", "STARTING", os.Getpid(), self)
+	cases["00000000000000b5"]["commandPid"] = os.Getpid()
+	for runID, rec := range cases {
+		writeRecord(t, base, runID, rec)
+	}
+	trailing := writeRecord(t, base, "00000000000000b6", plantedRecord(a, "00000000000000b6", "RUNNING", os.Getpid(), self))
+	raw, err := os.ReadFile(filepath.Join(trailing, "record.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(trailing, "record.json"), append(raw, ']'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cases["00000000000000b6"] = nil
+	for runID := range cases {
+		if r := attach(t, root, a, "--run", runID, "--wait", "0"); r.code != 1 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeMalformed) {
+			t.Fatalf("%s: code %d %s", runID, r.code, r.stdout)
+		}
+	}
+}
+
+// TestATRV0010_DetachedRunsPerAttemptAreCapped: a launch with 64 run entries
+// starts nothing and leaves none behind; an attach without --run never lists
+// more than 64 entries.
+func TestATRV0010_DetachedRunsPerAttemptAreCapped(t *testing.T) {
+	root, a := attemptStore(t)
+	detachedEnv(t)
+	base, err := cli.RunDirForTest(root, a.AttemptID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 64; i++ {
+		if err := os.MkdirAll(filepath.Join(base, "00000000000001"+strconv.FormatInt(int64(0x100+i), 16)[1:]), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	marker := filepath.Join(t.TempDir(), "ran")
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "5", "--detach"}, "/bin/sh", "-c", "touch "+marker)
+	if r.code != 1 || r.res.Outcome != wire.OutcomeRefused || !hasCode(r.res, wire.CodeLimitExceeded) {
+		t.Fatalf("65th run: code %d %s", r.code, r.stdout)
+	}
+	if entries, err := os.ReadDir(base); err != nil || len(entries) != 64 {
+		t.Fatalf("run entries after the refusal: %d %v", len(entries), err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("the command ran")
+	}
+	if err := os.Mkdir(filepath.Join(base, "0000000000000fff"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if r := attach(t, root, a); r.code != 1 || r.res.Outcome != wire.OutcomeRefused || !hasCode(r.res, wire.CodeLimitExceeded) || len(r.res.Items) != 0 {
+		t.Fatalf("attach over the cap: code %d %s", r.code, r.stdout)
 	}
 }
 

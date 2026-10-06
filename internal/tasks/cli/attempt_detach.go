@@ -116,31 +116,49 @@ func decodeRunRecord(raw []byte) (*runRecord, error) {
 	if err := dec.Decode(&rec); err != nil {
 		return nil, malformedRecord("run record does not decode: " + err.Error())
 	}
-	if dec.More() {
+	if _, err := dec.Token(); err != io.EOF {
 		return nil, malformedRecord("run record has trailing data")
 	}
 	switch {
 	case rec.Profile != runRecordProfile:
 		return nil, malformedRecord("unknown run record profile")
-	case !validRunID(rec.RunID) || rec.AttemptID == "" || rec.Generation == "":
+	case !validRunID(rec.RunID) || rec.AttemptID == "" || rec.Generation == "" || !validSha256(rec.ArgvSha256):
 		return nil, malformedRecord("run record does not name its run and attempt")
+	case rec.TimeoutSeconds < 1 || rec.TimeoutSeconds > maxRunTimeoutSeconds || rec.LaunchedAt == "":
+		return nil, malformedRecord("run record has no valid timeout or launch time")
 	case rec.SupervisorPid <= 0 || rec.SupervisorIdentity == "":
 		return nil, malformedRecord("run record has no supervisor identity")
+	case rec.OutputBytes < 0 || rec.OutputDroppedBytes < 0 || rec.OutputDroppedBytes > rec.OutputBytes:
+		return nil, malformedRecord("run record output totals disagree")
+	case rec.CommandPid != nil && *rec.CommandPid <= 0, rec.CommandIdentity != nil && rec.CommandPid == nil:
+		return nil, malformedRecord("run record names no valid command")
 	}
+	finished := rec.EndedAt != nil || rec.ExitStatus != nil || rec.ResultSha256 != nil
 	switch rec.State {
 	case runStarting:
+		if rec.CommandPid != nil || finished {
+			return nil, malformedRecord("a starting record names a command or a result")
+		}
 	case runRunning:
-		if rec.CommandPid == nil {
-			return nil, malformedRecord("a running record names no command")
+		if rec.CommandPid == nil || finished {
+			return nil, malformedRecord("a running record names no command, or a result")
 		}
 	case runFinished:
-		if rec.ExitStatus == nil || rec.ResultSha256 == nil || rec.EndedAt == nil {
-			return nil, malformedRecord("a finished record lacks its result")
+		if rec.EndedAt == nil || rec.ExitStatus == nil || rec.ResultSha256 == nil || *rec.ExitStatus < 0 || *rec.ExitStatus > 255 || !validSha256(*rec.ResultSha256) {
+			return nil, malformedRecord("a finished record lacks a valid result")
 		}
 	default:
 		return nil, malformedRecord("unknown run state")
 	}
 	return &rec, nil
+}
+
+func validSha256(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil && strings.ToLower(s) == s
 }
 
 // writeRunFile replaces name in dir through a temporary file and a rename,
@@ -193,6 +211,21 @@ func readRunRecord(dir string) (*runRecord, error) {
 		return nil, err
 	}
 	return decodeRunRecord(raw)
+}
+
+// listRuns reads at most maxRunsPerAttempt+1 entries of an attempt's run
+// directory, so a directory filled by another writer is never read whole.
+func listRuns(base string) ([]os.DirEntry, error) {
+	f, err := os.Open(base)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	entries, err := f.ReadDir(maxRunsPerAttempt + 1)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return entries, nil
 }
 
 func validRunID(s string) bool {
@@ -327,12 +360,15 @@ func (r *attemptRunner) launch(argv []string) int {
 	if err := os.MkdirAll(base, 0o700); err != nil {
 		return emit(r.env.Stdout, errorResult(cmd, err))
 	}
-	entries, err := os.ReadDir(base)
+	tooMany := func(n int) int {
+		return emit(r.env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeLimitExceeded}, Warnings: []string{prose("the attempt already has " + strconv.Itoa(n) + " or more detached runs in " + base + "; nothing was started")}})
+	}
+	entries, err := listRuns(base)
 	if err != nil {
 		return emit(r.env.Stdout, errorResult(cmd, err))
 	}
 	if len(entries) >= maxRunsPerAttempt {
-		return emit(r.env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeLimitExceeded}, Warnings: []string{prose("the attempt already has " + strconv.Itoa(len(entries)) + " detached runs in " + base + "; nothing was started")}})
+		return tooMany(len(entries))
 	}
 	dir := filepath.Join(base, r.runID)
 	if err := os.Mkdir(dir, 0o700); err != nil {
@@ -344,6 +380,15 @@ func (r *attemptRunner) launch(argv []string) int {
 			_ = os.RemoveAll(dir)
 		}
 	}()
+	// Count again with this run reserved, so concurrent launchers never keep
+	// more than maxRunsPerAttempt runs: each one that sees too many gives up
+	// its own reservation.
+	if entries, err = listRuns(base); err != nil {
+		return emit(r.env.Stdout, errorResult(cmd, err))
+	}
+	if len(entries) > maxRunsPerAttempt {
+		return tooMany(len(entries) - 1)
+	}
 	logFile, err := os.OpenFile(filepath.Join(dir, runSupervisorLogName), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return emit(r.env.Stdout, errorResult(cmd, err))
@@ -389,7 +434,7 @@ func (r *attemptRunner) launch(argv []string) int {
 	if err == nil && rec.State == runFinished {
 		return replayRun(r.env, dir, rec)
 	}
-	if err == nil && rec.State == runRunning {
+	if err == nil && rec.State == runRunning && supervisorStillLive(exited, rec) {
 		res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Warnings: []string{}, NotRetryable: true}
 		res.Items = []wire.Value{runItem(rec, dir, r.attemptID, r.runID)}
 		return emitCode(r.env.Stdout, res, 0)
@@ -409,6 +454,19 @@ func (r *attemptRunner) launch(argv []string) int {
 	}
 	return emitCode(r.env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, NotRetryable: true,
 		Warnings: []string{"the detached supervisor has not reported the command started; it was not stopped; attach later with run --attach"}, Items: []wire.Value{runItem(rec, dir, r.attemptID, r.runID)}}, runExitPending)
+}
+
+// supervisorStillLive reports whether the launcher's supervisor has neither
+// exited nor lost its recorded identity, so a RUNNING record is not reported
+// for a supervisor that died after writing it (ATR-V0-008).
+func supervisorStillLive(exited <-chan struct{}, rec *runRecord) bool {
+	select {
+	case <-exited:
+		return false
+	default:
+	}
+	live, err := processLive(rec.SupervisorPid, rec.SupervisorIdentity)
+	return err == nil && live
 }
 
 // superviseRun is the launcher's re-executed supervisor (ATR-V0-009): the
@@ -457,17 +515,29 @@ func (r *attemptRunner) superviseRun(argv []string) int {
 	var envelope bytes.Buffer
 	r.env.Stdout, r.env.Stderr = &envelope, out
 	r.output = out
+	// The RUNNING record is written off the runner's goroutine, so record I/O
+	// never delays its timeout, heartbeats or signal handling (ATR-V0-013).
+	var running chan struct{}
 	r.onStart = func(pid int) {
 		rec.State, rec.CommandPid = runRunning, &pid
 		if id, err := supervisor.ProcessIdentity(pid); err == nil && id != "" {
 			rec.CommandIdentity = &id
 		}
-		if err := writeRunRecord(dir, rec); err != nil {
-			_, _ = fmt.Fprintln(diag, "corvint-tasks run supervisor: running record not written: "+err.Error())
-		}
-		signalReady()
+		snapshot := *rec
+		running = make(chan struct{})
+		go func() {
+			defer close(running)
+			if err := writeRunRecord(dir, &snapshot); err != nil {
+				_, _ = fmt.Fprintln(diag, "corvint-tasks run supervisor: running record not written: "+err.Error())
+			}
+			signalReady()
+		}()
 	}
 	status := r.run(argv)
+	if running != nil {
+		// Never let the RUNNING write land after the FINISHED one.
+		<-running
+	}
 	_ = out.Close()
 	raw := envelope.Bytes()
 	digest := hex.EncodeToString(sha256Of(raw))
@@ -645,9 +715,12 @@ func supervisorLost(rec *runRecord, dir, attemptID, runID string) *wire.Result {
 // soleRun picks the attempt's only detached run; none, or several, refuse.
 func soleRun(base, attemptID string) (string, *wire.Result) {
 	cmd := []string{"run"}
-	entries, err := os.ReadDir(base)
+	entries, err := listRuns(base)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", errorResult(cmd, err)
+	}
+	if len(entries) > maxRunsPerAttempt {
+		return "", &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeLimitExceeded}, Warnings: []string{prose("more than " + strconv.Itoa(maxRunsPerAttempt) + " entries in " + base + "; name a run with --run")}}
 	}
 	var runs []string
 	for _, e := range entries {
