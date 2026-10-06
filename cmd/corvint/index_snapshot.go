@@ -186,8 +186,9 @@ Writes corvint/index/<object-format>-<tree>-<engine>.gob under the Git common
 directory, shared by every linked worktree (index-snapshot-v0, experimental):
 the compiled index of HEAD's tree, keyed by the tree id and by a digest of this
 binary, so a changed tree or a rebuilt Corvint never reads it. Eight snapshots
-per worktree are kept, up to 64 and 1 GiB: the one just written, then those of
-a tree checked out at a live worktree HEAD, then this binary's, newest first.
+per worktree are kept, up to 64 and 1 GiB: the one just written, then this
+binary's of a tree checked out at a live worktree HEAD, then this binary's
+others, then another binary's live trees, then the rest, newest first.
 The receipt names the store ("store") and every file it removed
 ("evicted_snapshots", each flagged "live_head" when its tree was checked out).
 This is the only verb that writes there;
