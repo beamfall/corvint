@@ -80,11 +80,44 @@ func TestTaskContextDocumentationCompetesByStrength(t *testing.T) {
 }
 
 // TestTaskContextDocumentationShareStatesTheOmittedClass is TCP-V0-059 and
-// TCP-V0-061: documentation never takes more than half of the lexical fill,
-// the code head shrinks to the half left for code, and the documentation
-// rows the share (not their strength) omitted are stated as uncertainty.
+// TCP-V0-061: documentation never takes more than half of the positions code
+// hits compete for, the code head shrinks to the half left for code, and the
+// documentation rows the share (not their strength, the head or the limit)
+// omitted are stated as uncertainty.
 func TestTaskContextDocumentationShareStatesTheOmittedClass(t *testing.T) {
 	t.Run("TCP-V0-059 TCP-V0-061", func(t *testing.T) {
+		// Six code rows and eight stronger documentation rows at limit 12: the
+		// head is five, the share six, and the twelfth position goes to the
+		// sixth code row in merged order although docs/g.md and docs/h.md
+		// outscore it; without the share docs/g.md would hold it.
+		packet, err := TaskContext(context.Background(), documentationFixture(t, 6, 8), "needle signal", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := contextPairs(t, packet)
+		want := []string{
+			"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go", "lexical code/05.go",
+			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
+			"documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
+			"lexical code/06.go",
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want %v", got, want)
+		}
+		lines := contextUncertainty(t, packet)
+		if len(lines) != 2 || lines[0] != "0 code and 2 documentation rows the task matched lexically are omitted by the result limit 12" ||
+			!strings.HasPrefix(lines[1], "2 documentation rows that outscore a carried code row are omitted by the documentation share (6 of 12 lexical positions); the strongest is `docs/g.md` (bm25 ") {
+			t.Fatalf("coverage.uncertainty = %q", lines)
+		}
+		if coverage := contextCoverage(t, packet); coverage["budget_shortage"] != "slots" {
+			t.Fatalf("budget_shortage = %v, want slots", coverage["budget_shortage"])
+		}
+	})
+	t.Run("TCP-V0-061 documentation the head displaced is omitted by the limit, not the share", func(t *testing.T) {
+		// Three code rows and six stronger documentation rows at limit 6: the
+		// head takes three positions and the share the other three, so the
+		// merged order carries no code row the deferred documentation lost a
+		// position to; removing the share would carry the same packet.
 		packet, err := TaskContext(context.Background(), documentationFixture(t, 3, 6), "needle signal", "", 6)
 		if err != nil {
 			t.Fatal(err)
@@ -98,18 +131,15 @@ func TestTaskContextDocumentationShareStatesTheOmittedClass(t *testing.T) {
 			t.Fatalf("packet = %v, want %v", got, want)
 		}
 		lines := contextUncertainty(t, packet)
-		if len(lines) != 2 || lines[0] != "0 code and 3 documentation rows the task matched lexically are omitted by the result limit 6" ||
-			!strings.HasPrefix(lines[1], "3 documentation rows that outscore a carried code row are omitted by the documentation share (3 of 6 lexical positions); the strongest is `docs/d.md` (bm25 ") {
+		if !slices.Equal(lines, []string{"0 code and 3 documentation rows the task matched lexically are omitted by the result limit 6"}) {
 			t.Fatalf("coverage.uncertainty = %q", lines)
-		}
-		if coverage := contextCoverage(t, packet); coverage["budget_shortage"] != "slots" {
-			t.Fatalf("budget_shortage = %v, want slots", coverage["budget_shortage"])
 		}
 	})
 	t.Run("TCP-V0-059 a code head shorter than five yields no position to deferred documentation", func(t *testing.T) {
 		// One code row and six documentation rows at limit 4: the head is one,
 		// the share two, and the fourth position goes to a deferred
-		// documentation row because no code hit remains to take it.
+		// documentation row because no code hit remains to take it; the three
+		// documentation rows left out are omitted by the limit alone.
 		packet, err := TaskContext(context.Background(), documentationFixture(t, 1, 6), "needle signal", "", 4)
 		if err != nil {
 			t.Fatal(err)
@@ -120,8 +150,7 @@ func TestTaskContextDocumentationShareStatesTheOmittedClass(t *testing.T) {
 			t.Fatalf("packet = %v, want %v", got, want)
 		}
 		lines := contextUncertainty(t, packet)
-		if len(lines) != 2 || lines[0] != "0 code and 3 documentation rows the task matched lexically are omitted by the result limit 4" ||
-			!strings.HasPrefix(lines[1], "3 documentation rows that outscore a carried code row are omitted by the documentation share (2 of 4 lexical positions); the strongest is `docs/d.md` (bm25 ") {
+		if !slices.Equal(lines, []string{"0 code and 3 documentation rows the task matched lexically are omitted by the result limit 4"}) {
 			t.Fatalf("coverage.uncertainty = %q", lines)
 		}
 	})
@@ -168,7 +197,8 @@ func TestTaskContextLexicalFillCountsOnlyOpenPositions(t *testing.T) {
 	t.Run("TCP-V0-059 an earlier documentation relation does not spend the share", func(t *testing.T) {
 		// docs/a.md is a mentioned row before the fill: the fill of five holds
 		// a share of three for docs/b.md to docs/d.md and a head of two, so the
-		// third code row, not docs/d.md, is the row the limit omits.
+		// third code row, not docs/d.md, is the row the limit omits; no share
+		// line, since the fill carried no code row past the head.
 		packet, err := TaskContext(context.Background(), documentationFixture(t, 3, 6), "needle signal in docs/a.md", "", 6)
 		if err != nil {
 			t.Fatal(err)
@@ -182,8 +212,7 @@ func TestTaskContextLexicalFillCountsOnlyOpenPositions(t *testing.T) {
 			t.Fatalf("packet = %v, want %v", got, want)
 		}
 		lines := contextUncertainty(t, packet)
-		if len(lines) != 2 || lines[0] != "1 code and 2 documentation rows the task matched lexically are omitted by the result limit 6" ||
-			!strings.HasPrefix(lines[1], "2 documentation rows that outscore a carried code row are omitted by the documentation share (3 of 5 lexical positions); the strongest is `docs/e.md` (bm25 ") {
+		if !slices.Equal(lines, []string{"1 code and 2 documentation rows the task matched lexically are omitted by the result limit 6"}) {
 			t.Fatalf("coverage.uncertainty = %q", lines)
 		}
 	})

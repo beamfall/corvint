@@ -115,6 +115,10 @@ type taskContextCompiler struct {
 	// lexicalDeferred is the documentation hits the lexical fill moved behind
 	// every code hit because the documentation share was spent (TCP-V0-059).
 	lexicalDeferred []lexicalHit
+	// lexicalHead is the code hits the lexical fill placed as TCP-V0-013's
+	// head, ahead of the merged order; a documentation hit they displaced is
+	// omitted by the limit under the head rule, not by the share.
+	lexicalHead map[string]struct{}
 	// lexicalFill and lexicalShare are the positions the lexical fill could
 	// take and the documentation share of them, for TCP-V0-061's statement.
 	lexicalFill, lexicalShare int
@@ -1297,9 +1301,11 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 	ordered := make([]lexicalHit, 0, len(hits))
 	deferred := make([]lexicalHit, 0)
 	headTaken, documentation := 0, 0
+	compiler.lexicalHead = make(map[string]struct{}, head)
 	for _, item := range hits {
 		if !item.documentation && !held[item.path] && headTaken < head {
 			ordered = append(ordered, item)
+			compiler.lexicalHead[item.path] = struct{}{}
 			headTaken++
 		}
 	}
@@ -1391,54 +1397,59 @@ func lexicalScore(bm25, strongest float64) int {
 
 // lexicalCoverage states the lexical hits the packet does not carry as
 // uncertainty (TCP-V0-061): the count per class the result limit omitted,
-// and the deferred documentation hits that outscore a carried code row,
-// which the documentation share rather than their strength omitted. With
-// nothing omitted the member is absent, as in every earlier packet. When
-// TCP-V0-016 withheld the ordinary rows, the hits are withheld by the
-// verdict, not omitted by the limit, and the line says so.
+// and the deferred documentation hits that outscore a code row the fill
+// carried past the head, which the documentation share rather than their
+// strength or the head omitted. With nothing omitted the member is absent,
+// as in every earlier packet. When TCP-V0-016 withheld the ordinary rows,
+// the hits are withheld by the verdict, not omitted by the limit, and a
+// separate line says so; a reservation the limit cut is still omitted by the
+// limit, since the verdict withdraws no reservation.
 func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, rows []contextRow, limit int) {
 	carried := make(map[string]struct{}, len(rows))
-	fillCode := make(map[string]struct{}, len(rows))
-	weakestCode, codeCarried := 0.0, false
+	competing := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
 		carried[row.path] = struct{}{}
-		if row.kind == "lexical" {
-			fillCode[row.path] = struct{}{}
+		if _, head := compiler.lexicalHead[row.path]; row.kind == "lexical" && !head {
+			competing[row.path] = struct{}{}
 		}
 	}
+	reserved := make(map[string]struct{}, len(compiler.reserved))
+	for _, row := range compiler.reserved {
+		reserved[row.path] = struct{}{}
+	}
+	withheld := compiler.answerability.unsupported()
+	weakestCode, codeCarried := 0.0, false
+	var omitted, withdrawn [2]int
 	for _, hit := range compiler.lexicalHits() {
-		if _, ok := fillCode[hit.path]; !ok {
-			continue
-		}
-		if !codeCarried || hit.score < weakestCode {
+		if _, ok := competing[hit.path]; ok && (!codeCarried || hit.score < weakestCode) {
 			weakestCode, codeCarried = hit.score, true
 		}
-	}
-	omittedCode, omittedDocumentation := 0, 0
-	for _, hit := range compiler.lexicalHits() {
 		if _, ok := carried[hit.path]; ok || hit.path == compiler.subject {
 			continue
 		}
+		class := 0
 		if hit.documentation {
-			omittedDocumentation++
+			class = 1
+		}
+		if _, ok := reserved[hit.path]; withheld && !ok {
+			withdrawn[class]++
 		} else {
-			omittedCode++
+			omitted[class]++
 		}
 	}
-	if omittedCode+omittedDocumentation == 0 {
-		return
-	}
 	lines := anySlice(coverage["uncertainty"])
-	if compiler.answerability.unsupported() {
-		coverage["uncertainty"] = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are withheld by the `unsupported-conjunction` verdict, not by the result limit %d",
-			omittedCode, omittedDocumentation, limit))
-		return
+	before := len(lines)
+	if omitted[0]+omitted[1] > 0 {
+		lines = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are omitted by the result limit %d",
+			omitted[0], omitted[1], limit))
 	}
-	lines = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are omitted by the result limit %d",
-		omittedCode, omittedDocumentation, limit))
+	if withdrawn[0]+withdrawn[1] > 0 {
+		lines = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are withheld by the `unsupported-conjunction` verdict, not by the result limit %d",
+			withdrawn[0], withdrawn[1], limit))
+	}
 	stronger, strongest := 0, lexicalHit{}
 	for _, hit := range compiler.lexicalDeferred {
-		if _, ok := carried[hit.path]; ok || !codeCarried || hit.score <= weakestCode {
+		if _, ok := carried[hit.path]; ok || withheld || !codeCarried || hit.score <= weakestCode {
 			continue
 		}
 		if stronger == 0 {
@@ -1450,7 +1461,9 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 		lines = append(lines, fmt.Sprintf("%d documentation rows that outscore a carried code row are omitted by the documentation share (%d of %d lexical positions); the strongest is `%s` (bm25 %.2f)",
 			stronger, compiler.lexicalShare, compiler.lexicalFill, strongest.path, strongest.score))
 	}
-	coverage["uncertainty"] = lines
+	if len(lines) > before {
+		coverage["uncertainty"] = lines
+	}
 }
 
 func isDocumentationSuffix(candidate string) bool {

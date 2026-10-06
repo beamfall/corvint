@@ -159,6 +159,31 @@ losses are unchanged (27 carried, 11 treatment-only misses); the share lines cha
 reservation now counts (`9 of 18` instead of `10 of 19` positions on the Corvint cases) and
 where the comparison row is now the weakest code row the fill carried (57f06a6a: 22, not 133).
 
+The second review (Codex, read-only, on the fixed commit) returned three findings:
+
+7. P2, under a TCP-V0-016 withholding a reservation the result limit cut was counted as
+   withheld, although the verdict withdraws no reservation: fixed; `lexicalCoverage` counts a
+   reserved hit the packet does not carry as omitted by the limit and the ordinary hits as
+   withheld, on two lines (TCP-V0-061 amended). Pinned by
+   `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (routed fixture, limit 1).
+8. P2, the share line counted every deferred documentation hit that outscored a carried code
+   row, including hits the five-row head displaced, which the same packet carries without the
+   share: fixed; the comparison row is a code row the fill carried past the head
+   (`lexicalHead`), so a hit the head or the limit displaced is counted in the first line only
+   (TCP-V0-061 amended). Pinned by `TestTaskContextDocumentationShareStatesTheOmittedClass`
+   (six code and eight documentation hits at limit 12 keep the share line; three and six at
+   limit 6, and one and six at limit 4, lose it) and
+   `TestTaskContextLexicalFillCountsOnlyOpenPositions` (the mentioned-row case loses it).
+9. P3, TCP-V0-059 promised at most `ceil(fill / 2)` documentation positions and TCP-V0-013 that
+   no documentation hit is cut while a weaker code hit is carried, neither of which the deferred
+   tail and the share hold: the spec now states that the deferred tail fills the positions no
+   code hit takes and qualifies the strength-order guarantee to the share.
+
+Rerun on the eight public cases after these fixes: every packet and every uncertainty line is
+identical to the previous rerun (27 carried, 11 treatment-only misses); the four share lines
+each name a code row the fill carried past the head, and the four cases without one had no
+share line before.
+
 ## Rollback
 
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,
