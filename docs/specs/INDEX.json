@@ -646,7 +646,7 @@
     "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
     "title": "Corvint Tasks attempt runner V0",
     "reqPrefix": "ATR-V0",
-    "intent": "proposed (owner issue 481; technical profile not owner-accepted)",
+    "intent": "proposed (owner issues 481 and 627; technical profile not owner-accepted)",
     "delivery": "experimental",
     "claim": "An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.",
     "dependsOn": [
@@ -658,6 +658,7 @@
       "internal/groupreap",
       "internal/tasks/cli",
       "internal/tasks/store",
+      "internal/tasks/supervisor",
       "internal/tasks/transaction"
     ]
   },

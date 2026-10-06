@@ -1,0 +1,77 @@
+# 2026-10-06: V1-0856 detached attempt runs
+
+## Intent
+
+Ticket V1-0856, GitHub [beamfall/corvint#627](https://github.com/beamfall/corvint/issues/627). When an
+agent session ends, its host or the dispatcher stops the session's process tree. That kills an
+attempt-bound `corvint-tasks run --attempt` command with it. The command should keep running,
+heartbeating and fenced. The next session for the same attempt should attach and read its outcome.
+Invariant 7 rules out a permanent daemon.
+
+## Change
+
+- Spec `docs/specs/corvint-tasks-attempt-runner-v0.md` adds ATR-V0-008..014, a "Detached runs" section
+  (run record, relation to CAL-V0-089, dispatcher interaction and remaining work), new exit and envelope
+  rows, failure modes, rollback and traceability. The intent header now names issue 627.
+- `run --attempt ... --detach -- COMMAND` starts one supervisor in a new session and returns once the
+  command has started. The supervisor re-executes the same binary through the internal `--supervise RUN`
+  form. It runs the unchanged attached runner (heartbeats, timeout, owned group, `RUN_OUTCOME`) and keeps
+  its envelope and bounded output in `<git-common-dir>/taskman-runs/<attempt hash>/<run>/`.
+- `run --attach --attempt ID [--run RUN] [--wait SECONDS]` is read-only. It replays a finished run's
+  kept envelope after checking the SHA-256 recorded for it, and returns the run's status. While the run
+  is unfinished it exits 75. It refuses `SUPERVISOR_LOST` when the recorded PID no longer has its
+  recorded start identity, and it never signals.
+
+## Decisions
+
+- **Re-execute the binary instead of using a helper daemon.** The supervisor is scoped to one attempt.
+  It exits when its run ends, so its life is bounded by the timeout plus the cleanup and write bounds.
+  It is never restarted.
+- **Fencing stays the existing heartbeat refusal (ATR-V0-006).** A release, reap or generation change
+  stops the detached command within one beat interval. No new fence path was added.
+- **Readiness is a close-on-exec pipe on fd 3, closed after the `RUNNING` record is written.** The
+  launcher never waits for the command. A pre-launch refusal is kept and replayed with the attached
+  runner's status.
+- **Liveness is the recorded PID plus `supervisor.ProcessIdentity`, never a bare PID.** The run record
+  is private runtime state: it is never evidence or authority, and `RUN_OUTCOME` stays the native record.
+- **Dispatcher integration is deferred.** It is listed as remaining work in the spec. CAL-V0-056
+  `refreshTree` adopts children of recorded members by parent PID, and the heal hand-off releases an
+  ended worker's attempt, which fences the run. Changing either one needs an owner decision on
+  identity-verified exclusion and on deferred hand-off or holder transfer. Another lane is also editing
+  `internal/tasks/dispatch`. Under the dispatcher a detached run is therefore stopped, never left
+  unfenced.
+
+## Evidence
+
+All runs were on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count=1 -timeout 30m`.
+
+- `-run 'TestATRV00|TestCALV0047|TestPSRPublicRouteAndHelp|TestTMV0008_AS07' ./internal/tasks/cli/`
+  PASSED, including:
+  - TestATRV0008_DetachedRunSurvivesItsLauncher: the launcher's group is gone, the command lives,
+    the attempt heartbeats after the launcher exited, and attach returns 75 and then 3 with the
+    recorded outcome and bounded output. The replay is byte-identical.
+  - TestATRV0013_FencedAttemptKillsTheDetachedCommand: release gives 125 `FENCED`, `LOST_LEASE` is
+    recorded, and the group is gone.
+  - TestATRV0009_DetachedPreLaunchRefusalIsReplayed.
+  - TestATRV0012_AttachRefusesAProcessIdentityMismatch.
+  - TestATRV0011_DetachAndAttachUsage.
+- `-count=3 -run 'TestATRV0008_|TestATRV0013_'` PASSED.
+- Mutation checks, each reverted afterwards:
+  - Dropping `Setsid` failed TestATRV0008 ("launcher group still has members").
+  - Trusting a bare PID failed TestATRV0012.
+- `go vet ./internal/tasks/cli/` PASSED for GOOS darwin, linux and windows. `gofmt -l` was clean.
+- These checks PASSED: `make spec-requirements-check requirement-definitions-check
+  line-citations-check traceability-tests-check unbounded-readers-check error-code-ownership-check
+  use-case-receipts-check diagnostic-coverage-check`.
+
+## Not run
+
+- NOT_RUN: Linux execution (`/proc` start identity and setsid launch), Windows execution (ATR-V0-014 is
+  vet only), `make gate`, the full `internal/tasks/cli` and `cmd/corvint` suites, live dispatcher and
+  agent-host qualification, CEM dogfood binding, and native completion of V1-0856.
+
+## Rollback
+
+Revert the commit. Program mode, attached runs and existing receipts are unchanged. Supervisors that
+are already running finish within their own bound. After none is live,
+`<git-common-dir>/taskman-runs/` may be deleted; every recorded run's `RUN_OUTCOME` stays in the journal.

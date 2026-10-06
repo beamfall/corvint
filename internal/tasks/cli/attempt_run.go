@@ -91,6 +91,16 @@ type attemptRunner struct {
 	// beatErrors counts heartbeat writes that failed without a refusal.
 	beatErrors int
 	lastBeat   error
+	// role is the binding's role, passed on to a detached supervisor.
+	role string
+	// detach and supervise select the detached modes (ATR-V0-008); supervise
+	// is the run ID the launcher chose.
+	detach    bool
+	supervise string
+	// onStart, when set, observes the started command's PID (ATR-V0-009).
+	onStart func(pid int)
+	// output, when set, adds the detached run's output facts to the item.
+	output *runOutput
 }
 
 type beatResult struct {
@@ -104,6 +114,14 @@ type beatResult struct {
 // goes to stdout.
 func attemptRun(env Env, args []string) int {
 	cmd := []string{"run"}
+	if supervising(args) {
+		// The launcher's readiness pipe must not reach any process this
+		// supervisor starts, Git included (ATR-V0-009).
+		protectReadiness()
+	}
+	if attachMode(args) {
+		return attemptAttach(env, args)
+	}
 	r, argv, res := parseAttemptRun(env, args)
 	if res != nil {
 		return emit(env.Stdout, res)
@@ -111,17 +129,29 @@ func attemptRun(env Env, args []string) int {
 	if !groupreap.OwnerAvailable() {
 		return emit(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeUnsupported}, Warnings: []string{"attempt run needs an owned process group, which this platform does not provide; nothing was written or started"}})
 	}
+	switch {
+	case r.detach:
+		return r.launch(argv)
+	case r.supervise != "":
+		return r.superviseRun(argv)
+	}
+	return r.run(argv)
+}
+
+// run is the attached runner: prepare, launch, supervise and record.
+func (r *attemptRunner) run(argv []string) int {
+	cmd := []string{"run"}
 	interrupts := make(chan os.Signal, 1)
 	// Notify stays in force until return, so a further signal during cleanup
 	// or the outcome write is absorbed rather than killing the runner.
 	signal.Notify(interrupts, runnerSignals...)
 	defer signal.Stop(interrupts)
 	if code, res := r.prepare(); res != nil {
-		return emitCode(env.Stdout, res, code)
+		return emitCode(r.env.Stdout, res, code)
 	}
 	select {
 	case sig := <-interrupts:
-		return emitCode(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Warnings: []string{"interrupted before launch; the command was not started and no outcome was recorded"}}, 128+signalNumber(sig))
+		return emitCode(r.env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Warnings: []string{"interrupted before launch; the command was not started and no outcome was recorded"}}, 128+signalNumber(sig))
 	default:
 	}
 	outcome := r.execute(argv, interrupts)
@@ -131,12 +161,20 @@ func attemptRun(env Env, args []string) int {
 func parseAttemptRun(env Env, args []string) (*attemptRunner, []string, *wire.Result) {
 	cmd := []string{"run"}
 	values := map[string]string{}
+	detach := false
 	i := 0
 	for ; i < len(args) && args[i] != "--"; i += 2 {
 		switch args[i] {
-		case "--attempt", "--generation", "--timeout", "--lease-minutes", "--role":
+		case "--attempt", "--generation", "--timeout", "--lease-minutes", "--role", "--supervise":
+		case "--detach":
+			if detach {
+				return nil, nil, usage(cmd, "repeated run flag --detach")
+			}
+			detach = true
+			i--
+			continue
 		default:
-			return nil, nil, usage(cmd, "attempt run accepts --attempt, --generation, --timeout, --lease-minutes and --role before --")
+			return nil, nil, usage(cmd, "attempt run accepts --attempt, --generation, --timeout, --lease-minutes, --role and --detach before --")
 		}
 		if i+1 >= len(args) || args[i+1] == "--" {
 			return nil, nil, usage(cmd, "missing value for "+args[i])
@@ -152,6 +190,10 @@ func parseAttemptRun(env Env, args []string) (*attemptRunner, []string, *wire.Re
 	argv := args[i+1:]
 	if values["--attempt"] == "" || values["--generation"] == "" || values["--timeout"] == "" {
 		return nil, nil, usage(cmd, "attempt run requires --attempt, --generation and --timeout")
+	}
+	supervise, superviseSet := values["--supervise"]
+	if superviseSet && (detach || !validRunID(supervise)) {
+		return nil, nil, usage(cmd, "--supervise is the detached launcher's own form and takes its run ID")
 	}
 	timeout, err := strconv.ParseUint(values["--timeout"], 10, 32)
 	if err != nil || timeout < 1 || timeout > maxRunTimeoutSeconds {
@@ -188,11 +230,15 @@ func parseAttemptRun(env Env, args []string) (*attemptRunner, []string, *wire.Re
 	if aq, err := snapshot.AttemptQueue(values["--attempt"]); err != nil || aq.Raw != queueID {
 		return nil, nil, errorResult(cmd, wire.Errorf(wire.CodeMalformed, "attempt", "--attempt must name an attempt of this queue"))
 	}
-	var nonce [8]byte
-	if _, err = rand.Read(nonce[:]); err != nil {
-		return nil, nil, errorResult(cmd, err)
+	runID := supervise
+	if runID == "" {
+		var nonce [8]byte
+		if _, err = rand.Read(nonce[:]); err != nil {
+			return nil, nil, errorResult(cmd, err)
+		}
+		runID = hex.EncodeToString(nonce[:])
 	}
-	r := &attemptRunner{env: env, repo: repo, actor: actor, queueID: queueID, attemptID: values["--attempt"], generation: generation, timeout: time.Duration(timeout) * time.Second, minutes: minutes, runID: hex.EncodeToString(nonce[:])}
+	r := &attemptRunner{env: env, repo: repo, actor: actor, role: role, queueID: queueID, attemptID: values["--attempt"], generation: generation, timeout: time.Duration(timeout) * time.Second, minutes: minutes, runID: runID, detach: detach, supervise: supervise}
 	return r, argv, nil
 }
 
@@ -334,6 +380,9 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 	}
 	started := string(nowStamp())
 	out.StartedAt = &started
+	if r.onStart != nil {
+		r.onStart(command.Process.Pid)
+	}
 	deadline := time.NewTimer(r.timeout)
 	defer deadline.Stop()
 	ticker := time.NewTicker(attemptBeatInterval)
@@ -519,6 +568,9 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 	item.Set("childExit", intOrNull(out.ExitCode)).Set("childSignal", intOrNull(out.Signal)).Set("lostLease", stringPtrOrNull(out.LostLease))
 	item.Set("heartbeats", wire.String(strconv.Itoa(out.Heartbeats))).Set("renewals", wire.String(strconv.Itoa(out.Renewals)))
 	item.Set("outcomeSha256", digest).Set("outcomeReceipt", receipt)
+	if r.output != nil {
+		r.output.describe(item)
+	}
 	res.Items = []wire.Value{wire.ObjectValue(item)}
 	return emitCode(r.env.Stdout, res, status)
 }
