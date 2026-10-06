@@ -743,7 +743,7 @@ func TestCheckpointSourceNeverReferencesSnapshotReaders(t *testing.T) {
 			if !ok || id.Name != alias {
 				return true
 			}
-			guardedVar := map[string]string{"LoadSnapshot": "loadSnapshot", "LoadSnapshotDeferred": "loadSnapshotDeferred"}[selector.Sel.Name]
+			guardedVar := map[string]string{"LoadSnapshot": "loadSnapshot", "LoadSnapshotDeferred": "loadSnapshotDeferred", "LoadSnapshotObserved": "loadSnapshotObserved"}[selector.Sel.Name]
 			forbidden := guardedVar != ""
 			if strings.HasPrefix(name, "prove") {
 				forbidden = forbidden || selector.Sel.Name == "LoadEventSnapshot" || selector.Sel.Name == "LoadEventSnapshotDeferred" || selector.Sel.Name == "ProbeSnapshot" || selector.Sel.Name == "SnapshotFreshness"
