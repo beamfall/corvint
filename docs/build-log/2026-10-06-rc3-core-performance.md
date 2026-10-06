@@ -196,8 +196,31 @@ checked before it was fixed; the fixes and the withdrawal are in the second comm
    EMFILE, but used no lasting descriptors. Fixed with the `maxInputHandles` cap; the test adds a
    directory 40 levels deep whose FIFO must still be found.
 
-A narrow race remains: a directory replaced by a symlink between the parent's `Lstat` and
-`OpenRoot`. A status read is not atomic against concurrent edits before or after this change.
+A status read is not atomic against concurrent edits before or after this change.
+
+### Batch integration review
+
+Codex reviewed `claude/rc3-batch-2` (origin/main, the orientation fix and af637ebf) and reported
+two P2 findings in `worktree_posix.go`. Scratch tests on af637ebf reproduced both before the fix.
+
+1. **`OpenRoot` after `Lstat` can block on a swapped FIFO.** Reproduced: a directory replaced by
+   a FIFO after its `Lstat` blocked the open. `OpenRoot` opens a final component without
+   `O_DIRECTORY` or `O_NONBLOCK`. The sub-root is now opened as `component + "/."`, which resolves
+   `component` as a directory and fails with ENOTDIR on a FIFO. The opened root must also be
+   `os.SameFile` with the earlier `Lstat`; this also catches a directory swapped for a symlink,
+   which the first review left as a remaining race. `TestOpenSeenDirectoryRefusesAReplacedDirectory`
+   covers the FIFO, the symlink and the unchanged directory.
+2. **Descriptor exhaustion hides a FIFO.** Reproduced: with the descriptor limit just above the
+   open count, the cached handles used the rest, the fallback `Lstat` failed with EMFILE, and the
+   status reported no refusal where an unlimited run reports the FIFO. When an open fails with
+   EMFILE or ENFILE, the walk now releases its cached handles and falls back to the worktree root.
+   An input that still cannot be examined refuses the status as `metadata-unreadable`.
+   `TestWorktreeInputsOpenUnderDescriptorExhaustion` lowers `RLIMIT_NOFILE`: with four spare
+   descriptors the result matches the unlimited run, and with one spare it refuses. The test fails
+   when the release is disabled. Main also ignored this EMFILE, so the refusal is stricter than main.
+
+Neither fix changes the normal path. The 45-command parity run against the old binary still matches,
+except `identity_sha256` in `d-c-impact-2`, which matches once masked.
 
 ## NOT_RUN
 
