@@ -44,11 +44,15 @@ func psrStart(t *testing.T, s *leaseStore, id string) (<-chan psrOutcome, contex
 	}()
 	return done, cancel
 }
+
+// psrAwaitMarker waits until the marker has content. A shell redirect creates
+// the file before the command writes to it, so existence alone can be observed
+// while the file is still empty.
 func psrAwaitMarker(t *testing.T, path string) {
 	t.Helper()
 	end := time.Now().Add(3 * time.Second)
 	for time.Now().Before(end) {
-		if _, e := os.Stat(path); e == nil {
+		if info, e := os.Stat(path); e == nil && info.Size() > 0 {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
