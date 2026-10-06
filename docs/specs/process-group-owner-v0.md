@@ -8,7 +8,7 @@ Delivery status: experimental
 ## Agent digest
 - Claim: An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.
 - Status: proposed extraction of existing owner-authorized repair semantics; experimental.
-- Exists: Exact reviewed six-file Owner extraction from public PR443 head f3fba61ba0a4b0192e89a0ad9f1128c021ae5da9; no caller or legacy Wait/Run changes.
+- Exists: Exact reviewed six-file Owner extraction from public PR443 head f3fba61ba0a4b0192e89a0ad9f1128c021ae5da9; V1-0668 Linux /proc quiet proof (PGO-V0-006) makes Linux quiet-first; no legacy Wait/Run changes.
 - Blocked on: Hosted amd64 qualification, integration and full V1-0668 acceptance; existing repair authority does not imply new human acceptance.
 - Read next: Requirements, Acceptance evidence, Rollout and rollback.
 
@@ -30,16 +30,21 @@ CEM-V1-001/CEM-V1-007 and V1-0668 full qualification obligations remain unchange
 ## Requirements
 
 - `PGO-V0-001`: Own a process group through its unreaped leader; send at most one real group signal before reaping begins and never send a real numeric group signal after reaping begins. Scans and signal-0 probes confer no signal authority.
-- `PGO-V0-002`: Preserve Darwin quiet-first retirement and Linux ReapAfterSuccessfulSignal retirement. Preserve Linux signal failures, including ESRCH and EPERM, as failure evidence.
+- `PGO-V0-002`: Preserve Darwin signal-0 quiet-first retirement. The Linux platform default is also quiet-first, with the PGO-V0-006 proof; ReapAfterSuccessfulSignal remains available only when a caller selects it explicitly. Preserve Linux signal failures, including ESRCH and EPERM, as failure evidence.
 - `PGO-V0-003`: Check the original retirement allowance before new primitives and before accepting absence; intersect it with the fixed two-second post-reap cap. Retain terminal HOLD for unproved cleanup and late asynchronous reap completion.
 - `PGO-V0-004`: Serialize concurrent Finish and Stop so signalling and reaping occur once. Refuse invalid modes and unsupported platforms before process creation.
 - `PGO-V0-005`: Preserve existing Wait/Run and callers. Only RELEASED proves cleanup; HOLD must remain explicit and must not trigger a weaker fallback or success claim.
+- `PGO-V0-006`: On Linux, where signal 0 succeeds for a group whose only members are zombies (including the owner's unreaped leader), the pre-reap quiet observation reads /proc instead of signalling. It runs only after the exit observation and the single group signal, while the leader is unreaped. It first identifies the leader as this process's exited child leading its own group, then reports quiet only when every process and thread whose group is the leader is a zombie or dead and the scan saw the leader, and re-checks the leader identity. Each scan is bounded by a fixed entry count and stat size, and the retirement allowance is checked before and after it. It sends no signal and grants no signal authority. An unavailable or unreadable /proc, an identity mismatch, a malformed entry or an exceeded bound is a probe failure and HOLD; a live member keeps the owner polling until the allowance HOLDs. Release still requires post-reap signal-0 absence.
 
 ## Non-goals and baseline
 
 No lease/heartbeat implementation, dispatcher event changes, aggregate positive
 event delivery, CEM promotion, legacy Wait/Run repair, escaped-session containment,
-account-wide process management or release qualification. The simpler baseline is
+account-wide process management or release qualification. The /proc proof does
+not reap or release zombie members that a non-reaping init or subreaper keeps
+after the leader reap: post-reap absence is unobserved and the owner HOLDs. A
+member hidden by a /proc hidepid mount cannot cause release either, because
+release still needs post-reap ESRCH. The simpler baseline is
 the existing helper; it is retained but does not provide the new Owner contract.
 
 ## Trust boundary and failures
@@ -55,10 +60,11 @@ join and clean up its children even when interrupted; scans are observations onl
 | Requirement | Implementation and executable witness | Current evidence limit |
 |---|---|---|
 | PGO-V0-001 | internal/groupreap/owner.go; TestOwnerNormalExitRetiresProbesReapsAndObservesAbsence; TestOwnerStopSignalsOnceAndFinishDoesNotSignalAgain | Exact donor bytes; Darwin tests/race observed; final target checks pending |
-| PGO-V0-002 | internal/groupreap/owner_waitid.go; TestOwnerReapAfterSuccessfulSignalSkipsPreReapQuiet; TestLinuxOwnerPreservesKillGroupESRCH | Actual extracted-source Linux arm64 controls pass; hosted amd64 pending |
+| PGO-V0-002 | internal/groupreap/owner_waitid.go; TestOwnerReapAfterSuccessfulSignalSkipsPreReapQuiet; TestLinuxOwnerPreservesKillGroupESRCH; TestLinuxDefaultRetirementUsesProcQuietProof; TestQuietProofFallsBackToInjectedProbeGroup | Linux arm64 container runs pass (V1-0668 build log); Linux amd64 NOT_RUN |
 | PGO-V0-003 | TestOwnerExpiredAllowanceDoesNotStartWork; TestOwnerSignalConsumesAllowanceBeforeReap; TestOwnerPostReapCapWins; TestOwnerSlowReapLateCompletionKeepsStickyHold; TestOwnerLinuxModeRetirementBoundary | Deterministic matrix retained and passes on Darwin and Linux arm64 |
 | PGO-V0-004 | TestOwnerRejectsInvalidRetirementMode; TestOwnerConcurrentFinishAndStopSignalAndReapOnce; internal/groupreap/owner_other.go | Darwin race and native checks pass; Windows unavailable-owner compilation passes |
 | PGO-V0-005 | Exact six-file source extraction and unchanged legacy package blob comparison | Source equality is not caller integration or runtime proof |
+| PGO-V0-006 | internal/groupreap/owner_proc.go; TestLinuxOwnerRetiresZombieOnlyGroup; TestLinuxSignalZeroCannotProveZombieOnlyQuiet; TestLinuxOwnerHoldsWhileLiveMemberRemains; TestLinuxOwnerHoldsWhenQuietProofUnavailable; TestProcGroupQuietClassification; TestProcGroupQuietUnavailableRoot; TestStableS0EPublicCases on Linux | Linux arm64 container runs (root and uid 1000); Linux amd64 NOT_RUN; non-reaping-init and hidepid hosts unqualified |
 
 Required candidate checks: focused groupreap tests and vet, race for concurrent
 Finish/Stop, actual Darwin and available Linux arm64 lifecycle tests with owned

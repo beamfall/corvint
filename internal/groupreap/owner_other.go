@@ -16,6 +16,7 @@ func defaultPrimitives() Primitives {
 		WaitExit:   func(int) error { return ErrOwnerUnavailable },
 		KillGroup:  func(int) error { return ErrOwnerUnavailable },
 		ProbeGroup: func(int) (Probe, error) { return ProbeLive, ErrOwnerUnavailable },
+		QuietProof: func(int) (Probe, error) { return ProbeLive, ErrOwnerUnavailable },
 		Reap:       func(*exec.Cmd) error { return ErrOwnerUnavailable },
 	}
 }

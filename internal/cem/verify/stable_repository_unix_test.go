@@ -477,15 +477,23 @@ func runS0E(t *testing.T, packet *s0ePacket, c s0eCase, recipe func(*s0eRun)) (S
 	return result, exit, run
 }
 
+// requireStableLifecyclePlatform admits the platforms whose real owned-group
+// lifecycle is observed: Darwin, and Linux through the /proc quiet proof
+// (PGO-V0-006, V1-0668).
+func requireStableLifecyclePlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("NOT_RUN: Stable lifecycle conformance is observed on Darwin and Linux only")
+	}
+}
+
 // TestStableS0EPublicCases runs every public full-result case against the
 // native verifier and compares the complete closed result and the exit code.
 // Each subtest prints one S0E-CASE line; a case that needs another Go release
 // is NOT_RUN, never rewritten.
 func TestStableS0EPublicCases(t *testing.T) {
 	packet := loadS0EPacket(t)
-	if runtime.GOOS != "darwin" {
-		t.Skip("NOT_RUN: Stable lifecycle conformance is observed on Darwin only")
-	}
+	requireStableLifecyclePlatform(t)
 	if len(packet.cases) != 56 {
 		t.Fatalf("public packet has %d cases, want 56", len(packet.cases))
 	}
@@ -519,9 +527,7 @@ func TestStableS0EPublicCases(t *testing.T) {
 // T-LINKED case's injection is its only defect.
 func TestStableS0ELinkedControl(t *testing.T) {
 	packet := loadS0EPacket(t)
-	if runtime.GOOS != "darwin" {
-		t.Skip("NOT_RUN: Stable lifecycle conformance is observed on Darwin only")
-	}
+	requireStableLifecyclePlatform(t)
 	c := packet.find(t, "normal-exit-lingering-descendant-contained")
 	result, exit, run := runS0E(t, packet, c, func(r *s0eRun) { r.linked() })
 	if requireS0EResult(t, c, result, exit) && run.attempted != s0eSealedOps {
