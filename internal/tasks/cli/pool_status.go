@@ -123,7 +123,12 @@ func poolMemberOccupied(o *wire.Object, en snapshot.PoolEntry, evidence journal.
 		o.Set("attemptId", wire.String(en.AttemptID)).Set("generation", wire.String(string(en.Generation)))
 	}
 	o.Set("changedSeq", wire.String(string(en.ChangedSeq)))
-	o.Set("commandKind", stringOrNull(en.CommandKind))
+	// The command kind outlives its command; it is pending only while a
+	// health (PREPARING) or cleanup/sweep (CLEANING) runner owns the member.
+	o.Set("commandKind", wire.Null())
+	if en.State == "PREPARING" || en.State == "CLEANING" {
+		o.Set("commandKind", stringOrNull(en.CommandKind))
+	}
 	o.Set("quarantine", wire.Null())
 	if en.State == "QUARANTINED" {
 		// The journal records sequence numbers, not wall-clock time.

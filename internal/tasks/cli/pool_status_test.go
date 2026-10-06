@@ -90,6 +90,10 @@ func TestPSRV0013_PoolStatusMembers(t *testing.T) {
 	if field(a, "lastCleanup").Str != "NOT_OBSERVED" {
 		t.Fatalf("cleanup guessed %s", wire.Encode(a))
 	}
+	// The claim's health command finished; its retained kind is not pending.
+	if field(a, "commandKind").Kind != wire.KindNull || field(members["db/b"], "commandKind").Kind != wire.KindNull {
+		t.Fatalf("finished command reported pending %s %s", wire.Encode(a), wire.Encode(members["db/b"]))
+	}
 	b := members["db/b"]
 	q := field(b, "quarantine")
 	if field(b, "state").Str != "QUARANTINED" || field(b, "attemptId").Str != endedAttempt || field(b, "holder").Str != "other" || q.Kind != wire.KindObject || !strings.Contains(field(q, "reason").Str, "physical safe reuse unproved") || field(q, "changedSeq").Str != field(b, "changedSeq").Str || field(q, "since").Str != "NOT_OBSERVED" {
