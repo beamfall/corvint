@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEnvelopedReceipt(t *testing.T) {
@@ -179,4 +180,118 @@ func TestContextHookRetainsRejectedText(t *testing.T) {
 			t.Fatal("report discarded diagnostic")
 		}
 	})
+}
+
+// fakeFrontierRunner builds a runner over a committed fixture whose registered Stop hook is a
+// shell script and whose private PATH holds a fake corvint for dogfood begin and cancel. The
+// enrolled incomplete Stop fails open with the given degradation output degraded times before it
+// blocks; the unenrolled and recursive Stops release.
+func fakeFrontierRunner(t *testing.T, degraded int, degradation string) (*runner, string) {
+	t.Helper()
+	work := t.TempDir()
+	r := &runner{host: "codex", work: work, bin: filepath.Join(work, "bin"), fixture: filepath.Join(work, "fixture")}
+	if err := os.MkdirAll(r.bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.environment = []string{"PATH=" + r.bin + ":" + filepath.Dir(gitPath) + ":/usr/bin:/bin", "HOME=" + work, "LANG=C", "LC_ALL=C",
+		"GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=T", "GIT_AUTHOR_EMAIL=t@example.invalid", "GIT_COMMITTER_NAME=T", "GIT_COMMITTER_EMAIL=t@example.invalid"}
+	if err := r.makeFixture(); err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(work, "state")
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state, "degraded"), []byte(fmt.Sprint(degraded)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The state path is single-quoted so a temporary directory with spaces or quotes stays one word.
+	quoted := "'" + strings.ReplaceAll(state, "'", `'\''`) + "'"
+	corvint := "#!/bin/sh\nstate=" + quoted + "\ncase \"$2\" in begin) : > \"$state/enrolled\" ;; cancel) /bin/rm -f \"$state/enrolled\" ;; esac\n"
+	stop := "#!/bin/sh\ninput=$(cat)\nstate=" + quoted + "\n" +
+		"case \"$input\" in *'\"stop_hook_active\":true'*) echo '{}'; exit 0 ;; esac\n" +
+		"[ -f \"$state/enrolled\" ] || { echo '{}'; exit 0; }\n" +
+		"left=$(cat \"$state/degraded\")\n" +
+		"if [ \"$left\" -gt 0 ]; then echo $((left - 1)) > \"$state/degraded\"; echo 'trace on stderr' >&2; cat \"$state/degradation\"; exit 0; fi\n" +
+		"echo '{\"decision\":\"block\",\"reason\":\"Corvint local completion policy is incomplete. Frontier authority remains unavailable.\"}'\n"
+	output, _ := json.Marshal(map[string]any{"systemMessage": degradation})
+	for name, body := range map[string]string{filepath.Join(r.bin, "corvint"): corvint, filepath.Join(work, "stop.sh"): stop, filepath.Join(state, "degradation"): string(output)} {
+		if err := os.WriteFile(name, []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r.hooks = map[string][]string{"Stop": {filepath.Join(work, "stop.sh")}}
+	return r, state
+}
+
+func TestHookTimeBoundDegradation(t *testing.T) {
+	deadline := "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues"
+	t.Run("HLQ-V1-009 an enrolled Stop that fails open on its deadline is retried and still must block", func(t *testing.T) {
+		r, _ := fakeFrontierRunner(t, 1, deadline)
+		r.step("frontier", r.pluginFrontier)
+		got := r.results[0]
+		if got.status != "PASS" || !strings.Contains(got.detail, "time-bound hook degradations retried: Stop attempt 1 corvint-event-rejected:dogfood-event-deadline after ") {
+			t.Fatalf("result %+v", got)
+		}
+	})
+	t.Run("HLQ-V1-009 exhausted attempts name the degradation and the hook streams instead of decision <nil>", func(t *testing.T) {
+		r, _ := fakeFrontierRunner(t, hookAttempts, deadline)
+		r.step("frontier", r.pluginFrontier)
+		got := r.results[0]
+		for _, want := range []string{
+			"Stop hook failed open with time-bound degradation corvint-event-rejected:dogfood-event-deadline on all 3 attempts",
+			"last hook Stop: exit=0 elapsed=", "degradation=corvint-event-rejected:dogfood-event-deadline",
+			`stdout="{\"systemMessage\":`, `stderr="trace on stderr\n"`, "Stop attempt 3 ",
+		} {
+			if got.status != "FAIL" || !strings.Contains(got.detail, want) {
+				t.Fatalf("result %+v lacks %q", got, want)
+			}
+		}
+		if strings.Contains(got.detail, "decision <nil>") || strings.Count(r.render(), "\n") != 11 {
+			t.Fatalf("silent nil or a forged report row: %q", r.render())
+		}
+	})
+	t.Run("HLQ-V1-009 a non-time-bound fail-open is not retried and the failure names it", func(t *testing.T) {
+		r, state := fakeFrontierRunner(t, 2, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-unavailable; coding continues")
+		r.step("frontier", r.pluginFrontier)
+		got := r.results[0]
+		if got.status != "FAIL" || !strings.Contains(got.detail, "enrolled incomplete Stop returned decision <nil>") ||
+			!strings.Contains(got.detail, "degradation=corvint-event-rejected:dogfood-event-unavailable") || strings.Contains(got.detail, "retried") {
+			t.Fatalf("result %+v", got)
+		}
+		if left, _ := os.ReadFile(filepath.Join(state, "degraded")); strings.TrimSpace(string(left)) != "1" {
+			t.Fatalf("a non-time-bound degradation was retried: %q runs left", left)
+		}
+	})
+	t.Run("HLQ-V1-009 hook streams in a failed case are bounded", func(t *testing.T) {
+		call := &hookCall{event: "Stop", stdout: strings.Repeat("o", hookStreamLimit+10), stderr: "e\tf", elapsed: 1712345 * time.Microsecond}
+		text := call.String()
+		if !strings.Contains(text, "exit=0 elapsed=1.712s degradation=none") || !strings.Contains(text, "(10 bytes omitted)") || strings.ContainsAny(text, "\t\n") {
+			t.Fatalf("diagnostic %q", text)
+		}
+	})
+}
+
+func TestDegradationCode(t *testing.T) {
+	for output, want := range map[string]string{
+		`{"systemMessage":"Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues"}`:                                                                    "adapter-host-kill-deadline",
+		`{"hookSpecificOutput":{"additionalContext":"Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-index-snapshot-stale; coding continues\nrefresh"}}`: "corvint-event-rejected:dogfood-event-index-snapshot-stale",
+		`{"hookSpecificOutput":{"additionalContext":"Corvint fallback: corvint-event-rejected:dogfood-event-deadline; unrelated coding continues."}}`:                    "corvint-event-rejected:dogfood-event-deadline",
+		`{"decision":"block","reason":"x"}`: "",
+		`not json`:                          "",
+	} {
+		if got := degradationCode(output); got != want {
+			t.Errorf("degradationCode(%s) = %q, want %q", output, got, want)
+		}
+		if want != "" && !timeBound(want) {
+			t.Errorf("%s is not time-bound", want)
+		}
+	}
+	if timeBound("malformed-hook-json") || timeBound("corvint-event-rejected:dogfood-event-unavailable") {
+		t.Error("a semantic degradation counted as time-bound")
+	}
 }
