@@ -76,9 +76,8 @@ therefore come from something keyed on content, not from Go's cache.
   module path, `go list` or the index failing, a package outside the module), every package MUST
   run with `-count=1` under the tree key. A failing resolved batch MUST NOT stop the unresolved
   packages from running, so one run reports every failing package as `go test ./...` would; the
-  step MUST then exit with the resolved batch's status, unless that batch was killed by a signal,
-  which stops the step. `make go-test` and `make gate-affected` MUST keep running with `-count=1`
-  unchanged.
+  step MUST then exit with the resolved batch's status. `make go-test` and `make gate-affected`
+  MUST keep running with `-count=1` unchanged.
 - `GL-V0-005`: The ledger MUST refuse to digest, and therefore run without recording, any
   worktree whose content `git status` cannot see fully: a tracked file marked skip-worktree or
   assume-unchanged, an ignored `.go` file outside `.`-, `_`- and `testdata` directories that the

@@ -283,8 +283,8 @@ func (l *ledger) goTest(goTest []string) int {
 		}
 	}
 	// A failing resolved batch must not hide the unresolved packages' failures, as one
-	// `go test ./...` would not (GL-V0-004); a batch killed by a signal stops the step.
-	if len(unresolvedPkgs) == 0 || code > 128 {
+	// `go test ./...` would not (GL-V0-004).
+	if len(unresolvedPkgs) == 0 {
 		return code
 	}
 	if rest := l.runStep(unresolved, unresolvedPkgs, append(append(append([]string{}, goTest...), "-count=1"), unresolvedPkgs...)); code == 0 {
