@@ -220,6 +220,22 @@ The fourth review (Codex, read-only, on the third fixed commit) returned two fin
     code and eight documentation hits at limit 12, a recent `docs/h.md`: two omitted by the
     share, the strongest `docs/f.md`).
 
+The eight public cases rerun on the fourth fixed commit carry the same 27 hits and miss the
+same 11, every packet byte-identical to the third rerun. The fifth review (Codex, read-only, on
+the fourth fixed commit; its sandbox could not run the Go tests, and it modelled the reorder-free
+accounting against the earlier rule over 30,000 cases with held paths, reservations and
+truncation, finding no difference) returned one finding:
+
+15. P2, the share line's comparison row was the weakest carried code row of any position, so a
+    weak recent code hit that TCP-V0-035's reorder moved into the head stayed the comparison
+    row and the line claimed share omissions the packet, whose code row past the head outscored
+    every documentation hit, did not make. Fixed; the comparison row is the weakest lexical
+    code row after the first `lexicalHead` of them in packet order (TCP-V0-061 amended).
+    Pinned by the weak-recent-hit subtest of
+    `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (five old code hits above
+    eight documentation hits above one recent code hit at limit 12: the reorder-free packet
+    states the share line naming `docs/g.md`, the reordered packet the limit line alone).
+
 ## Rollback
 
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,

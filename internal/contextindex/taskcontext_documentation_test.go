@@ -379,4 +379,61 @@ func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
 			t.Fatalf("reorder-free coverage.uncertainty = %q, want %q", plain, lines)
 		}
 	})
+	t.Run("TCP-V0-061 TCP-V0-035 a weak recent code hit promoted into the head is not the share's comparison row", func(t *testing.T) {
+		// Five old code hits outscore eight documentation hits, which outscore
+		// one recent code hit, at limit 12: the fill carries the five old hits
+		// as the head, six documentation rows as the share and the recent hit
+		// last, so without the reorder docs/g.md and docs/h.md are the hits
+		// the share kept out in favour of the recent hit. The reorder moves
+		// the recent hit into the head and an old hit past it; the code row
+		// past the head now outscores every documentation hit, so that packet
+		// omits the two by the limit alone.
+		root := recencyRepository(t)
+		for index := range 5 {
+			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index+1),
+				"package code\n\n// needle signal\n// needle signal\n\nfunc one() {}\nfunc two() {}\nfunc three() {}\nfunc four() {}\n")
+		}
+		for index := range 8 {
+			writeTestFile(t, root, fmt.Sprintf("docs/%c.md", 'a'+index), "needle signal\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "old sources")
+		writeTestFile(t, root, "code/06.go", "package code\n\n// needle signal\n")
+		recencyCommit(t, root, recencyNewDate, "new source")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "")
+		plain, err := TaskContext(context.Background(), index, "needle signal", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		packet, err := TaskContext(context.Background(), index, "needle signal", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documentation := []string{
+			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
+			"documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
+		}
+		want := append([]string{"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go", "lexical code/05.go"}, documentation...)
+		want = append(want, "lexical code/06.go")
+		if got := contextPairs(t, plain); !slices.Equal(got, want) {
+			t.Fatalf("reorder-free packet = %v, want the recent hit carried last: %v", got, want)
+		}
+		lines := contextUncertainty(t, plain)
+		if len(lines) != 2 || lines[0] != "0 code and 2 documentation rows the task matched lexically are omitted by the result limit 12" ||
+			!strings.HasPrefix(lines[1], "2 documentation rows that outscore a carried code row are omitted by the documentation share (6 of 12 lexical positions); the strongest is `docs/g.md` (bm25 ") {
+			t.Fatalf("reorder-free coverage.uncertainty = %q, want the limit line and the share line naming docs/g.md", lines)
+		}
+		want = append([]string{"lexical code/06.go", "lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go"}, documentation...)
+		want = append(want, "lexical code/05.go")
+		if got := contextPairs(t, packet); !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the recent hit promoted into the head: %v", got, want)
+		}
+		if lines := contextUncertainty(t, packet); !slices.Equal(lines, []string{"0 code and 2 documentation rows the task matched lexically are omitted by the result limit 12"}) {
+			t.Fatalf("coverage.uncertainty = %q, want the limit line alone", lines)
+		}
+	})
 }

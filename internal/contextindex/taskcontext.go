@@ -1406,38 +1406,51 @@ func lexicalScore(bm25, strongest float64) int {
 // lexicalCoverage states the lexical hits the packet does not carry as
 // uncertainty (TCP-V0-061): the count per class the result limit omitted,
 // and, when the fill carried a code row past the head, the documentation
-// hits the fill did not carry that outscore a carried code row, which the
-// documentation share rather than their strength or the head omitted. Both
-// are read from the carried rows (the head as a count), so TCP-V0-035's
-// reorder of each kind among its positions changes nothing. With nothing
+// hits the fill did not carry that outscore the weakest code row carried
+// past the head, which the documentation share rather than their strength
+// or the head omitted. Both are read from the carried rows (the head as a
+// count of the leading code positions), so TCP-V0-035's reorder of each
+// kind among its positions changes nothing. With nothing
 // omitted the member is absent, as in every earlier packet. When TCP-V0-016
 // withheld the ordinary rows, the hits are withheld by the verdict, not
 // omitted by the limit, and a separate line says so; a reservation the limit
 // cut is still omitted by the limit, since the verdict withdraws no
 // reservation.
 func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, rows []contextRow, limit int) {
+	hits := compiler.lexicalHits()
+	bm25 := make(map[string]float64, len(hits))
+	for _, hit := range hits {
+		bm25[hit.path] = hit.score
+	}
 	carried := make(map[string]struct{}, len(rows))
-	fillCode := make(map[string]struct{}, len(rows))
+	// The code rows the fill carried past the head are the carried lexical
+	// rows after the first lexicalHead of them in packet order, whatever
+	// TCP-V0-035's reorder placed in the head positions; the weakest of them
+	// is the row the deferred documentation lost a position to. A head row
+	// is never that row, since the head is TCP-V0-013's rule and not the
+	// share's.
+	codeCarried, weakestCode, lexical := false, 0.0, 0
 	for _, row := range rows {
 		carried[row.path] = struct{}{}
-		if row.kind == "lexical" {
-			fillCode[row.path] = struct{}{}
+		if row.kind != "lexical" {
+			continue
 		}
+		lexical++
+		if lexical <= compiler.lexicalHead {
+			continue
+		}
+		if score := bm25[row.path]; !codeCarried || score < weakestCode {
+			weakestCode = score
+		}
+		codeCarried = true
 	}
 	reserved := make(map[string]struct{}, len(compiler.reserved))
 	for _, row := range compiler.reserved {
 		reserved[row.path] = struct{}{}
 	}
 	withheld := compiler.answerability.unsupported()
-	// A code row past the head is carried when the fill's code rows outnumber
-	// the head positions; the weakest of them is the row the deferred
-	// documentation lost a position to.
-	codeCarried, weakestCode, seen := len(fillCode) > compiler.lexicalHead, 0.0, false
 	var omitted, withdrawn [2]int
-	for _, hit := range compiler.lexicalHits() {
-		if _, ok := fillCode[hit.path]; ok && (!seen || hit.score < weakestCode) {
-			weakestCode, seen = hit.score, true
-		}
+	for _, hit := range hits {
 		if _, ok := carried[hit.path]; ok || hit.path == compiler.subject {
 			continue
 		}
