@@ -430,6 +430,8 @@ type leaseOutcome struct {
 	ticket *ticketEffect
 	detail string
 	result *Result
+	// authors is the CAL-V0-098 derivation an admitted claim applied.
+	authors *AuthorExclusion
 }
 
 type leaseContext struct {

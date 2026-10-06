@@ -87,8 +87,16 @@ func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
 	if r := s.lease(t, "plain-review", reviewOf(plain, transaction.ExcludeAuthorsLatest), 0, nil); !r.Outcome.HasCode(wire.CodeIndependenceUnverified) || !strings.Contains(r.Detail, "recorded no stage") {
 		t.Fatalf("unpooled implement %+v", r)
 	}
+	// CAL-V0-104: explicit members cover the generation that recorded no
+	// member, and the admitted claim reports it.
+	covered := s.lease(t, "plain-review-covered", reviewOf(plain, transaction.ExcludeAuthorsLatest, "review"), 0, nil)
+	if covered.PoolAllocation == nil || covered.PoolAllocation.MemberID == "review" || covered.AuthorExclusion == nil || len(covered.AuthorExclusion.Covered) != 1 || len(covered.AuthorExclusion.Notes()) != 2 {
+		t.Fatalf("covered unpooled implement %+v", covered)
+	}
+	// CAL-V0-104: a ticket with no implement generation has nothing to
+	// exclude, so a review claim is admitted, not refused.
 	fresh := s.ticket(t, "never-implemented")
-	if r := s.lease(t, "fresh-review", reviewOf(fresh, transaction.ExcludeAuthorsLatest), 0, nil); !r.Outcome.HasCode(wire.CodeIndependenceUnverified) || r.PoolAllocation != nil {
+	if r := s.lease(t, "fresh-review", reviewOf(fresh, transaction.ExcludeAuthorsLatest), 0, nil); r.Outcome.Outcome != mutation.OutcomeCompleted || r.PoolAllocation == nil || r.AuthorExclusion == nil || len(r.AuthorExclusion.Authors) != 0 {
 		t.Fatalf("unimplemented ticket %+v", r)
 	}
 	auditOK(t, s.repo)
@@ -99,7 +107,16 @@ func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
 func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
-	s.ticket(t, "unverified")
+	// A pooled claim without a stage recorded its member but no stage: no
+	// explicit member covers it (CAL-V0-104), so CLAIM_NEXT skips it.
+	unverified := s.ticket(t, "unverified")
+	stageless := claimOf(unverified, unverified)
+	stageless.Pool, stageless.ExcludeMembers = "db", []string{"a", "review"}
+	if r := s.lease(t, "stageless", stageless, 0, nil); r.PoolAllocation == nil || r.PoolAllocation.MemberID != "b" {
+		t.Fatalf("stage-less %+v", r)
+	} else {
+		s.freeAgain(t, "stageless", r)
+	}
 	want := s.ticket(t, "implemented")
 	s.implementOn(t, want, "b", "a", "review")
 	derive := func(_ context.Context, _, _, title, _ string) ([]string, string, bool) {
@@ -112,7 +129,7 @@ func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
 	}
 	s.lease(t, "next-review-release", releaseOf(r), 0, nil)
 	blocked := s.lease(t, "next-none", next, 0, derive)
-	if blocked.PoolAllocation != nil || blocked.Outcome.Outcome == mutation.OutcomeCompleted || !blocked.Outcome.HasCode(wire.CodeIndependenceUnverified) || !strings.Contains(blocked.Detail, "no implement generation") {
+	if blocked.PoolAllocation != nil || blocked.Outcome.Outcome == mutation.OutcomeCompleted || !blocked.Outcome.HasCode(wire.CodeIndependenceUnverified) || !strings.Contains(blocked.Detail, "recorded no stage") {
 		t.Fatalf("next without eligible ticket %+v", blocked)
 	}
 	auditOK(t, s.repo)
@@ -143,12 +160,24 @@ func TestCALV0098_HealthSkipsAuthor(t *testing.T) {
 	}
 	s.t0 = now(t)
 	unverified := s.ticket(t, "health-unverified")
+	s.lease(t, "health-plain-release", releaseOf(s.claim(t, "health-plain", unverified, 0, "health-plain")), 0, nil)
 	before, _ := os.ReadDir(markers)
 	if r := s.lease(t, "health-unverified", reviewOf(unverified, transaction.ExcludeAuthorsLatest), 0, nil); !r.Outcome.HasCode(wire.CodeIndependenceUnverified) {
 		t.Fatalf("unverified health %+v", r)
 	}
 	if after, _ := os.ReadDir(markers); len(after) != len(before) {
 		t.Fatal("unverified claim probed a member")
+	}
+	// CAL-V0-104: with an explicit member the unrecorded generation is
+	// covered, and health preparation (which carries no explicit members)
+	// covers it too instead of refusing the prepared claim.
+	s.t0 = now(t)
+	covered := s.lease(t, "health-covered", reviewOf(unverified, transaction.ExcludeAuthorsLatest, "review"), 0, nil)
+	if covered.PoolAllocation == nil || covered.PoolAllocation.MemberID != "b" || covered.AuthorExclusion == nil || len(covered.AuthorExclusion.Covered) != 1 {
+		t.Fatalf("covered health %+v", covered)
+	}
+	if _, err := os.Stat(filepath.Join(markers, "b")); err != nil {
+		t.Fatalf("covered claim health did not run: %v", err)
 	}
 }
 

@@ -238,9 +238,13 @@ It requires an explicit pool and `--stage review` or `--stage integrate`, and it
 request replays and a changed mode conflicts under the same request ID. Walking the ticket's
 generations newest first, review and integrate generations are skipped; any other generation
 reached must be an implement generation with a recorded pool member. A generation whose member is
-`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, an implement
-generation without a pool member, or a ticket with no implement generation refuses the claim with
-`INDEPENDENCE_UNVERIFIED`; it is never silently unfiltered, and nothing is recovered from receipts.
+`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, or an
+implement generation without a pool member refuses the claim with `INDEPENDENCE_UNVERIFIED`; it is
+never silently unfiltered, and nothing is recovered from receipts. When you also pass at least one
+`--exclude-member`, those generations (except a stage-less one that recorded a member) are covered by
+your explicit set instead, and the claim result warns that the exclusion is caller-asserted, not
+recorded (CAL-V0-104). A ticket with no implement generation has no author to exclude and is not
+refused.
 When no member remains, the claim refuses `RESOURCE_COLLISION` with a detail naming the excluded
 authors. `plan preview` reports the same per ticket, and with this flag adds `detail` and
 `excludedAuthors` to each entry. A recorded member label is not an authenticated identity and
