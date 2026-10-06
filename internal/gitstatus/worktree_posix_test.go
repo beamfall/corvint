@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -70,7 +71,28 @@ func TestWorktreeInputModesMatchRootLstat(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, fifo := range []string{"a/b/c/d/.gitattributes", "x/.gitignore", "a-b/.gitignore", "z/.gitignore"} {
+	// Two chains of five directory symlinks: each resolves alone, but a full
+	// path through both exceeds the worktree's symlink budget.
+	// Deeper than maxInputHandles, so its lower directories take the root's
+	// resolution.
+	tower := strings.Repeat("t/", maxInputHandles+8)
+	for _, directory := range []string{"s/real/deep", tower} {
+		if err := os.MkdirAll(filepath.Join(root, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for step := 1; step <= 5; step++ {
+		next, deeper := fmt.Sprintf("p%d", step+1), fmt.Sprintf("q%d", step+1)
+		if step == 5 {
+			next, deeper = "real", "deep"
+		}
+		for link, target := range map[string]string{fmt.Sprintf("s/p%d", step): next, fmt.Sprintf("s/real/q%d", step): deeper} {
+			if err := os.Symlink(target, filepath.Join(root, filepath.FromSlash(link))); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, fifo := range []string{"a/b/c/d/.gitattributes", "x/.gitignore", "a-b/.gitignore", "z/.gitignore", "s/real/deep/.gitignore", tower + ".gitattributes"} {
 		if err := syscall.Mkfifo(filepath.Join(root, filepath.FromSlash(fifo)), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -82,6 +104,7 @@ func TestWorktreeInputModesMatchRootLstat(t *testing.T) {
 		"z/first.go", "a/b/c/d/e/deep.go", "a/inlink/c/d/via.go", "a/b/up/y/up.go", "a/b/c/climb/climb.go",
 		"a/out/out.go", "a/file/under.go", "a/b/dangling/d.go", "a/b/c/loop/l.go", "gone/missing/m.go",
 		"../escape.go", "/abs/path.go", "a-b/dash.go", "a.b/dot.go", "x/y/z.go", "a/b/../b/c/dotted.go",
+		"s/p1/q1/chained.go", tower + "tall.go",
 	}
 	worktree, err := os.OpenRoot(root)
 	if err != nil {

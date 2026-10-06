@@ -23,19 +23,12 @@ Related tickets: V1-0328, V1-0418, V1-0416, V1-0372 and V1-0554.
   - Now: `worktreeInputModes` visits the directories in a subtree-contiguous order and keeps an
     `os.Root` handle open for each directory on the current path. It Lstats the two base names
     through that handle.
-  - A component that is not a plain single name, or that cannot be opened as a root, falls back to
-    the old full-path `worktree.Lstat` for that directory and every directory below it. This is the
-    case for a symlink, a missing directory or a file.
+  - A sub-root is opened only for a component that is a plain single name and that the parent's
+    `Lstat` reports as a real directory, and only while fewer than `maxInputHandles` (32) handles
+    are open. Anything else falls back to the old full-path `worktree.Lstat` for that directory and
+    every directory below it: a symlink, a missing directory, a file, or a deeper directory.
   - The refusal is still the first blocking input in the original `worktreeInputs` order, with the
     same message and class.
-- **`internal/contextindex/snapshot.go`: snapshot load (IO and decode plumbing only).**
-  - The trailer SHA-256 now runs on its own `io.SectionReader` beside the gob decode, instead of
-    being chained through a `TeeReader`.
-  - A decode error stops the digest reader and is reported first.
-  - The digest is still compared before the decoded value is returned.
-  - A new re-`Stat` refuses `snapshot changed while loading` if the file's size or modification time
-    moved between the two reads. Writers replace a snapshot by rename and never rewrite it in place,
-    so this check never fires on a correct writer.
 - **`internal/liveverify/affected/readers.go`: AFP-V0-021 path-literal readers.**
   - `componentRuns` used to be recomputed for every unit, token and dirty path. It is a pure
     function of the token, so one selection now memoises it in a `runCache` shared across its dirty
@@ -56,12 +49,27 @@ Related tickets: V1-0328, V1-0418, V1-0416, V1-0372 and V1-0554.
   - These are necessary conditions, so a skipped line could never have matched, and receipts are
     unchanged.
 
-- **The analyzer schema moves to `corvint-analyzer/104`.** `contextindex` and `gitstatus` are inputs
-  pinned by `TestAnalyzerSchemaInputs`, and its rule is to bump on any change to them. Extracted facts
+- **The analyzer schema moves to `corvint-analyzer/104`.** `gitstatus` is an input pinned by
+  `TestAnalyzerSchemaInputs`, and its rule is to bump on any change to it. Extracted facts
   are unchanged, and existing analyzer packs are rebuilt once.
 
 ## Decisions
 
+- **Snapshot load is unchanged; a concurrent trailer digest was tried and withdrawn.**
+  - Two versions moved the SHA-256 off the decode's path. The first hashed an independent second
+    read of the file (review finding 1 below). The second hashed copies of exactly the decoded bytes
+    on another goroutine.
+  - On `context --task` over the Corvint corpus, eight alternating runs each:
+    - main: 0.29-0.35 s, 316-319 MB;
+    - second-read digest: 0.23-0.28 s, 318-397 MB;
+    - decoded-bytes digest: 0.27-0.33 s, 335-406 MB.
+  - The GC trace shows the same heap peak (295-310 MB) in all three. The extra RSS appears when the
+    heap overshoots its goal during concurrent marking: 7 of 8 runs of the decoded-bytes variant,
+    3 of 8 of the second-read variant, and none of main.
+  - 20-60 ms per load was not worth up to 85 MB more RSS on a command whose RSS was a stated
+    complaint, so `decodeSnapshotValue` stays as on main. This is recorded as deferred potential.
+    It includes warm `index --if-stale`, which took 0.10-0.12 s with the second-read variant against
+    0.14-0.15 s on main.
 - **The snapshot format is unchanged.** The remaining load cost is in gob itself.
   - gob reads the roughly 120 MB Index message through `saferio.ReadData`, which grows its buffer in
     10 MB appends. That costs about 500 MB of allocation per load in the allocation profile.
@@ -101,24 +109,26 @@ alternating.
 
 | command | old wall / RSS | new wall / RSS |
 |---|---|---|
-| c-query-1 (`query --task`) | 0.552 s / 340 MB | 0.373 s / 320 MB |
-| c-context-1 (`context --task`) | 0.324 s / 317 MB | 0.258 s / 320 MB |
-| c-context-4 (`context --lsp off`) | 0.361 s / 319 MB | 0.262 s / 318 MB |
-| c-impact-3 (`impact --base`) | 0.864 s / 315 MB | 0.681 s / 317 MB |
-| c-affected-1 (`affected --base`, 1 commit) | 1.302 s / 56 MB | 0.648 s / 68 MB |
-| c-affected-2 (`affected --base`, 5 commits) | 2.162 s / 55 MB | 1.316 s / 68 MB |
-| c-review-2 (`review --base`) | 2.043 s / 48 MB | 0.926 s / 48 MB |
-| c-features | 0.947 s / 47 MB | 0.488 s / 47 MB |
-| c-overview | 1.035 s / 360 MB | 0.510 s / 361 MB |
-| c-harness-1 (user-prompt hook) | 0.749 s / 325 MB | 0.499 s / 325-399 MB |
-| p-query-1 | 0.337 s / 107 MB | 0.297 s / 108 MB |
-| p-affected-2 | 0.670 s / 41 MB | 0.480 s / 46 MB |
-| p-review-1 | 1.265 s / 55 MB | 0.694 s / 56 MB |
-| p-overview | 0.843 s / 120 MB | 0.411 s / 120 MB |
-| `index --if-stale`, warm, Corvint | 0.16 s | 0.11 s |
-| `index`, cold, Corvint (3 interleaved runs) | 1.87-2.18 s / 0.92-1.0 GB | 1.83-1.97 s / 0.88-1.0 GB |
+| c-query-1 (`query --task`) | 0.690 s / 342 MB | 0.522 s / 341 MB |
+| c-context-1 (`context --task`) | 0.345 s / 319 MB | 0.345 s / 320 MB |
+| c-context-4 (`context --lsp off`) | 0.366 s / 322 MB | 0.343 s / 317 MB |
+| c-impact-3 (`impact --base`) | 1.609 s / 319 MB | 1.083 s / 315 MB |
+| c-affected-1 (`affected --base`, 1 commit) | 1.486 s / 55 MB | 0.760 s / 71 MB |
+| c-affected-2 (`affected --base`, 5 commits) | 2.646 s / 57 MB | 1.824 s / 71 MB |
+| c-review-2 (`review --base`) | 1.894 s / 47 MB | 1.047 s / 48 MB |
+| c-features | 0.962 s / 47 MB | 0.454 s / 48 MB |
+| c-overview | 1.031 s / 361 MB | 0.542 s / 361 MB |
+| c-harness-1 (user-prompt hook) | 0.857 s / 323 MB | 0.551 s / 323-391 MB |
+| p-query-1 | 0.390 s / 107 MB | 0.330 s / 106 MB |
+| p-affected-2 | 0.752 s / 40 MB | 0.495 s / 48 MB |
+| p-review-1 | 1.224 s / 55 MB | 0.638 s / 55 MB |
+| p-overview | 0.859 s / 120 MB | 0.412 s / 120 MB |
+| `index --if-stale`, warm, Corvint (5 interleaved runs) | 0.14-0.15 s | 0.14-0.16 s |
+| `index`, cold, Corvint (3 interleaved runs, first commit) | 1.87-2.18 s / 0.92-1.0 GB | 1.83-1.97 s / 0.88-1.0 GB |
 
-Across all 36 commands the new/old wall-time ratio ranged from 0.45 to 1.01, with no regression.
+The table is the final binary, after the review fixes. The warm `--if-stale` gain of the first commit
+(0.16 s to 0.11 s) came from the withdrawn snapshot digest change, so it is not claimed.
+Across all 36 commands the new/old wall-time ratio ranged from 0.47 to 1.00, with no regression.
 The harness RSS varies with GC timing in both binaries: over eight alternating runs it was 325-390 MB
 for old and 324-399 MB for new.
 
@@ -131,12 +141,16 @@ for old and 324-399 MB for new.
   - For all 45, stdout, exit code and stderr were byte-identical between old and new.
   - The one exception is `d-c-impact-2`, which differs only in `identity_sha256`. Two old runs
     differ in that field in the same way.
+  - The 45 commands were run for the first commit and again for the final binary, with the same
+    result.
   - `index` output was equal apart from the engine digest and path. Snapshot sizes were identical:
     124501338 and 25723101 bytes.
 - **Frozen retrieval eval.**
   - Command: `corvint eval --goldens testing/context-retrieval-goldens.json`.
   - Repository: a private local clone of the manifest's `beamfall` repository at 6e82abd8.
-  - Old and new outputs were identical except for `latency_ms`: 8391 ms became 7135 ms.
+  - Old and new outputs were structurally identical except for `latency_ms`. It was 8391 ms for
+    old and 2902 ms for the final binary, but the final run had a warm index, so the latency is not
+    comparable.
 - **Maintained tests and benchmarks.** All PASS.
   - `TestWorktreeInputModesMatchRootLstat`
     - Covers symlinks that stay in, leave and climb out of their parent, a symlink out of the root,
@@ -145,11 +159,6 @@ for old and 324-399 MB for new.
       Lstat oracle and the old refusal.
     - `BenchmarkWorktreeInputsOpen` (512 directories): 53.4 ms/op became 12.6 ms/op; allocations rose
       from 12 k to 25 k per op.
-  - `TestDecodeSnapshotValueDigestBesideTheDecode`
-    - Checks repeated decodes are equal, the header refusal, and a same-length forged body refused
-      as `snapshot digest mismatch`.
-    - `BenchmarkDecodeSnapshotValue` measured about 4-7 ms/op new against 6-10 ms/op old. The two
-      were run through an overlay of the old file on the same noisy host.
   - `TestNamersWithSharedRunCacheMatchesUncached` compares the cached match with the uncached one
     over anchored, climbing, partial, lone-component and shared tokens, in both dirty-path orders.
   - `TestConcurrentDirectoryObservationMatchesSerial`
@@ -164,6 +173,29 @@ for old and 324-399 MB for new.
   - Touched packages (`internal/gitstatus`, `internal/contextindex`, `internal/liveverify/affected/...`,
     `cmd/corvint`) ran with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count=1 -timeout 30m`.
   - `go vet` ran for darwin, linux and windows, and `gofmt -l` was clean.
+
+## Independent review
+
+Codex (`codex exec -s read-only`, diff 855077fc..0ae4de01) reported three P2 findings. Each was
+checked before it was fixed; the fixes and the withdrawal are in the second commit.
+
+1. **Snapshot digest no longer of the decoded bytes (`snapshot.go`).** Confirmed by reading: the
+   first version hashed a second, independent read of the file. A same-length in-place rewrite with
+   its modification time restored could pass both the digest and the re-`Stat`. A fix that hashed
+   copies of the decoded bytes kept the guarantee but raised RSS (see Decisions), so the change was
+   withdrawn and `snapshot.go` is identical to main.
+2. **Symlink budget reset per component (`worktree_posix.go`).** Reproduced: two chains of five
+   directory symlinks resolve in their own sub-roots but exceed the root's budget as one path, so
+   the first version reported a FIFO the old code did not. The case is now in
+   `TestWorktreeInputModesMatchRootLstat` and fails on the first version. Fixed by opening a
+   sub-root only for a real directory.
+3. **One descriptor per ancestor (`worktree_posix.go`).** Confirmed by reading: the handles were
+   bounded only by the directory depth. The old code also ignored an `Lstat` error, such as
+   EMFILE, but used no lasting descriptors. Fixed with the `maxInputHandles` cap; the test adds a
+   directory 40 levels deep whose FIFO must still be found.
+
+A narrow race remains: a directory replaced by a symlink between the parent's `Lstat` and
+`OpenRoot`. A status read is not atomic against concurrent edits before or after this change.
 
 ## NOT_RUN
 

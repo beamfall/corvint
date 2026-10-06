@@ -45,10 +45,12 @@ func worktreeInputsOpen(ctx context.Context, root string, index []byte) error {
 // worktreeInputModes reports the Lstat mode of every input that exists, as
 // worktree.Lstat(input) would. A Root Lstat reopens every directory on the
 // path, so it opens each listed directory once, from its parent's handle, and
-// examines its two inputs there. A directory that cannot be opened that way,
-// such as a symlink that leaves its parent, falls back to worktree.Lstat for
-// itself and its descendants, so symlink resolution stays the root's. Open
-// handles are bounded by the directory depth.
+// examines its two inputs there. Only a real directory is opened that way:
+// a symlink, which could leave its parent and would get a fresh symlink
+// budget in a handle of its own, anything else, and a directory deeper than
+// maxInputHandles fall back to worktree.Lstat for themselves and their
+// descendants, so symlink resolution stays the root's and the open handles
+// stay bounded.
 func worktreeInputModes(ctx context.Context, worktree *os.Root, inputs []string) (map[string]os.FileMode, error) {
 	modes := make(map[string]os.FileMode, len(inputs))
 	type frame struct {
@@ -83,9 +85,11 @@ func worktreeInputModes(ctx context.Context, worktree *os.Root, inputs []string)
 			}
 			// worktreeInputs lists every ancestor, so the parent is the
 			// directory's own; anything else takes the worktree's resolution.
-			if parent.handle != nil && nested && component != "" && !strings.Contains(component, "/") {
-				if opened, err := parent.handle.OpenRoot(component); err == nil {
-					handle = opened
+			if parent.handle != nil && nested && len(stack) <= maxInputHandles && component != "" && !strings.Contains(component, "/") {
+				if info, err := parent.handle.Lstat(component); err == nil && info.IsDir() {
+					if opened, err := parent.handle.OpenRoot(component); err == nil {
+						handle = opened
+					}
 				}
 			}
 			stack = append(stack, frame{pair.directory, handle})
@@ -105,6 +109,10 @@ func worktreeInputModes(ctx context.Context, worktree *os.Root, inputs []string)
 	}
 	return modes, nil
 }
+
+// maxInputHandles bounds the directory handles worktreeInputModes keeps open
+// at once; deeper directories take the worktree's resolution.
+const maxInputHandles = 32
 
 // inputPair is one directory's ignore and attributes inputs, at offset and
 // offset+1 in worktreeInputs.

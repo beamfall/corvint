@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -824,9 +823,8 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 // tell a body overwritten with the same number of bytes from the real one,
 // so without the trailer such a file would load as a hit serving text its
 // blob does not contain (IDX-SNAP-V0-003, decision 0398). Every loader and
-// ProbeSnapshot reads the whole message anyway; the hash rereads the same
-// bytes, normally from the page cache, on a second goroutine so it overlaps
-// the decode instead of adding to it.
+// ProbeSnapshot reads the whole message anyway, so the check adds a hash of
+// bytes already read, not another read of the file.
 func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, value any) error {
 	info, err := file.Stat()
 	if err != nil {
@@ -836,30 +834,17 @@ func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID st
 	if payloadBytes <= 0 {
 		return errors.New("snapshot shorter than its digest")
 	}
-	// The digest reads the payload through its own section beside the decode
-	// instead of inline with it, and both finish before any result. Writers
-	// only rename a finished file into place, so the two reads see one file's
-	// bytes; an in-place rewrite between them changes the size or modification
-	// time, which refuses the load as a mismatch would.
-	hashed := make(chan error, 1)
 	digest := sha256.New()
-	var stop atomic.Bool
-	go func() {
-		payload := stoppableReader{io.NewSectionReader(file, 0, payloadBytes), &stop}
-		_, err := io.CopyBuffer(digest, payload, make([]byte, snapshotHashBuffer))
-		hashed <- err
-	}()
-	decodeErr := decodeSnapshotPayload(io.NewSectionReader(file, 0, payloadBytes), identity, engineID, value)
-	if decodeErr != nil {
-		// A refused decode needs no digest; stop rereading the payload.
-		stop.Store(true)
+	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
+	decoder := gob.NewDecoder(payload)
+	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
+		return err
 	}
-	hashErr := <-hashed
-	if decodeErr != nil {
-		return decodeErr
+	if err := decoder.Decode(value); err != nil {
+		return err
 	}
-	if hashErr != nil {
-		return hashErr
+	if _, err := io.Copy(io.Discard, payload); err != nil {
+		return err
 	}
 	var trailer [sha256.Size]byte
 	if _, err := file.ReadAt(trailer[:], payloadBytes); err != nil {
@@ -868,42 +853,7 @@ func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID st
 	if !bytes.Equal(digest.Sum(nil), trailer[:]) {
 		return errors.New("snapshot digest mismatch")
 	}
-	after, err := file.Stat()
-	if err != nil {
-		return err
-	}
-	if after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {
-		return errors.New("snapshot changed while loading")
-	}
 	return nil
-}
-
-// snapshotHashBuffer is the trailer digest's read size.
-const snapshotHashBuffer = 256 << 10
-
-// stoppableReader ends its reads once stop is set.
-type stoppableReader struct {
-	reader io.Reader
-	stop   *atomic.Bool
-}
-
-func (stoppable stoppableReader) Read(buffer []byte) (int, error) {
-	if stoppable.stop.Load() {
-		return 0, errSnapshotHashStopped
-	}
-	return stoppable.reader.Read(buffer)
-}
-
-var errSnapshotHashStopped = errors.New("snapshot digest stopped")
-
-// decodeSnapshotPayload decodes the header and the index message from the
-// payload section.
-func decodeSnapshotPayload(payload io.Reader, identity repositoryIdentity, engineID string, value any) error {
-	decoder := gob.NewDecoder(payload)
-	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
-		return err
-	}
-	return decoder.Decode(value)
 }
 
 func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, engineID string) error {
