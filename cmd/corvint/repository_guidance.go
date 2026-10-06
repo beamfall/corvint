@@ -232,6 +232,29 @@ func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck fun
 
 var guidanceMarkers = regexp.MustCompile(`(?i)^\s*(?://+|#|--|/\*+|\*|<!--)?\s*(feature|scenario)\s*:\s*([\p{L}\p{N}][\p{L}\p{N} _./()-]{0,119}?)\s*(?:\*/|-->)?\s*$`)
 var guidanceRegistrations = regexp.MustCompile(`\b(HandleFunc|Handle|Get|Post|Put|Delete|Patch|get|post|put|delete|patch|route|AddTool|addTool|registerTool|register_tool|tool)\s*\(\s*["']([^"'\r\n]{1,120})["']`)
+
+// guidanceRegistrationNames holds a substring of every guidanceRegistrations
+// alternative, so a line containing none of them cannot match it.
+var guidanceRegistrationNames = []string{"Handle", "Get", "Post", "Put", "Delete", "Patch", "get", "post", "put", "delete", "patch", "route", "Tool", "tool"}
+
+// guidanceMayMatch is a literal necessary condition of each rule's pattern: a
+// marker needs its ':', and a registration needs '(', a quote and one of its
+// names. A line failing it cannot match, so the regexp is not run on it.
+func guidanceMayMatch(id, candidate string) bool {
+	if id == "literal-marker" {
+		return strings.IndexByte(candidate, ':') >= 0
+	}
+	if strings.IndexByte(candidate, '(') < 0 || !strings.ContainsAny(candidate, `"'`) {
+		return false
+	}
+	for _, name := range guidanceRegistrationNames {
+		if strings.Contains(candidate, name) {
+			return true
+		}
+	}
+	return false
+}
+
 var guidanceLanguages = map[string]string{".go": "Go", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript", ".py": "Python", ".rb": "Ruby", ".rs": "Rust", ".java": "Java", ".kt": "Kotlin", ".swift": "Swift", ".cs": "C#", ".c": "C", ".cpp": "C++", ".cc": "C++", ".cxx": "C++", ".hpp": "C++"}
 var guidanceManifests = map[string]bool{"package.json": true, "go.mod": true, "Cargo.toml": true, "pyproject.toml": true, "Package.swift": true, "AndroidManifest.xml": true, "Info.plist": true, "Gemfile": true, "pom.xml": true}
 
@@ -287,6 +310,9 @@ func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceRecei
 				candidate := text
 				if rule.id == "literal-marker" {
 					candidate = markers[line+1]
+				}
+				if !guidanceMayMatch(rule.id, candidate) {
+					continue
 				}
 				matches := rule.pattern.FindAllStringSubmatch(candidate, -1)
 				if len(matches) > 16 {

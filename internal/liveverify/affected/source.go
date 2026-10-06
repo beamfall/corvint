@@ -72,6 +72,11 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 	}
 	return files, shared.bounded, nil
 }
+
+// ConcurrentReads reports a disk source, whose Read may run on several
+// goroutines at once. A supplied filesystem makes no such promise.
+func (s *Source) ConcurrentReads() bool { return s != nil && s.fsys == nil }
+
 func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 	defer func() { s.retain(errOut) }()
 	if s == nil {

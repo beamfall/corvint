@@ -126,7 +126,8 @@ third-party leg is `NOT_RUN`.
   inputs, and the audit over-invalidates consumer-only changes by design. The change does not alter
   extraction or pack encoding. With the owner's approval (2026-10-06), `analyzerSchemaID` moves to
   `corvint-analyzer/104` and the audit digest is repinned. Existing opt-in analyzer packs are
-  rebuilt once on the next index.
+  rebuilt once on the next index. The rc.3 integration batch combines this bump with the core
+  performance change's into `corvint-analyzer/105`.
 
 ## Review
 

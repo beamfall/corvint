@@ -10,6 +10,8 @@ import (
 	"encoding/binary"
 	"os"
 	"path"
+	"slices"
+	"strings"
 )
 
 // blocking names the file types whose open can wait on another process.
@@ -27,19 +29,115 @@ func worktreeInputsOpen(ctx context.Context, root string, index []byte) error {
 		return errRoot
 	}
 	defer worktree.Close()
-	for _, name := range worktreeInputs(index) {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		info, err := worktree.Lstat(name)
-		if err != nil {
-			continue
-		}
-		if info.Mode()&blocking != 0 {
-			return unsupported(classMetadataUnreadable, "worktree file "+path.Base(name)+" "+irregular(info.Mode()))
+	inputs := worktreeInputs(index)
+	modes, err := worktreeInputModes(ctx, worktree, inputs)
+	if err != nil {
+		return err
+	}
+	for _, name := range inputs {
+		if mode, ok := modes[name]; ok && mode&blocking != 0 {
+			return unsupported(classMetadataUnreadable, "worktree file "+path.Base(name)+" "+irregular(mode))
 		}
 	}
 	return nil
+}
+
+// worktreeInputModes reports the Lstat mode of every input that exists, as
+// worktree.Lstat(input) would. A Root Lstat reopens every directory on the
+// path, so it opens each listed directory once, from its parent's handle, and
+// examines its two inputs there. Only a real directory is opened that way:
+// a symlink, which could leave its parent and would get a fresh symlink
+// budget in a handle of its own, anything else, and a directory deeper than
+// maxInputHandles fall back to worktree.Lstat for themselves and their
+// descendants, so symlink resolution stays the root's and the open handles
+// stay bounded.
+func worktreeInputModes(ctx context.Context, worktree *os.Root, inputs []string) (map[string]os.FileMode, error) {
+	modes := make(map[string]os.FileMode, len(inputs))
+	type frame struct {
+		directory string
+		handle    *os.Root // nil: resolve this subtree from the worktree
+	}
+	stack := []frame{{".", worktree}}
+	defer func() {
+		for _, open := range stack[1:] {
+			if open.handle != nil {
+				open.handle.Close()
+			}
+		}
+	}()
+	for _, pair := range inputPairs(inputs) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		for len(stack) > 1 && !strings.HasPrefix(pair.directory, stack[len(stack)-1].directory+"/") {
+			if top := stack[len(stack)-1].handle; top != nil {
+				top.Close()
+			}
+			stack = stack[:len(stack)-1]
+		}
+		parent := stack[len(stack)-1]
+		handle := parent.handle
+		if pair.directory != "." {
+			handle = nil
+			component, nested := strings.CutPrefix(pair.directory, parent.directory+"/")
+			if parent.directory == "." {
+				component, nested = pair.directory, true
+			}
+			// worktreeInputs lists every ancestor, so the parent is the
+			// directory's own; anything else takes the worktree's resolution.
+			if parent.handle != nil && nested && len(stack) <= maxInputHandles && component != "" && !strings.Contains(component, "/") {
+				if info, err := parent.handle.Lstat(component); err == nil && info.IsDir() {
+					if opened, err := parent.handle.OpenRoot(component); err == nil {
+						handle = opened
+					}
+				}
+			}
+			stack = append(stack, frame{pair.directory, handle})
+		}
+		for _, input := range inputs[pair.offset : pair.offset+2] {
+			var info os.FileInfo
+			var err error
+			if handle != nil {
+				info, err = handle.Lstat(path.Base(input))
+			} else {
+				info, err = worktree.Lstat(input)
+			}
+			if err == nil {
+				modes[input] = info.Mode()
+			}
+		}
+	}
+	return modes, nil
+}
+
+// maxInputHandles bounds the directory handles worktreeInputModes keeps open
+// at once; deeper directories take the worktree's resolution.
+const maxInputHandles = 32
+
+// inputPair is one directory's ignore and attributes inputs, at offset and
+// offset+1 in worktreeInputs.
+type inputPair struct {
+	directory string
+	offset    int
+}
+
+// inputPairs orders worktreeInputs' pairs with the root first and every other
+// directory before its descendants, each subtree contiguous.
+func inputPairs(inputs []string) []inputPair {
+	pairs := make([]inputPair, 0, len(inputs)/2)
+	for offset := 0; offset+1 < len(inputs); offset += 2 {
+		pairs = append(pairs, inputPair{path.Dir(inputs[offset]), offset})
+	}
+	key := func(directory string) string {
+		if directory == "." {
+			return ""
+		}
+		return "\x01" + strings.ReplaceAll(directory, "/", "\x00")
+	}
+	slices.SortFunc(pairs, func(left, right inputPair) int {
+		return strings.Compare(key(left.directory), key(right.directory))
+	})
+	return pairs
 }
 
 // worktreeInputs lists the ignore and attributes files Git may open in the
