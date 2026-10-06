@@ -5,13 +5,50 @@ package authority
 import (
 	"errors"
 	"os"
+	"sync/atomic"
 	"syscall"
 )
 
+// vnodeWatch registers every directory with kqueue. A regular file takes a
+// kqueue descriptor only while the process-wide budget allows; beyond it the
+// file is tracked by the stat tuple taken at registration and re-checked by
+// changed. Directory events still report entries created, removed or renamed.
 type vnodeWatch struct {
-	queue int
-	files []*os.File
-	dirty bool
+	queue    int
+	budget   int64
+	budgeted int64
+	files    []*os.File
+	stats    []statWatch
+	dirty    bool
+}
+
+type statWatch struct {
+	path string
+	id   statIdentity
+}
+
+type statIdentity struct {
+	dev, mode    int64
+	ino          uint64
+	size         int64
+	mtime, ctime int64
+}
+
+// watchedFileDescriptors counts regular-file kqueue descriptors held by all
+// live watches. vnodeFileBudget caps it at registration; tests override it.
+var (
+	watchedFileDescriptors atomic.Int64
+	vnodeFileBudget        = defaultVnodeFileBudget
+)
+
+// defaultVnodeFileBudget leaves half of the soft descriptor limit for
+// directories, the reads that follow registration and concurrent work.
+func defaultVnodeFileBudget() int64 {
+	var limit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
+		return 0
+	}
+	return int64(min(limit.Cur/2, 1<<30))
 }
 
 func newChangeWatch() (changeWatch, error) {
@@ -20,7 +57,7 @@ func newChangeWatch() (changeWatch, error) {
 		return nil, err
 	}
 	syscall.CloseOnExec(fd)
-	return &vnodeWatch{queue: fd}, nil
+	return &vnodeWatch{queue: fd, budget: vnodeFileBudget()}, nil
 }
 
 func (w *vnodeWatch) add(path string, contents bool) (os.FileInfo, error) {
@@ -28,6 +65,23 @@ func (w *vnodeWatch) add(path string, contents bool) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if before.Mode().IsRegular() {
+		if watchedFileDescriptors.Add(1) > w.budget {
+			watchedFileDescriptors.Add(-1)
+			return w.addStat(path, before)
+		}
+		w.budgeted++
+		info, err := w.addVnode(path, before, contents)
+		if err != nil {
+			w.budgeted--
+			watchedFileDescriptors.Add(-1)
+		}
+		return info, err
+	}
+	return w.addVnode(path, before, contents)
+}
+
+func (w *vnodeWatch) addVnode(path string, before os.FileInfo, contents bool) (os.FileInfo, error) {
 	fd, err := syscall.Open(path, syscall.O_EVTONLY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, err
@@ -56,6 +110,33 @@ func (w *vnodeWatch) add(path string, contents bool) (os.FileInfo, error) {
 	return info, nil
 }
 
+func (w *vnodeWatch) addStat(path string, before os.FileInfo) (os.FileInfo, error) {
+	id, ok := identityOf(before)
+	if !ok {
+		return nil, fsErr(path, "no stat identity")
+	}
+	after, err := os.Lstat(path)
+	if err != nil {
+		return nil, watchMoved(path)
+	}
+	if now, ok := identityOf(after); !ok || now != id {
+		return nil, watchMoved(path)
+	}
+	w.stats = append(w.stats, statWatch{path: path, id: id})
+	return after, nil
+}
+
+func identityOf(info os.FileInfo) (statIdentity, bool) {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return statIdentity{}, false
+	}
+	return statIdentity{
+		dev: int64(st.Dev), mode: int64(st.Mode), ino: st.Ino, size: st.Size,
+		mtime: st.Mtimespec.Nano(), ctime: st.Ctimespec.Nano(),
+	}, true
+}
+
 func (w *vnodeWatch) changed() (bool, error) {
 	if w.dirty {
 		return true, nil
@@ -73,6 +154,15 @@ func (w *vnodeWatch) changed() (bool, error) {
 		return true, err
 	}
 	w.dirty = n != 0
+	for i := 0; !w.dirty && i < len(w.stats); i++ {
+		info, err := os.Lstat(w.stats[i].path)
+		if err != nil {
+			w.dirty = true
+			break
+		}
+		id, ok := identityOf(info)
+		w.dirty = !ok || id != w.stats[i].id
+	}
 	return w.dirty, nil
 }
 
@@ -82,5 +172,8 @@ func (w *vnodeWatch) close() error {
 		err = errors.Join(err, f.Close())
 	}
 	w.files = nil
+	w.stats = nil
+	watchedFileDescriptors.Add(-w.budgeted)
+	w.budgeted = 0
 	return err
 }

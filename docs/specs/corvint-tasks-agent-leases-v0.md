@@ -1400,6 +1400,28 @@ read before the inventory read it. An overwritten request projection, an edited
 `reservations.json` or a stray `barrier.json` is refused `JOURNAL_FORKED`, a projection replaced by
 a symlink `UNSUPPORTED_FILESYSTEM`, and an edited ticket `INTENT_DIVERGED`.
 
+Descriptor budget (macOS). kqueue needs one open descriptor per watched path, and the soft
+descriptor limit is often 10240, below a populated store's file count. Every directory and
+ancestor is always registered with kqueue. Regular files take a kqueue descriptor only while the
+regular-file descriptors held by all live watches in the process stay within half the soft limit
+read when the watch starts; the other half is left for directories, the audit's reads and
+concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
+device, inode, mode, size, modification time and change time, read before and after registration
+and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
+change. The directory watch still reports any entry created, removed or renamed. Regular files
+therefore no longer exhaust descriptors as a store grows. Directories are not budgeted, so a
+directory-heavy tree or many concurrent watches can still be refused with too many open files, as
+can any other registration failure. Two limits apply beyond the budget:
+- A write that leaves size, modification time and change time unchanged, possible only through a
+  timestamp collision, is missed by the watch. Only a path that rereads the file's bytes can catch
+  it, and an inventory built from audit observations reuses cached digests (the exposure recorded
+  above as V1-0775).
+- Each `Check` re-reads the over-budget files' stat tuples. Lease commits call `Check` while holding
+  the writer lock, so locked work then grows with the number of files beyond the budget, contrary
+  to CAL-V0-026's bound (V1-0845).
+
+Linux inotify holds no descriptor per watched path and needs no budget.
+
 A write through a shared writable mapping is the case only the content check sees. Probes of
 `authority.WatchChanges` on this host's APFS (macOS, kqueue) and in a Linux arm64 container on
 tmpfs (inotify) found that reads returned the new bytes at once on both. On Linux the watch
@@ -1419,8 +1441,9 @@ refuses a changed `head.json` or intent tree `SNAPSHOT_MOVED`. `barrier.json` an
 file is seen by the next audit. Only the refusal code is claimed: with two or more diverged files,
 the path a refusal names follows Go map order, before this change as after it.
 
-The watch is not free: on macOS it holds one descriptor per watched path, and registering and
-closing it costs 5–11% of an after-change `Mutate`'s CPU time, growing with history (see below).
+The watch is not free: on macOS it holds one descriptor per watched path within the descriptor
+budget above, and registering and closing it costs 5–11% of an after-change `Mutate`'s CPU time,
+growing with history (see below; measured before the budget).
 Where it cannot be registered (a platform other than macOS or Linux, the entry bound, a path that
 is neither a regular file nor a directory, or an exhausted watch limit), `Mutate` runs the separate
 passes at their old cost.

@@ -33,6 +33,7 @@ type s0eRun struct {
 	commands                  map[int]func(string, []string) (string, []string)
 	primitives                func(ordinal int, session bool) groupreap.Primitives
 	fault                     func(path string) error
+	diagnose                  func() // logs harness diagnostics when the case fails
 	reserved                  int
 	attempted                 int
 }
@@ -108,6 +109,24 @@ func (r *s0eRun) script(ordinal int, body string) {
 func (r *s0eRun) launchFailure(ordinal int) {
 	r.commands[ordinal] = func(_ string, args []string) (string, []string) {
 		return filepath.Join(r.base, "no-such-git"), args
+	}
+}
+
+// lingeringDescendant makes one operation's child leave a background
+// descendant in its process group before it execs the real Git. The shim's
+// own diagnostics go to a side file: a host that refuses the fork makes bash
+// 3.2 exit 128 before `exec "$@"`, which the product correctly reports as a
+// failed Git, so a failing case logs that stderr to attribute it.
+func (r *s0eRun) lingeringDescendant(ordinal int) {
+	r.script(ordinal, `exec 3>&2 2>"$0.err"
+/bin/sleep 600 </dev/null >/dev/null 2>&1 3>&- &
+exec 2>&3 3>&-
+exec "$@"`)
+	shim := filepath.Join(r.base, "shim.sh")
+	r.diagnose = func() {
+		if diag, err := os.ReadFile(shim + ".err"); err == nil && len(diag) > 0 {
+			r.t.Logf("harness: lingering-descendant shim stderr before exec: %q", strings.TrimSpace(string(diag)))
+		}
 	}
 }
 
@@ -239,11 +258,8 @@ var s0eRecipes = map[string]func(r *s0eRun){
 		r.unprovedTeardown(0, true)
 		r.at("op-start", s0eOpResolveBase, func() { r.advance(gitrun.DefaultPerOpTimeout) })
 	},
-	"owner-failure-after-provisional-complete": func(r *s0eRun) { r.unprovedTeardown(0, true) },
-	"normal-exit-lingering-descendant-contained": func(r *s0eRun) {
-		r.script(s0eOpDiff, `/bin/sleep 600 </dev/null >/dev/null 2>&1 &
-exec "$@"`)
-	},
+	"owner-failure-after-provisional-complete":   func(r *s0eRun) { r.unprovedTeardown(0, true) },
+	"normal-exit-lingering-descendant-contained": func(r *s0eRun) { r.lingeringDescendant(s0eOpDiff) },
 	"canonical-per-op-timeout": func(r *s0eRun) {
 		r.useClock()
 		r.sleeper(s0eOpDiff)
@@ -483,6 +499,9 @@ func TestStableS0EPublicCases(t *testing.T) {
 			status := "PASS"
 			if !ok {
 				status = "FAIL"
+				if run.diagnose != nil {
+					run.diagnose()
+				}
 			}
 			t.Logf("S0E-CASE %s %s exit=%d stage=%s operations=%d", c.ID, status, exit, result.Stage, run.attempted)
 		})
