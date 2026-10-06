@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -106,10 +107,18 @@ func TestCALV0106_BatchRefineAllSuccess(t *testing.T) {
 		t.Fatalf("batch: %+v", x.res)
 	}
 	item := x.res.Items[0]
-	if field(item, "completed").Str != "10" || field(item, "failed").Str != "0" || field(item, "chunks").Str != "2" {
-		t.Errorf("counts: completed %s failed %s chunks %s", field(item, "completed").Str, field(item, "failed").Str, field(item, "chunks").Str)
+	if field(item, "completed").Str != "10" || field(item, "failed").Str != "0" {
+		t.Errorf("counts: completed %s failed %s", field(item, "completed").Str, field(item, "failed").Str)
 	}
-	receipts := map[string]bool{}
+	// The 2 s hold bound may cut chunks early on a loaded host, so only the
+	// bounds are fixed: chunks numbered 1..chunks in order, each holding 1 to
+	// 8 entries, and receipts strictly increasing with the entry index.
+	chunks, err := strconv.Atoi(field(item, "chunks").Str)
+	if err != nil || chunks < 2 {
+		t.Fatalf("chunks %q for 10 entries", field(item, "chunks").Str)
+	}
+	sizes := make([]int, chunks+1)
+	previous, last := "", 1
 	for i, e := range batchEntries(t, x) {
 		if field(e, "outcome").Str != "COMPLETED" || field(e, "resultingRevision").Str != "2" {
 			t.Errorf("entry %d: %v", i, e)
@@ -117,10 +126,22 @@ func TestCALV0106_BatchRefineAllSuccess(t *testing.T) {
 		if got, want := field(e, "requestId").Str, fmt.Sprintf("batch-1/%d", i); got != want {
 			t.Errorf("entry %d request ID %q, want %q", i, got, want)
 		}
-		receipts[field(e, "receipt").Str] = true
+		chunk, err := strconv.Atoi(field(e, "chunk").Str)
+		if err != nil || chunk < last || chunk > last+1 || chunk > chunks {
+			t.Fatalf("entry %d in chunk %q after chunk %d", i, field(e, "chunk").Str, last)
+		}
+		last = chunk
+		sizes[chunk]++
+		receipt := field(e, "receipt").Str
+		if receipt == "" || receipt <= previous {
+			t.Errorf("entry %d receipt %q does not follow %q", i, receipt, previous)
+		}
+		previous = receipt
 	}
-	if len(receipts) != len(ids) || receipts[""] {
-		t.Errorf("entries share or lack receipts: %v", receipts)
+	for chunk, size := range sizes[1:] {
+		if size < 1 || size > 8 {
+			t.Errorf("chunk %d holds %d entries, want 1..8", chunk+1, size)
+		}
 	}
 	shown := atm(t, r.Root, nil, "ticket", "show", ids[9])
 	if got := field(shown.res.Items[0], "title").Str; got != "Refined 9" {
@@ -236,5 +257,40 @@ func TestCALV0106_BatchRefineHelpAndFlags(t *testing.T) {
 	}
 	if x := atm(t, r.Root, input, "ticket", "prioritize", "--batch", "--request-id", "b", "--payload-stdin"); x.res.Outcome == wire.OutcomeOK {
 		t.Error("prioritize accepted --batch")
+	}
+}
+
+// TestCALV0106_BatchFlagOnlyInFlagPosition: a "--batch" that is the value of
+// another flag is that value, not the batch form.
+func TestCALV0106_BatchFlagOnlyInFlagPosition(t *testing.T) {
+	r, ids := batchRepo(t, 1)
+	x := atm(t, r.Root, nil, "ticket", "refine", "--request-id", "--batch", "--issued-at", batchIssuedAt,
+		"--target", ids[0], "--expected-revision", "1", "--payload", `{"title":"Single"}`)
+	if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "ticketId").Str != ids[0] {
+		t.Fatalf("a single refine whose request ID is --batch: %+v", x.res)
+	}
+	if x := atm(t, r.Root, nil, "release", "candidate", "--batch", "--request-id", "r", "--target", "x"); x.res.Outcome == wire.OutcomeOK {
+		t.Error("release candidate accepted --batch")
+	}
+}
+
+// TestCALV0106_BatchRefineBoundsInlinePayload: the 8 MiB input bound applies
+// to --payload as well as --payload-stdin.
+func TestCALV0106_BatchRefineBoundsInlinePayload(t *testing.T) {
+	r, ids := batchRepo(t, 1)
+	before := stateDigest(t, r)
+	big := `[{"expectedRevision":"1","payload":{"title":"` + strings.Repeat("x", 8<<20) + `"},"target":"` + ids[0] + `"}]`
+	for name, args := range map[string][]string{
+		"inline": {"--payload", big},
+		"stdin":  {"--payload-stdin"},
+	} {
+		argv := append([]string{"ticket", "refine", "--batch", "--request-id", "big", "--issued-at", batchIssuedAt}, args...)
+		x := atm(t, r.Root, []byte(big), argv...)
+		if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeLimitExceeded) {
+			t.Errorf("%s: an oversized batch was not refused as %s: %v", name, wire.CodeLimitExceeded, x.res.Codes)
+		}
+	}
+	if stateDigest(t, r) != before {
+		t.Error("an oversized batch changed the store")
 	}
 }

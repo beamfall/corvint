@@ -26,11 +26,6 @@ const (
 	batchError        = "ERROR"
 )
 
-// hasBatchFlag reports whether args select the batch form of a verb.
-func hasBatchFlag(args []string) bool {
-	return slices.Contains(args, "--batch")
-}
-
 // batchEntryRequestID derives entry i's request ID from the batch request ID
 // (CAL-V0-106), so a retry of the same batch replays each entry under the
 // single-mutation request-ID contract.
@@ -43,18 +38,7 @@ func batchEntryRequestID(batch string, i int) string {
 // of that target. Every entry is validated before anything is locked or
 // written; the store then applies the entries in bounded chunks that release
 // the writer lock between chunks (CAL-V0-106).
-func refineBatchCommand(env Env, args []string) *wire.Result {
-	cmd := []string{"ticket", "refine"}
-	rest := make([]string, 0, len(args))
-	for _, a := range args {
-		if a != "--batch" {
-			rest = append(rest, a)
-		}
-	}
-	flags, res := parseMutateFlags(cmd, rest)
-	if res != nil {
-		return res
-	}
+func refineBatchCommand(env Env, cmd []string, flags mutateFlags) *wire.Result {
 	if flags.help {
 		return mutationHelp(cmd, mutation.OpRefine)
 	}
@@ -102,6 +86,9 @@ func refineBatchCommand(env Env, args []string) *wire.Result {
 // target of each. Nothing is written; any refusal names its entry.
 func batchEnvelopes(env Env, flags mutateFlags, st *intent.Store, actor mutation.Binding, issued wire.Timestamp) ([][]byte, []string, error) {
 	raw := flags.payload
+	if len(raw) > maxBatchBytes {
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "payload", "batch larger than %d bytes", maxBatchBytes)
+	}
 	if flags.payloadFromStdin {
 		data, err := io.ReadAll(io.LimitReader(env.Stdin, int64(maxBatchBytes)+1))
 		if err != nil {

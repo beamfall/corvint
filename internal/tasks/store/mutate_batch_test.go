@@ -3,8 +3,11 @@ package store_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -81,5 +84,87 @@ func TestCALV0106_UnadmittedOrMalformedBatchWritesNothing(t *testing.T) {
 	}
 	if after := storeDigest(t, repo); after != before {
 		t.Error("a refused batch changed the store")
+	}
+}
+
+// TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes is the
+// recovery path of an interrupted batch: the process died after entry 2's
+// receipt was linked in but before its projection and head were written
+// (§5.2 crash point C2). Retrying the original batch redoes entry 2, replays
+// entries 0 to 2 under their request IDs, and applies 3 and 4 once each.
+func TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes(t *testing.T) {
+	repo, _ := initialized(t)
+	const n = 5
+	ids := make([]string, n)
+	envs := make([][]byte, n)
+	for i := range ids {
+		ids[i] = mutate(t, repo, envelope(fmt.Sprintf("create-%d", i), mutation.OpCreate, "", "", createPayload(fmt.Sprintf("Ticket %d", i)))).Ticket
+		envs[i] = envelope(fmt.Sprintf("batch/%d", i), mutation.OpRefine, ids[i], "1", obj("title", str(fmt.Sprintf("Refined %d", i))))
+	}
+	batch := func(envelopes [][]byte) *store.BatchReport {
+		t.Helper()
+		report, err := store.MutateBatch(context.Background(), repo, operator(), envelopes, now(t))
+		if err != nil {
+			t.Fatalf("batch: %v", err)
+		}
+		return report
+	}
+	head := filepath.Join(repo.StateDir, "head.json")
+	projection := filepath.Join(repo.PrimaryWorktree, intent.Dir, intent.TicketsDir, ids[2][len(ids[2])-7:]+".json")
+
+	first := batch(envs[:2])
+	headBefore, err := os.ReadFile(head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectionBefore, err := os.ReadFile(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Entry 2 commits, then the head and its projection are rewound: its
+	// receipt is linked in and pending, exactly as a kill at C2 leaves it.
+	interrupted := batch(envs[:3])
+	pending := interrupted.Entries[2].Report.Receipt
+	if pending == "" {
+		t.Fatalf("entry 2 did not commit: %+v", interrupted.Entries[2])
+	}
+	if err := os.WriteFile(head, headBefore, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(projection, projectionBefore, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	retry := batch(envs)
+	if !retry.Entries[0].Report.Redone {
+		t.Error("the retry did not redo the pending receipt of entry 2")
+	}
+	for i, e := range retry.Entries {
+		if e.Err != nil || e.Report == nil || e.Report.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("retry entry %d: %+v", i, e)
+		}
+		if replayed := e.Report.Outcome.Replayed; replayed != (i < 3) || (e.Report.Receipt == "") != replayed {
+			t.Errorf("retry entry %d replayed %v receipt %q", i, replayed, e.Report.Receipt)
+		}
+	}
+	order := []string{first.Entries[0].Report.Receipt, first.Entries[1].Report.Receipt, pending,
+		retry.Entries[3].Report.Receipt, retry.Entries[4].Report.Receipt}
+	for i := 1; i < len(order); i++ {
+		if !(order[i-1] < order[i]) {
+			t.Errorf("receipts out of order: %v", order)
+		}
+	}
+	receipts, err := os.ReadDir(filepath.Join(repo.StateDir, "receipts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := receipts[len(receipts)-1].Name(); last != order[4] {
+		t.Errorf("last receipt %s, want %s: an entry was applied twice", last, order[4])
+	}
+	for i, id := range ids {
+		rec := loadRecord(t, repo, id)
+		if rec.Revision != "2" || rec.Title != fmt.Sprintf("Refined %d", i) {
+			t.Errorf("%s: revision %s title %q, want one refine", id, rec.Revision, rec.Title)
+		}
 	}
 }

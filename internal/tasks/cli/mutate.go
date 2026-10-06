@@ -38,6 +38,9 @@ type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
 	payloadFromStdin, help, template           bool
+	// batch is --batch, recognized only in a flag position, never as the
+	// value of another flag (CAL-V0-106); only ticket refine accepts it.
+	batch bool
 	// others counts the flags passed besides --help and --template, so
 	// --template refuses any flag by presence, not by value.
 	others int
@@ -48,14 +51,17 @@ type mutateFlags struct {
 // envelope is composed here, so a caller never hand-writes the queue id,
 // profile or timestamp.
 func mutateCommand(env Env, verb string, args []string) *wire.Result {
-	if verb == "refine" && hasBatchFlag(args) {
-		return refineBatchCommand(env, args)
-	}
 	cmd := []string{"ticket", verb}
 	operation := mutationVerbs[verb]
 	flags, res := parseMutateFlags(cmd, args)
 	if res != nil {
 		return res
+	}
+	if flags.batch {
+		if operation != mutation.OpRefine {
+			return usage(cmd, "unknown flag --batch: only ticket refine has a batch form")
+		}
+		return refineBatchCommand(env, cmd, flags)
 	}
 	if flags.help {
 		return mutationHelp(cmd, operation)
@@ -105,6 +111,11 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		if args[i] == "--template" {
 			f.template = true
+			continue
+		}
+		if args[i] == "--batch" {
+			f.batch = true
+			f.others++
 			continue
 		}
 		dest, ok := set[args[i]]

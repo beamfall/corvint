@@ -3535,7 +3535,9 @@ single-ticket `ticket refine` unchanged.
   the command with the same `--request-id`, `--issued-at` and input MUST replay every completed
   entry without a second receipt. The same request ID with a different `issuedAt` or entry is
   refused per entry as `REQUEST_ID_CONFLICT`. `--batch` refuses `--target`, `--expected-revision`
-  and `--template`, works only on `ticket refine`, and `ticket refine --help` documents it.
+  and `--template`, is recognized only in a flag position (never as another flag's value), works only
+  on `ticket refine`, and `ticket refine --help` documents it. The 8 MiB bound applies to
+  `--payload` and `--payload-stdin` alike.
 
 Non-goals: batch forms of other verbs; one atomic all-or-nothing batch; fairness for the polling
 writer lock beyond the yield; any change to per-entry audit cost (each entry still audits the store,
@@ -3555,4 +3557,4 @@ receipt state depends on the batch form.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing` (`internal/tasks/store`) |
+| CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |
