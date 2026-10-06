@@ -41,8 +41,8 @@ type RetirementMode int
 const (
 	// PlatformDefault uses the operating system's reviewed default.
 	PlatformDefault RetirementMode = iota
-	// RequirePreReapQuiet polls signal 0 before the reap until the group is no
-	// longer signalable, then proves post-reap absence.
+	// RequirePreReapQuiet polls the quiet proof before the reap until no live
+	// member remains, then proves post-reap absence.
 	RequirePreReapQuiet
 	// ReapAfterSuccessfulSignal reaps after the successful owned SIGKILL
 	// decision, then proves post-reap absence with signal 0 only.
@@ -64,6 +64,12 @@ type Primitives struct {
 	KillGroup func(leader int) error
 	// ProbeGroup is one signal-0 observation. It never creates kill authority.
 	ProbeGroup func(leader int) (Probe, error)
+	// QuietProof is the RequirePreReapQuiet observation, made only while the
+	// leader is exited and unreaped. A nil field uses an injected ProbeGroup,
+	// else the platform default: signal 0 on Darwin and the identity-checked
+	// /proc classification on Linux (PGO-V0-006). It never creates kill
+	// authority and never reports ProbeAbsent as proof of anything.
+	QuietProof func(leader int) (Probe, error)
 	// Reap collects the leader. A non-nil *exec.ExitError is an ordinary status.
 	Reap func(command *exec.Cmd) error
 	// RetirementMode overrides the platform default. Invalid modes are refused
@@ -135,9 +141,9 @@ type Result struct {
 
 // Owner owns one process group through an unreaped leader. The group is
 // signalled only while the leader is unreaped, at most once, and never after
-// the reap. Absence is observed in two steps: signal 0 is polled with the
-// leader unreaped until no signalable member remains, the leader is reaped,
-// and signal 0 is polled for a bounded interval until the group is absent.
+// the reap. Absence is observed in two steps: the quiet proof is polled with
+// the leader unreaped until no live member remains, the leader is reaped, and
+// signal 0 is polled for a bounded interval until the group is absent.
 type Owner struct {
 	finishMu   sync.Mutex
 	mu         sync.Mutex
@@ -200,8 +206,14 @@ func resolvePrimitives(p Primitives) (Primitives, error) {
 	if p.KillGroup == nil {
 		p.KillGroup = defaults.KillGroup
 	}
+	if p.QuietProof == nil {
+		p.QuietProof = p.ProbeGroup
+	}
 	if p.ProbeGroup == nil {
 		p.ProbeGroup = defaults.ProbeGroup
+	}
+	if p.QuietProof == nil {
+		p.QuietProof = defaults.QuietProof
 	}
 	if p.Reap == nil {
 		p.Reap = defaults.Reap
@@ -365,7 +377,7 @@ func (o *Owner) waitPreReapQuiet(bound RetirementBound) (Result, bool) {
 		if bound.expired() {
 			return o.hold(errors.New("groupreap: retirement bound expired before group probe")), true
 		}
-		probe, err := o.p.ProbeGroup(o.leader)
+		probe, err := o.p.QuietProof(o.leader)
 		if err != nil {
 			return o.hold(errors.Join(errors.New("groupreap: group probe failed"), err)), true
 		}

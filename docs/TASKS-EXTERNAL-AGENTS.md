@@ -519,7 +519,12 @@ bounded backoff:
 
 - `LOCK_TIMEOUT`: another writer held the store lock or a preparation admission past the wait;
   nothing was locked or written. This is the `ERROR` a renew or heartbeat reports under heavy
-  concurrency while the lease is still FRESH; retry it before `expiresAt`.
+  concurrency while the lease is still FRESH; retry it before `expiresAt`. `release` and
+  `attempt heartbeat` take `--lock-wait SECONDS` (whole seconds, 1..300) to wait longer than the
+  default 30 seconds for that command only (CAL-V0-111). The wait is not part of the request, so
+  resubmitting a timed-out `HANDOFF` release with the same request ID commits once or replays the
+  committed receipt, still without a retry charge (CAL-V0-112). A plain release is never turned
+  into a `HANDOFF` (CAL-V0-113); keep the reason and evidence when you retry.
 - `SNAPSHOT_MOVED`: the store, head, intent tree or worktree moved during the read or before commit.
   A release or attestation candidate whose head no longer matches, and a criterion capture that
   wraps a refused read, repeat until the caller's input changes.

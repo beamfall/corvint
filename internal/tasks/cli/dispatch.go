@@ -388,6 +388,7 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 	s := r.Sample
 	o := wire.NewObject()
 	o.Set("level", str(strconv.Itoa(r.State.Level)))
+	o.Set("reason", str(dispatch.PressureReasonText(r.State)))
 	o.Set("pendingLevel", str(strconv.Itoa(r.State.PendingLevel)))
 	o.Set("pendingTicks", str(strconv.Itoa(r.State.PendingTicks)))
 	sample := "OBSERVED"
@@ -419,6 +420,11 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 	}
 	o.Set("swapUsedBytes", str(swapUsed))
 	o.Set("swapTotalBytes", str(swapTotal))
+	memory := dispatch.StateUnknown
+	if x, ok := s.MemoryPressure(); ok {
+		memory = strconv.Itoa(x)
+	}
+	o.Set("memoryPressureLevel", str(memory))
 	problems := make([]string, 0, len(s.Problems))
 	for _, p := range s.Problems {
 		problems = append(problems, prose(p))

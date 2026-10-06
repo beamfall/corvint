@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -62,10 +65,11 @@ func linuxCheckCollected(t *testing.T, child *linuxChild, err error) {
 }
 
 type linuxFixture struct {
-	owner  *Owner
-	leader *linuxChild
-	member *linuxChild
-	input  *os.File
+	owner       *Owner
+	leader      *linuxChild
+	member      *linuxChild
+	input       *os.File
+	reapStarted atomic.Bool
 }
 
 func linuxHandshake(read *os.File, timeout time.Duration) error {
@@ -104,6 +108,7 @@ func linuxStartFixture(t *testing.T, script string, primitives Primitives, colle
 	command.Stdin, command.Stdout = input, output
 	fixture := &linuxFixture{input: writer, leader: &linuxChild{command: command, done: make(chan struct{})}}
 	primitives.Reap = func(*exec.Cmd) error {
+		fixture.reapStarted.Store(true)
 		err := fixture.leader.collect(false)
 		if collectMember && fixture.member != nil {
 			memberErr := fixture.member.collect(false)
@@ -159,8 +164,12 @@ func (fixture *linuxFixture) addMember(t *testing.T) {
 
 func linuxFinish(t *testing.T, fixture *linuxFixture) Result {
 	t.Helper()
+	return linuxFinishWithin(fixture, 5*time.Second)
+}
+
+func linuxFinishWithin(fixture *linuxFixture, bound time.Duration) Result {
 	limit := make(chan struct{})
-	timer := time.AfterFunc(5*time.Second, func() { close(limit) })
+	timer := time.AfterFunc(bound, func() { close(limit) })
 	defer timer.Stop()
 	return fixture.owner.Finish(limit)
 }
@@ -178,7 +187,8 @@ func TestLinuxOwnerReleasesLeaderOnlyAfterNaturalExit(t *testing.T) {
 }
 
 func TestLinuxOwnerHoldsWhenMemberRemainsVisibleAfterReap(t *testing.T) {
-	fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", Primitives{KillGroup: func(int) error { return nil }}, false)
+	p := Primitives{RetirementMode: ReapAfterSuccessfulSignal, KillGroup: func(int) error { return nil }}
+	fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", p, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,4 +262,162 @@ func TestLinuxFixtureFailureCleanup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// linuxSignalRecorder wraps the real group signal and records whether any
+// real signal followed the start of the reap (PGO-V0-001).
+type linuxSignalRecorder struct {
+	fixture *linuxFixture
+	kills   atomic.Int32
+	late    atomic.Int32
+}
+
+func (r *linuxSignalRecorder) kill(leader int) error {
+	r.kills.Add(1)
+	if r.fixture != nil && r.fixture.reapStarted.Load() {
+		r.late.Add(1)
+	}
+	return defaultPrimitives().KillGroup(leader)
+}
+
+func (r *linuxSignalRecorder) require(t *testing.T, owner *Owner) {
+	t.Helper()
+	events := owner.Events()
+	if r.kills.Load() != 1 || r.late.Load() != 0 || slices.Index(events, "kill-group") < 0 ||
+		(slices.Contains(events, "reap") && slices.Index(events, "kill-group") > slices.Index(events, "reap")) {
+		t.Fatalf("kills = %d, post-reap kills = %d, events = %v", r.kills.Load(), r.late.Load(), events)
+	}
+}
+
+// PGO-V0-006: an exited, unreaped leader and a SIGKILLed member that is still
+// an uncollected zombie form a zombie-only group. Signal 0 still succeeds for
+// it, yet the /proc proof reports it quiet, the owner reaps and RELEASES, and
+// exactly one real group signal precedes the reap.
+func TestLinuxOwnerRetiresZombieOnlyGroup(t *testing.T) {
+	recorder := &linuxSignalRecorder{}
+	type proof struct {
+		signal0 error
+		probe   Probe
+		err     error
+	}
+	var proofs []proof
+	p := Primitives{
+		KillGroup: recorder.kill,
+		QuietProof: func(leader int) (Probe, error) {
+			signal0 := syscall.Kill(-leader, 0)
+			probe, err := procGroupQuiet("/proc", leader, os.Getpid())
+			proofs = append(proofs, proof{signal0, probe, err})
+			return probe, err
+		},
+	}
+	fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", p, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder.fixture = fixture
+	fixture.addMember(t)
+	fixture.input.Close()
+	result := linuxFinish(t, fixture)
+	if result.State != Released || result.Err != nil || result.WaitErr != nil || !result.PostReapObserved || result.PostReap != ProbeAbsent {
+		t.Fatalf("result = %+v events = %v proofs = %+v", result, fixture.owner.Events(), proofs)
+	}
+	last := proofs[len(proofs)-1]
+	if last.probe != ProbeQuiet || last.err != nil || last.signal0 != nil {
+		t.Fatalf("zombie-only proof = %+v, want quiet while signal 0 still succeeds", proofs)
+	}
+	events := fixture.owner.Events()
+	reap := slices.Index(events, "reap")
+	if reap < 1 || events[reap-1] != "probe-quiet" || events[len(events)-1] != "released" {
+		t.Fatalf("events = %v", events)
+	}
+	recorder.require(t, fixture.owner)
+	select {
+	case <-fixture.member.done:
+	default:
+		t.Fatal("RELEASED without completed member collection")
+	}
+}
+
+// The original V1-0668 defect: with signal 0 as the quiet proof, the same
+// zombie-only group never looks quiet, so the owner HOLDs without reaping.
+func TestLinuxSignalZeroCannotProveZombieOnlyQuiet(t *testing.T) {
+	recorder := &linuxSignalRecorder{}
+	p := Primitives{KillGroup: recorder.kill, QuietProof: defaultPrimitives().ProbeGroup}
+	fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", p, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder.fixture = fixture
+	fixture.addMember(t)
+	fixture.input.Close()
+	result := linuxFinishWithin(fixture, 300*time.Millisecond)
+	if result.State != Hold || result.PostReapObserved || slices.Contains(fixture.owner.Events(), "reap") {
+		t.Fatalf("result = %+v events = %v", result, fixture.owner.Events())
+	}
+	recorder.require(t, fixture.owner)
+}
+
+// PGO-V0-006: a member that is still live keeps the proof from reporting
+// quiet; the owner HOLDs at the bound before reaping.
+func TestLinuxOwnerHoldsWhileLiveMemberRemains(t *testing.T) {
+	fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", Primitives{KillGroup: func(int) error { return nil }}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture.addMember(t)
+	fixture.input.Close()
+	result := linuxFinishWithin(fixture, 300*time.Millisecond)
+	events := fixture.owner.Events()
+	if result.State != Hold || result.PostReapObserved || !slices.Contains(events, "probe-live") || slices.Contains(events, "reap") || fixture.reapStarted.Load() {
+		t.Fatalf("live member did not force a pre-reap HOLD: %+v events = %v", result, events)
+	}
+}
+
+// PGO-V0-006: without the /proc proof, or with a leader identity that does not
+// match, the owner HOLDs after its one signal and never reaps.
+func TestLinuxOwnerHoldsWhenQuietProofUnavailable(t *testing.T) {
+	for name, quiet := range map[string]func(*testing.T) func(int) (Probe, error){
+		"proc-missing": func(t *testing.T) func(int) (Probe, error) {
+			root := filepath.Join(t.TempDir(), "missing")
+			return func(leader int) (Probe, error) { return procGroupQuiet(root, leader, os.Getpid()) }
+		},
+		"wrong-parent": func(*testing.T) func(int) (Probe, error) {
+			return func(leader int) (Probe, error) { return procGroupQuiet("/proc", leader, os.Getppid()) }
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			recorder := &linuxSignalRecorder{}
+			fixture, err := linuxStartFixture(t, "echo ready; read release; exit 0", Primitives{KillGroup: recorder.kill, QuietProof: quiet(t)}, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			recorder.fixture = fixture
+			fixture.addMember(t)
+			fixture.input.Close()
+			result := linuxFinish(t, fixture)
+			if result.State != Hold || !errors.Is(result.Err, errProcProof) || slices.Contains(fixture.owner.Events(), "reap") {
+				t.Fatalf("result = %+v events = %v", result, fixture.owner.Events())
+			}
+			recorder.require(t, fixture.owner)
+		})
+	}
+}
+
+// The platform default on Linux is quiet-first with the /proc proof.
+func TestLinuxDefaultRetirementUsesProcQuietProof(t *testing.T) {
+	recorder := &linuxSignalRecorder{}
+	fixture, err := linuxStartFixture(t, "echo ready; read release", Primitives{KillGroup: recorder.kill}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder.fixture = fixture
+	fixture.addMember(t)
+	fixture.owner.Stop()
+	result := linuxFinish(t, fixture)
+	events := fixture.owner.Events()
+	reap := slices.Index(events, "reap")
+	if result.State != Released || reap < 1 || events[reap-1] != "probe-quiet" {
+		t.Fatalf("result = %+v events = %v", result, events)
+	}
+	recorder.require(t, fixture.owner)
 }

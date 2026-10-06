@@ -61,3 +61,32 @@ func TestCALV0068_DispatchStatusPressure(t *testing.T) {
 		t.Fatal("status reported pressure without a record")
 	}
 }
+
+// CAL-V0-109/110: status reports the recorded reason (NONE at level 0,
+// UNKNOWN for a level recorded without one) and the kernel memory level.
+func TestCALV0110_DispatchStatusReason(t *testing.T) {
+	now := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
+	pc := &dispatch.PressureConfig{LevelCaps: map[string]int{"1": 3, "2": 1}}
+	l := &dispatch.Ledger{Program: "prog", Pressure: &dispatch.PressureRecord{
+		State:  dispatch.PressureState{Level: 2, PendingLevel: 2, Reason: []string{"load", "memory"}},
+		Sample: dispatch.PressureSample{SampledAt: now, Source: "darwin-sysctl-host", LoadAverage: 63.4, CPUs: 10, LoadKnown: true, CPUKnown: true, MemoryPressureLevel: dispatch.MemoryPressureCritical, MemoryPressureKnown: true},
+		Held:   []dispatch.HeldLaunch{},
+	}}
+	status := func() wire.Value {
+		return pressureField(t, dispatchStatusValue(&dispatch.Config{Pressure: pc}, "/s", l, nil, now), "pressure")
+	}
+	for key, want := range map[string]string{"reason": "load,memory", "memoryPressureLevel": "4", "swapFraction": "UNKNOWN", "swapUsedBytes": "UNKNOWN", "loadPerCpu": "6.340"} {
+		if got := pressureField(t, status(), key).Str; got != want {
+			t.Errorf("%s = %q want %q", key, got, want)
+		}
+	}
+	l.Pressure.State.Reason = nil
+	l.Pressure.Sample = dispatch.PressureSample{}
+	if p := status(); pressureField(t, p, "reason").Str != "UNKNOWN" || pressureField(t, p, "memoryPressureLevel").Str != "UNKNOWN" {
+		t.Fatal("unrecorded reason or memory level fabricated")
+	}
+	l.Pressure.State = dispatch.PressureState{}
+	if got := pressureField(t, status(), "reason").Str; got != "NONE" {
+		t.Fatalf("calm reason %q", got)
+	}
+}

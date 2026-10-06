@@ -1515,6 +1515,15 @@ func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
 		swap = strconv.FormatFloat(x, 'f', 3, 64)
 	}
 	detail["loadPerCpu"], detail["swapFraction"] = load, swap
+	memory, memoryText := StateUnknown, "memory "+StateUnknown
+	if x, ok := rec.Sample.MemoryPressure(); ok {
+		memory = strconv.Itoa(x)
+		memoryText = "memory pressure level " + memory
+	} else if swap != StateUnknown {
+		memoryText = "swap " + swap
+	}
+	detail["memoryPressureLevel"] = memory
+	detail["reason"] = PressureReasonText(st)
 	names := make([]string, 0, 10)
 	for _, h := range next {
 		if len(names) == 10 {
@@ -1533,9 +1542,9 @@ func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
 			list += fmt.Sprintf(" and %d more", len(held)-len(names))
 		}
 	}
-	msg := fmt.Sprintf("host pressure level %d (load per CPU %s, swap %s); holding %d new launch(es): %s", st.Level, load, swap, len(held), list)
+	msg := fmt.Sprintf("host pressure level %d (reason %s; load per CPU %s, %s); holding %d new launch(es): %s", st.Level, detail["reason"], load, memoryText, len(held), list)
 	if st.Unknown {
-		msg = fmt.Sprintf("host pressure sample UNKNOWN; keeping level %d; holding %d new launch(es): %s", st.Level, len(held), list)
+		msg = fmt.Sprintf("host pressure sample UNKNOWN; keeping level %d (reason %s; load per CPU %s, %s); holding %d new launch(es): %s", st.Level, detail["reason"], load, memoryText, len(held), list)
 	}
 	d.emit(Event{Kind: "throttled", Message: msg, Detail: detail})
 }

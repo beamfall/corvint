@@ -44,16 +44,63 @@ func psrStart(t *testing.T, s *leaseStore, id string) (<-chan psrOutcome, contex
 	}()
 	return done, cancel
 }
+
+// psrAwaitMarker waits until the marker has content. A shell redirect creates
+// the file before the command writes to it, so existence alone can be observed
+// while the file is still empty.
 func psrAwaitMarker(t *testing.T, path string) {
 	t.Helper()
 	end := time.Now().Add(3 * time.Second)
 	for time.Now().Before(end) {
-		if _, e := os.Stat(path); e == nil {
+		if info, e := os.Stat(path); e == nil && info.Size() > 0 {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("command boundary not reached", path)
+}
+
+// psrAwaitMarkerChange waits until the marker holds content other than old,
+// failing if the sweep ends first. The bound only detects a hang.
+func psrAwaitMarkerChange(t *testing.T, path string, old []byte, done <-chan psrOutcome) {
+	t.Helper()
+	end := time.Now().Add(2 * time.Minute)
+	for time.Now().Before(end) {
+		if raw, e := os.ReadFile(path); e == nil && len(raw) > 0 && !bytes.Equal(raw, old) {
+			return
+		}
+		select {
+		case r := <-done:
+			t.Fatal("new explicit request never executed", r.report, r.err)
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+	t.Fatal("new explicit request never executed", path)
+}
+
+// psrDeadline is a context the test expires explicitly. Its Err is
+// context.DeadlineExceeded, so the sweep takes its timeout path.
+type psrDeadline struct {
+	context.Context
+	done chan struct{}
+	once sync.Once
+}
+
+func newPSRDeadline() *psrDeadline {
+	return &psrDeadline{Context: context.Background(), done: make(chan struct{})}
+}
+
+func (d *psrDeadline) expire() { d.once.Do(func() { close(d.done) }) }
+
+func (d *psrDeadline) Done() <-chan struct{} { return d.done }
+
+func (d *psrDeadline) Err() error {
+	select {
+	case <-d.done:
+		return context.DeadlineExceeded
+	default:
+		return nil
+	}
 }
 
 // PSR-V0-008: once ALL is set an owned sweep launches no further phase command;
@@ -624,15 +671,22 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 			t.Fatal("terminal orphan replay differs", again, e)
 		}
 		// A distinct explicit request may try again; the original never does.
+		// Its deadline expires only after its reset command has written a new
+		// PID, so host load before the launch cannot consume the deadline.
 		c.RequestID = "fresh-explicit"
-		c.TimeoutSeconds = "1"
-		next, e := store.PoolSweep(context.Background(), s.repo, operator(), c)
-		if e != nil || next.Pending {
-			t.Fatal(next, e)
-		}
-		after, _ = os.ReadFile(marker)
-		if bytes.Equal(oldMarker, after) {
-			t.Fatal("new explicit request never executed")
+		c.TimeoutSeconds = "30"
+		deadline := newPSRDeadline()
+		done := make(chan psrOutcome, 1)
+		go func() {
+			r, e := store.PoolSweep(deadline, s.repo, operator(), c)
+			done <- psrOutcome{r, e}
+		}()
+		psrAwaitMarkerChange(t, marker, oldMarker, done)
+		deadline.expire()
+		result := <-done
+		next := result.report
+		if result.err != nil || next.Pending {
+			t.Fatal(next, result.err)
 		}
 		if p := psrPools(t, s); len(p.Entries) != 1 || p.Entries[0].State != "QUARANTINED" {
 			t.Fatal("timed out new request freed member", p)

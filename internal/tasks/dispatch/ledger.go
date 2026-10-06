@@ -186,8 +186,11 @@ type HeldLaunch struct {
 
 func (r *PressureRecord) validate() error {
 	st := r.State
-	if st.Level < 0 || st.Level > 2 || st.PendingLevel < 0 || st.PendingLevel > 2 || st.PendingTicks < 0 || st.PendingTicks >= 3600 {
+	if st.Level < 0 || st.Level > 2 || st.PendingLevel < 0 || st.PendingLevel > 2 || st.PendingTicks < 0 || st.PendingTicks >= 3600 || !ValidPressureReason(st.Level, st.Reason) {
 		return errors.New("invalid pressure state")
+	}
+	if m := r.Sample.MemoryPressureLevel; (r.Sample.MemoryPressureKnown && !validMemoryPressureLevel(m)) || (!r.Sample.MemoryPressureKnown && m != 0) {
+		return errors.New("invalid pressure memory level")
 	}
 	if len(r.Held) > maxPressureHeld || len(r.Sample.Problems) > maxPressureProblems || len(r.Sample.Source) > 256 {
 		return errors.New("pressure record exceeds bounds")
@@ -211,6 +214,15 @@ func (r *PressureRecord) validate() error {
 func boundPressureSample(s PressureSample) PressureSample {
 	if !finiteNonnegative(s.LoadAverage) {
 		s.LoadAverage, s.LoadKnown = 0, false
+	}
+	if _, ok := s.MemoryPressure(); !ok {
+		// An invalid level stays UNKNOWN: a sample carrying one never
+		// falls back to swap (V1-0862).
+		if s.MemoryPressureKnown || s.MemoryPressureLevel != 0 {
+			s.Problems = append([]string{"memory: invalid kernel memory pressure level"}, s.Problems...)
+			s.SwapKnown = false
+		}
+		s.MemoryPressureLevel, s.MemoryPressureKnown = 0, false
 	}
 	s.Source = boundUTF8(s.Source, 256)
 	var problems []string

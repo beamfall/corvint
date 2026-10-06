@@ -24,18 +24,41 @@ const (
 )
 
 // PressureSample reports independent known/unknown observations. Swap bytes
-// represent allocated swap utilization, not compression or OS memory pressure.
+// represent allocated swap utilization (the Linux memory signal). A Darwin
+// sample instead carries the kernel memory-pressure level and no swap, because
+// macOS swap use is sticky after pressure passes (V1-0862).
 type PressureSample struct {
-	SampledAt      time.Time `json:"sampledAt"`
-	Source         string    `json:"source"`
-	LoadAverage    float64   `json:"loadAverage"`
-	CPUs           int       `json:"cpus"`
-	SwapTotalBytes uint64    `json:"swapTotalBytes"`
-	SwapUsedBytes  uint64    `json:"swapUsedBytes"`
-	LoadKnown      bool      `json:"loadKnown"`
-	CPUKnown       bool      `json:"cpuKnown"`
-	SwapKnown      bool      `json:"swapKnown"`
-	Problems       []string  `json:"problems,omitempty"`
+	SampledAt           time.Time `json:"sampledAt"`
+	Source              string    `json:"source"`
+	LoadAverage         float64   `json:"loadAverage"`
+	CPUs                int       `json:"cpus"`
+	SwapTotalBytes      uint64    `json:"swapTotalBytes"`
+	SwapUsedBytes       uint64    `json:"swapUsedBytes"`
+	LoadKnown           bool      `json:"loadKnown"`
+	CPUKnown            bool      `json:"cpuKnown"`
+	SwapKnown           bool      `json:"swapKnown"`
+	MemoryPressureLevel int       `json:"memoryPressureLevel,omitempty"`
+	MemoryPressureKnown bool      `json:"memoryPressureKnown,omitempty"`
+	Problems            []string  `json:"problems,omitempty"`
+}
+
+// Darwin kern.memorystatus_vm_pressure_level values.
+const (
+	MemoryPressureNormal   = 1
+	MemoryPressureWarn     = 2
+	MemoryPressureCritical = 4
+)
+
+func validMemoryPressureLevel(n int) bool {
+	return n == MemoryPressureNormal || n == MemoryPressureWarn || n == MemoryPressureCritical
+}
+
+// MemoryPressure returns the observed kernel memory-pressure level.
+func (s PressureSample) MemoryPressure() (int, bool) {
+	if !s.MemoryPressureKnown || !validMemoryPressureLevel(s.MemoryPressureLevel) {
+		return 0, false
+	}
+	return s.MemoryPressureLevel, true
 }
 
 // LoadPerCPU normalizes the first load average by positive host-visible CPUs.
@@ -143,32 +166,50 @@ func parseLinuxSwap(raw []byte) (uint64, uint64, error) {
 	return total, total - free, nil
 }
 
-func parseDarwinSwap(raw []byte) (uint64, uint64, error) {
-	f := strings.Fields(string(raw))
-	if len(f) != 9 && !(len(f) == 10 && f[9] == "(encrypted)") {
-		return 0, 0, fmt.Errorf("invalid Darwin swap format")
-	}
-	var sizes [3]uint64
-	for i, key := range []string{"total", "used", "free"} {
-		if f[i*3] != key || f[i*3+1] != "=" || !strings.HasSuffix(f[i*3+2], "M") {
-			return 0, 0, fmt.Errorf("invalid Darwin swap fields")
+// parseDarwinPressure fills s from the output of one
+// `sysctl vm.loadavg kern.memorystatus_vm_pressure_level hw.logicalcpu`.
+// V1-0862: the kernel memory-pressure level replaces sticky swap use, so a
+// Darwin sample carries no swap and never falls back to it.
+func parseDarwinPressure(s PressureSample, raw []byte) PressureSample {
+	const loadKey, memoryKey, cpuKey = "vm.loadavg", "kern.memorystatus_vm_pressure_level", "hw.logicalcpu"
+	values := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok || (key != loadKey && key != memoryKey && key != cpuKey) {
+			s.Problems = []string{"invalid pressure sysctl fields"}
+			return s
 		}
-		n, err := strconv.ParseFloat(strings.TrimSuffix(f[i*3+2], "M"), 64)
-		// Restrict conversion to exactly representable integer bytes; no float→uint overflow.
-		bytes := n * (1 << 20)
-		if err != nil || !finiteNonnegative(n) || bytes >= 1<<53 {
-			return 0, 0, fmt.Errorf("invalid Darwin swap size")
+		if _, duplicate := values[key]; duplicate {
+			s.Problems = []string{"duplicate pressure sysctl field"}
+			return s
 		}
-		sizes[i] = uint64(math.Round(bytes))
+		values[key] = strings.TrimSpace(value)
 	}
-	if sizes[1] > sizes[0] || sizes[2] > sizes[0] || (sizes[0] == 0 && (sizes[1] != 0 || sizes[2] != 0)) {
-		return 0, 0, fmt.Errorf("inconsistent Darwin swap sizes")
+	var err error
+	s.LoadAverage, err = parseLoad([]byte(values[loadKey]), true)
+	s.LoadKnown = err == nil
+	if err != nil {
+		s.Problems = append(s.Problems, "load: "+err.Error())
 	}
-	// Printed MiB values are rounded separately to 0.01MiB.
-	if math.Abs(float64(sizes[1])+float64(sizes[2])-float64(sizes[0])) > .02*(1<<20) {
-		return 0, 0, fmt.Errorf("inconsistent Darwin swap total")
+	s.CPUs, err = parseCPUs([]byte(values[cpuKey]))
+	s.CPUKnown = err == nil
+	if err != nil {
+		s.Problems = append(s.Problems, "cpus: "+err.Error())
 	}
-	return sizes[0], sizes[1], nil
+	s.MemoryPressureLevel, err = parseDarwinMemoryPressure([]byte(values[memoryKey]))
+	s.MemoryPressureKnown = err == nil
+	if err != nil {
+		s.Problems = append(s.Problems, "memory: "+err.Error())
+	}
+	return s
+}
+
+func parseDarwinMemoryPressure(raw []byte) (int, error) {
+	n, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil || !validMemoryPressureLevel(n) {
+		return 0, fmt.Errorf("invalid Darwin memory pressure level")
+	}
+	return n, nil
 }
 
 // readPressureFile is deliberately synchronous: cancellation cannot abandon a
