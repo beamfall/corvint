@@ -78,7 +78,9 @@ func TestIndependentNestedModulesCloseTheFrontier_V1_0867(t *testing.T) {
 		"require example.test/other v1.0.0",
 		"require (",
 		"\t\"example.test/quoted\" v1.0.0 // indirect",
-		"\t`example.test/raw` v1.0.0",
+		"\texample.test/pseudo v0.0.0-20240101000000-abcdef123456",
+		"\texample.test/legacy v3.0.0+incompatible",
+		"\texample.test/pre v1.2.3-rc.1",
 		"\texample.test/root/v2 v2.0.0",
 		")",
 		"replace example.test/other v1.0.0 => example.test/fork v1.0.1",
@@ -183,7 +185,14 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 		{"repeated go", "module example.test/nested\n\ngo 1.26\ngo 1.27\n", "unparsable: line 4: malformed go directive"},
 		// The go tool matches these against the raw token, so quoting fails.
 		{"quoted go version", "module example.test/nested\n\ngo \"1.26\"\n", "unparsable: line 3: malformed go directive"},
-		{"quoted toolchain", "module example.test/nested\n\ntoolchain `go1.27.1`\n", "unparsable: line 3: malformed toolchain directive"},
+		{"quoted toolchain", "module example.test/nested\n\ntoolchain \"go1.27.1\"\n", "unparsable: line 3: malformed toolchain directive"},
+		// Codex round 3: forms the go tool's parser refuses.
+		{"raw string", "module example.test/nested\n\nrequire `example.test/other` v1.0.0\n", "unparsable: line 3: raw string"},
+		{"quote inside an unquoted argument", "module example.test/nested\n\nrequire example.test/o'ther v1.0.0\n", "unparsable: line 3: quote in require directive"},
+		{"go block", "module example.test/nested\n\ngo (\n\t1.26\n)\n", "unparsable: line 3: go block"},
+		{"toolchain block", "module example.test/nested\n\ntoolchain (\n\tgo1.27.1\n)\n", "unparsable: line 3: toolchain block"},
+		{"non-canonical version", "module example.test/nested\n\nrequire example.test/other vgarbage\n", "unparsable: line 3: malformed require directive"},
+		{"version with a leading zero", "module example.test/nested\n\nrequire example.test/other v1.02.0\n", "unparsable: line 3: malformed require directive"},
 		{"quoted godebug", "module example.test/nested\n\ngodebug \"panicnil=1\"\n", "unparsable: line 3: malformed godebug directive"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

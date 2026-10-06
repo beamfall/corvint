@@ -351,20 +351,31 @@ var (
 		"exclude": true, "replace": true, "retract": true, "tool": true, "ignore": true,
 	}
 	workVerbs = map[string]bool{"go": true, "toolchain": true, "godebug": true, "use": true, "replace": true}
+	// manifestBlocks and workBlocks are the verbs the go tool admits as a
+	// parenthesized block (a module block is refused here, more strictly).
+	manifestBlocks = map[string]bool{
+		"godebug": true, "require": true, "exclude": true, "replace": true, "retract": true, "tool": true, "ignore": true,
+	}
+	workBlocks = map[string]bool{"godebug": true, "use": true, "replace": true}
+	// canonicalVersion is a canonical module version: major.minor.patch with
+	// an optional prerelease and +incompatible. The go tool also admits
+	// shorthand forms it canonicalizes; refusing them only keeps a module open.
+	canonicalVersion = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)` +
+		`(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+incompatible)?$`)
 	// goVersion and toolchainVersion are the go tool's own forms (x/mod/modfile).
 	goVersion        = regexp.MustCompile(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
 	toolchainVersion = regexp.MustCompile(`^default$|^go1($|\.)`)
 )
 
 // parseManifest reads the go.mod grammar this decision needs, or the go.work
-// grammar when work is set: line comments, interpreted and raw strings,
-// one-line directives, and parenthesized blocks, with each directive's
+// grammar when work is set: line comments, interpreted strings (a raw string
+// fails), one-line directives, and the blocks the go tool admits, with each directive's
 // arguments checked as the go tool checks them. It fails rather than guessing
 // on anything else.
 func parseManifest(body []byte, work bool) (manifestDependencies, error) {
-	verbs := manifestVerbs
+	verbs, blocks := manifestVerbs, manifestBlocks
 	if work {
-		verbs = workVerbs
+		verbs, blocks = workVerbs, workBlocks
 	}
 	parsed := manifestDependencies{seen: map[string]bool{}}
 	block := ""
@@ -390,8 +401,8 @@ func parseManifest(body []byte, work bool) (manifestDependencies, error) {
 			}
 			verb, args = tokens[0].text, tokens[1:]
 			if len(args) == 1 && args[0].is("(") {
-				if verb == "module" {
-					return manifestDependencies{}, fmt.Errorf("line %d: module block", number+1)
+				if !blocks[verb] {
+					return manifestDependencies{}, fmt.Errorf("line %d: %s block", number+1, verb)
 				}
 				block = verb
 				continue
@@ -411,11 +422,13 @@ func parseManifest(body []byte, work bool) (manifestDependencies, error) {
 }
 
 func (parsed *manifestDependencies) add(verb string, args []manifestToken) error {
-	if verb != "retract" {
-		for _, arg := range args {
-			if arg.punctuation() {
-				return fmt.Errorf("misplaced %q in %s directive", arg.text, verb)
-			}
+	for _, arg := range args {
+		if verb != "retract" && arg.punctuation() {
+			return fmt.Errorf("misplaced %q in %s directive", arg.text, verb)
+		}
+		// The go tool reserves quotes inside an unquoted argument.
+		if !arg.quoted && strings.ContainsAny(arg.text, "\"'`") {
+			return fmt.Errorf("quote in %s directive", verb)
 		}
 	}
 	malformed := errors.New("malformed " + verb + " directive")
@@ -475,10 +488,9 @@ func (parsed *manifestDependencies) add(verb string, args []manifestToken) error
 	return nil
 }
 
-// version admits a module version token loosely: the go tool rejects more,
-// and a module it rejects cannot be built at all.
+// version admits only a canonical module version token.
 func version(token manifestToken) bool {
-	return !token.punctuation() && strings.HasPrefix(token.text, "v") && len(token.text) > 1
+	return !token.punctuation() && canonicalVersion.MatchString(token.text)
 }
 
 // manifestReplacement reads `old [version] => new [version]`. A replacement
@@ -526,7 +538,10 @@ func manifestLine(line string) ([]manifestToken, error) {
 		case strings.ContainsRune(manifestPunctuation, character):
 			tokens = append(tokens, manifestToken{text: string(character)})
 			index += size
-		case character == '"' || character == '`':
+		case character == '`':
+			// The go tool lexes a raw string, but no directive argument admits one.
+			return nil, errors.New("raw string")
+		case character == '"':
 			end := quotedEnd(line, index)
 			if end < 0 {
 				return nil, errors.New("unterminated string")

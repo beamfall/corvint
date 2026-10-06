@@ -88,6 +88,26 @@ subtests fail; with the repair, the package passes.
   `modfile`, so a quoted argument is a parse error there. The reader now rejects these
   arguments when they are quoted.
 
+## Review repairs (Codex round 3)
+
+Codex reported three P2 findings, all forms that `modfile` refuses but the reader still
+accepted. All three were confirmed against x/mod v0.39.0 and repaired. With the round-2
+`nested.go` restored, all six new subtests fail; with the repair, the package passes.
+
+- Raw strings: `parseString` rejects any token that is not `"`-quoted but contains a quote
+  character. The lexer now refuses a raw string outright, and a quote inside an unquoted
+  argument is a parse error.
+- Blocks: only the verbs `modfile` admits as blocks are allowed (go.mod: godebug, require,
+  exclude, replace, retract, tool, ignore; go.work: godebug, use, replace). `go (` and
+  `toolchain (` now fail. A `module` block stays refused, which is stricter than `modfile`.
+- Versions: a version must now be the canonical form (`vMAJOR.MINOR.PATCH`, an optional
+  prerelease, an optional `+incompatible`). The go tool canonicalizes some shorthand forms, so
+  refusing them is stricter than the go tool and only keeps a module open.
+
+The binary was rebuilt and the replays repeated with the final code:
+- the 571 counterfactual is `UNKNOWN`, 79, with `go:build-constraint-variants` only;
+- real 571 and real 610 still keep `go:nested-module-frontier`.
+
 ## Finding: the ticket premise does not hold on this repository
 
 This repository has four nested modules. Three of them close:

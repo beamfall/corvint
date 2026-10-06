@@ -660,7 +660,8 @@ and container qualification; full fallback remains available.
   manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
   tool does and fails on any verb, token, block, or directive argument it does not admit (for
   example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
-  `=`, or a malformed `retract` interval); when it requires, replaces, or names a tool under an observed
+  `=`, a malformed `retract` interval, a raw string, a quote inside an unquoted argument, a block
+  of a verb the go tool does not admit as a block, or a module version that is not canonical); when it requires, replaces, or names a tool under an observed
   module path (a tool under its own module path excepted), or replaces a module with one; when a
   directory replacement is absolute or not repository-relative, resolves outside the repository,
   or resolves anywhere other than its own directory or another unlisted module (a relative
