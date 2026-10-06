@@ -50,7 +50,11 @@ reader could not tell the strongest documentation hit of a task from the weakest
 TCP-V0-013 as amended: the five-code head stays, then one merged TCP-V0-014 order over the
 remaining code and documentation hits, documentation capped at half of the lexical fill
 (`ceil(fill / 2)`, TCP-V0-059); the head gives way to that share when the fill is short.
-Documentation beyond the share is appended after all code. A lexical or documentation row scores
+A documentation hit takes a share position only through the share's gate: it outscores the lead
+(the strongest code hit competing for the fill) or it is one of the first two documentation hits
+that do not (`contextDocumentationQuota`, the rc.2 two-row rule kept as the floor); documentation
+beyond the ceiling or the gate is appended after all code. The gate is the same day's amendment,
+chosen on the five-pull-request replay below. A lexical or documentation row scores
 `300 + round(299 x bm25 / strongest)` (TCP-V0-060), so order and score agree and no lexical row
 reaches a relation tier. When the limit or the share omits a lexical hit, `coverage.uncertainty`
 states the omitted class, the count, the share, and the strongest documentation row the share
@@ -69,27 +73,31 @@ Same binaries, same clones, same case commits, limit 20; `before` is origin/main
 change. Critical files are the rc.2 run's `critical` list; a treatment-only miss is a critical
 file the baseline packet carried and the treatment did not.
 
+The table is the gated share; the half share alone carried 27 and missed 11 (4c05a5cb 9, losing
+`help_test.go`; f451a34f 3, losing `cmd/corvint/host_adapter.go` and
+`cmd/corvint/host_adapter_test.go` for `agent-harness-integration-v0.md`).
+
 | case | critical carried before -> after | treatment-only misses before -> after | gained | lost |
 | --- | --- | --- | --- | --- |
 | urfave/cli 277cbea3 | 4 -> 6 | 5 -> 2 | `advanced.md`, `godoc-current.txt`, `godoc-v3.x.txt` | `flag.go` (not in the baseline packet) |
-| urfave/cli 4c05a5cb | 9 -> 9 | 1 -> 0 | `advanced.md` | `help_test.go` (not in the baseline packet) |
+| urfave/cli 4c05a5cb | 9 -> 10 | 1 -> 0 | `advanced.md` | none |
 | corvint fc594fa6 | 6 -> 6 | 1 -> 1 | none | none |
-| corvint f451a34f | 4 -> 3 | 2 -> 3 | `agent-harness-integration-v0.md` | `cmd/corvint/host_adapter.go`, `cmd/corvint/host_adapter_test.go` |
+| corvint f451a34f | 4 -> 4 | 2 -> 2 | none | none |
 | corvint f7f586bd | 0 -> 0 | 3 -> 3 | none | none |
 | corvint d867347d | 0 -> 0 | 1 -> 1 | none | none |
 | corvint 4c607266 | 1 -> 2 | 1 -> 0 | `daily-change-evidence-workflow-v0.md` | none |
 | corvint 57f06a6a | 1 -> 1 | 1 -> 1 | none | none |
-| total | 25 -> 27 | 15 -> 11 | 6 | 4 |
+| total | 25 -> 29 | 15 -> 10 | 5 | 1 |
 
-Regressions, reported not hidden: `corvint f451a34f` carries one fewer critical file. Its two lost
-rows are code hits weaker than nine documentation rows the merged order now carries; the rc.2
-packet reached them only because four `pair` rows of one test file and the quota kept
-documentation out. `flag.go` and `help_test.go` were critical rows the rc.2 packet carried and the
-baseline did not; the merged order carries stronger documentation in their place. The eleven residual treatment-only misses are seven result-limit drops
-unchanged by any ordering rule (`flag_impl.go`, `flag_bool_with_inverse.go`, `README.md` of
-f451a34f, the three retrieval-bench files, `proof-carrying-context-optimization-v0.md`),
-`docs/DOGFOOD.md` (the 22nd row of the same packet at limit 24: two admitted `pair` rows and the limit keep it out at 20), `ROADMAP.md` (22 stronger documentation rows, share of 9),
-and the two f451a34f rows above. Each after-packet states its omission in `coverage.uncertainty`;
+Regressions, reported not hidden: `flag.go` was a critical row the rc.2 packet carried and the
+baseline did not; the merged order carries stronger documentation in its place. The ten residual
+treatment-only misses are seven result-limit drops unchanged by any ordering rule (`flag_impl.go`,
+`flag_bool_with_inverse.go`, `README.md` of f451a34f, the three retrieval-bench files,
+`proof-carrying-context-optimization-v0.md`), `docs/DOGFOOD.md` (the 22nd row of the same packet
+at limit 24: two admitted `pair` rows and the limit keep it out at 20), `ROADMAP.md` (22 stronger
+documentation rows, share of 9), and `agent-harness-integration-v0.md` of f451a34f, which the
+gate defers: no documentation hit of that task outscores the lead `.taskman/tickets/V1-0298.json`
+and two documentation hits precede it, so it sits past the quota as it did under the rc.2 rule. Each after-packet states its omission in `coverage.uncertainty`;
 for 57f06a6a the second line names the 22 documentation rows above a code row the fill carried
 that the share omitted.
 
@@ -100,6 +108,55 @@ from row 6 to row 7, because the head of two code rows no longer counts the `men
 `cmd/corvint/testdata/core-freeze/context-reserved-rows.json` gains the optional
 `coverage.uncertainty` member (one line, limit 1), an additive member under CCF-V1-006 regenerated
 in this change; `context-task.json` is unchanged (nothing omitted).
+
+## Held-out replay and the share gate
+
+A read-only replay of five merged pull requests of this repository (#571, #614, #594, #557,
+#610; the rc.3 batch integration's survey, 2026-10-06) ran `corvint context --limit 20` at each
+merge base with the pull-request title as the task and took as gold the changed files that
+existed at the parent. It found the half share regressing recall against main: 18/59 to 15/59,
+#594 falling 4 to 2 (`internal/tasks/cli/cli.go`, `internal/tasks/store/release.go`) and #610
+2 to 1 (`internal/tasks/dispatch/loop.go`), while halving the pair rows that point outside the
+changed tree. The cause: `fill` 18 leaves nine positions to documentation, and this tree's
+generic prose (`docs/TASKS-SUPERVISION.md`, decision 0021, the browser specs, the closed
+`docs/BUILD-LOG.md`) scores between the strongest code hit (a `.taskman` ticket, bm25 35.85 for
+#594) and the head's weakest (23.10), so the share admitted it ahead of the gold code at the
+sixteenth code position. #594's gold needs documentation held to two rows; the rc.2 quota did
+that for every task, the half share for none.
+
+Rules screened by simulation over the hit dumps (replay recall of 59; public critical hits of
+67 over the eight rc.2 cases; the simulation reproduces every measured packet except the pair
+victim of two cases): half share 16/28 (measured 15/27); rc.2 two-row quota 18/26 (measured 25);
+a floor at the head's weakest code hit 18, but #594 at 3; a floor at the third code hit 16/27
+(fc594fa6 loses `local-trace-producer-migration-v0.md`, bm25 32.29, under three code hits); a
+floor at the second code hit plus the quota, #594 at 3; the quota plus the lead (chosen) 18/29.
+Excluding closed or redirect documents (`docs/BUILD-LOG.md`, `docs/agent-memory/`) changed no
+number on either set and was not taken: a path rule for no measured gain. The gate keeps the
+rc.2 quota as the floor and opens the half share only to documentation that leads the code, the
+shape of a documentation task; the one-third share screened on the rc.2 cases stays weaker on
+both sets.
+
+Measured with the branch binary on the survey's worktrees (limit 20, gold rows carried):
+
+| pull request | gold | main | half share (4611f2e5) | gate |
+| --- | --- | --- | --- | --- |
+| #571 | 10 | 5 | 5 | 5 |
+| #614 | 8 | 5 | 5 | 5 |
+| #594 | 24 | 4 | 2 | 4 |
+| #557 | 8 | 2 | 2 | 2 |
+| #610 | 9 | 2 | 1 | 2 |
+| total | 59 | 18 | 15 | 18 |
+
+No pull request loses a gold row against main. Pair rows over the five packets: main 16, of
+which 10 name a counterpart elsewhere in the tree; gate 14 and 8 (the Go same-directory pair rule
+of the next commit takes the rest). On the eight public cases the gate carries 29 critical rows
+and misses 10 (the table above) against the half share's 27 and 11, no case losing a row to it.
+
+Sensitivity: in this repository's cases `.taskman/tickets/*.json` count as code and set the
+lead; a tree whose strongest hits are prose reads as a documentation task and keeps the half
+share, the intended reading, while a tree whose code class scores like prose would gate
+differently. The replay is development evidence now that the gate is tuned on it; held-out
+validation stays `NOT_RUN` below.
 
 ## Evaluation integrity
 
@@ -118,17 +175,23 @@ third-party leg is `NOT_RUN`.
 
 - `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextDocumentationShareStatesTheOmittedClass`,
   `TestTaskContextLexicalScoreCarriesStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`
-  (new), `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (rewritten for the merged order),
+  (new), `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (rewritten for the merged order,
+  then for the gate: the two documentation rows past the quota follow the code rows although one
+  outscores a carried code row),
   `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld-line assertion added),
   `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` and
-  `TestTaskContextShareLineSurvivesPairPromotion` (new), the
+  `TestTaskContextShareLineSurvivesPairPromotion` (new; both re-pinned for the gate), the
   recipe and core-freeze goldens, and the context tests of `cmd/corvint` pass; `go vet` on
   `internal/contextindex` and `cmd/corvint` is clean.
 - `TestAnalyzerSchemaInputs` (IDX-SNAP-V0-017): `taskcontext.go` is one of the pinned extraction
   inputs, and the audit over-invalidates consumer-only changes by design. The change does not alter
   extraction or pack encoding. With the owner's approval (2026-10-06), `analyzerSchemaID` moves to
   `corvint-analyzer/104` and the audit digest is repinned. Existing opt-in analyzer packs are
-  rebuilt once on the next index.
+  rebuilt once on the next index. The lane's later commits change `taskcontext.go` again and
+  leave the pin red on the branch; the batch integration repins once at `corvint-analyzer/105`.
+- The five-pull-request replay (the survey's `ctxeval.py`, the main binary against this
+  branch's, each on its own `--root` over the survey worktrees) and the eight public cases rerun
+  with the gate: the numbers above.
 
 ## Review
 
@@ -251,6 +314,9 @@ truncation, finding no difference) returned one finding:
     promotion can change a carried row's kind, and `lexicalCoverage` takes the weakest of them
     the packet still carries (TCP-V0-061 amended). The reading point is the one the final
     packet gave before, so every earlier packet and the goldens are unchanged.
+17. Recall regression (the rc.3 batch integration's five-pull-request replay, read-only): the
+    half share carried 15 of 59 gold rows against main's 18. Fixed by the share's gate (the
+    section above); TCP-V0-013, TCP-V0-059 and TCP-V0-061 amended, goldens unchanged.
 
 The sixth review (Codex, read-only, on the fifth fixed commit) approved with no findings: the
 carried code rows stay a descending-bm25 subsequence with the reorder off, so the comparison row
@@ -262,3 +328,5 @@ the eight public cases rerun on that commit are byte-identical to the fourth rer
 
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,
 remaining documentation), the flat 300 score, no `coverage.uncertainty`, and the two goldens.
+Reverting the gate alone (the lead and `contextDocumentationQuota` in `lexicalRows`) restores the
+half share and its replay loss.

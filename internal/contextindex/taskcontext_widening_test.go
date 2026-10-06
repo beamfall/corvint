@@ -742,10 +742,13 @@ func TestTaskContextPlacesDocumentationAfterFiveCodeRows(t *testing.T) {
 			t.Fatal(err)
 		}
 		// TCP-V0-013 (amended by TCP-V0-059) places five code rows first, then
-		// one BM25 order over the remaining code and the documentation: the
-		// shorter documentation bodies outscore the code files that carry the
-		// same words, so they follow the head ahead of the weaker code rows
-		// instead of waiting for every code row.
+		// one BM25 order over the remaining code and the documentation the
+		// share admits: no documentation hit outscores code/05.go, the lead,
+		// so the quota's two rows (the shorter docs/c.rst and docs/d.txt
+		// outscore the code files that carry the same words) follow the head
+		// ahead of the weaker code rows, and the two past the quota follow
+		// every code row although docs/b.mdx outscores code/02.go: the gate,
+		// not its strength, deferred it.
 		got := contextPairs(t, packet)
 		if len(got) != 11 {
 			t.Fatalf("packet = %v, want all eleven matched files", got)
@@ -755,16 +758,20 @@ func TestTaskContextPlacesDocumentationAfterFiveCodeRows(t *testing.T) {
 				t.Fatalf("head position %d = %q, want a code row", position, pair)
 			}
 		}
-		if !strings.HasSuffix(got[5], "docs/c.rst") || !strings.HasSuffix(got[6], "docs/d.txt") {
-			t.Fatalf("documentation after the head = %v, want docs/c.rst then docs/d.txt", got[5:7])
+		tail := []string{
+			"documentation docs/c.rst", "documentation docs/d.txt", "lexical code/02.go", "lexical code/01.go",
+			"documentation docs/b.mdx", "documentation docs/a.md",
 		}
-		if slices.Index(got, "documentation docs/b.mdx") > slices.Index(got, "lexical code/02.go") {
-			t.Fatalf("the stronger documentation row waits for a weaker code row: %v", got)
+		if !slices.Equal(got[5:], tail) {
+			t.Fatalf("rows after the head = %v, want the quota, the remaining code, then the deferred documentation: %v", got[5:], tail)
 		}
 		strengths := lexicalStrengths(t, packet)
+		if strengths[9] <= strengths[7] {
+			t.Fatalf("fixture must rank docs/b.mdx above code/02.go: %v", strengths)
+		}
 		for position := 6; position < len(strengths); position++ {
-			if strengths[position] > strengths[position-1] {
-				t.Fatalf("merged order is not by strength at %d: %v (%v)", position, strengths, got)
+			if position != 9 && strengths[position] > strengths[position-1] {
+				t.Fatalf("order is not by strength inside the quota, the code and the deferred documentation at %d: %v (%v)", position, strengths, got)
 			}
 		}
 		coverage := contextCoverage(t, packet)

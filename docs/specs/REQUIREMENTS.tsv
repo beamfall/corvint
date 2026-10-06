@@ -2573,54 +2573,54 @@ TCP-V0-010	docs/specs/task-context-packet-v0.md	204	(A) The implementation MUST 
 TCP-V0-011	docs/specs/task-context-packet-v0.md	209	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
 TCP-V0-012	docs/specs/task-context-packet-v0.md	227	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
 TCP-V0-013	docs/specs/task-context-packet-v0.md	238	(amended 2026-10-06, V1-0859; experimental) Documentation-suffix hits (`.md`,
-TCP-V0-014	docs/specs/task-context-packet-v0.md	259	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
-TCP-V0-015	docs/specs/task-context-packet-v0.md	287	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
-TCP-V0-016	docs/specs/task-context-packet-v0.md	361	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
-TCP-V0-017	docs/specs/task-context-packet-v0.md	325	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
-TCP-V0-018	docs/specs/task-context-packet-v0.md	416	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
-TCP-V0-019	docs/specs/task-context-packet-v0.md	428	(proposed 2026-09-05, not accepted; experimental) With
-TCP-V0-020	docs/specs/task-context-packet-v0.md	483	(proposed 2026-09-05, not accepted; experimental) Under
-TCP-V0-021	docs/specs/task-context-packet-v0.md	457	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
-TCP-V0-022	docs/specs/task-context-packet-v0.md	511	(proposed 2026-09-22, not accepted; experimental; decision 0333; default
-TCP-V0-023	docs/specs/task-context-packet-v0.md	544	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-TCP-V0-024	docs/specs/task-context-packet-v0.md	570	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
-TCP-V0-025	docs/specs/task-context-packet-v0.md	731	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
-TCP-V0-026	docs/specs/task-context-packet-v0.md	748	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
-TCP-V0-027	docs/specs/task-context-packet-v0.md	758	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
-TCP-V0-028	docs/specs/task-context-packet-v0.md	766	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
-TCP-V0-029	docs/specs/task-context-packet-v0.md	782	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
-TCP-V0-030	docs/specs/task-context-packet-v0.md	677	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
-TCP-V0-031	docs/specs/task-context-packet-v0.md	691	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
-TCP-V0-032	docs/specs/task-context-packet-v0.md	705	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
-TCP-V0-033	docs/specs/task-context-packet-v0.md	714	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
-TCP-V0-034	docs/specs/task-context-packet-v0.md	719	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
-TCP-V0-035	docs/specs/task-context-packet-v0.md	620	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
-TCP-V0-036	docs/specs/task-context-packet-v0.md	638	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
-TCP-V0-037	docs/specs/task-context-packet-v0.md	651	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
-TCP-V0-038	docs/specs/task-context-packet-v0.md	664	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
-TCP-V0-039	docs/specs/task-context-packet-v0.md	580	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
-TCP-V0-040	docs/specs/task-context-packet-v0.md	598	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
-TCP-V0-041	docs/specs/task-context-packet-v0.md	608	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
-TCP-V0-042	docs/specs/task-context-packet-v0.md	613	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
-TCP-V0-043	docs/specs/task-context-packet-v0.md	799	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
-TCP-V0-044	docs/specs/task-context-packet-v0.md	805	The `external` member is separate evidence, never a ranking input: `results`,
-TCP-V0-045	docs/specs/task-context-packet-v0.md	811	When gopls is absent, the task names no usable Go seed, the session fails or
-TCP-V0-046	docs/specs/task-context-packet-v0.md	815	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
-TCP-V0-047	docs/specs/task-context-packet-v0.md	823	When governing rows exist (TCP-V0-008), each governing file's text is split into
-TCP-V0-048	docs/specs/task-context-packet-v0.md	857	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
-TCP-V0-049	docs/specs/task-context-packet-v0.md	869	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
-TCP-V0-050	docs/specs/task-context-packet-v0.md	880	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
-TCP-V0-051	docs/specs/task-context-packet-v0.md	900	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
-TCP-V0-052	docs/specs/task-context-packet-v0.md	906	CLI and the explicit MCP descendant use one shared attachment. Before and after
-TCP-V0-053	docs/specs/task-context-packet-v0.md	912	Required live qualification fails when gopls is missing. Compiled CLI and MCP
-TCP-V0-054	docs/specs/task-context-packet-v0.md	918	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
-TCP-V0-055	docs/specs/task-context-packet-v0.md	940	(experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008
-TCP-V0-056	docs/specs/task-context-packet-v0.md	953	(experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is
-TCP-V0-057	docs/specs/task-context-packet-v0.md	964	(experimental, V1-0414) The packet's diff under review is the working tree
-TCP-V0-058	docs/specs/task-context-packet-v0.md	970	(experimental, V1-0414) The screen adds no input other than the pinned blob and
-TCP-V0-059	docs/specs/task-context-packet-v0.md	974	(proposed 2026-10-06, V1-0859; experimental) Documentation share. In the merged
-TCP-V0-060	docs/specs/task-context-packet-v0.md	993	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
-TCP-V0-061	docs/specs/task-context-packet-v0.md	1001	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
+TCP-V0-014	docs/specs/task-context-packet-v0.md	261	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
+TCP-V0-015	docs/specs/task-context-packet-v0.md	289	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+TCP-V0-016	docs/specs/task-context-packet-v0.md	363	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+TCP-V0-017	docs/specs/task-context-packet-v0.md	327	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
+TCP-V0-018	docs/specs/task-context-packet-v0.md	418	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
+TCP-V0-019	docs/specs/task-context-packet-v0.md	430	(proposed 2026-09-05, not accepted; experimental) With
+TCP-V0-020	docs/specs/task-context-packet-v0.md	485	(proposed 2026-09-05, not accepted; experimental) Under
+TCP-V0-021	docs/specs/task-context-packet-v0.md	459	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+TCP-V0-022	docs/specs/task-context-packet-v0.md	513	(proposed 2026-09-22, not accepted; experimental; decision 0333; default
+TCP-V0-023	docs/specs/task-context-packet-v0.md	546	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+TCP-V0-024	docs/specs/task-context-packet-v0.md	572	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-025	docs/specs/task-context-packet-v0.md	733	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
+TCP-V0-026	docs/specs/task-context-packet-v0.md	750	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+TCP-V0-027	docs/specs/task-context-packet-v0.md	760	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+TCP-V0-028	docs/specs/task-context-packet-v0.md	768	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+TCP-V0-029	docs/specs/task-context-packet-v0.md	784	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+TCP-V0-030	docs/specs/task-context-packet-v0.md	679	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+TCP-V0-031	docs/specs/task-context-packet-v0.md	693	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
+TCP-V0-032	docs/specs/task-context-packet-v0.md	707	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+TCP-V0-033	docs/specs/task-context-packet-v0.md	716	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+TCP-V0-034	docs/specs/task-context-packet-v0.md	721	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+TCP-V0-035	docs/specs/task-context-packet-v0.md	622	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
+TCP-V0-036	docs/specs/task-context-packet-v0.md	640	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+TCP-V0-037	docs/specs/task-context-packet-v0.md	653	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
+TCP-V0-038	docs/specs/task-context-packet-v0.md	666	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
+TCP-V0-039	docs/specs/task-context-packet-v0.md	582	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+TCP-V0-040	docs/specs/task-context-packet-v0.md	600	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
+TCP-V0-041	docs/specs/task-context-packet-v0.md	610	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+TCP-V0-042	docs/specs/task-context-packet-v0.md	615	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+TCP-V0-043	docs/specs/task-context-packet-v0.md	801	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
+TCP-V0-044	docs/specs/task-context-packet-v0.md	807	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	813	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	817	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+TCP-V0-047	docs/specs/task-context-packet-v0.md	825	When governing rows exist (TCP-V0-008), each governing file's text is split into
+TCP-V0-048	docs/specs/task-context-packet-v0.md	859	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+TCP-V0-049	docs/specs/task-context-packet-v0.md	871	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+TCP-V0-050	docs/specs/task-context-packet-v0.md	882	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
+TCP-V0-051	docs/specs/task-context-packet-v0.md	902	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
+TCP-V0-052	docs/specs/task-context-packet-v0.md	908	CLI and the explicit MCP descendant use one shared attachment. Before and after
+TCP-V0-053	docs/specs/task-context-packet-v0.md	914	Required live qualification fails when gopls is missing. Compiled CLI and MCP
+TCP-V0-054	docs/specs/task-context-packet-v0.md	920	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+TCP-V0-055	docs/specs/task-context-packet-v0.md	942	(experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008
+TCP-V0-056	docs/specs/task-context-packet-v0.md	955	(experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is
+TCP-V0-057	docs/specs/task-context-packet-v0.md	966	(experimental, V1-0414) The packet's diff under review is the working tree
+TCP-V0-058	docs/specs/task-context-packet-v0.md	972	(experimental, V1-0414) The screen adds no input other than the pinned blob and
+TCP-V0-059	docs/specs/task-context-packet-v0.md	976	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;
+TCP-V0-060	docs/specs/task-context-packet-v0.md	1007	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
+TCP-V0-061	docs/specs/task-context-packet-v0.md	1015	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

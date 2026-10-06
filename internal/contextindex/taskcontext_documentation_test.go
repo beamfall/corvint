@@ -382,12 +382,14 @@ func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
 	t.Run("TCP-V0-061 TCP-V0-035 a weak recent code hit promoted into the head is not the share's comparison row", func(t *testing.T) {
 		// Five old code hits outscore eight documentation hits, which outscore
 		// one recent code hit, at limit 12: the fill carries the five old hits
-		// as the head, six documentation rows as the share and the recent hit
-		// last, so without the reorder docs/g.md and docs/h.md are the hits
-		// the share kept out in favour of the recent hit. The reorder moves
-		// the recent hit into the head and an old hit past it; the code row
-		// past the head now outscores every documentation hit, so that packet
-		// omits the two by the limit alone.
+		// as the head, the quota's two documentation rows (no documentation
+		// hit outscores the lead), the recent hit, then the deferred
+		// documentation in the positions no code hit takes, so without the
+		// reorder docs/g.md and docs/h.md are the hits the share kept out in
+		// favour of the recent hit. The reorder moves the recent hit into the
+		// head and an old hit past it; the code row past the head now
+		// outscores every documentation hit, so that packet omits the two by
+		// the limit alone.
 		root := recencyRepository(t)
 		for index := range 5 {
 			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index+1),
@@ -413,22 +415,20 @@ func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		documentation := []string{
-			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
-			"documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
-		}
-		want := append([]string{"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go", "lexical code/05.go"}, documentation...)
-		want = append(want, "lexical code/06.go")
+		quota := []string{"documentation docs/a.md", "documentation docs/b.md"}
+		deferred := []string{"documentation docs/c.md", "documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md"}
+		want := append([]string{"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go", "lexical code/05.go"}, quota...)
+		want = append(append(want, "lexical code/06.go"), deferred...)
 		if got := contextPairs(t, plain); !slices.Equal(got, want) {
-			t.Fatalf("reorder-free packet = %v, want the recent hit carried last: %v", got, want)
+			t.Fatalf("reorder-free packet = %v, want the recent hit carried before the deferred documentation: %v", got, want)
 		}
 		lines := contextUncertainty(t, plain)
 		if len(lines) != 2 || lines[0] != "0 code and 2 documentation rows the task matched lexically are omitted by the result limit 12" ||
 			!strings.HasPrefix(lines[1], "2 documentation rows that outscore a carried code row are omitted by the documentation share (6 of 12 lexical positions); the strongest is `docs/g.md` (bm25 ") {
 			t.Fatalf("reorder-free coverage.uncertainty = %q, want the limit line and the share line naming docs/g.md", lines)
 		}
-		want = append([]string{"lexical code/06.go", "lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go"}, documentation...)
-		want = append(want, "lexical code/05.go")
+		want = append([]string{"lexical code/06.go", "lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go"}, quota...)
+		want = append(append(want, "lexical code/05.go"), deferred...)
 		if got := contextPairs(t, packet); !slices.Equal(got, want) {
 			t.Fatalf("packet = %v, want the recent hit promoted into the head: %v", got, want)
 		}
@@ -442,9 +442,10 @@ func TestTaskContextShareLineSurvivesPairPromotion(t *testing.T) {
 	t.Run("TCP-V0-061 TCP-V0-004 a head counterpart promoted to pair keeps the head accounting", func(t *testing.T) {
 		// The test slot takes pkg/x_test.go first, so the fill's head is four
 		// code rows: pkg/x.go, pkg/a.go, the unrelated pkg/zz_test.go and
-		// pkg/a_test.go, in that strength order. Six of seven documentation
-		// hits take the share and the weak pkg/d.go the one position past
-		// it, so docs/g.md is the hit the share kept out in favour of
+		// pkg/a_test.go, in that strength order. No documentation hit
+		// outscores pkg/x.go, so the quota's two take the share ahead of
+		// the weak pkg/d.go, the deferred documentation fills the positions
+		// past it, and docs/g.md is the hit the share kept out in favour of
 		// pkg/d.go. TCP-V0-004 then promotes pkg/a_test.go to `pair` ahead
 		// of the unrelated test it outranks; the head keeps its four
 		// members and pkg/d.go stays the share's comparison row.
@@ -473,9 +474,8 @@ func TestTaskContextShareLineSurvivesPairPromotion(t *testing.T) {
 		}
 		want := []string{
 			"test pkg/x_test.go", "lexical pkg/x.go", "lexical pkg/a.go", "pair pkg/a_test.go", "lexical pkg/zz_test.go",
-			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
-			"documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
-			"lexical pkg/d.go",
+			"documentation docs/a.md", "documentation docs/b.md", "lexical pkg/d.go",
+			"documentation docs/c.md", "documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
 		}
 		if got := contextPairs(t, packet); !slices.Equal(got, want) {
 			t.Fatalf("packet = %v, want the counterpart promoted ahead of the unrelated test: %v", got, want)

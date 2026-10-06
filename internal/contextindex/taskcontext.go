@@ -208,6 +208,12 @@ const (
 	// as amended by TCP-V0-059): documentation competes with code by strength
 	// but never takes more than half the positions.
 	contextDocumentationShare = 2
+	// contextDocumentationQuota is the documentation rows the share admits
+	// without their outscoring every code hit (TCP-V0-059's gate): past the
+	// quota a documentation row takes a share position only when the task
+	// reads as a documentation task, its strongest hits being prose. The
+	// quota is the pre-amendment two-row rule kept as the floor.
+	contextDocumentationQuota = 2
 	// contextLexicalBase and contextLexicalCeiling bound the lexical score band
 	// (TCP-V0-060): the strongest hit of the walk scores the ceiling and every
 	// other hit its BM25 share of the band, so no lexical row reaches the 600
@@ -1324,19 +1330,35 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 		}
 	}
 	compiler.lexicalHead = headTaken
+	// The share's gate (TCP-V0-059): a documentation hit takes a share
+	// position when it outscores every code hit competing for the fill (a
+	// held row takes no fill position and sets no lead), or as one of the
+	// quota of documentation hits that do not; the rest follow every code hit.
+	lead, codeHit := 0.0, false
+	for _, item := range hits {
+		if !item.documentation && !held[item.path] {
+			lead, codeHit = item.score, true
+			break
+		}
+	}
 	headTaken = 0
+	trailing := 0
 	for _, item := range hits {
 		switch {
 		case held[item.path]:
 		case !item.documentation && headTaken < head:
 			headTaken++
 			continue
-		case item.documentation && documentation == share:
-			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
-			deferred = append(deferred, item)
-			continue
 		case item.documentation:
 			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
+			leads := !codeHit || item.score > lead
+			if documentation == share || (!leads && trailing == contextDocumentationQuota) {
+				deferred = append(deferred, item)
+				continue
+			}
+			if !leads {
+				trailing++
+			}
 			documentation++
 		}
 		ordered = append(ordered, item)
