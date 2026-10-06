@@ -2992,7 +2992,10 @@ changed nothing. The owner asked for a bounded release retry, a reap once the le
   exactly once, naming both last errors, only when the reaps are exhausted, or when the releases
   are exhausted and the attempt has no lease to reap. An attempt held by any other holder is never
   recovered; only the generic `heal.reap` of CAL-V0-056 applies to it. With `heal.exitRecovery`
-  false, CAL-V0-056's single hand-off and immediate `needs-owner` are unchanged.
+  false, CAL-V0-056's single hand-off and immediate `needs-owner` are unchanged. While a recovery
+  is pending or exhausted, a worker reported as ended again (because a tick failed before the worker
+  was accounted) MUST NOT restart it: the tries, backoff and request IDs continue, and an exhausted
+  recovery writes nothing more until the attempt ends or is superseded.
 
 Non-goals: persisting the recovery across a dispatcher restart (after a restart `heal.reap` still
 reaps the expired lease of a holder that is not a running worker, but releases are not retried);
@@ -3006,7 +3009,7 @@ tick.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-104 | `TestCALV0104_ExitRecoveryRetriesHandoffOnLiveLease`, `TestCALV0104_ExitRecoveryReapsExpiredLease`, `TestCALV0104_ExitRecoveryResolvesFencedAttempt`, `TestCALV0104_ExitRecoveryNeedsOwnerOnlyWhenBothFail`, `TestCALV0104_ExitRecoverySwitchOff`, `TestCALV0104_ExitRecoveryConfig` (`internal/tasks/dispatch`); `TestCALV0056_HandoffAndReap`, `TestCALV0056_CancelledHealingStopsNextWrite` unchanged |
+| CAL-V0-104 | `TestCALV0104_ExitRecoveryRetriesHandoffOnLiveLease`, `TestCALV0104_ExitRecoveryReapsExpiredLease`, `TestCALV0104_ExitRecoveryResolvesFencedAttempt`, `TestCALV0104_ExitRecoveryNeedsOwnerOnlyWhenBothFail`, `TestCALV0104_ExitRecoverySurvivesFailedPostHealObservation`, `TestCALV0104_ExitRecoverySwitchOff`, `TestCALV0104_ExitRecoveryConfig` (`internal/tasks/dispatch`); `TestCALV0056_HandoffAndReap`, `TestCALV0056_CancelledHealingStopsNextWrite` unchanged |
 
 Rollback: set `heal.exitRecovery` to false for CAL-V0-056's original behaviour, or revert the
 change. The switch is an optional config member and the recovery writes no new ledger, store or
@@ -3049,7 +3052,7 @@ because the native plan does not see work state. The dispatcher's plan can there
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-105 | `TestCALV0105_WorkStateHeldTicketsLeaveWindow`, `TestCALV0105_HeldSetDoesNotOverrideBlockedOrUnheld` (`internal/tasks/transaction`); `TestCALV0105_HeldWorkStateLeavesDispatcherWindow`, `TestCALV0105_UnknownOrUnreadStateKeepsWindow`, `TestCALV0105_StateMatchesIsTheRolePredicate` (`internal/tasks/dispatch`); `TestCALV0105_DispatchObservationReplansHeldTickets` (`internal/tasks/cli`) |
+| CAL-V0-105 | `TestCALV0105_WorkStateHeldTicketsLeaveWindow`, `TestCALV0105_HeldSetDoesNotOverrideBlockedOrUnheld`, `TestCALV0105_HeldPooledTicketStillTakesPriorityYield` (`internal/tasks/transaction`); `TestCALV0105_HeldWorkStateLeavesDispatcherWindow`, `TestCALV0105_UnknownOrUnreadStateKeepsWindow`, `TestCALV0105_StateMatchesIsTheRolePredicate` (`internal/tasks/dispatch`); `TestCALV0105_DispatchObservationReplansHeldTickets` (`internal/tasks/cli`) |
 
 Rollback: revert the change. No config, ledger, store or wire bytes change, so every binary reads the
 same state. Removing the work-state reader, or giving a role a predicate that admits the hold values,

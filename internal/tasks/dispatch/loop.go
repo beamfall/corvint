@@ -613,7 +613,10 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 				if ctx.Err() != nil {
 					return wrote
 				}
-				if !a.Live || a.Holder != w.ID {
+				// An attempt under (or past) an exit recovery is never handed off
+				// afresh: a worker re-reported as ended after a failed tick must
+				// not reset the recovery's bounded tries or reuse its request IDs.
+				if !a.Live || a.Holder != w.ID || done[a.ID] || d.recoveries[a.ID] != nil {
 					continue
 				}
 				done[a.ID], wrote = true, true
@@ -685,6 +688,10 @@ type exitRecovery struct {
 	releases, reaps     int
 	next                time.Time
 	releaseErr, reapErr string
+	// exhausted marks a recovery that already reported needs-owner. It stays
+	// recorded, writing nothing, until the attempt ends or is superseded, so
+	// the same attempt is never recovered or reported twice.
+	exhausted bool
 }
 
 // recoveryBackoff is the delay after the n-th write of one recovery:
@@ -714,6 +721,13 @@ func (d *Dispatcher) recoverExits(ctx context.Context, obs *Observation, done ma
 			}
 		}
 		detail := map[string]string{"attempt": id, "generation": r.attempt.Generation, "holder": r.worker}
+		if r.exhausted {
+			// Already reported to the owner; only heal.reap still applies.
+			if cur == nil || !cur.Live || cur.Generation != r.attempt.Generation || cur.Holder != r.attempt.Holder {
+				delete(d.recoveries, id)
+			}
+			continue
+		}
 		switch {
 		case cur == nil || !cur.Live:
 			// Ended elsewhere (FAILED/FENCED, released or reaped): resolved.
@@ -743,7 +757,7 @@ func (d *Dispatcher) recoverExits(ctx context.Context, obs *Observation, done ma
 // stepRecovery makes at most one due store write for r against the current
 // attempt a: a reap once the lease has expired, otherwise a hand-off
 // release, each bounded with backoff. Only when both are exhausted (or no
-// lease exists to reap) does it report needs-owner and drop r.
+// lease exists to reap) does it report needs-owner and mark r exhausted.
 func (d *Dispatcher) stepRecovery(ctx context.Context, obs *Observation, r *exitRecovery, a Attempt) bool {
 	now := d.Now()
 	if now.Before(r.next) || ctx.Err() != nil {
@@ -793,7 +807,7 @@ func (d *Dispatcher) stepRecovery(ctx context.Context, obs *Observation, r *exit
 		return false
 	}
 	if r.reaps >= exitRecoveryTries || (a.LeaseExpires.IsZero() && r.releases >= exitRecoveryTries) {
-		delete(d.recoveries, a.ID)
+		r.exhausted = true
 		detail["release_error"], detail["reap_error"] = r.releaseErr, orText(r.reapErr, "NOT_ATTEMPTED")
 		delete(detail, "error")
 		delete(detail, "try")

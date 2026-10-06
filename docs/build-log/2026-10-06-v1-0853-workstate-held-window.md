@@ -56,3 +56,18 @@ dispatcher qualification against the reporting program's store.
 
 Revert the commit. No config, ledger, store or wire bytes change. As an operational rollback, drop
 the `workState` reader, or let a role's `states` admit the hold values.
+
+## Review repair
+
+An independent review found that no test showed CAL-V0-105 agreeing with the CAL-V0-101 priority
+yield. `TestCALV0105_HeldPooledTicketStillTakesPriorityYield` now covers it:
+
+- The scenario has one free `lanes` member, a held higher-priority pooled ticket and a later eligible
+  pooled ticket.
+- Under both the `--pool` and the default plan, the later ticket keeps yielding to the held ticket.
+  Its entries are unchanged by the held set and match the native explicit claim's yield target.
+- The native `claim-next` still admits the held ticket, while the held plan selects nothing on the
+  pool. This is the recorded non-goal.
+
+A mutation check confirmed the test catches the regression: dropping held tickets from the waiting
+set makes it fail.

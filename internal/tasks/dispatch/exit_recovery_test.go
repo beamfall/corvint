@@ -17,10 +17,21 @@ type refusingQueue struct {
 	*fakeQueue
 	releaseFails, reapFails int
 	requests                []string
+	// failAfterWrite fails the observation that follows any write, so the
+	// tick ends after heal and before the ended worker is accounted.
+	failAfterWrite, wrote bool
+}
+
+func (q *refusingQueue) Observe(ctx context.Context) (*Observation, error) {
+	if q.failAfterWrite && q.wrote {
+		q.wrote = false
+		return nil, errors.New("LOCK_TIMEOUT")
+	}
+	return q.fakeQueue.Observe(ctx)
 }
 
 func (q *refusingQueue) Release(ctx context.Context, a Attempt, evidence, request string) error {
-	q.requests = append(q.requests, request)
+	q.requests, q.wrote = append(q.requests, request), true
 	if q.releaseFails != 0 {
 		q.releaseFails--
 		q.released = append(q.released, "refused:"+a.ID)
@@ -30,7 +41,7 @@ func (q *refusingQueue) Release(ctx context.Context, a Attempt, evidence, reques
 }
 
 func (q *refusingQueue) Reap(ctx context.Context, a Attempt, request string) error {
-	q.requests = append(q.requests, request)
+	q.requests, q.wrote = append(q.requests, request), true
 	if q.reapFails != 0 {
 		q.reapFails--
 		q.reaped = append(q.reaped, "refused:"+a.ID)
@@ -203,6 +214,41 @@ func TestCALV0104_ExitRecoveryNeedsOwnerOnlyWhenBothFail(t *testing.T) {
 	}
 	if n := count(q.reaped, "refused:a1"); n != exitRecoveryTries {
 		t.Fatalf("reaps %v", q.reaped)
+	}
+	if n := count(kinds(t, d), "needs-owner"); n != 1 {
+		t.Fatalf("needs-owner %d times: %v", n, kinds(t, d))
+	}
+}
+
+// A failed observation after heal ends the tick before finish accounts the
+// ended worker, so the next tick reports it ended again. That must continue
+// the recovery, not restart it with fresh tries and reused request IDs.
+func TestCALV0104_ExitRecoverySurvivesFailedPostHealObservation(t *testing.T) {
+	now := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	q := &refusingQueue{fakeQueue: &fakeQueue{}, releaseFails: -1, reapFails: -1, failAfterWrite: true}
+	d := exitRig(t, q, now.Add(time.Hour), &now, func(c *Config) { c.Heal.Reap = false })
+	failed := 0
+	for i := 0; i < 90; i++ {
+		if err := d.Tick(context.Background()); err != nil {
+			failed++
+		}
+		now = now.Add(time.Minute)
+	}
+	if failed == 0 {
+		t.Fatal("the post-heal observation never failed")
+	}
+	if n := count(q.released, "refused:a1"); n != exitRecoveryTries {
+		t.Fatalf("releases %v: a re-reported ended worker restarted the recovery", q.released)
+	}
+	if n := count(q.reaped, "refused:a1"); n != exitRecoveryTries {
+		t.Fatalf("reaps %v", q.reaped)
+	}
+	seen := map[string]bool{}
+	for _, r := range q.requests {
+		if seen[r] {
+			t.Fatalf("request ID %s reused in %v", r, q.requests)
+		}
+		seen[r] = true
 	}
 	if n := count(kinds(t, d), "needs-owner"); n != 1 {
 		t.Fatalf("needs-owner %d times: %v", n, kinds(t, d))

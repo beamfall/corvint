@@ -74,3 +74,22 @@ release/reap paths are exercised only through a fake queue here.
 Set `heal.exitRecovery: false` to restore CAL-V0-056's single hand-off followed by `needs-owner`, or
 revert the commit. No store, ledger or wire bytes change. An older binary refuses a config naming
 `exitRecovery`, so remove the member before downgrading.
+
+## Review repair
+
+An independent review found that a worker re-reported as ended restarted its recovery. This happens
+when the observation after heal fails, so `finish` never runs and the worker is reported again on
+the next tick. The hand-off loop then released again and overwrote the recovery with `releases:1`,
+which reset the tries and backoff and reused refused request IDs. Exhaustion and `needs-owner`
+could therefore never be reached. The finding was confirmed: the new test fails without the fix,
+with unbounded releases.
+
+The fix has two parts:
+
+- The hand-off loop skips any attempt that recovery handled this pass or that has a recovery
+  recorded.
+- An exhausted recovery is now kept, marked and writing nothing, until the attempt ends or is
+  superseded, so it is never restarted or reported twice.
+
+CAL-V0-104 gains one sentence to say this, and `TestCALV0104_ExitRecoverySurvivesFailedPostHealObservation`
+is the witness for it.

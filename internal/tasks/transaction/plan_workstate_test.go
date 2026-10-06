@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -59,5 +60,59 @@ func TestCALV0105_HeldSetDoesNotOverrideBlockedOrUnheld(t *testing.T) {
 	in.WorkStateHeld = map[string]bool{rec.TicketID.Raw: true}
 	if got := planStates(PriorityFirst(in)); got["MX-00"][0] != PlanBlocked {
 		t.Fatalf("held ticket record = %v, want BLOCKED", got["MX-00"])
+	}
+}
+
+// CAL-V0-105 with CAL-V0-101: a held OPEN pooled ticket leaves the window but
+// still waits for its pool, so a later eligible ticket keeps yielding the last
+// free member to it, exactly as the native explicit claim decides.
+func TestCALV0105_HeldPooledTicketStillTakesPriorityYield(t *testing.T) {
+	aa, hi, fr, lo := priorityScenario()
+	f := newPriorityFixture(t, priorityPolicy(t, []string{"a", "b"}, "true"), []*ticket.Record{aa, hi, fr, lo})
+	f.apply(t, planClaim(f.claim(aa.TicketID.Raw, "lanes"))) // one free member left
+	held := map[string]bool{hi.TicketID.Raw: true}
+	for _, pool := range []string{"lanes", ""} {
+		in := f.planInput(pool)
+		unheld := PriorityFirst(in)
+		in.WorkStateHeld = held
+		plan := PriorityFirst(in)
+		yielded := false
+		for i, e := range plan.Entries {
+			id := e.Ticket.TicketID.Raw
+			if id == hi.TicketID.Raw {
+				if e.State != PlanDeferred || e.Reason != PlanReasonWorkStateHeld {
+					t.Fatalf("pool %q: held %s = %s %s", pool, id, e.State, e.Reason)
+				}
+				continue
+			}
+			if e.State == PlanBlocked || (pool == "" && e.Ticket.RequiresPool == "") {
+				continue
+			}
+			if u := unheld.Entries[i]; u.State != e.State || u.Reason != e.Reason || u.yieldTo != e.yieldTo {
+				t.Fatalf("pool %q: holding %s changed %s from %s/%s/%q to %s/%s/%q", pool, hi.TicketID.Raw, id, u.State, u.Reason, u.yieldTo, e.State, e.Reason, e.yieldTo)
+			}
+			if got := yieldTarget(planClaim(f.claim(id, "lanes"))); got != e.yieldTo {
+				t.Fatalf("pool %q: plan %s yieldTo %q, native explicit claim %q", pool, id, e.yieldTo, got)
+			}
+			yielded = yielded || (id == lo.TicketID.Raw && e.yieldTo == hi.TicketID.Raw)
+		}
+		if !yielded {
+			t.Fatalf("pool %q: %s did not yield to the held %s: %+v", pool, lo.TicketID.Raw, hi.TicketID.Raw, plan.Entries)
+		}
+	}
+	// The native claim-next has no work-state observation (a recorded
+	// non-goal): it admits the held ticket, as the plan without a held set
+	// does, while the dispatcher's held plan selects nothing on the pool.
+	next := planClaimNext(f.claim("", "lanes"))
+	if next.result != nil || attemptOf(t, next).TicketID.Raw != hi.TicketID.Raw {
+		t.Fatalf("native claim-next %+v", next.result)
+	}
+	if c := PriorityFirst(f.planInput("lanes")).ClaimNext("lanes"); c == nil || c.Ticket.TicketID.Raw != hi.TicketID.Raw {
+		t.Fatalf("unheld plan chose %v", c)
+	}
+	in := f.planInput("lanes")
+	in.WorkStateHeld = held
+	if c := PriorityFirst(in).ClaimNext("lanes"); c != nil {
+		t.Fatalf("held plan chose %s on the pool", c.Ticket.TicketID.Raw)
 	}
 }
