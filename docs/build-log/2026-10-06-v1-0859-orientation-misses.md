@@ -203,6 +203,23 @@ The third review (Codex, read-only, on the second fixed commit) returned three f
     three-code six-documentation limit-6 case contradicts: qualified to the share, with the
     `lexicalRows` comment and item 9 aligned.
 
+The fourth review (Codex, read-only, on the third fixed commit) returned two findings:
+
+13. P2, a held code row's lexical copy, promoted into the head by TCP-V0-035's reorder, was
+    said to spend a head position so that the counted head suppressed a due share line: not
+    reproduced; `take` drops a chosen copy without counting it, so the packet and both lines
+    equal the reorder-free ones. Pinned by the held-copy subtest of
+    `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (a mentioned, recent
+    `src/seed.py`, five code and six documentation hits at limit 10).
+14. P2, the share line read the documentation the share kept out from the fill's deferred
+    tail, which TCP-V0-035's reorder of the documentation rows invalidates: a recent deferred
+    hit promoted into the share left the hit it displaced uncounted and named the wrong
+    strongest path. Fixed; `lexicalDocumentation` keeps every documentation hit that competed
+    for a fill position and the line counts those the packet does not carry that outscore a
+    carried code row (TCP-V0-061 amended). Pinned by the promoted-documentation subtest (six
+    code and eight documentation hits at limit 12, a recent `docs/h.md`: two omitted by the
+    share, the strongest `docs/f.md`).
+
 ## Rollback
 
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,

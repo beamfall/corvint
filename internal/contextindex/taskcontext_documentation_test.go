@@ -290,4 +290,93 @@ func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
 			t.Fatalf("coverage.uncertainty = %q, want the limit line alone", lines)
 		}
 	})
+	t.Run("TCP-V0-061 TCP-V0-035 a recent documentation hit promoted into the share", func(t *testing.T) {
+		// Six code hits and eight stronger documentation hits at limit 12: the
+		// share holds six documentation positions. A recent docs/h.md takes
+		// one of them, so docs/f.md and docs/g.md are the hits the share kept
+		// out, read from the carried rows, not from the fill's deferred tail.
+		root := recencyRepository(t)
+		for index := range 6 {
+			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index+1), "package code\n\n// needle signal\n")
+		}
+		for index := range 7 {
+			writeTestFile(t, root, fmt.Sprintf("docs/%c.md", 'a'+index), "needle signal\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "old sources")
+		writeTestFile(t, root, "docs/h.md", "needle signal\n")
+		recencyCommit(t, root, recencyNewDate, "new documentation")
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packet, err := TaskContext(context.Background(), index, "needle signal", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := contextPairs(t, packet)
+		want := []string{
+			"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go", "lexical code/05.go",
+			"documentation docs/h.md", "documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
+			"documentation docs/d.md", "documentation docs/e.md", "lexical code/06.go",
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the recent documentation row promoted into the share: %v", got, want)
+		}
+		lines := contextUncertainty(t, packet)
+		if len(lines) != 2 || lines[0] != "0 code and 2 documentation rows the task matched lexically are omitted by the result limit 12" ||
+			!strings.HasPrefix(lines[1], "2 documentation rows that outscore a carried code row are omitted by the documentation share (6 of 12 lexical positions); the strongest is `docs/f.md` (bm25 ") {
+			t.Fatalf("coverage.uncertainty = %q, want the limit line and the share line naming docs/f.md", lines)
+		}
+	})
+	t.Run("TCP-V0-061 TCP-V0-035 a held copy promoted into the head takes no head position", func(t *testing.T) {
+		// src/seed.py is a mentioned row before the fill and a recent lexical
+		// hit (a path whose terms match no other source): the reorder moves
+		// its lexical copy to the first code position,
+		// take drops the copy without spending a position, and the packet is
+		// the one the reorder-free fill carries.
+		root := recencyRepository(t)
+		for index := range 5 {
+			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index+1), "package code\n\n// needle signal\n")
+		}
+		for index := range 6 {
+			writeTestFile(t, root, fmt.Sprintf("docs/%c.md", 'a'+index), "needle signal\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "old sources")
+		writeTestFile(t, root, "src/seed.py", "# needle signal\n")
+		recencyCommit(t, root, recencyNewDate, "new source")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const task = "needle signal in src/seed.py"
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "")
+		plain, err := TaskContext(context.Background(), index, task, "", 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		packet, err := TaskContext(context.Background(), index, task, "", 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := contextPairs(t, packet)
+		want := []string{
+			"mentioned src/seed.py", "lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go",
+			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md", "documentation docs/d.md", "documentation docs/e.md",
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the head unchanged by the held copy: %v", got, want)
+		}
+		if plain := contextPairs(t, plain); !slices.Equal(plain, want) {
+			t.Fatalf("reorder-free packet = %v, want %v", plain, want)
+		}
+		lines := contextUncertainty(t, packet)
+		if !slices.Equal(lines, []string{"1 code and 1 documentation rows the task matched lexically are omitted by the result limit 10"}) {
+			t.Fatalf("coverage.uncertainty = %q, want the limit line alone", lines)
+		}
+		if plain := contextUncertainty(t, plain); !slices.Equal(plain, lines) {
+			t.Fatalf("reorder-free coverage.uncertainty = %q, want %q", plain, lines)
+		}
+	})
 }

@@ -112,9 +112,13 @@ type taskContextCompiler struct {
 	// lexical caches the scored posting walk (TCP-V0-014) across the test
 	// slot and the lexical fill.
 	lexical []lexicalHit
-	// lexicalDeferred is the documentation hits the lexical fill moved behind
-	// every code hit because the documentation share was spent (TCP-V0-059).
-	lexicalDeferred []lexicalHit
+	// lexicalDocumentation is the documentation hits that competed for the
+	// lexical fill's positions, in strength order: neither held nor the
+	// subject. Which of them the share kept out is read from the carried rows
+	// (TCP-V0-061), not from the positions the fill gave them, because
+	// TCP-V0-035's reorder moves documentation rows among the documentation
+	// positions.
+	lexicalDocumentation []lexicalHit
 	// lexicalHead is the code positions the lexical fill placed as
 	// TCP-V0-013's head, ahead of the merged order; a documentation hit they
 	// displaced is omitted by the limit under the head rule, not by the
@@ -1303,6 +1307,7 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 	compiler.lexicalFill, compiler.lexicalShare = fill, share
 	ordered := make([]lexicalHit, 0, len(hits))
 	deferred := make([]lexicalHit, 0)
+	compiler.lexicalDocumentation = compiler.lexicalDocumentation[:0]
 	headTaken, documentation := 0, 0
 	for _, item := range hits {
 		if !item.documentation && !held[item.path] && headTaken < head {
@@ -1319,15 +1324,16 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 			headTaken++
 			continue
 		case item.documentation && documentation == share:
+			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
 			deferred = append(deferred, item)
 			continue
 		case item.documentation:
+			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
 			documentation++
 		}
 		ordered = append(ordered, item)
 	}
 	ordered = append(ordered, deferred...)
-	compiler.lexicalDeferred = deferred
 	strongest := 0.0
 	if len(hits) > 0 {
 		strongest = hits[0].score
@@ -1399,15 +1405,16 @@ func lexicalScore(bm25, strongest float64) int {
 
 // lexicalCoverage states the lexical hits the packet does not carry as
 // uncertainty (TCP-V0-061): the count per class the result limit omitted,
-// and, when the fill carried a code row past the head (counted, so that
-// TCP-V0-035's reorder of the code rows among their positions changes
-// nothing), the deferred documentation hits that outscore a carried code
-// row, which the documentation share rather than their strength or the head
-// omitted. With nothing omitted the member is absent, as in every earlier
-// packet. When TCP-V0-016 withheld the ordinary rows, the hits are withheld
-// by the verdict, not omitted by the limit, and a separate line says so; a
-// reservation the limit cut is still omitted by the limit, since the verdict
-// withdraws no reservation.
+// and, when the fill carried a code row past the head, the documentation
+// hits the fill did not carry that outscore a carried code row, which the
+// documentation share rather than their strength or the head omitted. Both
+// are read from the carried rows (the head as a count), so TCP-V0-035's
+// reorder of each kind among its positions changes nothing. With nothing
+// omitted the member is absent, as in every earlier packet. When TCP-V0-016
+// withheld the ordinary rows, the hits are withheld by the verdict, not
+// omitted by the limit, and a separate line says so; a reservation the limit
+// cut is still omitted by the limit, since the verdict withdraws no
+// reservation.
 func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, rows []contextRow, limit int) {
 	carried := make(map[string]struct{}, len(rows))
 	fillCode := make(map[string]struct{}, len(rows))
@@ -1455,7 +1462,7 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 			withdrawn[0], withdrawn[1], limit))
 	}
 	stronger, strongest := 0, lexicalHit{}
-	for _, hit := range compiler.lexicalDeferred {
+	for _, hit := range compiler.lexicalDocumentation {
 		if _, ok := carried[hit.path]; ok || withheld || !codeCarried || hit.score <= weakestCode {
 			continue
 		}
