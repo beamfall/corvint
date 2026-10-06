@@ -3,6 +3,7 @@ package dispatch
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -69,10 +70,103 @@ type PressureState struct {
 	PendingLevel int  `json:"pendingLevel"`
 	PendingTicks int  `json:"pendingTicks"`
 	Unknown      bool `json:"unknown"`
+	// Reason names the signals that set the current level (V1-0862): at a
+	// raise, those at or above the new level's threshold. Empty at level 0
+	// and for a level recorded before reasons existed.
+	Reason []string `json:"reason,omitempty"`
+}
+
+// Pressure signal names reported as a level's reason, in sorted order.
+const (
+	PressureSignalLoad   = "load"
+	PressureSignalMemory = "memory"
+	PressureSignalSwap   = "swap"
+)
+
+// ValidPressureReason accepts a level's recorded reason: none at level 0,
+// otherwise sorted unique signal names (an older record may carry none).
+func ValidPressureReason(level int, reason []string) bool {
+	if level == 0 {
+		return len(reason) == 0
+	}
+	for i, r := range reason {
+		if r != PressureSignalLoad && r != PressureSignalMemory && r != PressureSignalSwap {
+			return false
+		}
+		if i > 0 && reason[i-1] >= r {
+			return false
+		}
+	}
+	return true
+}
+
+// PressureReasonText reports a level's reason: NONE at level 0, the
+// comma-joined signals, or UNKNOWN for a level recorded without one.
+func PressureReasonText(st PressureState) string {
+	switch {
+	case st.Level == 0:
+		return "NONE"
+	case len(st.Reason) == 0:
+		return StateUnknown
+	}
+	return strings.Join(st.Reason, ",")
+}
+
+// pressureClass orders one signal against its thresholds.
+type pressureClass int
+
+const (
+	pressureCalm     pressureClass = iota // at or below calm
+	pressureElevated                      // above calm, below high
+	pressureHigh
+	pressureCritical
+)
+
+type pressureSignal struct {
+	name  string
+	class pressureClass
+}
+
+func classifyPressure(x, calm, high, critical float64) pressureClass {
+	switch {
+	case x <= calm:
+		return pressureCalm
+	case x >= critical:
+		return pressureCritical
+	case x >= high:
+		return pressureHigh
+	}
+	return pressureElevated
+}
+
+// pressureSignals returns the load signal and one memory signal, or false
+// when either is UNKNOWN. The memory signal is the kernel memory-pressure
+// level when the sample carries one (Darwin: normal is calm, warn is high,
+// critical is critical), otherwise the used/total swap fraction (Linux). A
+// sample whose memory signal is absent never falls back to another one.
+func pressureSignals(c PressureConfig, sample PressureSample) ([]pressureSignal, bool) {
+	load, ok := sample.LoadPerCPU()
+	if !ok {
+		return nil, false
+	}
+	signals := []pressureSignal{{PressureSignalLoad, classifyPressure(load, c.CalmLoadPerCPU, c.LoadPerCPUHigh, c.LoadPerCPUCritical)}}
+	if sample.MemoryPressureKnown || sample.MemoryPressureLevel != 0 {
+		level, ok := sample.MemoryPressure()
+		if !ok {
+			return nil, false
+		}
+		class := map[int]pressureClass{MemoryPressureNormal: pressureCalm, MemoryPressureWarn: pressureHigh, MemoryPressureCritical: pressureCritical}[level]
+		return append(signals, pressureSignal{PressureSignalMemory, class}), true
+	}
+	swap, ok := sample.SwapFraction()
+	if !ok {
+		return nil, false
+	}
+	return append(signals, pressureSignal{PressureSignalSwap, classifyPressure(swap, c.CalmSwap, c.SwapHigh, c.SwapCritical)}), true
 }
 
 // StepPressure is pure: thresholds use one-minute load per positive host CPU,
-// either metric can raise pressure, and both must be calm before release.
+// either signal can raise pressure, and both must be calm before release.
 func StepPressure(c PressureConfig, state PressureState, sample PressureSample) (PressureState, error) {
 	if err := c.Validate(); err != nil {
 		return state, err
@@ -80,21 +174,26 @@ func StepPressure(c PressureConfig, state PressureState, sample PressureSample) 
 	if state.Level < 0 || state.Level > 2 || state.PendingLevel < 0 || state.PendingLevel > 2 || state.PendingTicks < 0 || state.PendingTicks >= c.TicksToChange {
 		return state, fmt.Errorf("invalid pressure state")
 	}
-	load, loadOK := sample.LoadPerCPU()
-	swap, swapOK := sample.SwapFraction()
-	if !loadOK || !swapOK {
+	signals, ok := pressureSignals(c, sample)
+	if !ok {
 		state.Unknown = true
 		state.PendingLevel = state.Level
 		state.PendingTicks = 0
 		return state, nil
 	}
 	state.Unknown = false
+	calm, high, critical := true, false, false
+	for _, s := range signals {
+		calm = calm && s.class == pressureCalm
+		high = high || s.class >= pressureHigh
+		critical = critical || s.class == pressureCritical
+	}
 	target := state.Level
-	if load <= c.CalmLoadPerCPU && swap <= c.CalmSwap {
+	if calm {
 		target = 0
-	} else if load >= c.LoadPerCPUCritical || swap >= c.SwapCritical {
+	} else if critical {
 		target = 2
-	} else if (load >= c.LoadPerCPUHigh || swap >= c.SwapHigh) && target < 1 {
+	} else if high && target < 1 {
 		target = 1
 	}
 	if target == state.Level {
@@ -111,6 +210,16 @@ func StepPressure(c PressureConfig, state PressureState, sample PressureSample) 
 		state.Level = target
 		state.PendingLevel = target
 		state.PendingTicks = 0
+		state.Reason = nil
+		if target > 0 {
+			threshold := map[int]pressureClass{1: pressureHigh, 2: pressureCritical}[target]
+			for _, s := range signals {
+				if s.class >= threshold {
+					state.Reason = append(state.Reason, s.name)
+				}
+			}
+			sort.Strings(state.Reason)
+		}
 	}
 	return state, nil
 }

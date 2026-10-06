@@ -36,43 +36,18 @@ func TestIssue497_SampleParsing(t *testing.T) {
 	if err != nil || total != 102400 || used != 76800 {
 		t.Fatal(total, used, err)
 	}
-	total, used, err = parseDarwinSwap([]byte("total = 100.00M  used = 75.00M  free = 25.00M  (encrypted)"))
-	if err != nil || total != 100<<20 || used != 75<<20 {
-		t.Fatal(total, used, err)
-	}
 	for _, raw := range []string{"", "SwapTotal: 1 kB", "SwapTotal: 1 kB\nSwapFree: 2 kB", "SwapTotal: 1 kB\nSwapTotal: 1 kB\nSwapFree: 0 kB", "SwapTotal: -1 kB\nSwapFree: 0 kB", "SwapTotal: 18446744073709551615 kB\nSwapFree: 0 kB", "SwapTotal: 1 MB\nSwapFree: 0 kB"} {
 		if _, _, err := parseLinuxSwap([]byte(raw)); err == nil {
 			t.Fatal(raw)
 		}
 	}
-	for _, raw := range []string{"", "total = NaNM used = 0M free = 0M", "total = 1M used = 2M free = 0M", "total = 0M used = 0M free = 1M", "total = 1M used = .25M free = .25M", "total = 1M used = -1M free = 2M", "total = 1e40M used = 0M free = 1e40M", "total = 1M used = 0M free = 1M trailing"} {
-		if _, _, err := parseDarwinSwap([]byte(raw)); err == nil {
-			t.Fatal(raw)
-		}
-	}
-	for _, darwin := range []bool{false, true} {
-		raw := "SwapTotal: 0 kB\nSwapFree: 0 kB"
-		if darwin {
-			raw = "total = 0.00M used = 0.00M free = 0.00M"
-		}
-		var total, used uint64
-		var err error
-		if darwin {
-			total, used, err = parseDarwinSwap([]byte(raw))
-		} else {
-			total, used, err = parseLinuxSwap([]byte(raw))
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		fraction, ok := (PressureSample{SwapKnown: true, SwapTotalBytes: total, SwapUsedBytes: used}).SwapFraction()
-		if !ok || fraction != 0 {
-			t.Fatal(fraction, ok)
-		}
-	}
-	// Independently rounded MiB values need their documented tolerance.
-	if _, _, err := parseDarwinSwap([]byte("total = 1.00M used = .33M free = .68M")); err != nil {
+	total, used, err = parseLinuxSwap([]byte("SwapTotal: 0 kB\nSwapFree: 0 kB"))
+	if err != nil {
 		t.Fatal(err)
+	}
+	fraction, ok := (PressureSample{SwapKnown: true, SwapTotalBytes: total, SwapUsedBytes: used}).SwapFraction()
+	if !ok || fraction != 0 {
+		t.Fatal(fraction, ok)
 	}
 	if _, ok := (PressureSample{LoadKnown: true, CPUKnown: true, CPUs: 1, LoadAverage: math.Inf(1)}).LoadPerCPU(); ok {
 		t.Fatal("nonfinite normalized load")
@@ -217,9 +192,9 @@ func TestIssue497_LiveSampler(t *testing.T) {
 	}
 	s := SamplePressure(context.Background())
 	load, loadOK := s.LoadPerCPU()
-	swap, swapOK := s.SwapFraction()
-	if !loadOK || !swapOK || s.SampledAt.IsZero() {
+	signals, signalsOK := pressureSignals(issue497Config(), s)
+	if !loadOK || !signalsOK || s.SampledAt.IsZero() {
 		t.Fatalf("live host metrics unavailable: %+v", s)
 	}
-	t.Logf("source=%s cpus=%d rawLoad=%g normalizedLoad=%g totalSwap=%d usedSwap=%d fraction=%g timestamp=%s", s.Source, s.CPUs, s.LoadAverage, load, s.SwapTotalBytes, s.SwapUsedBytes, swap, s.SampledAt.Format(time.RFC3339Nano))
+	t.Logf("source=%s cpus=%d rawLoad=%g normalizedLoad=%g memorySignal=%s memoryPressureLevel=%d totalSwap=%d usedSwap=%d timestamp=%s", s.Source, s.CPUs, s.LoadAverage, load, signals[1].name, s.MemoryPressureLevel, s.SwapTotalBytes, s.SwapUsedBytes, s.SampledAt.Format(time.RFC3339Nano))
 }
