@@ -393,15 +393,10 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // was proven, the key is hit from a linked worktree, an edit inside the bound
 // reruns the package and its dependents, and an edit outside it does not (the
 // root package encloses every path, so only the nested packages are asserted).
-func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
-	files := map[string]string{
-		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
-		"core/core.go":          "package core\n",
-		"core/core_test.go":     "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
-		"dep/dep.go":            "package dep\n\nimport _ \"example.com/fixture/core\"\n",
-		"reader/reader_test.go": "package reader\n\nvar guide = \"docs/guide.md\"\n",
-		"docs/guide.md":         "guide\n",
-	}
+// packageRepository commits files and the partition's selector into a fixture
+// repository and returns its root.
+func packageRepository(t *testing.T, files map[string]string) string {
+	t.Helper()
 	for _, name := range []string{"main.go", "readers.go", "readscopes.go"} {
 		data, err := os.ReadFile(filepath.Join("..", "gate-affected-select", name))
 		if err != nil {
@@ -418,6 +413,43 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	}
 	git(t, root, "add", "-A")
 	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "packages")
+	return root
+}
+
+// TestGoTestRunsUnresolvedAfterResolvedFailure replays GL-V0-004's promise
+// that ledger/go-test runs every package `go test ./...` would: a failing
+// resolved batch still runs the unresolved packages, records their pass, and
+// the step exits with the resolved batch's status.
+func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
+	packageRepository(t, map[string]string{
+		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
+		"core/core.go":      "package core\n",
+		"core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+		"wd/wd_test.go":     "package wd\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWd(t *testing.T) { os.Getwd() }\n",
+	})
+	log := filepath.Join(t.TempDir(), "ARGS")
+	// The resolved batch, the one without -count=1, fails with 3.
+	fail := `echo "$@" >> "$0"; case " $* " in *" -count=1 "*) exit 0;; esac; exit 3`
+	code, out := ledgerRun(t, "go-test", "--", "sh", "-c", fail, log)
+	if code != 3 || !strings.Contains(out, "resolved packages under per-package keys, 1 unresolved under the tree key") || !strings.Contains(out, "RECORD go-test-unresolved") || strings.Contains(out, "RECORD go-test-package") {
+		t.Fatalf("resolved failure: code %d, %q", code, out)
+	}
+	data, _ := os.ReadFile(log)
+	if lines := strings.Split(strings.TrimSpace(string(data)), "\n"); len(lines) != 2 || strings.Contains(lines[0], "-count=1") || lines[1] != "-count=1 example.com/fixture/wd" {
+		t.Fatalf("go test received %q", data)
+	}
+}
+
+func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
+		"core/core.go":          "package core\n",
+		"core/core_test.go":     "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+		"dep/dep.go":            "package dep\n\nimport _ \"example.com/fixture/core\"\n",
+		"reader/reader_test.go": "package reader\n\nvar guide = \"docs/guide.md\"\n",
+		"docs/guide.md":         "guide\n",
+	}
+	root := packageRepository(t, files)
 	log := filepath.Join(t.TempDir(), "ARGS")
 	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"`, log}
 	packageLines := func(out string) string {

@@ -1,0 +1,280 @@
+{
+  "baseRevision": "b7b212050dd10811a4dc78e2ed118edce0e91775",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:53d406400a3e7f94854ba23006412103d6e9b1f0b59153e10d81a24ea54ca8c6",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 8367,
+        "start": 7921
+      },
+      "spanSha256": "4f97c9cc4dccf5f05a35fcd75958f78e69a1fdf9167cb89a4c96dc316f8c29b5"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4082,
+        "start": 3781
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    },
+    {
+      "blobOid": "de93b7f533653a8a202ee3e53fb93555fa793418",
+      "id": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+      "path": "docs/specs/gate-ledger-v0.md",
+      "span": {
+        "end": 5545,
+        "start": 4967
+      },
+      "spanSha256": "3810cbf4fa7173cbb3bc18061b51b19a06a135937b3edb6b418247c43ce8d93b"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:53d406400a3e7f94854ba23006412103d6e9b1f0b59153e10d81a24ea54ca8c6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e4c0d5dc955212df378ae50be7047a9f486da0e5b9783ad09d2901db1481d54f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": ".taskman/queue.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:53d406400a3e7f94854ba23006412103d6e9b1f0b59153e10d81a24ea54ca8c6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:76e046b965cfb08ab1e62d9be45607630dead800d57bc08e1fcfa2c18fb255d6",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": ".taskman/tickets/V1-0847.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:53d406400a3e7f94854ba23006412103d6e9b1f0b59153e10d81a24ea54ca8c6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ac6e46a021e67359036eaf7e76f9869e57b59b23b2e182547ac62fcf4eb7c9de",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": ".taskman/tickets/V1-0848.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:260f19d4e8b1b68654ea7010e6def85b3d86c8af2b36221bbefbb803c3486f49",
+      "newRange": {
+        "count": 46,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-06-rc2-candidate-failures-root-cause.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ae88bd54043784ff0395f244f5ce2c80200f3cb067a4128b8a20130dc9ce3b4d",
+      "newRange": {
+        "count": 11,
+        "start": 1288
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 1288
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:36a6945d4812d6681ab8cc1ac9436dc92db8c741de695ff853561052c0a56d8b",
+      "newRange": {
+        "count": 10,
+        "start": 74
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 74
+      },
+      "path": "docs/specs/gate-ledger-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d965a735ef242fdaf49e02c9593f72e68ba76898084dcf29e1d10263e14cffb8",
+      "newRange": {
+        "count": 7,
+        "start": 155
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 153
+      },
+      "path": "docs/specs/gate-ledger-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3b6c86ea8aefb6b27868b5c8615d891eb69a5b6bc63765f840a661967e904757",
+      "newRange": {
+        "count": 7,
+        "start": 187
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 185
+      },
+      "path": "docs/specs/gate-ledger-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ea4bb2d119b6ca24403b6f3135bd97d2530515d737f938fc7269a4b3c3aa7b1c",
+      "newRange": {
+        "count": 7,
+        "start": 201
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 199
+      },
+      "path": "docs/specs/gate-ledger-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ba24c65042c3279cda9fa3917fc3ea0acffe00bbbfca4b78c3cb6d4ecbc2dc07",
+      "newRange": {
+        "count": 25,
+        "start": 272
+      },
+      "oldRange": {
+        "count": 21,
+        "start": 272
+      },
+      "path": "tools/gate-ledger/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:67ee77fd03f6c2ac331bd9871a14360b412d4adc001c2f33963fa387d7579b3b",
+      "newRange": {
+        "count": 10,
+        "start": 393
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 393
+      },
+      "path": "tools/gate-ledger/main_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea6c3db138a64564bb9731a2eb8c17e9e53baba18b006c96a9aa4dfea61c4e06",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6850260d0e549c60777d5f2befa1092a3ea96b28c2d9b9b4de9d09891bfca971",
+      "newRange": {
+        "count": 43,
+        "start": 413
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 418
+      },
+      "path": "tools/gate-ledger/main_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "67750a524ca20539704557136b1916281c2a5653598a82c5f9f847c5f9ccd251",
+  "spec": "cem/0.2"
+}

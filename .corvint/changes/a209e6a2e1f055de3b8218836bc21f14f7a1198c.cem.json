@@ -1,0 +1,60 @@
+{
+  "baseRevision": "47602c57a432d2b6d2c093af3be4d574db6f3d59",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4082,
+        "start": 3781
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ff56ee8b583e4776892c2b4bffd681bb064e31a8fb309dde2a9725cfce26ab50",
+      "newRange": {
+        "count": 13,
+        "start": 2
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 2
+      },
+      "path": "docs/build-log/2026-10-06-rc2-candidate-failures-root-cause.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:71907bf041508844b5256faada439267d3942f25c6b5f3c5839cb0dcc888805f",
+      "newRange": {
+        "count": 16,
+        "start": 28
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 26
+      },
+      "path": "docs/build-log/2026-10-06-rc2-candidate-failures-root-cause.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3f052d10bf6dbd03c4099e074b9767fc8a78ce00556ce3f72c255e7106eaaab9",
+  "spec": "cem/0.2"
+}
