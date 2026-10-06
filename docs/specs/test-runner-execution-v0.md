@@ -67,7 +67,7 @@ and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/G
 The platform lane covers Java JUnit/TestNG/Gradle/Maven, Kotlin kotlin-test/Kotest/Android families,
 Swift Testing/XCTest/SwiftPM/Xcode, Bats/ShellSpec and remaining domain runner inventory. Analyzer
 candidates never imply that SQL/shader/data compilation is assertion testing. Additional main-runner
-ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion.
+ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion. Decision 0437 closes the CEM 1.0 main-framework set.
 
 The concrete count is 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android profiles. The registry also
 lists six unavailable IDs: `appium`, `pgtap`, `sqllogictest`, `shader-behavior`, `html-behavior` and
