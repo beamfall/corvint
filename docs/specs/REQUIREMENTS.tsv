@@ -2351,6 +2351,8 @@ RGV-V0-009	docs/specs/repository-guidance-v0.md	33	Review MUST explicitly skip c
 RGV-V0-010	docs/specs/repository-guidance-v0.md	34	More than 256 paths/ref MUST produce UNKNOWN/incomplete, never a truncated negat
 RGV-V0-011	docs/specs/repository-guidance-v0.md	35	Git subprocesses MUST use trust-isolated existing adapters, no replacement/graft
 RGV-V0-012	docs/specs/repository-guidance-v0.md	36	Real committed fixtures MUST verify immutable evidence, deterministic bytes, ove
+RGV-V0-013	docs/specs/repository-guidance-v0.md	37	Review MUST NOT plan affected advice over an incomplete guidance inventory. When
+RGV-V0-014	docs/specs/repository-guidance-v0.md	38	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	42	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	44	One unit MUST be one repository-relative `.rb` file, the smallest common
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	47	Discovery MUST admit all concurrently present conventional RSpec

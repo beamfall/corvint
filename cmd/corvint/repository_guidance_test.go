@@ -447,3 +447,78 @@ func TestRepositoryGuidancePrivateStatusBudget(t *testing.T) {
 		})
 	})
 }
+
+// guidanceOverCapFixture commits more tracked entries than the 4,096-entry
+// guidance inventory reads. The filler sorts before the Makefile gate and the
+// Go sources, so a plan over the capped snapshot sees neither.
+func guidanceOverCapFixture(t *testing.T) (string, string) {
+	t.Helper()
+	root, _ := guidanceFixture(t)
+	for i := 0; i < 4100; i++ {
+		guidanceWrite(t, root, fmt.Sprintf("Filler/%04d.txt", i), "x\n")
+	}
+	guidanceWrite(t, root, "Makefile", "gate:\n\tgo test ./...\n")
+	guidanceGit(t, root, "add", ".")
+	guidanceGit(t, root, "commit", "-qm", "over-cap base")
+	base := guidanceGit(t, root, "rev-parse", "HEAD")
+	guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {println(3)}\n")
+	guidanceGit(t, root, "commit", "-qam", "over-cap target")
+	return root, base
+}
+
+func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
+	t.Run("RGV-V0-013 over-cap inventory uses the standalone affected path", func(t *testing.T) {
+		root, base := guidanceOverCapFixture(t)
+		before := treeDigest(t, root)
+		out, _ := guidanceRead(t, root, "review", base)
+		if out.Omissions["inventory"] == 0 {
+			t.Fatalf("fixture did not exceed the guidance inventory cap: %v", out.Omissions)
+		}
+		actual, err := compileAffected(context.Background(), affectedInvocation{Root: root, Base: base})
+		if err != nil {
+			t.Fatal(err)
+		}
+		actualRaw, _ := json.Marshal(actual)
+		composedRaw, _ := json.Marshal(out.Review.Affected)
+		if !bytes.Equal(actualRaw, composedRaw) {
+			t.Fatalf("over-cap review differs from standalone affected:\n%s\n%s", actualRaw, composedRaw)
+		}
+		if len(out.Review.Affected.Plan.Selected) == 0 || out.Review.Affected.Provider.Go.State == providerStateEmpty {
+			t.Fatalf("over-cap review reported an empty selection: %s", composedRaw)
+		}
+		if !strings.Contains(strings.Join(out.Unknown, "\n"), guidanceAffectedFallback(base)) {
+			t.Fatalf("fallback provenance unknown missing: %v", out.Unknown)
+		}
+		if treeDigest(t, root) != before {
+			t.Fatal("review mutated repository")
+		}
+	})
+	t.Run("RGV-V0-014 gate absence only from a complete read", func(t *testing.T) {
+		root, base := guidanceOverCapFixture(t)
+		out, _ := guidanceRead(t, root, "review", base)
+		advice := out.Review.Affected.Advice
+		for _, unknown := range advice.Unknown {
+			if strings.HasPrefix(unknown, "NO_REPOSITORY_GATE_DECLARED") {
+				t.Fatalf("gate absence claimed from a capped inventory: %v", advice.Unknown)
+			}
+		}
+		if !declaresMandatoryCheck(advice.Checks) {
+			t.Fatalf("declared Makefile gate missing: %+v", advice.Checks)
+		}
+	})
+	t.Run("RGV-V0-013 within-cap review keeps the immutable snapshot plan", func(t *testing.T) {
+		root, base := guidanceFixture(t)
+		guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {println(4)}\n")
+		guidanceGit(t, root, "commit", "-qam", "within-cap target")
+		out, _ := guidanceRead(t, root, "review", base)
+		if out.Omissions["inventory"] != 0 || out.Omissions["unread-sources"] != 0 {
+			t.Fatalf("fixture is not within the cap: %v", out.Omissions)
+		}
+		if strings.Contains(strings.Join(out.Unknown, "\n"), guidanceAffectedFallback(base)) {
+			t.Fatal("within-cap review left the immutable snapshot path")
+		}
+		if len(out.Review.Affected.Plan.Selected) == 0 {
+			t.Fatal("within-cap review lost its selection")
+		}
+	})
+}

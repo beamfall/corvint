@@ -426,7 +426,7 @@ func guidanceNextCalls(command string) []guidanceCall {
 	return out
 }
 
-func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanceInvocation, refs string, out *guidanceReceipt) (result *guidanceReview, resultErr error) {
+func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanceInvocation, refs string, out *guidanceReceipt) (*guidanceReview, error) {
 	out.Unknown = append(out.Unknown, "changedFeatures is target-tree inferred; deleted/base-only candidates are not discovered")
 	ancestor, err := s.MergeBase(ctx, in.Base, s.Revision)
 	if err != nil {
@@ -452,31 +452,20 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 			}
 		}
 	}
-	scratch, err := s.Materialize()
-	if err != nil {
-		return nil, err
-	}
-	remove := in.removeScratch
-	if remove == nil {
-		remove = os.RemoveAll
-	}
-	defer func() {
-		resultErr = cleanupGuidanceScratch(scratch, resultErr, remove)
-		if resultErr != nil {
-			result = nil
-		}
-	}()
-	graph, err := affected.Build(scratch, affectedLanguages()...)
-	if err != nil {
-		return nil, err
-	}
-	plan := affected.Select(graph, affected.NormalizePaths(paths))
-	provider := providerGoProjection(graph, plan)
-	advice := compileAffectedAdvice(scratch, plan, provider)
 	if out.Omissions["inventory"] > 0 || out.Omissions["unread-sources"] > 0 {
-		advice.Unknown = append(advice.Unknown, "immutable source inventory incomplete")
+		// A capped inventory cannot support a selection or a gate-absence claim
+		// (RGV-V0-013): plan through the standalone affected path instead.
+		review.Affected, err = compileAffected(ctx, affectedInvocation{Root: in.Root, Base: in.Base})
+		if err != nil {
+			return nil, err
+		}
+		if review.Affected.Revision != s.Revision {
+			return nil, fmt.Errorf("HEAD drift")
+		}
+		out.Unknown = append(out.Unknown, guidanceAffectedFallback(in.Base))
+	} else if review.Affected, err = snapshotReviewAffected(s, in, paths); err != nil {
+		return nil, err
 	}
-	review.Affected = affectedReceipt{Advice: advice, Mutates: false, OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: in.Base, Paths: paths}, Revision: s.Revision, Tool: "affected"}
 	current, err := s.CurrentRef(ctx)
 	if err != nil {
 		return nil, err
@@ -579,6 +568,39 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 		review.Overlaps = append(review.Overlaps, row)
 	}
 	return review, nil
+}
+
+// guidanceAffectedFallback names why review.affected was planned over the clean
+// worktree rather than the immutable snapshot, and the equivalent command.
+func guidanceAffectedFallback(base string) string {
+	return "guidance inventory incomplete; review.affected is the `corvint affected --base " + base + "` plan over the clean worktree at the captured revision, not over immutable snapshot blobs"
+}
+
+// snapshotReviewAffected plans over the complete immutable snapshot materialized
+// in private scratch; the scratch is removed before a successful return.
+func snapshotReviewAffected(s *genesis.GuidanceSnapshot, in guidanceInvocation, paths []string) (receipt affectedReceipt, resultErr error) {
+	scratch, err := s.Materialize()
+	if err != nil {
+		return affectedReceipt{}, err
+	}
+	remove := in.removeScratch
+	if remove == nil {
+		remove = os.RemoveAll
+	}
+	defer func() {
+		resultErr = cleanupGuidanceScratch(scratch, resultErr, remove)
+		if resultErr != nil {
+			receipt = affectedReceipt{}
+		}
+	}()
+	graph, err := affected.Build(scratch, affectedLanguages()...)
+	if err != nil {
+		return affectedReceipt{}, err
+	}
+	plan := affected.Select(graph, affected.NormalizePaths(paths))
+	provider := providerGoProjection(graph, plan)
+	advice := compileAffectedAdvice(scratch, plan, provider)
+	return affectedReceipt{Advice: advice, Mutates: false, OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: in.Base, Paths: paths}, Revision: s.Revision, Tool: "affected"}, nil
 }
 
 func cleanupGuidanceScratch(root string, original error, remove func(string) error) error {
