@@ -52,7 +52,7 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 			}
 		}
 	}
-	for p := range o.files {
+	for _, p := range sortedPaths(o.files) {
 		if strings.HasPrefix(p, "staging/a") && p != "staging/active.json" && p != "staging/active.json.tmp" && !assigned[strings.TrimPrefix(p, "staging/")] {
 			return files, wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot"), nil
 		}
