@@ -11,8 +11,9 @@ import (
 
 // vnodeWatch registers every directory with kqueue. A regular file takes a
 // kqueue descriptor only while the process-wide budget allows; beyond it the
-// file is tracked by the stat tuple taken at registration and re-checked by
-// changed. Directory events still report entries created, removed or renamed.
+// file is tracked by the stat tuple taken at registration and re-read by
+// sweep. Directory events still report entries created, removed or renamed
+// at any time, without a sweep.
 type vnodeWatch struct {
 	queue    int
 	budget   int64
@@ -35,10 +36,12 @@ type statIdentity struct {
 }
 
 // watchedFileDescriptors counts regular-file kqueue descriptors held by all
-// live watches. vnodeFileBudget caps it at registration; tests override it.
+// live watches. vnodeFileBudget caps it at registration; tests override it
+// and sweepLstat.
 var (
 	watchedFileDescriptors atomic.Int64
 	vnodeFileBudget        = defaultVnodeFileBudget
+	sweepLstat             = os.Lstat
 )
 
 // defaultVnodeFileBudget leaves half of the soft descriptor limit for
@@ -137,7 +140,10 @@ func identityOf(info os.FileInfo) (statIdentity, bool) {
 	}, true
 }
 
-func (w *vnodeWatch) changed() (bool, error) {
+// poll reads one pending kqueue event. Its cost does not depend on the number
+// of watched paths, so it is the only part of a check made under the writer
+// lock (CAL-V0-026).
+func (w *vnodeWatch) poll() (bool, error) {
 	if w.dirty {
 		return true, nil
 	}
@@ -154,8 +160,14 @@ func (w *vnodeWatch) changed() (bool, error) {
 		return true, err
 	}
 	w.dirty = n != 0
+	return w.dirty, nil
+}
+
+// sweep re-reads every over-budget file's stat tuple. A difference or a failed
+// read marks the watch dirty for good, so a later poll reports it.
+func (w *vnodeWatch) sweep() bool {
 	for i := 0; !w.dirty && i < len(w.stats); i++ {
-		info, err := os.Lstat(w.stats[i].path)
+		info, err := sweepLstat(w.stats[i].path)
 		if err != nil {
 			w.dirty = true
 			break
@@ -163,7 +175,7 @@ func (w *vnodeWatch) changed() (bool, error) {
 		id, ok := identityOf(info)
 		w.dirty = !ok || id != w.stats[i].id
 	}
-	return w.dirty, nil
+	return w.dirty
 }
 
 func (w *vnodeWatch) close() error {

@@ -107,12 +107,13 @@ func TestCALV0026_ChangeGuardClosesAndRefusesSymlinks(t *testing.T) {
 type brokenWatch struct{}
 
 func (brokenWatch) add(string, bool) (os.FileInfo, error) { return nil, errors.New("unavailable") }
-func (brokenWatch) changed() (bool, error)                { return false, errors.New("invalid descriptor") }
+func (brokenWatch) poll() (bool, error)                   { return false, errors.New("invalid descriptor") }
+func (brokenWatch) sweep() bool                           { return false }
 func (brokenWatch) close() error                          { return nil }
 
 func TestCALV0026_ChangeGuardFailureIsNotValidity(t *testing.T) {
 	g := &ChangeGuard{watch: brokenWatch{}}
-	if wire.CodeOf(g.Check()) != wire.CodeUnsupportedFilesystem {
+	if wire.CodeOf(g.Check()) != wire.CodeUnsupportedFilesystem || wire.CodeOf(g.CheckEvents()) != wire.CodeUnsupportedFilesystem {
 		t.Fatal("watch failure admitted")
 	}
 }

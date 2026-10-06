@@ -40,7 +40,7 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 	return after, nil
 }
 
-func (w *notifyWatch) changed() (bool, error) {
+func (w *notifyWatch) poll() (bool, error) {
 	if w.dirty {
 		return true, nil
 	}
@@ -63,5 +63,8 @@ func (w *notifyWatch) changed() (bool, error) {
 	w.dirty = n != 0
 	return w.dirty, nil
 }
+
+// sweep has nothing to re-read: inotify watches every path without a budget.
+func (w *notifyWatch) sweep() bool { return w.dirty }
 
 func (w *notifyWatch) close() error { return syscall.Close(w.fd) }
