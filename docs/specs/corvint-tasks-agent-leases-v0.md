@@ -3289,12 +3289,18 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   heartbeat, renew and release under N+1 with its original attempt ID and generation, and
   `receipt audit` MUST pass under both builds.
 - `CAL-V0-131`: proposed (V1-0889; GitHub #644). `version` MUST report `formats`, the sorted set of
-  store, lease, run and dispatcher formats that live attempts and adopted workers depend on. Two
-  builds are adjacent-compatible only when their sets are equal. A build that changes the encoding
-  of any listed format MUST change that format's version, so the sets differ and the procedure
-  requires a drain. A reader that meets another version of a listed format MUST refuse
-  UNSUPPORTED_VERSION and MUST NOT read, accept or migrate it; the store `VERSION` refusal already
-  does this before any lease verb writes.
+  the store `VERSION` and every profile the tasks packages persist and decode again (journal, intent,
+  lease, run, release, review, pool, dispatcher and user-service records, and the command-result
+  envelope a supervisor reads back); only profiles written solely to stdout are left out, and a
+  maintained test fails when a profile the sources name is in neither list. Two builds are
+  adjacent-compatible only when their sets are equal. A build that changes the encoding of any
+  listed format MUST change that format's version, so the sets differ and the procedure requires a
+  drain. A decoder that meets its own profile at another version MUST refuse UNSUPPORTED_VERSION
+  before its closed-key and field checks, and MUST NOT read, accept or migrate the record; the
+  store `VERSION` refusal does this before any lease verb writes. This amends ATR-V0-010: a run
+  record of another `taskman-attempt-run-record` version is UNSUPPORTED_VERSION, while another
+  profile name stays MALFORMED. The append-only dispatcher event log is the one exception: its
+  tail readers skip a line of another profile, as they skip a torn line, and never refuse.
 - `CAL-V0-132`: proposed (V1-0889; GitHub #644). A dispatcher ledger whose profile is another
   `taskman-dispatch-state` version, or that carries a top-level member no spelling of a known member
   matches, MUST refuse UNSUPPORTED_VERSION before any decode, rewrite or worker action, and the
@@ -3304,7 +3310,8 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   detached attempt-runner supervisors (which re-execute their own executable) and supervised program
   owners, keep running build N against the shared store. The procedure MUST install by writing a new
   file and renaming it over the path, never by rewriting the running file in place. With equal
-  `formats`, such a process MUST still read and heartbeat records build N+1 wrote.
+  `formats`, such a process MUST still read and heartbeat records build N+1 wrote, and finish and
+  exit as it would have without the swap.
 - `CAL-V0-134`: proposed (V1-0889; GitHub #644). Supervised Codex, Claude Code and OpenCode programs
   keep their pinned-executable guarantee unchanged. The pin is the host runtime named in policy
   `runtimes`, not the corvint-tasks binary, so a corvint-tasks swap neither refuses nor re-pins it.
@@ -3513,6 +3520,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
 | Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
 | Dispatcher ledger written by another build (another dispatch-state version, or a member this build does not know) | A rollback or skipped build would drop or misread recorded workers and backoff | The dispatcher refuses UNSUPPORTED_VERSION before any decode, rewrite or worker action (CAL-V0-132) |
+| Record written by another build (another version of its own profile, possibly with members this build does not know) | A newer record would be reported MALFORMED, read as damage, or partly decoded | Each decoder refuses UNSUPPORTED_VERSION before its closed-key checks and reads nothing more (CAL-V0-131) |
 | New corvint-tasks build installed while attempts are live | A drain would be the only safe upgrade, or a build N process would meet records it cannot read | Equal `version` `formats` permit replacement by rename and adoption; differing sets require a drain (CAL-V0-130, CAL-V0-131, CAL-V0-133) |
 
 ## Acceptance and rollback
@@ -3633,10 +3641,10 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-112 | `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
 | CAL-V0-113 | `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
 | CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
-| CAL-V0-131 | `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryLiveRecord` (`internal/tasks/cli`) |
+| CAL-V0-131 | `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion` (`internal/tasks/wire`) |
 | CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |
-| CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryLiveRecord` (`internal/tasks/cli`); no code change to the supervised-host pin |
+| CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`); no code change to the supervised-host pin |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

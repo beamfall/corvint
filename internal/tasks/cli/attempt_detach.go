@@ -111,6 +111,9 @@ func decodeRunRecord(raw []byte) (*runRecord, error) {
 	if len(raw) > maxRunRecordBytes {
 		return nil, malformedRecord("run record too large")
 	}
+	if err := wire.RawProfileVersion("run record/profile", raw, runRecordProfile); err != nil {
+		return nil, err
+	}
 	if err := checkRunRecordKeys(raw); err != nil {
 		return nil, err
 	}
@@ -123,9 +126,10 @@ func decodeRunRecord(raw []byte) (*runRecord, error) {
 	if _, err := dec.Token(); err != io.EOF {
 		return nil, malformedRecord("run record has trailing data")
 	}
+	if err := wire.CheckProfile("run record/profile", rec.Profile, runRecordProfile); err != nil {
+		return nil, err
+	}
 	switch {
-	case rec.Profile != runRecordProfile:
-		return nil, malformedRecord("unknown run record profile")
 	case !validRunID(rec.RunID) || rec.AttemptID == "" || rec.Generation == "" || !validSha256(rec.ArgvSha256):
 		return nil, malformedRecord("run record does not name its run and attempt")
 	case rec.TimeoutSeconds < 1 || rec.TimeoutSeconds > maxRunTimeoutSeconds || rec.LaunchedAt == "":

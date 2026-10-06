@@ -81,6 +81,9 @@ func DecodeRunOutcome(raw []byte) (*RunOutcome, error) {
 	if len(raw) > MaxRunOutcomeBytes {
 		return nil, limit("run outcome larger than 4096 bytes")
 	}
+	if e := wire.RawProfileVersion("/profile", raw, RunOutcomeProfile); e != nil {
+		return nil, e
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var o RunOutcome

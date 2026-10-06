@@ -43,6 +43,9 @@ func DecodeHead(data []byte) (*Head, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileHead); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "lastSeq", "lastReceiptSha256", "generation", "initSha256", "primaryWorktree", "versionSha256")
 	if err := r.Err(); err != nil {
 		return nil, err
@@ -107,6 +110,9 @@ func DecodeBarrier(data []byte) (*Barrier, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileBarrier); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "scope", "reason", "actor", "sinceSeq", "since")
 	if err := r.Err(); err != nil {
 		return nil, err
@@ -185,6 +191,9 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 		v.Obj.Set("releaseId", wire.Null())
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileReceipt); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "seq", "prev", "kind", "requestId", "actor", "ticketId", "releaseId", "attemptId", "generation",
 		"expectedRevision", "headGeneration", "pre", "post", "outcome", "codes", "recordedAt")
 	if err := r.Err(); err != nil {

@@ -95,6 +95,9 @@ func DecodeOutcome(data []byte) (*Outcome, error) {
 		v.Obj.Set("resultingReleaseRevision", wire.Null())
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, OutcomeProfile); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "requestId", "outcome", "replayed", "resultingRevision", "resultingAcceptanceRevision", "releaseId", "resultingReleaseRevision", "receiptSeq", "codes")
 	if err := r.Err(); err != nil {
 		return nil, err

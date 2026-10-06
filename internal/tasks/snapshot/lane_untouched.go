@@ -54,11 +54,13 @@ func readDirectPool(r *wire.Reader) *DirectPoolAdmission {
 	return x
 }
 func readDirectPoolAdmission(r *wire.Reader) *DirectPoolAdmission {
+	r.Profile(ProfileDirectPoolAdmission)
 	r.Closed("profile", "attemptId", "generation", "originalAdmissionSeq", "allocation", "holder", "stage")
 	r.Field("profile").Exact(ProfileDirectPoolAdmission)
 	return readDirectPool(r)
 }
 func readLaneUntouched(r *wire.Reader) *LaneUntouchedAttestation {
+	r.Profile(ProfileLaneUntouched)
 	r.Closed("profile", "attemptId", "generation", "originalAdmissionSeq", "allocation", "holder", "stage", "actorId", "actorRole", "evidence", "recordedSeq", "recordedAt", "acknowledgements", "physicalFacts")
 	r.Field("profile").Exact(ProfileLaneUntouched)
 	r.Field("physicalFacts").Exact("NOT_OBSERVED")

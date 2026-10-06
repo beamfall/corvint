@@ -584,6 +584,9 @@ no build identity: heartbeat, renew and release are fenced by generation, phase 
 A dispatcher ledger written by another dispatch-state version, or carrying a member this build
 does not know (for example after rolling back to N), refuses `UNSUPPORTED_VERSION` and the
 dispatcher does not open; restore the ledger that build wrote, or drain. A store `VERSION` another
-build wrote refuses every lease verb with `UNSUPPORTED_VERSION`; reads never migrate. Supervised
+build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
+run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
+reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps
+heartbeating and finishes normally when the sets are equal. Supervised
 Codex, Claude Code and OpenCode programs pin the host runtime in policy `runtimes`, not this
 binary; upgrading that runtime still needs its own drain and policy update.

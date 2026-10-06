@@ -168,6 +168,18 @@ func (r *Reader) Enum(allowed ...string) string {
 	return ""
 }
 
+// Profile records UNSUPPORTED_VERSION when this object names want's profile
+// at another version. Decoders call it before Closed so a record written by
+// another build is not reported as MALFORMED (CAL-V0-131).
+func (r *Reader) Profile(want string) *Reader {
+	w := r.where
+	if w == "/" {
+		w = ""
+	}
+	r.adopt(ProfileVersion(w+"/profile", r.v, want))
+	return r
+}
+
 // Exact requires the string to equal one literal.
 func (r *Reader) Exact(want string) string {
 	return r.Enum(want)

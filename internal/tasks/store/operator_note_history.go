@@ -61,6 +61,7 @@ func DecodeOperatorNoteCursor(s string) (*OperatorNoteCursor, error) {
 		return nil, bad("cursor is not a history cursor")
 	}
 	r := wire.NewReader(v, "--cursor")
+	r.Profile(operatorNoteCursorProfile)
 	r.Closed("profile", "queueId", "ticketId", "anchor", "anchorRevision", "next", "nextRevision")
 	c := &OperatorNoteCursor{QueueID: r.Field("queueId").QueueID().Raw, TicketID: r.Field("ticketId").TicketID().Raw,
 		Anchor: r.Field("anchor").Digest(), AnchorRevision: r.Field("anchorRevision").Count(),

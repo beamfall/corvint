@@ -23,6 +23,7 @@ func DecodePoolObservation(raw []byte) (*PoolObservation, error) {
 		return nil, e
 	}
 	r := wire.NewReader(v, "pool observation")
+	r.Profile("taskman-pool-observation/0")
 	r.Closed("profile", "allocationId", "definitionSha256", "kind", "revision", "tree", "class", "passed", "groupClean", "outputSha256", "environmentSha256")
 	r.Field("profile").Exact("taskman-pool-observation/0")
 	p := &PoolObservation{AllocationID: r.Field("allocationId").Digest(), DefinitionSha256: r.Field("definitionSha256").Digest(), Kind: r.Field("kind").Enum("health", "cleanup"), Revision: r.Field("revision").OID(), Tree: r.Field("tree").OID(), Class: r.Field("class").Enum("EXIT_ZERO", "EXIT_NONZERO", "SPAWN_FAILED", "TIMEOUT", "INTERRUPTED", "OUTPUT_LIMIT", "UNKNOWN", "SOURCE_CHANGED"), Passed: r.Field("passed").Bool(), GroupClean: r.Field("groupClean").Bool(), OutputSha256: r.Field("outputSha256").Digest(), EnvironmentSha256: r.Field("environmentSha256").Digest()}

@@ -46,6 +46,9 @@ func DecodeQueue(data []byte) (*Queue, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileQueue); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "repositoryAuthorityId", "prefix", "nextSerial", "schemaVersion",
 		"canonicalWriter", "foreignAdapterId", "intentBranch", "fixture", "executionCutover",
 		"importMapSha256", "writeBarrier")

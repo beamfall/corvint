@@ -216,6 +216,7 @@ func planPoolSweepFinish(c leaseContext) leaseOutcome {
 		return c.fail(malformed("sweep result canonical bytes"))
 	}
 	r := wire.NewReader(v, "sweep result")
+	r.Profile("taskman-pool-sweep-result/0")
 	r.Closed("profile", "owner", "members")
 	r.Field("profile").Exact("taskman-pool-sweep-result/0")
 	owner := r.Field("owner").Digest()

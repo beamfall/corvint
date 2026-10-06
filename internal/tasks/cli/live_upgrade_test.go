@@ -1,30 +1,36 @@
 package cli_test
 
 import (
+	"bytes"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/cli"
-	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
-	"github.com/Beamfall/corvint/internal/tasks/mutation"
-	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
-	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // CAL-V0-130, CAL-V0-131 and CAL-V0-133: an attempt claimed by build N keeps
 // heartbeating, renewing and releasing after build N+1 is installed in place
-// by atomic rename, while a build N process that outlived the swap still
-// reads and writes the shared store. The stamped build number is the seam.
+// by atomic rename. A build N attempt runner started from the installed path
+// before the swap stays alive across it, heartbeats into the store build N+1
+// has written, records its outcome and exits cleanly. The stamped build
+// number is the seam.
 func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
+	if !groupreap.OwnerAvailable() {
+		t.Skip("the build N attempt runner needs the owned process group API")
+	}
 	dir := t.TempDir()
 	build := func(n string) string {
 		t.Helper()
@@ -89,6 +95,37 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	claim := ok(installed, "claim", id, "--holder", "agent", "--request-id", "upgrade-claim")
 	attempt, generation := field(claim, "attemptId").Str, field(claim, "generation").Str
 	ok(installed, "attempt", "heartbeat", "--attempt", attempt, "--generation", generation, "--request-id", "beat-n")
+	// The survivor: a build N attempt runner, started from the installed
+	// path, whose command waits until the test lets it finish.
+	started, finish := filepath.Join(dir, "started"), filepath.Join(dir, "finish")
+	survivor := exec.Command(installed, "run", "--attempt", attempt, "--generation", generation, "--timeout", "300", "--",
+		"/bin/sh", "-c", `: > "$1"; while [ ! -f "$2" ]; do sleep 0.05; done`, "survivor", started, finish)
+	survivor.Dir = r.Root
+	var survivorOut, survivorErr bytes.Buffer
+	survivor.Stdout, survivor.Stderr = &survivorOut, &survivorErr
+	if err := survivor.Start(); err != nil {
+		t.Fatal(err)
+	}
+	survivorDone := make(chan error, 1)
+	go func() { survivorDone <- survivor.Wait() }()
+	t.Cleanup(func() {
+		_ = survivor.Process.Kill()
+		<-survivorDone
+	})
+	for deadline := time.Now().Add(time.Minute); ; time.Sleep(20 * time.Millisecond) {
+		if _, err := os.Stat(started); err == nil {
+			break
+		}
+		select {
+		case err := <-survivorDone:
+			survivorDone <- err
+			t.Fatalf("build N runner exited before its command started: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("build N runner never started its command")
+		}
+	}
 
 	install(buildNext)
 	after := ok(installed, "version")
@@ -100,8 +137,37 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	if field(renewed, "generation").Str != generation {
 		t.Fatalf("renew moved the generation: %s", wire.Encode(renewed))
 	}
-	// A build N process that outlived the swap reads build N+1's records.
+	// A build N binary still on disk reads build N+1's records.
 	ok(buildN, "attempt", "heartbeat", "--attempt", attempt, "--generation", generation, "--request-id", "beat-old")
+	// The survivor kept running through the swap and the build N+1 writes:
+	// its command ends now, and it heartbeats once more, records its outcome
+	// and exits 0. Its first heartbeat preceded the swap, so a count of two
+	// or more includes one written after it.
+	select {
+	case err := <-survivorDone:
+		survivorDone <- err
+		t.Fatalf("build N runner exited during the swap: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+	default:
+	}
+	fixture.Write(t, finish, nil)
+	select {
+	case err := <-survivorDone:
+		survivorDone <- err
+		if err != nil {
+			t.Fatalf("build N runner: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("build N runner did not finish")
+	}
+	res, err := wire.DecodeResult(survivorOut.Bytes())
+	if err != nil || res.Outcome != wire.OutcomeOK || len(res.Items) != 1 {
+		t.Fatalf("build N runner envelope: %v %s", err, survivorOut.Bytes())
+	}
+	item := res.Items[0]
+	beats, _ := strconv.Atoi(field(item, "heartbeats").Str)
+	if beats < 2 || field(item, "exitStatus").Str != "0" || field(item, "lostLease").Kind != wire.KindNull || field(item, "outcomeReceipt").Str == "" {
+		t.Fatalf("build N runner did not heartbeat and record after the swap: %s", wire.Encode(item))
+	}
 	ok(installed, "release", "--attempt", attempt, "--generation", generation, "--request-id", "release-next")
 	ok(installed, "receipt", "audit")
 	ok(buildN, "receipt", "audit")
@@ -137,22 +203,62 @@ func TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion(t *testing.T) {
 	}
 }
 
-// CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, and it
-// covers the store version and every record a live attempt, an adopted
-// worker, a detached attempt runner or a supervised program owner that
-// outlived a binary swap reads or writes.
-func TestCALV0131_LiveFormatsCoverEveryLiveRecord(t *testing.T) {
+// outputOnlyProfiles are written only to stdout and never decoded again, so
+// they are not part of the CAL-V0-131 format set.
+var outputOnlyProfiles = []string{
+	"taskman-critical-path/0", "taskman-dispatch-run/0", "taskman-dispatch-status/0", "taskman-dispatch-unpark/0",
+	"taskman-lease-timing/0", "taskman-plan-selected/0", "taskman-plan/0", "taskman-priority-first/0",
+	"taskman-user-service-install/0", "taskman-user-service-resume/0", "taskman-user-service-run-helper/0",
+	"taskman-user-service-run/0", "taskman-user-service-status/0", "taskman-user-service-stop/0",
+	"taskman-user-service-uninstall/0",
+}
+
+// CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, holds the
+// store version, and holds every profile the tasks packages name except the
+// output-only ones. A new persisted or decoded profile that is not added to
+// LiveFormats fails here, as does a stale entry in either list.
+func TestCALV0131_LiveFormatsCoverEveryDecodedProfile(t *testing.T) {
 	got := cli.LiveFormats()
 	if !slices.IsSorted(got) || len(slices.Compact(slices.Clone(got))) != len(got) {
 		t.Fatalf("formats not sorted and unique: %v", got)
 	}
-	for _, want := range []string{
-		strings.TrimSpace(snapshot.VersionBytes), snapshot.ProfileHead, snapshot.ProfileReceipt, snapshot.ProfileAttempt,
-		snapshot.ProfileReservations, snapshot.SupervisedProfile, mutation.Profile, mutation.OutcomeProfile,
-		dispatch.StateProfile, "taskman-attempt-run-record/0", transaction.RunOutcomeProfile, service.ProfileName,
-	} {
-		if !slices.Contains(got, want) {
-			t.Errorf("formats omit %s: %v", want, got)
+	version := strings.TrimSpace(snapshot.VersionBytes)
+	if !slices.Contains(got, version) {
+		t.Fatalf("formats omit the store version %s", version)
+	}
+	literal := regexp.MustCompile(`"(taskman-[a-z0-9-]+/[0-9]+)"`)
+	named := map[string]string{}
+	err := filepath.WalkDir("..", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return err
+		}
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		// LiveFormats' own literals do not count as a decoder naming them.
+		if filepath.ToSlash(p) == "../cli/cli.go" {
+			at := bytes.Index(raw, []byte("func LiveFormats() []string {"))
+			end := bytes.Index(raw[at:], []byte("\n}\n"))
+			raw = append(append([]byte{}, raw[:at]...), raw[at+end:]...)
+		}
+		for _, m := range literal.FindAllSubmatch(raw, -1) {
+			named[string(m[1])] = p
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for profile, p := range named {
+		live, output := slices.Contains(got, profile), slices.Contains(outputOnlyProfiles, profile)
+		if live == output {
+			t.Errorf("%s (%s) must be in exactly one of LiveFormats and outputOnlyProfiles", profile, p)
+		}
+	}
+	for _, profile := range append(slices.Clone(got), outputOnlyProfiles...) {
+		if _, ok := named[profile]; !ok && profile != version {
+			t.Errorf("%s is listed but no tasks source names it", profile)
 		}
 	}
 }

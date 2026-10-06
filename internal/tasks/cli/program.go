@@ -44,6 +44,9 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
+	if e = wire.RawProfileVersion("/profile", raw, snapshot.SupervisedProfile); e != nil {
+		return errorResult(cmd, e)
+	}
 	var c store.ProgramConfig
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()

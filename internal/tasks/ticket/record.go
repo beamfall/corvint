@@ -179,6 +179,9 @@ func Decode(data []byte) (*Record, error) {
 // FromValue validates a parsed value as a ticket record.
 func FromValue(v wire.Value) (*Record, error) {
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, Profile); err != nil {
+		return nil, err
+	}
 	r.Closed(wire.OptionalKeys(v, recordKeys, wire.TicketRecordOptionalKeys...)...)
 	if err := r.Err(); err != nil {
 		return nil, err

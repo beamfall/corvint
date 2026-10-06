@@ -14,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // Leader may run the runtime only after the exact immutable acknowledgment.
@@ -30,6 +32,9 @@ func Leader(ctx context.Context, dir, hash string) error {
 		return fmt.Errorf("capsule identity differs")
 	}
 	var c Capsule
+	if e = wire.RawProfileVersion("/profile", raw, "taskman-codex-supervisor/0"); e != nil {
+		return e
+	}
 	if e = decode(raw, &c); e != nil {
 		return e
 	}

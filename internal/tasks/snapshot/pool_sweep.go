@@ -83,6 +83,7 @@ func DecodePoolSweepObservation(raw []byte) (*PoolSweepObservation, error) {
 		return nil, e
 	}
 	r := wire.NewReader(v, "sweep observation")
+	r.Profile("taskman-pool-sweep-observation/0")
 	r.Closed("profile", "allocationId", "definitionSha256", "owner", "previous", "phase", "attempt", "revision", "tree", "class", "exit", "passed", "groupClean", "log", "environment", "envFile", "stdout", "stderr", "signal", "timing")
 	r.Field("profile").Exact("taskman-pool-sweep-observation/0")
 	o := &PoolSweepObservation{AllocationID: r.Field("allocationId").Digest(), DefinitionSha256: r.Field("definitionSha256").Digest(), Owner: r.Field("owner").Digest(), Previous: r.Field("previous").DigestOrNull(), Phase: r.Field("phase").Enum("cleanup", "reset", "verify"), Attempt: r.Field("attempt").Count(), Revision: r.Field("revision").OID(), Tree: r.Field("tree").OID(), Class: r.Field("class").Enum("EXIT_ZERO", "EXIT_NONZERO", "STDOUT_MISMATCH", "SPAWN_FAILED", "TIMEOUT", "INTERRUPTED", "OUTPUT_LIMIT", "UNKNOWN", "SOURCE_CHANGED", "SIGNAL"), Passed: r.Field("passed").Bool(), GroupClean: r.Field("groupClean").Bool(), Log: r.Field("log").Digest(), Environment: r.Field("environment").Digest(), EnvFile: r.Field("envFile").Digest()}

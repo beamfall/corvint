@@ -56,6 +56,7 @@ func DecodePools(data []byte) (*PoolState, error) {
 		return nil, e
 	}
 	r := wire.NewReader(v, "/")
+	r.Profile(ProfilePools)
 	r.Closed("profile", "queueId", "entries")
 	r.Field("profile").Exact(ProfilePools)
 	p := &PoolState{QueueID: r.Field("queueId").QueueID(), Entries: []PoolEntry{}}

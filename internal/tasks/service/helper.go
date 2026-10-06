@@ -153,6 +153,9 @@ func (h Host) readHelperRecord(root, program, id string) (helperRecord, error) {
 		return helperRecord{}, err
 	}
 	var r helperRecord
+	if err := wire.RawProfileVersion("/"+name+"/profile", raw, HelperRecordName); err != nil {
+		return helperRecord{}, err
+	}
 	if err := decodeStrict(raw, &r); err != nil || r.Profile != HelperRecordName || r.Program != program || r.Helper != id || !helperRecordStates[r.State] {
 		return helperRecord{}, wire.Errorf(wire.CodeUncertainEffect, "/"+name, "helper record is unreadable")
 	}
@@ -924,6 +927,9 @@ func (h Host) readResumeOperation(root, program string) (*resumeOperation, []byt
 		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is UNKNOWN: %v", err)
 	}
 	var op resumeOperation
+	if err := wire.RawProfileVersion("/"+resumeOperationFile+"/profile", raw, ResumeOperationName); err != nil {
+		return nil, nil, err
+	}
 	if err := decodeStrict(raw, &op); err != nil || op.Profile != ResumeOperationName || op.Program != program || op.RequestID == "" || op.RequestSha256 == "" || op.BeforeControl == "" {
 		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is unreadable")
 	}

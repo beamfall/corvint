@@ -464,6 +464,9 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 		return true, nil, nil
 	case p == "reservations.json":
 		rd := wire.NewReader(v, p)
+		if err := wire.ProfileVersion(p, v, "taskman-reservation-set/0"); err != nil {
+			return false, nil, err
+		}
 		rd.Closed("profile", "queueId", "entries")
 		if err := rd.Err(); err != nil {
 			return false, nil, err
