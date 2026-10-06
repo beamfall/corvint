@@ -89,5 +89,21 @@ unknown and by the existing target-tree unknown; no change was made.
 - Regression: with the base `repository_guidance.go`, both over-cap subtests fail. The base
   receipt shows `selected: []`, `EMPTY_SELECTION`, `UNINDEXED_SOURCE_PATH: cmd/demo/main.go` and
   `NO_REPOSITORY_GATE_DECLARED`. With the fix they pass; the within-cap control passes both ways.
-- Focused: `go test -run TestRepositoryGuidance ./cmd/corvint` passes, along with the doc gates
-  listed in the lane report.
+- Focused: `corvint affected --base 3dc863bd` selected 65 units. All of them were run with
+  `-count=1`. `cmd/corvint` (full package), `internal/specindex`, `internal/doccorpus/selfcorpus`,
+  `conformance/use-cases-v0` and `internal/liveverify/affected` pass, and 58 of the other 60 pass.
+  - `internal/authoritystore` fails `protected-authority-unavailable` in three darwin evidence tests.
+    It fails identically at base `3dc863bd`, so it is pre-existing and independent of this change.
+  - `internal/tasks/cli` `TestATRV0004_InterruptStopsTheRun` failed once (`SURVIVORS`) under host
+    load average above 20. It passed three isolated reruns at HEAD and at base, so it is a suspected
+    load flake.
+- Doc gates (`spec-requirements-check` through `unbounded-readers-check`), `use-case-receipts-check`
+  and `use-case-receipts-test` pass. `go vet ./cmd/corvint` and `gofmt` are clean, and
+  `GOOS=windows go build ./cmd/corvint` builds.
+- Codex round 2 approved `3dc863bd..f4f9d1a6` with no remaining P0-P3 findings. Codex could not run
+  Go tests in its read-only sandbox.
+
+## NOT_RUN
+
+- `make gate` and the exhaustive `go test ./...` were not run, by lane policy. Coverage is the
+  affected selection above.
