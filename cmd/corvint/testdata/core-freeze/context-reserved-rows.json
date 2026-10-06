@@ -27,6 +27,9 @@
     "governance_refused": [],
     "included_results": 1,
     "omitted_results": 1,
+    "uncertainty": [
+      "0 code and 2 documentation rows the task matched lexically are omitted by the result limit 1"
+    ],
     "unexamined": [
       {
         "relation": "governing",
