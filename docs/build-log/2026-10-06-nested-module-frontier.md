@@ -11,7 +11,7 @@ nested module) as it is.
 
 ## Change
 
-- Spec `docs/specs/affected-plan-v0.md` adds the proposed AFP-V0-028, which narrows the accepted
+- Spec `docs/specs/affected-plan-v0.md` adds the proposed AFP-V0-031, which narrows the accepted
   AFP-V0-008 frontier, with non-goals, rollback, a traceability row and the intent-status mention.
   AFP-V0-008 gains only a cross-reference.
 - `internal/liveverify/affected/golang/nested.go` is new. `nestedModules` produces one evidence
@@ -122,7 +122,7 @@ but for a directory reason.
   must not carry a version.
 
 Rationale, recorded for the owner: a manifest the go tool rejects cannot be built at all, so a
-laxer read could not hide a dependency that actually builds. Still, AFP-V0-028 says
+laxer read could not hide a dependency that actually builds. Still, AFP-V0-031 says
 "unparsable stays open", so the reader may be stricter than `modfile` but never laxer.
 
 ## Finding: the ticket premise does not hold on this repository

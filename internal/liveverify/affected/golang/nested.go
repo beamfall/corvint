@@ -30,7 +30,7 @@ type nestedModule struct {
 }
 
 // nestedModules decides, per unlisted module, whether its packages can take
-// part in a build of an observed module (AFP-V0-028, V1-0867). A module stays
+// part in a build of an observed module (AFP-V0-031, V1-0867). A module stays
 // open when its manifest cannot be read whole within the bound or parsed; when
 // it requires, replaces, or names a tool under an observed module path (other
 // than one of its own packages); when a replace names a directory that is not

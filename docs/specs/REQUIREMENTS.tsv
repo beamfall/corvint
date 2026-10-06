@@ -61,7 +61,8 @@ AFP-V0-024	docs/specs/affected-plan-v0.md	555	(owner-directed, proposed, 2026-10
 AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
 AFP-V0-026	docs/specs/affected-plan-v0.md	616	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
 AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-028	docs/specs/affected-plan-v0.md	655	(proposed, 2026-10-06; V1-0867; narrows the AFP-V0-008 nested-module frontier,
+AFP-V0-031	docs/specs/affected-plan-v0.md	654	(proposed, 2026-10-06; V1-0867; narrows the AFP-V0-008 nested-module frontier,
+AFP-V0-032	docs/specs/affected-plan-v0.md	692	(owner-directed, proposed, 2026-10-06; V1-0865) Only a declaration path that
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -2352,6 +2353,8 @@ RGV-V0-009	docs/specs/repository-guidance-v0.md	33	Review MUST explicitly skip c
 RGV-V0-010	docs/specs/repository-guidance-v0.md	34	More than 256 paths/ref MUST produce UNKNOWN/incomplete, never a truncated negat
 RGV-V0-011	docs/specs/repository-guidance-v0.md	35	Git subprocesses MUST use trust-isolated existing adapters, no replacement/graft
 RGV-V0-012	docs/specs/repository-guidance-v0.md	36	Real committed fixtures MUST verify immutable evidence, deterministic bytes, ove
+RGV-V0-013	docs/specs/repository-guidance-v0.md	37	Review MUST NOT plan affected advice over an incomplete guidance inventory. When
+RGV-V0-014	docs/specs/repository-guidance-v0.md	38	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	42	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	44	One unit MUST be one repository-relative `.rb` file, the smallest common
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	47	Discovery MUST admit all concurrently present conventional RSpec

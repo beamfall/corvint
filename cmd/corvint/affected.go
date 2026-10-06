@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
@@ -119,6 +122,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
+	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory"
 	adviceAgentsReason       = "the repository AGENTS.md Verify block declares this command, so it stays mandatory"
 	adviceLaunchReason       = "the repository AGENTS.md Verify block declares this command, but it launches a program or runs in the background and does not end on its own, so it is not a check"
@@ -571,8 +575,10 @@ func compileAffectedAdvice(root string, plan affected.Plan, provider affectedGoP
 // appearance and capped at adviceMaxMandatoryChecks. A declared command that
 // does not end on its own is advisory and follows the mandatory ones. A read
 // that hits the bound, or a declaration the cap drops, is reported in the
-// returned unknown list rather than silently disappearing; truncated tells the
-// caller a source was cut short, so it never also claims no gate was declared.
+// returned unknown list rather than silently disappearing, as is a declaration
+// path that exists but is not a readable regular file; truncated tells the
+// caller a source was cut short or unread, so it never also claims no gate was
+// declared.
 func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []string, truncated bool) {
 	checks = []affectedCheck{}
 	launches := []affectedCheck{}
@@ -596,18 +602,26 @@ func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []str
 		}
 		checks = append(checks, check)
 	}
-	makefile, makefileTruncated := readAdviceSource(filepath.Join(root, adviceMakefileName), adviceMaxSourceBytes)
+	makefile, makefileTruncated, makefileUnreadable := readAdviceSource(filepath.Join(root, adviceMakefileName), adviceMaxSourceBytes)
 	if makefileTruncated {
 		truncated = true
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_TRUNCATED: %s exceeded %d bytes", adviceMakefileName, adviceMaxSourceBytes))
 	}
+	if makefileUnreadable {
+		truncated = true
+		unknown = append(unknown, fmt.Sprintf(adviceUnreadableUnknown, adviceMakefileName))
+	}
 	if makefileDeclaresGate(makefile) {
 		admit(affectedCheck{Command: "make gate", Kind: adviceKindMandatory, Reason: adviceMakefileReason, Source: adviceMakefileName})
 	}
-	agents, agentsTruncated := readAdviceSource(filepath.Join(root, adviceAgentsName), adviceMaxSourceBytes)
+	agents, agentsTruncated, agentsUnreadable := readAdviceSource(filepath.Join(root, adviceAgentsName), adviceMaxSourceBytes)
 	if agentsTruncated {
 		truncated = true
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_TRUNCATED: %s exceeded %d bytes", adviceAgentsName, adviceMaxSourceBytes))
+	}
+	if agentsUnreadable {
+		truncated = true
+		unknown = append(unknown, fmt.Sprintf(adviceUnreadableUnknown, adviceAgentsName))
 	}
 	commands, unrecognized := agentsVerifyCommands(agents)
 	for _, command := range commands {
@@ -679,20 +693,32 @@ func shellQuoteJoin(values []string) string {
 // held more than that. "" and false when the file is absent or unreadable. A
 // truncated read is still parsed: a declaration inside the bound is found,
 // one beyond it is not.
-func readAdviceSource(path string, limit int64) (string, bool) {
-	file, err := os.Open(path)
+func readAdviceSource(path string, limit int64) (body string, truncated, unreadable bool) {
+	// Only a path that does not exist is absent. Anything else that cannot be
+	// read as a regular file (a directory, a FIFO, a dangling or special
+	// symlink target, a read error) is unreadable, and the open never blocks.
+	if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
+		return "", false, false
+	}
+	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+		return "", false, true
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
-		return "", false
+		return "", false, true
 	}
 	defer func() { _ = file.Close() }()
-	body, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return "", false, true
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, limit+1))
 	if err != nil {
-		return "", false
+		return "", false, true
 	}
-	if int64(len(body)) > limit {
-		return string(body[:limit]), true
+	if int64(len(raw)) > limit {
+		return string(raw[:limit]), true, false
 	}
-	return string(body), false
+	return string(raw), false, false
 }
 
 func makefileDeclaresGate(body string) bool {
