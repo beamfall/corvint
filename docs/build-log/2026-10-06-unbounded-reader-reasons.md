@@ -15,9 +15,9 @@ requests with zero new misses. The selection counts are reported before and afte
   needs a `reasons` entry. `tools/unbounded-readers` reports units without one as `unreasoned` and
   fails, naming them, for current and stale units alike. Regression:
   `TestAFPV0028EveryUnitNamesItsUnboundedRead`. It fails on the base checker.
-- `.corvint/test-read-scopes.json` gains nine declarations. Main's 125 entries are unchanged.
-- `.corvint/unbounded-readers.json` drops those nine units, leaving 34. Each of the 34 now carries
-  a reason naming the read and why it cannot be declared.
+- `.corvint/test-read-scopes.json` gains eight declarations. Main's 125 entries are unchanged.
+- `.corvint/unbounded-readers.json` drops those eight units, leaving 35. Each of the 35 now
+  carries a reason naming the read and why it cannot be declared.
 
 ## Method
 
@@ -47,13 +47,14 @@ Hosted estimates come from the survey's cost ranking.
 | `tools/gate-ledger` | three `tools/gate-affected-select` files | 3.2 s |
 | `cmd/corvint-postmerge-host-launcher` | none | 1.3 s |
 | `internal/postmergeproof` | five postmerge-runtime-v2 schemas | 15.8 s |
-| `internal/jstestprovider` | none | 11.6 s |
 | `internal/authoritystore` | none | 1.7 s |
 | `internal/dashboard/source` | none | 1.7 s |
 
-`internal/jstestprovider` skips six tests in both runs. Each skip is gated by a flag or an
-environment variable (Docker qualification, PTF live, Playwright modules), not by a repository read.
-Those opt-in live paths were not measured under the declaration.
+`internal/jstestprovider` was declared in the first round and then withdrawn after review. Its
+six skips are gated by a flag or an environment variable, not by a repository read. But the
+enabled live tests read `conformance/interactive-alpha/fixture/` and build from the repository
+root, and no confined run measured them. AFP-V0-028 now requires that a skipped test, when
+enabled, reads nothing outside the entries.
 
 A declared root locator still leaves its undeclared dependents unbounded (AFP-V0-023). Several units
 keep their entry for that reason as well as for their own reads.
@@ -76,17 +77,16 @@ in parentheses.
 | + tools/gate-ledger | 77 (14) / 97 (11) | 48 (36) / 69 (27) | 67 (33) / 90 (26) | 49 (33) / 73 (26) | 48 (35) / 69 (27) | 0 |
 | + cmd/corvint-postmerge-host-launcher | 77 (14) / 97 (11) | 47 (35) / 68 (26) | 66 (32) / 89 (25) | 48 (32) / 72 (25) | 47 (34) / 68 (26) | 0 |
 | + internal/postmergeproof | 77 (14) / 97 (11) | 46 (34) / 67 (25) | 66 (32) / 89 (25) | 48 (32) / 72 (25) | 46 (33) / 67 (25) | 0 |
-| + internal/jstestprovider | 77 (14) / 97 (11) | 45 (33) / 66 (24) | 65 (31) / 88 (24) | 47 (31) / 71 (24) | 45 (32) / 66 (24) | 0 |
-| + internal/authoritystore | 77 (14) / 97 (11) | 44 (32) / 65 (23) | 64 (30) / 87 (23) | 46 (30) / 70 (23) | 44 (31) / 65 (23) | 0 |
-| + internal/dashboard/source | 76 (13) / 96 (10) | 43 (31) / 64 (22) | 63 (29) / 86 (22) | 45 (29) / 69 (22) | 43 (30) / 64 (22) | 0 |
-| not adopted: + 5 closure-group units | 76 (12) / 96 (10) | 38 (26) / 60 (18) | 58 (24) / 82 (18) | 40 (24) / 65 (18) | 38 (25) / 60 (18) | 0 |
+| + internal/authoritystore | 77 (14) / 97 (11) | 45 (33) / 66 (24) | 65 (31) / 88 (24) | 47 (31) / 71 (24) | 45 (32) / 66 (24) | 0 |
+| + internal/dashboard/source (delivered) | 76 (13) / 96 (10) | 44 (32) / 65 (23) | 64 (30) / 87 (23) | 46 (30) / 70 (23) | 44 (31) / 65 (23) | 0 |
+| not adopted: + 5 closure-group units | 76 (12) / 96 (10) | 39 (27) / 61 (19) | 59 (25) / 83 (19) | 41 (25) / 66 (19) | 39 (26) / 61 (19) | 0 |
 | needed units | 39 | 4 | 12 | 3 | 4 | |
 
 The base row reproduces the survey's counts. No step dropped a needed unit.
 
 ## Units that stay unbounded
 
-Each of the 34 reasons in `.corvint/unbounded-readers.json` is backed by the source and the
+Each of the 35 reasons in `.corvint/unbounded-readers.json` is backed by the source and the
 container trace. They fall into five groups.
 
 - **Opens the filesystem root `/`.** The wrapper cannot grant `/` without granting the repository.
@@ -97,6 +97,9 @@ container trace. They fall into five groups.
     `internal/flowdocs`, `internal/liveverify/affected/golang`, `internal/lspstdio`,
     `internal/mcp/docsbridge`, `internal/postmergeworkflow`, `internal/testrunner`,
     `internal/testrunner/sql`.
+  - `cmd/corvint-corpus-mcp`, `internal/lspstdio` and `internal/mcp/docsbridge` pass confined
+    with their traced entries declared. They pass only by tolerating refused opens of `/`, which
+    the denial check shows (14, 14 and 24). The opening call is not attributed.
   - Sources: `internal/flowdocs/files.go`, `internal/testrunner/execute_unix.go`,
     `internal/testrunner/sql/sql.go`, `internal/cemcandidate/source.go` and
     `internal/stepverify/safeopen/open_unix.go`. Each opens `/` for reading rather than with
@@ -108,6 +111,8 @@ container trace. They fall into five groups.
     `tools/cem-interop-runner`.
   - `tools/cem-interop-runner` passed confined, but only because it silently falls back when
     `git rev-parse` is refused. The denial check caught it.
+- **Opt-in tests read outside the package.** `internal/jstestprovider` (see above). It also
+  locates the root through git.
 - **Walks the whole tree.** `internal/tasks` lists 609 directories.
 - **Import closure.** These tests run `go list -deps` or `go build` over a binary's import
   closure: `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`,
@@ -119,7 +124,7 @@ container trace. They fall into five groups.
     and the confined CI run would fail every pull request that adds one until the declarations
     are updated. That trade-off is the owner's call.
   - The "not adopted" row above shows what they would remove: five more units on four of the pull
-    requests.
+    requests (the row is measured on top of the eight delivered declarations).
   - `internal/analyzerpython` still failed three tests with its closure declared.
 - **Not measurable here.** `internal/tasks/cli` builds `cmd/corvint-tasks` (33 directories). Its
   unconfined run failed 264 tests in the container, so no confined comparison could prove a
@@ -133,7 +138,7 @@ container trace. They fall into five groups.
   until the root opens change.
 - **Order.** The cost-first order was limited by measurability. The two costliest units after
   `cmd/corvint` (`internal/companionrelease` and `internal/tasks/cli`) are not declarable. The
-  nine accepted units were declared one at a time in the order shown, each with its own replay.
+  eight accepted units were declared one at a time in the order shown, each with its own replay.
 
 ## Limits
 
@@ -143,7 +148,7 @@ container trace. They fall into five groups.
   Darwin-only tests are unmeasured.
 - A reason is a reviewed statement from the source and one trace. It is not a proof that no
   narrower declaration exists.
-- The savings are modest. The nine declared units total about 58 s of hosted estimate per
+- The savings are modest. The eight declared units total about 47 s of hosted estimate per
   selection. `cmd/corvint` (758.7 s), `internal/companionrelease` (243.3 s) and
   `internal/tasks/cli` (184.4 s) stay selected on every Go change.
 
@@ -152,4 +157,15 @@ container trace. They fall into five groups.
 - `make gate`: not requested; AGENTS.md.
 - `-race`.
 - A confined run of `internal/tasks/cli` on a hosted runner.
-- The opt-in live tests of `internal/jstestprovider` under its declaration.
+
+## Review
+
+Codex round 1 raised two P2 findings, and both were repaired.
+
+1. **`internal/jstestprovider`'s empty declaration denied reads made by its opt-in live tests.**
+   The declaration was withdrawn, the unit went back into `units` with a reason, and the
+   AFP-V0-028 skip clause was tightened. The last two steps were replayed again without it.
+2. **The reasons for `cmd/corvint-corpus-mcp`, `internal/lspstdio` and `internal/mcp/docsbridge`
+   attributed their `/` opens to `internal/flowdocs` without evidence.** Each was re-measured
+   confined, followed by a denial check. The reasons now state the observed tolerated denials and
+   say that the opening call is not attributed.

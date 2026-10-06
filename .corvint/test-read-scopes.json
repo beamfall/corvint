@@ -228,7 +228,6 @@
       "conformance/tcq-0/"
     ],
     "internal/genesis": [],
-    "internal/jstestprovider": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
     "internal/liveverify/affected/python": [],

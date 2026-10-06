@@ -655,17 +655,18 @@ and container qualification; full fallback remains available.
   `.corvint/unbounded-readers.json` (AFP-V0-025) SHALL have a `reasons` entry that names the
   unbounded read, the call, literal, inherited dependency or path set that leaves the package's
   reads unbounded, and why an AFP-V0-023 declaration cannot bound it, such as a read of `.git`, a
-  listing of the repository root or of a whole top-level tree, an open of the filesystem root,
-  a nested build or a test that skips when a read fails. `make unbounded-readers-check` MUST fail,
+  listing of the repository root or of a whole top-level tree, an open of the filesystem root, a
+  nested build or a test that skips when a read fails. `make unbounded-readers-check` MUST fail,
   naming the directories, when a `units` directory, current or stale, has no entry; the report
   lists them as `unreasoned`. A declaration that takes a package out of `units` SHALL be measured
   the AFP-V0-023 way: the per-test `go test -json` outcomes, unconfined and under the wrapper with
   exactly the declared entries, are identical, and a test that skips in either run, or tolerates a
-  failed read, keeps the package undeclared unless its skip is shown not to depend on a
-  repository read. When the evidence is missing or ambiguous the package stays in `units`. Limits:
-  a reason is a reviewed statement from the source and a container measurement, not a proof that
-  no narrower declaration exists; the measurement covers the Linux test files only. Rollback
-  restores the optional `reasons` check; the reasons themselves stay as documentation.
+  failed read, keeps the package undeclared unless its skip is shown not to depend on a repository
+  read and the test, when enabled, reads nothing outside the entries. When the evidence is missing
+  or ambiguous the package stays in `units`. Limits: a reason is a reviewed statement from the
+  source and a container measurement, not a proof that no narrower declaration exists; the
+  measurement covers the Linux test files only. Rollback restores the optional `reasons` check;
+  the reasons themselves stay as documentation.
 
 ## Non-goals and authority
 
