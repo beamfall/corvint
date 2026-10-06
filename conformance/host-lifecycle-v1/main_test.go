@@ -209,8 +209,10 @@ func fakeFrontierRunner(t *testing.T, degraded int, degradation string) (*runner
 	if err := os.WriteFile(filepath.Join(state, "degraded"), []byte(fmt.Sprint(degraded)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	corvint := "#!/bin/sh\ncase \"$2\" in begin) : > " + state + "/enrolled ;; cancel) /bin/rm -f " + state + "/enrolled ;; esac\n"
-	stop := "#!/bin/sh\ninput=$(cat)\nstate=" + state + "\n" +
+	// The state path is single-quoted so a temporary directory with spaces or quotes stays one word.
+	quoted := "'" + strings.ReplaceAll(state, "'", `'\''`) + "'"
+	corvint := "#!/bin/sh\nstate=" + quoted + "\ncase \"$2\" in begin) : > \"$state/enrolled\" ;; cancel) /bin/rm -f \"$state/enrolled\" ;; esac\n"
+	stop := "#!/bin/sh\ninput=$(cat)\nstate=" + quoted + "\n" +
 		"case \"$input\" in *'\"stop_hook_active\":true'*) echo '{}'; exit 0 ;; esac\n" +
 		"[ -f \"$state/enrolled\" ] || { echo '{}'; exit 0; }\n" +
 		"left=$(cat \"$state/degraded\")\n" +
