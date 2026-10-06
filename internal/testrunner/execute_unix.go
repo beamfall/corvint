@@ -207,22 +207,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		for _, k := range keys {
 			cmd.Env = append(cmd.Env, k+"="+env[k])
 		}
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		// Playwright owns detached browser groups. Interrupt its leader so native
-		// worker teardown can close them before the bounded hard-kill fallback.
-		cmd.Cancel = func() error {
-			if cmd.Process != nil {
-				if inv.GracefulInterrupt {
-					return cmd.Process.Signal(syscall.SIGINT)
-				}
-				return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			}
-			return nil
-		}
-		cmd.WaitDelay = time.Second
-		if inv.GracefulInterrupt {
-			cmd.WaitDelay = 5 * time.Second
-		}
+		containPhase(cmd, inv.GracefulInterrupt)
 		stdout, stderr := &limitedBuffer{cancel: phaseCancel}, &limitedBuffer{cancel: phaseCancel}
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
@@ -606,4 +591,28 @@ func boundedReportGlob(ctx context.Context, root *os.Root, pattern string, scann
 	}
 	sort.Strings(matches)
 	return matches, nil
+}
+
+// containPhase owns a phase's process group, chooses its cancellation signal
+// and bounds its pipe drain.
+func containPhase(cmd *exec.Cmd, graceful bool) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Playwright owns detached browser groups. Interrupt its leader so native
+	// worker teardown can close them before the bounded hard-kill fallback.
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			if graceful {
+				return cmd.Process.Signal(syscall.SIGINT)
+			}
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return nil
+	}
+	// Without a graceful interrupt the bound detects a descendant holding the
+	// output pipes, not a slow reader (V1-0391). With one it is also the grace
+	// before os/exec kills an interrupted leader, so it stays short.
+	cmd.WaitDelay = time.Minute
+	if graceful {
+		cmd.WaitDelay = 5 * time.Second
+	}
 }

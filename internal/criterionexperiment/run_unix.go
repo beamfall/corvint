@@ -77,14 +77,7 @@ func runScenario(ctx context.Context, r Request, c Criterion, files map[string][
 	command := exec.CommandContext(limited, r.GoBinary, "test", "-json", "-count=1", "-timeout", fmt.Sprintf("%ds", r.TimeoutSeconds), "-run", "^"+regexp.QuoteMeta(c.Test)+"$", pkg)
 	command.Dir = filepath.Join(dir, "src")
 	command.Env = []string{"PATH=" + filepath.Dir(r.GoBinary), "GOTOOLCHAIN=local", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOENV=off", "CGO_ENABLED=0", "HOME=" + filepath.Join(dir, "home"), "GOPATH=" + filepath.Join(dir, "gopath"), "GOCACHE=" + filepath.Join(dir, "cache"), "TMPDIR=" + filepath.Join(dir, "tmp")}
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error {
-		if command.Process != nil {
-			return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-		}
-		return nil
-	}
-	command.WaitDelay = time.Second
+	ownGroup(command)
 	stdout, stderr := boundedBuffer{cancel: cancel}, boundedBuffer{cancel: cancel}
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -95,4 +88,18 @@ func runScenario(ctx context.Context, r Request, c Criterion, files map[string][
 	}
 	complete := limited.Err() == nil && !stdout.overflow && !stderr.overflow && (e == nil || exit == 1)
 	return stdout.b.Bytes(), stderr.b.Bytes(), exit, complete, nil
+}
+
+// ownGroup puts a child in its own process group, kills that group on
+// cancellation and bounds the pipe drain after the child exits.
+func ownGroup(command *exec.Cmd) {
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		if command.Process != nil {
+			return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		}
+		return nil
+	}
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	command.WaitDelay = time.Minute
 }
