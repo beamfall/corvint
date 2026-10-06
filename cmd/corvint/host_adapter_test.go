@@ -556,6 +556,25 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 	}
 }
 
+// LCP-V0-008, HLQ-V1-009: a Stop whose dogfood event deadline expires fails open. Its output has
+// no decision, as an unenrolled release has none, so only the named degradation in systemMessage
+// distinguishes it; the host lifecycle runner keys its time-bound retry on that frame.
+func TestClaudeAdapterStopDeadlineFailsOpenVisibly(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	defer close(release)
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": queryCLIRepository(t)})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Millisecond })
+	ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+		<-release
+		return nil, errors.New("released")
+	})
+	output := runClaudeAdapter(ctx, "stop", map[string]any{"session_id": "s", "stop_hook_active": false})
+	if _, decided := output["decision"]; decided || output["systemMessage"] != "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues" {
+		t.Fatalf("expired Stop output %+v", output)
+	}
+}
+
 // AHI-031: an event that expires in the in-memory build of a snapshot miss is a fault the user
 // must act on: the notice names the stale snapshot and the refresh argv, the model gets the same
 // text, and the ledger reason is still read from the frame line.
