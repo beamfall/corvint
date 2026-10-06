@@ -74,8 +74,11 @@ therefore come from something keyed on content, not from Go's cache.
   MUST run without `-count=1`, so Go's own test cache may answer it, with the same flags `make
   go-test` uses, under the per-package key of GL-V0-009. When the partition cannot be computed (no
   module path, `go list` or the index failing, a package outside the module), every package MUST
-  run with `-count=1` under the tree key. `make go-test` and `make gate-affected` MUST keep
-  running with `-count=1` unchanged.
+  run with `-count=1` under the tree key. A failing resolved batch MUST NOT stop the unresolved
+  packages from running, so one run reports every failing package as `go test ./...` would; the
+  step MUST then exit with the resolved batch's status, unless that batch was killed by a signal,
+  which stops the step. `make go-test` and `make gate-affected` MUST keep running with `-count=1`
+  unchanged.
 - `GL-V0-005`: The ledger MUST refuse to digest, and therefore run without recording, any
   worktree whose content `git status` cannot see fully: a tracked file marked skip-worktree or
   assume-unchanged, an ignored `.go` file outside `.`-, `_`- and `testdata` directories that the
@@ -153,7 +156,7 @@ account. Records stay out of every product path under `GL-V0-006`.
 | Partition unavailable for `go-test` | every package with `-count=1` under the tree key (GL-V0-004) |
 | Bounds unavailable for `go-test` (selector, `go list`, module path or digest failing) | resolved packages through Go's test cache, no record (GL-V0-009) |
 | A resolved package's bound cannot be proven | runs in the resolved batch, no record (GL-V0-009) |
-| One package of the resolved batch fails | status through, no package of the batch recorded (GL-V0-002, GL-V0-009) |
+| One package of the resolved batch fails | the unresolved packages still run; status through, no package of the batch recorded (GL-V0-002, GL-V0-004, GL-V0-009) |
 | Per-key lock unavailable | run, no record (GL-V0-008) |
 | `CORVINT_GATE_LEDGER=off` | every step runs as `make STEP`, nothing printed by the ledger (GL-V0-007) |
 
@@ -185,7 +188,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree; `TestWorktreeDigestIgnoresCachedStat`: same-size restored-time edits miss even with a newer index; `TestWorktreeDigestPreservesMembershipAndPaths`: tracked/ignored/staged/intent-to-add membership, executable/symlink modes and NUL-safe paths; `TestWorktreeDigestWithoutIndex`: unborn worktree |
 | GL-V0-002 | the same test: a step exiting 3 returns 3 and records nothing |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
-| GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
+| GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestGoTestRunsUnresolvedAfterResolvedFailure`: a resolved batch exiting 3 still runs and records the unresolved packages, and the step exits 3; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
 | GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree, assume-unchanged and an ignored `build/build.go` run and record nothing; `TestWorktreeDigestImportFailureRunsWithoutRecord`: private import failure runs without recording and removes the private index/lock |
 | GL-V0-006 | the same test: a `0755` ledger directory runs and records nothing |
 | GL-V0-007 | the same test: `CORVINT_GATE_LEDGER=off` runs silently; `TestRunStepSkipsOnlyRecordedIdenticalInputs`: `plan` leaves the run count unchanged; `script/gate-receipt_test.sh` ordering probe through the `ledger/` targets |
@@ -199,7 +202,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
 | GL-V0-002 | `runStep`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
-| GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestUnresolvedPackagesListsRootLocators` |
+| GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestGoTestRunsUnresolvedAfterResolvedFailure`; `TestUnresolvedPackagesListsRootLocators` |
 | GL-V0-005 | `worktreeDigest`, `hasFlaggedEntry`, `compiledIgnored` | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune`; `ownedByInvokingUser` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` refuses the directory on non-Unix hosts) | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |

@@ -272,21 +272,25 @@ func (l *ledger) goTest(goTest []string) int {
 		return l.runStep(unresolved, []string{"./..."}, append(append([]string{}, goTest...), "-count=1", "./..."))
 	}
 	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages under per-package keys, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
+	code := 0
 	if len(resolved) > 0 {
 		keyed, reason := l.packageKeys(resolved)
 		if reason != "" {
 			fmt.Fprintf(l.stdout, "%sBOUNDS unavailable: %s; resolved packages run through the Go test cache\n", prefixOut, reason)
-			if code := execute(append(append([]string{}, goTest...), resolved...)); code != 0 {
-				return code
-			}
-		} else if code := l.runPackages(keyed, goTest); code != 0 {
-			return code
+			code = execute(append(append([]string{}, goTest...), resolved...))
+		} else {
+			code = l.runPackages(keyed, goTest)
 		}
 	}
-	if len(unresolvedPkgs) == 0 {
-		return 0
+	// A failing resolved batch must not hide the unresolved packages' failures, as one
+	// `go test ./...` would not (GL-V0-004); a batch killed by a signal stops the step.
+	if len(unresolvedPkgs) == 0 || code > 128 {
+		return code
 	}
-	return l.runStep(unresolved, unresolvedPkgs, append(append(append([]string{}, goTest...), "-count=1"), unresolvedPkgs...))
+	if rest := l.runStep(unresolved, unresolvedPkgs, append(append(append([]string{}, goTest...), "-count=1"), unresolvedPkgs...)); code == 0 {
+		code = rest
+	}
+	return code
 }
 
 func (l *ledger) partition() (resolved, unresolvedPkgs []string, reason string) {
