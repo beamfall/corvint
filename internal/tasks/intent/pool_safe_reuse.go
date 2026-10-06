@@ -11,9 +11,15 @@ type SafeReuse struct {
 }
 
 func readSafeReuse(r *wire.Reader, allowed []string) *SafeReuse {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"argv", "envKeys", "verify", "timeoutSeconds", "maxAttempts"}, "env")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"argv", "envKeys", "verify", "timeoutSeconds", "maxAttempts"}, "env", "cwd")...)
 	s := &SafeReuse{TimeoutSeconds: boundCount(r.Field("timeoutSeconds"), 1, 900), MaxAttempts: boundCount(r.Field("maxAttempts"), 1, 2)}
-	s.Reset = PoolCommand{Cwd: "REPOSITORY", TimeoutSeconds: s.TimeoutSeconds, Env: r.Field("envKeys").Strings(64, false, (*wire.Reader).Label)}
+	// PSR-V0-012: an optional cwd applies to both reset and verify; omission
+	// keeps REPOSITORY and the legacy bytes.
+	cwd, pinned := CwdRepository, (*PinnedCwd)(nil)
+	if wire.Has(r.Value(), "cwd") {
+		cwd, pinned = readPoolCwd(r.Field("cwd"))
+	}
+	s.Reset = PoolCommand{Cwd: cwd, Pinned: pinned, TimeoutSeconds: s.TimeoutSeconds, Env: r.Field("envKeys").Strings(64, false, (*wire.Reader).Label)}
 	for _, a := range r.Field("argv").Array(128, true) {
 		s.Reset.Argv = append(s.Reset.Argv, a.Prose(1, 4096))
 	}
@@ -23,7 +29,7 @@ func readSafeReuse(r *wire.Reader, allowed []string) *SafeReuse {
 	subsetOf(r, s.Reset.Env, allowed, "safe reuse environment")
 	v := r.Field("verify")
 	v.Closed("argv", "envKeys", "expectExit", "expectStdout")
-	s.Verify = PoolCommand{Cwd: "REPOSITORY", TimeoutSeconds: s.TimeoutSeconds, Env: v.Field("envKeys").Strings(64, false, (*wire.Reader).Label)}
+	s.Verify = PoolCommand{Cwd: cwd, Pinned: pinned, TimeoutSeconds: s.TimeoutSeconds, Env: v.Field("envKeys").Strings(64, false, (*wire.Reader).Label)}
 	for _, a := range v.Field("argv").Array(128, true) {
 		s.Verify.Argv = append(s.Verify.Argv, a.Prose(1, 4096))
 	}

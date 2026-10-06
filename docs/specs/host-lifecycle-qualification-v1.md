@@ -98,6 +98,21 @@ behaviour inside a live model session.
   `conformance/host-lifecycle-v1/results/`, and its sha256 recorded with the result, so the verdict
   can be re-derived from the repository. A result becomes stale when the host version, the adapter
   version, or the corvint release changes, and the affected tuple needs a new run.
+- **HLQ-V1-009:** A hook output whose degradation frame names a time bound is not evidence for any
+  case predicate. The time bounds are `dogfood-event-deadline` (`LCP-V0-008`), its stale-snapshot
+  form `dogfood-event-index-snapshot-stale` (`AHI-031`), and the watchdog's
+  `adapter-host-kill-deadline` (`AHI-017`), bare or as `corvint-event-rejected:<code>`. The runner
+  MUST rerun such a hook invocation, at most three runs in all, and MUST name every time-bound run
+  (event, attempt, code, elapsed wall time) in the case line whether the case passes or fails. When
+  all three runs fail open on a time bound, the case FAILs naming that code, never as a bare
+  `decision <nil>`. Any other degradation is not retried and is judged by the case predicate. No
+  deadline is widened, and the enrolled incomplete Stop still passes only on `decision=block`
+  naming the unavailable Frontier authority. A failed case line MUST also name the case's last hook
+  invocation: event, exit code, elapsed wall time, degradation code or `none`, and stdout and
+  stderr each quoted to at most 512 bytes with an explicit omitted-byte count (`HLQ-V1-007`). A
+  rerun is safe because hook events are reads (`AGENTS.md` invariant 4). A pass after a retried
+  time bound qualifies lifecycle semantics at that load, not latency; host timeouts stay outside the
+  nine cases (`HLQ-V1-004`).
 
 ## Runner
 
@@ -187,6 +202,22 @@ Raw reports and matching `claude-code-N-load.txt` readings are retained under
   a testable hypothesis, not a diagnosis of the lost upgrade event. The deterministic fallback
   regression retains that cause text. Three subsequent consecutive diagnostic-candidate runs
   passed with recorded boundary loads above 80 (Results); the historical cause remains unknown.
+  Code reading (2026-10-06) narrows it: the plugin fixture never runs `corvint index`, so every
+  SessionStart misses the snapshot and builds the index in memory inside the adapter work bound
+  (process start + 2 s declared kill − 400 ms reserve − 100 ms grace). An expiry there is named
+  `dogfood-event-index-snapshot-stale`, or `adapter-host-kill-deadline` when the watchdog fires
+  first; both are time bounds under `HLQ-V1-009`, so a recurrence is now retried and named.
+- V1-0844: on the `1.0.0-rc.2` candidate `da78c157` (build 358, load average about 245 on 12
+  CPUs) the Claude Code frontier case reported `enrolled incomplete Stop returned decision <nil>`;
+  three reruns passed and the hook output was discarded. Proven from code and
+  `TestClaudeAdapterStopDeadlineFailsOpenVisibly`: an enrolled Stop whose event deadline expires
+  returns only `systemMessage` `Corvint FALLBACK degraded:
+  corvint-event-rejected:dogfood-event-deadline; coding continues`, with no `decision`, which the
+  pre-`HLQ-V1-009` runner reported as exactly that line; the watchdog path is the same shape with
+  `adapter-host-kill-deadline`. Hypothesis, not observed: the rc.2 failure was that time-bound
+  fail-open. The other no-decision outputs (no enrollment for the key, another session's notice, a
+  non-time-bound rejection, an internal error) have no evident load dependence. A real-host rerun
+  under `HLQ-V1-009` is `NOT_RUN`.
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
@@ -208,6 +239,7 @@ Raw reports and matching `claude-code-N-load.txt` readings are retained under
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
+| HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` in `cmd/corvint` pins the fail-open Stop shape the retry keys on |
 
 ## Rollback
 

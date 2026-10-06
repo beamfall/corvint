@@ -9,7 +9,6 @@ import (
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -41,14 +40,7 @@ func runTasks(ctx context.Context, dir, exe string, args []string, input []byte)
 	c.Dir = dir
 	c.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C"}
 	c.Stdin = bytes.NewReader(input)
-	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	c.Cancel = func() error {
-		if c.Process != nil {
-			return syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
-		}
-		return nil
-	}
-	c.WaitDelay = time.Second
+	ownGroup(c)
 	stdout := tasksBuffer{limit: 4 << 20, cancel: cancel}
 	stderr := tasksBuffer{limit: 64 << 10, cancel: cancel}
 	c.Stdout = &stdout

@@ -3,8 +3,8 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests
-Authoritative inputs: owner request [issue 583](https://github.com/beamfall/corvint/issues/583) (V1-0784, CAL-V0-101); owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests; V1-0851 CAL-V0-104 dispatcher worker-exit release retry and reap implemented with focused fake-queue tests, live dispatcher qualification NOT_RUN; V1-0853 CAL-V0-105 work-state-held tickets outside the dispatcher's selection window implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0852 CAL-V0-107 caller-asserted author-exclusion cover implemented with focused tests, live qualification NOT_RUN; V1-0855 CAL-V0-108 cross-stage priority-admission order implemented with focused and property tests, live qualification NOT_RUN; V1-0854 CAL-V0-106 chunked batch ticket refine implemented with focused tests, live 110-ticket qualification NOT_RUN
+Authoritative inputs: owner request [issue 622](https://github.com/beamfall/corvint/issues/622) (V1-0851, CAL-V0-104); owner request [issue 624](https://github.com/beamfall/corvint/issues/624) (V1-0853, CAL-V0-105); owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (V1-0852, CAL-V0-107); owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (V1-0855, CAL-V0-108); owner request [issue 583](https://github.com/beamfall/corvint/issues/583) (V1-0784, CAL-V0-101); owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -28,6 +28,9 @@ owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 1
 owner request [issue 587](https://github.com/beamfall/corvint/issues/587) part 1 (CAL-V0-082..085),
 owner request [issue 587](https://github.com/beamfall/corvint/issues/587) part 2 with owner decision D8 (CAL-V0-102..103, ticket V1-0791),
 owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 2 (CAL-V0-098, ticket V1-0789),
+owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (CAL-V0-107, ticket V1-0852),
+owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (CAL-V0-108, ticket V1-0855),
+owner request [issue 625](https://github.com/beamfall/corvint/issues/625) (CAL-V0-106, ticket V1-0854),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
@@ -36,10 +39,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests; V1-0851 CAL-V0-104 dispatcher worker-exit release retry and reap implemented with focused fake-queue tests, live dispatcher qualification NOT_RUN; V1-0853 CAL-V0-105 work-state-held tickets outside the dispatcher's selection window implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0852 CAL-V0-107 caller-asserted author-exclusion cover implemented with focused tests, live qualification NOT_RUN; V1-0855 CAL-V0-108 cross-stage priority-admission order implemented with focused and property tests, live qualification NOT_RUN; V1-0854 CAL-V0-106 chunked batch ticket refine implemented with focused tests, live 110-ticket qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read; S24 resource-aware default selection; V1-0781 admission pressure amendment; V1-0787 stage-scoped execution prerequisites; V1-0789 implement-author exclusion; V1-0791 no-progress loop detection; V1-0772 supervised stage worktree bound and unproved stops); Amendments to TCP-00; Failure modes.
+- Read next: V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read; S24 resource-aware default selection; V1-0781 admission pressure amendment; V1-0787 stage-scoped execution prerequisites; V1-0789 implement-author exclusion; V1-0791 no-progress loop detection; V1-0772 supervised stage worktree bound and unproved stops; V1-0854 batch refine amendment); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -55,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:613@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:615@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -102,12 +105,16 @@ one.
 | S23 | CAL-V0-076..077 | OpenCode supervised host: detached-host escape drain, inline stage permissions, OpenCode argv, event-stream vocabulary with complete-accounting usage, and forked resume check; live OpenCode qualification NOT_RUN |
 | S24 | CAL-V0-097 | Resource-aware default plan: pool-needing selections capped at free eligible members, the excess deferred outside the window; dispatcher pool routing (`match.pool`) and Core plan decoding; focused tests |
 | V1-0789 | CAL-V0-098 | Opt-in review/integrate exclusion of recorded implement-generation authors; unverifiable history refuses; focused tests |
+| V1-0852 | CAL-V0-107 | Explicit `--exclude-member` values cover generations with no recorded member, reported as caller-asserted; a ticket with no implement generation is not refused; focused tests |
+| V1-0855 | CAL-V0-108 | Priority admission orders competitors across stages: at equal priority a ticket handed off to review or integrate ranks first, earlier handoff first; derived, no stored state; focused and property tests |
 | V1-0791 | CAL-V0-102..103 | Opt-in derived `LOOP_DETECTED` hold over audited no-progress and alternating-return generations; owner reopen clears it; dispatcher raises one blocked event per episode; focused tests |
+| V1-0851 | CAL-V0-104 | Dispatcher worker-exit recovery: bounded hand-off release retries with backoff, reap once the lease expires, `needs-owner` only when both fail; `heal.exitRecovery` default on; focused tests |
+| V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. CAL-V0-079..081 are the V1-0793 critical-path read. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment. CAL-V0-097/S24 is issue 584. CAL-V0-098 is the V1-0789 implement-author exclusion. CAL-V0-099 is the V1-0787 stage-scoped execution prerequisites amendment. CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583). CAL-V0-078 is the V1-0780 retryable result amendment (issue 494 follow-up). CAL-V0-102..103 are the V1-0791 loop-detection amendment. CAL-V0-086 is the V1-0772 supervised stage worktree bound and unproved-stop amendment (issue 354). CAL-V0-087..089 complete S21 for issue 354 (V1-0475). This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. CAL-V0-079..081 are the V1-0793 critical-path read. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment. CAL-V0-097/S24 is issue 584. CAL-V0-098 is the V1-0789 implement-author exclusion. CAL-V0-107 is the V1-0852 caller-asserted author cover (issue 623). CAL-V0-108 is the V1-0855 cross-stage admission order (issue 626). CAL-V0-099 is the V1-0787 stage-scoped execution prerequisites amendment. CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583). CAL-V0-078 is the V1-0780 retryable result amendment (issue 494 follow-up). CAL-V0-102..103 are the V1-0791 loop-detection amendment. CAL-V0-086 is the V1-0772 supervised stage worktree bound and unproved-stop amendment (issue 354). CAL-V0-087..089 complete S21 for issue 354 (V1-0475). This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -639,7 +646,7 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   The proposed CAL-V0-067 profile MUST refuse every tracked started, pending, interrupted or
   uncertain use; missing command metadata alone MUST NOT qualify an allocation for that profile.
 - `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
-  a clean repository outside `.taskman`, a 1..300 second timeout and at most 64 KiB captured output.
+  a clean repository outside `.taskman`, a 1..3600 second timeout (PSR-V0-011) and at most 64 KiB captured output.
   Observations retain the output digest, not raw output. The implementation MUST join cancellation
   handling and stop/check the owned process group after normal exit, timeout and interruption;
   unproved cleanup MUST refuse admission. Detached processes, external services and a killed host
@@ -658,7 +665,8 @@ The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:ST
 memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}},
 priorityAdmission:BOOL}]` (`priorityAdmission` is CAL-V0-101's opt-in priority yield).
 Each map is closed over declared member names; each nested addition is optional. A command is
-`{argv:[ARG],cwd:"REPOSITORY",env:[NAME],timeoutSeconds:"N"}`. Git references return only identity,
+`{argv:[ARG],cwd:"REPOSITORY"|PINNED,env:[NAME],timeoutSeconds:"N"}`, where PINNED is PSR-V0-012's
+`{kind:"PINNED_REPOSITORY",path,revision}`. Git references return only identity,
 never configuration bodies. Duplicate identical configuration references refuse; differently named
 references cannot prove distinct physical environments. The command interpreter and external services
 are operator-provided dependencies, not attested deployed lineage. Commands run in the caller's
@@ -882,7 +890,8 @@ derived from the installed CLI source and is not live-qualified; see
   unreadable; ended workers are then accounted on the next readable tick. A restarted dispatcher
   MUST adopt recorded workers whose identities still match. With `heal.handoff`, a live attempt held by an ended worker MUST be released as
   `HANDOFF`, with `--evidence dispatch:<worker>` when it has no candidate (CAL-V0-046). A refused
-  handoff MUST emit `needs-owner` and leave the attempt untouched. With `heal.reap`, an expired lease
+  handoff MUST emit `handoff-refused`. With `heal.exitRecovery` off it MUST also emit `needs-owner` and
+  leave the attempt untouched; otherwise the bounded exit recovery of CAL-V0-104 follows. With `heal.reap`, an expired lease
   whose holder is not a running worker of this program MUST be reaped, whoever held it, since an
   expired lease is reapable by any operator. Heal request IDs are deterministic, so a
   repeated heal replays.
@@ -1408,7 +1417,8 @@ read when the watch starts; the other half is left for directories, the audit's 
 concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
 device, inode, mode, size, modification time and change time, read before and after registration
 and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
-change. The directory watch still reports any entry created, removed or renamed. Regular files
+change, and the watch keeps reporting it. The directory watch still reports any entry created,
+removed or renamed. Regular files
 therefore no longer exhaust descriptors as a store grows. Directories are not budgeted, so a
 directory-heavy tree or many concurrent watches can still be refused with too many open files, as
 can any other registration failure. Two limits apply beyond the budget:
@@ -1416,9 +1426,23 @@ can any other registration failure. Two limits apply beyond the budget:
   timestamp collision, is missed by the watch. Only a path that rereads the file's bytes can catch
   it, and an inventory built from audit observations reuses cached digests (the exposure recorded
   above as V1-0775).
-- Each `Check` re-reads the over-budget files' stat tuples. Lease commits call `Check` while holding
-  the writer lock, so locked work then grows with the number of files beyond the budget, contrary
-  to CAL-V0-026's bound (V1-0845).
+- Lease commits keep the re-read out of the writer lock (V1-0845). Just before taking the lock they
+  `Sweep` the over-budget stat tuples, and under the lock they call `CheckEvents`, which only polls
+  kqueue and the result kept from earlier reads, so guard polling under the lock does not grow with
+  the store. This does not by itself meet CAL-V0-026's locked-work bound: `retainCheckpoint`, still
+  called under the lock, traverses, sorts and encodes the whole canonical map, a remaining
+  store-size cost tracked separately. A store writer changes files only by creating, linking,
+  renaming or removing entries (`authority.Session`), which a watched directory reports whenever it
+  happens, so no store write between the sweep and the locked check is lost; no Tasks writer edits a
+  watched file in place. The accepted bound is an in-place write or mode change to an over-budget
+  file by an actor that does not take the writer lock (an external editor or tool), made after the
+  sweep read that file: the locked check does not see it. The lease then commits on the canonical
+  journal content, because `commitLease` rebinds only `head.json` and not the intent tree. The next
+  audit refuses a content edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or
+  a ticket); a mode change that leaves the file readable and its content unchanged can pass that
+  audit, because projection validation compares content digests and compares mode only between
+  observations within one audit. Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
 
 Linux inotify holds no descriptor per watched path and needs no budget.
 
@@ -2663,7 +2687,7 @@ V1-0789, with owner decisions: by default exclude only the most recent implement
 `NOT_OBSERVED` generation in scope also refuses; no new codes; no backfill of legacy member facts.
 It builds on the V1-0788 prior-generation history and on CAL-V0-065 explicit exclusions.
 
-- `CAL-V0-098`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusion mode, `LATEST` (CLI `--exclude-authors`) or `ALL` (CLI `--exclude-authors=all`). A supplied mode MUST require an explicit pool and stage `review` or `integrate`; any other stage, an absent pool, another mode value, a repeated CLI flag or another verb MUST refuse as malformed, except that the internal POOL_PREPARE for such a claim MUST carry the mode together with the derived ticket and refuses either alone. Canonical request preimages MUST bind the mode as `excludeAuthors` and MUST omit the field when absent, preserving historical bytes; the derived member set is not part of the request, so replay precedes derivation, an identical request replays its original allocation, and a changed mode under the same request ID MUST conflict with `REQUEST_ID_CONFLICT`. On fresh admission the derivation MUST read every generation of the ticket's attempts, prior generations from the V1-0788 prior-generation history and each attempt's current generation as that history would record it once ended, newest generation first. It MUST skip a generation recorded at stage `review` or `integrate`; every other generation it reaches MUST be an `implement` generation with a recorded pool member, which is an author. `LATEST` MUST stop at the first author; `ALL` MUST read every generation. A reached generation whose history is `NOT_OBSERVED`, one with no recorded stage, an implement generation without a pool member, or a ticket with no implement generation MUST refuse with `INDEPENDENCE_UNVERIFIED` and a detail naming the generation, before any member selection or health preparation; the claim is never silently unfiltered and no member is inferred from receipts or any other source. The effective exclusion set MUST be the union of explicit `--exclude-member` labels and the authors' members recorded in the requested pool, and the CAL-V0-065 predicate MUST apply it to allocation, every health-selection round, final prepared admission and preview capacity. POOL_PREPARE MUST rederive the authors from the snapshot it commits against and MUST refuse, before recording PREPARING and so before any health command runs, a member that derivation excludes or a derivation that is unverified; the claim is then reevaluated with a fresh derivation. When no member remains, the claim MUST refuse `RESOURCE_COLLISION` with a detail naming each excluded author's member, pool and generation. Plan preview, and so CLAIM_NEXT, MUST evaluate the same derivation per ticket before pool capacity, as a named claim does, reporting the same refusal code and detail as a blocker even when the pool is exhausted, and, only when the mode is supplied, MUST add `detail` (string or null) and `excludedAuthors` (array of `{attemptId, generation, poolId, memberId}`, or null when unverified) to each entry.
+- `CAL-V0-098`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusion mode, `LATEST` (CLI `--exclude-authors`) or `ALL` (CLI `--exclude-authors=all`). A supplied mode MUST require an explicit pool and stage `review` or `integrate`; any other stage, an absent pool, another mode value, a repeated CLI flag or another verb MUST refuse as malformed, except that the internal POOL_PREPARE for such a claim MUST carry the mode together with the derived ticket and refuses either alone, and carries the claim's explicit members only together with the mode. Canonical request preimages MUST bind the mode as `excludeAuthors` and MUST omit the field when absent, preserving historical bytes; the derived member set is not part of the request, so replay precedes derivation, an identical request replays its original allocation, and a changed mode under the same request ID MUST conflict with `REQUEST_ID_CONFLICT`. On fresh admission the derivation MUST read every generation of the ticket's attempts, prior generations from the V1-0788 prior-generation history and each attempt's current generation as that history would record it once ended, newest generation first. It MUST skip a generation recorded at stage `review` or `integrate`; every other generation it reaches MUST be an `implement` generation with a recorded pool member, which is an author. `LATEST` MUST stop at the first author; `ALL` MUST read every generation. A reached generation whose history is `NOT_OBSERVED`, one with no recorded stage, or an implement generation without a pool member MUST refuse with `INDEPENDENCE_UNVERIFIED` and a detail naming the generation, before any member selection or health preparation, unless CAL-V0-107 covers it; a ticket with no implement generation has nothing to exclude (CAL-V0-107); the claim is never silently unfiltered and no member is inferred from receipts or any other source. The effective exclusion set MUST be the union of explicit `--exclude-member` labels and the authors' members recorded in the requested pool, and the CAL-V0-065 predicate MUST apply it to allocation, every health-selection round, final prepared admission and preview capacity. POOL_PREPARE MUST rederive the authors from the snapshot it commits against and MUST refuse, before recording PREPARING and so before any health command runs, a member that derivation excludes or a derivation that is unverified under the claim's own CAL-V0-107 cover; the claim is then reevaluated with a fresh derivation. When no member remains, the claim MUST refuse `RESOURCE_COLLISION` with a detail naming each excluded author's member, pool and generation. Plan preview, and so CLAIM_NEXT, MUST evaluate the same derivation per ticket before pool capacity, as a named claim does, reporting the same refusal code and detail as a blocker even when the pool is exhausted, and, only when the mode is supplied, MUST add `detail` (string or null) and `excludedAuthors` (array of `{attemptId, generation, poolId, memberId}`, or null when unverified) to each entry.
 
 Non-goals: this is not actor authentication, not an independence proof, and not a statement that two
 member labels name physically distinct environments (the issue 480 ERG non-goal stands); no backfill
@@ -2671,8 +2695,8 @@ or inference of legacy member facts; no per-pool `independentStages` policy; no 
 exclusion by holder label; no change to implement-stage claims.
 
 Failure modes: a legacy or supervised generation (`NOT_OBSERVED`), a stage-less claim that may have
-implemented the ticket, an implement claim outside any pool, or a ticket never implemented all refuse
-`INDEPENDENCE_UNVERIFIED`; an author in another pool contributes no exclusion to the requested pool;
+implemented the ticket, or an implement claim outside any pool refuses `INDEPENDENCE_UNVERIFIED`
+unless explicit exclusions cover it (CAL-V0-107, which also admits a ticket never implemented); an author in another pool contributes no exclusion to the requested pool;
 an exhausted pool refuses `RESOURCE_COLLISION` naming the authors; a later policy change cannot
 change a replayed allocation; a caller who reads the exclusion as proof of independence is told
 otherwise by the documented non-goal.
@@ -2708,14 +2732,15 @@ claims with no new state, no new result code and no waitlist (V1-0785 stays sepa
   competing tickets are at least as many as those free members. Free eligible members are the
   claim's own CAL-V0-029 ordered eligibility for its `--stage`, its CAL-V0-065 exclusions and the
   occupancy in `pools.json`; a prepared allocation of the claim counts as free. A competing ticket
-  is `OPEN`, precedes the claimed ticket in plan order (priority, order, ticket ID), records
+  is `OPEN`, precedes the claimed ticket in admission order (CAL-V0-108; plan order, that is
+  priority, order and ticket ID, when no ticket waits for a downstream stage), records
   `requiresPool` P, and has no claim blocker, which includes a live attempt (`ATTEMPT_LIVE`). The
-  detail names the pool, the competitor and free counts, and the first competitor in plan order
+  detail names the pool, the competitor and free counts, and the first competitor in admission order
   (`yields to <ticketId>`). The check runs after the claimed ticket's own state and live-attempt
   checks and before scope collision, capacity, retry, health preparation and member allocation, so
   a yielded claim posts nothing, prepares no member and runs no command. A claim without `--pool`,
   on a pool without the flag, or with no free eligible member is unaffected. Plan preview MUST
-  apply the same rule in plan order: with `--pool P`, and in the default plan for an entry that
+  apply the same rule: with `--pool P`, and in the default plan for an entry that
   requires P, an entry the rule would refuse is `DEFERRED RESOURCE_COLLISION` with blockers
   `[<ticketId yielded to>]` before the pool cap, outside `maxActiveAttempts`, and the default
   plan's `resourceDeferred` row counts it as deferred. `claim --next` claims a `SELECTED` entry of
@@ -2729,7 +2754,8 @@ claims with no new state, no new result code and no waitlist (V1-0785 stays sepa
 Non-goals: a durable waitlist, reservation hand-off or re-claim grace for a competitor that is
 briefly blocked or unobservable (V1-0785); new result or detail codes; changing `claim --next`,
 pool health or cleanup; the supervisor's stage-transition member allocation, which is not a claim;
-aging or fairness between equal-priority tickets beyond plan order; any Core change (Core reads only
+aging or fairness between equal-priority tickets beyond plan order and the CAL-V0-108 downstream
+rank; any Core change (Core reads only
 `policySha256`, and its `taskman-plan/0` decoder already admits a ticket ID blocker on a `DEFERRED
 RESOURCE_COLLISION` entry). Failure modes: a competitor that collides on scope with a live
 reservation is still claim-eligible and still counts, so a lower-priority ticket can yield to a
@@ -2955,6 +2981,204 @@ resumes from a checkpoint after that record. Attempts with shorter paths keep id
 Rollback reverts the decoder and the workflow together; the drain and watcher changes write no new
 bytes. Regression witnesses are in the CAL-V0-086 traceability row; see
 `docs/build-log/2026-10-05-tasks-multirepo-continuation.md`.
+
+### V1-0851 worker-exit release or reap (issue 622)
+
+Human-owned input: owner request [issue 622](https://github.com/beamfall/corvint/issues/622) and
+native ticket V1-0851. Observed on program `flowproof` (2026-10-05/06): six dispatcher-launched
+workers ended without releasing their attempts. Each time the dispatcher's one hand-off was refused
+and it reported `needs-owner` and left the attempt RUNNING and its pool member ALLOCATED, even after
+the lease expired. In one case the attempt had meanwhile become FAILED/FENCED, so a manual reap
+changed nothing. The owner asked for a bounded release retry, a reap once the lease expires, and
+`needs-owner` only when both fail, behind a dispatcher switch that defaults on.
+
+- `CAL-V0-104`: With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
+  refused hand-off of a live attempt held by an ended worker this dispatcher launched or adopted
+  MUST NOT emit `needs-owner` at once. The dispatcher MUST track that attempt at the generation and
+  holder it observed, in memory for its run, and on each later readable tick:
+  (1) if the attempt is absent or no longer live (released, reaped, or FAILED/FENCED by another
+  path), it MUST drop the recovery with a `handoff` event whose detail `recovery` is
+  `ALREADY_ENDED`, and write nothing;
+  (2) if the attempt's generation or holder changed, it MUST drop the recovery with a `handoff`
+  event whose `recovery` is `SUPERSEDED`, and never release or reap it;
+  (3) once the lease has expired, it MUST reap the attempt through the fenced reap transaction
+  (which fails the attempt and quarantines its pool member as an ordinary reap does), at most three
+  times;
+  (4) before the lease expires, it MUST retry the `HANDOFF` release, with the same evidence rule as
+  CAL-V0-056, so that at most three releases are made including the first; after the last refusal
+  it waits, without writing, for the lease to expire.
+  Writes are spaced by `tickSeconds` doubled per write and capped at five minutes, on the
+  dispatcher's clock. Each retry uses a distinct deterministic request ID, derived from the worker,
+  attempt, generation and try number, so a recorded refusal is never replayed as the retry's
+  answer. A successful retry emits `handoff` or `reaped` with `recovery` `RELEASED` or `REAPED`; a
+  reap that the store reports as changing nothing is resolved too. `needs-owner` MUST be emitted
+  exactly once, naming both last errors, only when the reaps are exhausted, or when the releases
+  are exhausted and the attempt has no lease to reap. An attempt held by any other holder is never
+  recovered; only the generic `heal.reap` of CAL-V0-056 applies to it. With `heal.exitRecovery`
+  false, CAL-V0-056's single hand-off and immediate `needs-owner` are unchanged. While a recovery
+  is pending or exhausted, a worker reported as ended again (because a tick failed before the worker
+  was accounted) MUST NOT restart it: the tries, backoff and request IDs continue, and an exhausted
+  recovery writes nothing more until the attempt ends or is superseded.
+
+Non-goals: persisting the recovery across a dispatcher restart (after a restart `heal.reap` still
+reaps the expired lease of a holder that is not a running worker, but releases are not retried);
+recovering attempts this dispatcher did not launch or adopt; a configurable retry count or backoff;
+new event kinds. Failure modes: an unreadable store skips heal, so the recovery waits for the next
+readable tick; a store write cancelled by shutdown leaves the recovery pending for the next tick of
+the same run; a restart loses pending recoveries; a lease renewed by a still-running orphan keeps
+the attempt live and, once releases are exhausted, the recovery waits for that new expiry; and
+with `heal.reap` also on, an expired attempt is written by the recovery only, never twice in one
+tick.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-104 | `TestCALV0104_ExitRecoveryRetriesHandoffOnLiveLease`, `TestCALV0104_ExitRecoveryReapsExpiredLease`, `TestCALV0104_ExitRecoveryResolvesFencedAttempt`, `TestCALV0104_ExitRecoveryNeedsOwnerOnlyWhenBothFail`, `TestCALV0104_ExitRecoverySurvivesFailedPostHealObservation`, `TestCALV0104_ExitRecoverySwitchOff`, `TestCALV0104_ExitRecoveryConfig` (`internal/tasks/dispatch`); `TestCALV0056_HandoffAndReap`, `TestCALV0056_CancelledHealingStopsNextWrite` unchanged |
+
+Rollback: set `heal.exitRecovery` to false for CAL-V0-056's original behaviour, or revert the
+change. The switch is an optional config member and the recovery writes no new ledger, store or
+wire bytes, but an older binary refuses a config that names `exitRecovery` (closed decoding), so
+remove the member before downgrading. See `docs/build-log/2026-10-06-v1-0851-worker-exit-recovery.md`.
+
+### V1-0853 held work outside the dispatcher's selection window (issue 624)
+
+Human-owned input: owner request [issue 624](https://github.com/beamfall/corvint/issues/624) and
+native ticket V1-0853. Observed on 2026-10-05: the program's work state held 21 tickets
+(`hold-lane`, `hold-dep`), yet they stayed SELECTED in the `maxActiveAttempts` window of 24.
+That left 142 actionable tickets DEFERRED `LIMIT_EXCEEDED`, so no role could ever launch them. The
+owner asked that the window count only tickets the dispatcher can act on. The preferred form is
+derived and needs no new store state.
+
+- `CAL-V0-105`: When the dispatcher has a work-state reader, a ticket MUST count as held exactly when
+  its observed work state is a known value (neither `NONE` nor `UNKNOWN`) that the state
+  predicate (`states`/`excludeStates`, CAL-V0-054) of no ticket role admits. Lane roles do not
+  count. The dispatcher MUST then replan the same observed snapshot, with no further store read and
+  no store write, passing the held ticket IDs as a derived input. In that plan, a held ticket that
+  would otherwise reach the selection window MUST be `DEFERRED` with reason and blocker
+  `WORK_STATE_HELD`, MUST NOT count toward `maxActiveAttempts`, and MUST NOT block a later ticket by
+  resource collision. A ticket that is BLOCKED (held record, dependency, prerequisite, loop) keeps
+  that decision. A held OPEN ticket that requires a pool still counts as waiting for CAL-V0-101
+  priority yield, so the dispatcher's plan agrees with the native claim's admission. Without a
+  reader, without a ticket role, with no held ticket, or for a ticket whose state is `UNKNOWN` or
+  `NONE`, the plan MUST be exactly today's (fail closed). The decision MUST be a pure function of
+  the snapshot and the work-state observation. `WORK_STATE_HELD` is derived dispatcher output only:
+  it appears in the dispatcher's ticket plan and `state` events. It is never a wire code, a stored
+  value, a plan-preview reason or a claim refusal.
+
+Non-goals: a native, revisionless program hold (the issue's alternative), counting held tickets for
+plan preview or `claim-next`, which have no work-state observation and keep today's window, a
+"not routed for N ticks" heuristic, and any change to the native claim's live-reservation limit.
+Failure modes: a work-state reader that fails reports `UNKNOWN`, so the affected tickets stay in the
+window as before. A role whose predicate admits a hold value means that value is not a hold. A
+worker launched by a non-dispatcher client can still claim a held ticket through `claim-next`,
+because the native plan does not see work state. The dispatcher's plan can therefore differ from
+`plan preview` while tickets are held.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-105 | `TestCALV0105_WorkStateHeldTicketsLeaveWindow`, `TestCALV0105_HeldSetDoesNotOverrideBlockedOrUnheld`, `TestCALV0105_HeldPooledTicketStillTakesPriorityYield` (`internal/tasks/transaction`); `TestCALV0105_HeldWorkStateLeavesDispatcherWindow`, `TestCALV0105_UnknownOrUnreadStateKeepsWindow`, `TestCALV0105_StateMatchesIsTheRolePredicate` (`internal/tasks/dispatch`); `TestCALV0105_DispatchObservationReplansHeldTickets` (`internal/tasks/cli`) |
+
+Rollback: revert the change. No config, ledger, store or wire bytes change, so every binary reads the
+same state. Removing the work-state reader, or giving a role a predicate that admits the hold values,
+also restores today's window. See `docs/build-log/2026-10-06-v1-0853-workstate-held-window.md`.
+### V1-0852 caller-asserted author cover (issue 623)
+
+Human-owned input: owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (native
+ticket V1-0852). A review claim with `--exclude-authors` on a ticket whose implement generation
+predates V1-0788 (no recorded member) refused `INDEPENDENCE_UNVERIFIED` even when the caller named
+the author with `--exclude-member`, and a ticket with no implement generation at all refused although
+it has no author to exclude. The V1-0789 build log records both refusals as an implementer extension
+raised as owner questions, not owner decisions; this amendment answers them as the issue asks.
+
+- `CAL-V0-107`: When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explicit
+  `--exclude-member`, a reached generation whose history is `NOT_OBSERVED`, one with no recorded
+  stage and no recorded pool member, or an implement generation without a pool member MUST be
+  treated as covered by the explicit set: it contributes no member, does not refuse, and the walk
+  continues to older generations (`LATEST` still stops at the first recorded author). A generation
+  with no recorded stage but a recorded pool member MUST still refuse; a recorded member is never
+  replaced by the caller's assertion. Without explicit exclusions every CAL-V0-098 refusal is
+  unchanged. A ticket with no recorded implement author (none implemented, only review or integrate
+  generations, or only covered generations) MUST NOT be refused for that reason; its effective
+  exclusion set is the explicit members, and an exhausted pool's `RESOURCE_COLLISION` detail says
+  `excluded implement authors: none recorded`. An admitted claim's result MUST carry a warning
+  naming each covered generation as covered by the caller's explicit `--exclude-member` set, not by
+  recorded members, and a warning when no implement generation records an author. The request
+  preimage, replay and `REQUEST_ID_CONFLICT` behaviour of CAL-V0-065 and CAL-V0-098 are unchanged:
+  the warnings come from fresh derivation and an exact replay does not repeat them. POOL_PREPARE
+  MUST carry the claim's explicit members and apply the cover only when they are present, so the
+  cover is never implied: without them a generation that became unrecorded after the claim's
+  derivation refuses `INDEPENDENCE_UNVERIFIED` before PREPARING is recorded and so before any
+  health command runs or any member is quarantined, and the claim is reevaluated.
+
+Non-goals: no backfill or inference of legacy member facts; no proof that the explicit set names the
+author; no new result code or stored field; the plan preview keeps its CAL-V0-098 shape.
+
+Failure modes: a caller who names the wrong member is admitted on the real author's member; the
+warning records the claim as caller-asserted, which is the only safeguard. A stage-less pooled
+generation still refuses. A binary without this amendment refuses the same claims as before.
+
+Acceptance evidence: `TestCALV0107_ExplicitMembersCoverUnrecordedGenerations`,
+`TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`,
+`TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor` (`internal/tasks/store`);
+`TestCALV0107_CLIClaimReportsCoveredGenerations`, `TestCALV0098_CLIExcludeAuthors`,
+`TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`); see
+`docs/build-log/2026-10-06-v1-0852-author-exclusion-cover.md`.
+
+Rollback: revert the code and this amendment. No stored state or preimage changes; claims admitted
+under the cover keep their recorded allocations.
+
+### V1-0855 cross-stage admission order (issue 626)
+
+Human-owned input: owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (native
+ticket V1-0855). With `priorityAdmission` on, an implement claim for an equal-priority ticket earlier
+in plan order took the only free member while a review claim for a ticket that gated others had been
+waiting longer. CAL-V0-101 ranked competitors by plan order only, so stage and waiting time did not
+count. The issue asks that a waiting review claim for a blocking ticket beat new implement claims,
+and that the decision be visible.
+
+- `CAL-V0-108`: CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: priority
+  first; at equal priority a downstream ticket before any other; two downstream tickets by the
+  earlier handoff sequence; then plan order (order, ticket ID). A ticket is downstream when its
+  latest attempt generation is terminal, is bound to the ticket's current acceptance revision, and
+  recorded a `HANDOFF` to `review` or `integrate` (its CAL-V0-084 `nextStage`); its handoff sequence
+  is that generation's `phaseSinceSeq`. The rank MUST be derived from the attempts on every read and
+  claim and MUST NOT add store, journal, request or wire state. A downstream competitor's claim
+  blockers MUST be read at its own downstream stage, the stage its claim names, so CAL-V0-099
+  stage-scoped prerequisites apply as they would to that claim; any other competitor's blockers are
+  read as before. Every competitor MUST be read against the pool itself, needing a free member
+  eligible for the stage it is read at, and without the plan's or claim's own `--exclude-member` or
+  `--exclude-authors`, so the default plan, a `--pool` plan and a claim count the same competitors.
+  The yield refusal detail keeps its CAL-V0-101 text and, when the ticket yielded
+  to is downstream, MUST append `; <ticketId> awaits <stage> since seq <seq>`. Plan preview (default
+  and `--pool`), `claim --next` and `ticket show` claimability MUST use the same order, so they agree
+  with an explicit claim. Without a downstream competitor the order is plan order and every
+  CAL-V0-101 result is unchanged; a pool without the flag is unaffected.
+
+Non-goals: a review or integrate ticket does not outrank a higher-priority implement ticket; there
+is no priority inheritance from dependent tickets and no `critical` or `blocks-gate` ticket field
+(the issue's alternative; an owner question). The time an implement-stage ticket has waited is not
+recorded, so among non-downstream tickets plan order stands; downstream-first is the derived stand-in
+for "waiting longer" and covers a review that open tickets depend on. A competitor's own
+`--exclude-member` or `--exclude-authors` is not known, so free members are counted for the claimed
+ticket only, as before. `dispatch status` is not changed: it reads the dispatcher configuration and
+ledger, not admission, and the decision is visible in the refusal detail, the plan entry's blocker
+and the competitor's `nextStage`.
+
+Failure modes: an implement claim on a pool with a downstream ticket waiting at equal priority now
+yields where it was admitted before; the operator claims the downstream ticket, changes priorities
+or drops the flag. A downstream ticket that never claims keeps its rank until its handoff is
+superseded by a new generation or its acceptance revision changes. A claim on a ticket whose
+recorded next stage is downstream ranks downstream whatever `--stage` it names, because the rank is
+derived from records only.
+
+Acceptance evidence: `TestCALV0108_WaitingReviewOutranksArrivingImplement` (issue order: review
+waiting, implement claim arrives, a member frees, the implement claim yields and the review is
+admitted; flag off admits the implement claim), `TestCALV0108_EarlierHandoffWinsAtEqualPriority`,
+`TestCALV0108_AdmissionRank`, `TestCALV0101_PlanClaimAndClaimNextAgree` (now with generated
+handoffs), `TestCALV0101_FlagOffMatchesNMinusOne` (pinned digest unchanged)
+(`internal/tasks/transaction`); see `docs/build-log/2026-10-06-v1-0855-cross-stage-admission.md`.
+
+Rollback: revert the code and this amendment. No stored state or preimage changes; admission
+returns to plan order at the next read or claim.
 
 ## Amendments to TCP-00
 
@@ -3242,6 +3466,10 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-101 | `TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`); `TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`) |
 | CAL-V0-102 | See the V1-0791 amendment table: intent, snapshot, transaction (including the pinned N-1 digest), store, cli, dispatch, wire and lrfrepo tests |
 | CAL-V0-103 | See the V1-0791 amendment table: owner reopen in store and cli tests; dispatcher once-per-episode event and closed ledger member in dispatch tests |
+| CAL-V0-104 | See the V1-0851 amendment table: worker-exit release retry, reap, fenced resolution and switch-off tests in `internal/tasks/dispatch` |
+| CAL-V0-105 | See the V1-0853 amendment table: planner, dispatcher and native-observation replan tests |
+| CAL-V0-107 | `TestCALV0107_ExplicitMembersCoverUnrecordedGenerations`, `TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor`, `TestCALV0107_HealthPrepareNeverImpliesCover` (`internal/tasks/store`); `TestCALV0107_CLIClaimReportsCoveredGenerations`, `TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`) |
+| CAL-V0-108 | `TestCALV0108_WaitingReviewOutranksArrivingImplement`, `TestCALV0108_EarlierHandoffWinsAtEqualPriority`, `TestCALV0108_AdmissionRank`, `TestCALV0108_DownstreamCompetitorNeedsItsStageMember`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_FlagOffMatchesNMinusOne` (`internal/tasks/transaction`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
@@ -3493,3 +3721,67 @@ read every envelope again, and no store, journal or receipt state depends on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable`, `TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable`, `TestCALV0078_SupervisedCheckingFailureIsNotRetryable`, `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable`, `TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable` (`internal/tasks/store`) |
+
+## V1-0854 batch refine amendment
+
+Authoritative input: owner request [issue 625](https://github.com/beamfall/corvint/issues/625)
+(ticket V1-0854). Refining about 110 tickets took 110 separate `ticket refine` processes. Each one
+acquired the writer lock, ran the writer guards and §5.2 redo, and audited the store, while
+concurrent claims and heartbeats waited behind them. A single all-or-nothing batch would hold the
+lock for the whole run instead. This amendment adds a chunked batch form of `ticket refine`. It
+changes no wire profile, envelope, payload rule, receipt or replay rule, and it leaves the
+single-ticket `ticket refine` unchanged.
+
+- `CAL-V0-106`: `corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload
+  JSON) [--issued-at TS] [--role ROLE]` MUST read a non-empty JSON array of at most 1000 entries,
+  and at most 8 MiB, each a closed object `{target, expectedRevision, payload}`. `target` is a
+  ticket ID or local ID, `expectedRevision` a Count string and `payload` the REFINE payload
+  canonicalized as the single form canonicalizes it. Before taking the writer lock, the command
+  MUST validate every entry: the entry's shape, its payload, that its target exists in the
+  current queue, that no target is named twice, and that the entry's derived envelope decodes. It
+  MUST also check that the actor is admitted. Any failure refuses the whole batch with the failing
+  entry's path and writes nothing. Entry `i` is the ordinary §3.3 REFINE envelope with request ID
+  `ID/i` (the derived IDs must fit `wire.MaxRequestIDBytes`) and the batch's one `issuedAt`. The
+  command MUST apply the entries in index order, in chunks. Each chunk acquires the writer lock
+  once, runs the writer guards and §5.2 redo once, and starts no entry after 8 entries
+  (`store.BatchChunkEntries`) or once it has held the lock for 2 s (`store.BatchChunkHold`). Its
+  first entry always runs. Between chunks the command MUST release the lock and wait
+  `store.BatchYield` (5 lock polls) before acquiring it again, so a polling claim, renew or
+  heartbeat can commit between chunks. Within a chunk, each entry MUST be committed exactly as the
+  single form commits it: its own request lookup and replay (TM-V0-006), CAS on
+  `expectedRevision`, recorded time sampled again from the command's clock, and receipt.
+  A refused entry, such as a stale `expectedRevision` (`REVISION_CONFLICT`) or a request ID
+  conflict, MUST write nothing for that entry, and the batch continues. An error, including a
+  writer-guard refusal while a chunk opens, MUST stop the batch at that entry and report every
+  later entry as `NOT_ATTEMPTED`. The command MUST return one `taskman-command-result/0` item with
+  `batchRequestId`, `issuedAt`, `chunkEntries`, `chunks`, the counts `completed`, `replayed`,
+  `failed` and `notAttempted`, and an `entries` array index-aligned with the input. Each entry
+  gives `index`, `requestId`, `ticketId`, `chunk`, `outcome`, `codes`, `replayed`, `receipt`,
+  `resultingRevision` and `detail`. The envelope is `OK` only when every entry completed. It is
+  `ERROR` when an entry erred, and otherwise `REFUSED`, with the union of the entry codes. Repeating
+  the command with the same `--request-id`, `--issued-at` and input MUST replay every completed
+  entry without a second receipt. The same request ID with a different `issuedAt` or entry is
+  refused per entry as `REQUEST_ID_CONFLICT`. `--batch` refuses `--target`, `--expected-revision`
+  and `--template`, is recognized only in a flag position (never as another flag's value), works only
+  on `ticket refine`, and `ticket refine --help` documents it. The 8 MiB bound applies to
+  `--payload` and `--payload-stdin` alike.
+
+Non-goals: batch forms of other verbs; one atomic all-or-nothing batch; fairness for the polling
+writer lock beyond the yield; any change to per-entry audit cost (each entry still audits the store,
+and only process start, lock acquisition, guards and redo are shared per chunk); and a default
+`issuedAt` that a retry can reproduce. A retry MUST pass the `issuedAt` that the first result
+reports.
+
+Failure modes: a waiter that does not poll during the yield can still lose the lock to the next
+chunk. It waits at most one chunk (8 entries or about 2 s plus one entry) before the next release.
+An interrupted batch leaves a completed prefix. Each entry is either committed or not, a pending
+receipt is redone by the next writer (§5.2), and the retry replays the prefix. A ticket changed by
+another writer between validation and its chunk refuses that entry as `REVISION_CONFLICT`, as the
+single form would. A batch request ID reused with a different input replays identical entries,
+refuses changed ones as `REQUEST_ID_CONFLICT`, and applies entries at indexes it did not use before. Rollback removes the `--batch` flag, `store.MutateBatch`
+and the `mutateLocked` split. Batch entries are ordinary REFINE receipts, so no store, journal or
+receipt state depends on the batch form.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |

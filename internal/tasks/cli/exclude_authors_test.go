@@ -80,8 +80,10 @@ func TestCALV0098_CLIExcludeAuthors(t *testing.T) {
 		if id == authored {
 			continue
 		}
-		if field(en, "reason").Str != wire.CodeIndependenceUnverified || field(en, "excludedAuthors").Kind != wire.KindNull || !strings.Contains(field(en, "detail").Str, "no implement generation") {
-			t.Fatalf("unverified entry %s", wire.Encode(en))
+		// CAL-V0-107: a ticket with no implement generation has nothing to
+		// exclude and is not refused.
+		if field(en, "reason").Str == wire.CodeIndependenceUnverified || len(field(en, "excludedAuthors").Arr) != 0 {
+			t.Fatalf("unimplemented entry %s", wire.Encode(en))
 		}
 	}
 	exhausted := byTitle("--exclude-authors=all", "--exclude-member", "a")[authored]
@@ -146,7 +148,29 @@ func TestCALV0098_ExhaustedPoolParity(t *testing.T) {
 			t.Fatal(x.res)
 		}
 		fresh := planTicket(t, r.Root, "fresh", "P1", `["fresh"]`)
-		agree(t, r.Root, fresh, wire.CodeIndependenceUnverified, "no implement generation", "--exclude-member", "a", "--exclude-member", "b", "--exclude-member", "review")
+		agree(t, r.Root, fresh, wire.CodeResourceCollision, "excluded implement authors: none recorded", "--exclude-member", "a", "--exclude-member", "b", "--exclude-member", "review")
+	})
+
+	t.Run("unrecorded stage", func(t *testing.T) {
+		r := exclusionCLIRepo(t)
+		if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+			t.Fatal(x.res)
+		}
+		// A pooled claim without --stage records its member but no stage;
+		// no explicit member covers it (CAL-V0-107).
+		id := planTicket(t, r.Root, "stageless", "P1", `["stageless"]`)
+		x := atm(t, r.Root, nil, "claim", id, "--holder", "builder", "--request-id", "stageless", "--pool", "db", "--exclude-member", "a", "--exclude-member", "review")
+		item := x.res.Items[0]
+		if x.res.Outcome != wire.OutcomeOK || field(field(item, "poolAllocation"), "memberId").Str != "b" {
+			t.Fatalf("stage-less %s", x.stdout)
+		}
+		if x := atm(t, r.Root, nil, "release", "--attempt", field(item, "attemptId").Str, "--generation", field(item, "generation").Str, "--request-id", "stageless-release"); x.res.Outcome != wire.OutcomeOK {
+			t.Fatal(x.res)
+		}
+		if x := atm(t, r.Root, nil, "pool", "confirm-safe", "--member", "b", "--allocation", field(field(item, "poolAllocation"), "allocationId").Str, "--evidence", "local:fixture", "--reason", "fixture reset", "--request-id", "safe-b"); x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("confirm-safe %s", x.stdout)
+		}
+		agree(t, r.Root, id, wire.CodeIndependenceUnverified, "recorded no stage", "--exclude-member", "review")
 	})
 
 	t.Run("occupied", func(t *testing.T) {
@@ -177,6 +201,41 @@ func TestCALV0098_ExhaustedPoolParity(t *testing.T) {
 		agree(t, r.Root, authored, wire.CodeResourceCollision, "excluded implement authors: member b of pool db", "--exclude-member", "review")
 
 		fresh := planTicket(t, r.Root, "fresh", "P0", `["fresh"]`)
-		agree(t, r.Root, fresh, wire.CodeIndependenceUnverified, "no implement generation", "--exclude-member", "review")
+		agree(t, r.Root, fresh, wire.CodeResourceCollision, "excluded implement authors: none recorded", "--exclude-member", "review")
 	})
+}
+
+// CAL-V0-107: a review claim on a ticket whose implement generation recorded
+// no pool member is admitted with explicit members, and its result says the
+// exclusion rests on them; without explicit members it is still refused.
+func TestCALV0107_CLIClaimReportsCoveredGenerations(t *testing.T) {
+	r := exclusionCLIRepo(t)
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatal(x.res)
+	}
+	id := planTicket(t, r.Root, "unpooled", "P1", `["unpooled"]`)
+	plain := atm(t, r.Root, nil, "claim", id, "--holder", "builder", "--request-id", "plain")
+	if plain.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("plain %s", plain.stdout)
+	}
+	item := plain.res.Items[0]
+	if x := atm(t, r.Root, nil, "release", "--attempt", field(item, "attemptId").Str, "--generation", field(item, "generation").Str, "--request-id", "plain-release"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatal(x.res)
+	}
+	args := []string{"claim", id, "--holder", "reviewer", "--pool", "db", "--stage", "review", "--exclude-authors"}
+	if x := atm(t, r.Root, nil, append(args, "--request-id", "bare")...); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), wire.CodeIndependenceUnverified) {
+		t.Fatalf("uncovered claim admitted %s", x.stdout)
+	}
+	covered := atm(t, r.Root, nil, append(args, "--request-id", "covered", "--exclude-member", "review")...)
+	if covered.res.Outcome != wire.OutcomeOK || field(field(covered.res.Items[0], "poolAllocation"), "memberId").Str == "review" {
+		t.Fatalf("covered claim %s", covered.stdout)
+	}
+	warnings := strings.Join(covered.res.Warnings, "\n")
+	if !strings.Contains(warnings, "covered by the caller's explicit --exclude-member set, not by recorded members") || !strings.Contains(warnings, "records an author; only explicit exclusions apply") {
+		t.Fatalf("cover not reported: %s", covered.stdout)
+	}
+	// An exact replay keeps the request binding (CAL-V0-065).
+	if x := atm(t, r.Root, nil, append(args, "--request-id", "covered", "--exclude-member", "review")...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("replay %s", x.stdout)
+	}
 }

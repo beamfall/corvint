@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -71,7 +72,7 @@ func TestCALV0026_RegistrationSeesMembershipChange(t *testing.T) {
 	if _, err := w.add(repo.StateDir, true); err != nil {
 		t.Fatal(err)
 	}
-	changed, err := w.changed()
+	changed, err := w.poll()
 	if err != nil || !changed {
 		t.Fatalf("registration gap accepted: %v %v", changed, err)
 	}
@@ -190,8 +191,8 @@ func TestCALV0026_ChangeGuardOverBudgetFiles(t *testing.T) {
 							break
 						}
 					}
-					if changed, err := w.changed(); err != nil || !changed {
-						t.Fatalf("stat tuple missed %s: %v %v", name, changed, err)
+					if changed := w.sweep(); !changed {
+						t.Fatalf("stat tuple missed %s", name)
 					}
 				}
 				if err := g.Close(); err != nil {
@@ -202,5 +203,138 @@ func TestCALV0026_ChangeGuardOverBudgetFiles(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// countSweepLstat counts the stat reads of over-budget files.
+func countSweepLstat(t *testing.T) *int {
+	t.Helper()
+	original := sweepLstat
+	count := new(int)
+	sweepLstat = func(path string) (os.FileInfo, error) {
+		*count++
+		return original(path)
+	}
+	t.Cleanup(func() { sweepLstat = original })
+	return count
+}
+
+// CAL-V0-026 (V1-0845): with the store beyond the descriptor budget, the check
+// a lease commit makes under the writer lock reads no over-budget file, at any
+// store size; the sweep before the lock and the unlocked Check read them all.
+func TestCALV0026_LockedCheckIndependentOfOverBudgetFiles(t *testing.T) {
+	const budget = 2
+	for _, files := range []int{8, 256} {
+		t.Run(fmt.Sprint(files), func(t *testing.T) {
+			setVnodeFileBudget(t, budget)
+			repo, file := guardRepo(t)
+			for i := 0; i < files; i++ {
+				if err := os.WriteFile(filepath.Join(filepath.Dir(file), fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			over := files + 1 - budget
+			if got := len(g.watch.(*vnodeWatch).stats); got != over {
+				t.Fatalf("over-budget files = %d, want %d", got, over)
+			}
+			reads := countSweepLstat(t)
+			g.Sweep()
+			if *reads != over {
+				t.Fatalf("sweep read %d files, want %d", *reads, over)
+			}
+			*reads = 0
+			for i := 0; i < 2; i++ {
+				if err := g.CheckEvents(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if *reads != 0 {
+				t.Fatalf("locked check read %d over-budget files", *reads)
+			}
+			if err := g.Check(); err != nil || *reads != over {
+				t.Fatalf("unlocked check: %v after %d reads, want %d", err, *reads, over)
+			}
+		})
+	}
+}
+
+// CAL-V0-026 (V1-0845): a change the sweep saw stays reported, and a store
+// writer's entry change made after the sweep is reported by the directory
+// event, so no change is lost between the unlocked sweep and the locked check.
+// An in-place write after the sweep is the recorded bound: only a later Check
+// reports it.
+func TestCALV0026_SweepThenLockedCheckLosesNoChange(t *testing.T) {
+	for _, name := range []string{"before-sweep-in-place", "before-sweep-chmod", "after-sweep-rename-replace", "after-sweep-link", "after-sweep-remove", "after-sweep-sibling", "after-sweep-in-place"} {
+		t.Run(name, func(t *testing.T) {
+			setVnodeFileBudget(t, 0)
+			repo, file := guardRepo(t)
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if len(g.watch.(*vnodeWatch).stats) != 1 {
+				t.Fatal("x.json not over budget")
+			}
+			// The rename and link stages sit outside the watched trees on the
+			// same filesystem, so the one entry operation is the only event.
+			stage := filepath.Join(t.TempDir(), "stage")
+			if err := os.WriteFile(stage, []byte("cccc"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			change := func() error {
+				switch name {
+				case "before-sweep-in-place", "after-sweep-in-place":
+					return os.WriteFile(file, []byte("bbbb"), 0600)
+				case "before-sweep-chmod":
+					return os.Chmod(file, 0640)
+				case "after-sweep-rename-replace":
+					return os.Rename(stage, file)
+				case "after-sweep-link":
+					return os.Link(stage, filepath.Join(filepath.Dir(file), "y.json"))
+				case "after-sweep-remove":
+					return os.Remove(file)
+				default:
+					return os.WriteFile(file+".new", []byte("new"), 0600)
+				}
+			}
+			before := strings.HasPrefix(name, "before-sweep")
+			if before {
+				if err := change(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			g.Sweep()
+			if !before {
+				if err := g.CheckEvents(); err != nil {
+					t.Fatalf("clean store reported before the change: %v", err)
+				}
+				if err := change(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			reads := countSweepLstat(t)
+			got := wire.CodeOf(g.CheckEvents())
+			if *reads != 0 {
+				t.Fatalf("locked check read %d over-budget files", *reads)
+			}
+			if name == "after-sweep-in-place" {
+				if got != "" {
+					t.Fatalf("in-place write after the sweep: %q", got)
+				}
+				if wire.CodeOf(g.Check()) != wire.CodeSnapshotMoved {
+					t.Fatal("unlocked check missed an in-place write")
+				}
+				return
+			}
+			if got != wire.CodeSnapshotMoved {
+				t.Fatalf("locked check = %q, want SNAPSHOT_MOVED", got)
+			}
+		})
 	}
 }

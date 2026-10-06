@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
@@ -220,4 +222,33 @@ func contextGit(t *testing.T, root string, args ...string) string {
 		t.Fatalf("git %v: %v %s", args, err, raw)
 	}
 	return strings.TrimSpace(string(raw))
+}
+
+// V1-0391: a Core query that emits a valid READY packet while a descendant
+// keeps stdout open is refused promptly, not accepted after the descendant
+// lets go past the 30-second context deadline.
+func TestWorkflowContextRefusesHeldOutputPipe(t *testing.T) {
+	w, root, _ := contextWorkflow(t, "Investigate DSP")
+	pidPath := filepath.Join(t.TempDir(), "descendant.pid")
+	script := []byte("#!/bin/sh\ncat context-packet\nsleep 45 &\necho $! > '" + pidPath + "'\n")
+	if err := os.WriteFile(w.cfg.CoreExecutable, script, 0700); err != nil {
+		t.Fatal(err)
+	}
+	w.cfg.CoreSHA256 = supervisor.Digest(script)
+	t.Cleanup(func() {
+		if raw, err := os.ReadFile(pidPath); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && pid > 1 {
+				if process, err := os.FindProcess(pid); err == nil {
+					_ = process.Kill()
+				}
+			}
+		}
+	})
+	began := time.Now()
+	if _, err := w.context(context.Background(), root, "HEAD"); err == nil {
+		t.Fatal("context accepted while a descendant held the output pipe")
+	}
+	if elapsed := time.Since(began); elapsed > 20*time.Second {
+		t.Fatalf("held pipe refused only after %s", elapsed)
+	}
 }

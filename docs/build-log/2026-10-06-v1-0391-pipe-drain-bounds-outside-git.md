@@ -1,0 +1,47 @@
+## 2026-10-06 V1-0391: pipe-drain bounds outside Git acquisition detect a held pipe, not a slow reader
+
+Follows V1-0390. `os/exec` starts the `WaitDelay` timer when the child exits, so a one-second bound
+fails a successful child with `exec: WaitDelay expired before I/O complete` whenever the goroutine
+copying its output is not scheduled within a second on a loaded host.
+
+The bounds named by the ticket (`doccompiler`, `taskman`, `liveverify` mutation and the work
+executable binding) were raised to one minute with a held-pipe comment in ca21d046, without tests.
+This change adds the missing starved-reader tests and fixes the equivalent production sites found by
+a repository-wide `WaitDelay` search:
+
+- `criterionexperiment` test and Tasks runs: one second to one minute, through one `ownGroup` helper.
+- `testrunner` phases without a graceful interrupt: one second to one minute. With a graceful
+  interrupt the five-second value is also the grace before `os/exec` kills the interrupted leader,
+  so it is unchanged.
+
+Each is still a hang detector: cancellation and `groupreap` kill the owned group, which closes the
+pipes, so only a descendant that keeps them open waits out the bound. `taskman`, the work executable
+binding and `testrunner` extract their containment setup (`containRead`, `workContainVersion`,
+`containPhase`) so a test can exercise the production configuration.
+
+Left as found: the `tasks/store` workflow Core context query (independent review of the first
+commit): its process group is not owned or retired, so the one-second bound is what refuses a
+descendant holding stdout before the 30-second deadline; one minute let a valid packet be accepted
+after the deadline. `TestWorkflowContextRefusesHeldOutputPipe` pins the refusal and fails with a
+one-minute bound. `tasks/dispatch` reader (its one-second `WaitDelay` is coupled to a one-second
+retirement deadline, so raising it alone changes nothing); the attempt runner (its spec states the
+one-second limit and production output is an `*os.File`, which needs no copy goroutine); the pool
+executor (an `*os.File` pipe, whose own one-second read join fails closed as `UNKNOWN`); the pool
+sweep and probe (not group-reaped before `Wait`, so a longer bound would let an in-group descendant
+delay a sweep); and sub-second or multi-second bounds in `tools/`, `interop/`, `conformance/`,
+`procgroup` and `processidentity`.
+
+Evidence: each site's `*PipeDrainBound` test (doccompiler, mutate, taskman, cmd/corvint,
+criterionexperiment, testrunner) calls `testsupport.CheckPipeDrainBound`. It requires a finite bound
+above a three-second stall; observes the child's exit unreaped (`waitid WNOWAIT`) before `Wait`, so
+the drain timer cannot start before the stall; then blocks the reader three seconds and requires the
+output. A one-second negative control on the same run must return `exec.ErrWaitDelay`, and a
+descendant holding stdout must fail the call under a short injected bound, with the descendant and
+group killed in cleanup. A one-second or zero production bound fails the doccompiler test. The existing cancellation, held-descendant and executable
+binding tests of each touched package pass. No spec states a changed bound.
+Residual: the reader's three-second hold starts just before `Wait`, because `Wait` joins the copy
+goroutine even after `WaitDelay` expires, so the release cannot wait for `Wait` to return. The
+one-second negative control can therefore false-fail (returning nil) only if the test goroutine is
+descheduled for more than two seconds between arming the hold and `Wait` arming its drain timer; it
+fails loudly, never passes a broken bound (Codex review P3, accepted).
+Rollback: revert the change; loaded hosts then fail successful subprocesses again.

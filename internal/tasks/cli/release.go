@@ -26,6 +26,9 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if res != nil {
 		return res
 	}
+	if f.batch {
+		return usage(cmd, "unknown flag --batch")
+	}
 	if f.requestID == "" || f.target == "" {
 		return usage(cmd, "--request-id and --target are required")
 	}

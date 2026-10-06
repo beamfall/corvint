@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -553,6 +554,32 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 	text, _ := hook["additionalContext"].(string)
 	if output["systemMessage"] != nil || !strings.Contains(text, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline;") {
 		t.Fatalf("deadline expiry showed a fault notice: %+v", output)
+	}
+}
+
+// LCP-V0-008, HLQ-V1-009: a Stop whose dogfood event deadline expires fails open. Its output has
+// no decision, as an unenrolled release has none, so only the named degradation in systemMessage
+// distinguishes it; the host lifecycle runner keys its time-bound retry on that frame.
+func TestClaudeAdapterStopDeadlineFailsOpenVisibly(t *testing.T) {
+	t.Parallel()
+	// The deadline expires only inside the read, so a loaded host cannot expire the event during
+	// its input read first (decision 0082); the minute is a hang detector.
+	parent, expire := workFinalInterruption("expired")
+	reached := new(atomic.Bool)
+	ctx := adapterEnvContext(parent, map[string]string{"CLAUDE_PROJECT_DIR": queryCLIRepository(t)})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(ctx context.Context, _ options, _ map[string]any) (map[string]any, error) {
+		reached.Store(true)
+		expire()
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	output := runClaudeAdapter(ctx, "stop", map[string]any{"session_id": "s", "stop_hook_active": false})
+	if !reached.Load() {
+		t.Fatalf("the Stop never reached its repository read: %+v", output)
+	}
+	if _, decided := output["decision"]; decided || output["systemMessage"] != "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues" {
+		t.Fatalf("expired Stop output %+v", output)
 	}
 }
 

@@ -19,6 +19,19 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "LANG=C"}
+	containRead(cmd)
+	out, stderr := &limitedBuffer{limit: 16 << 20}, &limitedBuffer{limit: 1 << 20}
+	cmd.Stdout = out
+	cmd.Stderr = stderr
+	e := groupreap.Run(cmd)
+	if e != nil || ctx.Err() != nil || out.overflow || stderr.overflow || len(stderr.raw) > 0 {
+		return nil, errors.New("native executor read failed or exceeded bound")
+	}
+	return out.raw, nil
+}
+
+// containRead owns the read's process group and bounds its pipe drain.
+func containRead(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
@@ -32,14 +45,6 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 	}
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	cmd.WaitDelay = time.Minute
-	out, stderr := &limitedBuffer{limit: 16 << 20}, &limitedBuffer{limit: 1 << 20}
-	cmd.Stdout = out
-	cmd.Stderr = stderr
-	e := groupreap.Run(cmd)
-	if e != nil || ctx.Err() != nil || out.overflow || stderr.overflow || len(stderr.raw) > 0 {
-		return nil, errors.New("native executor read failed or exceeded bound")
-	}
-	return out.raw, nil
 }
 
 func openInput(path string) (*os.File, error) {

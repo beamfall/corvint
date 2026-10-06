@@ -193,7 +193,7 @@ func init() {
 	commandUsage["gate resubmit"] = "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID [--prior-return SHA256] [--candidate-evidence SHA256:BYTES] [--evidence LABEL=SHA256:BYTES] [--issued-at TS] [--role OWNER|OPERATOR|WORKER]"
 	commandUsage["gate history"] = "corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]"
 	commandUsage["gate state"] = "corvint-tasks gate state <ticketId|local>"
-	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
+	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] [--detach] -- COMMAND...; corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]"
 }
 
 func helpFlags(o *wire.Object, key string) []string {

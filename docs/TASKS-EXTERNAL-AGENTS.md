@@ -146,6 +146,14 @@ key takes no part in cycles, completion or `requiredGates` (CAL-V0-099). Once an
 carried the key, older binaries refuse the store even after it is cleared, because the journal keeps
 the earlier records; roll back only with a compatible reader or a verified pre-change backup.
 
+To refine many tickets, use `ticket refine --batch --request-id ID --payload-stdin` with a JSON
+array of `{"target":"AT-02","expectedRevision":"3","payload":{...}}` entries, each target once.
+Every entry is validated before anything is written; entries then apply in chunks of at most 8
+under one writer lock each, released between chunks so claims and heartbeats are not starved. Each
+entry is an ordinary refine under request ID `ID/<index>` with its own expected-revision check and
+receipt: a stale entry is refused alone. Retry with the same `--request-id` and the `issuedAt` the
+result reports (`--issued-at`) to replay completed entries without applying them twice (CAL-V0-106).
+
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the
 unvalidated-history intent projection and report its limits, but cannot claim or complete work.
@@ -193,7 +201,10 @@ A pool may opt into priority-yield admission (CAL-V0-101) with `"priorityAdmissi
 Then an explicit `claim <ticket> --pool test-env` is refused `BLOCKED RESOURCE_COLLISION` when the
 higher-priority `OPEN` tickets that record `requiresPool:"test-env"`, have no claim blocker and no
 live attempt are at least as many as the pool's free eligible members; the detail ends
-`yields to <ticketId>`, naming the first of them in plan order. Plan preview (default and `--pool`)
+`yields to <ticketId>`, naming the first of them in admission order (CAL-V0-108): priority first,
+then, at equal priority, tickets whose latest generation handed off to `review` or `integrate`
+(earliest handoff first), then plan order. When the ticket yielded to is such a downstream ticket the
+detail adds `; <ticketId> awaits <stage> since seq <seq>`. Plan preview (default and `--pool`)
 shows such a ticket `DEFERRED RESOURCE_COLLISION` with that ticket ID as blocker, and `claim --next`
 never picks it. A competitor whose blockers are unobservable never causes a refusal; `ticket show`
 reports `NOT_OBSERVED` claimability instead. Nothing is stored and there is no waitlist (V1-0785).
@@ -238,9 +249,13 @@ It requires an explicit pool and `--stage review` or `--stage integrate`, and it
 request replays and a changed mode conflicts under the same request ID. Walking the ticket's
 generations newest first, review and integrate generations are skipped; any other generation
 reached must be an implement generation with a recorded pool member. A generation whose member is
-`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, an implement
-generation without a pool member, or a ticket with no implement generation refuses the claim with
-`INDEPENDENCE_UNVERIFIED`; it is never silently unfiltered, and nothing is recovered from receipts.
+`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, or an
+implement generation without a pool member refuses the claim with `INDEPENDENCE_UNVERIFIED`; it is
+never silently unfiltered, and nothing is recovered from receipts. When you also pass at least one
+`--exclude-member`, those generations (except a stage-less one that recorded a member) are covered by
+your explicit set instead, and the claim result warns that the exclusion is caller-asserted, not
+recorded (CAL-V0-107). A ticket with no implement generation has no author to exclude and is not
+refused.
 When no member remains, the claim refuses `RESOURCE_COLLISION` with a detail naming the excluded
 authors. `plan preview` reports the same per ticket, and with this flag adds `detail` and
 `excludedAuthors` to each entry. A recorded member label is not an authenticated identity and
@@ -251,8 +266,11 @@ receipt-bound allocation, including after a retry has acquired a successor. Rele
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
 
 Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
-`health`/`cleanup` commands. Each command has `argv`, `cwd:"REPOSITORY"`, declared `env` names and
-`timeoutSeconds` from 1 to 300. Health failures are skipped and reported in occupancy with reason,
+`health`/`cleanup` commands. Each command has `argv`, `cwd`, declared `env` names and
+`timeoutSeconds` from 1 to 3600. `cwd` is `"REPOSITORY"` or a pinned external checkout
+`{"kind":"PINNED_REPOSITORY","path":"/abs","revision":"<full sha>"}`, which runs only while that
+worktree's HEAD is the revision and its tree is clean (otherwise STALE_TREE, DIRTY_WORKTREE or
+MISSING_EVIDENCE, nothing runs). Inside `pool sweep` a cleanup still shares the safeReuse deadline. Health failures are skipped and reported in occupancy with reason,
 command kind and observation digest. Commands require clean repository inputs outside `.taskman`.
 The runner bounds captured output to 64 KiB and retains its digest only. It cleans the owned process
 group; detached processes and external databases remain the operator's responsibility.

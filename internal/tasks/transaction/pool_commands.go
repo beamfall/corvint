@@ -74,8 +74,12 @@ func planPoolPrepare(c leaseContext) leaseOutcome {
 	}
 	if c.l.ExcludeAuthors != "" {
 		// CAL-V0-098: rederive at this snapshot, so a member that became an
-		// author after the claim's refusal is never prepared or probed.
-		x, why := DeriveAuthors(c.st.attempts, c.l.TicketID, c.l.ExcludeAuthors, c.l.Pool, nil)
+		// author after the claim's refusal is never prepared or probed. The
+		// request carries the claim's explicit members, so it covers an
+		// unrecorded generation (CAL-V0-107) only when the claim's caller
+		// asserted that cover; otherwise one raced in refuses before any
+		// health command runs.
+		x, why := DeriveAuthors(c.st.attempts, c.l.TicketID, c.l.ExcludeAuthors, c.l.Pool, c.l.ExcludeMembers)
 		if x == nil {
 			return c.refuse(mutation.OutcomeBlocked, wire.CodeIndependenceUnverified, why)
 		}

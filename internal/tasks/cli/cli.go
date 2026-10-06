@@ -330,7 +330,8 @@ func helpResult() *wire.Result {
 	o.Set("supervisionLimits", wire.Strings([]string{"Optional policy profile for one policy-selected host, Codex, Claude Code or OpenCode; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
 	o.Set("usage", wire.Strings([]string{
 		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex|claude-code|opencode",
-		"corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...   (command output on stderr; exit status is the command's)",
+		"corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] [--detach] -- COMMAND...   (command output on stderr; exit status is the command's; --detach keeps it running in its own session)",
+		"corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]   (reads a detached run; exit 75 while it runs)",
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
 		"corvint-tasks pending; corvint-tasks program show",

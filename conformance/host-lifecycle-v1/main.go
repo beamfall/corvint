@@ -117,6 +117,27 @@ type runner struct {
 	pluginRoot     string
 	hooks          map[string][]string
 	results        []result
+	// lastHook and retried describe the hook invocations of the running case (HLQ-V1-009).
+	lastHook *hookCall
+	retried  []string
+}
+
+// hookCall is one run of a registered hook command, kept so a failed case can name it.
+type hookCall struct {
+	event, stdout, stderr string
+	code                  int
+	elapsed               time.Duration
+	degradation           string
+}
+
+// String is the bounded, quoted diagnostic a failed case carries (HLQ-V1-009).
+func (call *hookCall) String() string {
+	degradation := call.degradation
+	if degradation == "" {
+		degradation = "none"
+	}
+	return fmt.Sprintf("%s: exit=%d elapsed=%s degradation=%s stdout=%s stderr=%s", call.event, call.code,
+		call.elapsed.Round(time.Millisecond), degradation, quotedBounded(call.stdout, hookStreamLimit), quotedBounded(call.stderr, hookStreamLimit))
 }
 
 func main() {
@@ -323,15 +344,26 @@ func (r *runner) ok(directory string, argv ...string) (string, error) {
 	return stdout, nil
 }
 
+// step runs one case. A failure names the case's last hook invocation, and any time-bound hook
+// degradation that was retried stays in the case line whatever its status (HLQ-V1-009).
 func (r *runner) step(name string, body func() (string, error)) {
+	r.lastHook, r.retried = nil, nil
 	detail, err := body()
+	retried := ""
+	if len(r.retried) != 0 {
+		retried = "; time-bound hook degradations retried: " + strings.Join(r.retried, ", ")
+	}
 	switch {
 	case errors.Is(err, errNotRun):
 		r.results = append(r.results, result{name, "NOT_RUN", detail})
 	case err != nil:
-		r.results = append(r.results, result{name, "FAIL", err.Error()})
+		message := err.Error()
+		if r.lastHook != nil {
+			message += "; last hook " + r.lastHook.String()
+		}
+		r.results = append(r.results, result{name, "FAIL", message + retried})
 	default:
-		r.results = append(r.results, result{name, "PASS", detail})
+		r.results = append(r.results, result{name, "PASS", detail + retried})
 	}
 }
 
@@ -899,20 +931,85 @@ func (r *runner) payload(event string, fields map[string]any) []byte {
 	return data
 }
 
-// hook runs the installed registration for event with payload on stdin; a hook must exit 0.
+// hookAttempts bounds the runs of one hook invocation whose output is a time-bound degradation.
+const hookAttempts = 3
+
+// hookStreamLimit bounds each quoted hook stream in a failed case line.
+const hookStreamLimit = 512
+
+// timeBoundDegradations are the adapter degradations that name a time bound rather than a
+// semantic outcome: the dogfood event deadline (LCP-V0-008), the stale-snapshot form an expiry in
+// the in-memory build takes (AHI-031), and the adapter watchdog ahead of the host kill (AHI-017).
+var timeBoundDegradations = map[string]bool{
+	"dogfood-event-deadline":             true,
+	"dogfood-event-index-snapshot-stale": true,
+	"adapter-host-kill-deadline":         true,
+}
+
+// hook runs the installed registration for event with payload on stdin; a hook must exit 0. An
+// output that fails open on a time bound is not evidence for any case predicate: it is retried up
+// to hookAttempts times, each such attempt is retained for the case line, and exhausting the
+// attempts is an error naming the degradation (HLQ-V1-009).
 func (r *runner) hook(event string, payload []byte, environment []string) (string, error) {
 	argv, ok := r.hooks[event]
 	if !ok {
 		return "", fmt.Errorf("no %s hook registered", event)
 	}
-	stdout, stderr, code, err := r.exec(r.fixture, payload, environment, argv...)
-	if err != nil {
-		return "", err
+	for attempt := 1; ; attempt++ {
+		started := time.Now()
+		stdout, stderr, code, err := r.exec(r.fixture, payload, environment, argv...)
+		call := &hookCall{event: event, stdout: stdout, stderr: stderr, code: code, elapsed: time.Since(started), degradation: degradationCode(stdout)}
+		r.lastHook = call
+		if err != nil {
+			return "", err
+		}
+		if code != 0 {
+			return "", fmt.Errorf("%s hook exited %d: %s", event, code, firstLine(stderr))
+		}
+		if !timeBound(call.degradation) {
+			return stdout, nil
+		}
+		r.retried = append(r.retried, fmt.Sprintf("%s attempt %d %s after %s", event, attempt, call.degradation, call.elapsed.Round(time.Millisecond)))
+		if attempt == hookAttempts {
+			return "", fmt.Errorf("%s hook failed open with time-bound degradation %s on all %d attempts", event, call.degradation, hookAttempts)
+		}
 	}
-	if code != 0 {
-		return "", fmt.Errorf("%s hook exited %d: %s", event, code, firstLine(stderr))
+}
+
+// adapterDegradationFrames are the fixed texts the Claude Code and Codex adapters compose around a
+// degradation reason (cmd/corvint/host_adapter.go).
+var adapterDegradationFrames = [][2]string{
+	{"Corvint FALLBACK degraded: ", "; coding continues"},
+	{"Corvint fallback: ", "; unrelated coding continues."},
+}
+
+// degradationCode is the reason a hook output's systemMessage or additionalContext names in a
+// degradation frame, or "" when the output is not a degradation.
+func degradationCode(output string) string {
+	var document struct {
+		SystemMessage      string `json:"systemMessage"`
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
 	}
-	return stdout, nil
+	if json.Unmarshal([]byte(output), &document) != nil {
+		return ""
+	}
+	for _, text := range []string{document.SystemMessage, document.HookSpecificOutput.AdditionalContext} {
+		text, _, _ = strings.Cut(text, "\n") // a remediation line may follow the frame (AHI-031)
+		for _, frame := range adapterDegradationFrames {
+			if strings.HasPrefix(text, frame[0]) && strings.HasSuffix(text, frame[1]) && len(text) > len(frame[0])+len(frame[1]) {
+				return text[len(frame[0]) : len(text)-len(frame[1])]
+			}
+		}
+	}
+	return ""
+}
+
+// timeBound reports whether a degradation reason, bare or as a rejected dogfood event code, is
+// one of timeBoundDegradations.
+func timeBound(reason string) bool {
+	return timeBoundDegradations[strings.TrimPrefix(reason, "corvint-event-rejected:")]
 }
 
 // contextHook runs a context-bearing hook and returns the enveloped receipt and the full
@@ -964,7 +1061,11 @@ func envelopedReceipt(output string) (map[string]any, string, error) {
 // quotedHookContext preserves the diagnostic without allowing control bytes to
 // forge report rows. The full received text remains available to the caller.
 func quotedHookContext(text string) string {
-	const limit = 2048
+	return quotedBounded(text, 2048)
+}
+
+// quotedBounded quotes at most limit bytes of text and names any omitted byte count.
+func quotedBounded(text string, limit int) string {
 	prefix := text[:min(len(text), limit)]
 	quoted := fmt.Sprintf("%q", prefix)
 	if len(text) > limit {

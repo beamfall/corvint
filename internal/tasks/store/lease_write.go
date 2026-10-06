@@ -389,6 +389,13 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if len(p.fatalCleanup) > 0 {
 		return p.fatalError()
 	}
+	// The sweep re-reads over-budget files outside the lock; the locked checks
+	// below only poll events, so guard work under the lock does not grow with
+	// the store.
+	stage := hooksForInventory(ctx).commitStage
+	stage("sweep")
+	p.guard.Sweep()
+	stage("lock")
 	timing, wait := leaseTimingOf(ctx), time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	timing.LockWait += time.Since(wait)
@@ -416,7 +423,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 			return wire.Errorf(wire.CodeSnapshotMoved, "branch", "prepared branch changed")
 		}
 	}
-	if err := p.guard.Check(); err != nil {
+	if err := p.guard.CheckEvents(); err != nil {
 		return err
 	}
 	if p.failure != nil {
@@ -459,7 +466,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 		report.Redone = true
 		return nil
 	}
-	if err := p.guard.Check(); err != nil {
+	if err := p.guard.CheckEvents(); err != nil {
 		return err
 	}
 	setLeaseReport(report, p.result)
