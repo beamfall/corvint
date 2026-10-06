@@ -34,9 +34,14 @@ candidate will be cut from main once the fixes below merge.
      past the budget are tracked by their stat tuple (device, inode, mode, size, mtime and ctime in
      nanoseconds), checked at registration and on every poll; directories are always watched with a
      descriptor.
-   - The `corvint-tasks-agent-leases-v0` "Descriptor budget (macOS)" paragraph states the fallback's
-     limit: a write past the budget that preserves size and both timestamps is caught only by the
-     content digest.
+   - The `corvint-tasks-agent-leases-v0` "Descriptor budget (macOS)" paragraph states the
+     fallback's limits, which independent review found:
+     - a write past the budget that preserves size and both timestamps is missed by the watch;
+     - directories are not budgeted;
+     - lease commits re-stat over-budget files under the writer lock, so locked work grows past the
+       budget, contrary to CAL-V0-026 (V1-0845, open).
+
+     Before the fix the same store refused outright.
 2. **Symlinked TMPDIR in `internal/localcompletion` (V1-0842, test-only).** This is the same class as
    the first candidate's V1-0840 and V1-0753. Three aggregate tests failed under the macOS default
    TMPDIR because local state refuses a symlinked ancestor. The package's `TestMain` now resolves
@@ -48,9 +53,8 @@ candidate will be cut from main once the fixes below merge.
      macOS `/bin/sh` exits 128 before the exec, and the product correctly reports a failed Git.
    - Capping `RLIMIT_NPROC` reproduces the exact signature. Why the runner refused the fork was not
      observed.
-   - The shim now records the sleeper's PID and its own stderr. A missing PID is reported as a
-     harness precondition failure, and the sleeper's retirement is asserted after the run. A
-     fork-starved host still fails the case.
+   - The shim now sends its own stderr to a side file, and a failing case logs it, naming the fork
+     refusal next to the unchanged product result. A fork-starved host still fails the case.
 4. **Intermittent `hlq-claude-code` frontier (V1-0844, open).**
    - The runbook's Claude Code HLQ tuple failed once: an enrolled incomplete Stop returned no decision.
    - The product source matches the first candidate, which passed. Three reruns on this candidate
