@@ -286,6 +286,17 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				def = &member.config.SafeReuse.Verify
 			}
 			env, envDigest := member.env.phase(def.Env)
+			// phasePasses is the phase predicate on the command's own result,
+			// before any post-exit proof.
+			phasePasses := func(r poolCommandResult) bool {
+				if !r.Clean || r.Exit == nil {
+					return false
+				}
+				if phase != "verify" {
+					return r.Class == "EXIT_ZERO" && r.Exit.Int() == 0
+				}
+				return (r.Class == "EXIT_ZERO" || r.Class == "EXIT_NONZERO") && r.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && strings.Contains(string(r.Stdout), member.config.SafeReuse.ExpectStdout)
+			}
 			// An ALL barrier forbids launching any further phase command; the
 			// owned sweep only publishes its terminal observation.
 			probe, e := snapshot.Probe(repo.StateDir)
@@ -317,7 +328,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 						// failed post-exit proof replaces either exit class and the
 						// phase can never pass without a successful proof.
 						proofErr = err
-						result.Class = poolPostClass(result.Class, result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO", err)
+						result.Class = poolPostClass(result.Class, phasePasses(result), err)
 					}
 				}
 			}
@@ -328,9 +339,8 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				}
 			}
 
-			passed := proofErr == nil && result.Clean && result.Exit != nil && result.Exit.Int() == 0 && (result.Class == "EXIT_ZERO")
+			passed := proofErr == nil && phasePasses(result)
 			if phase == "verify" {
-				passed = proofErr == nil && result.Clean && result.Exit != nil && result.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && (result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO") && strings.Contains(string(result.Stdout), member.config.SafeReuse.ExpectStdout)
 				if !passed && result.Class == "EXIT_ZERO" {
 					result.Class = "STDOUT_MISMATCH"
 				}

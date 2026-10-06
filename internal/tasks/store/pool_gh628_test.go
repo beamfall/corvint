@@ -324,11 +324,16 @@ func TestPSRV0012PinnedSweep(t *testing.T) {
 // sweep whose verify post-exit probe times out (member deadline still live)
 // keeps the member quarantined; the control without the fault frees it.
 func TestPSRV0012ExpectedNonzeroNeedsProof(t *testing.T) {
-	for _, fault := range []bool{false, true} {
-		t.Run(map[bool]string{false: "control", true: "bounded-post-probe"}[fault], func(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		fault bool
+		exit  string
+	}{{"control", false, "7"}, {"bounded-post-probe", true, "7"}, {"failed-exit-kept", true, "3"}} {
+		fault := tc.fault
+		t.Run(tc.name, func(t *testing.T) {
 			ext, _, head := gh628External(t)
 			ran := filepath.Join(t.TempDir(), "verify-ran")
-			s, _ := psrFixtureConfigured(t, "true", "touch "+ran+"; printf ok; exit 7", "ok", "1", false, func(v wire.Value) {
+			s, _ := psrFixtureConfigured(t, "true", "touch "+ran+"; printf ok; exit "+tc.exit, "ok", "1", false, func(v wire.Value) {
 				pools, _ := v.Obj.Get("pools")
 				config, _ := pools.Arr[0].Obj.Get("memberConfig")
 				member, _ := config.Obj.Get("a")
@@ -362,6 +367,12 @@ func TestPSRV0012ExpectedNonzeroNeedsProof(t *testing.T) {
 			}
 			if !injected || len(entries) != 1 || entries[0].State != "QUARANTINED" {
 				t.Fatalf("unproved verify freed the member (injected %v): %+v", injected, entries)
+			}
+			// A phase that fails its own predicate keeps its exit class: a
+			// bounded post-exit probe replaces only a result that could pass.
+			want := map[string]string{"7": "TIMEOUT", "3": "EXIT_NONZERO"}[tc.exit]
+			if !strings.Contains(entries[0].Reason, want) {
+				t.Fatalf("want %s, got %+v", want, entries[0])
 			}
 		})
 	}
