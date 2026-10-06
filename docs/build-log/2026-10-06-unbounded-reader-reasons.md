@@ -169,3 +169,7 @@ Codex round 1 raised two P2 findings, and both were repaired.
    attributed their `/` opens to `internal/flowdocs` without evidence.** Each was re-measured
    confined, followed by a denial check. The reasons now state the observed tolerated denials and
    say that the opening call is not attributed.
+
+Codex round 2 confirmed both repairs and raised one P3. Two reasons named the wrong operation:
+`internal/liveverify/affected/golang` (`groundtruth_test.go:35`) and `internal/liveverify/provider`
+(`go list -deps`, not a build). Both were corrected.
