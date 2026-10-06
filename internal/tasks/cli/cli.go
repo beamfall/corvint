@@ -16,9 +16,12 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
+	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -379,12 +382,28 @@ func helpResult() *wire.Result {
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
+// LiveFormats is the CAL-V0-131 sorted set of store, lease, run and
+// dispatcher formats that live attempts and adopted workers depend on. Two
+// builds whose sets are equal may replace each other in place (CAL-V0-130);
+// any other pair needs a drain.
+func LiveFormats() []string {
+	f := []string{
+		strings.TrimSpace(snapshot.VersionBytes), snapshot.ProfileHead, snapshot.ProfileReceipt,
+		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.SupervisedProfile,
+		mutation.Profile, mutation.OutcomeProfile, intent.ProfilePolicy,
+		dispatch.StateProfile, runRecordProfile, transaction.RunOutcomeProfile, service.ProfileName,
+	}
+	sort.Strings(f)
+	return f
+}
+
 func versionResult() *wire.Result {
 	o := wire.NewObject()
 	o.Set("version", wire.String(Version+"+build."+Build))
 	o.Set("goVersion", wire.String(runtime.Version()))
 	o.Set("slice", wire.String("TCP-01"))
 	o.Set("verification", wire.String("NOT_RUN"))
+	o.Set("formats", wire.Strings(LiveFormats()))
 	return &wire.Result{Command: []string{"version"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

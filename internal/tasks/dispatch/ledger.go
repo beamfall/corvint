@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -261,6 +262,32 @@ type ProgressHistory struct {
 // ProgramDir is the dispatcher's state directory for one program.
 func ProgramDir(c *Config, program string) string { return filepath.Join(c.StateDir, program) }
 
+// ledgerFormat is the CAL-V0-132 adjacent-build refusal: a ledger whose
+// profile is another taskman-dispatch-state version, or which carries a
+// top-level member that no spelling of a known member matches, was written
+// by a build with another format. It is refused as UNSUPPORTED_VERSION and
+// never read or migrated; case-folded aliases keep their malformed refusal.
+func ledgerFormat(members map[string]json.RawMessage) error {
+	var profile string
+	if raw, ok := members["profile"]; ok && json.Unmarshal(raw, &profile) == nil && profile != StateProfile {
+		if err := wire.CheckProfile("/profile", profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
+			return err
+		}
+	}
+	known := reflect.TypeFor[Ledger]()
+	for name := range members {
+		found := false
+		for i := 0; i < known.NumField() && !found; i++ {
+			tag, _, _ := strings.Cut(known.Field(i).Tag.Get("json"), ",")
+			found = strings.EqualFold(name, tag)
+		}
+		if !found {
+			return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to this build")
+		}
+	}
+	return nil
+}
+
 // LoadLedger reads the ledger; a missing ledger is a fresh one.
 func LoadLedger(dir, program string) (*Ledger, error) {
 	raw, err := readBounded(filepath.Join(dir, "state.json"), maxLedger)
@@ -273,6 +300,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	var members map[string]json.RawMessage
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	if err := ledgerFormat(members); err != nil {
+		return nil, err
 	}
 	// Detect aliases before struct decoding: encoding/json folds field names,
 	// so an uppercase-only member must not fall back to legacy loading.
