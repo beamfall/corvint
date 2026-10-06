@@ -17,7 +17,7 @@ func TestFrameRelationSignals(t *testing.T) {
 		{"TCP-V0-020 imported", "store/store.go", "import edge"},
 		{"TCP-V0-020 identifier", "codec/frame.go", "names EncodeFrame"},
 	}
-	tasks := []string{"open tests/render/render_test.go", "trace probe/probe_test.go:3", "trace spec/wire_test.go:4"}
+	tasks := []string{"open src/render/render_test.go", "trace probe/probe_test.go:3", "trace spec/wire_test.go:4"}
 	for i, item := range cases {
 		t.Run(item.task, func(t *testing.T) {
 			packet, err := TaskContext(context.Background(), index, tasks[i], "", 5)

@@ -43,20 +43,22 @@ func TestTaskContextReportsNamedPathPairScope(t *testing.T) {
 
 // Isolate the mention slot so later lexical or test admission cannot mask the
 // two materialised counterparts held back by its three-row cap (TCP-V0-011).
+// The counterparts are JavaScript tests of other directories: between Go
+// files only the same directory pairs (TCP-V0-004).
 func TestTaskContextReportsNamedPathPairSlotOmissions(t *testing.T) {
 	t.Run("TCP-V0-011 named path reports capped counterparts", func(t *testing.T) {
 		index := &Index{Tracked: map[string]struct{}{
-			"widget.go": {}, "a/widget_test.go": {}, "b/widget_test.go": {},
-			"c/widget_test.go": {}, "d/widget_test.go": {},
+			"widget.js": {}, "a/widget.test.js": {}, "b/widget.test.js": {},
+			"c/widget.test.js": {}, "d/widget.test.js": {},
 		}}
-		compiler := newTaskContextCompiler(index, "widget.go", "")
+		compiler := newTaskContextCompiler(index, "widget.js", "")
 		compiler.markState("subject-absent", "pair")
 		rows := compiler.takeSlot(nil, compiler.mentionRows(), contextMentionCap)
 		got := make([]string, 0, len(rows))
 		for _, row := range rows {
 			got = append(got, row.kind+" "+row.path)
 		}
-		want := []string{"mentioned widget.go", "pair a/widget_test.go", "pair b/widget_test.go"}
+		want := []string{"mentioned widget.js", "pair a/widget.test.js", "pair b/widget.test.js"}
 		if !slices.Equal(got, want) {
 			t.Fatalf("results = %v, want %v", got, want)
 		}
