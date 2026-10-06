@@ -85,15 +85,18 @@ Regressions, reported not hidden: `corvint f451a34f` carries one fewer critical 
 rows are code hits weaker than nine documentation rows the merged order now carries; the rc.2
 packet reached them only because four `pair` rows of one test file and the quota kept
 documentation out. `flag.go` and `help_test.go` were critical rows the rc.2 packet carried and the
-baseline did not; the merged order carries stronger documentation in their place. The six residual misses are five result-limit drops unchanged by any ordering rule
-(`flag_impl.go`, `flag_bool_with_inverse.go`, `README.md` of f451a34f, the three retrieval-bench
-files, `proof-carrying-context-optimization-v0.md`), `docs/DOGFOOD.md` (the 22nd row of the same
-packet at limit 24: two admitted `pair` rows and the limit keep it out at 20), and `ROADMAP.md` (22 stronger documentation rows, share of 10). Each
-after-packet states its omission in `coverage.uncertainty`; for 57f06a6a the second line names
-133 documentation rows above a carried code row omitted by the share.
+baseline did not; the merged order carries stronger documentation in their place. The eleven residual treatment-only misses are seven result-limit drops
+unchanged by any ordering rule (`flag_impl.go`, `flag_bool_with_inverse.go`, `README.md` of
+f451a34f, the three retrieval-bench files, `proof-carrying-context-optimization-v0.md`),
+`docs/DOGFOOD.md` (the 22nd row of the same packet at limit 24: two admitted `pair` rows and the limit keep it out at 20), `ROADMAP.md` (22 stronger documentation rows, share of 9),
+and the two f451a34f rows above. Each after-packet states its omission in `coverage.uncertainty`;
+for 57f06a6a the second line names the 22 documentation rows above a code row the fill carried
+that the share omitted.
 
 Packets in the small-fixture goldens: `internal/contextindex/testdata/context-recipe-default-golden.json`
-keeps its twelve rows (`docs/guide.md` moves from row 6 to row 10 by strength; scores 313 to 599);
+keeps its twelve rows (`docs/guide.md` moves from row 6 to row 10 by strength and `docs/needle.md`
+from row 6 to row 7, because the head of two code rows no longer counts the `mentioned`
+`pkg/parser/parser.go` toward itself; scores 313 to 599);
 `cmd/corvint/testdata/core-freeze/context-reserved-rows.json` gains the optional
 `coverage.uncertainty` member (one line, limit 1), an additive member under CCF-V1-006 regenerated
 in this change; `context-task.json` is unchanged (nothing omitted).
@@ -114,14 +117,47 @@ third-party leg is `NOT_RUN`.
 ## Checks
 
 - `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextDocumentationShareStatesTheOmittedClass`,
-  `TestTaskContextLexicalScoreCarriesStrength` (new), `TestTaskContextPlacesDocumentationAfterFiveCodeRows`
-  (rewritten for the merged order), the recipe and core-freeze goldens, and the context tests of
-  `cmd/corvint` pass.
+  `TestTaskContextLexicalScoreCarriesStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`
+  (new), `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (rewritten for the merged order),
+  `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld-line assertion added), the
+  recipe and core-freeze goldens, and the context tests of `cmd/corvint` pass; `go vet` on
+  `internal/contextindex` and `cmd/corvint` is clean.
 - `TestAnalyzerSchemaInputs` (IDX-SNAP-V0-017) fails in this change: `taskcontext.go` is one of
   the pinned extraction inputs, and the audit over-invalidates consumer-only changes by design.
   The change does not alter extraction or pack encoding. Bumping `analyzerSchemaID` to
   `corvint-analyzer/104` and repinning the audit digest is left to the owner; until then the
   `internal/contextindex` package test is red on that audit alone.
+
+## Review
+
+Independent review (Codex, read-only, on the first commit of this change) returned six findings:
+
+1. P1, `TestAnalyzerSchemaInputs` red: not fixable in this change; the schema bump to
+   `corvint-analyzer/104` is the owner's step (Checks above).
+2. P1, frozen before/after retrieval evidence: the retrieval-bench samples are not local and the
+   download needs an approval this change does not hold; `NOT_RUN` (Evaluation integrity above).
+   The eight-case before/after table is development evidence, not the frozen evaluation.
+3. P2, a hit an earlier slot admitted (or the subject) counted toward the head and the share
+   although `take` drops it as a duplicate: fixed; such a hit keeps its strength position and
+   takes no head, share or fill position (TCP-V0-059 amended). The recipe golden moves
+   `docs/needle.md` from row 6 to row 7 for this reason. Pinned by
+   `TestTaskContextLexicalFillCountsOnlyOpenPositions`.
+4. P2, the fill was computed before `reserve` prepended the governing, spec-mentioned and
+   instruction-routed rows, so at a small limit the head spent a position the reservation then
+   displaced: fixed; `compile` reserves before the lexical fill and the fill subtracts the
+   reservations no earlier slot admitted. Pinned by the same test (limit 2, AGENTS.md, one code
+   and one stronger documentation hit).
+5. P2, under a TCP-V0-016 withholding `coverage.uncertainty` called the withdrawn hits "omitted
+   by the result limit": fixed; the line names the `unsupported-conjunction` verdict and the
+   share line is absent (TCP-V0-061 amended). Pinned by the same test and by
+   `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`.
+6. P3, the residual-miss accounting named six misses while listing more: corrected to the eleven
+   treatment-only misses the table carries.
+
+The eight public cases were rerun with the fixed binary: the per-case critical counts, gains and
+losses are unchanged (27 carried, 11 treatment-only misses); the share lines changed where a
+reservation now counts (`9 of 18` instead of `10 of 19` positions on the Corvint cases) and
+where the comparison row is now the weakest code row the fill carried (57f06a6a: 22, not 133).
 
 ## Rollback
 

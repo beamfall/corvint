@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -267,6 +268,13 @@ func TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld(t *testing.T) {
 	want := []string{"governing AGENTS.md", "instruction-routed docs/ROUTES.md"}
 	if pairs := contextPairs(t, packet); !slices.Equal(pairs, want) {
 		t.Fatalf("rows = %v, want %v", pairs, want)
+	}
+	// TCP-V0-061: the withdrawn hits are withheld by the verdict, never
+	// reported as omitted by the result limit.
+	for _, line := range contextUncertainty(t, packet) {
+		if strings.Contains(line, "matched lexically") && !strings.Contains(line, "withheld by the `unsupported-conjunction` verdict") {
+			t.Fatalf("coverage.uncertainty = %q, want withheld hits stated as withheld", line)
+		}
 	}
 }
 
