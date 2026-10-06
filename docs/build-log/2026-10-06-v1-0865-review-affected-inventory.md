@@ -44,8 +44,29 @@ invariant 2: missing evidence produced claims instead of uncertainty.
   tracked bytes equal the captured tree except during an edit-and-revert race. That race is the
   same exposure as the standalone command, which also brackets its graph build with
   status/HEAD rechecks. The unknown states this weaker binding.
+- **Symlinked declarations are still followed** to a regular file, possibly outside the
+  repository, as before. Changing that is an owner decision and is outside this ticket.
 - **No analyzer schema or Genesis change.** `internal/contextindex/analyzer_schema.go` and the
   guidance caps are unchanged.
+
+## Independent review
+
+Codex round 1 (`gpt-6-astra`, read-only) found two problems in the declaration reader that the
+fallback now reaches. Both were verified and repaired in this change.
+
+- **P1:** `readAdviceSource` used a blocking `os.Open`. A tracked `Makefile` or `AGENTS.md`
+  symlink to a FIFO hung review and `affected` with no deadline. Before this change, review's
+  snapshot path skipped such paths.
+- **P2:** an existing but unreadable declaration (open, stat or read error, a directory, or a
+  dangling symlink) was treated as absent. It produced `NO_REPOSITORY_GATE_DECLARED`.
+
+The repair is AFP-V0-028 in `docs/specs/affected-plan-v0.md`. Only a path that does not exist is
+absent. Any other unreadable path adds `MANDATORY_DECLARATION_UNREADABLE` and suppresses the
+absence claim. The read opens non-blocking and confirms a regular file both before and after the
+open. A symlink to a readable regular file is still followed, which is the existing behaviour.
+`TestAffectedAdviceUnreadableDeclarationSuppressesNoGate` (unix) covers a directory, a FIFO
+symlink and a dangling symlink. With the old reader, all three subtests fail; the FIFO subtest
+reports the block after 10 s.
 
 ## Other GuidanceSnapshot consumers
 

@@ -651,6 +651,14 @@ and container qualification; full fallback remains available.
   the batching agent and nothing checks that a batch pull request actually contains the
   constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
   the job condition and the `go-product` message.
+- **AFP-V0-028:** (owner-directed, proposed, 2026-10-06; V1-0865) Only a declaration path that
+  does not exist is absent for AFP-V0-009. A `Makefile` or `AGENTS.md` path that exists but is not a
+  readable regular file (a directory, a FIFO or other special file, a dangling symlink, or an open,
+  stat or read error) MUST add `MANDATORY_DECLARATION_UNREADABLE: <path> exists but is not a
+  readable regular file` to `unknown`, yield no checks from that path, and MUST NOT add
+  `NO_REPOSITORY_GATE_DECLARED`. The read MUST NOT block: it opens non-blocking and confirms a
+  regular file before reading. A symlink to a readable regular file is still read, as before.
+  Rollback restores the previous reader, which treated these paths as absent.
 
 ## Non-goals and authority
 
@@ -711,6 +719,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
+| AFP-V0-028 | `readAdviceSource`, `mandatoryAffectedChecks` in `cmd/corvint/affected.go` | `TestAffectedAdviceUnreadableDeclarationSuppressesNoGate` (`cmd/corvint/affected_advice_unix_test.go`) |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
