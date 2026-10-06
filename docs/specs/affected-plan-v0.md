@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-028 proposed (2026-10-06, V1-0867); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-028 proposed (2026-10-06, V1-0867); other AFP-V0 requirements proposed/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -121,7 +121,7 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   units under that module's own import path, so an edge between two workspace modules resolves
   as an edge inside one does. A `go.mod` below the root that no `use` names is the
   `go:nested-module-frontier`: its packages are absent from the graph, never attributed to the
-  module above them. A listed module whose path cannot be read is `go:module-path-unresolved`.
+  module above them (narrowed per module by the proposed AFP-V0-028). A listed module whose path cannot be read is `go:module-path-unresolved`.
   Directories named `build`, `dist`, and `target` are explicitly admitted at every depth for Go
   source. Each admitted directory subtree has its own `affected.MaxIncludedDirectoryEntries` bound
   of 20,000 entries. An entry beyond that bound skips the remainder of only that subtree and adds
@@ -652,6 +652,44 @@ and container qualification; full fallback remains available.
   constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
   the job condition and the `go-product` message.
 
+- **AFP-V0-028:** (proposed, 2026-10-06; V1-0867; narrows the AFP-V0-008 nested-module frontier,
+  not accepted) The Go plugin SHALL decide the `go:nested-module-frontier` per unlisted module:
+  it reads each such module's `go.mod` through the same `affected.Source` as every other input
+  (the worktree, or the immutable tree under `BuildFS`, where a read error stays fatal), and the
+  frontier is raised only when at least one module stays open. A module stays open when its
+  manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
+  tool does and fails on any verb, token, block, or directive argument it does not admit (for
+  example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
+  `=`, a malformed `retract` interval, a raw string, a quote inside an unquoted argument, a block
+  of a verb the go tool does not admit as a block, a module version that is not canonical or
+  whose major does not match the module path's suffix, or a replacement whose target is a
+  directory with a version or a module path without one); when it requires, replaces, or names a tool under an observed
+  module path (a tool under its own module path excepted), or replaces a module with one; when a
+  directory replacement is absolute or not repository-relative, resolves outside the repository,
+  or resolves anywhere other than its own directory or another unlisted module (a relative
+  replacement that resolves to the root, or into an observed module, therefore keeps it open);
+  when a `go.work` sits in its directory or any ancestor below the root; or when the observed
+  side draws it in: an observed `go.mod` or the root `go.work` requires, replaces, or names a
+  tool under its module path, or replaces a module with its directory, because the observed
+  build then compiles its packages and resolves their imports against the observed modules.
+  Every nested module stays open when the observed side cannot be read the same way: an observed
+  module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
+  or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
+  (an escaped quoted path, for example), the root `go.work` use set differs from the observed
+  directories, or an observed directory replacement is not repository-relative or does not name
+  exactly an observed module directory or a path at or below an unlisted module's directory (a
+  differently cased or linked path can name a nested module, so identity is not established).
+  A module that is
+  none of these neither builds against an observed module nor is built by one,
+  so no change to an observed module reaches it and it closes. The plugin keeps one evidence
+  record per nested `go.mod` read, with the reason it stayed open; it is internal and does not
+  reach the plan wire. The reverse direction is unchanged: a nested module's files are never
+  units, so a change inside one is still `UNINDEXED_SOURCE_PATH` or `UNOWNED_DIRTY_PATH`.
+  Non-goals: reads by a nested module's tests of observed data (AFP-V0-012 already treats nested
+  literals as selecting nothing), symlinked manifests the walk does not follow, and a `GOWORK` or
+  `GOFLAGS` (`-modfile`) environment value, which the plugin cannot observe. Rollback restores the unconditional frontier
+  in `observeModules` and removes `nested.go`.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -711,6 +749,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
+| AFP-V0-028 | `nestedModules`, `observedReach`, `unknownDirectory`, `nestedModuleOpen`, `readManifest`, `workspaceAbove`, `replaceDirectoryOpen`, `repositoryDirectory`, `parseManifest`, `manifestLine`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
