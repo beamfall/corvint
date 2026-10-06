@@ -45,6 +45,16 @@ Invariant 7 rules out a permanent daemon.
   - The 64-run cap could be exceeded by concurrent launches, and directory listings were unbounded.
     Listings now read at most 65 entries, and a launcher recounts after reserving its directory.
   - The fence test measured from before the launch. It now measures from the release.
+- **A second Codex review (of `0811d1bb`) found two issues, both fixed:**
+  - `readBounded` opened the record and kept result with a blocking `open`, so a FIFO put in their
+    place hung even `--attach --wait 0`. It now opens with `O_NONBLOCK|O_NOFOLLOW` and refuses a
+    non-regular file `MALFORMED`.
+  - `encoding/json` accepted a repeated key (the last wins), a differently cased key and a missing
+    key (left zero). `checkRunRecordKeys` now requires each record key exactly once, spelled exactly,
+    with a scalar value. `TestATRV0010_RunRecordKeysAreExact` covers both; removing the key check or
+    restoring the blocking open each fails it.
+  - Not changed: PID and start identity do not prove liveness of a zombie under a non-reaping
+    adopter, as the spec's failure table already records.
 - **Dispatcher integration is deferred.** It is listed as remaining work in the spec. CAL-V0-056
   `refreshTree` adopts children of recorded members by parent PID, and the heal hand-off releases an
   ended worker's attempt, which fences the run. Changing either one needs an owner decision on

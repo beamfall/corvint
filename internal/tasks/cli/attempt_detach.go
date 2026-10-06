@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -110,6 +111,9 @@ func decodeRunRecord(raw []byte) (*runRecord, error) {
 	if len(raw) > maxRunRecordBytes {
 		return nil, malformedRecord("run record too large")
 	}
+	if err := checkRunRecordKeys(raw); err != nil {
+		return nil, err
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	var rec runRecord
@@ -153,6 +157,50 @@ func decodeRunRecord(raw []byte) (*runRecord, error) {
 	return &rec, nil
 }
 
+// runRecordKeys are the record's keys, exactly as encodeRunRecord writes
+// them.
+var runRecordKeys = func() map[string]bool {
+	keys := map[string]bool{}
+	t := reflect.TypeOf(runRecord{})
+	for i := 0; i < t.NumField(); i++ {
+		keys[t.Field(i).Tag.Get("json")] = true
+	}
+	return keys
+}()
+
+// checkRunRecordKeys requires one object holding each record key exactly
+// once, spelled exactly, with a scalar value. encoding/json alone accepts a
+// repeated key (the last wins), matches keys case-insensitively and leaves a
+// missing one zero (ATR-V0-010).
+func checkRunRecordKeys(raw []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return malformedRecord("run record is not an object")
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return malformedRecord("run record does not decode: " + err.Error())
+		}
+		key, _ := tok.(string)
+		if !runRecordKeys[key] || seen[key] {
+			return malformedRecord(fmt.Sprintf("run record has an unknown or repeated key %q", key))
+		}
+		seen[key] = true
+		if tok, err = dec.Token(); err != nil {
+			return malformedRecord("run record does not decode: " + err.Error())
+		}
+		if _, nested := tok.(json.Delim); nested {
+			return malformedRecord(fmt.Sprintf("run record key %q is not a scalar", key))
+		}
+	}
+	if len(seen) != len(runRecordKeys) {
+		return malformedRecord("run record lacks a key")
+	}
+	return nil
+}
+
 func validSha256(s string) bool {
 	if len(s) != 64 {
 		return false
@@ -189,12 +237,21 @@ func writeRunRecord(dir string, rec *runRecord) error {
 	return writeRunFile(dir, runRecordName, raw)
 }
 
+// readBounded reads a run file of at most limit bytes. It opens without
+// blocking or following a final symlink and refuses anything but a regular
+// file, so a FIFO put in a record's place cannot stall a reader before its
+// deadline.
 func readBounded(p string, limit int64) ([]byte, error) {
-	f, err := os.Open(p)
+	f, err := openRunFile(p)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	if st, err := f.Stat(); err != nil {
+		return nil, err
+	} else if !st.Mode().IsRegular() {
+		return nil, wire.Errorf(wire.CodeMalformed, filepath.Base(p), "%s is not a regular file", filepath.Base(p))
+	}
 	raw, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
 		return nil, err

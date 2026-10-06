@@ -393,6 +393,75 @@ func TestATRV0010_RunRecordFactsMustAgreeWithItsState(t *testing.T) {
 	}
 }
 
+// TestATRV0010_RunRecordKeysAreExact: a repeated, missing or differently
+// cased key refuses MALFORMED, and a FIFO in place of the record refuses
+// without blocking even with --wait 0.
+func TestATRV0010_RunRecordKeysAreExact(t *testing.T) {
+	root, a := attemptStore(t)
+	base, err := cli.RunDirForTest(root, a.AttemptID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := supervisor.ProcessIdentity(os.Getpid())
+	if err != nil || self == "" {
+		t.Fatalf("own identity: %q %v", self, err)
+	}
+	rewrite := func(runID string, edit func(raw []byte) []byte) {
+		dir := writeRecord(t, base, runID, plantedRecord(a, runID, "RUNNING", os.Getpid(), self))
+		p := filepath.Join(dir, "record.json")
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, edit(bytes.TrimSpace(raw)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cases := map[string]func([]byte) []byte{
+		"00000000000000c1": func(raw []byte) []byte { // repeated key, last would win
+			return append(raw[:len(raw)-1], []byte(`,"outputBytes":0}`)...)
+		},
+		"00000000000000c2": func(raw []byte) []byte {
+			return bytes.Replace(raw, []byte(`"outputBytes":`), []byte(`"OutputBytes":`), 1)
+		},
+		"00000000000000c3": func(raw []byte) []byte {
+			var m map[string]any
+			if err := json.Unmarshal(raw, &m); err != nil {
+				t.Fatal(err)
+			}
+			delete(m, "outputDroppedBytes")
+			out, _ := json.Marshal(m)
+			return out
+		},
+		"00000000000000c4": func(raw []byte) []byte {
+			return bytes.Replace(raw, []byte(`"commandIdentity":`), []byte(`"commandIdentity":[],"x":`), 1)
+		},
+	}
+	for runID, edit := range cases {
+		rewrite(runID, edit)
+	}
+	fifo := writeRecord(t, base, "00000000000000c5", plantedRecord(a, "00000000000000c5", "RUNNING", os.Getpid(), self))
+	if err := os.Remove(filepath.Join(fifo, "record.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(fifo, "record.json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cases["00000000000000c5"] = nil
+	for runID := range cases {
+		done := make(chan run, 1)
+		go func() { done <- attach(t, root, a, "--run", runID, "--wait", "0") }()
+		select {
+		case r := <-done:
+			if r.code != 1 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeMalformed) {
+				t.Fatalf("%s: code %d %s", runID, r.code, r.stdout)
+			}
+		case <-time.After(30 * time.Second):
+			t.Fatalf("%s: attach blocked", runID)
+		}
+	}
+}
+
 // TestATRV0010_DetachedRunsPerAttemptAreCapped: a launch with 64 run entries
 // starts nothing and leaves none behind; an attach without --run never lists
 // more than 64 entries.
