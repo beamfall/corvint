@@ -267,7 +267,9 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		prep.RequestID = poolChildID(choice.RequestID, member)
 		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: choice.Lease.Holder, Stage: choice.Lease.Stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
 		if authors != nil {
-			prep.Lease.TicketID, prep.Lease.ExcludeAuthors = authors.TicketID, choice.Lease.ExcludeAuthors
+			// CAL-V0-107: preparation covers an unrecorded generation only
+			// when the claim's caller supplied explicit members.
+			prep.Lease.TicketID, prep.Lease.ExcludeAuthors, prep.Lease.ExcludeMembers = authors.TicketID, choice.Lease.ExcludeAuthors, choice.Lease.ExcludeMembers
 		}
 		if healthPrepareHook != nil {
 			healthPrepareHook(member)

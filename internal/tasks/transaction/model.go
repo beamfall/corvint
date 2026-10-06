@@ -173,8 +173,9 @@ type Result struct {
 	Expired    []ExpiredLease
 	// Escalation is the typed refusal of an ESCALATE or ANSWER.
 	Escalation *EscalationRefusal
-	// AuthorExclusion is the CAL-V0-098 derivation a refused fresh claim
-	// applied before allocation failed, nil otherwise.
+	// AuthorExclusion is the CAL-V0-098 derivation a fresh claim applied:
+	// on an admitted claim, or on a refused one whose allocation failed
+	// after the derivation passed; nil otherwise.
 	AuthorExclusion *AuthorExclusion
 }
 
@@ -556,6 +557,7 @@ func Model(r Request, in Input) Result {
 	var relEffect *releaseEffect
 	var lease *leaseEffect
 	detail := ""
+	var authors *AuthorExclusion
 	switch r.Operation {
 	case Init:
 		for path := range in.Inventory.files {
@@ -752,7 +754,7 @@ func Model(r Request, in Input) Result {
 		for path, raw := range planned.posts {
 			posts[path] = raw
 		}
-		lease, effect, detail = planned.effect, planned.ticket, planned.detail
+		lease, effect, detail, authors = planned.effect, planned.ticket, planned.detail, planned.authors
 	}
 	p, out, e := freeze(r, d, in.RecordedAt, in.Inventory, state.head, posts, effect, relEffect, lease)
 	if e != nil {
@@ -764,7 +766,7 @@ func Model(r Request, in Input) Result {
 	}
 	// The capacity check reserves staging; a scanned inventory never holds it.
 	delete(capacity.Final.dirs, "staging")
-	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail}
+	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail, AuthorExclusion: authors}
 	if lease != nil {
 		res.AttemptID, res.Generation = lease.attemptID, lease.generation
 	}

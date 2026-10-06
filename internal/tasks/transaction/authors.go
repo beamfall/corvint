@@ -28,11 +28,14 @@ type Author struct {
 // AuthorExclusion is what one CAL-V0-098 derivation found for a ticket:
 // the ticket, the implement-generation authors and the effective
 // requested-pool exclusion set, the explicit members unioned with the
-// authors' members in that pool (nil when empty).
+// authors' members in that pool (nil when empty). Covered names the
+// generations with no recorded pool member that the caller's explicit
+// exclusions were taken to cover (CAL-V0-107); they contribute no member.
 type AuthorExclusion struct {
 	TicketID string
 	Authors  []Author
 	Excluded []string
+	Covered  []string
 }
 
 // CheckExcludeAuthors validates only request facts, so replay does not depend
@@ -91,29 +94,41 @@ func (g endedGeneration) name() string {
 // the derivation is unverified and the detail says why. LATEST stops at the
 // first implement generation; ALL reads them all. It never infers a member
 // from receipts or any other history (no backfill of legacy member facts).
+// With explicit exclusions, a generation with no recorded member is covered
+// by them instead (CAL-V0-107), and a ticket with nothing to exclude is not
+// refused.
 func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool string, explicit []string) (*AuthorExclusion, string) {
+	cover := len(explicit) > 0
 	authors := []Author{}
+	var covered []string
 	for _, g := range ticketGenerations(attempts, ticketID) {
 		h := g.history
-		if h == nil {
-			return nil, g.name() + " records no stage or pool member (NOT_OBSERVED); its author cannot be excluded"
-		}
-		if h.Stage != nil && (*h.Stage == "review" || *h.Stage == "integrate") {
+		if h != nil && h.Stage != nil && (*h.Stage == "review" || *h.Stage == "integrate") {
 			continue
 		}
-		if h.Stage == nil {
+		why := ""
+		switch {
+		case h == nil:
+			why = g.name() + " records no stage or pool member (NOT_OBSERVED); its author cannot be excluded"
+		case h.Stage == nil && h.MemberID != nil:
+			// A recorded member is never replaced by a caller's assertion.
 			return nil, g.name() + " recorded no stage; it may have authored the ticket"
+		case h.Stage == nil:
+			why = g.name() + " recorded no stage; it may have authored the ticket"
+		case h.MemberID == nil:
+			why = "implement " + g.name() + " held no pool member"
 		}
-		if h.MemberID == nil {
-			return nil, "implement " + g.name() + " held no pool member"
+		if why != "" {
+			if !cover {
+				return nil, why
+			}
+			covered = append(covered, g.name())
+			continue
 		}
 		authors = append(authors, Author{AttemptID: g.attemptID, Generation: g.generation, PoolID: *h.PoolID, MemberID: *h.MemberID})
 		if mode == ExcludeAuthorsLatest {
 			break
 		}
-	}
-	if len(authors) == 0 {
-		return nil, "no implement generation of " + ticketID + " is recorded"
 	}
 	set := map[string]bool{}
 	for _, m := range explicit {
@@ -129,7 +144,25 @@ func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool s
 		excluded = append(excluded, m)
 	}
 	sort.Strings(excluded)
-	return &AuthorExclusion{TicketID: ticketID, Authors: authors, Excluded: excluded}, ""
+	return &AuthorExclusion{TicketID: ticketID, Authors: authors, Excluded: excluded, Covered: covered}, ""
+}
+
+// Notes are the CAL-V0-107 caveats of a derivation the claim result and
+// plan preview report: generations covered by the caller's explicit
+// exclusions rather than by recorded members, and a ticket with no recorded
+// implement author at all. They are empty for a fully recorded derivation.
+func (x *AuthorExclusion) Notes() []string {
+	if x == nil {
+		return nil
+	}
+	var out []string
+	if len(x.Covered) > 0 {
+		out = append(out, "author exclusion: "+strings.Join(x.Covered, ", ")+" record(s) no pool member; covered by the caller's explicit --exclude-member set, not by recorded members")
+	}
+	if len(x.Authors) == 0 {
+		out = append(out, "author exclusion: no implement generation of "+x.TicketID+" records an author; only explicit exclusions apply")
+	}
+	return out
 }
 
 // AuthorsDetail names the excluded authors for a RESOURCE_COLLISION detail.
@@ -140,6 +173,10 @@ func (x *AuthorExclusion) AuthorsDetail() string {
 	names := make([]string, 0, len(x.Authors))
 	for _, a := range x.Authors {
 		names = append(names, "member "+a.MemberID+" of pool "+a.PoolID+" (generation "+string(a.Generation)+")")
+	}
+	if len(names) == 0 {
+		// CAL-V0-107: no implement generation records an author.
+		return "excluded implement authors: none recorded"
 	}
 	return "excluded implement authors: " + strings.Join(names, ", ")
 }

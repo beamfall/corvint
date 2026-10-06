@@ -411,7 +411,9 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 		return out
 	}
 	entry := snapshot.ReservationEntry{AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, Resources: sc.Resources, CapacityUses: []snapshot.CapacityUse{}, Workers: "0", State: "ACTIVE", CreatedSeq: c.seq, Coverage: entryCoverage(sc)}
-	return c.write(a, append(c.entries(), entry), "ADMIT", true)
+	out := c.write(a, append(c.entries(), entry), "ADMIT", true)
+	out.authors = c.authors
+	return out
 }
 
 // rescope replaces a live attempt's scope and its entry's resources in one

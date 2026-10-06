@@ -174,7 +174,6 @@ func TestCALV0098_DeriveAuthors(t *testing.T) {
 		"not observed older under all": {authorAttempt("x", tk, 1, nil, impl("a")), ExcludeAuthorsAll, "NOT_OBSERVED"},
 		"null stage":                   {authorAttempt("x", tk, 1, impl("a"), authorHistory("", "db", "a")), ExcludeAuthorsLatest, "recorded no stage"},
 		"implement without member":     {authorAttempt("x", tk, 1, authorHistory("implement", "", "")), ExcludeAuthorsLatest, "held no pool member"},
-		"no implement":                 {authorAttempt("x", tk, 1, rev), ExcludeAuthorsLatest, "no implement generation"},
 	} {
 		x, why := DeriveAuthors(map[string]*snapshot.Attempt{"x": c.attempt}, tk, c.mode, "db", nil)
 		if x != nil || !strings.Contains(why, c.why) {
@@ -195,5 +194,97 @@ func TestCALV0098_DeriveAuthors(t *testing.T) {
 	sup.RuntimeID = "supervisor"
 	if x, why := DeriveAuthors(map[string]*snapshot.Attempt{"x": sup}, tk, ExcludeAuthorsLatest, "db", nil); x != nil || !strings.Contains(why, "NOT_OBSERVED") {
 		t.Fatalf("supervised generation guessed: %+v %q", x, why)
+	}
+}
+
+// CAL-V0-107: explicit exclusions cover generations that record no pool
+// member, and say so; without them the CAL-V0-098 refusal is unchanged; a
+// ticket with no implement generation has nothing to exclude.
+func TestCALV0107_ExplicitMembersCoverUnrecordedGenerations(t *testing.T) {
+	const tk = "ticket:acme:main:AT-001"
+	impl := func(m string) *snapshot.GenerationHistory { return authorHistory("implement", "db", m) }
+	rev := authorHistory("review", "db", "r")
+	noMember := authorHistory("implement", "", "")
+	stageless := authorHistory("", "", "")
+	for name, c := range map[string]struct {
+		attempts map[string]*snapshot.Attempt
+		mode     string
+		why      string   // refusal without explicit members
+		authors  []string // with explicit members
+		covered  []string
+		excluded []string
+	}{
+		"legacy newest, recorded older under all": {
+			attempts: map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), nil, rev)},
+			mode:     ExcludeAuthorsAll, why: "NOT_OBSERVED",
+			authors: []string{"db/a@1"}, covered: []string{"generation 2 of x"}, excluded: []string{"a", "e"},
+		},
+		"legacy newest under latest walks to the recorded author": {
+			attempts: map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), nil)},
+			mode:     ExcludeAuthorsLatest, why: "recorded no stage",
+			authors: []string{"db/a@1"}, covered: []string{"generation 2 of x"}, excluded: []string{"a", "e"},
+		},
+		"recorded newest, legacy older under all": {
+			attempts: map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, nil, impl("b"))},
+			mode:     ExcludeAuthorsAll, why: "NOT_OBSERVED",
+			authors: []string{"db/b@2"}, covered: []string{"generation 1 of x"}, excluded: []string{"b", "e"},
+		},
+		"only legacy": {
+			attempts: map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, nil, rev)},
+			mode:     ExcludeAuthorsLatest, why: "NOT_OBSERVED",
+			authors: []string{}, covered: []string{"generation 1 of x"}, excluded: []string{"e"},
+		},
+		"implement without member and stage-less without member": {
+			attempts: map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, stageless, noMember, rev)},
+			mode:     ExcludeAuthorsAll, why: "held no pool member",
+			authors: []string{}, covered: []string{"generation 2 of x", "generation 1 of x"}, excluded: []string{"e"},
+		},
+	} {
+		if x, why := DeriveAuthors(c.attempts, tk, c.mode, "db", nil); x != nil || !strings.Contains(why, c.why) {
+			t.Fatalf("%s without explicit members: %+v %q", name, x, why)
+		}
+		x, why := DeriveAuthors(c.attempts, tk, c.mode, "db", []string{"e"})
+		if x == nil || !reflect.DeepEqual(members(x), c.authors) || !reflect.DeepEqual(x.Covered, c.covered) || !reflect.DeepEqual(x.Excluded, c.excluded) {
+			t.Fatalf("%s with explicit members: %+v %q", name, x, why)
+		}
+		notes := strings.Join(x.Notes(), "\n")
+		if !strings.Contains(notes, "covered by the caller's explicit --exclude-member set, not by recorded members") {
+			t.Fatalf("%s: cover not reported: %q", name, notes)
+		}
+	}
+	// A stage-less generation that recorded a member is never covered.
+	held := map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), authorHistory("", "db", "a"))}
+	if x, why := DeriveAuthors(held, tk, ExcludeAuthorsLatest, "db", []string{"e"}); x != nil || !strings.Contains(why, "recorded no stage") {
+		t.Fatalf("recorded stage-less member covered: %+v %q", x, why)
+	}
+	// A fully recorded derivation has no caveat.
+	full := map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), rev)}
+	if x, _ := DeriveAuthors(full, tk, ExcludeAuthorsAll, "db", []string{"e"}); x == nil || x.Covered != nil || x.Notes() != nil {
+		t.Fatalf("recorded derivation reported a caveat: %+v", x)
+	}
+	// No implement generation (only review, or none): nothing to exclude,
+	// with or without explicit members, and the result says so.
+	for name, attempts := range map[string]map[string]*snapshot.Attempt{
+		"review only":   {"x": authorAttempt("x", tk, 1, rev)},
+		"never claimed": {"o": authorAttempt("o", "ticket:acme:main:AT-002", 1, impl("z"))},
+	} {
+		for _, explicit := range [][]string{nil, {"e"}} {
+			x, why := DeriveAuthors(attempts, tk, ExcludeAuthorsLatest, "db", explicit)
+			if x == nil || len(x.Authors) != 0 || x.Covered != nil || !reflect.DeepEqual(x.Excluded, []string(explicit)) {
+				t.Fatalf("%s %v: %+v %q", name, explicit, x, why)
+			}
+			if n := x.Notes(); len(n) != 1 || !strings.Contains(n[0], "no implement generation of "+tk+" records an author") {
+				t.Fatalf("%s: notes %q", name, n)
+			}
+		}
+	}
+	// The cover is the caller's explicit set, never implied: without it an
+	// unrecorded generation refuses, with it the recorded author still counts.
+	legacy := map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), nil)}
+	if x, why := DeriveAuthors(legacy, tk, ExcludeAuthorsAll, "db", nil); x != nil || why == "" {
+		t.Fatalf("implicit cover: %+v %q", x, why)
+	}
+	if x, why := DeriveAuthors(legacy, tk, ExcludeAuthorsAll, "db", []string{"e"}); x == nil || !reflect.DeepEqual(x.Excluded, []string{"a", "e"}) {
+		t.Fatalf("explicit cover: %+v %q", x, why)
 	}
 }

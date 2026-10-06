@@ -123,7 +123,7 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
 	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
 	LeaseProgram:         {fieldEvidence, fieldEvidence},
-	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence | fieldTicket | fieldAuthors},
+	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence | fieldTicket | fieldAuthors | fieldExclusions},
 	LeasePoolObserve:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation | fieldEvidence},
 	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
@@ -236,6 +236,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	}
 	if l.Verb == LeasePoolPrepare && (l.TicketID == "") != (l.ExcludeAuthors == "") {
 		return malformed("preparation binds a ticket only with its author-exclusion mode")
+	}
+	if l.Verb == LeasePoolPrepare && l.ExcludeMembers != nil && l.ExcludeAuthors == "" {
+		return malformed("preparation carries explicit exclusions only with its author-exclusion mode")
 	}
 	if !checkPoolStage(l.Stage) {
 		return malformed("unknown pool stage")
@@ -430,6 +433,8 @@ type leaseOutcome struct {
 	ticket *ticketEffect
 	detail string
 	result *Result
+	// authors is the CAL-V0-098 derivation an admitted claim applied.
+	authors *AuthorExclusion
 }
 
 type leaseContext struct {
