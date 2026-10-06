@@ -39,4 +39,9 @@ output. A one-second negative control on the same run must return `exec.ErrWaitD
 descendant holding stdout must fail the call under a short injected bound, with the descendant and
 group killed in cleanup. A one-second or zero production bound fails the doccompiler test. The existing cancellation, held-descendant and executable
 binding tests of each touched package pass. No spec states a changed bound.
+Residual: the reader's three-second hold starts just before `Wait`, because `Wait` joins the copy
+goroutine even after `WaitDelay` expires, so the release cannot wait for `Wait` to return. The
+one-second negative control can therefore false-fail (returning nil) only if the test goroutine is
+descheduled for more than two seconds between arming the hold and `Wait` arming its drain timer; it
+fails loudly, never passes a broken bound (Codex review P3, accepted).
 Rollback: revert the change; loaded hosts then fail successful subprocesses again.
