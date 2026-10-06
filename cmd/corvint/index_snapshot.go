@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -123,7 +124,7 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 		}
 		if fresh {
 			payload := map[string]any{
-				"mutates": false, "state": "fresh", "path": probe.Path,
+				"mutates": false, "state": "fresh", "path": probe.Path, "store": filepath.Dir(probe.Path),
 				"tree": probe.Tree, "commit": probe.Commit, "engine": probe.Engine,
 			}
 			encoded, err := gokernel.CanonicalJSON(payload)
@@ -158,6 +159,8 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 		"ok": true, "mutates": true, "command": "index", "profile": "corvint-index-snapshot/1",
 		"path": receipt.Path, "bytes": receipt.Bytes, "tree": receipt.Tree, "commit": receipt.Commit,
 		"engine": receipt.Engine, "sources": receipt.Sources, "symbols": receipt.Symbols, "evicted": receipt.Evicted,
+		"store": receipt.Store, "store_shared": receipt.StoreShared, "live_heads": receipt.LiveHeads,
+		"live_trees": receipt.LiveTrees, "evicted_snapshots": evictedSnapshotsPayload(receipt.EvictedSnapshots),
 	}
 	if receipt.PackPath != "" {
 		payload["pack_bytes"] = receipt.PackBytes
@@ -182,13 +185,31 @@ Usage:
 Writes corvint/index/<object-format>-<tree>-<engine>.gob under the Git common
 directory, shared by every linked worktree (index-snapshot-v0, experimental):
 the compiled index of HEAD's tree, keyed by the tree id and by a digest of this
-binary, so a changed tree or a rebuilt Corvint never reads it. The newest eight
-snapshots are kept. This is the only verb that writes there;
+binary, so a changed tree or a rebuilt Corvint never reads it. Eight snapshots
+per worktree are kept, up to 64 and 1 GiB: the one just written, then those of
+a tree checked out at a live worktree HEAD, then this binary's, newest first.
+The receipt names the store ("store") and every file it removed
+("evicted_snapshots", each flagged "live_head" when its tree was checked out).
+This is the only verb that writes there;
 "context" reads a matching snapshot in place of rebuilding the index and
 applies the worktree's dirty paths from git status, and falls back to a full
 build when none matches. A snapshot changes no packet byte: hit and miss
 produce the same output.
 
 With --if-stale, a matching snapshot writes nothing and reports state "fresh";
-a missing or stale snapshot is rebuilt exactly as above.
+a missing or stale snapshot is rebuilt exactly as above. A linked worktree
+whose tree already has a snapshot in the shared store reuses it.
 `
+
+// evictedSnapshotsPayload is the receipt's list of every file an index write
+// removed, in removal order (IDX-SNAP-V0-025); empty, never null.
+func evictedSnapshotsPayload(evicted []contextindex.EvictedSnapshot) []any {
+	payload := make([]any, 0, len(evicted))
+	for _, file := range evicted {
+		payload = append(payload, map[string]any{
+			"kind": file.Kind, "path": file.Path, "bytes": file.Bytes,
+			"tree": file.Tree, "engine": file.Engine, "live_head": file.LiveHead,
+		})
+	}
+	return payload
+}
