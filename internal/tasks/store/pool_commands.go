@@ -88,7 +88,7 @@ func poolFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			if l.Verb == transaction.LeasePoolCleanup {
 				kind = "cleanup"
 			}
-			if _, e = poolCommandDir(context.Background(), poolMemberCommand(p, l.Member, kind), leaseRoot(repo, choice)); e != nil {
+			if _, _, e = poolCommandDir(context.Background(), poolMemberCommand(p, l.Member, kind), leaseRoot(repo, choice)); e != nil {
 				return f, e
 			}
 			identity, e := poolRunnerIdentity(os.Getpid())
@@ -139,14 +139,13 @@ func runPool(ctx context.Context, repo *intent.Repository, choice LeaseChoice, e
 	// PSR-V0-012: a pin that moved after preparation runs nothing and is
 	// recorded as a failed observation, so the member is quarantined.
 	class, clean, output := "", true, wire.Sum(nil)
-	dir, e := poolCommandDir(ctx, def, root)
+	dir, guard, e := poolCommandDir(ctx, def, root)
 	if e != nil {
 		class = sweepSourceClass(e)
 	} else {
-		class, clean, output = executePool(ctx, def, dir, env)
-		if _, e = poolCommandDir(context.WithoutCancel(ctx), def, root); e != nil {
-			class = "SOURCE_CHANGED"
-		}
+		class, clean, output = executePoolGuarded(ctx, def, dir, env, guard)
+		_, _, e = poolCommandDir(context.WithoutCancel(ctx), def, root)
+		class = poolPostClass(class, e)
 	}
 	after, afterTree, e := poolSource(root)
 	if e != nil || after != rev || afterTree != tree {

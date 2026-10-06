@@ -64,6 +64,32 @@ checkout, had to keep an external sweeper. Requested: a larger bound for health 
 - `make spec-requirements-check requirement-definitions-check line-citations-check
   traceability-tests-check`: PASS.
 
+## Review repair (Codex findings, same day)
+
+- **P1, confirmed.** The pin proof was not bound to execution.
+  - Fixed: the proof now runs HEAD, then status, then HEAD again, so a clean status is bound to the
+    pinned revision.
+  - Fixed: it records the Lstat device/inode identity of the directory and re-checks it immediately
+    before `cmd.Start` through a launch guard (`executePoolGuarded` / `executePoolCapturedGuarded`).
+    A changed identity starts nothing and records SOURCE_CHANGED.
+  - Accepted bound, recorded in PSR-V0-012 and its non-goals: Tasks does not own the external
+    checkout. An actor outside Tasks that mutates it after the guard (before the child's
+    chdir/exec), or while the command runs, can still cause different content to run. The post-exit
+    proof is detection only and cannot undo external effects. Restoring the pinned state before that
+    proof hides the change. No fchdir/descriptor-bound execution.
+- **P2, confirmed.** The post-exit proof mapped every error to SOURCE_CHANGED, so a bounded
+  TIMEOUT/INTERRUPTED probe erased the command's own TIMEOUT. `poolPostClass` now:
+  - keeps the command's terminal failure;
+  - replaces a success it cannot confirm with the bounded class;
+  - reports SOURCE_CHANGED only for shown drift.
+  The sweep phase uses the same classification.
+- **P3, confirmed.** The bound test would also pass with the old 300 s limit. With a 1 ms injected
+  second, a 1.5 s command must now succeed under 3600 (a 300 clamp kills it at 0.3 s), and a 30 s
+  command must time out.
+- **Cost.** The pin proof is about four Git probes per proof, run before and after each sweep phase.
+  The pinned sweep fixture needed a member deadline above the shared 3 s fixture value (it observed
+  about 6.6 s on this host).
+
 ## NOT_RUN
 
 `make gate`, `go test ./...`, full `cmd/corvint` suites, the Linux runtime, the dogfood CEM loop and

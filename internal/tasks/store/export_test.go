@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"time"
 )
@@ -60,4 +61,16 @@ func SetPoolCommandSecondForTest(d time.Duration) func() {
 	prev := poolCommandSecond
 	poolCommandSecond = d
 	return func() { poolCommandSecond = prev }
+}
+
+// SetPoolPinStepForTest installs a hook after each pinned-cwd proof step.
+func SetPoolPinStepForTest(hook func(step string) error) func() {
+	prev := poolPinStep
+	poolPinStep = hook
+	return func() { poolPinStep = prev }
+}
+
+// PoolBoundedProbeErrorForTest is a bounded Git probe failure of class.
+func PoolBoundedProbeErrorForTest(class string) error {
+	return sweepGitBounded{class: class, err: errors.New("bounded probe " + class)}
 }
