@@ -52,7 +52,9 @@ type PreparationLock struct {
 
 // AcquirePreparation uses the same bounded, cancellable acquisition and pinned
 // identity checks as the writer lock, on the distinct taskman.prepare.lock file.
-// Acquisition defaults to and is capped at 30 seconds total. Published live
+// Acquisition defaults to and is capped at 30 seconds total; an explicit
+// opts.CallerWait (CAL-V0-109) replaces that bound, up to MaxCallerLockWait,
+// and is spent across the same phases without restarting. Published live
 // registrations enter in rank order; pre-registration scheduling and old clients
 // have no ordering guarantee. The fixed capacity includes the serving holder.
 // Callers must acquire preparation before any writer lock and release it after
@@ -62,7 +64,7 @@ func AcquirePreparation(ctx context.Context, repo *intent.Repository, opts LockO
 		ctx = context.Background()
 	}
 	started := time.Now()
-	wait := EffectiveWait(opts.Wait)
+	wait := opts.wait()
 	poll := opts.Poll
 	if poll <= 0 {
 		poll = DefaultLockPoll

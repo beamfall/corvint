@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -56,6 +57,26 @@ var leaseValueFlags = map[string]bool{
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
 	"--handoff-to": true, "--handoff-reason": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
+	"--lock-wait": true,
+}
+
+// lockWaitVerbs are the lease commands that take the CAL-V0-109 --lock-wait.
+var lockWaitVerbs = map[string]bool{"release": true, "attempt heartbeat": true}
+
+// parseLockWait reads one CAL-V0-109 --lock-wait value: whole seconds in
+// canonical decimal, from 1 to authority.MaxCallerLockWait.
+func parseLockWait(value string) (time.Duration, error) {
+	limit := int64(authority.MaxCallerLockWait / time.Second)
+	n := int64(0)
+	ok := value != "" && value[0] != '0' && len(value) <= 3
+	for i := 0; ok && i < len(value); i++ {
+		ok = value[i] >= '0' && value[i] <= '9'
+		n = n*10 + int64(value[i]-'0')
+	}
+	if !ok || n > limit {
+		return 0, wire.Errorf(wire.CodeMalformed, "--lock-wait", "takes whole seconds from 1 to %d", limit)
+	}
+	return time.Duration(n) * time.Second, nil
 }
 
 func parseLeaseArgs(args []string) (leaseArgs, error) {
@@ -199,6 +220,15 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if parsed.timing && !timingVerbs[name] {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--timing belongs to claim, renew, attempt heartbeat and release"))
 	}
+	var lockWait time.Duration
+	if value, supplied := parsed.values["--lock-wait"]; supplied {
+		if !lockWaitVerbs[name] {
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--lock-wait belongs to release and attempt heartbeat"))
+		}
+		if lockWait, err = parseLockWait(value); err != nil {
+			return fail(err)
+		}
+	}
 	role := parsed.values["--role"]
 	if role == "" {
 		role = "OPERATOR"
@@ -246,6 +276,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	} else {
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		if lockWait > 0 {
+			ctx = store.WithLeaseLockWait(ctx, lockWait)
+		}
 		if parsed.timing {
 			return timedLease(ctx, started, cmd, repo, actor, choice, now)
 		}
