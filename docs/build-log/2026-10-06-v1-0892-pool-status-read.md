@@ -28,6 +28,10 @@ an attempt holds or why a member is QUARANTINED, operators parsed `queue status`
   outcome `observedAt` are therefore `NOT_OBSERVED`. The journal `changedSeq` is the available
   ordering anchor. It records the member's latest pool-state change, which a sweep phase can
   re-record, so it is not labelled as the first moment of quarantine.
+- Coordinator check: lease and pool request preimages and pool observations carry no `issuedAt`
+  (only ticket, release and note mutation envelopes do). A recorded client time would therefore
+  need a format change, which is out of scope, so the fields stay `NOT_OBSERVED` and a time source
+  needs a separate decision.
 - Pool state keeps one observation for each allocation. The other command kind, a FREE member's
   earlier history and sweep-phase observations (another profile) are `NOT_OBSERVED`. Recovering
   them would require an unbounded scan of the journal history.
