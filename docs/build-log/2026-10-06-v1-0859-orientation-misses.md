@@ -236,6 +236,12 @@ truncation, finding no difference) returned one finding:
     eight documentation hits above one recent code hit at limit 12: the reorder-free packet
     states the share line naming `docs/g.md`, the reordered packet the limit line alone).
 
+The sixth review (Codex, read-only, on the fifth fixed commit) approved with no findings: the
+carried code rows stay a descending-bm25 subsequence with the reorder off, so the comparison row
+past the head equals the earlier minimum whenever one exists (a 50,000-case accounting model
+found no difference across held paths, reservations, truncation, withholding and promotion), and
+the eight public cases rerun on that commit are byte-identical to the fourth rerun.
+
 ## Rollback
 
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,
