@@ -111,13 +111,13 @@ above stands with that substitution.
   read-nothing claim is not checkable from the wire, since `IDX-SNAP-V0-006` requires a snapshot
   reader to emit identical bytes on a hit and a miss, so the implementation exposes the package-level
   `var loadSnapshot = contextindex.LoadSnapshot` and its deferred sibling `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
-  (`cmd/corvint/index_snapshot.go:18-21@8984cf3b`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:72-73@5959c784`). The
-  snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:58-59@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
+  (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
+  snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:387-391@ea059984`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path instead uses its separate
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:298-305@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
-  The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
+  The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
   (`cmd/corvint/prove_checkpoint_test.go:707-774@54881720`); the counting test asserts the checkpoint run traverses neither dynamic seam
   (`cmd/corvint/prove_checkpoint_test.go:669-684@62a5f8d6`) (FPK-V0-024).
@@ -789,10 +789,10 @@ above stands with that substitution.
   stdout; a consumer MUST read the exit status, never stdout emptiness, as the signal that no
   verdict was produced. The checkpoint branch MUST call `contextindex.Build`
   (`internal/contextindex/index.go:277@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
-  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1082@a1c6494d`, `cmd/corvint/index_snapshot.go:84@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
+  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1082@a1c6494d`, `cmd/corvint/index_snapshot.go:85@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
   (`cmd/corvint/prove.go:1068-1070@d473eb95`, `cmd/corvint/main.go:1295-1306@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:72-73@5959c784`, `cmd/corvint/index_snapshot.go:58-59@123f0830`) at `cmd/corvint/main.go:1324-1325@c39315fe` and
+  (`cmd/corvint/index_snapshot.go:73-74@5959c784`, `cmd/corvint/index_snapshot.go:59-60@123f0830`) at `cmd/corvint/main.go:1324-1325@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:396-398@9faff3e7`, called at
   `cmd/corvint/main.go:1320@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
@@ -819,9 +819,9 @@ above stands with that substitution.
   passes for a snapshot-reading implementation too. It MUST therefore be tested through a seam.
   The implementation exposes the package-level `var loadSnapshot = contextindex.LoadSnapshot` and
   `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
-  (`cmd/corvint/index_snapshot.go:18-21@8984cf3b`). The one call through the deferred seam is
-  `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:72-73@5959c784`). The seven current production calls through the snapshot seams are
-  `snapshotIndex` (`cmd/corvint/index_snapshot.go:58-59@123f0830`), batch
+  (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`). The one call through the deferred seam is
+  `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The seven current production calls through the snapshot seams are
+  `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`), batch
   (`cmd/corvint/batch.go:149@dbef447a`), answerability
   (`cmd/corvint/answerability.go:94-95@6278a445`), surprise
   (`cmd/corvint/surprise.go:118-119@6278a445`), context lookup
@@ -836,10 +836,10 @@ above stands with that substitution.
   `LoadSnapshot` is not the tree's only exported snapshot reader. The harness calls
   `contextindex.LoadEventSnapshot` and `contextindex.LoadEventSnapshotDeferred` directly (`cmd/corvint/harness_context.go:33-35@44bd361a`), and the
   index path calls `contextindex.ProbeSnapshot` directly
-  (`cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); none passes through the `cmd/corvint`
+  (`cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:617-640@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
-  the snapshot (`internal/contextindex/snapshot.go:544-615@807ae8a9`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:727-750@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
+  the snapshot (`internal/contextindex/snapshot.go:654-725@807ae8a9`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
@@ -884,7 +884,7 @@ above stands with that substitution.
   distinguish one; the same fixture with and without a valid `.corvint/index/` snapshot additionally
   yields byte-identical documents, and neither carries a `snapshot` or any other cache-metadata
   member; and the stderr of a plain `prove PATH...` (or `prove --base`, the two modes that reach
-  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1082@a1c6494d` and `cmd/corvint/index_snapshot.go:84@90129c09`) for a code-less `Build` error is
+  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1082@a1c6494d` and `cmd/corvint/index_snapshot.go:85@90129c09`) for a code-less `Build` error is
   byte-equal to a pinned expectation, so an `unsupported-prove-index` mapping placed in `emitError`
   rather than in the checkpoint branch fails. History
   flags: a merge and a revert each yield `commit-moved`, with the same tree reported as a fact and

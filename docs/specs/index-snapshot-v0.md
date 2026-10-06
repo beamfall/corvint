@@ -56,7 +56,9 @@ what any packet says.
   and pack writers sync the same way. Amendment (accepted 2026-09-26, decision 0424; from decision
   0398; V1-0338): the file ends with the 32-byte SHA-256 of every byte before it (header and index
   message), so a body overwritten with the same number of bytes, or a zeroed range the gob decoder
-  would accept, is detectable on read.
+  would accept, is detectable on read. Amendment (proposed 2026-10-06, V1-0870, pending owner
+  review): the receipt also carries `store`, `store_shared`, `live_heads`, `live_trees` and
+  `evicted_snapshots` (`IDX-SNAP-V0-025`).
 - `IDX-SNAP-V0-002`: `context` reads the repository's identity and status as a build's opening
   observation does, and when a file named by the current object format, tree OID, and engine
   exists with a matching header, uses it with `Root` set, `DirtyPaths` set to the status
@@ -114,6 +116,9 @@ what any packet says.
   Amendment (V1-0361): the same cutoff sweeps the other temporaries a killed writer can leave,
   `blob-*.tmp` in the store and in each `blobs/<engine>/` shard directory (reached through the
   shard writer's no-follow walk) and the `.gitignore-*.tmp` rewrite temporary.
+  Amendment (proposed 2026-10-06, V1-0870, pending owner review): `IDX-SNAP-V0-025` ranks
+  snapshots of a live worktree HEAD's tree ahead of the engine order, within the same entry and
+  byte bounds, and names every removed file.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
   `context`: `corvint query` in place of its authority-only query build, and the harness
   `user-prompt` event (with the standalone repository and agent-tooling query intents that share
@@ -144,7 +149,8 @@ what any packet says.
   the index message behind it without materializing the index (amended by decision 0193), so a
   truncated or torn body is a miss under `IDX-SNAP-V0-003`, never fresh. When the header matches
   and the message is complete it writes nothing and emits one canonical JSON
-  receipt line with `mutates:false`, `state:"fresh"`, `path`, `tree`, `commit`, `engine`. Otherwise
+  receipt line with `mutates:false`, `state:"fresh"`, `path`, `tree`, `commit`, `engine` (and,
+  proposed 2026-10-06 under `IDX-SNAP-V0-025`, `store`, the directory holding `path`). Otherwise
   it builds and writes exactly as `index` does and emits the `IDX-SNAP-V0-001` receipt. Without the
   flag `index` is unchanged. A repository the verb cannot observe is the same error `index` reports
   today.
@@ -513,6 +519,34 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
   and the parse flag in `history.go`.
 
+### Proposed (2026-10-06, V1-0870, pending owner review): named eviction and live worktree trees
+
+- `IDX-SNAP-V0-025`: (proposed 2026-10-06, V1-0870) the `index` receipt MUST name the store
+  it wrote and every published file it removed. `store` is the snapshot directory and
+  `store_shared` is true when that directory is the Git common directory's store every linked
+  worktree reads (`DIRTY-CACHE-013`). `evicted_snapshots` lists each removed file in removal order
+  as `{kind, path, bytes, tree, engine, live_head}`, where `kind` is `snapshot` for a `*.gob`
+  file and `pack` for an analyzer pack (`IDX-SNAP-V0-017`). The list is empty, never absent, when
+  nothing was removed, and `evicted` is its length. The swept writer temporaries are not
+  published snapshots and are not listed. The `--if-stale` fresh receipt adds `store`. Before
+  ranking, `index` reads the trees at the HEAD of every live worktree of the repository with
+  `git worktree list --porcelain -z` and one `git cat-file --batch-check`. A worktree Git reports
+  bare or prunable, or whose HEAD is unborn, contributes no tree. `live_heads` is `OBSERVED` and
+  `live_trees` the count when both reads succeed. When either read fails, `live_heads` is
+  `NOT_OBSERVED`, `live_trees` is 0, and eviction falls back to the `IDX-SNAP-V0-007` order. The
+  gob ranking keeps the snapshot just written first. Snapshots whose tree segment names a live
+  tree come next, then the writing engine's, each group newest first. The entry bound and the
+  1 GiB byte budget of `IDX-SNAP-V0-007` are unchanged. Live-tree protection is therefore
+  bounded: a live tree past the bound is still removed and listed with `live_head:true`. The
+  repository's live trees can need more than the budget, for example 143 worktrees at about
+  120 MB each. Analyzer packs keep their own age order and only report `live_head`. Only the
+  writer reads the live set, so no read verb gains a Git process (`AGENTS.md` invariant 4). A
+  reused snapshot still matches the exact object format, tree and engine of its name. Falsifier:
+  an `index` run that removes a file it does not list, or that removes a live tree's snapshot
+  while keeping a non-live one inside the bound. Rollback: drop the live set and the list from
+  `WriteSnapshot`, `evictSnapshots` and `evictAnalyzerPacks`, and the new receipt keys from
+  `runIndex`; the count-only `evicted` remains.
+
 ## Non-goals and authority
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
@@ -580,7 +614,14 @@ path.
   `build/` or `internal/target/`) is absent from the index. It is recorded in `Exclusions` with its
   reason, so the omission is countable rather than silent; the repository cannot opt it back in.
 - Disk: about the size of the source bodies (44 MiB on the 3,233-file repository); at most eight
-  files per repository.
+  files per worktree, up to 64 and 1 GiB per shared store (`IDX-SNAP-V0-007`).
+- More live worktree trees than the store's bound or byte budget holds: the newest live trees
+  stay, and each older one is removed and listed with `live_head:true`, so that worktree's next
+  event misses and reports a stale snapshot rather than evicting without trace
+  (`IDX-SNAP-V0-025`).
+- `git worktree list` or `cat-file` fails or exceeds its bound during `index`: the receipt reports
+  `live_heads:"NOT_OBSERVED"` and eviction uses the engine-and-age order alone; the write is not
+  refused.
 
 ## Acceptance evidence
 
@@ -611,6 +652,14 @@ one body with the same number of bytes and shows the probe and every loader miss
 refuses a shard name that is an in-root symlink (`IDX-SNAP-V0-016`).
 `TestForbiddenPathScreenIsTheAcceptedSet` (`internal/contextindex/index_test.go`) pins
 `IDX-SNAP-V0-018`'s component set, prefixes, pattern, reasons, and order.
+`TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst` and
+`TestLiveWorktreeTreesNamesEveryLiveHead` (`internal/contextindex/snapshot_test.go`) and
+`TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt` (`cmd/corvint/index_snapshot_test.go`)
+cover `IDX-SNAP-V0-025`. The last writes a linked worktree's snapshot, fills the shared store's
+bound with newer non-live snapshots, and writes from the main worktree. The receipt names the one
+evicted file, the linked snapshot survives, and the linked worktree's `index --if-stale` is fresh
+on the same path. Its prompt event then succeeds with a context packet and no build. With the
+live set disabled the unit test and this test both fail.
 
 The 2026-09-08 lifecycle amendment is exercised by `TestClaudeNativeDogfoodLifecycle`, including
 startup/resume/clear/compact on a cold fixture with unchanged repository/Git bytes and no refresh
@@ -658,3 +707,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
+| IDX-SNAP-V0-025 (proposed) | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |

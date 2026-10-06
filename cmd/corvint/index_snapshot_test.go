@@ -66,7 +66,7 @@ func writingIndexReceipt(t *testing.T, encoded []byte) map[string]any {
 	if err := json.Unmarshal(encoded, &receipt); err != nil {
 		t.Fatal(err)
 	}
-	wantKeys := []string{"bytes", "command", "commit", "engine", "evicted", "mutates", "ok", "path", "profile", "sources", "symbols", "tree"}
+	wantKeys := []string{"bytes", "command", "commit", "engine", "evicted", "evicted_snapshots", "live_heads", "live_trees", "mutates", "ok", "path", "profile", "sources", "store", "store_shared", "symbols", "tree"}
 	gotKeys := make([]string, 0, len(receipt))
 	for key := range receipt {
 		gotKeys = append(gotKeys, key)
@@ -88,6 +88,7 @@ func TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched(t *testing.T) {
 		"mutates": false,
 		"state":   "fresh",
 		"path":    initial["path"],
+		"store":   initial["store"],
 		"tree":    initial["tree"],
 		"commit":  initial["commit"],
 		"engine":  initial["engine"],
@@ -440,5 +441,95 @@ func TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte(t *testin
 				t.Fatalf("IDX-SNAP-V0-010: stale snapshot load: hit=%v err=%v", hit, err)
 			}
 		})
+	}
+}
+
+// TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt is V1-0870
+// (IDX-SNAP-V0-025, DIRTY-CACHE-013): a write from the main worktree names its
+// shared store and every snapshot it evicts, keeps the snapshot of the tree a
+// linked worktree has checked out even past newer ones this binary wrote, and
+// that worktree's `index --if-stale` and prompt event then reuse it with no
+// build.
+func TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	linked := filepath.Join(t.TempDir(), "linked")
+	gitFixture(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "internal", "parser", "lexer.go"), []byte("package parser\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, root, "add", ".")
+	gitFixture(t, root, "commit", "-qm", "move the main worktree to another tree")
+	common, err := filepath.EvalSymlinks(gitFixture(t, linked, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := filepath.Join(common, "corvint", "index")
+
+	first := writingIndexReceipt(t, runIndexForTest(t, linked, false))
+	reused, _ := first["path"].(string)
+	if first["store"] != store || first["store_shared"] != true || filepath.Dir(reused) != store ||
+		first["live_heads"] != "OBSERVED" || first["live_trees"] != float64(2) {
+		t.Fatalf("IDX-SNAP-V0-025: linked worktree receipt does not name the shared store %s: %v", store, first)
+	}
+	// Fifteen newer snapshots this binary wrote for trees no worktree has
+	// checked out fill the store's bound (eight per worktree, sixteen here) once
+	// the main worktree writes; before V1-0870 that write evicted the linked
+	// worktree's older snapshot.
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(reused, old, old); err != nil {
+		t.Fatal(err)
+	}
+	engine, _ := first["engine"].(string)
+	newer := time.Now().Add(-time.Minute)
+	for index := range 15 {
+		path := filepath.Join(store, fmt.Sprintf("sha1-%040x-%s.gob", index+1, engine))
+		if err := os.WriteFile(path, []byte("unused"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, newer, newer); err != nil {
+			t.Fatal(err)
+		}
+	}
+	second := writingIndexReceipt(t, runIndexForTest(t, root, false))
+	evicted, _ := second["evicted_snapshots"].([]any)
+	if second["store"] != store || second["evicted"] != float64(1) || len(evicted) != 1 {
+		t.Fatalf("IDX-SNAP-V0-025: main worktree receipt = %v", second)
+	}
+	named, _ := evicted[0].(map[string]any)
+	if path, _ := named["path"].(string); filepath.Dir(path) != store || path == reused || named["kind"] != "snapshot" ||
+		named["engine"] != engine || named["live_head"] != false || named["bytes"] != float64(len("unused")) {
+		t.Fatalf("IDX-SNAP-V0-025: evicted entry = %v", named)
+	}
+	if _, err := os.Stat(named["path"].(string)); !os.IsNotExist(err) {
+		t.Fatalf("IDX-SNAP-V0-025: named eviction %v still exists: %v", named["path"], err)
+	}
+	if _, err := os.Stat(reused); err != nil {
+		t.Fatalf("IDX-SNAP-V0-025: the linked worktree's live snapshot was evicted: %v", err)
+	}
+
+	var fresh map[string]any
+	if err := json.Unmarshal(runIndexForTest(t, linked, true), &fresh); err != nil {
+		t.Fatal(err)
+	}
+	if fresh["state"] != "fresh" || fresh["path"] != reused || fresh["store"] != store || fresh["tree"] != first["tree"] {
+		t.Fatalf("DIRTY-CACHE-013: linked worktree did not reuse its exact-tree snapshot: %v", fresh)
+	}
+	// A minute and a refused build: this verifies the snapshot hit, not latency (decision 0082).
+	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
+		return nil, fmt.Errorf("a reused snapshot started a build")
+	})
+	var stdout, stderr bytes.Buffer
+	if code := runLocalCompletionEvent(ctx, linked, dogfoodEventArguments("user-prompt"), strings.NewReader(`{"task":"how does the parser lex"}`), &stdout, &stderr); code != 0 {
+		t.Fatalf("AHI-031: linked worktree prompt degraded: code=%d %s", code, &stderr)
+	}
+	var event map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &event); err != nil {
+		t.Fatal(err)
+	}
+	repository, _ := event["repository"].(map[string]any)
+	if event["ok"] != true || event["context"] == nil || repository["treeRevision"] != first["tree"] {
+		t.Fatalf("AHI-031: linked worktree prompt event = %s", &stdout)
 	}
 }

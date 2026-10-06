@@ -104,6 +104,31 @@ type SnapshotReceipt struct {
 	// IDX-SNAP-V0-015).
 	PackPath  string
 	PackBytes int64
+	// Store is the directory the snapshot was published in and StoreShared
+	// whether it is the Git common directory's store every linked worktree
+	// reads (DIRTY-CACHE-013). LiveHeads is "OBSERVED" when the trees at
+	// every live worktree HEAD were read before eviction ranked the store,
+	// LiveTrees their count, and "NOT_OBSERVED" when that read failed and
+	// eviction ranked without them. EvictedSnapshots names every published
+	// file the write removed; Evicted is its length (IDX-SNAP-V0-025).
+	Store            string
+	StoreShared      bool
+	LiveHeads        string
+	LiveTrees        int
+	EvictedSnapshots []EvictedSnapshot
+}
+
+// EvictedSnapshot is one published file an index write removed: a gob
+// snapshot or, under CORVINT_SNAPSHOT_FORMAT=pack, an analyzer pack. LiveHead
+// is true when its tree is checked out at a live worktree HEAD, which the
+// bounded ranking keeps first but cannot keep past the entry or byte bound
+// (IDX-SNAP-V0-025).
+type EvictedSnapshot struct {
+	Kind         string
+	Path         string
+	Bytes        int64
+	Tree, Engine string
+	LiveHead     bool
 }
 
 // SnapshotProbe identifies a matching snapshot without decoding its index.
@@ -317,11 +342,71 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 		}
 	}
 	bound := store.bound()
-	receipt.Evicted = evictSnapshots(directory, target, bound)
-	if packEnabled() {
-		receipt.Evicted += evictAnalyzerPacks(directory, receipt.PackPath, bound)
+	receipt.Store, receipt.StoreShared, receipt.LiveHeads = directory, store.shared, "NOT_OBSERVED"
+	live, observed := liveWorktreeTrees(index.Root)
+	if observed {
+		receipt.LiveHeads, receipt.LiveTrees = "OBSERVED", len(live)
 	}
+	receipt.EvictedSnapshots = evictSnapshots(directory, target, bound, live)
+	if packEnabled() {
+		receipt.EvictedSnapshots = append(receipt.EvictedSnapshots, evictAnalyzerPacks(directory, receipt.PackPath, bound, live)...)
+	}
+	receipt.Evicted = len(receipt.EvictedSnapshots)
 	return receipt, nil
+}
+
+// liveWorktreeDeadline bounds the two Git reads that name the live trees. A
+// write that cannot read them in time evicts by the engine-and-age ranking
+// alone and reports the live set NOT_OBSERVED.
+const (
+	liveWorktreeDeadline = 10 * time.Second
+	maxLiveWorktreeBytes = 4 << 20
+)
+
+// liveWorktreeTrees is the set of trees checked out at the HEAD of every live
+// worktree of root's repository: the main worktree and each linked one Git
+// does not report bare or prunable. An unborn HEAD names no tree. observed is
+// false when either Git read fails; the caller then ranks without the set
+// (IDX-SNAP-V0-025). Only WriteSnapshot calls it, so the read verbs spawn
+// nothing more.
+func liveWorktreeTrees(root string) (map[string]bool, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), liveWorktreeDeadline)
+	defer cancel()
+	listing, err := git(ctx, root, maxLiveWorktreeBytes, nil, "worktree", "list", "--porcelain", "-z")
+	if err != nil {
+		return nil, false
+	}
+	var request bytes.Buffer
+	head, skip := "", false
+	for _, field := range strings.Split(string(listing), "\x00") {
+		switch {
+		case field == "":
+			// A record ends with an empty field.
+			if head != "" && !skip {
+				request.WriteString(head + "^{tree}\n")
+			}
+			head, skip = "", false
+		case strings.HasPrefix(field, "HEAD "):
+			head = strings.TrimPrefix(field, "HEAD ")
+		case field == "bare" || field == "prunable" || strings.HasPrefix(field, "prunable "):
+			skip = true
+		}
+	}
+	trees := map[string]bool{}
+	if request.Len() == 0 {
+		return trees, true
+	}
+	resolved, err := git(ctx, root, maxLiveWorktreeBytes, request.Bytes(), "cat-file", "--batch-check=%(objectname) %(objecttype)")
+	if err != nil {
+		return nil, false
+	}
+	for _, line := range strings.Split(string(resolved), "\n") {
+		// A missing object prints "<request> missing" and names no tree.
+		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == "tree" {
+			trees[fields[0]] = true
+		}
+	}
+	return trees, true
 }
 
 func writeSectionedSnapshot(directory, target string, index *Index, engineID string) (int64, error) {
@@ -435,22 +520,25 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 }
 
 // evictSnapshots removes stale writer temporaries and the published files
-// beyond bound or snapshotStoreBytes, other engines' first and then the
-// oldest, never the snapshot just written.
-func evictSnapshots(directory, keep string, bound int) int {
-	return evictSnapshotsAt(directory, keep, bound, time.Now())
+// beyond bound or snapshotStoreBytes, never the snapshot just written, and
+// names each file it removed. The ranking keeps the just-written snapshot,
+// then snapshots of a live worktree HEAD's tree, then the writing engine's,
+// then the newest (IDX-SNAP-V0-007, IDX-SNAP-V0-025).
+func evictSnapshots(directory, keep string, bound int, live map[string]bool) []EvictedSnapshot {
+	return evictSnapshotsAt(directory, keep, bound, live, time.Now())
 }
 
-func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
+func evictSnapshotsAt(directory, keep string, bound int, live map[string]bool, now time.Time) []EvictedSnapshot {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		return 0
+		return nil
 	}
 	type aged struct {
 		path    string
 		when    int64
 		bytes   int64
 		current bool
+		live    bool
 	}
 	currentEngine := snapshotEngineOf(keep)
 	files := make([]aged, 0, len(entries))
@@ -470,17 +558,25 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		if filepath.Ext(entry.Name()) != ".gob" {
 			continue
 		}
-		files = append(files, aged{path, info.ModTime().UnixNano(), info.Size(), snapshotEngineOf(path) == currentEngine})
+		files = append(files, aged{path, info.ModTime().UnixNano(), info.Size(), snapshotEngineOf(path) == currentEngine, live[snapshotTreeOf(path)]})
 	}
-	// Snapshots the writing binary can read come first, newest first; one
-	// another binary wrote is evicted before an older readable one.
+	// The just-written snapshot ranks first. A snapshot of a tree some live
+	// worktree has checked out comes next, so one worktree's write does not
+	// evict the snapshot another reuses; then snapshots the writing binary
+	// can read; each group newest first.
 	sort.Slice(files, func(left, right int) bool {
+		if (files[left].path == keep) != (files[right].path == keep) {
+			return files[left].path == keep
+		}
+		if files[left].live != files[right].live {
+			return files[left].live
+		}
 		if files[left].current != files[right].current {
 			return files[left].current
 		}
 		return files[left].when > files[right].when
 	})
-	evicted := 0
+	var evicted []EvictedSnapshot
 	var keptBytes int64
 	for position, file := range files {
 		if file.path == keep || position < bound && keptBytes+file.bytes <= snapshotStoreBytes {
@@ -488,7 +584,10 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 			continue
 		}
 		if os.Remove(file.path) == nil {
-			evicted++
+			evicted = append(evicted, EvictedSnapshot{
+				Kind: "snapshot", Path: file.path, Bytes: file.bytes,
+				Tree: snapshotTreeOf(file.path), Engine: snapshotEngineOf(file.path), LiveHead: file.live,
+			})
 		}
 		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + sectionedExtension)
 		// No current writer uses this name: packs are keyed by the analyzer
@@ -497,6 +596,17 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + packExtension)
 	}
 	return evicted
+}
+
+// snapshotTreeOf is the tree segment of a snapshotPath or packPath name:
+// `<format>-<tree>-<engine>` with the extension removed.
+func snapshotTreeOf(path string) string {
+	name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	first, last := strings.IndexByte(name, '-'), strings.LastIndexByte(name, '-')
+	if first < 0 || last <= first {
+		return ""
+	}
+	return name[first+1 : last]
 }
 
 // snapshotEngineOf is the engine segment of a snapshotPath name.
