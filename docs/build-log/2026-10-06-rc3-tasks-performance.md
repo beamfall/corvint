@@ -65,6 +65,9 @@ median wall time and, for mutations, the median writer-lock hold.
   - Top-level files keep `readInRoot`.
   - If pinning fails, every file in that subdirectory falls back to `readInRoot`, which reproduces
     the original error.
+  - When the capture ends, each pinned descriptor must still be the directory its name resolves to
+    (`os.SameFile` against `root.Lstat`). If not, the whole capture is repeated per file, as before
+    this change.
   - Open, validation and bound errors share `readOpened`, so the error text is unchanged.
 
 There is no wire, receipt, journal or spec change.
@@ -73,6 +76,21 @@ There is no wire, receipt, journal or spec change.
 
 - **Toggles exist only for parity tests.** `pinnedMutationInventory`, `reuseProbedTree` and
   `pinTreeDirs` default to on. Each is a package variable, never configuration.
+- **Independent review (Codex `gpt-6-astra`, read-only, of `900cf18f`) found one defect in this
+  change, and it is fixed.**
+  - W3 never rebound a pinned subdirectory to its name. If `tickets/` were replaced after it was
+    pinned, during the second probe for example, the capture would keep reading the old directory.
+    It could then return the first probe's digest and accept a read the per-file path would retry.
+  - The capture now checks that each pinned descriptor is still bound to its name, and repeats the
+    capture per file if one is not (see Change).
+  - `TestTMV0008_PinnedTreeDirReplacedDuringCapture` swaps `tickets/` right after the pin. The capture
+    must equal a per-file capture of the store as it then stands, with the digest changed. With the
+    binding check removed, the test fails.
+  - Codex found no defect in the watched inventory (W1, W1b) or the probed-tree decode (W2).
+  - Codex also reported three differences between this branch and a newer `origin/main`: the
+    `--lock-wait` flags in `cli/lease.go`, Darwin pressure sampling in `dispatch`, and `groupreap`
+    quiet-proof. They come from the branch base `855077fc` predating those merges, not from this
+    change, which does not touch those files.
 - **Not implemented, reported with measured potential:**
   - **Move Mutate's audit and inventory before the writer lock, as lease prepare already does
     (V1-0645).** After W1 the lock hold at `s3k` is still about 2.8 s, of which `AuditForMutation` is
@@ -131,6 +149,16 @@ All tests ran on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count
   and refuses a tampered capture as `SNAPSHOT_MOVED`.
 - `TestTMV0008_PinnedTreeDigestParity`: the trees are equal, and so are the errors, for the valid,
   empty, release-record, unreadable-ticket (`EACCES`) and stray-entry cases.
+- `TestTMV0008_PinnedTreeDirReplacedDuringCapture`, added after review, covers a directory replaced
+  during capture.
+
+### Package tests
+
+The packages in the affected plan under `internal/tasks` were run on the final code, and all
+PASSED: `intent`, `snapshot`, `journal`, `transaction`, `archive`, `service`, `importer`, `cli`,
+`dispatch`, `store` and `internal/tasks`. `cmd/corvint-tasks` has no test files. `safeopen`,
+`mutation`, `ticket`, `criterionbinding` and `supervisor` PASSED on the first commit; the review fix
+does not reach them. Vet passed for darwin, linux and windows, and `gofmt -l` is clean.
 
 ### Microbenchmarks (`-benchtime=20x`, loaded host)
 
@@ -139,6 +167,10 @@ All tests ran on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count
 | `BenchmarkCALV0070_WatchedInventory` (2,000 receipts) | 0.99 to 1.58 s/op, 360k allocs | 0.32 to 0.44 s/op, 158k allocs |
 | `BenchmarkTMV0008_ReadIntentTree` (880 tickets, probe + body + probe) | 114 ms, 117 MB | 81 ms, 86 MB |
 | `BenchmarkTMV0008_TreeDigest` (880 tickets, one probe) | 59 ms, 26.6k allocs | 34 ms, 16.1k allocs |
+
+After the review fix (a stat and an lstat per pinned subdirectory), `BenchmarkTMV0008_TreeDigest` ran
+at 72 ms per-file against 34 ms pinned, with 26,606 against 16,061 allocations. The binary medians
+below were taken before that fix.
 
 ### Binary medians of five runs
 

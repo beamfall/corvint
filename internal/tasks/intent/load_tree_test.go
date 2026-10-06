@@ -125,6 +125,54 @@ func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
 	}
 }
 
+// TM-V0-008: a tickets/ directory replaced after TreeDigest pinned it is
+// never captured from the replaced directory: the capture ends equal to a
+// per-file capture of the store as it then stands, so a second probe sees
+// the change and the read retries.
+func TestTMV0008_PinnedTreeDirReplacedDuringCapture(t *testing.T) {
+	root := loadTreeRoot(t, 9)
+	dir := filepath.Join(root, intent.Dir, intent.TicketsDir)
+	before, err := intent.TreeDigest(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	swaps := 0
+	defer intent.SetAfterTreeDirPinForTest(func(sub string) {
+		if sub != intent.TicketsDir || swaps > 0 {
+			return
+		}
+		swaps++
+		if err := os.Rename(dir, filepath.Join(root, "replaced-tickets")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 9; i++ {
+			rec := fixture.Ticket(fmt.Sprintf("T%04d", i))
+			if i == 4 {
+				rec.Title = "changed in the replacement directory"
+			}
+			if err := os.WriteFile(filepath.Join(dir, rec.TicketID.Local+".json"), rec.Encode(), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})()
+	got, err := intent.TreeDigest(root)
+	if err != nil || swaps != 1 {
+		t.Fatalf("capture: %v (swaps %d)", err, swaps)
+	}
+	restore := intent.SetPinTreeDirsForTest(false)
+	want, err := intent.TreeDigest(root)
+	restore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) || got.Sha256 == before.Sha256 {
+		t.Fatalf("capture %s, per-file %s, before %s", got.Sha256, want.Sha256, before.Sha256)
+	}
+}
+
 // BenchmarkTMV0008_ReadIntentTree is a read's intent-tree work around its
 // body: two probe digests plus the body's load, before (a third pass through
 // LoadExpecting) and after (decoding the first probe's tree).

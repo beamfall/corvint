@@ -7,3 +7,11 @@ func SetPinTreeDirsForTest(on bool) func() {
 	pinTreeDirs = on
 	return func() { pinTreeDirs = old }
 }
+
+// SetAfterTreeDirPinForTest runs hook once TreeDigest has pinned a store
+// subdirectory, before it reads any record there.
+func SetAfterTreeDirPinForTest(hook func(sub string)) func() {
+	old := afterTreeDirPin
+	afterTreeDirPin = hook
+	return func() { afterTreeDirPin = old }
+}

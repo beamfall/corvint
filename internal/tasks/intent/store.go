@@ -267,12 +267,28 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 	}
 
 	// Phase 2: read exactly the planned entries through the root descriptor.
-	files := make([]File, 0, len(plan))
-	captured := 0
+	// A pinned subdirectory no longer bound to its name when the capture
+	// ends was replaced while it was read, so the capture is repeated with
+	// every record opened by its whole path, as without pinning.
 	dirs := pinnedTreeDirs{}
 	defer dirs.close()
+	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
+		return dirs.read(root, full, rel, max)
+	})
+	if err != nil || dirs.bound(root) {
+		return tree, err
+	}
+	return captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
+		return readInRoot(root, full, rel, max)
+	})
+}
+
+// captureTree reads the planned entries with read and digests them.
+func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int) ([]byte, error)) (Tree, error) {
+	files := make([]File, 0, len(plan))
+	captured := 0
 	for _, p := range plan {
-		raw, err := dirs.read(root, filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
 		if err != nil {
 			return Tree{}, err
 		}
@@ -358,12 +374,37 @@ func (d pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, 
 			pinned = nil
 		}
 		d[sub], dir = pinned, pinned
+		if pinned != nil && afterTreeDirPin != nil {
+			afterTreeDirPin(sub)
+		}
 	}
 	if dir == nil {
 		return readInRoot(root, full, rel, max)
 	}
 	f, err := safeopen.InDir(dir, name, os.O_RDONLY, 0)
 	return readOpened(f, err, full, max)
+}
+
+// afterTreeDirPin is replaced only by the deterministic directory-swap test.
+var afterTreeDirPin func(sub string)
+
+// bound reports whether every pinned subdirectory is still the directory its
+// name resolves to beneath root.
+func (d pinnedTreeDirs) bound(root *os.Root) bool {
+	for sub, dir := range d {
+		if dir == nil {
+			continue
+		}
+		held, err := dir.Stat()
+		if err != nil {
+			return false
+		}
+		named, err := root.Lstat(sub)
+		if err != nil || !os.SameFile(held, named) {
+			return false
+		}
+	}
+	return true
 }
 
 func (d pinnedTreeDirs) close() {
