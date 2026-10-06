@@ -34,7 +34,7 @@ CEM-V1-001/CEM-V1-007 and V1-0668 full qualification obligations remain unchange
 - `PGO-V0-003`: Check the original retirement allowance before new primitives and before accepting absence; intersect it with the fixed two-second post-reap cap. Retain terminal HOLD for unproved cleanup and late asynchronous reap completion.
 - `PGO-V0-004`: Serialize concurrent Finish and Stop so signalling and reaping occur once. Refuse invalid modes and unsupported platforms before process creation.
 - `PGO-V0-005`: Preserve existing Wait/Run and callers. Only RELEASED proves cleanup; HOLD must remain explicit and must not trigger a weaker fallback or success claim.
-- `PGO-V0-006`: On Linux, where signal 0 succeeds for a group whose only members are zombies (including the owner's unreaped leader), the pre-reap quiet observation reads /proc instead of signalling. It runs only after the exit observation and the single group signal, while the leader is unreaped. It first identifies the leader as this process's exited child leading its own group, then reports quiet only when every process and thread whose group is the leader is a zombie or dead and the scan saw the leader, and re-checks the leader identity. Each scan is bounded by a fixed entry count and stat size, and the retirement allowance is checked before and after it. It sends no signal and grants no signal authority. An unavailable or unreadable /proc, an identity mismatch, a malformed entry or an exceeded bound is a probe failure and HOLD; a live member keeps the owner polling until the allowance HOLDs. Release still requires post-reap signal-0 absence.
+- `PGO-V0-006`: On Linux, where signal 0 succeeds for a group whose only members are zombies (including the owner's unreaped leader), the pre-reap quiet observation reads /proc instead of signalling. It runs only after the exit observation and the single group signal, while the leader is unreaped. It first identifies the leader as this process's exited child leading its own group, then reports quiet only when every process whose group is the leader is a zombie or dead with a status Threads count of one (task/ is not walked, because its ordinal enumeration can skip a surviving thread) and the scan saw the leader, and re-checks the leader identity. Each scan is bounded by a fixed entry count and stat and status sizes, and the retirement allowance is checked before and after it. It sends no signal and grants no signal authority. An unavailable or unreadable /proc, an identity mismatch, a malformed entry or an exceeded bound is a probe failure and HOLD; a live member keeps the owner polling until the allowance HOLDs. Release still requires post-reap signal-0 absence.
 
 ## Non-goals and baseline
 
@@ -44,7 +44,11 @@ account-wide process management or release qualification. The /proc proof does
 not reap or release zombie members that a non-reaping init or subreaper keeps
 after the leader reap: post-reap absence is unobserved and the owner HOLDs. A
 member hidden by a /proc hidepid mount cannot cause release either, because
-release still needs post-reap ESRCH. The simpler baseline is
+release still needs post-reap ESRCH. The quiet proof, like Darwin signal 0, is
+an observation of the group's members: a same-session process from outside the
+group that joins it with setpgid after the single signal, or after the scan read
+its entry, is not covered by it and can be followed by the reap; it is never
+signalled, and the post-reap absence check HOLDs while it remains a member. The simpler baseline is
 the existing helper; it is retained but does not provide the new Owner contract.
 
 ## Trust boundary and failures

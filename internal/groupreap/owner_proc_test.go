@@ -39,24 +39,13 @@ func (f *fakeProc) write(path, content string) {
 	}
 }
 
-// process writes pid's stat and one task per thread state; the first thread
-// is the thread-group leader.
+// process writes pid's stat and a status whose Threads count is the number of
+// thread states given (one when none are given).
 func (f *fakeProc) process(pid int, comm string, state byte, ppid, pgrp int, threads ...byte) {
 	f.t.Helper()
-	stat := func(id int, s byte) string {
-		return strconv.Itoa(id) + " (" + comm + ") " + string(s) + " " + strconv.Itoa(ppid) + " " + strconv.Itoa(pgrp) + " " + strconv.Itoa(pgrp) + " 0 -1 4194304\n"
-	}
-	f.write(filepath.Join(strconv.Itoa(pid), "stat"), stat(pid, state))
-	if len(threads) == 0 {
-		threads = []byte{state}
-	}
-	for i, s := range threads {
-		tid := pid
-		if i > 0 {
-			tid = pid*10 + i
-		}
-		f.write(filepath.Join(strconv.Itoa(pid), "task", strconv.Itoa(tid), "stat"), stat(tid, s))
-	}
+	stat := strconv.Itoa(pid) + " (" + comm + ") " + string(state) + " " + strconv.Itoa(ppid) + " " + strconv.Itoa(pgrp) + " " + strconv.Itoa(pgrp) + " 0 -1 4194304\n"
+	f.write(filepath.Join(strconv.Itoa(pid), "stat"), stat)
+	f.write(filepath.Join(strconv.Itoa(pid), "status"), "Name:\t"+comm+"\nState:\t"+string(state)+"\nThreads:\t"+strconv.Itoa(max(1, len(threads)))+"\n")
 }
 
 func TestProcGroupQuietClassification(t *testing.T) {
@@ -96,6 +85,26 @@ func TestProcGroupQuietClassification(t *testing.T) {
 			f.process(leader, "sh", 'Z', parent, leader)
 			f.process(101, "threads", 'Z', 1, leader, 'Z', 'S')
 		}, ProbeLive, false},
+		{"zombie-member-status-vanished", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(101, "sleep", 'Z', 1, leader)
+			if err := os.Remove(filepath.Join(f.root, "101", "status")); err != nil {
+				t.Fatal(err)
+			}
+		}, ProbeQuiet, false},
+		{"zombie-leader-with-live-thread", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader, 'Z', 'S')
+		}, ProbeLive, false},
+		{"zombie-member-status-without-thread-count", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(101, "sleep", 'Z', 1, leader)
+			f.write("101/status", "Name:\tsleep\nState:\tZ\n")
+		}, ProbeLive, true},
+		{"zombie-member-oversized-status", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(101, "sleep", 'Z', 1, leader)
+			f.write("101/status", strings.Repeat("x", maxProcStatus)+"\nThreads:\t1\n")
+		}, ProbeLive, true},
 		{"comm-with-parentheses", func(f *fakeProc) {
 			f.process(leader, "sh", 'Z', parent, leader)
 			f.process(101, "a) Z 1 100 (b", 'R', 1, leader)

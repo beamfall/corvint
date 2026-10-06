@@ -18,11 +18,11 @@ cannot be obtained.
     SIGKILL, while the leader is still unreaped and so pins its PID and PGID.
   - It first checks leader identity: `/proc/<leader>/stat` must show state Z or X, `ppid` equal to
     this process and `pgrp` equal to the leader.
-  - It then scans the numeric `/proc` entries. Any process whose `pgrp` is the leader and whose
-    state is not Z or X, or a zombie process with a live thread under `task/`, is `ProbeLive`.
+  - It then scans the numeric `/proc` entries. A process whose `pgrp` is the leader is `ProbeLive`
+    if its state is not Z or X, or if it is a zombie whose `status` `Threads:` count is above one.
   - It reports `ProbeQuiet` only when the scan saw the leader and the identity re-check passes
     after the scan.
-  - It is bounded at 2^22 entries per directory and 4096 bytes per stat. Entries that vanish during
+  - It is bounded at 2^22 entries per directory, 4096 bytes per stat and 16384 bytes per status. Entries that vanish during
     the scan are skipped.
   - Every failure wraps `errProcProof` and the owner HOLDs. Failures include a missing or unreadable
     `/proc`, an identity mismatch, malformed or oversized stat, and an exceeded bound. The proof
@@ -42,11 +42,17 @@ cannot be obtained.
   `fork` from a task with a pending fatal signal. So no member can create a new live member. A
   process that exists for the whole `readdir` is listed, so a single scan sees every member that
   outlives it.
-- **Membership can only grow from outside.** Because the leader is unreaped, no new process can
-  take the leader's PID as its PGID. The only way to join the group is `setpgid` from the same
-  session, and the scan then sees that process as live, so the result is the conservative HOLD.
-- **Per-task check.** A thread-group leader can show Z while its other threads still run, so the
-  scan reads `task/*/stat` for any group member in Z state.
+- **Joins from outside the group are a stated limit.** Because the leader is unreaped, no new
+  process can take the leader's PID as its PGID. A same-session process can still join with
+  `setpgid`. If it joins after the scan read its entry, or after the scan, the proof does not see it
+  and the reap can follow; Darwin signal 0 has the same window. Such a process was never signalled.
+  The post-reap signal-0 check HOLDs while it remains a member. This is recorded in Non-goals.
+  (The first draft wrongly claimed the scan always sees such a joiner; see the review.)
+- **Thread count, not a task walk.** A thread-group leader can show Z while its other threads still
+  run. `/proc/<pid>/task` is enumerated by ordinal after a cached TID, so threads exiting between
+  reads can skip a surviving thread. The proof therefore reads the `Threads:` count from `status`
+  for each zombie member, and any count above one is live. The top-level `/proc` listing is
+  enumerated by PID number, so no process that exists for the whole scan is skipped.
 - **Known limits, in Non-goals.** Zombies left by a non-reaping PID 1 or subreaper, and members
   hidden by `hidepid`, end in HOLD. They never reach RELEASED, because release still needs a
   signal-0 ESRCH after the reap.
@@ -85,10 +91,32 @@ cannot be obtained.
       fails the same way on the base commit and passes with the default TMPDIR.
     - `internal/liveverify/affected`: 100 ms latency budgets exceeded under load.
     - `internal/tracerecordrepo`: git timeout and TempDir cleanup under load.
-    - Reruns after the commit: recorded below.
+    - Rerun after the commit with the default TMPDIR, all four pass.
   - `go vet` passes for GOOS darwin, linux and windows on `internal/groupreap`,
     `internal/cem/verify` and `internal/cem/gitrun`.
-- Review: recorded below.
+- After the review fixes, the Linux arm64 checks were rerun and all passed: vet; groupreap with
+  `-race -v`, `-count=5` and as uid 1000; the verify Stable/Candidate cases with S0E 54 PASS and
+  2 NOT_RUN as root and as uid 1000. On Darwin, groupreap `-race` and vet for darwin, linux and
+  windows also passed.
+
+## Review
+
+Independent review used `codex exec -m gpt-6-astra -s read-only` on
+`07452b07..3a352248`. It reported two P2 findings and found nothing in signal ordering, leader PID
+pinning, the bounds or the build tags. Neither finding allows a false RELEASED.
+
+1. P2: a same-session process can join the group with `setpgid` after the scan has read its entry,
+   and the proof still reports quiet.
+   - Disposition: accepted as a limit. No scan can close this window, and Darwin signal 0 has the
+     same one.
+   - The build log's incorrect claim was corrected, and the limit was added to the spec's
+     Non-goals. The post-reap absence check still HOLDs while such a process remains a member.
+2. P2: `task/` is enumerated by ordinal, so threads exiting between reads can hide a surviving
+   thread.
+   - Disposition: fixed. The proof now reads the `status` `Threads:` count, bounded at 16384 bytes.
+   - New classification cases cover a zombie leader with a live thread, a missing `status`, a
+     `status` with no thread count, and an oversized `status`.
+
 
 ## NOT_RUN
 

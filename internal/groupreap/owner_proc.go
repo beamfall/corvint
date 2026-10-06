@@ -23,6 +23,8 @@ const (
 	maxProcEntries = 1 << 22
 	// maxProcStat bounds one stat read; a stat line is far shorter.
 	maxProcStat = 4096
+	// maxProcStatus bounds one status read; a status file is far shorter.
+	maxProcStatus = 16384
 )
 
 var errProcProof = errors.New("groupreap: /proc quiet proof unavailable")
@@ -36,8 +38,8 @@ func procDead(state byte) bool { return state == 'Z' || state == 'X' }
 
 // procGroupQuiet reports ProbeQuiet only when the exited, unreaped leader is
 // identified as root's child of parent leading its own group, and every
-// process and thread of that group under root is a zombie or dead. A live
-// member is ProbeLive. Any failure to obtain that proof is an error, so the
+// process of that group under root is a zombie or dead with no other thread.
+// A live member is ProbeLive. Any failure to obtain that proof is an error, so the
 // owner HOLDs; it never reports ProbeAbsent.
 func procGroupQuiet(root string, leader, parent int) (Probe, error) {
 	if err := procLeaderIdentity(root, leader, parent); err != nil {
@@ -89,24 +91,31 @@ func procLeaderIdentity(root string, leader, parent int) error {
 	return nil
 }
 
-// procThreadLive reports whether any thread of a zombie-state process still
-// runs (a thread-group leader that exited before its other threads).
+// procThreadLive reports whether a zombie-state process still has another
+// thread (a thread-group leader that exited before its other threads). It
+// reads the status Threads count, which keeps counting a thread until the
+// thread is released, rather than walking task/: task/ is enumerated by
+// ordinal, so threads exiting between reads can hide a surviving thread.
 func procThreadLive(root string, pid int) (bool, error) {
-	dir := filepath.Join(root, strconv.Itoa(pid), "task")
-	live, err := procEachEntry(dir, func(tid int) (bool, error) {
-		stat, err := readProcStat(filepath.Join(dir, strconv.Itoa(tid), "stat"), tid)
-		if procVanished(err) {
-			return false, nil
-		}
-		if err != nil {
-			return false, err
-		}
-		return !procDead(stat.state), nil
-	})
+	data, err := readProcFile(filepath.Join(root, strconv.Itoa(pid), "status"), maxProcStatus)
 	if procVanished(err) {
 		return false, nil
 	}
-	return live, err
+	if err != nil {
+		return false, err
+	}
+	for _, line := range bytes.Split(data, []byte{'\n'}) {
+		value, ok := bytes.CutPrefix(line, []byte("Threads:"))
+		if !ok {
+			continue
+		}
+		threads, err := strconv.Atoi(string(bytes.TrimSpace(value)))
+		if err != nil || threads < 1 {
+			break
+		}
+		return threads > 1, nil
+	}
+	return false, fmt.Errorf("%w: no thread count for %d", errProcProof, pid)
 }
 
 // procEachEntry visits the numeric entries of dir, at most maxProcEntries,
@@ -146,20 +155,29 @@ func procVanished(err error) bool {
 }
 
 func readProcStat(path string, pid int) (procStat, error) {
-	f, err := os.Open(path)
+	data, err := readProcFile(path, maxProcStat)
 	if err != nil {
 		return procStat{}, err
 	}
+	return parseProcStat(data, pid)
+}
+
+// readProcFile reads at most limit bytes; a longer file is a proof failure.
+func readProcFile(path string, limit int) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
 	defer f.Close()
-	var buf [maxProcStat + 1]byte
-	n, err := io.ReadFull(f, buf[:])
+	buf := make([]byte, limit+1)
+	n, err := io.ReadFull(f, buf)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-		return procStat{}, err
+		return nil, err
 	}
-	if n > maxProcStat {
-		return procStat{}, fmt.Errorf("%w: %s exceeds %d bytes", errProcProof, path, maxProcStat)
+	if n > limit {
+		return nil, fmt.Errorf("%w: %s exceeds %d bytes", errProcProof, path, limit)
 	}
-	return parseProcStat(buf[:n], pid)
+	return buf[:n], nil
 }
 
 // parseProcStat reads "pid (comm) state ppid pgrp ..."; comm may itself hold
