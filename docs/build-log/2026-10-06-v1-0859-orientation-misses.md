@@ -158,6 +158,41 @@ share, the intended reading, while a tree whose code class scores like prose wou
 differently. The replay is development evidence now that the gate is tuned on it; held-out
 validation stays `NOT_RUN` below.
 
+## Go pairs share the directory
+
+The same survey saw `internal/trace/store_test.go` carried as the `pair` of
+`internal/tasks/store/store.go`: a stem coincidence across packages, high in score (900) and
+wrong, since a Go `_test.go` lives in the directory of the package it tests. Over the five replay
+packets main carried 16 `pair` rows, 10 of them naming a counterpart elsewhere in the tree, and
+the gated share 14 and 8. The rule (TCP-V0-004 amended): a Go file pairs only with a Go
+counterpart in its own directory. It is wider than a rule over two Go files because the replay
+also carried two JavaScript tests as the pair of a Go source (`integrations/pi/workflow.test.mjs`
+for `internal/tasks/store/workflow.go`, `internal/jstestprovider/testdata/external/retry.spec.cjs`
+for `internal/tasks/wire/retry.go`), the same class of wrong row; a Go test is Go. The
+mirrored-directory, elsewhere-in-the-tree and module-directory relations stay for the other
+conventions, and `pairConfidence` is unchanged. The test slot's stem signal reads
+`pairRelation` and carries the rule, so a Go test of another package binds by an import edge, a
+declared name or its test name alone (`creditMirrored` now skips a candidate with no relation
+instead of crediting it an empty one).
+
+Measured on the replay: every pull request keeps its gold count (18/59, the table above); the
+five packets carry 10 `pair` rows, every one a same-directory Go counterpart but
+`integrations/pi-protected/runtime.test.mjs` for `integrations/opencode/src/runtime.js`, a
+JavaScript pair outside the rule. On the eight public cases the critical rows carried stay 29
+and the treatment-only misses 10; f451a34f's four cross-tree `main_test.go` pairs of
+`conformance/host-lifecycle-v1/main.go` become that file's own `main_test.go`, `cmd/corvint/help_test.go`
+and `script/check-hostile-regressions_test.sh` plus one more lexical row, and f7f586bd and
+fc594fa6 each swap one cross-tree pair for a same-directory one. The goldens are unchanged.
+
+Pinned by `TestPairRelationGoCounterpartsShareTheDirectory` (the relation table, both
+directions, the two JavaScript-for-Go rows, a Ruby spec beside a Go file) and
+`TestTaskContextCounterpartElsewhereIsAMediumPairRow` (decision 0026's packet-level pin, kept
+outside Go). `TestCreditMirroredMatchesFullScan`'s fixture gains a Go test of another
+directory, which the stem index must not credit; the test-link fixture's `render` pair moves
+into `src/render` (the same-directory read of the same signal); the pair-slot omission fixture
+is JavaScript; the cochange fixture drops its Go test of another directory, whose medium pair
+row the new JavaScript test pins instead.
+
 ## Evaluation integrity
 
 After this tuning the rc.2 cases (urfave/cli, this repository, and the private repository) are
@@ -191,7 +226,13 @@ third-party leg is `NOT_RUN`.
   leave the pin red on the branch; the batch integration repins once at `corvint-analyzer/105`.
 - The five-pull-request replay (the survey's `ctxeval.py`, the main binary against this
   branch's, each on its own `--root` over the survey worktrees) and the eight public cases rerun
-  with the gate: the numbers above.
+  with the gate and again with the Go pair rule: the numbers above.
+- `TestPairRelationGoCounterpartsShareTheDirectory` and
+  `TestTaskContextCounterpartElsewhereIsAMediumPairRow` (new), `TestCreditMirroredMatchesFullScan`,
+  `TestTaskContextLinksTestsByEachSignal`, `TestFrameRelationSignals`,
+  `TestTaskContextLexicalPairPromotion`, `TestTaskContextReportsNamedPathPairSlotOmissions` and
+  `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits` (fixtures re-pinned for the Go pair
+  rule) pass with the package.
 
 ## Review
 
@@ -317,6 +358,14 @@ truncation, finding no difference) returned one finding:
 17. Recall regression (the rc.3 batch integration's five-pull-request replay, read-only): the
     half share carried 15 of 59 gold rows against main's 18. Fixed by the share's gate (the
     section above); TCP-V0-013, TCP-V0-059 and TCP-V0-061 amended, goldens unchanged.
+18. Cross-directory Go `pair` rows (the same replay): a Go test of another package carried as a
+    high `pair` row by stem alone. Fixed by the Go pair rule (TCP-V0-004 amended; the section
+    above): zero such rows over the five packets, gold counts and goldens unchanged.
+19. P3 (the seventh review, Codex, read-only, on the gate commit and the Go pair change): the
+    spec said the gate keeps every gain of the half share, but f451a34f swaps the half share's
+    `agent-harness-integration-v0.md` for two code rows. The claim now reads as the count: no
+    rc.2 case carries fewer critical rows than under the half share, 29 against 27 in total.
+    No other finding.
 
 The sixth review (Codex, read-only, on the fifth fixed commit) approved with no findings: the
 carried code rows stay a descending-bm25 subsequence with the reorder off, so the comparison row
@@ -329,4 +378,6 @@ the eight public cases rerun on that commit are byte-identical to the fourth rer
 Revert this change: the old TCP-V0-013 order (five code, two documentation, remaining code,
 remaining documentation), the flat 300 score, no `coverage.uncertainty`, and the two goldens.
 Reverting the gate alone (the lead and `contextDocumentationQuota` in `lexicalRows`) restores the
-half share and its replay loss.
+half share and its replay loss. Reverting the Go pair rule alone (the Go branch of
+`pairRelation`, the `creditMirrored` guard and the re-pinned fixtures) restores the cross-tree
+Go pair rows.

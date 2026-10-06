@@ -13,18 +13,18 @@ import (
 func testLinkFixture(t *testing.T) *Index {
 	t.Helper()
 	root := impactRepositoryWithFiles(t, map[string]string{
-		"go.mod":                      "module example.test/link\n\ngo 1.27.0\n",
-		"src/render/render.go":        "package render\n\nfunc Render() {}\n",
-		"tests/render/render_test.go": "package render\n\nfunc TestNothing() {}\n",
-		"store/store.go":              "package store\n\nfunc Get() int { return 1 }\n",
-		"probe/probe_test.go":         "package probe\n\nimport \"example.test/link/store\"\n\nfunc TestProbe() { _ = store.Get() }\n",
-		"codec/frame.go":              "package codec\n\nfunc EncodeFrame() {}\n",
-		"spec/wire_test.go":           "package spec\n\n// EncodeFrame is exercised here.\nfunc TestWire() {}\n",
-		"queue/drain.go":              "package queue\n\nfunc DrainQueue() {}\n",
-		"other/other_test.go":         "package other\n\nfunc TestDrainQueueTwice() {}\n",
-		"alpha/alpha.go":              "package alpha\n\nfunc all() {}\n",
-		"beta/beta.go":                "package beta\n\nfunc all() {}\n",
-		"gamma/gamma.go":              "package gamma\n\nfunc all() {}\n",
+		"go.mod":                    "module example.test/link\n\ngo 1.27.0\n",
+		"src/render/render.go":      "package render\n\nfunc Render() {}\n",
+		"src/render/render_test.go": "package render\n\nfunc TestNothing() {}\n",
+		"store/store.go":            "package store\n\nfunc Get() int { return 1 }\n",
+		"probe/probe_test.go":       "package probe\n\nimport \"example.test/link/store\"\n\nfunc TestProbe() { _ = store.Get() }\n",
+		"codec/frame.go":            "package codec\n\nfunc EncodeFrame() {}\n",
+		"spec/wire_test.go":         "package spec\n\n// EncodeFrame is exercised here.\nfunc TestWire() {}\n",
+		"queue/drain.go":            "package queue\n\nfunc DrainQueue() {}\n",
+		"other/other_test.go":       "package other\n\nfunc TestDrainQueueTwice() {}\n",
+		"alpha/alpha.go":            "package alpha\n\nfunc all() {}\n",
+		"beta/beta.go":              "package beta\n\nfunc all() {}\n",
+		"gamma/gamma.go":            "package gamma\n\nfunc all() {}\n",
 	})
 	index, err := Build(context.Background(), root)
 	if err != nil {
@@ -50,7 +50,7 @@ func contextReasonOf(t *testing.T, packet map[string]any, kind string) (string, 
 func TestTaskContextLinksTestsByEachSignal(t *testing.T) {
 	index := testLinkFixture(t)
 	cases := []struct{ task, path, reason string }{
-		{"trace `Render`", "tests/render/render_test.go", "tests src/render/render.go: mirrored stem (test counterpart in the mirrored directory)"},
+		{"trace `Render`", "src/render/render_test.go", "tests src/render/render.go: mirrored stem (test counterpart)"},
 		{"trace `Get`", "probe/probe_test.go", "tests store/store.go: import edge"},
 		{"trace `EncodeFrame`", "spec/wire_test.go", "tests codec/frame.go: names EncodeFrame (idf "},
 		{"trace `DrainQueue`", "other/other_test.go", "tests queue/drain.go: test name TestDrainQueueTwice"},
@@ -225,12 +225,12 @@ func TestTaskContextSelectedLexicalPairs(t *testing.T) {
 func TestTaskContextLexicalPairPromotion(t *testing.T) {
 	t.Run("TCP-V0-004 existing lexical counterpart precedes unrelated tests", func(t *testing.T) {
 		compiler := newTaskContextCompiler(testLinkFixture(t), "render", "")
-		rows := []contextRow{{kind: "lexical", path: "src/render/render.go"}, {kind: "lexical", path: "probe/probe_test.go"}, {kind: "lexical", path: "tests/render/render_test.go"}}
+		rows := []contextRow{{kind: "lexical", path: "src/render/render.go"}, {kind: "lexical", path: "probe/probe_test.go"}, {kind: "lexical", path: "src/render/render_test.go"}}
 		for _, row := range rows {
 			compiler.chosen[row.path] = struct{}{}
 		}
 		got := compiler.admitLexicalPairs(rows, 3)
-		if len(got) != 3 || got[1].path != "tests/render/render_test.go" || got[1].kind != "pair" || got[2].path != "probe/probe_test.go" {
+		if len(got) != 3 || got[1].path != "src/render/render_test.go" || got[1].kind != "pair" || got[2].path != "probe/probe_test.go" {
 			t.Fatalf("promotion: %v", got)
 		}
 	})

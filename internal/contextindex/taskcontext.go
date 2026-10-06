@@ -580,18 +580,33 @@ func (compiler *taskContextCompiler) pairRows(anchor string) []contextRow {
 
 func pairRelation(anchor, candidate, stem string, anchorIsTest bool) string {
 	candidateIsTest := contextIsTest(candidate)
-	sameStem := contextStem(candidate) == stem
+	counterpart := contextStem(candidate) == stem && anchorIsTest != candidateIsTest
+	sameDirectory := path.Dir(candidate) == path.Dir(anchor)
+	if isGoPath(anchor) || isGoPath(candidate) {
+		// A Go `_test.go` shares its package directory and its language, so
+		// a Go file pairs only with a Go counterpart in its directory: no
+		// mirrored directory, stem elsewhere in the tree, module directory
+		// or other language's test (TCP-V0-004).
+		if counterpart && sameDirectory && isGoPath(anchor) && isGoPath(candidate) {
+			return pairName(candidateIsTest)
+		}
+		return ""
+	}
 	switch {
-	case sameStem && anchorIsTest != candidateIsTest && path.Dir(candidate) == path.Dir(anchor):
+	case counterpart && sameDirectory:
 		return pairName(candidateIsTest)
-	case sameStem && anchorIsTest != candidateIsTest && mirroredDirectory(path.Dir(anchor), path.Dir(candidate)):
+	case counterpart && mirroredDirectory(path.Dir(anchor), path.Dir(candidate)):
 		return pairName(candidateIsTest) + " in the mirrored directory"
-	case sameStem && anchorIsTest != candidateIsTest:
+	case counterpart:
 		return pairName(candidateIsTest) + " elsewhere in the tree"
 	case strings.HasPrefix(candidate, strings.TrimSuffix(anchor, path.Ext(anchor))+"/"):
 		return "module directory member"
 	}
 	return ""
+}
+
+func isGoPath(value string) bool {
+	return path.Ext(value) == ".go"
 }
 
 // pairConfidence: a counterpart found anywhere in the tree by stem alone is
@@ -2800,6 +2815,9 @@ func (linker *testLinker) creditMirrored(anchor string, anchorIsTest bool, credi
 			continue
 		}
 		relation := pairRelation(anchor, candidate.path, stem, anchorIsTest)
+		if relation == "" {
+			continue
+		}
 		if entry := credit(candidate.path); entry != nil {
 			entry.mirrored = relation
 			entry.weight += mirroredWeight(relation)

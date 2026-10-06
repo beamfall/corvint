@@ -76,6 +76,11 @@ it must read, each with the relation that admitted it, without naming the task's
 - `TCP-V0-004`: The slots run in this order and each is capped at three rows before the lexical
   fill: `pair` (the subject's test or source counterpart by stem, the same directory first, then a
   mirrored test/source directory, then anywhere in the tree, or a member of its module directory;
+  a Go file only with a Go counterpart in its own directory, since a Go `_test.go` shares its
+  package directory and its language and neither a mirrored directory nor a module directory is
+  a Go convention, amended 2026-10-06 (V1-0859: the five-pull-request replay of this repository
+  carried eight `pair` rows naming a Go test of another package and two naming a JavaScript test
+  of a Go source, none of them gold);
   `test-convention`, high, except that a counterpart found anywhere in the tree by stem alone is
   medium, decision 0026), `mentioned`
   (a tracked path the task names by full path or by an unambiguous basename, and that path's
@@ -292,7 +297,9 @@ it must read, each with the relation that admitted it, without naming the task's
   are every row the earlier slots admitted plus the lexical hits that would fill the packet to one
   row short of the limit. A counterpart is bound by four deterministic signals derived at query
   time from the existing tables, never from a new snapshot table: (a) the mirrored path/stem
-  `pair` reads (`pairRelation`, without the module-directory case); (b) an import edge from the
+  `pair` reads (`pairRelation`, without the module-directory case, and for a Go file a Go
+  counterpart in its directory only, so a Go test of another package binds by an import edge, a
+  declared name or its test name alone); (b) an import edge from the
   test to the source through `impact`'s reverse-import rules over `Imports`; (c) a whole-word
   mention in the test of a name the source declares (at least four bytes, at most fifty
   definers), weighted by the name's rarity over the identifier vocabulary `ln((N + 1) / n)` as
@@ -995,8 +1002,10 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   so an unbounded merge fills a prose-heavy task's packet with documentation, and the half share
   alone admitted generic documentation of this repository's prose-heavy tree ahead of the
   changed code (the 2026-10-06 replay of five merged pull requests lost three gold code rows to
-  it, which the gate restores while the rc.2 development cases keep every gain of the half
-  share); the rc.2 development cases that chose the half over a four-row quota, a round-robin
+  it, which the gate restores while no rc.2 development case carries fewer critical rows than
+  under the half share, 29 against 27 in total, although one case swaps a half-share
+  documentation row for two code rows); the rc.2 development cases that chose the half over a
+  four-row quota, a round-robin
   and an unbounded merge, and the replay that chose the lead over a floor at the head's weakest
   row, a one-third share and a closed-document exclusion, are in the build-log entry. The gate
   reads the task as a documentation task when prose leads the code; a documentation hit past the
@@ -1398,7 +1407,7 @@ the recipe golden. No state persists.
 | TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
-| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion` |
+| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairRelation`, `isGoPath`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestPairRelationGoCounterpartsShareTheDirectory`, `TestCreditMirroredMatchesFullScan` |
 | TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
