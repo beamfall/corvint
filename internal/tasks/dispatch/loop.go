@@ -342,6 +342,16 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	for _, a := range alerts {
 		d.emit(Event{Kind: "alert", Message: a})
 	}
+	// CAL-V0-105: tickets the work state holds leave the selection window,
+	// replanned from the same snapshot, so they no longer starve the rest.
+	if held := workStateHeld(d.Config, obs.Tickets); len(held) > 0 && obs.Replan != nil {
+		plan := obs.Replan(held)
+		for i := range obs.Tickets {
+			if v, ok := plan[obs.Tickets[i].ID]; ok {
+				obs.Tickets[i].Plan, obs.Tickets[i].PlanReason = v.State, v.Reason
+			}
+		}
+	}
 	return obs, nil
 }
 

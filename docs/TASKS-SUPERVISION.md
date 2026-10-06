@@ -167,7 +167,10 @@ A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `glob
 `roles` (match by labels/kinds/idGlob/states/statuses/planSelected/pool, or a quarantined pool
 `lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. A ticket that
 records `requiresPool` matches only a role whose `match.pool` names that pool, with `{pool}` bound
-for its host's `claim ... --pool {pool}`; other roles never see it (CAL-V0-097).
+for its host's `claim ... --pool {pool}`; other roles never see it (CAL-V0-097). With a `workState`
+reader, a ticket whose known work state no ticket role's `states`/`excludeStates` admits is held: the
+dispatcher replans its observation with it deferred `WORK_STATE_HELD`, so it takes no
+`maxActiveAttempts` slot from actionable tickets; `UNKNOWN` and `NONE` keep today's window (CAL-V0-105).
 
 ```sh
 corvint-tasks dispatch --program night --config dispatch.json
