@@ -98,6 +98,12 @@ type Member struct {
 	Pool, Member, State, Holder, Attempt string
 	Queue, Allocation, Definition        string
 	SafeReuse, Owned                     bool
+	// Changed is the native receipt sequence of the member's last state
+	// change; with State it identifies one state episode (CAL-V0-129).
+	Changed string
+	// Age is how long the dispatcher has observed this state episode; it
+	// is zero for an episode first observed now.
+	Age time.Duration
 }
 
 // Observation is one authoritative read of the native store.
@@ -251,7 +257,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 				states = []string{"QUARANTINED"}
 			}
 			for _, m := range obs.Members {
-				if m.Pool == r.Lane.Pool && contains(states, m.State) {
+				if m.Pool == r.Lane.Pool && contains(states, m.State) && m.Age >= time.Duration(r.Lane.MinAgeSeconds)*time.Second {
 					cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: laneKey(m.Pool, m.Member), Pool: m.Pool, Member: m.Member}, pin: len(c.Pinned), role: r.Priority, prio: len(priorityRank), ord: ri})
 				}
 			}

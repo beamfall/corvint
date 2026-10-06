@@ -54,6 +54,15 @@ type Dispatcher struct {
 	// pressureSampler reads host pressure once per tick (CAL-V0-068); tests
 	// inject samples. Nil uses the platform sampler.
 	pressureSampler func(context.Context, time.Time) PressureSample
+	// configRead re-reads the configuration file at each tick (CAL-V0-127);
+	// nil disables reload. configSha256 and configAt identify the applied
+	// bytes and when they were applied.
+	configRead   func() ([]byte, error)
+	configSha256 string
+	configAt     time.Time
+	// memberSince holds the lane member state episodes observed by this
+	// run (CAL-V0-129).
+	memberSince map[string]memberEpisode
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
@@ -123,6 +132,8 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	}
 	d := &Dispatcher{Program: program, Config: c, Queue: q, Out: out, Now: time.Now, dir: dir, nonce: hex.EncodeToString(nonce[:]), ledger: l, exits: map[string]<-chan int{}, codes: map[string]int{}, lock: lock}
 	d.reconcileEscalation()
+	// CAL-V0-127: a restart applies its configuration afresh.
+	l.Config = nil
 	// CAL-V0-068: pressure state exists only while configured. A restart
 	// keeps the recorded level, so it cannot bypass a throttle, but cancels
 	// pending dwell and is UNKNOWN until this run's first sample.
@@ -269,6 +280,8 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 			d.tickSaved = d.ledger.save(d.dir) == nil
 		}
 	}()
+	// CAL-V0-127: a changed configuration applies before this tick acts.
+	d.reloadConfig()
 	obs, err := d.observe(ctx)
 	if d.readerErr != nil {
 		return d.readerErr
@@ -1079,6 +1092,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			skip[laneKey(m.Pool, m.Member)] = true
 		}
 	}
+	d.stampMemberAges(obs, now)
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
 		return
@@ -1446,7 +1460,11 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 	if sampler == nil {
 		sampler = samplePressure
 	}
-	sample := boundPressureSample(sampler(ctx, d.Now().UTC()))
+	// CAL-V0-125: the previous sample of this run supplies the tick
+	// baseline. Open clears it and a reload that adds pressure starts
+	// without one, so the first sample after either has UNKNOWN CPU
+	// utilization.
+	sample := boundPressureSample(withCPUUtilization(rec.Sample, sampler(ctx, d.Now().UTC())))
 	if ctx.Err() != nil {
 		return nil, false
 	}
@@ -1523,6 +1541,10 @@ func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
 		memoryText = "swap " + swap
 	}
 	detail["memoryPressureLevel"] = memory
+	detail["cpuUtilization"] = StateUnknown
+	if x, ok := rec.Sample.CPUUtilizationFraction(); ok {
+		detail["cpuUtilization"] = strconv.FormatFloat(x, 'f', 3, 64)
+	}
 	detail["reason"] = PressureReasonText(st)
 	names := make([]string, 0, 10)
 	for _, h := range next {

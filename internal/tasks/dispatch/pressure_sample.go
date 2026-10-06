@@ -39,7 +39,16 @@ type PressureSample struct {
 	SwapKnown           bool      `json:"swapKnown"`
 	MemoryPressureLevel int       `json:"memoryPressureLevel,omitempty"`
 	MemoryPressureKnown bool      `json:"memoryPressureKnown,omitempty"`
-	Problems            []string  `json:"problems,omitempty"`
+	// Cumulative host CPU busy and total ticks (CAL-V0-125): Linux reads
+	// the aggregate /proc/stat line; Darwin cannot observe them.
+	CPUBusyTicks  uint64 `json:"cpuBusyTicks,omitempty"`
+	CPUTotalTicks uint64 `json:"cpuTotalTicks,omitempty"`
+	CPUTicksKnown bool   `json:"cpuTicksKnown,omitempty"`
+	// CPUUtilization is derived by the dispatcher from the tick deltas
+	// since the previous sample of this run; the first sample has none.
+	CPUUtilization      float64  `json:"cpuUtilization,omitempty"`
+	CPUUtilizationKnown bool     `json:"cpuUtilizationKnown,omitempty"`
+	Problems            []string `json:"problems,omitempty"`
 }
 
 // Darwin kern.memorystatus_vm_pressure_level values.
@@ -67,6 +76,40 @@ func (s PressureSample) LoadPerCPU() (float64, bool) {
 		return 0, false
 	}
 	return s.LoadAverage / float64(s.CPUs), true
+}
+
+// CPUUtilizationFraction returns the derived busy/total tick fraction.
+func (s PressureSample) CPUUtilizationFraction() (float64, bool) {
+	if !s.CPUUtilizationKnown || !finiteNonnegative(s.CPUUtilization) || s.CPUUtilization > 1 {
+		return 0, false
+	}
+	return s.CPUUtilization, true
+}
+
+// withCPUUtilization derives cur's CPU utilization from the cumulative tick
+// deltas since prev (CAL-V0-125). It stays UNKNOWN without a previous
+// counter sample from the same source (the first sample of a run), and when
+// the counters did not advance, went backwards, or are inconsistent.
+func withCPUUtilization(prev, cur PressureSample) PressureSample {
+	cur.CPUUtilization, cur.CPUUtilizationKnown = 0, false
+	if !cur.CPUTicksKnown {
+		return cur
+	}
+	if !prev.CPUTicksKnown || prev.Source != cur.Source {
+		cur.Problems = append(cur.Problems, "cpu: no previous tick counters in this run")
+		return cur
+	}
+	if cur.CPUBusyTicks > cur.CPUTotalTicks || prev.CPUBusyTicks > prev.CPUTotalTicks || cur.CPUTotalTicks <= prev.CPUTotalTicks || cur.CPUBusyTicks < prev.CPUBusyTicks {
+		cur.Problems = append(cur.Problems, "cpu: tick counters did not advance consistently")
+		return cur
+	}
+	busy, total := cur.CPUBusyTicks-prev.CPUBusyTicks, cur.CPUTotalTicks-prev.CPUTotalTicks
+	if busy > total {
+		cur.Problems = append(cur.Problems, "cpu: tick counters did not advance consistently")
+		return cur
+	}
+	cur.CPUUtilization, cur.CPUUtilizationKnown = float64(busy)/float64(total), true
+	return cur
 }
 
 // SwapFraction treats explicitly observed zero total/used as no allocated
@@ -137,6 +180,40 @@ func parseLinuxCPUs(raw []byte) (int, error) {
 		return 0, fmt.Errorf("missing host CPU records")
 	}
 	return len(seen), nil
+}
+
+// parseLinuxCPUTicks reads the aggregate "cpu" line of /proc/stat: total is
+// user+nice+system+idle+iowait+irq+softirq+steal (guest time is already
+// inside user and nice) and busy is total less idle and iowait.
+func parseLinuxCPUTicks(raw []byte) (uint64, uint64, error) {
+	var busy, total uint64
+	found := false
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "cpu" {
+			continue
+		}
+		if found || len(fields) < 9 {
+			return 0, 0, fmt.Errorf("invalid or duplicate aggregate CPU record")
+		}
+		found = true
+		var idle uint64
+		for i, x := range fields[1:9] {
+			n, err := strconv.ParseUint(x, 10, 64)
+			if err != nil || n > math.MaxUint64-total {
+				return 0, 0, fmt.Errorf("invalid aggregate CPU counters")
+			}
+			total += n
+			if i == 3 || i == 4 {
+				idle += n
+			}
+		}
+		busy = total - idle
+	}
+	if !found {
+		return 0, 0, fmt.Errorf("missing aggregate CPU record")
+	}
+	return busy, total, nil
 }
 
 func parseLinuxSwap(raw []byte) (uint64, uint64, error) {

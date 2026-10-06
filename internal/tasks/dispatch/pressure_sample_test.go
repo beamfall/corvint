@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -192,7 +193,7 @@ func TestIssue497_LiveSampler(t *testing.T) {
 	}
 	s := SamplePressure(context.Background())
 	load, loadOK := s.LoadPerCPU()
-	signals, signalsOK := pressureSignals(issue497Config(), s)
+	signals, signalsOK := pressureSignals(issue497Config(), runtime.GOOS, s)
 	if !loadOK || !signalsOK || s.SampledAt.IsZero() {
 		t.Fatalf("live host metrics unavailable: %+v", s)
 	}

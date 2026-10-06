@@ -18,12 +18,22 @@ func samplePressure(ctx context.Context, now time.Time) PressureSample {
 		s.Problems = append(s.Problems, "load: "+err.Error())
 	}
 	raw, err = readPressureFile(ctx, "/proc/stat", pressureCPUBytes)
+	statErr := err
 	if err == nil {
 		s.CPUs, err = parseLinuxCPUs(raw)
 	}
 	s.CPUKnown = err == nil
 	if err != nil {
 		s.Problems = append(s.Problems, "cpus: "+err.Error())
+	}
+	// CAL-V0-125: the same /proc/stat read carries the cumulative ticks.
+	err = statErr
+	if err == nil {
+		s.CPUBusyTicks, s.CPUTotalTicks, err = parseLinuxCPUTicks(raw)
+	}
+	s.CPUTicksKnown = err == nil
+	if err != nil {
+		s.Problems = append(s.Problems, "cpu ticks: "+err.Error())
 	}
 	raw, err = readPressureFile(ctx, "/proc/meminfo", pressureMemBytes)
 	if err == nil {

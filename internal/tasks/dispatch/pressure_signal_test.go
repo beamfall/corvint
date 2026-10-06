@@ -94,7 +94,7 @@ func TestCALV0109_DarwinSysctlParsing(t *testing.T) {
 	if missing.MemoryPressureKnown || !missing.LoadKnown || len(missing.Problems) != 1 || !strings.HasPrefix(missing.Problems[0], "memory: ") {
 		t.Fatalf("missing level %+v", missing)
 	}
-	if _, ok := pressureSignals(issue497Config(), missing); ok {
+	if _, ok := pressureSignals(issue497Config(), "darwin", missing); ok {
 		t.Fatal("missing level produced a memory signal")
 	}
 	for _, raw := range []string{
@@ -147,7 +147,7 @@ func TestCALV0110_ReasonRecordedAtLevelChange(t *testing.T) {
 	if PressureReasonText(PressureState{Level: 2}) != StateUnknown {
 		t.Fatal("a level without a recorded reason must be UNKNOWN")
 	}
-	for _, bad := range [][]string{{"cpu"}, {"swap", "load"}, {"load", "load"}} {
+	for _, bad := range [][]string{{"disk"}, {"swap", "load"}, {"load", "load"}} {
 		if ValidPressureReason(2, bad) {
 			t.Fatalf("invalid reason %v accepted", bad)
 		}

@@ -164,6 +164,9 @@ type Ledger struct {
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
 	// InfraRetry is present only once an ESC-V0-007 episode exists.
 	InfraRetry map[string]*InfraEpisode `json:"infraRetry,omitempty"`
+	// Config is present only after this run's configuration file changed
+	// (CAL-V0-127).
+	Config *ConfigRecord `json:"config,omitempty"`
 }
 
 const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
@@ -191,6 +194,9 @@ func (r *PressureRecord) validate() error {
 	}
 	if m := r.Sample.MemoryPressureLevel; (r.Sample.MemoryPressureKnown && !validMemoryPressureLevel(m)) || (!r.Sample.MemoryPressureKnown && m != 0) {
 		return errors.New("invalid pressure memory level")
+	}
+	if _, ok := r.Sample.CPUUtilizationFraction(); ok != r.Sample.CPUUtilizationKnown || (!ok && r.Sample.CPUUtilization != 0) {
+		return errors.New("invalid pressure cpu utilization")
 	}
 	if len(r.Held) > maxPressureHeld || len(r.Sample.Problems) > maxPressureProblems || len(r.Sample.Source) > 256 {
 		return errors.New("pressure record exceeds bounds")
@@ -223,6 +229,9 @@ func boundPressureSample(s PressureSample) PressureSample {
 			s.SwapKnown = false
 		}
 		s.MemoryPressureLevel, s.MemoryPressureKnown = 0, false
+	}
+	if _, ok := s.CPUUtilizationFraction(); !ok {
+		s.CPUUtilization, s.CPUUtilizationKnown = 0, false
 	}
 	s.Source = boundUTF8(s.Source, 256)
 	var problems []string
@@ -332,6 +341,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	}
 	if l.Pressure != nil {
 		if err := l.Pressure.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: %w", err)
+		}
+	}
+	if l.Config != nil {
+		if err := l.Config.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
 		}
 	}
@@ -722,7 +736,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.

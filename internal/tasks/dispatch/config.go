@@ -205,9 +205,13 @@ type GateMatch struct {
 }
 
 // Lane selects pool members in one native pool state (QUARANTINED by default).
+// MinAgeSeconds, when positive, admits a member only after the dispatcher has
+// observed it continuously in the same matching state episode that long
+// (CAL-V0-129).
 type Lane struct {
-	Pool   string   `json:"pool"`
-	States []string `json:"states,omitempty"`
+	Pool          string   `json:"pool"`
+	States        []string `json:"states,omitempty"`
+	MinAgeSeconds int      `json:"minAgeSeconds,omitempty"`
 }
 
 type Backoff struct {
@@ -350,8 +354,9 @@ func (c *Config) validate() error {
 		if _, ok := c.Hosts[r.Host]; !ok {
 			return fail("role %s names unknown host %q", r.Name, r.Host)
 		}
-		if r.Cap < 1 || r.Cap > 64 || r.Priority < 0 || r.Priority > 1000 || r.IdleSeconds < 30 || r.IdleSeconds > 86400 || r.WallSeconds < 60 || r.WallSeconds > 7*86400 {
-			return fail("role %s needs cap 1..64, priority 0..1000, idleSeconds 30..86400 and wallSeconds 60..604800", r.Name)
+		// CAL-V0-128: cap 0 keeps a configured role but launches nothing.
+		if r.Cap < 0 || r.Cap > 64 || r.Priority < 0 || r.Priority > 1000 || r.IdleSeconds < 30 || r.IdleSeconds > 86400 || r.WallSeconds < 60 || r.WallSeconds > 7*86400 {
+			return fail("role %s needs cap 0..64, priority 0..1000, idleSeconds 30..86400 and wallSeconds 60..604800", r.Name)
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)
@@ -385,6 +390,9 @@ func (c *Config) validate() error {
 		}
 		if l := r.Lane; l != nil && (l.Pool == "" || len(l.Pool) > 64) {
 			return fail("role %s lane needs a pool", r.Name)
+		}
+		if l := r.Lane; l != nil && (l.MinAgeSeconds < 0 || l.MinAgeSeconds > 7*86400) {
+			return fail("role %s lane minAgeSeconds must be 0..604800", r.Name)
 		}
 		if err := c.validateLadder(r); err != nil {
 			return fail("role %s %v", r.Name, err)
