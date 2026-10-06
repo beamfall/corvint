@@ -10,7 +10,7 @@ the measured basis), `docs/specs/revision-cache-dirty-worktree-v0.md` (the cache
 view, `DIRTY-CACHE-001` to `DIRTY-CACHE-004` and `DIRTY-CACHE-007`),
 `docs/specs/deployment-neutral-index-platform-v0.md` (the immutable index direction),
 `docs/specs/task-context-packet-v0.md` (the consumer), `AGENTS.md` invariants 1, 4, and 7.
-Admission amendments: `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`, `docs/decisions/0095-index-path-screen-is-the-go-set-2026-09-12.md` (`IDX-SNAP-V0-018`).
+Admission amendments: `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`, `docs/decisions/0095-index-path-screen-is-the-go-set-2026-09-12.md` (`IDX-SNAP-V0-018`), `docs/decisions/0438-rc3-batch-3-requirements-accepted-2026-10-06.md` (`IDX-SNAP-V0-025`).
 
 ## Agent digest
 - Claim: `corvint index` writes the committed tree's index once; the packet and query verbs read it instead of rebuilding, unchanged, and never write it.
@@ -116,7 +116,7 @@ what any packet says.
   Amendment (V1-0361): the same cutoff sweeps the other temporaries a killed writer can leave,
   `blob-*.tmp` in the store and in each `blobs/<engine>/` shard directory (reached through the
   shard writer's no-follow walk) and the `.gitignore-*.tmp` rewrite temporary.
-  Amendment (proposed 2026-10-06, V1-0870, pending owner review): `IDX-SNAP-V0-025` ranks
+  Amendment (accepted by decision 0438, V1-0870): `IDX-SNAP-V0-025` ranks
   the writing engine's snapshots of a live worktree HEAD's tree ahead of its others, within the
   same entry and byte bounds, and names every removed file.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
@@ -150,7 +150,7 @@ what any packet says.
   truncated or torn body is a miss under `IDX-SNAP-V0-003`, never fresh. When the header matches
   and the message is complete it writes nothing and emits one canonical JSON
   receipt line with `mutates:false`, `state:"fresh"`, `path`, `tree`, `commit`, `engine` (and,
-  proposed 2026-10-06 under `IDX-SNAP-V0-025`, `store`, the directory holding `path`). Otherwise
+  under `IDX-SNAP-V0-025`, `store`, the directory holding `path`). Otherwise
   it builds and writes exactly as `index` does and emits the `IDX-SNAP-V0-001` receipt. Without the
   flag `index` is unchanged. A repository the verb cannot observe is the same error `index` reports
   today.
@@ -521,7 +521,7 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
 
 ### Proposed (2026-10-06, V1-0870, pending owner review): named eviction and live worktree trees
 
-- `IDX-SNAP-V0-025`: (proposed 2026-10-06, V1-0870) the `index` receipt MUST name the store
+- `IDX-SNAP-V0-025`: (accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
   it wrote and every published file it removed. `store` is the snapshot directory and
   `store_shared` is true when that directory is the Git common directory's store every linked
   worktree reads (`DIRTY-CACHE-013`). `evicted_snapshots` lists each removed file in removal order
@@ -712,4 +712,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
-| IDX-SNAP-V0-025 (proposed) | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
+| IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
