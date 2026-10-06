@@ -546,8 +546,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   120 MB each. Analyzer packs keep their own age order and only report `live_head`. Only the
   writer reads the live set, so no read verb gains a Git process (`AGENTS.md` invariant 4). A
   reused snapshot still matches the exact object format, tree and engine of its name. Falsifier:
-  an `index` run that removes a file it does not list, or that removes a gob snapshot while
-  keeping one the ranking above places after it. Rollback: drop the live set and the list from
+  an `index` run that removes a file it does not list, or that removes a gob snapshot that fits
+  the entry bound and the remaining byte budget while keeping one the ranking above places after
+  it (a larger snapshot that would exceed the budget is skipped, and a smaller later one may stay). Rollback: drop the live set and the list from
   `WriteSnapshot`, `evictSnapshots` and `evictAnalyzerPacks`, and the new receipt keys from
   `runIndex`; the count-only `evicted` remains.
 
