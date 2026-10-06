@@ -437,3 +437,53 @@ func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
 		}
 	})
 }
+
+func TestTaskContextShareLineSurvivesPairPromotion(t *testing.T) {
+	t.Run("TCP-V0-061 TCP-V0-004 a head counterpart promoted to pair keeps the head accounting", func(t *testing.T) {
+		// The test slot takes pkg/x_test.go first, so the fill's head is four
+		// code rows: pkg/x.go, pkg/a.go, the unrelated pkg/zz_test.go and
+		// pkg/a_test.go, in that strength order. Six of seven documentation
+		// hits take the share and the weak pkg/d.go the one position past
+		// it, so docs/g.md is the hit the share kept out in favour of
+		// pkg/d.go. TCP-V0-004 then promotes pkg/a_test.go to `pair` ahead
+		// of the unrelated test it outranks; the head keeps its four
+		// members and pkg/d.go stays the share's comparison row.
+		root := recencyRepository(t)
+		mention := func(count int) string {
+			return "package pkg\n\n" + strings.Repeat("// needle signal\n", count)
+		}
+		writeTestFile(t, root, "pkg/x.go", mention(5))
+		writeTestFile(t, root, "pkg/a.go", mention(4))
+		writeTestFile(t, root, "pkg/zz_test.go", mention(3))
+		writeTestFile(t, root, "pkg/a_test.go", mention(2))
+		writeTestFile(t, root, "pkg/x_test.go", mention(1))
+		writeTestFile(t, root, "pkg/d.go", mention(1)+"\nfunc one() {}\nfunc two() {}\nfunc three() {}\nfunc four() {}\n")
+		for index := range 7 {
+			writeTestFile(t, root, fmt.Sprintf("docs/%c.md", 'a'+index), "needle signal\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "sources")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "")
+		packet, err := TaskContext(context.Background(), index, "needle signal", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{
+			"test pkg/x_test.go", "lexical pkg/x.go", "lexical pkg/a.go", "pair pkg/a_test.go", "lexical pkg/zz_test.go",
+			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
+			"documentation docs/d.md", "documentation docs/e.md", "documentation docs/f.md",
+			"lexical pkg/d.go",
+		}
+		if got := contextPairs(t, packet); !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the counterpart promoted ahead of the unrelated test: %v", got, want)
+		}
+		lines := contextUncertainty(t, packet)
+		if len(lines) != 2 || lines[0] != "0 code and 1 documentation rows the task matched lexically are omitted by the result limit 12" ||
+			!strings.HasPrefix(lines[1], "1 documentation rows that outscore a carried code row are omitted by the documentation share (6 of 11 lexical positions); the strongest is `docs/g.md` (bm25 ") {
+			t.Fatalf("coverage.uncertainty = %q, want the limit line and the share line naming docs/g.md", lines)
+		}
+	})
+}

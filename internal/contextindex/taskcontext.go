@@ -125,6 +125,13 @@ type taskContextCompiler struct {
 	// share. A count, not the paths: TCP-V0-035's reorder moves code rows
 	// among the code positions, so the head's members can change.
 	lexicalHead int
+	// lexicalTail is the code rows the fill carried past the head, by path:
+	// read by `recordLexicalTail` once the reorder and the reservations have
+	// placed the rows, so that a later relation promotion (TCP-V0-004's
+	// `pair`, the graph slot) changing a carried row's kind moves no row into
+	// or out of the head. TCP-V0-061's share line compares the deferred
+	// documentation against the weakest of them the packet carries.
+	lexicalTail []string
 	// lexicalFill and lexicalShare are the positions the lexical fill could
 	// take and the documentation share of them, for TCP-V0-061's statement.
 	lexicalFill, lexicalShare int
@@ -305,6 +312,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
+	compiler.recordLexicalTail(rows)
 	rows = compiler.placeGraphRows(rows, limit)
 	if compiler.subject == "" && !frameActive {
 		rows = compiler.admitLexicalPairs(rows, limit)
@@ -1403,14 +1411,36 @@ func lexicalScore(bm25, strongest float64) int {
 	return min(contextLexicalBase+int(math.Round(band*bm25/strongest)), contextLexicalCeiling)
 }
 
+// recordLexicalTail reads the code rows the fill carried past TCP-V0-013's
+// head by identity: the lexical rows after the first lexicalHead of them in
+// packet order, once TCP-V0-035's reorder and the reservations have placed
+// them and before a later relation (TCP-V0-004's `pair`, the graph slot) can
+// carry one of them under another kind. TCP-V0-061's share line reads the
+// tail from here, so such a promotion moves no row into the head.
+func (compiler *taskContextCompiler) recordLexicalTail(rows []contextRow) {
+	compiler.lexicalTail = compiler.lexicalTail[:0]
+	lexical := 0
+	for _, row := range rows {
+		if row.kind != "lexical" {
+			continue
+		}
+		if lexical++; lexical <= compiler.lexicalHead {
+			continue
+		}
+		compiler.lexicalTail = append(compiler.lexicalTail, row.path)
+	}
+}
+
 // lexicalCoverage states the lexical hits the packet does not carry as
 // uncertainty (TCP-V0-061): the count per class the result limit omitted,
 // and, when the fill carried a code row past the head, the documentation
 // hits the fill did not carry that outscore the weakest code row carried
 // past the head, which the documentation share rather than their strength
-// or the head omitted. Both are read from the carried rows (the head as a
-// count of the leading code positions), so TCP-V0-035's reorder of each
-// kind among its positions changes nothing. With nothing
+// or the head omitted. Both are read from the carried rows: the head as a
+// count of the fill's leading code positions, read by identity before a
+// later relation can change a carried row's kind (`recordLexicalTail`), so
+// TCP-V0-035's reorder of each kind among its positions and TCP-V0-004's
+// `pair` promotion of a head test change nothing. With nothing
 // omitted the member is absent, as in every earlier packet. When TCP-V0-016
 // withheld the ordinary rows, the hits are withheld by the verdict, not
 // omitted by the limit, and a separate line says so; a reservation the limit
@@ -1423,23 +1453,21 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 		bm25[hit.path] = hit.score
 	}
 	carried := make(map[string]struct{}, len(rows))
-	// The code rows the fill carried past the head are the carried lexical
-	// rows after the first lexicalHead of them in packet order, whatever
-	// TCP-V0-035's reorder placed in the head positions; the weakest of them
-	// is the row the deferred documentation lost a position to. A head row
-	// is never that row, since the head is TCP-V0-013's rule and not the
-	// share's.
-	codeCarried, weakestCode, lexical := false, 0.0, 0
 	for _, row := range rows {
 		carried[row.path] = struct{}{}
-		if row.kind != "lexical" {
+	}
+	// The weakest code row the fill carried past the head is the row the
+	// deferred documentation lost a position to. The tail is read by path
+	// (lexicalTail), so a promotion that changed a row's kind since still
+	// counts it under the kind the packet carries, while a row the limit
+	// dropped since does not. A head row is never that row, since the head
+	// is TCP-V0-013's rule and not the share's.
+	codeCarried, weakestCode := false, 0.0
+	for _, path := range compiler.lexicalTail {
+		if _, ok := carried[path]; !ok {
 			continue
 		}
-		lexical++
-		if lexical <= compiler.lexicalHead {
-			continue
-		}
-		if score := bm25[row.path]; !codeCarried || score < weakestCode {
+		if score := bm25[path]; !codeCarried || score < weakestCode {
 			weakestCode = score
 		}
 		codeCarried = true

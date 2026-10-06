@@ -119,7 +119,9 @@ third-party leg is `NOT_RUN`.
 - `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextDocumentationShareStatesTheOmittedClass`,
   `TestTaskContextLexicalScoreCarriesStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`
   (new), `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (rewritten for the merged order),
-  `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld-line assertion added), the
+  `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld-line assertion added),
+  `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` and
+  `TestTaskContextShareLineSurvivesPairPromotion` (new), the
   recipe and core-freeze goldens, and the context tests of `cmd/corvint` pass; `go vet` on
   `internal/contextindex` and `cmd/corvint` is clean.
 - `TestAnalyzerSchemaInputs` (IDX-SNAP-V0-017): `taskcontext.go` is one of the pinned extraction
@@ -235,6 +237,20 @@ truncation, finding no difference) returned one finding:
     `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (five old code hits above
     eight documentation hits above one recent code hit at limit 12: the reorder-free packet
     states the share line naming `docs/g.md`, the reordered packet the limit line alone).
+16. P2 (the rc.3 batch integration review, Codex, read-only), raised as a hypothesis: the
+    comparison row counted the head as the first `lexicalHead` rows still of kind `lexical` in
+    the final packet, so when TCP-V0-004 promoted a head test to `pair` one fewer lexical row
+    remained, the count swallowed the code row past the head, and the share line for the
+    documentation it kept out was omitted. Confirmed by a test that failed on the committed
+    code before the fix: `TestTaskContextShareLineSurvivesPairPromotion` (limit 12, the test
+    slot's `pkg/x_test.go` first, a four-row head of `pkg/x.go`, `pkg/a.go`, the unrelated
+    `pkg/zz_test.go` and `pkg/a_test.go`, six of seven documentation hits, `pkg/d.go` past
+    the head; the packet carried `pair pkg/a_test.go` ahead of `pkg/zz_test.go` with the limit
+    line alone). Fixed: `recordLexicalTail` reads the code rows past the head by path once
+    the reorder and the reservations have placed them and before the graph slot or the pair
+    promotion can change a carried row's kind, and `lexicalCoverage` takes the weakest of them
+    the packet still carries (TCP-V0-061 amended). The reading point is the one the final
+    packet gave before, so every earlier packet and the goldens are unchanged.
 
 The sixth review (Codex, read-only, on the fifth fixed commit) approved with no findings: the
 carried code rows stay a descending-bm25 subsequence with the reorder off, so the comparison row
