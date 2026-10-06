@@ -122,18 +122,18 @@ third-party leg is `NOT_RUN`.
   `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld-line assertion added), the
   recipe and core-freeze goldens, and the context tests of `cmd/corvint` pass; `go vet` on
   `internal/contextindex` and `cmd/corvint` is clean.
-- `TestAnalyzerSchemaInputs` (IDX-SNAP-V0-017) fails in this change: `taskcontext.go` is one of
-  the pinned extraction inputs, and the audit over-invalidates consumer-only changes by design.
-  The change does not alter extraction or pack encoding. Bumping `analyzerSchemaID` to
-  `corvint-analyzer/104` and repinning the audit digest is left to the owner; until then the
-  `internal/contextindex` package test is red on that audit alone.
+- `TestAnalyzerSchemaInputs` (IDX-SNAP-V0-017): `taskcontext.go` is one of the pinned extraction
+  inputs, and the audit over-invalidates consumer-only changes by design. The change does not alter
+  extraction or pack encoding. With the owner's approval (2026-10-06), `analyzerSchemaID` moves to
+  `corvint-analyzer/104` and the audit digest is repinned. Existing opt-in analyzer packs are
+  rebuilt once on the next index.
 
 ## Review
 
 Independent review (Codex, read-only, on the first commit of this change) returned six findings:
 
-1. P1, `TestAnalyzerSchemaInputs` red: not fixable in this change; the schema bump to
-   `corvint-analyzer/104` is the owner's step (Checks above).
+1. P1, `TestAnalyzerSchemaInputs` red: resolved by the owner-approved bump to
+   `corvint-analyzer/104` (Checks above).
 2. P1, frozen before/after retrieval evidence: the retrieval-bench samples are not local and the
    download needs an approval this change does not hold; `NOT_RUN` (Evaluation integrity above).
    The eight-case before/after table is development evidence, not the frozen evaluation.
