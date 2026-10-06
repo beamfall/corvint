@@ -85,6 +85,9 @@ build 202, before that commit.
   `LIMIT_EXCEEDED`, and the negative test checked only for a non-nil error. Repair: the spec now
   states `LIMIT_EXCEEDED` for the range bound, matching the existing policy-bound convention, and
   the test asserts each exact code.
+- Codex round 2 (`76f7f2ac..04c46df3`, covering the repair and the CAL-V0-120..121 renumbering):
+  APPROVED, with no P0 to P3 findings. Codex could not run tests in its read-only sandbox; the
+  focused runs above are this lane's.
 
 ## Limits and NOT_RUN
 
