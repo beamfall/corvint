@@ -1408,12 +1408,19 @@ read when the watch starts; the other half is left for directories, the audit's 
 concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
 device, inode, mode, size, modification time and change time, read before and after registration
 and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
-change. The directory watch still reports any entry created, removed or renamed. Store size alone
-therefore never refuses the watch with too many open files; any other registration failure is
-refused as before. Beyond the budget a write that leaves size, modification time and change time
-unchanged, possible only through a timestamp collision, is seen only by the content check, which
-every path that relies on the watch already requires. Linux inotify holds no descriptor per
-watched path and needs no budget.
+change. The directory watch still reports any entry created, removed or renamed. Regular files
+therefore no longer exhaust descriptors as a store grows. Directories are not budgeted, so a
+directory-heavy tree or many concurrent watches can still be refused with too many open files, as
+can any other registration failure. Two limits apply beyond the budget:
+- A write that leaves size, modification time and change time unchanged, possible only through a
+  timestamp collision, is missed by the watch. Only a path that rereads the file's bytes can catch
+  it, and an inventory built from audit observations reuses cached digests (the exposure recorded
+  above as V1-0775).
+- Each `Check` re-reads the over-budget files' stat tuples. Lease commits call `Check` while holding
+  the writer lock, so locked work then grows with the number of files beyond the budget, contrary
+  to CAL-V0-026's bound (V1-0845).
+
+Linux inotify holds no descriptor per watched path and needs no budget.
 
 A write through a shared writable mapping is the case only the content check sees. Probes of
 `authority.WatchChanges` on this host's APFS (macOS, kqueue) and in a Linux arm64 container on
