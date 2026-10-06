@@ -1149,7 +1149,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 			o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
 			values := liveAttemptsValue(live)
 			for i, a := range live {
-				addHolderObservation(values.Arr[i].Obj, a, observedAt)
+				addHolderObservation(values.Arr[i].Obj, a, observedAt, st.Policy.HeartbeatTTLSeconds())
 			}
 			o.Set("liveAttempts", values)
 		}

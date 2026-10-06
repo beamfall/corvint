@@ -5,11 +5,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"strconv"
 	"time"
 )
 
 // Heartbeat freshness describes a recorded signal, never physical quiescence.
-func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time) {
+// ttlSeconds is the effective policy TTL (CAL-V0-120); the status is derived
+// on every read and never written.
+func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time, ttlSeconds int64) {
 	status := "NOT_OBSERVED"
 	last := wire.Null()
 	if a.LastHeartbeatAt != nil {
@@ -22,13 +25,13 @@ func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time) {
 			status = "LEASE_EXPIRED"
 		case now.Before(at):
 			status = "CLOCK_BEFORE_HEARTBEAT"
-		case now.Sub(at) >= 10*time.Minute:
+		case now.Sub(at) >= time.Duration(ttlSeconds)*time.Second:
 			status = "STALE_HOLDER"
 		default:
 			status = "FRESH_HOLDER"
 		}
 	}
-	o.Set("lastHeartbeatAt", last).Set("holderStatus", wire.String(status)).Set("observedAt", wire.String(now.UTC().Truncate(time.Second).Format(time.RFC3339))).Set("heartbeatTTLSeconds", wire.String("600"))
+	o.Set("lastHeartbeatAt", last).Set("holderStatus", wire.String(status)).Set("observedAt", wire.String(now.UTC().Truncate(time.Second).Format(time.RFC3339))).Set("heartbeatTTLSeconds", wire.String(strconv.FormatInt(ttlSeconds, 10)))
 }
 
 // addHistoryObservation marks each prior generation `history` RECORDED or,

@@ -123,7 +123,37 @@ type Policy struct {
 	// LoopDetection is the optional CAL-V0-102 no-progress loop policy;
 	// nil (the key absent) disables loop detection.
 	LoopDetection *LoopDetection
-	Raw           []byte
+	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
+	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
+	HolderLiveness *HolderLiveness
+	Raw            []byte
+}
+
+// HolderLiveness sets the CAL-V0-120 heartbeat observation TTL. It changes
+// only how reads classify a recorded heartbeat; it never fences, renews,
+// releases or reaps an attempt.
+type HolderLiveness struct {
+	HeartbeatTTLSeconds wire.Count
+}
+
+// DefaultHeartbeatTTLSeconds is the CAL-V0-048 observation TTL used while
+// the policy omits holderLiveness.
+const DefaultHeartbeatTTLSeconds = 600
+
+// Heartbeat TTL bounds (CAL-V0-120). The minimum stays above the 240-second
+// `attempt run` heartbeat interval, so a running supervised command is never
+// reported stale between its own heartbeats.
+const (
+	MinHeartbeatTTLSeconds = 300
+	MaxHeartbeatTTLSeconds = 86400
+)
+
+// HeartbeatTTLSeconds is the effective heartbeat observation TTL.
+func (p *Policy) HeartbeatTTLSeconds() int64 {
+	if p == nil || p.HolderLiveness == nil {
+		return DefaultHeartbeatTTLSeconds
+	}
+	return p.HolderLiveness.HeartbeatTTLSeconds.Int()
 }
 
 // LoopDetection bounds the CAL-V0-102 no-progress loop signals: the
@@ -212,7 +242,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	r := wire.NewReader(v, "/")
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -378,6 +408,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		l := r.Field("loopDetection")
 		l.Closed("maxNoProgressGenerations", "maxAlternatingReturns")
 		p.LoopDetection = &LoopDetection{MaxNoProgressGenerations: boundCount(l.Field("maxNoProgressGenerations"), 1, MaxLoopDetectionBound), MaxAlternatingReturns: boundCount(l.Field("maxAlternatingReturns"), 1, MaxLoopDetectionBound)}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "holderLiveness") {
+		h := r.Field("holderLiveness")
+		h.Closed("heartbeatTTLSeconds")
+		p.HolderLiveness = &HolderLiveness{HeartbeatTTLSeconds: boundCount(h.Field("heartbeatTTLSeconds"), MinHeartbeatTTLSeconds, MaxHeartbeatTTLSeconds)}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}
