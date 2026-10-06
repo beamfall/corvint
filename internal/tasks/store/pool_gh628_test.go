@@ -318,3 +318,51 @@ func TestPSRV0012PinnedSweep(t *testing.T) {
 		})
 	}
 }
+
+// PSR-V0-012: verify may expect a nonzero exit, so a bounded post-exit proof
+// failure must still fail the phase. With expectExit 7 and matching stdout, a
+// sweep whose verify post-exit probe times out (member deadline still live)
+// keeps the member quarantined; the control without the fault frees it.
+func TestPSRV0012ExpectedNonzeroNeedsProof(t *testing.T) {
+	for _, fault := range []bool{false, true} {
+		t.Run(map[bool]string{false: "control", true: "bounded-post-probe"}[fault], func(t *testing.T) {
+			ext, _, head := gh628External(t)
+			ran := filepath.Join(t.TempDir(), "verify-ran")
+			s, _ := psrFixtureConfigured(t, "true", "touch "+ran+"; printf ok; exit 7", "ok", "1", false, func(v wire.Value) {
+				pools, _ := v.Obj.Get("pools")
+				config, _ := pools.Arr[0].Obj.Get("memberConfig")
+				member, _ := config.Obj.Get("a")
+				reuse, _ := member.Obj.Get("safeReuse")
+				reuse.Obj.Set("cwd", gh628Pin(ext, head))
+				reuse.Obj.Set("timeoutSeconds", str("60"))
+				verify, _ := reuse.Obj.Get("verify")
+				verify.Obj.Set("expectExit", str("7"))
+			})
+			injected := false
+			t.Cleanup(store.SetPoolPinStepForTest(func(step string) error {
+				if _, e := os.Stat(ran); fault && !injected && step == "identity" && e == nil {
+					injected = true
+					return store.PoolBoundedProbeErrorForTest("TIMEOUT")
+				}
+				return nil
+			}))
+			out, e := store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "nonzero-sweep", Root: s.root, TimeoutSeconds: "120"})
+			if e != nil || out == nil || out.Report == nil {
+				t.Fatalf("sweep %+v %v", out, e)
+			}
+			if _, err := os.Stat(ran); err != nil {
+				t.Fatalf("verify did not run: %v", err)
+			}
+			entries := psrPools(t, s).Entries
+			if !fault {
+				if len(entries) != 0 {
+					t.Fatalf("control not freed: %+v", entries)
+				}
+				return
+			}
+			if !injected || len(entries) != 1 || entries[0].State != "QUARANTINED" {
+				t.Fatalf("unproved verify freed the member (injected %v): %+v", injected, entries)
+			}
+		})
+	}
+}

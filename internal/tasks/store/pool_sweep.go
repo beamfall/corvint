@@ -294,6 +294,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				return out, e
 			}
 			result := poolCommandResult{Class: "INTERRUPTED", Clean: true}
+			var proofErr error
 			if probe.Barrier == nil || probe.Barrier.Scope != "ALL" {
 				revision, tree, sourceErr := sweepSource(attemptCtx, c.Root)
 				result.Class = sweepSourceClass(sourceErr)
@@ -312,7 +313,11 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 						if err == nil {
 							err = pinErr
 						}
-						result.Class = poolPostClass(result.Class, err)
+						// PSR-V0-012: a normal exit may satisfy verify's expectExit, so a
+						// failed post-exit proof replaces either exit class and the
+						// phase can never pass without a successful proof.
+						proofErr = err
+						result.Class = poolPostClass(result.Class, result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO", err)
 					}
 				}
 			}
@@ -323,9 +328,9 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				}
 			}
 
-			passed := result.Clean && result.Exit != nil && result.Exit.Int() == 0 && (result.Class == "EXIT_ZERO")
+			passed := proofErr == nil && result.Clean && result.Exit != nil && result.Exit.Int() == 0 && (result.Class == "EXIT_ZERO")
 			if phase == "verify" {
-				passed = result.Clean && result.Exit != nil && result.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && (result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO") && strings.Contains(string(result.Stdout), member.config.SafeReuse.ExpectStdout)
+				passed = proofErr == nil && result.Clean && result.Exit != nil && result.Exit.Int() == member.config.SafeReuse.ExpectExit.Int() && (result.Class == "EXIT_ZERO" || result.Class == "EXIT_NONZERO") && strings.Contains(string(result.Stdout), member.config.SafeReuse.ExpectStdout)
 				if !passed && result.Class == "EXIT_ZERO" {
 					result.Class = "STDOUT_MISMATCH"
 				}

@@ -67,16 +67,12 @@ checkout, had to keep an external sweeper. Requested: a larger bound for health 
 ## Review repair (Codex findings, same day)
 
 - **P1, confirmed.** The pin proof was not bound to execution.
-  - Fixed: the proof now runs HEAD, then status, then HEAD again, so a clean status is bound to the
-    pinned revision.
+  - Fixed: the proof now runs HEAD, then status, then HEAD again. This narrows a revision change
+    around the status read but cannot exclude one (see the second review).
   - Fixed: it records the Lstat device/inode identity of the directory and re-checks it immediately
     before `cmd.Start` through a launch guard (`executePoolGuarded` / `executePoolCapturedGuarded`).
     A changed identity starts nothing and records SOURCE_CHANGED.
-  - Accepted bound, recorded in PSR-V0-012 and its non-goals: Tasks does not own the external
-    checkout. An actor outside Tasks that mutates it after the guard (before the child's
-    chdir/exec), or while the command runs, can still cause different content to run. The post-exit
-    proof is detection only and cannot undo external effects. Restoring the pinned state before that
-    proof hides the change. No fchdir/descriptor-bound execution.
+  - Accepted bound: superseded by the second review's restatement below.
 - **P2, confirmed.** The post-exit proof mapped every error to SOURCE_CHANGED, so a bounded
   TIMEOUT/INTERRUPTED probe erased the command's own TIMEOUT. `poolPostClass` now:
   - keeps the command's terminal failure;
@@ -89,6 +85,26 @@ checkout, had to keep an external sweeper. Requested: a larger bound for health 
 - **Cost.** The pin proof is about four Git probes per proof, run before and after each sweep phase.
   The pinned sweep fixture needed a member deadline above the shared 3 s fixture value (it observed
   about 6.6 s on this host).
+
+## Second review repair
+
+- **P1, confirmed, and introduced by the first repair.** Sweep verify accepts an expected nonzero
+  exit. With `expectExit` 7, matching stdout and a bounded post-exit probe timeout, EXIT_NONZERO
+  survived, verify passed and the member was freed with no successful proof. Fix:
+  - `poolPostClass` now takes the phase's `mayPass` predicate. In the sweep, either normal exit
+    class is replaced by the bounded class.
+  - Independently, sweep `passed` requires that the post-exit proof succeeded, so a failed proof
+    can never free a member.
+  - Regression test: `TestPSRV0012ExpectedNonzeroNeedsProof`. Its control frees the member. With
+    the fix removed, the faulted case freed the member and failed the test (observed).
+- **P2, confirmed.** The accepted bound started too late. An in-place edit after the status read
+  keeps both HEAD and the directory identity, so it passes the guard, and restoring the files before
+  the post-exit proof hides it. HEAD, status, HEAD cannot exclude a change-and-restore between reads.
+  PSR-V0-012, its non-goals and the code comment now state the actual bound:
+  - The proof is a non-atomic sequence of observations of a checkout Tasks does not own.
+  - Concurrent mutation during or after those observations is outside the guarantee.
+  - The second HEAD read narrows the window but binds nothing.
+  - The re-reads and the launch guard detect only changes still visible when they observe.
 
 ## NOT_RUN
 

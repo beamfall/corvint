@@ -145,7 +145,7 @@ func runPool(ctx context.Context, repo *intent.Repository, choice LeaseChoice, e
 	} else {
 		class, clean, output = executePoolGuarded(ctx, def, dir, env, guard)
 		_, _, e = poolCommandDir(context.WithoutCancel(ctx), def, root)
-		class = poolPostClass(class, e)
+		class = poolPostClass(class, class == "EXIT_ZERO", e)
 	}
 	after, afterTree, e := poolSource(root)
 	if e != nil || after != rev || afterTree != tree {

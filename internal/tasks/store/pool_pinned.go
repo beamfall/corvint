@@ -27,9 +27,11 @@ var poolPinStep func(step string) error
 // after the clean-input status check, its inputs are clean under the same
 // porcelain rule as REPOSITORY, and its directory identity is unchanged across
 // the whole proof; otherwise it refuses with a named code and the caller runs
-// nothing. Every Git observation is bounded by sweepGit. A concurrent actor
-// outside Tasks can still change the checkout between the guard and exec, or
-// during execution; that residual is an accepted bound, not a guarantee.
+// nothing. Every Git observation is bounded by sweepGit. The proof is a
+// sequence of non-atomic observations of a checkout Tasks does not own:
+// concurrent mutation during or after them (in-place edits that keep HEAD and
+// the directory identity, change-and-restore between reads, edits while the
+// command runs) is outside the guarantee (PSR-V0-012 accepted bound).
 func poolCommandDir(ctx context.Context, def *intent.PoolCommand, root string) (string, func() error, error) {
 	if def == nil || def.Pinned == nil {
 		return root, nil, nil
@@ -93,8 +95,8 @@ func poolCommandDir(ctx context.Context, def *intent.PoolCommand, root string) (
 	if e = step("status"); e != nil {
 		return "", nil, e
 	}
-	// The status check proves the tree at whatever HEAD it saw; a second HEAD
-	// read binds that clean status to the pinned revision.
+	// A second HEAD read narrows, but cannot exclude, a revision change around
+	// the status read.
 	if e = head("head-again"); e != nil {
 		return "", nil, e
 	}
@@ -121,15 +123,17 @@ func pinnedDirectory(path string) (os.FileInfo, error) {
 
 // poolPostClass classifies a finished command after its post-exit proof. Only
 // shown drift (a non-bounded failure) becomes SOURCE_CHANGED; a bounded probe
-// TIMEOUT/INTERRUPTED keeps the command's own terminal failure and only
-// replaces a success it cannot confirm. The post-exit proof is detection only.
-func poolPostClass(class string, e error) string {
+// TIMEOUT/INTERRUPTED replaces any class that could satisfy the phase's
+// success predicate (mayPass) and otherwise keeps the command's own terminal
+// failure. Callers must also refuse to pass a phase whose proof failed. The
+// post-exit proof is detection only.
+func poolPostClass(class string, mayPass bool, e error) string {
 	if e == nil {
 		return class
 	}
 	var bounded sweepGitBounded
 	if errors.As(e, &bounded) {
-		if class == "EXIT_ZERO" {
+		if mayPass {
 			return bounded.class
 		}
 		return class
