@@ -229,3 +229,47 @@ func TestCALV0098_HealthPrepareRederivesAuthors(t *testing.T) {
 	}
 	auditOK(t, s.repo)
 }
+
+// CAL-V0-104: health preparation covers an unrecorded generation only when
+// the claim's caller supplied explicit members. A generation that races in
+// before preparation of a claim without --exclude-member refuses before any
+// health command runs, so no member is probed or quarantined.
+func TestCALV0104_HealthPrepareNeverImpliesCover(t *testing.T) {
+	s := newLeaseStore(t)
+	markers := t.TempDir()
+	touch := func(name string) wire.Value {
+		return obj("health", obj("argv", wire.Strings([]string{"/usr/bin/touch", filepath.Join(markers, name)}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3")))
+	}
+	exclusionPolicy(t, s, obj("a", touch("a"), "b", touch("b"), "review", touch("review")))
+	id := s.ticket(t, "raced-unrecorded")
+	s.implementOn(t, id, "b", "a", "review")
+	fired := false
+	restore := store.SetHealthPrepareHookForTest(func(string) {
+		if fired {
+			return
+		}
+		fired = true
+		// Another caller claims and releases the ticket without a pool, so
+		// its newest generation records no stage or member.
+		s.t0 = now(t)
+		s.lease(t, "race-plain-release", releaseOf(s.claim(t, "race-plain", id, 0, "race-plain")), 0, nil)
+	})
+	defer restore()
+	for _, m := range []string{"a", "b", "review"} {
+		_ = os.Remove(filepath.Join(markers, m))
+	}
+	r := s.lease(t, "race-review", reviewOf(id, transaction.ExcludeAuthorsLatest), 0, nil)
+	if !fired {
+		t.Fatal("preparation was never attempted")
+	}
+	if r.PoolAllocation != nil || !r.Outcome.HasCode(wire.CodeIndependenceUnverified) {
+		t.Fatalf("raced review %+v", r)
+	}
+	if ran, _ := os.ReadDir(markers); len(ran) != 0 {
+		t.Fatalf("health ran without an explicit cover: %v", ran)
+	}
+	for _, en := range untouchedPoolState(t, s).Entries {
+		t.Fatalf("pool mutated: %+v", en)
+	}
+	auditOK(t, s.repo)
+}

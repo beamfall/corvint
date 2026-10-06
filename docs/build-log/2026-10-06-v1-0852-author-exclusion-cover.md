@@ -22,9 +22,8 @@ Requirement: new `CAL-V0-104` (V1-0852 subsection of `## Requirements` in
 - The admitted claim's derivation now reaches the result (`leaseOutcome.authors` to
   `Result.AuthorExclusion` to `store.Report`), and `leaseResult` adds `AuthorExclusion.Notes()` as
   warnings: covered generations are caller-asserted, not recorded; no implement author is recorded.
-- POOL_PREPARE carries no explicit members, so it rederives with the cover on. It is reached only
-  after the claim's own derivation passed, and the final prepared admission rederives under the
-  claim's full rule; its preimage is unchanged.
+- POOL_PREPARE carries the claim's explicit members and covers only when they are present
+  (corrected after review; see `2026-10-06-gh623-626-review-fixes.md`).
 
 ### Decisions
 

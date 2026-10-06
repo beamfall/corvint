@@ -278,10 +278,13 @@ func TestCALV0104_ExplicitMembersCoverUnrecordedGenerations(t *testing.T) {
 			}
 		}
 	}
-	// Health preparation covers without explicit members, so it never
-	// refuses what the claim it prepares admitted.
+	// The cover is the caller's explicit set, never implied: without it an
+	// unrecorded generation refuses, with it the recorded author still counts.
 	legacy := map[string]*snapshot.Attempt{"x": authorAttempt("x", tk, 1, impl("a"), nil)}
-	if x, why := deriveAuthors(legacy, tk, ExcludeAuthorsLatest, "db", nil, true); x == nil || !reflect.DeepEqual(x.Excluded, []string{"a"}) {
-		t.Fatalf("prepare cover: %+v %q", x, why)
+	if x, why := DeriveAuthors(legacy, tk, ExcludeAuthorsAll, "db", nil); x != nil || why == "" {
+		t.Fatalf("implicit cover: %+v %q", x, why)
+	}
+	if x, why := DeriveAuthors(legacy, tk, ExcludeAuthorsAll, "db", []string{"e"}); x == nil || !reflect.DeepEqual(x.Excluded, []string{"a", "e"}) {
+		t.Fatalf("explicit cover: %+v %q", x, why)
 	}
 }

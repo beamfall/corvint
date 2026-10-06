@@ -98,13 +98,7 @@ func (g endedGeneration) name() string {
 // by them instead (CAL-V0-104), and a ticket with nothing to exclude is not
 // refused.
 func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool string, explicit []string) (*AuthorExclusion, string) {
-	return deriveAuthors(attempts, ticketID, mode, pool, explicit, len(explicit) > 0)
-}
-
-// deriveAuthors is DeriveAuthors with the CAL-V0-104 cover decided by the
-// caller: POOL_PREPARE carries no explicit members, and covers what the
-// claim it prepares already covered.
-func deriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool string, explicit []string, cover bool) (*AuthorExclusion, string) {
+	cover := len(explicit) > 0
 	authors := []Author{}
 	var covered []string
 	for _, g := range ticketGenerations(attempts, ticketID) {

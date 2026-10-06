@@ -186,3 +186,47 @@ func TestCALV0105_AdmissionRank(t *testing.T) {
 		t.Fatal("an equal-priority implement outranked a waiting review")
 	}
 }
+
+// CAL-V0-105: a downstream competitor counts only when its own stage has a
+// free eligible member of the pool, and every path reads it that way. With
+// the only free member reserved for implement, a waiting review cannot take
+// it, so the default plan, the --pool plan, claim-next, claimability and an
+// explicit claim all admit the equal-priority implement ticket.
+func TestCALV0105_DownstreamCompetitorNeedsItsStageMember(t *testing.T) {
+	aa, ab := priorityTicket("AA-01", "P0", ""), priorityTicket("AB-01", "P0", "")
+	fa, rv := priorityTicket("FA-01", "P0", "lanes"), priorityTicket("RV-02", "P0", "lanes")
+	f := newPriorityFixture(t, priorityPolicy(t, []string{"a", "b", "c"}, "true"), []*ticket.Record{aa, ab, fa, rv})
+	f.st.policy.Pool("lanes").ReservedFor["c"] = "implement"
+	impl := f.admitted(t, f.staged(rv.TicketID.Raw, "lanes", "implement"))
+	if impl.PoolAllocation == nil || impl.PoolAllocation.MemberID != "c" {
+		t.Fatalf("implement on %+v", impl.PoolAllocation)
+	}
+	f.admitted(t, f.claim(aa.TicketID.Raw, "lanes"))
+	f.admitted(t, f.claim(ab.TicketID.Raw, "lanes"))
+	f.release(t, impl, wire.CodeHandoff, "review")
+	f.confirmSafe("c")
+
+	for _, pool := range []string{"", "lanes"} {
+		in := f.planInput(pool)
+		in.Stage = "implement"
+		if waiting, unobserved := priorityWaiting(in, fa, "lanes"); len(waiting)+len(unobserved) != 0 {
+			t.Fatalf("pool %q: FA-01 waits behind %v %v", pool, waiting, unobserved)
+		}
+		for _, e := range PriorityFirst(in).Entries {
+			if e.Ticket.TicketID.Raw == fa.TicketID.Raw && (e.State != PlanSelected || e.yieldTo != "") {
+				t.Fatalf("pool %q plan FA-01: %+v", pool, e)
+			}
+		}
+	}
+	in := f.planInput("")
+	in.Stage = "implement"
+	if v, code := RecordedClaimability(in, fa); string(wire.Encode(v)) != "true" {
+		t.Fatalf("FA-01 claimability %s %s", wire.Encode(v), code)
+	}
+	if next := planClaimNext(f.staged("", "lanes", "implement")); next.result != nil || attemptOf(t, next).TicketID.Raw != fa.TicketID.Raw {
+		t.Fatalf("claim-next: %+v", next.result)
+	}
+	if got := f.admitted(t, f.staged(fa.TicketID.Raw, "lanes", "implement")); got.PoolAllocation == nil || got.PoolAllocation.MemberID != "c" {
+		t.Fatalf("FA-01 admitted on %+v", got.PoolAllocation)
+	}
+}

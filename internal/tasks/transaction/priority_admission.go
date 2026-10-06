@@ -61,9 +61,12 @@ type admissionCandidate struct {
 // admissionQueue lists, in admission order, the tickets that compete for
 // pool under priority-yield admission (CAL-V0-101): OPEN tickets that
 // require pool and have no known claim blocker, which includes a live
-// attempt. A downstream ticket's blockers are read at its own stage, the
-// stage its claim names; any other ticket's at in.Stage. The read is pure:
-// it consults the plan input and runs no probe.
+// attempt or no free member of pool eligible for the competitor's stage. A
+// downstream ticket's blockers are read at its own stage, the stage its
+// claim names; any other ticket's at in.Stage. Every competitor is read
+// against pool itself, without the plan's or claim's own exclusions, so the
+// default plan, the --pool plan and a claim rank the same competitors. The
+// read is pure: it consults the plan input and runs no probe.
 func admissionQueue(in PlanInput, pool string) []admissionCandidate {
 	out := []admissionCandidate{}
 	for _, t := range planTickets(in.Tickets) {
@@ -72,6 +75,7 @@ func admissionQueue(in PlanInput, pool string) []admissionCandidate {
 		}
 		r := admissionRankOf(in.Attempts, t)
 		at := in
+		at.Pool, at.ExcludeMembers, at.ExcludeAuthors = pool, nil, ""
 		if r.stage != "" {
 			at.Stage = r.stage
 		}
