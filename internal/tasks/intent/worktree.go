@@ -293,6 +293,19 @@ func ReadFileFromRoot(root *os.Root, label, name string, max int) ([]byte, error
 	})
 }
 
+// ReadFileFromDir is ReadFileFromRoot opening the basename beneath dir, a
+// safeopen.PinDir descriptor of root, with one no-follow openat instead of
+// re-opening root's traversal per file. Stat, validation, identity checks and
+// byte bounds are ReadFileFromRoot's. The caller owns both lifetimes.
+func ReadFileFromDir(root *os.Root, dir *os.File, label, name string, max int) ([]byte, error) {
+	if root == nil || dir == nil || name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.Base(name) != name {
+		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, label, "expected a pinned parent and one basename")
+	}
+	return readBoundedUsing(label, max, func() (os.FileInfo, error) { return root.Lstat(name) }, func() (*os.File, error) {
+		return safeopen.InDir(dir, name, os.O_RDONLY, 0)
+	})
+}
+
 // Replaced only by deterministic pinned-reader stat/open race tests.
 var openRootReadFile = func(root *os.Root, name string) (*os.File, error) {
 	return safeopen.InRoot(root, name, os.O_RDONLY, 0, false)

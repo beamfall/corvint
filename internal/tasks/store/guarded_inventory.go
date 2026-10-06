@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -149,7 +150,8 @@ func (r *parentInventoryReader) read(path string, max int) ([]byte, error) {
 
 // Only prepareLease routes here, immediately after creating the matching live
 // ChangeGuard. This retains one parent root plus a temporary rebind root, not
-// a history-sized root cache. Other inventory callers keep the ordinary reader.
+// a history-sized root cache. Mutate's watched pass uses pinnedInventory;
+// other inventory callers keep the ordinary reader.
 func guardedLeaseInventory(repo *intent.Repository, guard *authority.ChangeGuard, hooks inventoryHooks, observed ...map[string]journal.PhysicalFile) (*transaction.Inventory, error, []inventoryCleanup) {
 	if guard == nil {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "inventory", "missing change guard"), nil
@@ -157,6 +159,20 @@ func guardedLeaseInventory(repo *intent.Repository, guard *authority.ChangeGuard
 	if err := guard.Check(); err != nil {
 		return nil, err, nil
 	}
+	files, dirs, err, fatal := pinnedScan(repo, hooks, observed...)
+	if err == nil {
+		err = guard.Check()
+	}
+	if err != nil || len(fatal) > 0 {
+		return nil, err, fatal
+	}
+	inv, err := transaction.NewInventory(files, dirs)
+	return inv, err, nil
+}
+
+// pinnedScan is scanWithReader through one pinned parent root per directory
+// run, with each parent's identity rebound once that run ends.
+func pinnedScan(repo *intent.Repository, hooks inventoryHooks, observed ...map[string]journal.PhysicalFile) ([]archive.FileEntry, []string, error, []inventoryCleanup) {
 	r := &parentInventoryReader{hooks: hooks}
 	files, dirs, err := scanWithReader(repo, r.read, observed...)
 	finishErr := r.finish()
@@ -165,15 +181,69 @@ func guardedLeaseInventory(repo *intent.Repository, guard *authority.ChangeGuard
 	} else if err == nil {
 		err = finishErr
 	}
-	if err == nil {
-		err = guard.Check()
-	}
-	if err != nil || len(r.fatal) > 0 {
-		return nil, err, r.fatal
-	}
-	inv, err := transaction.NewInventory(files, dirs)
-	return inv, err, nil
+	return files, dirs, err, r.fatal
 }
+
+// pinnedInventory is Mutate's watched inventory (CAL-V0-070): the ordinary
+// inventory read through pinned parent roots instead of a full no-follow
+// walk from "/" per file. It never takes merged-audit digests in place of a
+// read, so readUnchanged still compares what this pass read. Any error or
+// retirement failure is returned, and Mutate then repeats the ordinary fresh
+// pass, which owns every refusal.
+func pinnedInventory(ctx context.Context, repo *intent.Repository) (*transaction.Inventory, error) {
+	if !pinnedMutationInventory {
+		return inventory(repo)
+	}
+	hooks, d := hooksForInventory(ctx), &pinnedDirReader{}
+	if injected, _ := ctx.Value(inventoryHooksKey{}).(inventoryHooks); injected.read == nil {
+		hooks.read = d.read
+	}
+	files, dirs, err, fatal := pinnedScan(repo, hooks)
+	if closeErr := d.close(); closeErr != nil {
+		fatal = append(fatal, inventoryCleanup{"pinned directory close", closeErr})
+	}
+	if err == nil && len(fatal) > 0 {
+		err = fatalInventoryError(fatal, nil, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return transaction.NewInventory(files, dirs)
+}
+
+// pinnedDirReader keeps one safeopen.PinDir descriptor for the parent root
+// in use, so each file beneath it costs one no-follow openat (CAL-V0-070).
+type pinnedDirReader struct {
+	root *os.Root
+	dir  *os.File
+}
+
+func (d *pinnedDirReader) read(root *os.Root, label, name string, max int) ([]byte, error) {
+	if root != d.root {
+		if err := d.close(); err != nil {
+			return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, label, "pinned directory close: %v", err)
+		}
+		dir, err := safeopen.PinDir(root)
+		if err != nil {
+			return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, label, "pinned directory open: %v", err)
+		}
+		d.root, d.dir = root, dir
+	}
+	return intent.ReadFileFromDir(root, d.dir, label, name, max)
+}
+
+func (d *pinnedDirReader) close() error {
+	if d.dir == nil {
+		return nil
+	}
+	err := d.dir.Close()
+	d.root, d.dir = nil, nil
+	return err
+}
+
+// pinnedMutationInventory exists so the parity test can compare the pinned
+// watched inventory with the ordinary one over the same Mutate sequence.
+var pinnedMutationInventory = true
 
 func (p *preparedLease) fatalError() error {
 	return fatalInventoryError(p.fatalCleanup, p.failure, p.observationFailure)
