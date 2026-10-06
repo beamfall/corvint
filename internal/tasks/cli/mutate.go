@@ -38,6 +38,9 @@ type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
 	payloadFromStdin, help, template           bool
+	// batch is --batch, recognized only in a flag position, never as the
+	// value of another flag (CAL-V0-106); only ticket refine accepts it.
+	batch bool
 	// others counts the flags passed besides --help and --template, so
 	// --template refuses any flag by presence, not by value.
 	others int
@@ -53,6 +56,12 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	flags, res := parseMutateFlags(cmd, args)
 	if res != nil {
 		return res
+	}
+	if flags.batch {
+		if operation != mutation.OpRefine {
+			return usage(cmd, "unknown flag --batch: only ticket refine has a batch form")
+		}
+		return refineBatchCommand(env, cmd, flags)
 	}
 	if flags.help {
 		return mutationHelp(cmd, operation)
@@ -102,6 +111,11 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		if args[i] == "--template" {
 			f.template = true
+			continue
+		}
+		if args[i] == "--batch" {
+			f.batch = true
+			f.others++
 			continue
 		}
 		dest, ok := set[args[i]]
@@ -199,6 +213,10 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
+	}
+	if operation == mutation.OpRefine {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"
+		o.Set("batch", wire.String(batchHelp))
 	}
 	o.Set("usage", wire.String(usageText))
 	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))

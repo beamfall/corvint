@@ -146,6 +146,14 @@ key takes no part in cycles, completion or `requiredGates` (CAL-V0-099). Once an
 carried the key, older binaries refuse the store even after it is cleared, because the journal keeps
 the earlier records; roll back only with a compatible reader or a verified pre-change backup.
 
+To refine many tickets, use `ticket refine --batch --request-id ID --payload-stdin` with a JSON
+array of `{"target":"AT-02","expectedRevision":"3","payload":{...}}` entries, each target once.
+Every entry is validated before anything is written; entries then apply in chunks of at most 8
+under one writer lock each, released between chunks so claims and heartbeats are not starved. Each
+entry is an ordinary refine under request ID `ID/<index>` with its own expected-revision check and
+receipt: a stale entry is refused alone. Retry with the same `--request-id` and the `issuedAt` the
+result reports (`--issued-at`) to replay completed entries without applying them twice (CAL-V0-106).
+
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the
 unvalidated-history intent projection and report its limits, but cannot claim or complete work.
