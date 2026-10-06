@@ -192,3 +192,7 @@ produce the same output.
 With --if-stale, a matching snapshot writes nothing and reports state "fresh";
 a missing or stale snapshot is rebuilt exactly as above.
 `
+
+// loadSnapshotObserved is the dogfood event's zero-spawn hit against its own bracket's
+// opening observation (proposed LCP-V0-016, V1-0881).
+var loadSnapshotObserved = contextindex.LoadSnapshotObserved
