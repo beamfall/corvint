@@ -28,6 +28,8 @@ nested module) as it is.
 ## Decisions (fail closed where the spec was silent)
 
 - A module stays open when:
+  - an observed `go.mod` or the root `go.work` requires it, replaces it, names a tool under it, or
+    replaces a module with its directory (added after review, below);
   - it requires or replaces an observed module path, replaces a module with one, or names a tool
     under one (its own tools excepted);
   - a directory replacement is absolute, uses Windows path syntax, lies outside the repository, or
@@ -42,6 +44,33 @@ nested module) as it is.
   the plan wire and the graph digest. The tests read it through `export_test.go`.
 - Reverse direction: unchanged. A nested module's files are never units, so a change inside one is
   still `UNINDEXED_SOURCE_PATH` or `UNOWNED_DIRTY_PATH`, and a test asserts this.
+
+## Review repairs (Codex round 1)
+
+Codex reported three findings. Each was checked against the go 1.27.1 `x/mod/modfile` lexer and
+rules, and each was repaired with regression tests that fail without the repair:
+
+- P1, confirmed: a nested manifest alone cannot establish independence. If the root requires and
+  replaces a nested module, the root build compiles the nested module's packages, and those
+  packages resolve imports of root packages against the main module without any `require` line
+  in the nested `go.mod`. `observedReach` now parses every observed `go.mod` and the root
+  `go.work`. A nested module stays open when the observed side requires it, replaces it, names a
+  tool under it, or replaces a module with its directory. An observed directory replacement that
+  is absolute or leaves the repository opens every nested module.
+- P1, confirmed: `readModuleSourcePath` only trims quotes, so `module "example.test/ro\x6ft"` was
+  read as a literal escape. Observed manifests are now parsed with the strict reader (which uses
+  `strconv.Unquote`). Any disagreement with the path the plugin read opens every nested module.
+  `readModuleSourcePath` itself is unchanged, because unit naming is outside this ticket's scope.
+- P2, confirmed: known verbs with malformed arguments closed the frontier. The reader now checks
+  each directive the way `modfile` does:
+  - `go` and `toolchain` use the toolchain's version patterns and may appear only once;
+  - `godebug` needs `key=value`;
+  - `require` and `exclude` take two arguments, the second a `v`-prefixed version;
+  - `retract` takes a version or a `[v, v]` interval;
+  - `tool`, `ignore` and `use` take one argument;
+  - a replacement version must be `v`-prefixed;
+  - the lexer splits on `()[]{},` as the go tool does, and rejects non-printable runes, invalid
+    UTF-8 and `/*` comments.
 
 ## Finding: the ticket premise does not hold on this repository
 
@@ -72,6 +101,9 @@ Counterfactual: 571 was replayed again on a base commit that deletes `tools/loca
 binary: `UNKNOWN`, 79, `go:build-constraint-variants` and `go:nested-module-frontier`. Fix binary:
 `UNKNOWN`, 79, `go:build-constraint-variants` only. The fix drops the nested unknown once no root-requiring
 module exists. The plan stays `UNKNOWN` for `go:build-constraint-variants`, which is out of scope.
+After the review repairs, the binary was rebuilt and the run repeated. Real 571 was still
+`UNKNOWN`, 79, with both unknowns. The 571 counterfactual was still `UNKNOWN`, 79, with
+`go:build-constraint-variants` only.
 
 Owner question (not implemented): attach the frontier as a unit-level `Frontier` on the root
 packages an open nested module imports directly. If a target is unknown, absent or unreadable, the

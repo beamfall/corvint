@@ -657,21 +657,31 @@ and container qualification; full fallback remains available.
   it reads each such module's `go.mod` through the same `affected.Source` as every other input
   (the worktree, or the immutable tree under `BuildFS`, where a read error stays fatal), and the
   frontier is raised only when at least one module stays open. A module stays open when its
-  manifest is unreadable, larger than 1 MiB, or not parsable by a reader that fails on any verb,
-  token, or block it does not know; when it requires, replaces, or names a tool under an observed
+  manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
+  tool does and fails on any verb, token, block, or directive argument it does not admit (for
+  example an invalid `go` or `toolchain` version, a `godebug` without `=`, or a malformed
+  `retract` interval); when it requires, replaces, or names a tool under an observed
   module path (a tool under its own module path excepted), or replaces a module with one; when a
   directory replacement is absolute or not repository-relative, resolves outside the repository,
   or resolves anywhere other than its own directory or another unlisted module (a relative
   replacement that resolves to the root, or into an observed module, therefore keeps it open);
-  when a `go.work` sits in its directory or any ancestor below the root; or when any observed
-  module's path is unresolved. A module that is none of these cannot import an observed package,
+  when a `go.work` sits in its directory or any ancestor below the root; or when the observed
+  side draws it in: an observed `go.mod` or the root `go.work` requires, replaces, or names a
+  tool under its module path, or replaces a module with its directory, because the observed
+  build then compiles its packages and resolves their imports against the observed modules.
+  Every nested module stays open when the observed side cannot be read the same way: an observed
+  module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
+  or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
+  (an escaped quoted path, for example), the root `go.work` use set differs from the observed
+  directories, or an observed directory replacement is not repository-relative. A module that is
+  none of these neither builds against an observed module nor is built by one,
   so no change to an observed module reaches it and it closes. The plugin keeps one evidence
   record per nested `go.mod` read, with the reason it stayed open; it is internal and does not
   reach the plan wire. The reverse direction is unchanged: a nested module's files are never
   units, so a change inside one is still `UNINDEXED_SOURCE_PATH` or `UNOWNED_DIRTY_PATH`.
   Non-goals: reads by a nested module's tests of observed data (AFP-V0-012 already treats nested
-  literals as selecting nothing), symlinked manifests the walk does not follow, and a `GOWORK`
-  environment value, which the plugin cannot observe. Rollback restores the unconditional frontier
+  literals as selecting nothing), symlinked manifests the walk does not follow, and a `GOWORK` or
+  `GOFLAGS` (`-modfile`) environment value, which the plugin cannot observe. Rollback restores the unconditional frontier
   in `observeModules` and removes `nested.go`.
 
 ## Non-goals and authority
@@ -733,7 +743,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
-| AFP-V0-028 | `nestedModules`, `nestedModuleOpen`, `workspaceAbove`, `replaceDirectoryOpen`, `parseManifest`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
+| AFP-V0-028 | `nestedModules`, `observedReach`, `nestedModuleOpen`, `readManifest`, `workspaceAbove`, `replaceDirectoryOpen`, `repositoryDirectory`, `parseManifest`, `manifestLine`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
