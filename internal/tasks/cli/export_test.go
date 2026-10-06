@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 )
 
 // SetAttemptBeatInterval shortens the attempt runner's heartbeat interval for
@@ -32,6 +33,37 @@ func SetAttemptGroupSignalFault() func() {
 	was := attemptGroupPrimitives
 	attemptGroupPrimitives.KillGroup = func(int) error { return errors.New("injected group signal failure") }
 	return func() { attemptGroupPrimitives = was }
+}
+
+// SetDetachExecutable makes a detached launcher start program with prefix
+// before the CLI arguments; it returns the restore function.
+func SetDetachExecutable(program string, prefix ...string) func() {
+	was := detachExecutable
+	detachExecutable = func() (string, []string, error) { return program, prefix, nil }
+	return func() { detachExecutable = was }
+}
+
+// SetRunPoll shortens an attach's wait between record reads.
+func SetRunPoll(d time.Duration) func() {
+	was := runPoll
+	runPoll = d
+	return func() { runPoll = was }
+}
+
+// SetRunSegmentBytes shrinks a detached run's output segment.
+func SetRunSegmentBytes(n int64) func() {
+	was := runSegmentBytes
+	runSegmentBytes = n
+	return func() { runSegmentBytes = was }
+}
+
+// RunDirForTest is the private directory of an attempt's detached runs.
+func RunDirForTest(cwd, attemptID string) (string, error) {
+	repo, err := intent.Resolve(cwd)
+	if err != nil {
+		return "", err
+	}
+	return runsDir(repo, attemptID), nil
 }
 
 // ObserveTickets runs the native dispatcher observation at cwd and returns
