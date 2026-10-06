@@ -81,6 +81,9 @@ func TestIndependentNestedModulesCloseTheFrontier_V1_0867(t *testing.T) {
 		"\texample.test/pseudo v0.0.0-20240101000000-abcdef123456",
 		"\texample.test/legacy v3.0.0+incompatible",
 		"\texample.test/pre v1.2.3-rc.1",
+		"\texample.test/major/v2 v2.0.0",
+		"\tgopkg.in/yaml.v3 v3.0.1",
+		"\tgopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405",
 		"\texample.test/root/v2 v2.0.0",
 		")",
 		"replace example.test/other v1.0.0 => example.test/fork v1.0.1",
@@ -193,6 +196,15 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 		{"toolchain block", "module example.test/nested\n\ntoolchain (\n\tgo1.27.1\n)\n", "unparsable: line 3: toolchain block"},
 		{"non-canonical version", "module example.test/nested\n\nrequire example.test/other vgarbage\n", "unparsable: line 3: malformed require directive"},
 		{"version with a leading zero", "module example.test/nested\n\nrequire example.test/other v1.02.0\n", "unparsable: line 3: malformed require directive"},
+		// Codex round 4: x/mod/module.CheckPathMajor and parseReplace forms.
+		{"major without a path suffix", "module example.test/nested\n\nrequire example.test/other v2.0.0\n", "unparsable: line 3: malformed require directive"},
+		{"major unlike the path suffix", "module example.test/nested\n\nrequire example.test/other/v2 v3.0.0\n", "unparsable: line 3: malformed require directive"},
+		{"invalid v1 path suffix", "module example.test/nested\n\nrequire example.test/other/v1 v1.0.0\n", "unparsable: line 3: malformed require directive"},
+		{"exclude major mismatch", "module example.test/nested\n\nexclude example.test/other v2.0.0\n", "unparsable: line 3: malformed exclude directive"},
+		{"gopkg.in v0 unstable", "module example.test/nested\n\nrequire gopkg.in/yaml.v0-unstable v0.1.0\n", "unparsable: line 3: malformed require directive"},
+		{"replace source major mismatch", "module example.test/nested\n\nreplace example.test/other v2.0.0 => example.test/fork v2.0.0\n", "unparsable: line 3: malformed replace directive"},
+		{"directory replacement with a version", "module example.test/nested\n\nreplace example.test/other => ../sibling v1.0.0\n", "unparsable: line 3: malformed replace directive"},
+		{"module replacement without a version", "module example.test/nested\n\nreplace example.test/other => example.test/fork\n", "unparsable: line 3: malformed replace directive"},
 		{"quoted godebug", "module example.test/nested\n\ngodebug \"panicnil=1\"\n", "unparsable: line 3: malformed godebug directive"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

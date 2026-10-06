@@ -108,6 +108,23 @@ The binary was rebuilt and the replays repeated with the final code:
 - the 571 counterfactual is `UNKNOWN`, 79, with `go:build-constraint-variants` only;
 - real 571 and real 610 still keep `go:nested-module-frontier`.
 
+## Review repairs (Codex round 4)
+
+Codex reported two P2 findings. Both were confirmed against x/mod v0.39.0 (`parseReplace` and
+`module.CheckPathMajor`) and repaired. With the round-3 `nested.go` restored, all eight new
+subtests fail. One of them, a module replacement without a version, was already open there,
+but for a directory reason.
+
+- Path/major compatibility: `require`, `exclude` and a versioned replacement source must pass
+  the same check as `SplitPathVersion` and `CheckPathMajor`, including the gopkg.in forms and
+  the `.v1` `v0.0.0-` pseudo-version allowance. An invalid path suffix fails too.
+- Replacement form: a target without a version must be a directory path, and a directory target
+  must not carry a version.
+
+Rationale, recorded for the owner: a manifest the go tool rejects cannot be built at all, so a
+laxer read could not hide a dependency that actually builds. Still, AFP-V0-028 says
+"unparsable stays open", so the reader may be stricter than `modfile` but never laxer.
+
 ## Finding: the ticket premise does not hold on this repository
 
 This repository has four nested modules. Three of them close:

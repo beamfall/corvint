@@ -661,7 +661,9 @@ and container qualification; full fallback remains available.
   tool does and fails on any verb, token, block, or directive argument it does not admit (for
   example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
   `=`, a malformed `retract` interval, a raw string, a quote inside an unquoted argument, a block
-  of a verb the go tool does not admit as a block, or a module version that is not canonical); when it requires, replaces, or names a tool under an observed
+  of a verb the go tool does not admit as a block, a module version that is not canonical or
+  whose major does not match the module path's suffix, or a replacement whose target is a
+  directory with a version or a module path without one); when it requires, replaces, or names a tool under an observed
   module path (a tool under its own module path excepted), or replaces a module with one; when a
   directory replacement is absolute or not repository-relative, resolves outside the repository,
   or resolves anywhere other than its own directory or another unlisted module (a relative

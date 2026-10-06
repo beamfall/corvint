@@ -456,7 +456,7 @@ func (parsed *manifestDependencies) add(verb string, args []manifestToken) error
 			return malformed
 		}
 	case "require", "exclude":
-		if len(args) != 2 || args[0].text == "" || !version(args[1]) {
+		if len(args) != 2 || args[0].text == "" || !version(args[1]) || !majorMatches(args[0].text, args[1].text) {
 			return malformed
 		}
 		if verb == "require" {
@@ -488,6 +488,58 @@ func (parsed *manifestDependencies) add(verb string, args []manifestToken) error
 	return nil
 }
 
+// pathMajor is a module path's major version suffix ("/v2", ".v1" for
+// gopkg.in, or "" for none), and whether the path's suffix is valid, as
+// x/mod/module.SplitPathVersion reads it.
+func pathMajor(modulePath string) (string, bool) {
+	if strings.HasPrefix(modulePath, "gopkg.in/") {
+		end := strings.TrimSuffix(modulePath, "-unstable")
+		prefix := strings.TrimRight(end, "0123456789")
+		if !strings.HasSuffix(prefix, ".v") || len(prefix) < 3 || len(prefix) == len(end) {
+			return "", false
+		}
+		major := modulePath[len(prefix)-2:]
+		if major[2] == '0' && major != ".v0" {
+			return "", false
+		}
+		return major, true
+	}
+	start := len(modulePath)
+	dot := false
+	for start > 0 && (modulePath[start-1] >= '0' && modulePath[start-1] <= '9' || modulePath[start-1] == '.') {
+		dot = dot || modulePath[start-1] == '.'
+		start--
+	}
+	if start <= 1 || start == len(modulePath) || modulePath[start-1] != 'v' || modulePath[start-2] != '/' {
+		return "", true
+	}
+	major := modulePath[start-2:]
+	if dot || len(major) <= 2 || major[2] == '0' || major == "/v1" {
+		return "", false
+	}
+	return major, true
+}
+
+// majorMatches is x/mod/module.CheckPathMajor for a canonical version: the
+// version's major matches the path's suffix, or, without one, is v0 or v1
+// or carries +incompatible. An invalid path suffix never matches.
+func majorMatches(modulePath, canonical string) bool {
+	major, ok := pathMajor(modulePath)
+	if !ok {
+		return false
+	}
+	versionMajor, _, _ := strings.Cut(canonical, ".")
+	major = strings.TrimSuffix(major, "-unstable")
+	switch {
+	case major == "":
+		return versionMajor == "v0" || versionMajor == "v1" || strings.HasSuffix(canonical, "+incompatible")
+	case major == ".v1" && strings.HasPrefix(canonical, "v0.0.0-"):
+		return true
+	default:
+		return versionMajor == major[1:]
+	}
+}
+
 // version admits only a canonical module version token.
 func version(token manifestToken) bool {
 	return !token.punctuation() && canonicalVersion.MatchString(token.text)
@@ -508,8 +560,15 @@ func manifestReplacement(args []manifestToken) (manifestReplace, error) {
 		(arrow == 2 && !version(args[1])) || (right == 2 && !version(args[arrow+2])) {
 		return manifestReplace{}, errors.New("malformed replace directive")
 	}
+	// As the go tool requires: the old path has a valid major suffix that
+	// matches its version, a target without a version is a directory, and a
+	// directory target has no version.
 	target := args[arrow+1].text
-	return manifestReplace{old: args[0].text, target: target, directory: right == 1 || directoryPath(target)}, nil
+	if _, ok := pathMajor(args[0].text); !ok || (arrow == 2 && !majorMatches(args[0].text, args[1].text)) ||
+		directoryPath(target) != (right == 1) {
+		return manifestReplace{}, errors.New("malformed replace directive")
+	}
+	return manifestReplace{old: args[0].text, target: target, directory: right == 1}, nil
 }
 
 // directoryPath mirrors the go tool's test for a local replacement path.
