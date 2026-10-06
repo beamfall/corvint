@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // inputsOf lists names' ignore and attributes inputs in worktreeInputs' order.
@@ -137,6 +138,111 @@ func TestWorktreeInputModesMatchRootLstat(t *testing.T) {
 	cancel()
 	if _, err := worktreeInputModes(ctx, worktree, inputsOf(names...)); err != context.Canceled {
 		t.Fatalf("cancelled traversal err=%v", err)
+	}
+}
+
+// A directory replaced after its Lstat is not opened as the directory: a FIFO
+// fails at once instead of blocking in open(2), and a symlink to another
+// directory is refused rather than followed with a fresh symlink budget.
+func TestOpenSeenDirectoryRefusesAReplacedDirectory(t *testing.T) {
+	root := t.TempDir()
+	for _, directory := range []string{"fifo", "link", "kept", "other"} {
+		if err := os.Mkdir(filepath.Join(root, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	worktree, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer worktree.Close()
+	seen := map[string]os.FileInfo{}
+	for _, directory := range []string{"fifo", "link", "kept"} {
+		if seen[directory], err = worktree.Lstat(directory); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for directory, replace := range map[string]func(string) error{
+		"fifo": func(name string) error { return syscall.Mkfifo(name, 0o600) },
+		"link": func(name string) error { return os.Symlink("other", name) },
+	} {
+		name := filepath.Join(root, directory)
+		if err := os.Remove(name); err != nil {
+			t.Fatal(err)
+		}
+		if err := replace(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type result struct {
+		opened *os.Root
+		err    error
+	}
+	for _, directory := range []string{"fifo", "link", "kept"} {
+		done := make(chan result, 1)
+		go func() {
+			opened, err := openSeenDirectory(worktree, directory, seen[directory])
+			done <- result{opened, err}
+		}()
+		select {
+		case got := <-done:
+			if (got.opened != nil) != (directory == "kept") {
+				t.Fatalf("%s: opened=%v err=%v", directory, got.opened != nil, got.err)
+			}
+			if got.opened != nil {
+				got.opened.Close()
+			}
+		case <-time.After(5 * time.Second):
+			// Release the blocked reader before failing.
+			if writer, err := os.OpenFile(filepath.Join(root, directory), os.O_WRONLY, 0); err == nil {
+				writer.Close()
+			}
+			t.Fatalf("%s: open blocked on the replacement", directory)
+		}
+	}
+}
+
+// With no descriptor to spare, an input that cannot be examined refuses the
+// status instead of reading as absent; with a few, the walk releases its own
+// handles and reaches the deep FIFO through the worktree.
+func TestWorktreeInputsOpenUnderDescriptorExhaustion(t *testing.T) {
+	root := t.TempDir()
+	tower := strings.Repeat("t/", 12)
+	if err := os.MkdirAll(filepath.Join(root, tower), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(root, tower, ".gitignore"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	index := testIndexOf(t, []string{tower + "deep.go"})
+	unlimited := worktreeInputsOpen(context.Background(), root, index)
+	if !strings.HasSuffix(RefusalMessage(unlimited), "worktree file .gitignore is a FIFO") {
+		t.Fatalf("unlimited refusal %v", unlimited)
+	}
+	var original syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &original); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Setrlimit(syscall.RLIMIT_NOFILE, &original)
+	for spare, want := range map[uint64]error{1: errInputsExhausted, 4: unlimited} {
+		lowest, err := syscall.Dup(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		syscall.Close(lowest)
+		// The worktree root takes the first spare descriptor.
+		limited := original
+		limited.Cur = uint64(lowest) + spare
+		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limited); err != nil {
+			t.Fatal(err)
+		}
+		got := worktreeInputsOpen(context.Background(), root, index)
+		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &original); err != nil {
+			t.Fatal(err)
+		}
+		if RefusalMessage(got) != RefusalMessage(want) || RefusalClass(got) != RefusalClass(want) {
+			t.Fatalf("%d spare descriptors: refusal %v, want %v", spare, got, want)
+		}
 	}
 }
 
