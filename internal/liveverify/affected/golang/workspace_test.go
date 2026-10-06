@@ -17,7 +17,8 @@ const (
 // TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath covers a go.work tree:
 // every listed module is walked under its own module path, a test in one
 // module importing a package in another is a reverse edge, and the module
-// go.work does not list stays a frontier rather than a mis-attributed unit.
+// go.work does not list, which requires a listed one, stays a frontier rather
+// than a mis-attributed unit.
 func TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath(t *testing.T) {
 	result, err := golang.New().Units(workspaceRoot(t))
 	if err != nil {
