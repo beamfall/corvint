@@ -13,14 +13,17 @@ a repository-wide `WaitDelay` search:
 - `testrunner` phases without a graceful interrupt: one second to one minute. With a graceful
   interrupt the five-second value is also the grace before `os/exec` kills the interrupted leader,
   so it is unchanged.
-- `tasks/store` workflow Core context query: one second to one minute.
 
 Each is still a hang detector: cancellation and `groupreap` kill the owned group, which closes the
 pipes, so only a descendant that keeps them open waits out the bound. `taskman`, the work executable
 binding and `testrunner` extract their containment setup (`containRead`, `workContainVersion`,
 `containPhase`) so a test can exercise the production configuration.
 
-Left as found: `tasks/dispatch` reader (its one-second `WaitDelay` is coupled to a one-second
+Left as found: the `tasks/store` workflow Core context query (independent review of the first
+commit): its process group is not owned or retired, so the one-second bound is what refuses a
+descendant holding stdout before the 30-second deadline; one minute let a valid packet be accepted
+after the deadline. `TestWorkflowContextRefusesHeldOutputPipe` pins the refusal and fails with a
+one-minute bound. `tasks/dispatch` reader (its one-second `WaitDelay` is coupled to a one-second
 retirement deadline, so raising it alone changes nothing); the attempt runner (its spec states the
 one-second limit and production output is an `*os.File`, which needs no copy goroutine); the pool
 executor (an `*os.File` pipe, whose own one-second read join fails closed as `UNKNOWN`); the pool
@@ -28,10 +31,12 @@ sweep and probe (not group-reaped before `Wait`, so a longer bound would let an 
 delay a sweep); and sub-second or multi-second bounds in `tools/`, `interop/`, `conformance/`,
 `procgroup` and `processidentity`.
 
-Evidence: `TestConfigureProcessSurvivesStarvedReader` (doccompiler, mutate),
-`TestContainReadSurvivesStarvedReader`, `TestWorkContainVersionSurvivesStarvedReader`,
-`TestOwnGroupSurvivesStarvedReader` and `TestContainPhaseSurvivesStarvedReader` delay the first
-output write by three seconds and pass; the doccompiler test fails with the production error when
-its bound is set back to one second. The existing cancellation, held-descendant and executable
+Evidence: each site's `*PipeDrainBound` test (doccompiler, mutate, taskman, cmd/corvint,
+criterionexperiment, testrunner) calls `testsupport.CheckPipeDrainBound`. It requires a finite bound
+above a three-second stall; observes the child's exit unreaped (`waitid WNOWAIT`) before `Wait`, so
+the drain timer cannot start before the stall; then blocks the reader three seconds and requires the
+output. A one-second negative control on the same run must return `exec.ErrWaitDelay`, and a
+descendant holding stdout must fail the call under a short injected bound, with the descendant and
+group killed in cleanup. A one-second or zero production bound fails the doccompiler test. The existing cancellation, held-descendant and executable
 binding tests of each touched package pass. No spec states a changed bound.
 Rollback: revert the change; loaded hosts then fail successful subprocesses again.

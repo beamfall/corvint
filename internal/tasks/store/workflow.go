@@ -170,8 +170,11 @@ func (w *Workflow) context(ctx context.Context, root, revision string) (json.Raw
 	defer cancel()
 	cmd := exec.CommandContext(bounded, w.cfg.CoreExecutable, "query", "--task", task, "--budget-bytes", "8000")
 	cmd.Dir = root
-	// The bound detects a descendant holding the output pipe, not a slow reader (V1-0391).
-	cmd.WaitDelay = time.Minute
+	// The query's process group is not owned or retired, so this short bound is
+	// what rejects a descendant holding stdout before the 30-second deadline
+	// passes; it is deliberately not raised with the other pipe-drain bounds
+	// (V1-0391).
+	cmd.WaitDelay = time.Second
 	raw, e = cmd.Output()
 	if e != nil || len(raw) > 65536 {
 		return nil, fmt.Errorf("CONTEXT_UNAVAILABLE: %v", e)
