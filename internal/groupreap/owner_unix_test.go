@@ -15,9 +15,10 @@ import (
 	"time"
 )
 
-// The real-process owner proofs are observed on Darwin only. Linux lifecycle
-// is NOT_RUN: compiling there is not qualification, and whether signal 0
-// reports a group that holds only an unreaped leader as quiet is unobserved.
+// These real-process owner proofs observe Darwin signal-0 semantics (EPERM
+// while only the unreaped leader remains). Linux signal 0 succeeds for a
+// zombie-only group, so its real-process lifecycle, including the /proc quiet
+// proof (PGO-V0-006), is observed by owner_linux_test.go instead.
 func requireObservedOwnerPlatform(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS != "darwin" {
