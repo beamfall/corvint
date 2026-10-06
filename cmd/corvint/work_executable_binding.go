@@ -273,6 +273,14 @@ func workCorvintSource(file *os.File) (workCorvintSourceIdentity, error) {
 	return result, nil
 }
 
+// workContainVersion owns the version probe's process group and bounds its pipe drain.
+func workContainVersion(command *exec.Cmd) {
+	workContain(command)
+	command.Cancel = func() error { workKillGroup(command); return nil }
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	command.WaitDelay = time.Minute
+}
+
 func workBoundExecutableVersion(parent context.Context, object *workExecutable, environment []string, directory string) (string, error) {
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
@@ -282,10 +290,7 @@ func workBoundExecutableVersion(parent context.Context, object *workExecutable, 
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
 	command.Stdout, command.Stderr = stdout, stderr
-	workContain(command)
-	command.Cancel = func() error { workKillGroup(command); return nil }
-	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
-	command.WaitDelay = time.Minute
+	workContainVersion(command)
 	if err := command.Run(); err != nil {
 		return "", fmt.Errorf("Corvint version identity failed: %w", err)
 	}

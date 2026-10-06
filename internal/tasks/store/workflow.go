@@ -170,7 +170,8 @@ func (w *Workflow) context(ctx context.Context, root, revision string) (json.Raw
 	defer cancel()
 	cmd := exec.CommandContext(bounded, w.cfg.CoreExecutable, "query", "--task", task, "--budget-bytes", "8000")
 	cmd.Dir = root
-	cmd.WaitDelay = time.Second
+	// The bound detects a descendant holding the output pipe, not a slow reader (V1-0391).
+	cmd.WaitDelay = time.Minute
 	raw, e = cmd.Output()
 	if e != nil || len(raw) > 65536 {
 		return nil, fmt.Errorf("CONTEXT_UNAVAILABLE: %v", e)
