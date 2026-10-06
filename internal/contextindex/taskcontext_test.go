@@ -228,10 +228,9 @@ func TestTaskContextRetrievalShapeAndNoCandidates(t *testing.T) {
 
 func TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits(t *testing.T) {
 	root := impactRepositoryWithFiles(t, map[string]string{
-		"go.mod":              "module example.test/fixture\n\ngo 1.27.0\n",
-		"cache/cache.go":      "package cache\n\nfunc Demux() string { return \"demux\" }\n",
-		"docs/guide.md":       "# guide\n",
-		"other/cache_test.go": "package other\n\nfunc TestDemux() {}\n",
+		"go.mod":         "module example.test/fixture\n\ngo 1.27.0\n",
+		"cache/cache.go": "package cache\n\nfunc Demux() string { return \"demux\" }\n",
+		"docs/guide.md":  "# guide\n",
 	})
 	writeTestFile(t, root, "cache/cache.go", "package cache\n\nfunc Demux() string { return \"demux2\" }\n")
 	writeTestFile(t, root, "docs/guide.md", "# guide\n\ndemux2\n")
@@ -253,10 +252,6 @@ func TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := contextRowsByKind(t, packet)
-	pair := mapsFromAny(packet["results"])[0]
-	if pair["id"] != "other/cache_test.go" || mapsFromAny(pair["evidence"])[0]["confidence"] != "medium" {
-		t.Fatalf("a counterpart elsewhere in the tree must be a medium pair row: %v", pair)
-	}
 	if len(found["cochange"]) != 2 || found["cochange"][0] != "docs/guide.md" || found["cochange"][1] != "go.mod" {
 		t.Fatalf("cochange rows = %v, want docs/guide.md (two commits) then go.mod (one), and no bulk path", found["cochange"])
 	}

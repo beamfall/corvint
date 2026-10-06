@@ -167,7 +167,13 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 		tb.Fatal(err)
 	}
 	tb.Cleanup(func() { os.RemoveAll(real) })
-	root := filepath.Join(real, "repo")
+	return historyStoreAt(tb, filepath.Join(real, "repo"), historyTickets, receipts)
+}
+
+// historyStoreAt builds the historyStore fixture at root with the given number
+// of tickets created through Mutate, then pads it to receipts.
+func historyStoreAt(tb testing.TB, root string, tickets, receipts int) *intent.Repository {
+	tb.Helper()
 	historyWrite(tb, filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/main\n"))
 	historyWrite(tb, filepath.Join(root, intent.Dir, "queue.json"), fixture.QueueBytes())
 	historyWrite(tb, filepath.Join(root, intent.Dir, "policy.json"), fixture.PolicyBytes())
@@ -178,11 +184,15 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 	if _, err = Init(context.Background(), repo, historyActor, "history-init", WallClock()); err != nil {
 		tb.Fatal(err)
 	}
-	for i := 0; i < historyTickets; i++ {
+	created := min(tickets, historyTickets)
+	for i := 0; i < created; i++ {
 		historyMutate(tb, repo, fmt.Sprintf("history-create-%d", i))
 	}
+	if created < tickets {
+		historyAppendCreates(tb, repo, created, tickets)
+	}
 	entries, err := os.ReadDir(filepath.Join(root, intent.Dir, "tickets"))
-	if err != nil || len(entries) != historyTickets {
+	if err != nil || len(entries) != tickets {
 		tb.Fatalf("tickets %d %v", len(entries), err)
 	}
 	templates := make([]wire.Value, len(entries))
@@ -196,7 +206,7 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 		}
 	}
 	pad := strings.Repeat("history padding ", historyBodySize/16)
-	for seq := uint64(historyTickets + 2); seq <= uint64(receipts); seq++ {
+	for seq := uint64(tickets + 2); seq <= uint64(receipts); seq++ {
 		id := fmt.Sprintf("history-%d", seq)
 		reqPath, _ := snapshot.RequestPath(id)
 		i := int(seq) % len(entries)
@@ -218,6 +228,61 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 		tb.Fatalf("fixture audit: %+v %v", proof, err)
 	}
 	return repo
+}
+
+// historyAppendCreates appends one synthetic CREATE-shaped receipt per ticket
+// after the first created, cloning a Mutate-built record under the queue's
+// next serial and advancing queue.json with it, so setup stays O(N).
+func historyAppendCreates(tb testing.TB, repo *intent.Repository, created, tickets int) {
+	tb.Helper()
+	dir := filepath.Join(repo.PrimaryWorktree, intent.Dir)
+	entries, err := os.ReadDir(filepath.Join(dir, "tickets"))
+	if err != nil || len(entries) == 0 {
+		tb.Fatalf("templates %d %v", len(entries), err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "tickets", entries[0].Name()))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	template, err := wire.Parse(raw)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	for i := created; i < tickets; i++ {
+		qraw, err := os.ReadFile(filepath.Join(dir, "queue.json"))
+		if err != nil {
+			tb.Fatal(err)
+		}
+		queue, err := wire.Parse(qraw)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		next, _ := queue.Obj.Get("nextSerial")
+		prefix, _ := queue.Obj.Get("prefix")
+		serial, err := strconv.Atoi(next.Str)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		local := fmt.Sprintf("%s-%04d", prefix.Str, serial)
+		queue.Obj.Set("nextSerial", wire.String(strconv.Itoa(serial+1)))
+		template.Obj.Set("ticketId", wire.String(strings.TrimSuffix(fixture.TicketID("X"), "X")+local))
+		template.Obj.Set("title", wire.String(fmt.Sprintf("history history-create-%d", i)))
+		head, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
+		if err != nil {
+			tb.Fatal(err)
+		}
+		h, err := snapshot.DecodeHead(head)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		id := fmt.Sprintf("history-create-%d", i)
+		reqPath, _ := snapshot.RequestPath(id)
+		historyAppend(tb, repo, map[string][]byte{
+			reqPath:                             historyRequest(id, h.LastSeq.Uint64()+1),
+			"intent/queue.json":                 wire.EncodeFile(queue),
+			"intent/tickets/" + local + ".json": wire.EncodeFile(template),
+		}, id)
+	}
 }
 
 // BenchmarkCALV0070_MutateAt2000Receipts is the maintained V1-0645 baseline:

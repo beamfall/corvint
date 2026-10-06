@@ -3,7 +3,10 @@ package contextindex
 import (
 	"bytes"
 	"context"
+	"math"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -738,24 +741,42 @@ func TestTaskContextPlacesDocumentationAfterFiveCodeRows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// TCP-V0-013 fixes the placement (five code rows, two documentation rows,
-		// the rest of each class); the order inside a class is the BM25 score.
-		wantKinds := []string{
-			"lexical", "lexical", "lexical", "lexical", "lexical",
-			"documentation", "documentation",
-			"lexical", "lexical",
-			"documentation", "documentation",
-		}
+		// TCP-V0-013 (amended by TCP-V0-059) places five code rows first, then
+		// one BM25 order over the remaining code and the documentation the
+		// share admits: no documentation hit outscores code/05.go, the lead,
+		// so the quota's two rows (the shorter docs/c.rst and docs/d.txt
+		// outscore the code files that carry the same words) follow the head
+		// ahead of the weaker code rows, and the two past the quota follow
+		// every code row although docs/b.mdx outscores code/02.go: the gate,
+		// not its strength, deferred it.
 		got := contextPairs(t, packet)
-		gotKinds := make([]string, 0, len(got))
-		for _, pair := range got {
-			gotKinds = append(gotKinds, strings.SplitN(pair, " ", 2)[0])
+		if len(got) != 11 {
+			t.Fatalf("packet = %v, want all eleven matched files", got)
 		}
-		if !slices.Equal(gotKinds, wantKinds) {
-			t.Fatalf("TCP-V0-013 placement = %v, want %v", got, wantKinds)
+		for position, pair := range got[:5] {
+			if !strings.HasPrefix(pair, "lexical ") {
+				t.Fatalf("head position %d = %q, want a code row", position, pair)
+			}
 		}
-		if !strings.HasSuffix(got[5], "docs/c.rst") || !strings.HasSuffix(got[6], "docs/d.txt") {
-			t.Fatalf("TCP-V0-013 documentation quota = %v, want docs/c.rst then docs/d.txt", got[5:7])
+		tail := []string{
+			"documentation docs/c.rst", "documentation docs/d.txt", "lexical code/02.go", "lexical code/01.go",
+			"documentation docs/b.mdx", "documentation docs/a.md",
+		}
+		if !slices.Equal(got[5:], tail) {
+			t.Fatalf("rows after the head = %v, want the quota, the remaining code, then the deferred documentation: %v", got[5:], tail)
+		}
+		strengths := lexicalStrengths(t, packet)
+		if strengths[9] <= strengths[7] {
+			t.Fatalf("fixture must rank docs/b.mdx above code/02.go: %v", strengths)
+		}
+		for position := 6; position < len(strengths); position++ {
+			if position != 9 && strengths[position] > strengths[position-1] {
+				t.Fatalf("order is not by strength inside the quota, the code and the deferred documentation at %d: %v (%v)", position, strengths, got)
+			}
+		}
+		coverage := contextCoverage(t, packet)
+		if _, present := coverage["uncertainty"]; present {
+			t.Fatalf("nothing is omitted, yet coverage.uncertainty = %v", coverage["uncertainty"])
 		}
 		for _, row := range mapsFromAny(packet["results"]) {
 			reason := mapsFromAny(row["evidence"])[0]["reason"].(string)
@@ -763,12 +784,39 @@ func TestTaskContextPlacesDocumentationAfterFiveCodeRows(t *testing.T) {
 				t.Fatalf("documentation reason = %q, want the class named", reason)
 			}
 		}
-		states, withheld := contextUnexamined(t, contextCoverage(t, packet))
+		states, withheld := contextUnexamined(t, coverage)
 		if states["documentation"] != "examined" || contextIntValue(withheld["documentation"]) != 0 {
 			t.Fatalf("documentation scope = %v / %v", states["documentation"], withheld["documentation"])
 		}
 	})
 }
+
+// lexicalStrengths reads each lexical or documentation row's BM25 from its
+// evidence reason, in packet order; a relation row reads as +Inf so the
+// strength order is checked only across the lexical fill.
+func lexicalStrengths(t *testing.T, packet map[string]any) []float64 {
+	t.Helper()
+	strengths := make([]float64, 0)
+	for _, row := range mapsFromAny(packet["results"]) {
+		if row["kind"] != "lexical" && row["kind"] != "documentation" {
+			strengths = append(strengths, math.Inf(1))
+			continue
+		}
+		reason := mapsFromAny(row["evidence"])[0]["reason"].(string)
+		match := bm25Reason.FindStringSubmatch(reason)
+		if match == nil {
+			t.Fatalf("reason carries no bm25: %q", reason)
+		}
+		value, err := strconv.ParseFloat(match[1], 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		strengths = append(strengths, value)
+	}
+	return strengths
+}
+
+var bm25Reason = regexp.MustCompile(`bm25 ([0-9.]+)`)
 
 func TestTaskContextSearchesRstDocumentation(t *testing.T) {
 	index, err := Build(context.Background(), impactRepositoryWithFiles(t, map[string]string{

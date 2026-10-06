@@ -411,6 +411,10 @@ type readCtx struct {
 	proof *journal.Result
 }
 
+// reuseProbedTree exists so the parity test can compare decoding the probed
+// tree with the third LoadExpecting pass it replaces.
+var reuseProbedTree = true
+
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
 // the intent store pinned to the probed tree digest, then runs body.
 func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
@@ -419,18 +423,31 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		return nil, err
 	}
 	rc := &readCtx{repo: repo}
+	// probed is the tree the latest probe hashed. Reader.Read runs probe,
+	// body, probe in turn, so inside body it is the tree that produced
+	// s.IntentTree; body decodes those bytes instead of reading the tree a
+	// third time, and the second probe still reads it fresh (TM-V0-008).
+	var probed *intent.Tree
 	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
+		probed = nil
 		t, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return "", err
 		}
+		probed = &t
 		return t.Sha256, nil
 	}}
 	snap, err := rd.Read(func(s *snapshot.Snapshot) error {
 		if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
 			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (repository relocation is unsupported in this preview)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
 		}
-		st, err := intent.LoadExpecting(repo.IntentRoot(), s.IntentTree)
+		var st *intent.Store
+		var err error
+		if probed != nil && probed.Sha256 == s.IntentTree && reuseProbedTree {
+			st, err = intent.LoadTree(repo.IntentRoot(), *probed, s.IntentTree)
+		} else {
+			st, err = intent.LoadExpecting(repo.IntentRoot(), s.IntentTree)
+		}
 		if err != nil {
 			return err
 		}

@@ -62,8 +62,9 @@ func assertNameTokens(t *testing.T, name string) {
 // exactly the paths a full pairRelation scan of the tracked tree credits,
 // with the same relation, over every path convention pairRelation names
 // (same directory, mirrored directory, elsewhere in the tree, the JVM suffix,
-// a non-source tracked path) and the two it must not credit (the module
-// directory member, and a same-stem path in the same role).
+// a non-source tracked path) and the three it must not credit (the module
+// directory member, a same-stem path in the same role, and a Go file's
+// counterpart outside its directory or its language).
 func TestCreditMirroredMatchesFullScan(t *testing.T) {
 	t.Run("TCP-V0-015", checkCreditMirroredMatchesFullScan)
 }
@@ -86,6 +87,7 @@ func checkCreditMirroredMatchesFullScan(t *testing.T) {
 		"docs/render.md":                  "# render\n",
 		"other/unrelated.go":              "package other\n\nfunc Elsewhere() {}\n",
 		"other/unrelated_helper.go":       "package other\n\nfunc Helper() {}\n",
+		"other/render_test.go":            "package other\n\nfunc TestRenderElsewhere() {}\n",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -133,6 +135,54 @@ func checkCreditMirroredMatchesFullScan(t *testing.T) {
 		if relations[relation] == 0 {
 			t.Fatalf("fixture never produced %q: %v", relation, relations)
 		}
+	}
+}
+
+// TestPairRelationGoCounterpartsShareTheDirectory pins TCP-V0-004's Go rule:
+// a Go file pairs only with a Go counterpart in its own directory, while the
+// mirrored-directory, elsewhere-in-the-tree and module-directory relations
+// stay for the other conventions.
+func TestPairRelationGoCounterpartsShareTheDirectory(t *testing.T) {
+	cases := []struct{ anchor, candidate, want string }{
+		{"internal/tasks/store/store.go", "internal/tasks/store/store_test.go", "test counterpart"},
+		{"internal/tasks/store/store_test.go", "internal/tasks/store/store.go", "source counterpart"},
+		{"internal/tasks/store/store.go", "internal/trace/store_test.go", ""},
+		{"src/render/render.go", "tests/render/render_test.go", ""},
+		{"tests/render/render_test.go", "src/render/render.go", ""},
+		{"core/queue.go", "core/queue/queue_impl.go", ""},
+		{"internal/tasks/store/workflow.go", "integrations/pi/workflow.test.mjs", ""},
+		{"integrations/pi/workflow.test.mjs", "internal/tasks/store/workflow.go", ""},
+		{"core/queue.go", "core/queue_spec.rb", ""},
+		{"src/parser.ts", "__tests__/parser.test.ts", "test counterpart in the mirrored directory"},
+		{"check/StoreTest.java", "app/Store.java", "source counterpart elsewhere in the tree"},
+		{"core/queue.rb", "core/queue/queue_impl.rb", "module directory member"},
+	}
+	for _, item := range cases {
+		got := pairRelation(item.anchor, item.candidate, contextStem(item.anchor), contextIsTest(item.anchor))
+		if got != item.want {
+			t.Errorf("pairRelation(%s, %s) = %q, want %q", item.anchor, item.candidate, got, item.want)
+		}
+	}
+}
+
+// TestTaskContextCounterpartElsewhereIsAMediumPairRow keeps decision 0026's
+// packet-level pin outside Go: a stem counterpart elsewhere in the tree is a
+// medium `pair` row.
+func TestTaskContextCounterpartElsewhereIsAMediumPairRow(t *testing.T) {
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, map[string]string{
+		"src/parser.js":         "export function parse() {}\n",
+		"checks/parser.test.js": "import { parse } from '../src/parser.js';\n",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := TaskContext(context.Background(), index, "parse the input", "src/parser.js", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair := mapsFromAny(packet["results"])[0]
+	if pair["kind"] != "pair" || pair["id"] != "checks/parser.test.js" || mapsFromAny(pair["evidence"])[0]["confidence"] != "medium" {
+		t.Fatalf("a counterpart elsewhere in the tree must be a medium pair row: %v", pair)
 	}
 }
 

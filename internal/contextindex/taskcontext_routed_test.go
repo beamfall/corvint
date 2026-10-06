@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -267,6 +268,44 @@ func TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld(t *testing.T) {
 	want := []string{"governing AGENTS.md", "instruction-routed docs/ROUTES.md"}
 	if pairs := contextPairs(t, packet); !slices.Equal(pairs, want) {
 		t.Fatalf("rows = %v, want %v", pairs, want)
+	}
+	// TCP-V0-061: the withdrawn hits are withheld by the verdict, never
+	// reported as omitted by the result limit.
+	for _, line := range contextUncertainty(t, packet) {
+		if strings.Contains(line, "matched lexically") && !strings.Contains(line, "withheld by the `unsupported-conjunction` verdict") {
+			t.Fatalf("coverage.uncertainty = %q, want withheld hits stated as withheld", line)
+		}
+	}
+}
+
+// TestTaskContextStatesAReservationTheLimitCutAsOmitted is TCP-V0-061 under
+// TCP-V0-016: the verdict withdraws no reservation, so a routed row the result
+// limit cut is omitted by the limit, and only the ordinary hits are withheld.
+func TestTaskContextStatesAReservationTheLimitCutAsOmitted(t *testing.T) {
+	index := routedIndex(t, map[string]string{
+		"go.mod":           "module example.test/routed\n\ngo 1.27.0\n",
+		"AGENTS.md":        "# Rules\n\n- Backlog ledger questions: follow `docs/ROUTES.md`.\n",
+		"docs/ROUTES.md":   "# Routes\n\nBacklog ledger rows.\n",
+		"widget/ledger.go": "package widget\n\nfunc Ledger() {}\n",
+	})
+	packet, err := TaskContext(context.Background(), index, routedTask+" with `absentOne` and `absentTwo`", "", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer := contextCoverage(t, packet)["answerability"].(map[string]any)
+	if answer["verdict"] != "unsupported-conjunction" {
+		t.Fatalf("verdict = %v, want unsupported-conjunction", answer["verdict"])
+	}
+	if pairs := contextPairs(t, packet); !slices.Equal(pairs, []string{"governing AGENTS.md"}) {
+		t.Fatalf("rows = %v, want the governing row alone at limit 1", pairs)
+	}
+	lines := contextUncertainty(t, packet)
+	want := []string{
+		"0 code and 1 documentation rows the task matched lexically are omitted by the result limit 1",
+		"1 code and 0 documentation rows the task matched lexically are withheld by the `unsupported-conjunction` verdict, not by the result limit 1",
+	}
+	if !slices.Equal(lines, want) {
+		t.Fatalf("coverage.uncertainty = %q, want %q", lines, want)
 	}
 }
 
