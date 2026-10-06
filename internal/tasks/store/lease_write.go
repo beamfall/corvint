@@ -303,7 +303,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	// every existing guarded observation and locked rebind below.
 	timing, admission := leaseTimingOf(ctx), time.Now()
 	timing.Transactions++
-	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{})
+	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	timing.AdmissionWait += time.Since(admission)
 	if err != nil {
 		return report, nil, err
@@ -397,7 +397,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	p.guard.Sweep()
 	stage("lock")
 	timing, wait := leaseTimingOf(ctx), time.Now()
-	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	timing.LockWait += time.Since(wait)
 	if err != nil {
 		return err

@@ -65,6 +65,9 @@ func commandHelp(args []string) *wire.Result {
 		o.Set("handoffReasonCodes", wire.Strings(snapshot.HandoffReasons))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
+	if name == "release" || name == "attempt heartbeat" {
+		o.Set("lockWait", wire.String(lockWaitHelp))
+	}
 	if name == "policy update" {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
@@ -105,6 +108,10 @@ func commandHelp(args []string) *wire.Result {
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
+// lockWaitHelp documents the CAL-V0-111 --lock-wait of release and attempt
+// heartbeat.
+const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
+
 // Usage is the single help inventory for each command's supported inputs.
 // Omitted verbs deliberately have no invented execution flags.
 var commandUsage = map[string]string{
@@ -139,10 +146,10 @@ var commandUsage = map[string]string{
 	"release readiness":  "corvint-tasks release readiness RELEASE",
 	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--timing] [--role ROLE]",
 	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
-	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
+	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":              "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
-	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--role ROLE]",
+	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"attempt show":       "corvint-tasks attempt show <attemptId>",
 	"plan preview":       "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only]",
 	"submit":             "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",

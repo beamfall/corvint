@@ -21,6 +21,20 @@ type LockOptions struct {
 	// Poll is the interval between non-blocking attempts while contended.
 	// Zero or negative means DefaultLockPoll.
 	Poll time.Duration
+	// CallerWait is a bound the caller chose explicitly (CAL-V0-111). When
+	// positive it replaces Wait and may exceed MaxLockWait up to
+	// MaxCallerLockWait; a larger value is clamped. Only a validated caller
+	// choice sets it, so every other acquisition keeps the §1 wait.
+	CallerWait time.Duration
+}
+
+// wait is the total acquisition bound for o: an explicit caller wait when
+// set, else EffectiveWait(o.Wait).
+func (o LockOptions) wait() time.Duration {
+	if o.CallerWait > 0 {
+		return min(o.CallerWait, MaxCallerLockWait)
+	}
+	return EffectiveWait(o.Wait)
 }
 
 // EffectiveWait is the wait AcquireLock actually uses for a requested
@@ -63,7 +77,7 @@ type Lock struct {
 //     never truncated, written or read: its content is meaningless and is
 //     no ownership proof. Read verbs never call this.
 //   - Contention polls `flock(LOCK_EX|LOCK_NB)` every opts.Poll until
-//     EffectiveWait(opts.Wait) elapses, then fails LOCK_TIMEOUT; a done ctx
+//     opts.wait() elapses, then fails LOCK_TIMEOUT; a done ctx
 //     returns ctx.Err() unchanged. On every failure the descriptor is
 //     closed before returning, so a failed call never holds the lock.
 //   - ENOLCK/EOPNOTSUPP/ENOTSUP fail UNSUPPORTED_FILESYSTEM (§5.1).
@@ -134,7 +148,7 @@ func acquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions,
 			return nil, fsErr(wantLock, "%s is not a regular file (mode %v)", name, pre.Mode())
 		}
 	}
-	wait := EffectiveWait(opts.Wait)
+	wait := opts.wait()
 	deadline := start.Add(wait)
 	// No O_TRUNC, no O_APPEND: the file's bytes are never touched.
 	var f *os.File

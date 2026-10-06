@@ -39,6 +39,10 @@ const (
 	// MaxLockWait bounds every caller-supplied wait to the §1 value; a
 	// larger request is clamped, never honoured.
 	MaxLockWait = 30 * time.Second
+	// MaxCallerLockWait bounds an explicit caller wait (LockOptions.CallerWait,
+	// the CAL-V0-111 `--lock-wait` of release and attempt heartbeat). It never
+	// changes the §1 default, which applies whenever no caller chose a bound.
+	MaxCallerLockWait = 300 * time.Second
 	// DefaultLockPoll is the interval between non-blocking flock attempts.
 	DefaultLockPoll = 10 * time.Millisecond
 	// MaxLinkInBytes bounds one link-in publication: the largest §1 file the
