@@ -63,6 +63,7 @@ AFP-V0-026	docs/specs/affected-plan-v0.md	616	(owner-directed, proposed, 2026-10
 AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
 AFP-V0-031	docs/specs/affected-plan-v0.md	654	(proposed, 2026-10-06; V1-0867; narrows the AFP-V0-008 nested-module frontier,
 AFP-V0-032	docs/specs/affected-plan-v0.md	692	(owner-directed, proposed, 2026-10-06; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	701	(owner-directed, proposed, 2026-10-06; V1-0868) Every `units` directory of
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
