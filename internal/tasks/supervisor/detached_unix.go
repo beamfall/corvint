@@ -3,10 +3,6 @@
 package supervisor
 
 import (
-	"fmt"
-	"os/exec"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -19,39 +15,14 @@ var (
 	escapeForceAfter = 5 * time.Second
 	detachedQuiesce  = 5 * time.Second
 	escapeScanEvery  = 200 * time.Millisecond
+	// hostExitPollMin is the first host exit capsule poll interval; the
+	// backoff doubles it up to escapeScanEvery (CAL-V0-137).
+	hostExitPollMin = 10 * time.Millisecond
 )
 
 type processRow struct {
 	pid, ppid, pgid int
 	zombie          bool
-}
-
-func processRows() ([]processRow, error) {
-	raw, e := exec.Command("/bin/ps", "-axo", "pid=,ppid=,pgid=,stat=").Output()
-	if e != nil {
-		return nil, e
-	}
-	var rows []processRow
-	for _, line := range strings.Split(string(raw), "\n") {
-		f := strings.Fields(line)
-		if len(f) == 0 {
-			continue
-		}
-		if len(f) != 4 {
-			return nil, fmt.Errorf("unexpected process row")
-		}
-		var r processRow
-		var e1, e2, e3 error
-		r.pid, e1 = strconv.Atoi(f[0])
-		r.ppid, e2 = strconv.Atoi(f[1])
-		r.pgid, e3 = strconv.Atoi(f[2])
-		if e1 != nil || e2 != nil || e3 != nil {
-			return nil, fmt.Errorf("unexpected process row")
-		}
-		r.zombie = strings.HasPrefix(f[3], "Z")
-		rows = append(rows, r)
-	}
-	return rows, nil
 }
 
 // escapes are the process groups a detached host started outside the owned
@@ -255,4 +226,10 @@ func RecoverHost(dir string, boot Boot) bool {
 		x.drain()
 	}
 	return false
+}
+
+// nextHostExitPoll doubles the host exit capsule poll interval up to
+// escapeScanEvery (CAL-V0-137), so a detached host keeps its scan cadence.
+func nextHostExitPoll(poll time.Duration) time.Duration {
+	return max(min(2*poll, escapeScanEvery), hostExitPollMin)
 }

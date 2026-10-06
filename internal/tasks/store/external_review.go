@@ -164,7 +164,7 @@ func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) e
 	})
 }
 
-func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) error {
+func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {
 	fold := func(raw []byte) error {
 		rc, err := snapshot.DecodeReceipt(raw)
 		if err != nil {
@@ -172,8 +172,14 @@ func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step fun
 		}
 		return step(rc, wire.Sum(raw))
 	}
+	files := newReceiptFiles(repo)
+	defer func() {
+		if closeErr := files.close(err == nil); err == nil {
+			err = closeErr
+		}
+	}()
 	for seq := uint64(1); seq <= last; seq++ {
-		raw, err := readReceiptBytes(repo, seq)
+		raw, err := files.read(seq)
 		if err != nil {
 			return err
 		}

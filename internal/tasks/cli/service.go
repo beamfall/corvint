@@ -14,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/service"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -147,7 +148,7 @@ func serviceRun(env Env, cmd []string, h service.Host, program, manifest string)
 	open := func(p string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (service.Controller, error) {
 		queueEnv := env
 		queueEnv.Cwd = c.WorkRoot
-		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv}, out, control)
+		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv, reviews: &store.ReviewFold{}}, out, control)
 		if err != nil {
 			return nil, err
 		}

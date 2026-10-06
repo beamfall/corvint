@@ -65,7 +65,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools()}, env.Stderr)
+	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools(), reviews: &store.ReviewFold{}}, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
@@ -456,6 +456,9 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 type dispatchQueue struct {
 	env   Env
 	pools []string
+	// reviews carries the review binding fold across this dispatcher's
+	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
+	reviews *store.ReviewFold
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
@@ -494,7 +497,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			// (every gate UNKNOWN) instead of failing the whole observation.
 			if len(r.ExternalReviews) > 0 && !folded {
 				folded = true
-				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				if q.reviews != nil {
+					fold, _ = q.reviews.Fold(rc.repo, rc.snap.Head.LastSeq.Uint64())
+				} else {
+					fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				}
 			}
 			if len(r.ExternalReviews) == 0 || fold != nil {
 				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, fold); err == nil {
