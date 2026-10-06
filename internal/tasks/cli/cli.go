@@ -67,7 +67,7 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
@@ -176,6 +176,9 @@ func Run(env Env) int {
 	case "pool":
 		if len(args) > 1 && args[1] == "sweep" {
 			return emit(env.Stdout, poolSweepCommand(env, args[2:]))
+		}
+		if len(args) > 1 && args[1] == "status" {
+			return emit(env.Stdout, poolStatus(env, args[2:]))
 		}
 		if len(args) == 2 && args[1] == "--help" {
 			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
@@ -355,6 +358,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
+		"corvint-tasks pool status [--pool ID] [--member ID]",
 		"corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role ROLE]",
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
