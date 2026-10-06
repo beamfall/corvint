@@ -1,5 +1,66 @@
 # Release notes
 
+## 1.0.0-rc.2 release candidate
+
+`v1.0.0-rc.2` is the second 1.0 release candidate. It carries the fixes for the rc.1
+untouched-repository failures: task context adds a selected file's paired test (V1-0431; its frozen
+retrieval evaluation is still open), the harness records a harness failure instead of raising
+(V1-0432), and the Corvint preregistration's loop target is a single-parent commit that adds no
+sealed CEM (V1-0433). The next held-out repository for the V1-0019 evaluation is urfave/cli, with
+the selection and release policy published before this candidate was cut. Governing rows are
+screened for hidden or bidirectional Unicode and self-modified authority (V1-0414). `corvint-tasks` gains `submit`, `gate run` and `complete` (CAL-V0-015..017,
+CAL-V0-024), plan preview and `claim --next` (CAL-V0-008, CAL-V0-014), scoped agent leases with
+bounded preparation admission (#494), a continuous dispatcher with Claude Code, Codex and Gemini CLI
+hosts (#431), typed escalations (#502), operator notes (#501), pool safe reuse with a supervised sweep
+(#498), multi-repository programs (partial #354) and intent writes through a linked worktree
+(V1-0325). The OpenCode adapter is ported to the OpenCode 2.0 plugin API, and host adapters name
+their abstentions with degradation codes (V1-0746, V1-0767). Experimental, not part of the frozen
+1.0 surface: the Go LSP context, the verified Core and Tasks updater with rollback, the CEM runner and
+criterion evidence, the post-merge workflow and metrics companions, non-Go syntax impact, and the Pi
+0.99.1 workflow.
+
+Fixed before this candidate: defects that failed the hosted full gate on candidates `0ae3f88d`
+(run 37358656556), `da78c157` (run 37381427566) and `7a83f52d` (run 37403195661). These were Windows
+`cross-vet` failures (V1-0765, V1-0797, V1-0839), tests that assumed an unsymlinked `TMPDIR`
+(V1-0840, V1-0842), darwin descriptor exhaustion in the Tasks change guard on a populated store
+(V1-0841), and the S0E lingering-descendant shim running `/usr/bin/git` instead of the verifier's Git
+on hosted macOS (V1-0846). Why rc.2 took four candidates is recorded in
+`docs/build-log/2026-10-06-rc2-candidate-failures-root-cause.md`, and the gate ledger now runs every
+unresolved package after a failed resolved batch (V1-0847, on `main` after this tag).
+
+Known issues. The untouched-repository evaluation (V1-0019) has not run on this build: the owner
+approved running urfave/cli run-001 and the Corvint and beamfall/core run-002 on the published
+candidate, so the stable-readiness record keeps that row `NOT_RUN` and 1.0 final stays gated on it.
+On darwin, a lease commit on a store larger than the descriptor budget still re-reads the
+over-budget stat tuples under the writer lock (V1-0845); `os/exec` pipe-drain bounds of one second can
+fail a successful child on a saturated host (V1-0391); and the hosted release-gate workflow still
+stops at the first failed step (V1-0848). Fixes for all three are reviewed and land after this tag.
+Load- and timing-sensitive test failures are tracked under one umbrella (V1-0849). GitHub issues
+#622 to #628 (Tasks dispatch, claim admission, batch refine, detached attempt runs and pool member
+configuration) are open against this build. The remaining 1.0 blockers are listed under the `v1-0`
+release in the task store.
+
+The published prerelease is `Corvint 1.0.0-rc.2 (build 360)`, commit
+`b7b212050dd10811a4dc78e2ed118edce0e91775`, built from a clean GitHub clone of `origin/main` at that
+commit, which is on its first-parent chain. The full gate passed at that commit on the owner
+darwin/arm64 host, and the hosted release-gate run 37466658604 passed on the same commit: full gate
+on ubuntu-24.04 and macos-15, interop gate, focused documents, companion release, and the linux
+amd64 lifecycles. `script/release-checklist --pre-promotion` reports `native-runtime`, `go-archive`
+and `full-gate` PASS. The archives were built twice byte-identically (5 of 5), `SHA256SUMS` verified
+independently, and the four Darwin/Linux archives are published with `SHA256SUMS` and
+`verification-report.json`; the Windows zip is emitted but not a qualified target. The install
+lifecycle passed in same-bytes mode and as the N-1 upgrade from 1.0.0-rc.1 (build 163), with
+rollback, on darwin arm64, darwin amd64 (Rosetta 2), linux arm64 (the local `golang:1.27.1`
+container, not native hardware) and linux amd64 (the hosted run). The three Core host tuples passed
+on darwin arm64 and linux amd64. The hostile regression matrix passed on darwin arm64, linux arm64
+and linux amd64, with `memory-resident` `NOT_COVERED`, and the CCF-V1-007 N-1 replay passed on darwin
+arm64. A stable-readiness record (`SRR-V1`) bound to this candidate was built and verified before the
+tag. It records every gate and platform row as PASS except the untouched-repository row, which is
+`NOT_RUN` as described above. Signing, native performance (owner-cancelled, GOC-V0-005) and the
+owner toolchain-review row are `NOT_RUN` under decision 0420; a comparison before the tag found that
+the recorded toolchain, go1.27.1, is the newest Go 1.27 release. It is unsigned, with publisher
+identity `NOT_VERIFIED`.
+
 ## 1.0.0-rc.1 release candidate
 
 `v1.0.0-rc.1` is the first 1.0 release candidate. It freezes the Core surface: every frozen Core
