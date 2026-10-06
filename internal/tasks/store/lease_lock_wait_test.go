@@ -2,6 +2,8 @@ package store_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -79,5 +81,50 @@ func TestCALV0110_HandoffReleaseReplaysAfterLockTimeout(t *testing.T) {
 	}
 	if got := s.attempt(t, b.AttemptID).RetryCount.Int(); got != 0 {
 		t.Fatalf("the replayed HANDOFF charged a retry: %d", got)
+	}
+}
+
+// CAL-V0-109: with an orphan stage left by a killed writer, the lease
+// transaction first takes the writer lock to clear it. That acquisition spends
+// the caller's bound too, so a short wait refuses before the default and a
+// later same-request retry clears the orphan and commits.
+func TestCALV0109_OrphanCleanupSpendsCallerWait(t *testing.T) {
+	s := newLeaseStore(t)
+	id := s.ticket(t, "one")
+	claim := claimOf(id, "src/")
+	claim.Stage = "integrate"
+	a := s.lease(t, "claim-1", claim, 0, nil)
+	if a.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("claim: %+v", a)
+	}
+	slot := filepath.Join(s.repo.StateDir, "staging", "a00")
+	fixture.Write(t, slot, []byte("orphan"))
+	handoff := releaseOf(a)
+	handoff.Reason, handoff.Evidence = "HANDOFF", "local:review-result"
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release-1", Root: s.root, Lease: handoff}
+	before := fixture.TreeSnapshot(t, s.repo.StateDir)
+	held, err := authority.AcquireLock(context.Background(), s.repo, authority.LockOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := store.WithLeaseLockWait(context.Background(), 200*time.Millisecond)
+	start := time.Now()
+	_, err = store.Lease(ctx, s.repo, operator(), choice, s.at(t, 1))
+	elapsed := time.Since(start)
+	if closeErr := held.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if wire.CodeOf(err) != wire.CodeLockTimeout || elapsed >= authority.DefaultLockWait {
+		t.Fatalf("want LOCK_TIMEOUT within the caller wait, got %v after %v", err, elapsed)
+	}
+	if !reflect.DeepEqual(before, fixture.TreeSnapshot(t, s.repo.StateDir)) {
+		t.Fatal("a timed-out cleanup changed the store")
+	}
+	r, err := store.Lease(ctx, s.repo, operator(), choice, s.at(t, 2))
+	if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted || replayed(r.Kind) {
+		t.Fatalf("same-request retry: %+v %v", r, err)
+	}
+	if _, err := os.Stat(slot); !os.IsNotExist(err) {
+		t.Fatalf("orphan not cleared: %v", err)
 	}
 }

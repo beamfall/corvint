@@ -20,7 +20,8 @@ release as a HANDOFF when evidence exists.
   every other caller. `AcquirePreparation` and `AcquireLock` spend the chosen bound across the same
   phases, without restarting.
 - `store.WithLeaseLockWait` carries the bound in the context, like `--timing`. `leaseWrite` passes it
-  to the one preparation admission, and `commitLease` passes it to each writer-lock round. It is not
+  to the one preparation admission and to the orphan-stage cleanup lock, and `commitLease` passes
+  it to each writer-lock round. It is not
   in the request, its digest or any receipt.
 - `release` and `attempt heartbeat` accept `--lock-wait SECONDS`: canonical whole seconds 1..300.
   Any other value, a repeated flag, or the flag on another lease verb refuses MALFORMED before any
@@ -39,7 +40,15 @@ release as a HANDOFF when evidence exists.
 - **One bound for both locks.** Preparation admission alone would still leave the writer-lock rounds
   at 30 s under the same contention. The ceiling of 300 s keeps a slot holder bounded; values above
   it refuse rather than clamp silently.
-- **Independent review:** see the review outcome below.
+- **Independent review (Codex, read-only) of `2dc319db` found one defect, fixed:**
+  - `clearLeaseOrphans` (`internal/tasks/store/lease_recovery.go`) took the writer lock with default
+    options whenever `staging/` was not empty. So `--lock-wait 1` could still wait 30 s, and
+    `--lock-wait 60` could fail at 30 s. It now spends the caller's bound.
+    `TestCALV0109_OrphanCleanupSpendsCallerWait` covers it: with the fix reverted, it failed with
+    "lock acquisition exceeded 30s after 30.0s".
+  - Codex found no replay or concurrency defect. Its sandbox could not run the Go tests.
+  - Checked and left unchanged: `settleLease` and `probeLeaseRecovery` take default locks but serve
+    the gate and pool commands, not `store.Lease`. Those verbs do not take `--lock-wait`.
 
 ## Evidence
 
@@ -49,11 +58,13 @@ All runs were on Darwin with `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -timeo
   - `TestCALV0109_CallerWaitBound` and `TestCALV0109_CallerWaitOutlastsDefault` (authority). In the
     second, both locks are held for 31 s; caller waiters of 40 s acquire after the default, while
     default waiters beside them refuse LOCK_TIMEOUT.
-  - `TestCALV0110_HandoffReleaseReplaysAfterLockTimeout` (store).
+  - `TestCALV0110_HandoffReleaseReplaysAfterLockTimeout` and
+    `TestCALV0109_OrphanCleanupSpendsCallerWait` (store; the second was added after review).
   - `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease`,
     `TestCALV0110_SameRequestHandoffReplayAfterLockTimeout` and
     `TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged` (cli).
-- `-count=3 -run 'TestCALV0109_|TestCALV0110_|TestCALV0111_'` over authority, store and cli PASSED.
+- `-count=3 -run 'TestCALV0109_|TestCALV0110_|TestCALV0111_'` over authority, store and cli PASSED,
+  and the store package again after the review fix.
 - `-count=1 -run 'Help|Usage|CALV00(26|69|78|81|95)|CALV0044|Lease|Release|Heartbeat|Preparation|Lock|GH494'`
   over the same three packages PASSED.
 - Mutation check, reverted afterwards: dropping `CallerWait` from `lease_write.go` failed both CLI

@@ -3192,7 +3192,8 @@ a plain release into a HANDOFF when evidence exists.
 - `CAL-V0-109`: `release` and `attempt heartbeat` MUST accept `--lock-wait SECONDS`, whole seconds
   in canonical decimal from 1 to 300 (`MaxCallerLockWait`). Any other value, a repeated flag, or the
   flag on another lease verb MUST refuse MALFORMED before any store read or write. With the flag,
-  the lease transaction's preparation admission and each writer-lock acquisition MUST wait up to
+  the lease transaction's preparation admission and each writer-lock acquisition, including the
+  orphan-stage cleanup lock, MUST wait up to
   that bound, spent across all phases without restarting, instead of the 30-second default; an
   expired bound still refuses the retryable LOCK_TIMEOUT before any write. The value MUST NOT be part
   of the request, its digest or any receipt. Without the flag every wait is unchanged: the §1
@@ -3219,8 +3220,8 @@ seconds refuses MALFORMED rather than clamping silently. A resubmission with cha
 under the same request ID refuses REQUEST_ID_CONFLICT, as before.
 
 Acceptance evidence: `TestCALV0109_CallerWaitBound`, `TestCALV0109_CallerWaitOutlastsDefault`
-(`internal/tasks/authority`); `TestCALV0110_HandoffReleaseReplaysAfterLockTimeout`
-(`internal/tasks/store`); `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease`,
+(`internal/tasks/authority`); `TestCALV0109_OrphanCleanupSpendsCallerWait`,
+`TestCALV0110_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease`,
 `TestCALV0110_SameRequestHandoffReplayAfterLockTimeout`,
 `TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`); see
 `docs/build-log/2026-10-06-v1-0863-handoff-lock-wait.md`. Live fleet qualification under 6 to 10
@@ -3519,7 +3520,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-105 | See the V1-0853 amendment table: planner, dispatcher and native-observation replan tests |
 | CAL-V0-107 | `TestCALV0107_ExplicitMembersCoverUnrecordedGenerations`, `TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor`, `TestCALV0107_HealthPrepareNeverImpliesCover` (`internal/tasks/store`); `TestCALV0107_CLIClaimReportsCoveredGenerations`, `TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`) |
 | CAL-V0-108 | `TestCALV0108_WaitingReviewOutranksArrivingImplement`, `TestCALV0108_EarlierHandoffWinsAtEqualPriority`, `TestCALV0108_AdmissionRank`, `TestCALV0108_DownstreamCompetitorNeedsItsStageMember`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_FlagOffMatchesNMinusOne` (`internal/tasks/transaction`) |
-| CAL-V0-109 | `TestCALV0109_CallerWaitBound`, `TestCALV0109_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
+| CAL-V0-109 | `TestCALV0109_CallerWaitBound`, `TestCALV0109_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0109_OrphanCleanupSpendsCallerWait` (`internal/tasks/store`); `TestCALV0109_LockWaitFlag`, `TestCALV0109_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
 | CAL-V0-110 | `TestCALV0110_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0110_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
 | CAL-V0-111 | `TestCALV0111_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
