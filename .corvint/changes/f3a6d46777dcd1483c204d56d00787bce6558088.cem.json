@@ -1,0 +1,40 @@
+{
+  "baseRevision": "e7275cd5cdd5e226d9abfa3306c683f254088312",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:c5bf736f04c39de47b3f4bbd2dcf1d2057ab5ba215766275f3c3e61aebc1d156",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3982,
+        "start": 3781
+      },
+      "spanSha256": "ee7c4a0aa7b5c749b92ea6cee4beb839dce41e1a49a7b386800ab3238af32e80"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c5bf736f04c39de47b3f4bbd2dcf1d2057ab5ba215766275f3c3e61aebc1d156",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:abee9f2cbc5548fa0f2bf8935bf6c22b03b795094c193a460c2560376658e392",
+      "newRange": {
+        "count": 12,
+        "start": 236
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 236
+      },
+      "path": "docs/build-log/2026-10-06-v1-0859-orientation-misses.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3c56a0317805a2c84081208e1ae606401f512fbdcc6ffc604cdb4e6aec6f1c68",
+  "spec": "cem/0.2"
+}

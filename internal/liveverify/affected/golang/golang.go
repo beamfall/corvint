@@ -24,9 +24,12 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -145,8 +148,14 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	unitDirectories := make([]string, 0, len(directories))
 	imports := make(map[string]map[string]bool, len(directories))
 	testImports := make(map[string]map[string]bool, len(directories))
-	for _, directory := range sortedKeys(directories) {
-		unit, importPaths, testImportPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
+	ordered := sortedKeys(directories)
+	observedDirectories := language.observeDirectories(root, owners, directories, ordered)
+	for offset, directory := range ordered {
+		observation := observedDirectories[offset]
+		for reason := range observation.frontier {
+			frontier[reason] = true
+		}
+		unit, importPaths, testImportPaths, err := observation.unit, observation.imports, observation.testImports, observation.err
 		if err != nil {
 			return affected.Result{}, err
 		}
@@ -162,6 +171,52 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	applyReadScopes(root, units, unitDirectories, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
+
+// directoryObservation is one observeDirectory result with the frontier
+// reasons that directory raised.
+type directoryObservation struct {
+	unit                 affected.Unit
+	imports, testImports map[string]bool
+	frontier             map[string]bool
+	err                  error
+}
+
+// observeDirectories observes every directory in order. A disk source reads
+// files concurrently, so its directories are observed by a bounded pool; each
+// result lands at its directory's offset and the caller merges them in order,
+// so the units, edges and frontier are those of the serial pass.
+func (language Language) observeDirectories(root *affected.Source, owners map[string]module, directories map[string][]string, ordered []string) []directoryObservation {
+	observations := make([]directoryObservation, len(ordered))
+	observe := func(offset int) {
+		directory := ordered[offset]
+		observation := &observations[offset]
+		observation.frontier = map[string]bool{}
+		observation.unit, observation.imports, observation.testImports, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], observation.frontier)
+	}
+	workers := min(runtime.GOMAXPROCS(0), observeWorkers, len(ordered))
+	if !root.ConcurrentReads() || workers < 2 {
+		for offset := range ordered {
+			observe(offset)
+		}
+		return observations
+	}
+	var next atomic.Int64
+	var pending sync.WaitGroup
+	for range workers {
+		pending.Add(1)
+		go func() {
+			defer pending.Done()
+			for offset := int(next.Add(1)) - 1; offset < len(ordered); offset = int(next.Add(1)) - 1 {
+				observe(offset)
+			}
+		}()
+	}
+	pending.Wait()
+	return observations
+}
+
+// observeWorkers bounds the directories observed at once.
+const observeWorkers = 8
 
 // observeDirectory turns one directory of Go files into one unit plus the raw
 // import path sets its non-test files and its test files declare.

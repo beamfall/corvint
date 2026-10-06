@@ -32,8 +32,9 @@ const PathTokenBound = "path-token-bound"
 // time makes, so the selection only adds. Dirty paths arrive sorted and units
 // in id order, so the smallest naming dirty path is each reader's witness.
 func (graph *Graph) readers(reached map[string]Witness, dirty []string) {
+	runs := runCache{}
 	for _, dirtyPath := range dirty {
-		for _, id := range graph.namers(dirtyPath) {
+		for _, id := range graph.namersWith(dirtyPath, runs) {
 			if _, seen := reached[id]; !seen && graph.resolves(id, dirtyPath) {
 				reached[id] = Witness{Kind: WitnessPathLiteralReader, DirtyPath: dirtyPath, Via: []string{id}}
 			}
@@ -200,23 +201,41 @@ func resolvesWithin(directory, value, dirtyPath string) bool {
 // namers lists, in id order, the units carrying a path token that names
 // dirtyPath.
 func (graph *Graph) namers(dirtyPath string) []string {
+	return graph.namersWith(dirtyPath, runCache{})
+}
+
+// namersWith is namers with each token's component runs split once per
+// cache instead of once per unit and dirty path.
+func (graph *Graph) namersWith(dirtyPath string, runs runCache) []string {
 	parts := strings.Split(dirtyPath, "/")
 	ids := make([]string, 0)
 	for _, id := range graph.order {
-		if namesAny(graph.units[id].PathTokens, parts) {
+		if namesAny(graph.units[id].PathTokens, parts, runs) {
 			ids = append(ids, id)
 		}
 	}
 	return ids
 }
 
-func namesAny(tokens, parts []string) bool {
+func namesAny(tokens, parts []string, runs runCache) bool {
 	for _, value := range tokens {
-		if namesPath(value, parts) {
+		if namesPathRuns(value, runs.of(value), parts) {
 			return true
 		}
 	}
 	return false
+}
+
+// runCache memoises componentRuns, a pure function of the token.
+type runCache map[string][]run
+
+func (cache runCache) of(value string) []run {
+	runs, ok := cache[value]
+	if !ok {
+		runs = componentRuns(value)
+		cache[value] = runs
+	}
+	return runs
 }
 
 type run struct {
@@ -252,7 +271,12 @@ func componentRuns(value string) []run {
 // of `"internal/%03d.go"` would otherwise name every path below any
 // `internal` directory (V1-0290), while `"../../.corvint"` is a path.
 func namesPath(value string, parts []string) bool {
-	for _, candidate := range componentRuns(value) {
+	return namesPathRuns(value, componentRuns(value), parts)
+}
+
+// namesPathRuns is namesPath over the token's precomputed componentRuns.
+func namesPathRuns(value string, runs []run, parts []string) bool {
+	for _, candidate := range runs {
 		first := 0
 		if len(candidate.components) == 1 && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
 			first = len(parts) - 1

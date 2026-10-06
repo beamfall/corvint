@@ -267,10 +267,28 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 	}
 
 	// Phase 2: read exactly the planned entries through the root descriptor.
+	// A pinned subdirectory no longer bound to its name when the capture
+	// ends was replaced while it was read, so the capture is repeated with
+	// every record opened by its whole path, as without pinning.
+	dirs := pinnedTreeDirs{}
+	defer dirs.close()
+	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
+		return dirs.read(root, full, rel, max)
+	})
+	if err != nil || dirs.bound(root) {
+		return tree, err
+	}
+	return captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
+		return readInRoot(root, full, rel, max)
+	})
+}
+
+// captureTree reads the planned entries with read and digests them.
+func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int) ([]byte, error)) (Tree, error) {
 	files := make([]File, 0, len(plan))
 	captured := 0
 	for _, p := range plan {
-		raw, err := readInRoot(root, filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
 		if err != nil {
 			return Tree{}, err
 		}
@@ -331,6 +349,73 @@ func statRegular(root *os.Root, full, rel string, max int) (int64, error) {
 // descriptor, and reads it with a hard bound.
 func readInRoot(root *os.Root, full, rel string, max int) ([]byte, error) {
 	f, err := safeopen.InRoot(root, rel, os.O_RDONLY, 0, false)
+	return readOpened(f, err, full, max)
+}
+
+// pinnedTreeDirs holds one safeopen.PinSubDir descriptor per store
+// subdirectory (tickets/, releases/) for TreeDigest's second phase, so each
+// record there costs InRoot's final openat alone instead of its whole
+// traversal. A subdirectory that cannot be pinned is read through readInRoot
+// per file, which reports the same open failure as before.
+type pinnedTreeDirs map[string]*os.File
+
+// pinTreeDirs exists so the parity test can compare pinned and per-file reads.
+var pinTreeDirs = true
+
+func (d pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, error) {
+	sub, name, nested := strings.Cut(rel, "/")
+	if !pinTreeDirs || !nested || strings.Contains(name, "/") {
+		return readInRoot(root, full, rel, max)
+	}
+	dir, seen := d[sub]
+	if !seen {
+		pinned, err := safeopen.PinSubDir(root, sub)
+		if err != nil {
+			pinned = nil
+		}
+		d[sub], dir = pinned, pinned
+		if pinned != nil && afterTreeDirPin != nil {
+			afterTreeDirPin(sub)
+		}
+	}
+	if dir == nil {
+		return readInRoot(root, full, rel, max)
+	}
+	f, err := safeopen.InDir(dir, name, os.O_RDONLY, 0)
+	return readOpened(f, err, full, max)
+}
+
+// afterTreeDirPin is replaced only by the deterministic directory-swap test.
+var afterTreeDirPin func(sub string)
+
+// bound reports whether every pinned subdirectory is still the directory its
+// name resolves to beneath root.
+func (d pinnedTreeDirs) bound(root *os.Root) bool {
+	for sub, dir := range d {
+		if dir == nil {
+			continue
+		}
+		held, err := dir.Stat()
+		if err != nil {
+			return false
+		}
+		named, err := root.Lstat(sub)
+		if err != nil || !os.SameFile(held, named) {
+			return false
+		}
+	}
+	return true
+}
+
+func (d pinnedTreeDirs) close() {
+	for _, dir := range d {
+		if dir != nil {
+			dir.Close()
+		}
+	}
+}
+
+func readOpened(f *os.File, err error, full string, max int) ([]byte, error) {
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "cannot open: %v", err)
 	}
@@ -372,6 +457,14 @@ func LoadExpecting(primaryWorktree string, want wire.Digest) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	return LoadTree(primaryWorktree, tree, want)
+}
+
+// LoadTree is LoadExpecting over a tree TreeDigest already captured, such as
+// the one a TM-V0-008 probe hashed. The pin and every decode check are the
+// same; each file's captured bytes are re-hashed against its digest before
+// they are decoded.
+func LoadTree(primaryWorktree string, tree Tree, want wire.Digest) (*Store, error) {
 	if want != "" && tree.Sha256 != want {
 		return nil, wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(primaryWorktree, Dir), "intent tree digest %s differs from the pinned snapshot %s", tree.Sha256, want)
 	}

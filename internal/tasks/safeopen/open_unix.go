@@ -170,6 +170,22 @@ func InDir(dir *os.File, name string, flags int, perm os.FileMode) (*os.File, er
 	return child(dir, name, flags, perm)
 }
 
+// PinSubDir opens sub, one directory component beneath root, exactly as
+// InRoot's traversal reaches it on the way to sub/name, so InDir on the
+// result repeats only that traversal's final step (TM-V0-008 tree reads).
+// The caller closes it.
+func PinSubDir(root *os.Root, sub string) (*os.File, error) {
+	if sub == "." || !filepath.IsLocal(sub) || filepath.Clean(sub) != sub || strings.ContainsAny(sub, "/\\") {
+		return nil, fmt.Errorf("pinned subdirectory is one clean component, not %q", sub)
+	}
+	dir, err := PinDir(root)
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	return child(dir, sub, traversalFlags, 0)
+}
+
 func SubRoot(root *os.Root, rel string) (*os.Root, error) {
 	dir, err := InRoot(root, rel, os.O_RDONLY, 0, true)
 	if err != nil {

@@ -20,7 +20,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, experimental, V1-0414).
-- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented.
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`).
 - Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
@@ -76,6 +76,11 @@ it must read, each with the relation that admitted it, without naming the task's
 - `TCP-V0-004`: The slots run in this order and each is capped at three rows before the lexical
   fill: `pair` (the subject's test or source counterpart by stem, the same directory first, then a
   mirrored test/source directory, then anywhere in the tree, or a member of its module directory;
+  a Go file only with a Go counterpart in its own directory, since a Go `_test.go` shares its
+  package directory and its language and neither a mirrored directory nor a module directory is
+  a Go convention, amended 2026-10-06 (V1-0859: the five-pull-request replay of this repository
+  carried eight `pair` rows naming a Go test of another package and two naming a JavaScript test
+  of a Go source, none of them gold);
   `test-convention`, high, except that a counterpart found anywhere in the tree by stem alone is
   medium, decision 0026), `mentioned`
   (a tracked path the task names by full path or by an unambiguous basename, and that path's
@@ -235,13 +240,29 @@ it must read, each with the relation that admitted it, without naming the task's
   window, task, subject, limit) are byte-identical (TCP-V0-007); (f) the subject is absent under both new relations in a fixture where it would itself
   qualify as governing and as a defining spec (TCP-V0-005). This remains an AT-05 slice: whole-task cost and correctness under
   `BRAIN-DOG-012/013/015/016` is a separate held-out obligation no test here discharges.
-- `TCP-V0-013`: Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexical
-  generator carry the `documentation` relation and name that class in their evidence reason. The
-  lexical order of TCP-V0-014 is preserved independently inside the code and documentation
-  classes. The lexical fill places code rows until the packet holds five code rows (rows the
-  earlier slots took count toward those five), then at most two documentation rows, then every
-  remaining code row, then the remaining documentation rows. Both classes retain the lexical
-  slot's score, confidence, authority, token rules, and final-limit behavior.
+- `TCP-V0-013`: (amended 2026-10-06, V1-0859; experimental) Documentation-suffix hits (`.md`,
+  `.mdx`, `.rst`, `.txt`) produced by the lexical generator carry the `documentation` relation and
+  name that class in their evidence reason. The lexical order of TCP-V0-014 is preserved inside
+  each class. The lexical fill places code rows until the packet holds five code rows (rows the
+  earlier slots took count toward those five; a code hit for the subject or for a path those
+  slots or a reservation already hold takes no head position), then the remaining code and the
+  documentation in one TCP-V0-014 order under TCP-V0-059's documentation share: a documentation
+  hit the share admits precedes every code hit it outscores and is not cut for being
+  documentation while a weaker code hit is carried; a documentation hit the share defers (past
+  its ceiling, or past its quota without outscoring the lead) follows every code hit, so the
+  share, not its strength, may cut it while a weaker code hit is carried, and TCP-V0-061 states
+  that class. The head never takes more than the positions the share's ceiling leaves to code
+  (`fill - ceil(fill / 2)`, `fill` being TCP-V0-059's), so at a small limit the head alone never
+  cuts a documentation hit the share admits; past the share, the head and the share together may
+  cut a stronger documentation hit while weaker code hits are carried (three code and six
+  stronger documentation hits at limit 6 carry the three code rows), which TCP-V0-061's limit
+  line counts. Both classes retain the lexical slot's
+  confidence, authority, token rules, and final-limit behavior; their score is TCP-V0-060's.
+  Before this amendment the fill placed at most two documentation rows after the head, then every
+  remaining code row, then the remaining documentation rows: eight of the fifteen public rc.2
+  untouched-repository orientation misses were documentation rows that outscored a carried code
+  row and were cut by that quota (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
+  the quota survives as the floor of TCP-V0-059's gate.
 - `TCP-V0-014`: (accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores every
   source with BM25 (k1 1.2, b 0.3) over three fields and orders by that score descending, then
   distinct task terms descending, then path: (a) body terms, with the inverse document frequency
@@ -276,7 +297,9 @@ it must read, each with the relation that admitted it, without naming the task's
   are every row the earlier slots admitted plus the lexical hits that would fill the packet to one
   row short of the limit. A counterpart is bound by four deterministic signals derived at query
   time from the existing tables, never from a new snapshot table: (a) the mirrored path/stem
-  `pair` reads (`pairRelation`, without the module-directory case); (b) an import edge from the
+  `pair` reads (`pairRelation`, without the module-directory case, and for a Go file a Go
+  counterpart in its directory only, so a Go test of another package binds by an import edge, a
+  declared name or its test name alone); (b) an import edge from the
   test to the source through `impact`'s reverse-import rules over `Imports`; (c) a whole-word
   mention in the test of a name the source declares (at least four bytes, at most fifty
   definers), weighted by the name's rarity over the identifier vocabulary `ln((N + 1) / n)` as
@@ -515,7 +538,7 @@ it must read, each with the relation that admitted it, without naming the task's
   nothing. A carrying source is credited like a body term: idf from the number of carrying
   sources, tf the occurrence count, the same k1 and b, tripled under TCP-V0-019's exact weight.
   The credit lives inside the lexical slot: the row keeps kind `lexical` (or `documentation`),
-  score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
+  TCP-V0-060's score and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
   ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
   snapshot or pack change; `off` preserves the pre-amendment packet bytes.
   Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
@@ -587,8 +610,8 @@ it must read, each with the relation that admitted it, without naming the task's
   lexical score (ties by source id) are read within TCP-V0-014's size bound; for each whose role
   line exists, every task term the line carries, tokenised as the body `Terms` table tokenises a
   source, is credited once with its body idf times 1.0, the path field's form, before the lexical
-  order is taken. The credit lives inside the lexical slot: the row keeps kind `lexical`, score 300
-  and authority `vocabulary`, and never precedes a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  order is taken. The credit lives inside the lexical slot: the row keeps kind `lexical`,
+  TCP-V0-060's score and authority `vocabulary`, and never precedes a reserved TCP-V0-008/TCP-V0-009 row. No index,
   snapshot or pack change (the analyzer schema is unchanged). Unset or any other value preserves
   the existing packet bytes.
 - `TCP-V0-041`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
@@ -957,6 +980,70 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   the index's dirty-path list, no option, no index, snapshot or pack field, no network read and
   no runtime dependency; it never edits or strips the file. Every added packet member is additive
   and appears only on a downgraded row or in `governance_refused`.
+- `TCP-V0-059`: (proposed 2026-10-06 and amended the same day with the gate, V1-0859;
+  experimental) Documentation share. In the merged order of TCP-V0-013, documentation takes at
+  most `ceil(fill / 2)` of the positions code hits compete for (the ceiling), `fill` being
+  `max(limit - taken - reserved, 0)` with `taken` the rows the earlier slots admitted and
+  `reserved` the TCP-V0-008, TCP-V0-009 and TCP-V0-047 rows none of those slots admitted, which
+  are reserved before the fill and prepended before the final truncation; and a documentation
+  hit takes one of those positions only through the gate: it outscores the lead, the strongest
+  code hit competing for the fill (a held row sets no lead; with no code hit every documentation
+  hit leads), or it is one of the first two documentation hits in TCP-V0-014 order that do not
+  (the quota, `contextDocumentationQuota`: the pre-amendment two-row rule kept as the floor).
+  The documentation hits past the ceiling or the gate follow every code hit, in TCP-V0-014
+  order, so when fewer code hits remain than positions the deferred tail fills the positions no
+  code hit takes and documentation then holds more than the share admitted (one code hit and
+  six documentation hits at limit 4 carry three documentation rows). A hit for the subject or
+  for a path an earlier slot admitted or a reservation holds keeps its strength position but
+  takes no share or fill position: the fill drops it as a duplicate or the reservation promotes
+  it in place. The half and the quota are chosen constants (`contextDocumentationShare`,
+  `contextDocumentationQuota`), not measured calibrations: BM25 over prose is not comparable
+  with BM25 over code (prose repeats a prose task's words densely, and `b` 0.3 rewards length),
+  so an unbounded merge fills a prose-heavy task's packet with documentation, and the half share
+  alone admitted generic documentation of this repository's prose-heavy tree ahead of the
+  changed code (the 2026-10-06 replay of five merged pull requests lost three gold code rows to
+  it, which the gate restores while no rc.2 development case carries fewer critical rows than
+  under the half share, 29 against 27 in total, although one case swaps a half-share
+  documentation row for two code rows); the rc.2 development cases that chose the half over a
+  four-row quota, a round-robin
+  and an unbounded merge, and the replay that chose the lead over a floor at the head's weakest
+  row, a one-third share and a closed-document exclusion, are in the build-log entry. The gate
+  reads the task as a documentation task when prose leads the code; a documentation hit past the
+  quota that does not lead is deferred however strong it is, which TCP-V0-061 states. The share
+  never widens the walk, reads no new input and changes no slot other than the lexical fill.
+  Falsifier: a held-out orientation run whose documentation misses become code misses under
+  this share, or whose gold documentation sits past the quota without outscoring the lead.
+- `TCP-V0-060`: (proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical or
+  documentation row's `score` carries its match strength: `300 + round(299 * bm25 / strongest)`,
+  `strongest` being the walk's highest BM25 (TCP-V0-014's, after the TCP-V0-022 anchor and
+  TCP-V0-040 role credits), so the strongest lexical hit scores 599, every other hit its share
+  of the band, and no lexical row reaches the 600 tier of a relation row. The corroboration
+  credit applies unchanged. Under TCP-V0-035's opt-in reorder the row order may differ from the
+  score order by the recency factor. Before this amendment every lexical row scored a flat 300,
+  so a consumer reading the score could not tell a strong hit from a weak one.
+- `TCP-V0-061`: (proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
+  the packet does not carry, `coverage.uncertainty` (free text under CCF-V1-005, outside the
+  enumeration register, read by no reader and feeding no ranking) states, in this order: `N
+  code and M documentation rows the task matched lexically are omitted by the result limit L`;
+  and, only when documentation hits the fill did not carry outscore the weakest code row the
+  packet carries past TCP-V0-013's head, `K documentation rows that outscore a carried code row
+  are omitted by the documentation share (S of F lexical positions); the strongest is \`path\`
+  (bm25 X)`, `S` being the share's ceiling: the share's gate or ceiling, not the limit, kept
+  them out, since without the share they would hold that code row's position. A documentation hit the head or the limit displaced is counted in the
+  first line only, the head being TCP-V0-013's rule and not the share. Both lines are read from
+  the rows the packet carries, the head as a count of the fill's leading code positions read by
+  identity once the reorder and the reservations have placed them and before a later relation
+  can carry one of them under another kind, so that TCP-V0-035's reorder of each kind among its
+  positions (a recent hit may hold a head or a share position, and a code row the reorder moved
+  past the head is the comparison row) states what that packet omitted, and TCP-V0-004's `pair`
+  promotion of a head test moves no row into the head (the code row past it stays the
+  comparison row under whatever kind the packet carries it). A hit carried under another
+  relation is not omitted. When TCP-V0-016 withholds the ordinary rows, the withdrawn hits are stated as
+  `N code and M documentation rows the task matched lexically are withheld by the
+  \`unsupported-conjunction\` verdict, not by the result limit L`, after the first line when the
+  limit cut a reservation the task matched (the verdict withdraws no reservation, so that row is
+  omitted by the limit) and in its place otherwise; the share line is absent. With nothing
+  omitted the member is absent, so a packet that carried every hit keeps its bytes.
 
 ## Non-goals and authority
 
@@ -1040,6 +1127,11 @@ outside TCP-V0-008.
   evidence; its pairing and sibling slots still work from the path alone.
 - A task naming an ambiguous basename: no `mentioned` row for it; the lexical fill may still
   list the files.
+- A prose-heavy task over a documentation-heavy tree: documentation hits outscore most code
+  hits; the share (TCP-V0-059) holds them to half the fill when prose leads the code and to its
+  quota of two otherwise, and the documentation hits it deferred are stated in
+  `coverage.uncertainty` (TCP-V0-061); the packet does not claim the carried code rows are the
+  strongest matches.
 - A repository whose grammar the index does not parse: `definition` and `reverse-import` are
   empty for it (Swift excepted: its symbols are extracted and its module edge is the rule above,
   so a Swift subject outside the SwiftPM layout has no `reverse-import` row) and the packet says
@@ -1225,6 +1317,36 @@ off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 `TestScreenPathDowngradesAnUnreadableRow`, `TestCEMGoverningInstructionRuleMatchesThePacket`); every
 existing packet golden is unchanged (TCP-V0-058).
 
+`internal/contextindex/taskcontext_documentation_test.go` (TCP-V0-013 as amended, TCP-V0-059..061,
+experimental): `TestTaskContextDocumentationCompetesByStrength` reproduces the V1-0859 class on a
+small fixture (four documentation rows that outscore every code row, all carried at limit 10
+where the two-row quota cut two), `TestTaskContextDocumentationShareStatesTheOmittedClass` pins the
+half share, the shortened head, both uncertainty lines where the share displaced a documentation
+row, and the limit line alone where the head or the deferred tail did,
+`TestTaskContextPlacesDocumentationAfterFiveCodeRows` (`taskcontext_widening_test.go`) pins the
+gate (no documentation hit outscores the lead: the quota's two rows precede the weaker code rows
+and the two past the quota follow every code row although one outscores a carried code row), and
+`TestTaskContextLexicalScoreCarriesStrength` pins the score band,
+`TestTaskContextLexicalFillCountsOnlyOpenPositions` pins the fill accounting (a mentioned
+documentation row spends no share, a governing reservation is no fill position, withheld hits are
+stated as withheld), `TestTaskContextStatesAReservationTheLimitCutAsOmitted`
+(`taskcontext_routed_test.go`) the reservation the limit cut under the verdict and
+`TestTaskContextShareLineIsCountedThroughTheRecencyReorder` the carried-row reading under
+TCP-V0-035's opt-in reorder (a recent code hit promoted into the head leaves the limit line
+alone, a recent documentation hit promoted into the share leaves the share line naming the two
+hits it kept out, a held copy promoted into the head spends no position, and a weak recent code
+hit promoted into the head is not the share's comparison row, so the old hit it moved past the
+head leaves the limit line alone), and `TestTaskContextShareLineSurvivesPairPromotion` (a head
+test TCP-V0-004 promotes to `pair` keeps the head's four members, so the share line still names
+the documentation hit the code row past the head kept out);
+`TestTaskContextPlacesDocumentationAfterFiveCodeRows` is rewritten for the merged order. The recipe golden `testdata/context-recipe-default-golden.json` is regenerated: the
+same twelve rows, lexical scores by strength, `docs/guide.md` moved from the sixth to the tenth
+row and `docs/needle.md` from the sixth to the seventh (the mentioned `pkg/parser/parser.go` no
+longer counts toward the code head). The rc.2 untouched-repository cases on urfave/cli and Corvint
+are development evidence for this amendment
+(`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
+the held-out validation that V1-0859 and V1-0431 require is a repository frozen after this change.
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -1269,6 +1391,15 @@ calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks
 `screenedAction`/`withAuthorityWarnings` calls in `packet`; point `TrustClass` back at
 `trustByAuthority`. No state persists and clean packets never changed.
 
+The documentation share, strength score and omitted-class statement (TCP-V0-013 as amended and
+TCP-V0-059 to TCP-V0-061) roll back together: restore the unconditional two-row quota in
+`lexicalRows` (delete the ceiling, the lead and `contextDocumentationQuota`), the flat
+300 in its row literal and delete `lexicalScore`, `lexicalCoverage`, `heldPaths`,
+`reservedPositions`, the `lexicalDocumentation`, `lexicalHead`, `lexicalFill` and `lexicalShare`
+fields and `taskcontext_documentation_test.go`, move the reservation back into `reserve`, then
+re-capture
+the recipe golden. No state persists.
+
 ## Traceability
 
 | Requirement | Implementation | Test |
@@ -1276,7 +1407,7 @@ calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks
 | TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
-| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion` |
+| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairRelation`, `isGoPath`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestPairRelationGoCounterpartsShareTheDirectory`, `TestCreditMirroredMatchesFullScan` |
 | TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
@@ -1285,7 +1416,7 @@ calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks
 | TCP-V0-010 | `definitionEligible` (applied in `symbolRows` only) | `TestTaskContextProseIdentifierControlAdmitsNoDefinitions` (falsifier d), `TestSymbolRowsDefinerCountsExact` |
 | TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextAncestorInstructions`, `TestTaskContextAncestorInstructionCap` |
 | TCP-V0-012 | `internal/contextindex/taskcontext_widening_test.go` | the six cases above plus `TestTaskContextAmendedPacketIsByteIdenticalAcrossRuns` (falsifier e) |
-| TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows` |
+| TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows`, `TestTaskContextDocumentationCompetesByStrength` |
 | TCP-V0-014 | `lexicalRows`, `taskLexicalTerms`, `TermTable.documentLengths` | `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers` |
 | TCP-V0-015 | `testRows`, `testAnchors`, `testLinker`, `testCandidate`, `testNameRemainder`, `nameTokens`, `definitionEligible` (stop-list rule) | `TestTaskContextLinksTestsByEachSignal`, `TestTaskContextReservesOneTestSlot`, `TestTaskContextDefinitionSlotSkipsBacktickedProse`, `TestContextColdBuildRetainsTestImportWinner`, `TestNameTokensMatchesRegexOracle`, `TestCreditMirroredMatchesFullScan`, `TestTaskContextRefusesAOnePlainWordTestLink` |
 | TCP-V0-017 | `LookupDefinitions`, `LookupReferences`, `countWholeWord`, `LookupGrep`, `grepScores`, `matchingLines`, `parseContextLookupInvocation`, `runContextLookup` | `TestLookupDefinitionsOrdersExactThenRarestCaseInsensitive`, `TestLookupReferencesExcludesDefinersAndRanksImportersFirst`, `TestLookupGrepRanksByBM25AndQuotesMatchingLines`, `TestLookupGrepCountsATokenInBodyAndPathOnce`, `TestLookupGrepPathOnlyHitClaimsNoLine`, `TestLookupNeverListsExcludedPathsAndRefusesBadIdentifiers`, `TestParseContextLookupInvocation`, `TestRunContextLookupIsReadOnlyAndDeterministic`, `TestRunContextLookupRefusesAnEmptyIdentifier` |
@@ -1332,3 +1463,6 @@ calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks
 | TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode` |
 | TCP-V0-057 | `screenPath` (`Index.DirtyPaths`); `workflow.GoverningInstructionPath` | `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`, `TestCEMGoverningInstructionRuleMatchesThePacket` |
 | TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |
+| TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
+| TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
+| TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
