@@ -79,7 +79,7 @@ func termTableFixture() *Index {
 func TestLexicalRowsMatchWholeTokensFromTheTable(t *testing.T) {
 	index := termTableFixture()
 	compiler := newTaskContextCompiler(index, "demux the keyRing", "")
-	rows := compiler.lexicalRows(0)
+	rows := compiler.lexicalRows(0, 20)
 	got := map[string]string{}
 	for _, row := range rows {
 		got[row.path] = strings.SplitN(row.reason, ";", 2)[0]
@@ -254,7 +254,7 @@ func TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers(t *testing.T) {
 				t.Fatalf("stop word %q survived into the task terms %v", term, compiler.terms)
 			}
 		}
-		rows := compiler.lexicalRows(0)
+		rows := compiler.lexicalRows(0, 20)
 		if len(rows) < 2 || rows[0].path != "lib/strip.js" {
 			t.Fatalf("rare whole identifier should rank first, got %v", rows)
 		}

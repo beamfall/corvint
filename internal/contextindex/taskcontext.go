@@ -111,8 +111,24 @@ type taskContextCompiler struct {
 	historyFull, cochangeCapped bool
 	// lexical caches the scored posting walk (TCP-V0-014) across the test
 	// slot and the lexical fill.
-	lexical       []lexicalHit
-	selectedTerms *contextTermSelection
+	lexical []lexicalHit
+	// lexicalDocumentation is the documentation hits that competed for the
+	// lexical fill's positions, in strength order: neither held nor the
+	// subject. Which of them the share kept out is read from the carried rows
+	// (TCP-V0-061), not from the positions the fill gave them, because
+	// TCP-V0-035's reorder moves documentation rows among the documentation
+	// positions.
+	lexicalDocumentation []lexicalHit
+	// lexicalHead is the code positions the lexical fill placed as
+	// TCP-V0-013's head, ahead of the merged order; a documentation hit they
+	// displaced is omitted by the limit under the head rule, not by the
+	// share. A count, not the paths: TCP-V0-035's reorder moves code rows
+	// among the code positions, so the head's members can change.
+	lexicalHead int
+	// lexicalFill and lexicalShare are the positions the lexical fill could
+	// take and the documentation share of them, for TCP-V0-061's statement.
+	lexicalFill, lexicalShare int
+	selectedTerms             *contextTermSelection
 	// anchors is TCP-V0-022's verbatim literal field, empty under
 	// `CORVINT_CONTEXT_ANCHORS=off`.
 	anchors []taskAnchor
@@ -180,7 +196,17 @@ const (
 	contextMaxDefiners          = 50
 	contextMaxBytes             = 1 << 20
 	contextDocumentationHead    = 5
-	contextDocumentationQuota   = 2
+	// contextDocumentationShare bounds the documentation rows in the lexical
+	// fill to 1/contextDocumentationShare of the fill, rounded up (TCP-V0-013
+	// as amended by TCP-V0-059): documentation competes with code by strength
+	// but never takes more than half the positions.
+	contextDocumentationShare = 2
+	// contextLexicalBase and contextLexicalCeiling bound the lexical score band
+	// (TCP-V0-060): the strongest hit of the walk scores the ceiling and every
+	// other hit its BM25 share of the band, so no lexical row reaches the 600
+	// tier of a relation row.
+	contextLexicalBase    = 300
+	contextLexicalCeiling = 599
 	// contextSpecMentionCap bounds the reserved spec rows (TCP-V0-009).
 	contextSpecMentionCap = 3
 	// No packet can carry more than maxLimit governing rows.
@@ -272,7 +298,10 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		compiler.markRan("test")
 		rows = compiler.takeSlot(rows, compiler.testRows(compiler.testAnchors(rows, limit)), contextTestCap)
 	}
-	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows))), limit)
+	// The reservations are known before the lexical fill so the fill can
+	// count the positions `reserve` prepends (TCP-V0-059).
+	compiler.reserved = compiler.reservedRows()
+	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows), limit)), limit)
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
@@ -1251,27 +1280,64 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 	return hits
 }
 
-// lexicalRows orders the hits: TCP-V0-013 places documentation after the
-// fifth code row of the packet.
-func (compiler *taskContextCompiler) lexicalRows(taken int) []contextRow {
+// lexicalRows orders the hits (TCP-V0-013, TCP-V0-059): a head of code rows
+// until the packet holds five, then one TCP-V0-014 strength order over the
+// remaining code and the documentation, in which documentation may take at
+// most half of the positions the fill can still take; documentation past
+// that share follows every code hit. The head never exceeds the half of the
+// fill that is left for the merged order, so the head alone never cuts a
+// documentation hit inside the share; past the share the head and the share
+// together may cut a stronger one. The fill is the positions left after the rows
+// the earlier slots took and the reservations `reserve` prepends; a hit for
+// the subject or for a path those rows already hold keeps its strength
+// position but takes no head, share or fill position, because take drops it
+// as a duplicate and reserve promotes it in place.
+func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow {
 	hits := compiler.lexicalHits()
-	code, documentation := make([]lexicalHit, 0, len(hits)), make([]lexicalHit, 0, len(hits))
+	held := compiler.heldPaths()
+	code := 0
 	for _, item := range hits {
-		if item.documentation {
-			documentation = append(documentation, item)
-			continue
+		if !item.documentation && !held[item.path] {
+			code++
 		}
-		code = append(code, item)
 	}
-	// TCP-V0-013 counts the five code rows over the whole packet, so rows the
-	// earlier slots took shorten the head the documentation quota waits for.
-	head := min(max(contextDocumentationHead-taken, 0), len(code))
-	quota := min(contextDocumentationQuota, len(documentation))
+	fill := max(limit-taken-compiler.reservedPositions(), 0)
+	share := (fill + contextDocumentationShare - 1) / contextDocumentationShare
+	head := min(max(contextDocumentationHead-taken, 0), code, fill-share)
+	compiler.lexicalFill, compiler.lexicalShare = fill, share
 	ordered := make([]lexicalHit, 0, len(hits))
-	ordered = append(ordered, code[:head]...)
-	ordered = append(ordered, documentation[:quota]...)
-	ordered = append(ordered, code[head:]...)
-	ordered = append(ordered, documentation[quota:]...)
+	deferred := make([]lexicalHit, 0)
+	compiler.lexicalDocumentation = compiler.lexicalDocumentation[:0]
+	headTaken, documentation := 0, 0
+	for _, item := range hits {
+		if !item.documentation && !held[item.path] && headTaken < head {
+			ordered = append(ordered, item)
+			headTaken++
+		}
+	}
+	compiler.lexicalHead = headTaken
+	headTaken = 0
+	for _, item := range hits {
+		switch {
+		case held[item.path]:
+		case !item.documentation && headTaken < head:
+			headTaken++
+			continue
+		case item.documentation && documentation == share:
+			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
+			deferred = append(deferred, item)
+			continue
+		case item.documentation:
+			compiler.lexicalDocumentation = append(compiler.lexicalDocumentation, item)
+			documentation++
+		}
+		ordered = append(ordered, item)
+	}
+	ordered = append(ordered, deferred...)
+	strongest := 0.0
+	if len(hits) > 0 {
+		strongest = hits[0].score
+	}
 	rows := make([]contextRow, 0, len(ordered))
 	for _, item := range ordered {
 		kind := "lexical"
@@ -1288,13 +1354,143 @@ func (compiler *taskContextCompiler) lexicalRows(taken int) []contextRow {
 			reason = "documentation: " + reason
 		}
 		rows = append(rows, contextRow{
-			kind: kind, path: item.path, score: 300, line: 1,
+			kind: kind, path: item.path, score: lexicalScore(item.score, strongest), line: 1,
 			summary:    fmt.Sprintf("%d task terms match", item.distinct),
 			reason:     reason,
 			confidence: "low", authority: "vocabulary",
 		})
 	}
 	return rows
+}
+
+// heldPaths is the subject and every path an earlier slot admitted or a
+// reservation holds: a lexical hit for one takes no fill position.
+func (compiler *taskContextCompiler) heldPaths() map[string]bool {
+	held := make(map[string]bool, len(compiler.chosen)+len(compiler.reserved)+1)
+	for path := range compiler.chosen {
+		held[path] = true
+	}
+	for _, row := range compiler.reserved {
+		held[row.path] = true
+	}
+	if compiler.subject != "" {
+		held[compiler.subject] = true
+	}
+	return held
+}
+
+// reservedPositions counts the reservations no earlier slot admitted: the
+// positions reserve adds ahead of the fill before the final truncation.
+func (compiler *taskContextCompiler) reservedPositions() int {
+	positions := 0
+	for _, row := range compiler.reserved {
+		if _, chosen := compiler.chosen[row.path]; !chosen {
+			positions++
+		}
+	}
+	return positions
+}
+
+// lexicalScore carries a hit's BM25 strength in the packet score (TCP-V0-060):
+// the base plus the hit's share of the band relative to the strongest hit of
+// the walk, rounded, so the strongest hit scores the ceiling and the score
+// order agrees with the TCP-V0-014 order up to rounding.
+func lexicalScore(bm25, strongest float64) int {
+	if strongest <= 0 || bm25 <= 0 {
+		return contextLexicalBase
+	}
+	band := float64(contextLexicalCeiling - contextLexicalBase)
+	return min(contextLexicalBase+int(math.Round(band*bm25/strongest)), contextLexicalCeiling)
+}
+
+// lexicalCoverage states the lexical hits the packet does not carry as
+// uncertainty (TCP-V0-061): the count per class the result limit omitted,
+// and, when the fill carried a code row past the head, the documentation
+// hits the fill did not carry that outscore the weakest code row carried
+// past the head, which the documentation share rather than their strength
+// or the head omitted. Both are read from the carried rows (the head as a
+// count of the leading code positions), so TCP-V0-035's reorder of each
+// kind among its positions changes nothing. With nothing
+// omitted the member is absent, as in every earlier packet. When TCP-V0-016
+// withheld the ordinary rows, the hits are withheld by the verdict, not
+// omitted by the limit, and a separate line says so; a reservation the limit
+// cut is still omitted by the limit, since the verdict withdraws no
+// reservation.
+func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, rows []contextRow, limit int) {
+	hits := compiler.lexicalHits()
+	bm25 := make(map[string]float64, len(hits))
+	for _, hit := range hits {
+		bm25[hit.path] = hit.score
+	}
+	carried := make(map[string]struct{}, len(rows))
+	// The code rows the fill carried past the head are the carried lexical
+	// rows after the first lexicalHead of them in packet order, whatever
+	// TCP-V0-035's reorder placed in the head positions; the weakest of them
+	// is the row the deferred documentation lost a position to. A head row
+	// is never that row, since the head is TCP-V0-013's rule and not the
+	// share's.
+	codeCarried, weakestCode, lexical := false, 0.0, 0
+	for _, row := range rows {
+		carried[row.path] = struct{}{}
+		if row.kind != "lexical" {
+			continue
+		}
+		lexical++
+		if lexical <= compiler.lexicalHead {
+			continue
+		}
+		if score := bm25[row.path]; !codeCarried || score < weakestCode {
+			weakestCode = score
+		}
+		codeCarried = true
+	}
+	reserved := make(map[string]struct{}, len(compiler.reserved))
+	for _, row := range compiler.reserved {
+		reserved[row.path] = struct{}{}
+	}
+	withheld := compiler.answerability.unsupported()
+	var omitted, withdrawn [2]int
+	for _, hit := range hits {
+		if _, ok := carried[hit.path]; ok || hit.path == compiler.subject {
+			continue
+		}
+		class := 0
+		if hit.documentation {
+			class = 1
+		}
+		if _, ok := reserved[hit.path]; withheld && !ok {
+			withdrawn[class]++
+		} else {
+			omitted[class]++
+		}
+	}
+	lines := anySlice(coverage["uncertainty"])
+	before := len(lines)
+	if omitted[0]+omitted[1] > 0 {
+		lines = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are omitted by the result limit %d",
+			omitted[0], omitted[1], limit))
+	}
+	if withdrawn[0]+withdrawn[1] > 0 {
+		lines = append(lines, fmt.Sprintf("%d code and %d documentation rows the task matched lexically are withheld by the `unsupported-conjunction` verdict, not by the result limit %d",
+			withdrawn[0], withdrawn[1], limit))
+	}
+	stronger, strongest := 0, lexicalHit{}
+	for _, hit := range compiler.lexicalDocumentation {
+		if _, ok := carried[hit.path]; ok || withheld || !codeCarried || hit.score <= weakestCode {
+			continue
+		}
+		if stronger == 0 {
+			strongest = hit
+		}
+		stronger++
+	}
+	if stronger > 0 {
+		lines = append(lines, fmt.Sprintf("%d documentation rows that outscore a carried code row are omitted by the documentation share (%d of %d lexical positions); the strongest is `%s` (bm25 %.2f)",
+			stronger, compiler.lexicalShare, compiler.lexicalFill, strongest.path, strongest.score))
+	}
+	if len(lines) > before {
+		coverage["uncertainty"] = lines
+	}
 }
 
 func isDocumentationSuffix(candidate string) bool {
@@ -1362,14 +1558,13 @@ var contextInstructionPrecedence = []string{
 	"AGENTS.md", "CLAUDE.md", "GEMINI.md", "copilot-instructions.md", ".github/copilot-instructions.md",
 }
 
-// reserve prepends the governing and spec-mentioned rows (TCP-V0-008/009).
-// It runs after TCP-V0-004's corroboration sort and before the final
-// truncation, so neither can reorder or drop a reservation. An ordinary row
-// for the same path is promoted in place: the reservation keeps its fixed
-// fields and its sole evidence row, and names the removed row's relations in
-// its summary (TCP-V0-003).
+// reserve prepends the governing and spec-mentioned rows (TCP-V0-008/009)
+// `compile` reserved before the lexical fill. It runs after TCP-V0-004's
+// corroboration sort and before the final truncation, so neither can reorder
+// or drop a reservation. An ordinary row for the same path is promoted in
+// place: the reservation keeps its fixed fields and its sole evidence row,
+// and names the removed row's relations in its summary (TCP-V0-003).
 func (compiler *taskContextCompiler) reserve(rows []contextRow) []contextRow {
-	compiler.reserved = compiler.reservedRows()
 	if len(compiler.reserved) == 0 {
 		return rows
 	}
@@ -2169,6 +2364,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		"results": results,
 	}
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
+	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	return packet
 }
 

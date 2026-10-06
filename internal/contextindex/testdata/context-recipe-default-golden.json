@@ -200,44 +200,8 @@
       ],
       "id": "pkg/parser/helpers.go",
       "kind": "lexical",
-      "score": 300,
+      "score": 469,
       "summary": "4 task terms match"
-    },
-    {
-      "action": "Read this file only if the task terms it matches (documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37) are load-bearing; a term match is not a relation.",
-      "evidence": [
-        {
-          "authority": "vocabulary",
-          "blob_hash": "73009a5e289a2dce681cb5c697ac48b6de5cf056",
-          "confidence": "low",
-          "line": 1,
-          "path": "docs/needle.md",
-          "reason": "documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37",
-          "trust": "repository-content"
-        }
-      ],
-      "id": "docs/needle.md",
-      "kind": "documentation",
-      "score": 300,
-      "summary": "4 task terms match"
-    },
-    {
-      "action": "Read this file only if the task terms it matches (documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56) are load-bearing; a term match is not a relation.",
-      "evidence": [
-        {
-          "authority": "vocabulary",
-          "blob_hash": "d71b6f12057e81fafc2e8ace62e5b4f4d2fcf5c7",
-          "confidence": "low",
-          "line": 1,
-          "path": "docs/guide.md",
-          "reason": "documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56",
-          "trust": "repository-content"
-        }
-      ],
-      "id": "docs/guide.md",
-      "kind": "documentation",
-      "score": 300,
-      "summary": "1 task terms match"
     },
     {
       "action": "Read this file only if the task terms it matches (3 distinct task terms, 3 occurrences; rarest `signal` (idf 1.31); bm25 3.49) are load-bearing; a term match is not a relation.",
@@ -254,8 +218,26 @@
       ],
       "id": "internal/other/short.go",
       "kind": "lexical",
-      "score": 300,
+      "score": 442,
       "summary": "3 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "73009a5e289a2dce681cb5c697ac48b6de5cf056",
+          "confidence": "low",
+          "line": 1,
+          "path": "docs/needle.md",
+          "reason": "documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37",
+          "trust": "repository-content"
+        }
+      ],
+      "id": "docs/needle.md",
+      "kind": "documentation",
+      "score": 599,
+      "summary": "4 task terms match"
     },
     {
       "action": "Read this file only if the task terms it matches (3 distinct task terms, 1 occurrences; rarest `needle` (idf 1.65); bm25 3.21) are load-bearing; a term match is not a relation.",
@@ -272,7 +254,7 @@
       ],
       "id": "cmd/needle/main.go",
       "kind": "lexical",
-      "score": 300,
+      "score": 430,
       "summary": "3 task terms match"
     },
     {
@@ -290,8 +272,26 @@
       ],
       "id": "go.mod",
       "kind": "lexical",
-      "score": 300,
+      "score": 416,
       "summary": "2 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "d71b6f12057e81fafc2e8ace62e5b4f4d2fcf5c7",
+          "confidence": "low",
+          "line": 1,
+          "path": "docs/guide.md",
+          "reason": "documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56",
+          "trust": "repository-content"
+        }
+      ],
+      "id": "docs/guide.md",
+      "kind": "documentation",
+      "score": 363,
+      "summary": "1 task terms match"
     },
     {
       "action": "Read this file only if the task terms it matches (1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31) are load-bearing; a term match is not a relation.",
@@ -308,7 +308,7 @@
       ],
       "id": "internal/other/unrelated.go",
       "kind": "lexical",
-      "score": 300,
+      "score": 313,
       "summary": "1 task terms match"
     },
     {
@@ -326,7 +326,7 @@
       ],
       "id": "lib/frob/frob.go",
       "kind": "lexical",
-      "score": 300,
+      "score": 313,
       "summary": "1 task terms match"
     }
   ],
