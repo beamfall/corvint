@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -95,13 +96,18 @@ func (r *s0eRun) sleeper(ordinal int) {
 }
 
 // script replaces the child of one operation with a shell script that
-// receives the real Git argv as "$@".
+// receives the real Git argv as "$@". The script's PATH is minimal, so its Git
+// is the absolute path the verifier would run: a bare "git" there would find
+// /usr/bin/git, which on hosted macOS-15 rejects --attr-source.
 func (r *s0eRun) script(ordinal int, body string) {
 	path := filepath.Join(r.base, "shim.sh")
 	if err := os.WriteFile(path, []byte("PATH=/bin:/usr/bin\n"+body+"\n"), 0o755); err != nil {
 		r.t.Fatal(err)
 	}
 	r.commands[ordinal] = func(binary string, args []string) (string, []string) {
+		if resolved, err := exec.LookPath(binary); err == nil {
+			binary = resolved
+		}
 		return "/bin/sh", append([]string{path, binary}, args...)
 	}
 }

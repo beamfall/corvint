@@ -1,0 +1,120 @@
+{
+  "baseRevision": "7a83f52d6590a7919c6e1bcb65c68e0e51679363",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 7319,
+        "start": 7057
+      },
+      "spanSha256": "0294635150b1c444569f5d317846f8403e01f3a644c3fe0dda1dc90ca3520eac"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:79f9bfc1c2012336a8a129c8fa3d643b384de18aee6147993c62b983892bb1c0",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": ".taskman/queue.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6c431eb730d20b5030070f09d6bfcfbd0c79306c3c633bcba16d2c310c04634f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": ".taskman/tickets/V1-0846.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4526a6a966ff74fe090c1c231874558dadbc551e8a1760bf4cafd34ee80283de",
+      "newRange": {
+        "count": 38,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-05-rc2-third-candidate-gate-failure.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:16dbce6e2d2c85b8b54be3baf1371439ab1bd177fbcb85e3a434c895b0656022",
+      "newRange": {
+        "count": 7,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 7
+      },
+      "path": "internal/cem/verify/stable_repository_unix_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d72cd1588e97c6fafe3ac493026987183b1cba1c798a0a5eae75124ea59c49ce",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e8c2c99aa0521cc3c2982632cd4d92bcb3d77f5c554b1a6fe6597448a7d620fe",
+      "newRange": {
+        "count": 18,
+        "start": 96
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 95
+      },
+      "path": "internal/cem/verify/stable_repository_unix_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "168ba7e32779af3997c61a1f97dc64869151255edcb2b84875e6785503923f61",
+  "spec": "cem/0.2"
+}
