@@ -177,7 +177,9 @@ corvint-tasks dispatch unpark --program night --config dispatch.json --key ticke
 
 Each tick observes the queue, supervises workers (whole-tree kill on wall cap, idle timeout or an
 orphaned tree), hands off live attempts of ended workers, reaps expired leases, accounts progress,
-and launches the roster. A run that changes no durable ticket state cools the ticket down; after
+and launches the roster. A refused hand-off is retried a bounded number of times with backoff and the
+attempt is reaped once its lease expires; only when both fail is it reported as `needs-owner`
+(`heal.exitRecovery`, default true; CAL-V0-104). A run that changes no durable ticket state cools the ticket down; after
 `parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
