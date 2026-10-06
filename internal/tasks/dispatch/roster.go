@@ -105,6 +105,59 @@ type Observation struct {
 	Tickets  []Ticket
 	Attempts []Attempt
 	Members  []Member
+	// Replan, when set, replans the same snapshot with the tickets the
+	// work state holds outside the selection window (CAL-V0-105) and
+	// returns each planned ticket's plan state and reason by ticket ID.
+	Replan func(held map[string]bool) map[string]PlanView
+}
+
+// PlanView is one ticket's plan state and reason.
+type PlanView struct{ State, Reason string }
+
+// workStateHeld names the tickets whose observed work state is a hold
+// (CAL-V0-105): with a work-state reader configured, a ticket whose state is
+// a known value (not NONE or UNKNOWN) that no ticket role's state predicate
+// admits. Nothing is held without a reader or without a ticket role, and an
+// UNKNOWN or NONE state is never held, so those tickets keep today's window.
+func workStateHeld(c *Config, ts []Ticket) map[string]bool {
+	if c.WorkState == nil {
+		return nil
+	}
+	var held map[string]bool
+	for _, t := range ts {
+		if t.State == "" || t.State == StateNone || t.State == StateUnknown {
+			continue
+		}
+		admitted, roles := false, 0
+		for _, r := range c.Roles {
+			if r.Match == nil {
+				continue
+			}
+			roles++
+			if stateMatches(r.Match, t.State) {
+				admitted = true
+				break
+			}
+		}
+		if roles > 0 && !admitted {
+			if held == nil {
+				held = map[string]bool{}
+			}
+			held[t.ID] = true
+		}
+	}
+	return held
+}
+
+// stateMatches is a role's work-state predicate alone (CAL-V0-054).
+func stateMatches(m *Match, state string) bool {
+	if len(m.States)+len(m.ExcludeStates) > 0 && state == StateUnknown {
+		return false
+	}
+	if len(m.States) > 0 && !contains(m.States, state) {
+		return false
+	}
+	return !contains(m.ExcludeStates, state)
 }
 
 // Queue is the native store boundary. Release and Reap go through the
@@ -347,13 +400,7 @@ func matches(m *Match, t Ticket) bool {
 			return false
 		}
 	}
-	if len(m.States)+len(m.ExcludeStates) > 0 && t.State == StateUnknown {
-		return false
-	}
-	if len(m.States) > 0 && !contains(m.States, t.State) {
-		return false
-	}
-	if contains(m.ExcludeStates, t.State) {
+	if !stateMatches(m, t.State) {
 		return false
 	}
 	return (!m.PlanSelected || t.Plan == "SELECTED") && gatesMatch(m.Gates, t)

@@ -66,6 +66,11 @@ type Dispatcher struct {
 	// their trees may outlive the group kill unrecorded, so a controlled
 	// dispatcher never reports its boundaries recorded again.
 	uncertain []*startedError
+	// recoveries holds, by attempt ID, the CAL-V0-104 exit recoveries of
+	// attempts whose ended worker's hand-off was refused. They are derived
+	// run state, not ledger state: after a restart heal.reap still reaps
+	// the expired lease of a holder that is not a running worker.
+	recoveries map[string]*exitRecovery
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -337,6 +342,16 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	for _, a := range alerts {
 		d.emit(Event{Kind: "alert", Message: a})
 	}
+	// CAL-V0-105: tickets the work state holds leave the selection window,
+	// replanned from the same snapshot, so they no longer starve the rest.
+	if held := workStateHeld(d.Config, obs.Tickets); len(held) > 0 && obs.Replan != nil {
+		plan := obs.Replan(held)
+		for i := range obs.Tickets {
+			if v, ok := plan[obs.Tickets[i].ID]; ok {
+				obs.Tickets[i].Plan, obs.Tickets[i].PlanReason = v.State, v.Reason
+			}
+		}
+	}
 	return obs, nil
 }
 
@@ -589,13 +604,19 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker) bool {
 	wrote := false
 	done := map[string]bool{}
+	if d.recoverExits(ctx, obs, done) {
+		wrote = true
+	}
 	if d.Config.Heal.Handoff {
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
 				if ctx.Err() != nil {
 					return wrote
 				}
-				if !a.Live || a.Holder != w.ID {
+				// An attempt under (or past) an exit recovery is never handed off
+				// afresh: a worker re-reported as ended after a failed tick must
+				// not reset the recovery's bounded tries or reuse its request IDs.
+				if !a.Live || a.Holder != w.ID || done[a.ID] || d.recoveries[a.ID] != nil {
 					continue
 				}
 				done[a.ID], wrote = true, true
@@ -607,6 +628,20 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 				detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "phase": a.Phase}
 				if err != nil {
 					detail["error"] = err.Error()
+					if d.Config.Heal.ExitRecoveryOn() {
+						detail["recovery"] = "RETRYING"
+						d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v; retrying, then reaping once its lease expires", d.local(obs, a.Ticket), a.ID, w.ID, err), Detail: detail})
+						r := &exitRecovery{attempt: a, worker: w.ID, role: w.Role, releases: 1, releaseErr: err.Error()}
+						if now := d.Now(); a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) {
+							r.next = now.Add(d.recoveryBackoff(1))
+						}
+						if d.recoveries == nil {
+							d.recoveries = map[string]*exitRecovery{}
+						}
+						d.recoveries[a.ID] = r
+						d.stepRecovery(ctx, obs, r, a) // an already expired lease is reaped at once
+						continue
+					}
 					d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v", d.local(obs, a.Ticket), a.ID, w.ID, err), Detail: detail})
 					d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Worker: w.ID, Message: fmt.Sprintf("%s still holds a live %s attempt that the dispatcher could not hand off; inspect it with `corvint-tasks attempt show %s`", d.local(obs, a.Ticket), a.Phase, a.ID), Detail: detail})
 					continue
@@ -633,6 +668,150 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 			}
 			d.emit(Event{Kind: "reaped", Ticket: a.Ticket, Message: fmt.Sprintf("reaped the expired lease of %s held by %s", d.local(obs, a.Ticket), a.Holder), Detail: detail})
 		}
+	}
+	return wrote
+}
+
+// exitRecoveryTries bounds the hand-off releases (the first included) and
+// the reaps of one CAL-V0-104 exit recovery.
+const exitRecoveryTries = 3
+
+// exitRecoveryMaxBackoff caps the delay between two recovery writes.
+const exitRecoveryMaxBackoff = 5 * time.Minute
+
+// exitRecovery is one ended worker's attempt whose hand-off was refused. It
+// acts only on that attempt at the generation and holder observed when the
+// worker ended, so a reclaimed or replaced attempt is never touched.
+type exitRecovery struct {
+	attempt             Attempt
+	worker, role        string
+	releases, reaps     int
+	next                time.Time
+	releaseErr, reapErr string
+	// exhausted marks a recovery that already reported needs-owner. It stays
+	// recorded, writing nothing, until the attempt ends or is superseded, so
+	// the same attempt is never recovered or reported twice.
+	exhausted bool
+}
+
+// recoveryBackoff is the delay after the n-th write of one recovery:
+// tickSeconds doubled per write, capped at five minutes.
+func (d *Dispatcher) recoveryBackoff(n int) time.Duration {
+	delay := time.Duration(d.Config.TickSeconds) * time.Second
+	for i := 1; i < n && delay < exitRecoveryMaxBackoff; i++ {
+		delay *= 2
+	}
+	return min(delay, exitRecoveryMaxBackoff)
+}
+
+// recoverExits advances every pending exit recovery in attempt order and
+// marks the attempts it still owns as done for this heal pass. It reports
+// whether it attempted any store write.
+func (d *Dispatcher) recoverExits(ctx context.Context, obs *Observation, done map[string]bool) bool {
+	wrote := false
+	for _, id := range slices.Sorted(maps.Keys(d.recoveries)) {
+		if ctx.Err() != nil {
+			return wrote
+		}
+		r := d.recoveries[id]
+		var cur *Attempt
+		for i := range obs.Attempts {
+			if obs.Attempts[i].ID == id {
+				cur = &obs.Attempts[i]
+			}
+		}
+		detail := map[string]string{"attempt": id, "generation": r.attempt.Generation, "holder": r.worker}
+		if r.exhausted {
+			// Already reported to the owner; only heal.reap still applies.
+			if cur == nil || !cur.Live || cur.Generation != r.attempt.Generation || cur.Holder != r.attempt.Holder {
+				delete(d.recoveries, id)
+			}
+			continue
+		}
+		switch {
+		case cur == nil || !cur.Live:
+			// Ended elsewhere (FAILED/FENCED, released or reaped): resolved.
+			delete(d.recoveries, id)
+			phase := "NOT_OBSERVED"
+			if cur != nil {
+				phase = cur.Phase
+			}
+			detail["recovery"], detail["phase"] = "ALREADY_ENDED", phase
+			d.emit(Event{Kind: "handoff", Ticket: r.attempt.Ticket, Role: r.role, Worker: r.worker, Message: fmt.Sprintf("attempt %s on %s needs no hand-off any more: it ended as %s", id, d.local(obs, r.attempt.Ticket), phase), Detail: detail})
+			continue
+		case cur.Generation != r.attempt.Generation || cur.Holder != r.attempt.Holder:
+			// Fenced: another holder or generation owns it now; never touch it.
+			delete(d.recoveries, id)
+			detail["recovery"], detail["current_generation"], detail["current_holder"] = "SUPERSEDED", cur.Generation, cur.Holder
+			d.emit(Event{Kind: "handoff", Ticket: r.attempt.Ticket, Role: r.role, Worker: r.worker, Message: fmt.Sprintf("attempt %s on %s moved to generation %s held by %s; the dispatcher leaves it alone", id, d.local(obs, r.attempt.Ticket), cur.Generation, orText(cur.Holder, "nobody")), Detail: detail})
+			continue
+		}
+		done[id] = true
+		if d.stepRecovery(ctx, obs, r, *cur) {
+			wrote = true
+		}
+	}
+	return wrote
+}
+
+// stepRecovery makes at most one due store write for r against the current
+// attempt a: a reap once the lease has expired, otherwise a hand-off
+// release, each bounded with backoff. Only when both are exhausted (or no
+// lease exists to reap) does it report needs-owner and mark r exhausted.
+func (d *Dispatcher) stepRecovery(ctx context.Context, obs *Observation, r *exitRecovery, a Attempt) bool {
+	now := d.Now()
+	if now.Before(r.next) || ctx.Err() != nil {
+		return false
+	}
+	local := d.local(obs, a.Ticket)
+	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": r.worker, "phase": a.Phase}
+	expired := !a.LeaseExpires.IsZero() && !a.LeaseExpires.After(now)
+	wrote := false
+	switch {
+	case expired && r.reaps < exitRecoveryTries:
+		r.reaps++
+		wrote = true
+		detail["try"] = strconv.Itoa(r.reaps)
+		if err := d.Queue.Reap(ctx, a, requestID("reap", a.ID, a.Generation, "exit", strconv.Itoa(r.reaps))); err != nil {
+			r.reapErr, detail["error"] = err.Error(), err.Error()
+			r.next = now.Add(d.recoveryBackoff(r.reaps))
+			d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: r.worker, Message: fmt.Sprintf("could not reap the expired lease of %s after %s ended (try %d of %d): %v", local, r.worker, r.reaps, exitRecoveryTries, err), Detail: detail})
+			break
+		}
+		delete(d.recoveries, a.ID)
+		detail["recovery"] = "REAPED"
+		d.emit(Event{Kind: "reaped", Ticket: a.Ticket, Worker: r.worker, Message: fmt.Sprintf("reaped the expired lease of %s after %s ended without releasing it", local, r.worker), Detail: detail})
+		return true
+	case !expired && r.releases < exitRecoveryTries:
+		r.releases++
+		wrote = true
+		detail["try"] = strconv.Itoa(r.releases)
+		evidence := ""
+		if a.Candidate == "" {
+			evidence = "dispatch:" + r.worker
+		}
+		if err := d.Queue.Release(ctx, a, evidence, requestID("release", r.worker, a.ID, a.Generation, "exit", strconv.Itoa(r.releases))); err != nil {
+			r.releaseErr, detail["error"] = err.Error(), err.Error()
+			r.next = now.Add(d.recoveryBackoff(r.releases))
+			detail["recovery"] = "RETRYING"
+			d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: r.role, Worker: r.worker, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended (try %d of %d): %v", local, a.ID, r.worker, r.releases, exitRecoveryTries, err), Detail: detail})
+			break
+		}
+		delete(d.recoveries, a.ID)
+		detail["recovery"] = "RELEASED"
+		d.emit(Event{Kind: "handoff", Ticket: a.Ticket, Role: r.role, Worker: r.worker, Message: fmt.Sprintf("handed off %s (attempt %s) after %s ended, on retry %d", local, a.ID, r.worker, r.releases), Detail: detail})
+		return true
+	case !expired && !a.LeaseExpires.IsZero():
+		// Releases are exhausted: wait, without writing, for the lease to expire.
+		r.next = a.LeaseExpires
+		return false
+	}
+	if r.reaps >= exitRecoveryTries || (a.LeaseExpires.IsZero() && r.releases >= exitRecoveryTries) {
+		r.exhausted = true
+		detail["release_error"], detail["reap_error"] = r.releaseErr, orText(r.reapErr, "NOT_ATTEMPTED")
+		delete(detail, "error")
+		delete(detail, "try")
+		d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Worker: r.worker, Message: fmt.Sprintf("%s still holds a live %s attempt that the dispatcher could neither hand off (%d tries) nor reap (%d tries); inspect it with `corvint-tasks attempt show %s`", local, a.Phase, r.releases, r.reaps, a.ID), Detail: detail})
 	}
 	return wrote
 }

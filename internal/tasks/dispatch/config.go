@@ -218,7 +218,15 @@ type Backoff struct {
 type Heal struct {
 	Handoff bool `json:"handoff"`
 	Reap    bool `json:"reap"`
+	// ExitRecovery (CAL-V0-104, default true) retries a refused hand-off of
+	// an ended worker's attempt with backoff and reaps it once its lease
+	// expires, before reporting needs-owner. It acts only with Handoff.
+	ExitRecovery *bool `json:"exitRecovery,omitempty"`
 }
+
+// ExitRecoveryOn reports whether CAL-V0-104 recovery applies; an absent
+// switch is on.
+func (h Heal) ExitRecoveryOn() bool { return h.Handoff && (h.ExitRecovery == nil || *h.ExitRecovery) }
 
 // Placeholders are the only substitutions in argv, env and prompts.
 // {operatorNote} renders untrusted operator prose, so only a role prompt may

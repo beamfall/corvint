@@ -461,6 +461,17 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		}
 		in.ClaimablePools = q.pools // pool tickets no role can claim never use the window (CAL-V0-097)
 		obs.Tickets = dispatchTickets(in)
+		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
+		// the tickets its work state holds; no store read or write happens.
+		obs.Replan = func(held map[string]bool) map[string]dispatch.PlanView {
+			replan := in
+			replan.WorkStateHeld = held
+			out := map[string]dispatch.PlanView{}
+			for _, e := range transaction.PriorityFirst(replan).Entries {
+				out[e.Ticket.TicketID.Raw] = dispatch.PlanView{State: e.State, Reason: e.Reason}
+			}
+			return out
+		}
 		for i := range obs.Tickets {
 			if r, _ := in.Tickets.Get(obs.Tickets[i].ID); r.Escalations != nil {
 				observeEscalations(rc.repo, in.Queue.QueueID.Raw, r, &obs.Tickets[i])
