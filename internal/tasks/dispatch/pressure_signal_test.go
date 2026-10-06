@@ -78,7 +78,7 @@ func TestCALV0109_KernelMemoryLevelMapping(t *testing.T) {
 // CAL-V0-109: the Darwin sysctl output parses load, CPUs and the kernel
 // level; it carries no swap, and an unexpected or missing field is UNKNOWN.
 func TestCALV0109_DarwinSysctlParsing(t *testing.T) {
-	s := parseDarwinPressure(PressureSample{Source: "darwin-sysctl-host"}, []byte("vm.loadavg: { 63.40 50.00 40.00 }\nkern.memorystatus_vm_pressure_level: 2\nhw.logicalcpu: 10\n"))
+	s := parseDarwinPressure(PressureSample{Source: "darwin-sysctl-host"}, []byte("vm.loadavg: { 63.40 50.00 40.00 }\nkern.memorystatus_vm_pressure_level: 2\nhw.logicalcpu: 10\n"), pressureWantAll)
 	if load, ok := s.LoadPerCPU(); !ok || load != 6.34 {
 		t.Fatalf("load %v %v", load, ok)
 	}
@@ -90,7 +90,7 @@ func TestCALV0109_DarwinSysctlParsing(t *testing.T) {
 			t.Fatalf("invalid level %q accepted", raw)
 		}
 	}
-	missing := parseDarwinPressure(PressureSample{}, []byte("vm.loadavg: { 1.00 1.00 1.00 }\nhw.logicalcpu: 10\n"))
+	missing := parseDarwinPressure(PressureSample{}, []byte("vm.loadavg: { 1.00 1.00 1.00 }\nhw.logicalcpu: 10\n"), pressureWantAll)
 	if missing.MemoryPressureKnown || !missing.LoadKnown || len(missing.Problems) != 1 || !strings.HasPrefix(missing.Problems[0], "memory: ") {
 		t.Fatalf("missing level %+v", missing)
 	}
@@ -101,7 +101,7 @@ func TestCALV0109_DarwinSysctlParsing(t *testing.T) {
 		"vm.loadavg: { 1.00 1.00 1.00 }\nvm.swapusage: total = 1.00M used = 0.50M free = 0.50M\nhw.logicalcpu: 10",
 		"vm.loadavg: { 1.00 1.00 1.00 }\nkern.memorystatus_vm_pressure_level: 1\nkern.memorystatus_vm_pressure_level: 1\nhw.logicalcpu: 10",
 	} {
-		if bad := parseDarwinPressure(PressureSample{}, []byte(raw)); bad.LoadKnown || bad.MemoryPressureKnown || len(bad.Problems) != 1 {
+		if bad := parseDarwinPressure(PressureSample{}, []byte(raw), pressureWantAll); bad.LoadKnown || bad.MemoryPressureKnown || len(bad.Problems) != 1 {
 			t.Fatalf("unexpected sysctl output accepted: %+v", bad)
 		}
 	}

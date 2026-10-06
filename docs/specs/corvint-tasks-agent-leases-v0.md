@@ -3305,7 +3305,13 @@ average from the level.
   `reason` (CAL-V0-110), sorted before `load`. An UNKNOWN utilisation of a selected `cpu` signal makes
   the sample UNKNOWN and the CAL-V0-068 UNKNOWN rule applies. The ledger refuses a utilisation outside
   0..1 or one without its known flag. `dispatch status` and the `throttled` event MUST report
-  `cpuUtilization` (the fraction or `UNKNOWN`).
+  `cpuUtilization` (the fraction or `UNKNOWN`). Sampling MUST follow the selection: a sampler reads
+  and parses nothing for an unselected signal (Linux: `/proc/loadavg` only for `load`, `/proc/stat`
+  only for `load` or `cpu`, `/proc/meminfo` only for `swap`; macOS: one `sysctl` of the selected
+  keys only, none when nothing observable is selected), and `/proc/stat` is read only up to the end
+  of its leading `cpu` lines. Without `cpu` selected, the sample carries no tick counters or
+  utilisation and records no tick problem, so those ledger fields are written only when `cpu` is
+  selected.
 - `CAL-V0-126`: proposed (V1-0891; GitHub #646). The `pressure` object MAY carry `signals`, a map
   from host OS (`darwin` or `linux`) to 1..N unique signal names that host can observe (`darwin`:
   `load`, `memory`; `linux`: `cpu`, `load`, `swap`). Any other OS key, an empty or duplicated list, or
@@ -3323,10 +3329,14 @@ advance in `/proc/stat` is UNKNOWN; a host whose counters reset (a different sou
 baseline. A selection that omits `load` lets an inflated load average no longer throttle, which is
 the intent. Rollback removes `signals` and the CPU thresholds from the configuration; a ledger
 whose sample carries CPU counters or utilisation is refused by an older binary, so a downgrade first
-needs one start without `pressure`.
+needs one start without `pressure`. Because those fields are written only while a host selects `cpu`,
+this downgrade risk applies only to operators who opt into `cpu`; default ledgers stay readable by
+older binaries.
 
 Acceptance evidence: `TestCALV0125_CPUUtilizationDelta`, `TestCALV0125_LinuxCPUTicksParsing`,
-`TestCALV0125_DispatcherFirstTickUnknown`, `TestCALV0126_SignalSelection`,
+`TestCALV0125_DispatcherFirstTickUnknown`, `TestCALV0125_LinuxSamplingFollowsSelection`,
+`TestCALV0125_DarwinSamplingFollowsSelection`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`,
+`TestCALV0126_SignalSelection`,
 `TestCALV0126_SignalSelectionValidation` (`internal/tasks/dispatch`);
 `TestCALV0125_DispatchStatusCPUUtilization` (`internal/tasks/cli`); see
 `docs/build-log/2026-10-06-dispatch-cpu-signal-config-reload.md`. Live Linux sampling and a live
@@ -3350,21 +3360,35 @@ the owner's.
   when unreadable) is appended once per distinct refused content, and the refusal is recorded. When
   the file again matches the applied configuration the refusal is cleared with a `config` event
   (`outcome` `RESTORED`). A reload MUST NOT stop, signal or relaunch a running worker: a removed
-  role launches nothing further and its running workers stay supervised to their normal end. Across
+  role launches nothing further and its running workers stay supervised to their normal end. A
+  worker running when a reload applies MUST stay supervised under the configuration it launched
+  under (its role's wall and idle timeouts, its host's activity rules and the kill grace), even when
+  the reload lowers those timeouts or removes the role; that launch configuration is kept in memory
+  for the run, and a restart supervises adopted workers under the file it starts with. Across
   a reload the recorded pressure level is kept and pending dwell restarts; adding `pressure` starts an
   UNKNOWN record and removing it drops the record. The ledger keeps this run's record (applied
   digest and time, newest refusal of at most 1024 bytes); a restart applies the file afresh and drops
   it. `dispatch status` MUST report it as `config` (`appliedSha256`, `appliedAt`, and `refused` with
   `sha256`, `at` and `reason`, or `NONE`) once a change has been seen. Pool routing for planning
-  follows the applied configuration.
+  follows the applied configuration. `dispatch status --config FILE` MUST still read the ledger when
+  FILE no longer decodes or validates, provided a single, exactly spelled, clean absolute top-level
+  `stateDir` string precedes any syntax error: it then reports the recorded `config` refusal and
+  adds `configFile` (`state` `INVALID`, the file's `sha256`, `reason`); the escalation view is
+  omitted, pressure caps are not shown and the infrastructure-retry `policy` is `UNKNOWN`. Without a
+  recoverable `stateDir` status refuses as usage, and `dispatch unpark` always requires a valid
+  file.
 - `CAL-V0-128`: proposed (V1-0890; GitHub #645). A role `cap` MAY be 0. A role with cap 0 MUST
   launch nothing; its running workers are unaffected, and every other CAL-V0-052 bound is unchanged.
+  A disabled role MUST take no part in planning: its pool is not among the pools the plan may select
+  (CAL-V0-097), its work-state predicate holds nothing in the window (CAL-V0-105) and it yields no
+  roster candidates, so a ticket only it could take never uses the `maxActiveAttempts` window of an
+  enabled role.
 - `CAL-V0-129`: proposed (V1-0890; GitHub #645). A lane MAY carry `minAgeSeconds` 0..604800. When
   positive, the roster MUST admit a pool member only after the dispatcher has observed it in the
   same state and change sequence for at least that many seconds on the dispatcher clock. A changed
   state or change sequence, a member that disappears, a clock step backwards and a dispatcher
   restart each start a new episode; the episode clock is in memory only, so a restart can only delay
-  a lane launch. The roster stays a pure function of its inputs (CAL-V0-054).
+  a lane launch, never admit a member early. The roster stays a pure function of its inputs (CAL-V0-054).
 
 Non-goals: a filesystem watcher or signal-triggered reload; reloading `stateDir` or `workRoot`;
 stopping or draining workers of a removed or disabled role; reloading in `service` mode (the
@@ -3378,8 +3402,11 @@ refused by an older binary, so a downgrade first needs one restart (which drops 
 
 Acceptance evidence: `TestCALV0127_ConfigReloadAppliesAndRefuses`,
 `TestCALV0127_ReloadRemovedRoleKeepsWorkers`, `TestCALV0127_ConfigRecordValidation`,
-`TestCALV0128_CapZeroDisablesRole`, `TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`);
-`TestCALV0127_DispatchStatusConfigRecord` (`internal/tasks/cli`); see
+`TestCALV0127_ConfigRecordBesideStrictRecords`, `TestCALV0127_ReloadKeepsLaunchDeadlines`,
+`TestCALV0127_ReloadRemovedRoleKeepsDeadlines`, `TestCALV0128_CapZeroDisablesRole`,
+`TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`); `TestCALV0127_DispatchStatusConfigRecord`,
+`TestCALV0127_DispatchStatusWithInvalidConfigFile`, `TestCALV0128_DisabledRoleDoesNotStarveEnabledRole`
+(`internal/tasks/cli`); see
 `docs/build-log/2026-10-06-dispatch-cpu-signal-config-reload.md`. Live dispatcher qualification is
 NOT_RUN.
 
@@ -3682,10 +3709,10 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-111 | `TestCALV0111_CallerWaitBound`, `TestCALV0111_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0111_OrphanCleanupSpendsCallerWait` (`internal/tasks/store`); `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
 | CAL-V0-112 | `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
 | CAL-V0-113 | `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
-| CAL-V0-125 | `TestCALV0125_CPUUtilizationDelta`, `TestCALV0125_LinuxCPUTicksParsing`, `TestCALV0125_DispatcherFirstTickUnknown` (`internal/tasks/dispatch`); `TestCALV0125_DispatchStatusCPUUtilization` (`internal/tasks/cli`); macOS ticks NOT_DELIVERED, live Linux sampling NOT_RUN |
+| CAL-V0-125 | `TestCALV0125_CPUUtilizationDelta`, `TestCALV0125_LinuxCPUTicksParsing`, `TestCALV0125_DispatcherFirstTickUnknown`, `TestCALV0125_LinuxSamplingFollowsSelection`, `TestCALV0125_DarwinSamplingFollowsSelection`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged` (`internal/tasks/dispatch`); `TestCALV0125_DispatchStatusCPUUtilization` (`internal/tasks/cli`); macOS ticks NOT_DELIVERED, live Linux sampling NOT_RUN |
 | CAL-V0-126 | `TestCALV0126_SignalSelection`, `TestCALV0126_SignalSelectionValidation` (`internal/tasks/dispatch`) |
-| CAL-V0-127 | `TestCALV0127_ConfigReloadAppliesAndRefuses`, `TestCALV0127_ReloadRemovedRoleKeepsWorkers`, `TestCALV0127_ConfigRecordValidation` (`internal/tasks/dispatch`); `TestCALV0127_DispatchStatusConfigRecord` (`internal/tasks/cli`) |
-| CAL-V0-128 | `TestCALV0128_CapZeroDisablesRole` (`internal/tasks/dispatch`) |
+| CAL-V0-127 | `TestCALV0127_ConfigReloadAppliesAndRefuses`, `TestCALV0127_ReloadRemovedRoleKeepsWorkers`, `TestCALV0127_ConfigRecordValidation`, `TestCALV0127_ConfigRecordBesideStrictRecords`, `TestCALV0127_ReloadKeepsLaunchDeadlines`, `TestCALV0127_ReloadRemovedRoleKeepsDeadlines` (`internal/tasks/dispatch`); `TestCALV0127_DispatchStatusConfigRecord`, `TestCALV0127_DispatchStatusWithInvalidConfigFile` (`internal/tasks/cli`) |
+| CAL-V0-128 | `TestCALV0128_CapZeroDisablesRole` (`internal/tasks/dispatch`); `TestCALV0128_DisabledRoleDoesNotStarveEnabledRole` (`internal/tasks/cli`) |
 | CAL-V0-129 | `TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 

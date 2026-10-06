@@ -389,7 +389,7 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -412,6 +412,10 @@ func strictProgressJSON(raw []byte) bool {
 				fields = []string{"streak", "tiers"}
 			case "infra-episode":
 				fields = []string{"acceptanceRevision", "state", "sessions", "charged", "limit", "cooldownUntil", "launch"}
+			case "config":
+				fields = []string{"appliedSha256", "appliedAt", "refused"}
+			case "config-refusal":
+				fields = []string{"sha256", "at", "reason"}
 			}
 			seen := map[string]bool{}
 			for d.More() {
@@ -424,8 +428,12 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" || key == "config" {
 						child = key
+					}
+				case "config":
+					if key == "refused" {
+						child = "config-refusal"
 					}
 				case "worker":
 					if key == "members" {

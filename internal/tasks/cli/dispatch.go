@@ -144,6 +144,32 @@ func dispatchConfig(cmd []string, values map[string]string) (*dispatch.Config, [
 	return c, raw, nil
 }
 
+// dispatchAuxConfig reads the configuration for status and unpark. Status
+// alone tolerates a file DecodeConfig refuses (CAL-V0-127): it recovers the
+// state directory, reads the ledger, and reports the file as INVALID, so a
+// reload refusal the running dispatcher recorded stays visible. The returned
+// configuration then carries only the state directory.
+func dispatchAuxConfig(cmd []string, verb string, values map[string]string) (*dispatch.Config, *wire.Result, *wire.Object) {
+	raw, e := intent.ReadFile(values["--config"], dispatch.MaxConfig)
+	if e != nil {
+		return nil, errorResult(cmd, e), nil
+	}
+	c, e := dispatch.DecodeConfig(raw)
+	if e == nil {
+		return c, nil, nil
+	}
+	dir, ok := dispatch.ConfigStateDir(raw)
+	if verb != "status" || !ok {
+		return nil, usage(cmd, e.Error()), nil
+	}
+	sum := sha256.Sum256(raw)
+	o := wire.NewObject()
+	o.Set("state", wire.String("INVALID"))
+	o.Set("sha256", wire.String(hex.EncodeToString(sum[:])))
+	o.Set("reason", wire.String(prose(e.Error())))
+	return &dispatch.Config{StateDir: dir}, nil, o
+}
+
 // dispatchAux is `dispatch status` (a pure read of the dispatcher's own
 // files; it never opens the native store) and `dispatch unpark` (a request
 // file the running dispatcher consumes on its next tick).
@@ -157,7 +183,7 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if err != "" {
 		return usage(cmd, err)
 	}
-	c, _, res := dispatchConfig(cmd, values)
+	c, res, invalid := dispatchAuxConfig(cmd, verb, values)
 	if res != nil {
 		return res
 	}
@@ -202,6 +228,14 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 		return errorResult(cmd, e)
 	}
 	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	if invalid != nil {
+		// Escalation, pressure caps and the retry policy come from a file
+		// that does not decode: the views are kept, the policy is UNKNOWN.
+		status.Obj.Set("configFile", wire.ObjectValue(invalid))
+		if ir, ok := status.Obj.Get("infrastructureRetry"); ok {
+			ir.Obj.Set("policy", wire.String(dispatch.StateUnknown))
+		}
+	}
 	// SERVICE500-008: additive and present only when this program's
 	// installed user service binds this dispatcher state root.
 	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {

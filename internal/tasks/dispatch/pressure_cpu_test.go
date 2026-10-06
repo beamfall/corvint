@@ -3,9 +3,14 @@
 package dispatch
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -172,7 +177,7 @@ type pressureTicks struct {
 	n    uint64
 }
 
-func (f *pressureTicks) read(context.Context, time.Time) PressureSample {
+func (f *pressureTicks) read(context.Context, time.Time, pressureWant) PressureSample {
 	f.n++
 	s := f.base
 	s.CPUBusyTicks, s.CPUTotalTicks, s.CPUTicksKnown = 300*f.n, 1000*f.n, true
@@ -184,14 +189,16 @@ func (f *pressureTicks) read(context.Context, time.Time) PressureSample {
 // none; the ledger and the throttled event carry the derived value.
 func TestCALV0125_DispatcherFirstTickUnknown(t *testing.T) {
 	c := testConfig(t, "exit 0")
-	p := issue497Config()
+	p := cpuConfig()
 	p.TicksToChange = 1
+	p.Signals = map[string][]string{"linux": {PressureSignalCPU, PressureSignalLoad}}
 	c.Pressure = &p
 	q := &fakeQueue{}
 	d, err := Open("prog", c, q, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
+	d.goos = "linux"
 	base := darwinSample(9, MemoryPressureNormal)
 	base.Source = "fake"
 	d.pressureSampler = (&pressureTicks{base: base}).read
@@ -218,6 +225,7 @@ func TestCALV0125_DispatcherFirstTickUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer d.Close()
+	d.goos = "linux"
 	if d.ledger.Pressure.Sample.CPUTicksKnown {
 		t.Fatal("restart kept the tick baseline")
 	}
@@ -236,5 +244,151 @@ func TestCALV0125_DispatcherFirstTickUnknown(t *testing.T) {
 	bad.Sample.CPUUtilization, bad.Sample.CPUUtilizationKnown = .5, false
 	if bad.validate() == nil {
 		t.Fatal("ledger accepted an unknown utilization value")
+	}
+}
+
+// countedFile counts the bytes a sampler reads from one fake metric file.
+type countedFile struct {
+	r    io.Reader
+	read *int
+}
+
+func (f countedFile) Read(p []byte) (int, error) {
+	n, err := f.r.Read(p)
+	*f.read += n
+	return n, err
+}
+
+func (countedFile) Close() error { return nil }
+
+// CAL-V0-125: the Linux sampler opens only the /proc files the selected
+// signals need, and reads /proc/stat only up to the end of its cpu lines.
+func TestCALV0125_LinuxSamplingFollowsSelection(t *testing.T) {
+	stat := "cpu  300 0 100 500 100 0 0 0 0 0\ncpu0 150 0 50 250 50 0 0 0 0 0\ncpu1 150 0 50 250 50 0 0 0 0 0\nintr " + strings.Repeat("1 ", 32<<10) + "\nctxt 9\n"
+	files := map[string]string{
+		"/proc/loadavg": "1.50 1.00 0.50 1/100 42\n",
+		"/proc/stat":    stat,
+		"/proc/meminfo": "SwapTotal: 1000 kB\nSwapFree: 750 kB\n",
+	}
+	for name, tc := range map[string]struct {
+		want  pressureWant
+		opens []string
+	}{
+		"none":    {pressureWant{}, nil},
+		"load":    {pressureWant{load: true}, []string{"/proc/loadavg", "/proc/stat"}},
+		"cpu":     {pressureWant{cpu: true}, []string{"/proc/stat"}},
+		"swap":    {pressureWant{swap: true}, []string{"/proc/meminfo"}},
+		"memory":  {pressureWant{memory: true}, nil},
+		"default": {PressureConfig{}.want("linux"), []string{"/proc/loadavg", "/proc/stat", "/proc/meminfo"}},
+		"all":     {pressureWant{load: true, cpu: true, swap: true}, []string{"/proc/loadavg", "/proc/stat", "/proc/meminfo"}},
+	} {
+		var opened []string
+		statRead := 0
+		open := func(path string) (io.ReadCloser, error) {
+			opened = append(opened, path)
+			raw, ok := files[path]
+			if !ok {
+				return nil, fs.ErrNotExist
+			}
+			n := new(int)
+			if path == "/proc/stat" {
+				n = &statRead
+			}
+			return countedFile{strings.NewReader(raw), n}, nil
+		}
+		s := sampleLinuxPressure(context.Background(), time.Unix(0, 0), tc.want, open)
+		if !slices.Equal(opened, tc.opens) || len(s.Problems) != 0 {
+			t.Fatalf("%s: opened %v problems %v", name, opened, s.Problems)
+		}
+		if s.LoadKnown != tc.want.load || s.CPUKnown != tc.want.load || s.CPUTicksKnown != tc.want.cpu || s.SwapKnown != tc.want.swap {
+			t.Fatalf("%s: sample %+v", name, s)
+		}
+		if tc.want.cpu && (s.CPUBusyTicks != 400 || s.CPUTotalTicks != 1000) {
+			t.Fatalf("%s: ticks %d/%d", name, s.CPUBusyTicks, s.CPUTotalTicks)
+		}
+		if tc.want.load && s.CPUs != 2 {
+			t.Fatalf("%s: cpus %d", name, s.CPUs)
+		}
+		if statRead > 8<<10 {
+			t.Fatalf("%s: read %d bytes of /proc/stat past its cpu lines", name, statRead)
+		}
+	}
+	// The parsers stop at the first non-cpu line: a malformed later line is
+	// never tokenized.
+	if busy, total, err := parseLinuxCPUTicks([]byte("cpu  1 0 1 1 0 0 0 0\nintr x\ncpu bad\n")); err != nil || busy != 2 || total != 3 {
+		t.Fatalf("ticks %d/%d %v", busy, total, err)
+	}
+}
+
+// CAL-V0-125: the Darwin sampler asks sysctl only for the selected keys and
+// runs nothing when no Darwin signal is selected.
+func TestCALV0125_DarwinSamplingFollowsSelection(t *testing.T) {
+	out := map[string]string{darwinLoadKey: "{ 2.00 1.00 1.00 }", darwinMemoryKey: "1", darwinCPUKey: "4"}
+	for name, tc := range map[string]struct {
+		want pressureWant
+		argv []string
+	}{
+		"none":   {pressureWant{cpu: true, swap: true}, nil},
+		"load":   {pressureWant{load: true}, []string{"/usr/sbin/sysctl", darwinLoadKey, darwinCPUKey}},
+		"memory": {pressureWant{memory: true}, []string{"/usr/sbin/sysctl", darwinMemoryKey}},
+		"both":   {PressureConfig{}.want("darwin"), []string{"/usr/sbin/sysctl", darwinLoadKey, darwinMemoryKey, darwinCPUKey}},
+	} {
+		var argv []string
+		run := func(_ context.Context, a []string) ([]byte, error) {
+			argv = a
+			var b bytes.Buffer
+			for _, k := range a[1:] {
+				b.WriteString(k + ": " + out[k] + "\n")
+			}
+			return b.Bytes(), nil
+		}
+		s := sampleDarwinPressure(context.Background(), time.Unix(0, 0), tc.want, run)
+		if !slices.Equal(argv, tc.argv) || len(s.Problems) != 0 || s.LoadKnown != tc.want.load || s.MemoryPressureKnown != tc.want.memory || s.CPUTicksKnown {
+			t.Fatalf("%s: argv %v sample %+v", name, argv, s)
+		}
+	}
+	if s := parseDarwinPressure(PressureSample{}, []byte(darwinLoadKey+": { 1.00 1.00 1.00 }\n"+darwinMemoryKey+": 1\n"), pressureWant{memory: true}); len(s.Problems) != 1 {
+		t.Fatalf("an unrequested sysctl field was accepted: %+v", s)
+	}
+}
+
+// CAL-V0-125: without cpu selected the dispatcher asks for no CPU ticks,
+// records no "no previous tick counters" problem, and writes no CPU tick or
+// utilization field to the ledger, which older binaries then still read.
+func TestCALV0125_UnselectedCPULeavesLedgerUnchanged(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	p := cpuConfig() // thresholds configured, but no Signals entry selects cpu
+	c.Pressure = &p
+	d, err := Open("prog", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	d.goos = "linux"
+	ticks := &pressureTicks{base: issue497Sample(1, .1)}
+	var wants []pressureWant
+	d.pressureSampler = func(ctx context.Context, now time.Time, w pressureWant) PressureSample {
+		wants = append(wants, w)
+		return ticks.read(ctx, now, w) // a sampler that ignores the selection
+	}
+	for i := 0; i < 2; i++ {
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(wants) != 2 || wants[0].cpu || !wants[0].load || !wants[0].swap {
+		t.Fatalf("selection passed to the sampler %+v", wants)
+	}
+	raw, err := os.ReadFile(filepath.Join(d.dir, "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "no previous tick counters"} {
+		if bytes.Contains(raw, []byte(field)) {
+			t.Fatalf("ledger carries %s without cpu selected:\n%s", field, raw)
+		}
+	}
+	if _, err := LoadLedger(d.dir, "prog"); err != nil {
+		t.Fatal(err)
 	}
 }

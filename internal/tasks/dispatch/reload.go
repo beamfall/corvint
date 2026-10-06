@@ -110,6 +110,11 @@ func (d *Dispatcher) reloadConfig() {
 			removed = append(removed, r.Name)
 		}
 	}
+	under := map[string]*Config{}
+	for _, w := range d.ledger.Workers {
+		under[w.ID] = d.launchConfig(w)
+	}
+	d.launchedUnder = under
 	d.Config, d.configSha256, d.configAt = c, sum, now
 	rec.AppliedSha256, rec.AppliedAt, rec.Refused = sum, now, nil
 	d.ledger.Config = rec

@@ -164,11 +164,12 @@ func (c *Config) Escalates() bool {
 
 // TicketPools is the sorted set of pools the ticket roles' workers claim:
 // the only pools whose tickets the dispatcher's plan may select (CAL-V0-097).
-// It is empty, never nil, when no role names a pool.
+// It is empty, never nil, when no role names a pool. A disabled (cap 0)
+// role claims nothing, so its pool is not planned (CAL-V0-128).
 func (c *Config) TicketPools() []string {
 	out := []string{}
 	for _, r := range c.Roles {
-		if r.Match != nil && r.Match.Pool != "" && !slices.Contains(out, r.Match.Pool) {
+		if r.Cap > 0 && r.Match != nil && r.Match.Pool != "" && !slices.Contains(out, r.Match.Pool) {
 			out = append(out, r.Match.Pool)
 		}
 	}
@@ -475,6 +476,46 @@ func (c *Config) validateLadder(r Role) error {
 }
 
 func clean(p string) bool { return filepath.IsAbs(p) && filepath.Clean(p) == p }
+
+// ConfigStateDir recovers the state directory from configuration bytes that
+// DecodeConfig refused, so `dispatch status` can still read the ledger and
+// show a recorded reload refusal (CAL-V0-127). It reads the top-level object
+// up to the first syntax error and reports only a single, exactly spelled,
+// clean absolute stateDir string; anything ambiguous recovers nothing.
+func ConfigStateDir(raw []byte) (string, bool) {
+	if len(raw) > MaxConfig {
+		return "", false
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return "", false
+	}
+	dir, seen := "", 0
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			break
+		}
+		if key, _ := t.(string); strings.EqualFold(key, "stateDir") {
+			seen++
+			v, err := dec.Token()
+			s, ok := v.(string)
+			if err != nil || !ok || key != "stateDir" {
+				return "", false
+			}
+			dir = s
+			continue
+		}
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			break
+		}
+	}
+	if seen != 1 || !clean(dir) {
+		return "", false
+	}
+	return dir, true
+}
 
 func placeholdersKnown(s string) error {
 	for _, p := range placeholder.FindAllString(s, -1) {

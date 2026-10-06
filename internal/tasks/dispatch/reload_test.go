@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -218,6 +219,62 @@ func TestCALV0127_ReloadRemovedRoleKeepsWorkers(t *testing.T) {
 	}
 }
 
+// CAL-V0-127: a running worker stays supervised under the role it launched
+// with; lowering its wall and idle timeouts affects only later launches.
+func TestCALV0127_ReloadKeepsLaunchDeadlines(t *testing.T) {
+	c := testConfig(t, "sleep 300")
+	c.Roles[0].WallSeconds, c.Roles[0].IdleSeconds = 3600, 3600
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	f := newReloadFixture(t, c, q)
+	f.tick()
+	if f.d.Running() != 1 {
+		t.Fatalf("running %d", f.d.Running())
+	}
+	w := f.d.ledger.Workers[0]
+	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
+
+	next := cloneConfig(t, c)
+	next.Roles[0].WallSeconds, next.Roles[0].IdleSeconds = 60, 30
+	f.write(next)
+	f.tick()
+	if f.d.Config.Roles[0].WallSeconds != 60 {
+		t.Fatal("reload not applied")
+	}
+	f.d.Now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	f.tick()
+	if f.d.Running() != 1 || len(f.events("killing")) != 0 {
+		t.Fatalf("lowered deadlines stopped a running worker: running %d killing %+v", f.d.Running(), f.events("killing"))
+	}
+}
+
+// CAL-V0-127: removing a running worker's role keeps the wall and idle
+// deadlines it launched under.
+func TestCALV0127_ReloadRemovedRoleKeepsDeadlines(t *testing.T) {
+	c := testConfig(t, "sleep 300")
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	f := newReloadFixture(t, c, q)
+	f.tick()
+	if f.d.Running() != 1 {
+		t.Fatalf("running %d", f.d.Running())
+	}
+	w := f.d.ledger.Workers[0]
+	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
+
+	next := cloneConfig(t, c)
+	next.Roles = []Role{{Name: "other", Host: "sh", Cap: 1, Match: &Match{Labels: []string{"never"}}, Prompt: "p", IdleSeconds: 3600, WallSeconds: 3600}}
+	f.write(next)
+	f.tick()
+	if f.d.Running() != 1 {
+		t.Fatalf("reload stopped the worker: running %d", f.d.Running())
+	}
+	f.d.Now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	f.tick()
+	ev := f.events("killing")
+	if len(ev) != 1 || ev[0].Worker != w.ID || ev[0].Detail["reason"] != "WALL" {
+		t.Fatalf("removed role dropped the launch deadlines: killing %+v", ev)
+	}
+}
+
 // CAL-V0-128: cap 0 is valid and disables the role; other roles still launch.
 func TestCALV0128_CapZeroDisablesRole(t *testing.T) {
 	c := testConfig(t, "exit 0")
@@ -235,6 +292,15 @@ func TestCALV0128_CapZeroDisablesRole(t *testing.T) {
 	}
 	if len(got) != 2 {
 		t.Fatalf("enabled role roster %+v", got)
+	}
+	pooled := cloneConfig(t, c)
+	pooled.Roles[1].Match = &Match{Pool: "lanes"}
+	if got := pooled.TicketPools(); len(got) != 0 {
+		t.Fatalf("a disabled role's pool is planned: %v", got)
+	}
+	pooled.Roles[1].Cap = 1
+	if got := pooled.TicketPools(); !slices.Equal(got, []string{"lanes"}) {
+		t.Fatalf("enabled pool role: %v", got)
 	}
 	c.Roles[0].Cap = 0
 	if got := Roster(c, obs, nil, nil); len(got) != 0 {
@@ -347,5 +413,69 @@ func TestCALV0127_ConfigRecordValidation(t *testing.T) {
 		if err := r.validate(); err == nil {
 			t.Errorf("invalid record %d accepted", i)
 		}
+	}
+}
+
+// CAL-V0-127: the config record joins the strict ledger reader's members,
+// so a ledger carrying progress or an infrastructure retry episode beside
+// an applied or refused reload still loads, and a duplicate or aliased
+// config member is refused like any other strict member.
+func TestCALV0127_ConfigRecordBesideStrictRecords(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Unix(1700000000, 0).UTC()
+	key := "ticket:a:q:t"
+	l := &Ledger{Profile: StateProfile, Program: "prog", Workers: []*Worker{}, Backoff: map[string]*BackoffState{},
+		Progress:   map[string]*ProgressHistory{key: {Current: progressDigest("A"), Seen: []string{progressDigest("A")}}},
+		InfraRetry: map[string]*InfraEpisode{retryKey: {AcceptanceRevision: "1", State: InfraRunning, Sessions: 1, Charged: 1, Limit: 3, CooldownUntil: now, Launch: "prog.impl.1.ab-3"}},
+		Config:     &ConfigRecord{AppliedSha256: strings.Repeat("a", 64), AppliedAt: now, Refused: &ConfigRefusal{Sha256: strings.Repeat("b", 64), At: now, Reason: "dispatch config: bad"}}}
+	good, err := ledgerBytes(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	applied := *l
+	applied.Config = &ConfigRecord{AppliedSha256: l.Config.AppliedSha256, AppliedAt: now}
+	plain, err := ledgerBytes(&applied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "state.json")
+	for name, raw := range map[string]string{
+		"refused":        string(good),
+		"applied":        string(plain),
+		"duplicate":      strings.Replace(string(good), `"config": {`, `"config": {}, "config": {`, 1),
+		"member alias":   strings.Replace(string(good), `"appliedSha256":`, `"AppliedSha256":`, 1),
+		"refusal alias":  strings.Replace(string(good), `"reason":`, `"Reason":`, 1),
+		"record aliased": strings.Replace(string(good), `"config":`, `"Config":`, 1),
+	} {
+		if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := LoadLedger(dir, "prog")
+		switch name {
+		case "refused", "applied":
+			if err != nil || got.Config == nil || got.Progress[key] == nil || got.InfraRetry[retryKey] == nil || (name == "refused") != (got.Config.Refused != nil) {
+				t.Fatalf("%s: ledger refused or lost records: %+v %v", name, got, err)
+			}
+		default:
+			if err == nil {
+				t.Errorf("%s accepted", name)
+			}
+		}
+	}
+
+	// The dispatcher path: a refused reload saved beside progress loads.
+	d, _, source := progressDispatcher(t)
+	writeProgress(t, source, "A")
+	cfg := filepath.Join(t.TempDir(), "dispatch.json")
+	if err := os.WriteFile(cfg, []byte(`{"profile":"nope"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(cfg) }, []byte("initial"))
+	if err := d.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := LoadLedger(d.dir, d.Program)
+	if err != nil || saved.Progress[key] == nil || saved.Config == nil || saved.Config.Refused == nil {
+		t.Fatalf("saved ledger with progress and a refusal: %+v %v", saved, err)
 	}
 }

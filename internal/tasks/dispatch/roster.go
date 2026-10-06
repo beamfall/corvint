@@ -136,8 +136,8 @@ func workStateHeld(c *Config, ts []Ticket) map[string]bool {
 		}
 		admitted, roles := false, 0
 		for _, r := range c.Roles {
-			if r.Match == nil {
-				continue
+			if r.Match == nil || r.Cap == 0 {
+				continue // a disabled role admits nothing (CAL-V0-128)
 			}
 			roles++
 			if stateMatches(r.Match, t.State) {
@@ -251,6 +251,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 	live := liveAttempts(obs)
 	var cands []candidate
 	for ri, r := range c.Roles {
+		if r.Cap == 0 {
+			continue // CAL-V0-128: a disabled role plans nothing
+		}
 		if r.Lane != nil {
 			states := r.Lane.States
 			if len(states) == 0 {
