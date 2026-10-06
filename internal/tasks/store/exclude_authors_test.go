@@ -87,13 +87,13 @@ func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
 	if r := s.lease(t, "plain-review", reviewOf(plain, transaction.ExcludeAuthorsLatest), 0, nil); !r.Outcome.HasCode(wire.CodeIndependenceUnverified) || !strings.Contains(r.Detail, "recorded no stage") {
 		t.Fatalf("unpooled implement %+v", r)
 	}
-	// CAL-V0-104: explicit members cover the generation that recorded no
+	// CAL-V0-107: explicit members cover the generation that recorded no
 	// member, and the admitted claim reports it.
 	covered := s.lease(t, "plain-review-covered", reviewOf(plain, transaction.ExcludeAuthorsLatest, "review"), 0, nil)
 	if covered.PoolAllocation == nil || covered.PoolAllocation.MemberID == "review" || covered.AuthorExclusion == nil || len(covered.AuthorExclusion.Covered) != 1 || len(covered.AuthorExclusion.Notes()) != 2 {
 		t.Fatalf("covered unpooled implement %+v", covered)
 	}
-	// CAL-V0-104: a ticket with no implement generation has nothing to
+	// CAL-V0-107: a ticket with no implement generation has nothing to
 	// exclude, so a review claim is admitted, not refused.
 	fresh := s.ticket(t, "never-implemented")
 	if r := s.lease(t, "fresh-review", reviewOf(fresh, transaction.ExcludeAuthorsLatest), 0, nil); r.Outcome.Outcome != mutation.OutcomeCompleted || r.PoolAllocation == nil || r.AuthorExclusion == nil || len(r.AuthorExclusion.Authors) != 0 {
@@ -108,7 +108,7 @@ func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	// A pooled claim without a stage recorded its member but no stage: no
-	// explicit member covers it (CAL-V0-104), so CLAIM_NEXT skips it.
+	// explicit member covers it (CAL-V0-107), so CLAIM_NEXT skips it.
 	unverified := s.ticket(t, "unverified")
 	stageless := claimOf(unverified, unverified)
 	stageless.Pool, stageless.ExcludeMembers = "db", []string{"a", "review"}
@@ -168,7 +168,7 @@ func TestCALV0098_HealthSkipsAuthor(t *testing.T) {
 	if after, _ := os.ReadDir(markers); len(after) != len(before) {
 		t.Fatal("unverified claim probed a member")
 	}
-	// CAL-V0-104: with an explicit member the unrecorded generation is
+	// CAL-V0-107: with an explicit member the unrecorded generation is
 	// covered, and health preparation (which carries no explicit members)
 	// covers it too instead of refusing the prepared claim.
 	s.t0 = now(t)
@@ -230,11 +230,11 @@ func TestCALV0098_HealthPrepareRederivesAuthors(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-104: health preparation covers an unrecorded generation only when
+// CAL-V0-107: health preparation covers an unrecorded generation only when
 // the claim's caller supplied explicit members. A generation that races in
 // before preparation of a claim without --exclude-member refuses before any
 // health command runs, so no member is probed or quarantined.
-func TestCALV0104_HealthPrepareNeverImpliesCover(t *testing.T) {
+func TestCALV0107_HealthPrepareNeverImpliesCover(t *testing.T) {
 	s := newLeaseStore(t)
 	markers := t.TempDir()
 	touch := func(name string) wire.Value {

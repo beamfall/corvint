@@ -150,7 +150,7 @@ func policyNeutral(t *testing.T, transcript string, raw []byte) string {
 	return transcript
 }
 
-// CAL-V0-101 (acceptance 3), CAL-V0-105: over generated pool, ticket and
+// CAL-V0-101 (acceptance 3), CAL-V0-108: over generated pool, ticket and
 // handoff states, the --pool plan, the default plan, an explicit claim and
 // claim-next agree on every yield, and a SELECTED --pool entry is admitted
 // by an explicit claim.
@@ -193,7 +193,7 @@ func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 				}
 				if out := planClaim(c); out.result == nil {
 					f.apply(t, out)
-					// CAL-V0-105: some claims hand off downstream, so the
+					// CAL-V0-108: some claims hand off downstream, so the
 					// ticket waits again with a derived admission rank.
 					if a := attemptOf(t, out); a.Stage != "" && rng.Intn(3) != 0 {
 						f.release(t, a, wire.CodeHandoff, []string{"review", "integrate"}[rng.Intn(2)])
@@ -218,7 +218,7 @@ func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 			if e.State == PlanBlocked {
 				continue
 			}
-			// The unblocked plan entries ranked ahead (CAL-V0-105) are the
+			// The unblocked plan entries ranked ahead (CAL-V0-108) are the
 			// direct predicate.
 			ahead := []string{}
 			for _, r := range competing {

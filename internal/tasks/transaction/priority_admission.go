@@ -12,7 +12,7 @@ import (
 )
 
 // admissionRank is a ticket's derived place in a pool's priority-admission
-// order (CAL-V0-105). stage is the downstream stage (review or integrate)
+// order (CAL-V0-108). stage is the downstream stage (review or integrate)
 // that the ticket's latest generation handed off to at the current
 // acceptance revision, and since is that generation's terminal phase
 // sequence, when the ticket waits for it; both are empty otherwise.
@@ -34,7 +34,7 @@ func admissionRankOf(attempts map[string]*snapshot.Attempt, rec *ticket.Record) 
 	return r
 }
 
-// admissionLess is the CAL-V0-105 admission order: priority first; at equal
+// admissionLess is the CAL-V0-108 admission order: priority first; at equal
 // priority a ticket waiting for a downstream stage before one that is not,
 // two downstream tickets by the earlier handoff, and then plan order
 // (order, ticketId). Without a downstream ticket it is plan order.
@@ -106,7 +106,7 @@ func admissionAhead(queue []admissionCandidate, r admissionRank) (waiting, unobs
 }
 
 // priorityWaiting lists, in admission order, the tickets that compete with
-// rec for pool and are ranked ahead of it (CAL-V0-101, CAL-V0-105).
+// rec for pool and are ranked ahead of it (CAL-V0-101, CAL-V0-108).
 func priorityWaiting(in PlanInput, rec *ticket.Record, pool string) (waiting, unobserved []string) {
 	return admissionAhead(admissionQueue(in, pool), admissionRankOf(in.Attempts, rec))
 }

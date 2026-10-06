@@ -193,7 +193,7 @@ A pool may opt into priority-yield admission (CAL-V0-101) with `"priorityAdmissi
 Then an explicit `claim <ticket> --pool test-env` is refused `BLOCKED RESOURCE_COLLISION` when the
 higher-priority `OPEN` tickets that record `requiresPool:"test-env"`, have no claim blocker and no
 live attempt are at least as many as the pool's free eligible members; the detail ends
-`yields to <ticketId>`, naming the first of them in admission order (CAL-V0-105): priority first,
+`yields to <ticketId>`, naming the first of them in admission order (CAL-V0-108): priority first,
 then, at equal priority, tickets whose latest generation handed off to `review` or `integrate`
 (earliest handoff first), then plan order. When the ticket yielded to is such a downstream ticket the
 detail adds `; <ticketId> awaits <stage> since seq <seq>`. Plan preview (default and `--pool`)
@@ -246,7 +246,7 @@ implement generation without a pool member refuses the claim with `INDEPENDENCE_
 never silently unfiltered, and nothing is recovered from receipts. When you also pass at least one
 `--exclude-member`, those generations (except a stage-less one that recorded a member) are covered by
 your explicit set instead, and the claim result warns that the exclusion is caller-asserted, not
-recorded (CAL-V0-104). A ticket with no implement generation has no author to exclude and is not
+recorded (CAL-V0-107). A ticket with no implement generation has no author to exclude and is not
 refused.
 When no member remains, the claim refuses `RESOURCE_COLLISION` with a detail naming the excluded
 authors. `plan preview` reports the same per ticket, and with this flag adds `detail` and

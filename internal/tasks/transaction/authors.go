@@ -30,7 +30,7 @@ type Author struct {
 // requested-pool exclusion set, the explicit members unioned with the
 // authors' members in that pool (nil when empty). Covered names the
 // generations with no recorded pool member that the caller's explicit
-// exclusions were taken to cover (CAL-V0-104); they contribute no member.
+// exclusions were taken to cover (CAL-V0-107); they contribute no member.
 type AuthorExclusion struct {
 	TicketID string
 	Authors  []Author
@@ -95,7 +95,7 @@ func (g endedGeneration) name() string {
 // first implement generation; ALL reads them all. It never infers a member
 // from receipts or any other history (no backfill of legacy member facts).
 // With explicit exclusions, a generation with no recorded member is covered
-// by them instead (CAL-V0-104), and a ticket with nothing to exclude is not
+// by them instead (CAL-V0-107), and a ticket with nothing to exclude is not
 // refused.
 func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool string, explicit []string) (*AuthorExclusion, string) {
 	cover := len(explicit) > 0
@@ -147,7 +147,7 @@ func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool s
 	return &AuthorExclusion{TicketID: ticketID, Authors: authors, Excluded: excluded, Covered: covered}, ""
 }
 
-// Notes are the CAL-V0-104 caveats of a derivation the claim result and
+// Notes are the CAL-V0-107 caveats of a derivation the claim result and
 // plan preview report: generations covered by the caller's explicit
 // exclusions rather than by recorded members, and a ticket with no recorded
 // implement author at all. They are empty for a fully recorded derivation.
@@ -175,7 +175,7 @@ func (x *AuthorExclusion) AuthorsDetail() string {
 		names = append(names, "member "+a.MemberID+" of pool "+a.PoolID+" (generation "+string(a.Generation)+")")
 	}
 	if len(names) == 0 {
-		// CAL-V0-104: no implement generation records an author.
+		// CAL-V0-107: no implement generation records an author.
 		return "excluded implement authors: none recorded"
 	}
 	return "excluded implement authors: " + strings.Join(names, ", ")

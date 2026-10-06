@@ -53,12 +53,12 @@ func (f *priorityFixture) admitted(t *testing.T, c leaseContext) *snapshot.Attem
 	return attemptOf(t, out)
 }
 
-// CAL-V0-105 (issue 626): a review handoff waits while no member is free; an
+// CAL-V0-108 (issue 626): a review handoff waits while no member is free; an
 // implement claim for an equal-priority ticket earlier in plan order arrives;
 // when a member frees, the implement claim yields to the waiting review, the
 // plans and claim-next agree, and the review claim is admitted. Without the
 // flag the implement claim takes the member, as before.
-func TestCALV0105_WaitingReviewOutranksArrivingImplement(t *testing.T) {
+func TestCALV0108_WaitingReviewOutranksArrivingImplement(t *testing.T) {
 	for _, flag := range []string{"true", ""} {
 		t.Run("flag="+flag, func(t *testing.T) {
 			// AA-01 and AB-01 need no pool, so they occupy members without
@@ -122,10 +122,10 @@ func TestCALV0105_WaitingReviewOutranksArrivingImplement(t *testing.T) {
 	}
 }
 
-// CAL-V0-105: at equal priority two downstream tickets are admitted in
+// CAL-V0-108: at equal priority two downstream tickets are admitted in
 // handoff order, not plan order, and the plan, an explicit claim and
 // claim-next agree.
-func TestCALV0105_EarlierHandoffWinsAtEqualPriority(t *testing.T) {
+func TestCALV0108_EarlierHandoffWinsAtEqualPriority(t *testing.T) {
 	ra, rb := priorityTicket("RA-01", "P0", "lanes"), priorityTicket("RB-01", "P0", "lanes")
 	f := newPriorityFixture(t, priorityPolicy(t, []string{"a", "b", "c"}, "true"), []*ticket.Record{ra, rb})
 	b := f.admitted(t, f.staged(rb.TicketID.Raw, "lanes", "implement"))
@@ -149,10 +149,10 @@ func TestCALV0105_EarlierHandoffWinsAtEqualPriority(t *testing.T) {
 	}
 }
 
-// CAL-V0-105: the derived rank. Only a terminal handoff to review or
+// CAL-V0-108: the derived rank. Only a terminal handoff to review or
 // integrate at the current acceptance revision ranks downstream; priority
 // still decides first.
-func TestCALV0105_AdmissionRank(t *testing.T) {
+func TestCALV0108_AdmissionRank(t *testing.T) {
 	rec := priorityTicket("RV-01", "P1", "lanes")
 	att := func(phase, disposition, to, revision string, since uint64) map[string]*snapshot.Attempt {
 		return map[string]*snapshot.Attempt{"x": {TicketID: rec.TicketID, TicketRevision: wire.Count(revision), Generation: "1", Phase: phase, PhaseSinceSeq: wire.SizeOf(since), RetryAccounting: &snapshot.RetryAccounting{Disposition: disposition}, HandoffTo: to}}
@@ -187,12 +187,12 @@ func TestCALV0105_AdmissionRank(t *testing.T) {
 	}
 }
 
-// CAL-V0-105: a downstream competitor counts only when its own stage has a
+// CAL-V0-108: a downstream competitor counts only when its own stage has a
 // free eligible member of the pool, and every path reads it that way. With
 // the only free member reserved for implement, a waiting review cannot take
 // it, so the default plan, the --pool plan, claim-next, claimability and an
 // explicit claim all admit the equal-priority implement ticket.
-func TestCALV0105_DownstreamCompetitorNeedsItsStageMember(t *testing.T) {
+func TestCALV0108_DownstreamCompetitorNeedsItsStageMember(t *testing.T) {
 	aa, ab := priorityTicket("AA-01", "P0", ""), priorityTicket("AB-01", "P0", "")
 	fa, rv := priorityTicket("FA-01", "P0", "lanes"), priorityTicket("RV-02", "P0", "lanes")
 	f := newPriorityFixture(t, priorityPolicy(t, []string{"a", "b", "c"}, "true"), []*ticket.Record{aa, ab, fa, rv})

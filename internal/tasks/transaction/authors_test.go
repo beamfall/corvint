@@ -197,10 +197,10 @@ func TestCALV0098_DeriveAuthors(t *testing.T) {
 	}
 }
 
-// CAL-V0-104: explicit exclusions cover generations that record no pool
+// CAL-V0-107: explicit exclusions cover generations that record no pool
 // member, and say so; without them the CAL-V0-098 refusal is unchanged; a
 // ticket with no implement generation has nothing to exclude.
-func TestCALV0104_ExplicitMembersCoverUnrecordedGenerations(t *testing.T) {
+func TestCALV0107_ExplicitMembersCoverUnrecordedGenerations(t *testing.T) {
 	const tk = "ticket:acme:main:AT-001"
 	impl := func(m string) *snapshot.GenerationHistory { return authorHistory("implement", "db", m) }
 	rev := authorHistory("review", "db", "r")

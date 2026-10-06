@@ -92,7 +92,7 @@ func PriorityFirst(in PlanInput) TicketPlan {
 	plan := TicketPlan{MaxActiveAttempts: in.Policy.MaxActiveAttempts, AvailableWorkers: availableWorkers(in), Entries: []PlanEntry{}}
 	selected := []PlanEntry{}
 	// waits holds each opted-in pool's admission order, so every entry's
-	// waiting list is priorityWaiting (CAL-V0-101, CAL-V0-105).
+	// waiting list is priorityWaiting (CAL-V0-101, CAL-V0-108).
 	waits := newAdmissionWaits(in)
 	for _, rec := range planTickets(in.Tickets) {
 		e := planEntry(in, rec)

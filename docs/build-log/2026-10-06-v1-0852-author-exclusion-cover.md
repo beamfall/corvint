@@ -7,7 +7,7 @@ ticket whose implement generation predates V1-0788 even when the caller named th
 at all. The V1-0789 entry recorded both refusals as an implementer extension raised as owner
 questions; the issue answers them.
 
-Requirement: new `CAL-V0-104` (V1-0852 subsection of `## Requirements` in
+Requirement: new `CAL-V0-107` (V1-0852 subsection of `## Requirements` in
 `docs/specs/corvint-tasks-agent-leases-v0.md`); `CAL-V0-098` amended to defer to it.
 
 ### Change
@@ -34,15 +34,15 @@ Requirement: new `CAL-V0-104` (V1-0852 subsection of `## Requirements` in
   generation newer than a recorded one is covered and the recorded author is excluded.
 - Plan preview keeps its CAL-V0-098 shape; the caveat is on the claim result only.
 - Replay derives nothing, so an exact replay carries no warning; preimages and CAL-V0-065 binding
-  are unchanged (`TestCALV0104_CLIClaimReportsCoveredGenerations` replays).
+  are unchanged (`TestCALV0107_CLIClaimReportsCoveredGenerations` replays).
 
 ### Evidence
 
-`GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count=1 -timeout 30m -run 'CALV0098|CALV0104'
+`GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count=1 -timeout 30m -run 'CALV0098|CALV0107'
 ./internal/tasks/transaction ./internal/tasks/store ./internal/tasks/cli`: all `ok`. New
-`TestCALV0104_ExplicitMembersCoverUnrecordedGenerations` (mixed legacy and recorded generations,
+`TestCALV0107_ExplicitMembersCoverUnrecordedGenerations` (mixed legacy and recorded generations,
 with and without explicit members, LATEST and ALL, no-implement tickets, prepare cover) and
-`TestCALV0104_CLIClaimReportsCoveredGenerations`; the CAL-V0-098 store and CLI tests were updated
+`TestCALV0107_CLIClaimReportsCoveredGenerations`; the CAL-V0-098 store and CLI tests were updated
 where they pinned the old never-implemented refusal, and gained a stage-less pooled case that still
 refuses and a health-backed covered claim. `go vet` (darwin, `GOOS=linux`, `GOOS=windows`) on the
 three packages, `gofmt -l`, `make spec-requirements-check requirement-definitions-check

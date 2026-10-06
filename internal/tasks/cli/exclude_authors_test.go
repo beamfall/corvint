@@ -80,7 +80,7 @@ func TestCALV0098_CLIExcludeAuthors(t *testing.T) {
 		if id == authored {
 			continue
 		}
-		// CAL-V0-104: a ticket with no implement generation has nothing to
+		// CAL-V0-107: a ticket with no implement generation has nothing to
 		// exclude and is not refused.
 		if field(en, "reason").Str == wire.CodeIndependenceUnverified || len(field(en, "excludedAuthors").Arr) != 0 {
 			t.Fatalf("unimplemented entry %s", wire.Encode(en))
@@ -157,7 +157,7 @@ func TestCALV0098_ExhaustedPoolParity(t *testing.T) {
 			t.Fatal(x.res)
 		}
 		// A pooled claim without --stage records its member but no stage;
-		// no explicit member covers it (CAL-V0-104).
+		// no explicit member covers it (CAL-V0-107).
 		id := planTicket(t, r.Root, "stageless", "P1", `["stageless"]`)
 		x := atm(t, r.Root, nil, "claim", id, "--holder", "builder", "--request-id", "stageless", "--pool", "db", "--exclude-member", "a", "--exclude-member", "review")
 		item := x.res.Items[0]
@@ -205,10 +205,10 @@ func TestCALV0098_ExhaustedPoolParity(t *testing.T) {
 	})
 }
 
-// CAL-V0-104: a review claim on a ticket whose implement generation recorded
+// CAL-V0-107: a review claim on a ticket whose implement generation recorded
 // no pool member is admitted with explicit members, and its result says the
 // exclusion rests on them; without explicit members it is still refused.
-func TestCALV0104_CLIClaimReportsCoveredGenerations(t *testing.T) {
+func TestCALV0107_CLIClaimReportsCoveredGenerations(t *testing.T) {
 	r := exclusionCLIRepo(t)
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatal(x.res)

@@ -40,7 +40,7 @@ type Report struct {
 	// Delivery is what a claim or claim-next delivers from its admission.
 	Delivery *ClaimDelivery
 	// AuthorExclusion is the model's CAL-V0-098 derivation on a fresh
-	// claim, which health preparation must respect and whose CAL-V0-104
+	// claim, which health preparation must respect and whose CAL-V0-107
 	// caveats the claim result reports.
 	AuthorExclusion *transaction.AuthorExclusion
 	// Outcome is the model's outcome, unchanged.

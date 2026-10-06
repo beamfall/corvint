@@ -5,7 +5,7 @@ ticket V1-0855. With `priorityAdmission` on, an implement-stage pooled claim for
 ticket earlier in plan order took the only free member while a review claim for a ticket that gated
 a phase had waited longer. CAL-V0-101 ranked competitors by plan order only.
 
-Requirement: new `CAL-V0-105` (V1-0855 subsection of `## Requirements` in
+Requirement: new `CAL-V0-108` (V1-0855 subsection of `## Requirements` in
 `docs/specs/corvint-tasks-agent-leases-v0.md`); `CAL-V0-101` amended to rank by admission order.
 
 ### Change
@@ -36,11 +36,11 @@ Requirement: new `CAL-V0-105` (V1-0855 subsection of `## Requirements` in
 ### Evidence
 
 `GOMAXPROCS=2 GOTOOLCHAIN=local go test -p 1 -count=1 -timeout 30m -run
-'CALV0101|CALV0105|CALV0098|CALV0104|CALV0097|CALV0084|CALV0082|PriorityAdmission|Priority'
+'CALV0101|CALV0108|CALV0098|CALV0107|CALV0097|CALV0084|CALV0082|PriorityAdmission|Priority'
 ./internal/tasks/transaction ./internal/tasks/store ./internal/tasks/cli`: all `ok`. New
-`TestCALV0105_WaitingReviewOutranksArrivingImplement` (the issue's order; flag off admits the
-implement claim as before), `TestCALV0105_EarlierHandoffWinsAtEqualPriority`,
-`TestCALV0105_AdmissionRank`; the 400-case `TestCALV0101_PlanClaimAndClaimNextAgree` now generates
+`TestCALV0108_WaitingReviewOutranksArrivingImplement` (the issue's order; flag off admits the
+implement claim as before), `TestCALV0108_EarlierHandoffWinsAtEqualPriority`,
+`TestCALV0108_AdmissionRank`; the 400-case `TestCALV0101_PlanClaimAndClaimNextAgree` now generates
 handoffs and requires at least one yield to a downstream ticket; `TestCALV0101_FlagOffMatchesNMinusOne`
 keeps its pinned pre-CAL-V0-101 digest. `go vet` (darwin, `GOOS=linux`, `GOOS=windows`) on the three
 packages, `gofmt -l`, `make spec-requirements-check requirement-definitions-check
