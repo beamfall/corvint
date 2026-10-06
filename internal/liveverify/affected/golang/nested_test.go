@@ -181,6 +181,10 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 		{"replace without version", "module example.test/nested\n\nreplace example.test/alias nonsense => ../sibling\n", "unparsable: line 3: malformed replace directive"},
 		{"block comment", "module example.test/nested\n/* note */\n", "unparsable: line 2: block comment"},
 		{"repeated go", "module example.test/nested\n\ngo 1.26\ngo 1.27\n", "unparsable: line 4: malformed go directive"},
+		// The go tool matches these against the raw token, so quoting fails.
+		{"quoted go version", "module example.test/nested\n\ngo \"1.26\"\n", "unparsable: line 3: malformed go directive"},
+		{"quoted toolchain", "module example.test/nested\n\ntoolchain `go1.27.1`\n", "unparsable: line 3: malformed toolchain directive"},
+		{"quoted godebug", "module example.test/nested\n\ngodebug \"panicnil=1\"\n", "unparsable: line 3: malformed godebug directive"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			root := nestedFixture(t, testCase.manifest, nil)
@@ -231,6 +235,10 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 		{"escaped root module path", map[string]string{"go.mod": "module \"example.test/ro\\x6ft\"\n"}, `observed manifest go.mod declares "example.test/root", read as "example.test/ro\\x6ft"`},
 		{"unparsable root manifest", map[string]string{"go.mod": "module example.test/root\n\ngo nonsense\n"}, "observed manifest go.mod is unparsable: line 3: malformed go directive"},
 		{"root replacement outside the repository", map[string]string{"go.mod": "module example.test/root\n\nreplace example.test/alias => ../elsewhere\n"}, "go.mod: replace target ../elsewhere lies outside the repository"},
+		// Only an exact module directory establishes identity: a differently
+		// cased or linked path can name the nested module on some filesystems.
+		{"root replacement with a differently cased directory", map[string]string{"go.mod": "module example.test/root\n\nrequire example.test/alias v0.0.0\n\nreplace example.test/alias => ./NESTED\n"}, "go.mod replaces example.test/alias with ./NESTED, which names no known module directory"},
+		{"workspace replacement with an unknown directory", map[string]string{"go.work": "go 1.26\n\nuse .\n\nreplace example.test/alias => ./link\n"}, "go.work replaces example.test/alias with ./link, which names no known module directory"},
 		{"root workspace without uses", map[string]string{"go.work": "go 1.26\n"}, `root go.work uses [], observed as ["."]`},
 		{"unparsable root workspace", map[string]string{"go.work": "go 1.26\n\nuse .\nmodule example.test/root\n"}, "root go.work is unparsable: line 4: unknown directive \"module\""},
 	} {

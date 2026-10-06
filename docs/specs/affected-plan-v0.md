@@ -659,8 +659,8 @@ and container qualification; full fallback remains available.
   frontier is raised only when at least one module stays open. A module stays open when its
   manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
   tool does and fails on any verb, token, block, or directive argument it does not admit (for
-  example an invalid `go` or `toolchain` version, a `godebug` without `=`, or a malformed
-  `retract` interval); when it requires, replaces, or names a tool under an observed
+  example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
+  `=`, or a malformed `retract` interval); when it requires, replaces, or names a tool under an observed
   module path (a tool under its own module path excepted), or replaces a module with one; when a
   directory replacement is absolute or not repository-relative, resolves outside the repository,
   or resolves anywhere other than its own directory or another unlisted module (a relative
@@ -673,7 +673,10 @@ and container qualification; full fallback remains available.
   module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
   or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
   (an escaped quoted path, for example), the root `go.work` use set differs from the observed
-  directories, or an observed directory replacement is not repository-relative. A module that is
+  directories, or an observed directory replacement is not repository-relative or does not name
+  exactly an observed module directory or a path at or below an unlisted module's directory (a
+  differently cased or linked path can name a nested module, so identity is not established).
+  A module that is
   none of these neither builds against an observed module nor is built by one,
   so no change to an observed module reaches it and it closes. The plugin keeps one evidence
   record per nested `go.mod` read, with the reason it stayed open; it is internal and does not
@@ -743,7 +746,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
-| AFP-V0-028 | `nestedModules`, `observedReach`, `nestedModuleOpen`, `readManifest`, `workspaceAbove`, `replaceDirectoryOpen`, `repositoryDirectory`, `parseManifest`, `manifestLine`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
+| AFP-V0-028 | `nestedModules`, `observedReach`, `unknownDirectory`, `nestedModuleOpen`, `readManifest`, `workspaceAbove`, `replaceDirectoryOpen`, `repositoryDirectory`, `parseManifest`, `manifestLine`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |

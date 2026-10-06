@@ -49,7 +49,7 @@ func nestedModules(root *affected.Source, directories []string, modules map[stri
 	for _, directory := range directories {
 		nested[directory] = true
 	}
-	observed, reach, unresolved := observedReach(root, modules)
+	observed, reach, unresolved := observedReach(root, modules, nested)
 	evidence := make([]nestedModule, 0, len(directories))
 	for _, directory := range directories {
 		open := unresolved
@@ -75,7 +75,7 @@ type incoming struct {
 // there is one, with the reader used for nested manifests. It returns the
 // observed module paths, what those files draw into the observed build, and a
 // reason when any of them leaves that unresolved.
-func observedReach(root *affected.Source, modules map[string]module) (map[string]bool, incoming, string) {
+func observedReach(root *affected.Source, modules map[string]module, nested map[string]bool) (map[string]bool, incoming, string) {
 	reach := incoming{paths: map[string]string{}, tools: map[string]string{}, directories: map[string]string{}}
 	observed := make(map[string]bool, len(modules))
 	listed := make(map[string]bool, len(modules))
@@ -100,7 +100,7 @@ func observedReach(root *affected.Source, modules map[string]module) (map[string
 	}
 	_, err := root.Stat("go.work")
 	if errors.Is(err, fs.ErrNotExist) {
-		return observed, reach, ""
+		return observed, reach, unknownDirectory(reach, listed, nested)
 	}
 	if err != nil {
 		return nil, reach, "root go.work is unreadable: " + err.Error()
@@ -121,7 +121,30 @@ func observedReach(root *affected.Source, modules map[string]module) (map[string
 	if reason := reach.add("go.work", ".", work); reason != "" {
 		return nil, reach, reason
 	}
-	return observed, reach, ""
+	return observed, reach, unknownDirectory(reach, listed, nested)
+}
+
+// unknownDirectory names an observed directory replacement that is neither
+// exactly an observed module directory nor at or below an unlisted module's
+// directory. Its identity is then not established, since a differently cased
+// or linked path can name a nested module, so nothing can be ruled out.
+func unknownDirectory(reach incoming, listed, nested map[string]bool) string {
+	for _, target := range sortedKeys(reach.directories) {
+		if listed[target] {
+			continue
+		}
+		known := false
+		for current := target; current != "." && current != ""; current = path.Dir(current) {
+			if nested[current] {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return reach.directories[target] + ", which names no known module directory"
+		}
+	}
+	return ""
 }
 
 // modulesByDirectory is the set of observed module directories.
@@ -398,7 +421,9 @@ func (parsed *manifestDependencies) add(verb string, args []manifestToken) error
 	malformed := errors.New("malformed " + verb + " directive")
 	switch verb {
 	case "module", "go", "toolchain":
-		if parsed.seen[verb] || len(args) != 1 || args[0].text == "" {
+		// The go tool unquotes only a module path; it matches go and toolchain
+		// versions, and godebug settings below, against the raw token.
+		if parsed.seen[verb] || len(args) != 1 || args[0].text == "" || (verb != "module" && args[0].quoted) {
 			return malformed
 		}
 		parsed.seen[verb] = true
@@ -410,7 +435,7 @@ func (parsed *manifestDependencies) add(verb string, args []manifestToken) error
 			return malformed
 		}
 	case "godebug":
-		if len(args) != 1 {
+		if len(args) != 1 || args[0].quoted {
 			return malformed
 		}
 		key, _, found := strings.Cut(args[0].text, "=")

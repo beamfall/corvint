@@ -72,6 +72,22 @@ rules, and each was repaired with regression tests that fail without the repair:
   - the lexer splits on `()[]{},` as the go tool does, and rejects non-printable runes, invalid
     UTF-8 and `/*` comments.
 
+## Review repairs (Codex round 2)
+
+Codex reported two further findings. Both were confirmed against x/mod v0.39.0 `rule.go`, and
+both were repaired with regression tests. With the round-1 `nested.go` restored, all five new
+subtests fail; with the repair, the package passes.
+
+- P1, confirmed: an observed directory replacement was matched against nested directories by
+  exact name only. On a case-insensitive filesystem, `replace example.test/alias => ./NESTED`
+  names `nested/`, and the frontier closed. A linked path has the same effect. The new
+  `unknownDirectory` opens every nested module unless each observed directory replacement is
+  exactly an observed module directory, or lies at or below an unlisted module's directory. The
+  nested side already accepted only exact matches, so it was not affected.
+- P2, confirmed: `go`, `toolchain` and `godebug` are validated against the raw token in
+  `modfile`, so a quoted argument is a parse error there. The reader now rejects these
+  arguments when they are quoted.
+
 ## Finding: the ticket premise does not hold on this repository
 
 This repository has four nested modules. Three of them close:
