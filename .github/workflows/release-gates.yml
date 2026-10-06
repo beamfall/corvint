@@ -6,8 +6,13 @@ name: Release gates
 # witnesses `make gate` records in its own clone, so it runs after `make gate` in each full-gate
 # job. `linux-core` runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
 # Every log is an artifact with its sha256 beside it; nothing here pins, commits, or publishes.
+# `full-gate` runs `make -k gate`, so one failed step does not hide the steps after it, and the
+# schedule runs every job nightly on main's head under the release label `nightly`, without the
+# `release-checklist` step (decision 0435).
 
 on:
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -34,8 +39,8 @@ env:
   GOWORK: "off"
   GOFLAGS: ""
   CGO_ENABLED: "1"
-  SHA: ${{ inputs.sha }}
-  RELEASE: ${{ inputs.release }}
+  SHA: ${{ inputs.sha || github.sha }}
+  RELEASE: ${{ inputs.release || 'nightly' }}
   PREVIOUS_RELEASE_TAG: ${{ inputs.previous_release_tag }}
   PREVIOUS_RELEASE_OID: ${{ inputs.previous_release_oid }}
 
@@ -54,11 +59,11 @@ jobs:
           - gate: full-gate
             os: ubuntu-24.04
             timeout: 300
-            command: make gate
+            command: make -k gate
           - gate: full-gate
             os: macos-15
             timeout: 300
-            command: make gate
+            command: make -k gate
           - gate: interop-gate
             os: ubuntu-24.04
             timeout: 60
@@ -79,7 +84,7 @@ jobs:
       - &checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.sha }}
+          ref: ${{ inputs.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - &verify-checkout
@@ -142,19 +147,21 @@ jobs:
           # shellcheck disable=SC2086
           "$RUNNER_TEMP/run-gate" "$GATE" $COMMAND
       - name: Run release-checklist on this clone's gate witnesses
-        if: ${{ !cancelled() && matrix.gate == 'full-gate' }}
+        # A nightly run is not a release candidate: the checklist fails while VERSION names a
+        # tag already published, which is main's state after every release (decision 0435).
+        if: ${{ !cancelled() && matrix.gate == 'full-gate' && github.event_name != 'schedule' }}
         run: |
           "$RUNNER_TEMP/run-gate" release-checklist script/release-checklist --pre-promotion
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ matrix.gate }}-${{ inputs.release }}-${{ matrix.os }}
+          name: ${{ matrix.gate }}-${{ inputs.release || 'nightly' }}-${{ matrix.os }}
           path: ${{ runner.temp }}/evidence/${{ matrix.gate }}-*
           if-no-files-found: error
-      - if: ${{ always() && matrix.gate == 'full-gate' }}
+      - if: ${{ always() && matrix.gate == 'full-gate' && github.event_name != 'schedule' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-checklist-${{ inputs.release }}-${{ matrix.os }}
+          name: release-checklist-${{ inputs.release || 'nightly' }}-${{ matrix.os }}
           path: ${{ runner.temp }}/evidence/release-checklist-*
           if-no-files-found: error
 
@@ -250,7 +257,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: linux-core-${{ inputs.release }}-ubuntu-24.04
+          name: linux-core-${{ inputs.release || 'nightly' }}-ubuntu-24.04
           path: |
             ${{ runner.temp }}/evidence/
             ${{ runner.temp }}/host-lifecycle/
