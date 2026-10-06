@@ -117,8 +117,8 @@ what any packet says.
   `blob-*.tmp` in the store and in each `blobs/<engine>/` shard directory (reached through the
   shard writer's no-follow walk) and the `.gitignore-*.tmp` rewrite temporary.
   Amendment (proposed 2026-10-06, V1-0870, pending owner review): `IDX-SNAP-V0-025` ranks
-  snapshots of a live worktree HEAD's tree ahead of the engine order, within the same entry and
-  byte bounds, and names every removed file.
+  the writing engine's snapshots of a live worktree HEAD's tree ahead of its others, within the
+  same entry and byte bounds, and names every removed file.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
   `context`: `corvint query` in place of its authority-only query build, and the harness
   `user-prompt` event (with the standalone repository and agent-tooling query intents that share
@@ -536,8 +536,10 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `OBSERVED` and `live_trees` the count when both reads succeed and every other listed HEAD
   resolves to a tree. When either read fails, or any such HEAD does not resolve (Git answers
   `missing` and exits zero), `live_heads` is `NOT_OBSERVED`, `live_trees` is 0, and eviction falls back to the `IDX-SNAP-V0-007` order. The
-  gob ranking keeps the snapshot just written first. Snapshots whose tree segment names a live
-  tree come next, then the writing engine's, each group newest first. The entry bound and the
+  gob ranking keeps the snapshot just written first. The writing engine's snapshots whose tree
+  segment names a live tree come next, then the writing engine's others, then another engine's
+  live trees, then the rest, each group newest first. Another engine's snapshot is never reused
+  (`IDX-SNAP-V0-006`), so a live tree does not outrank a reusable snapshot only by being live. The entry bound and the
   1 GiB byte budget of `IDX-SNAP-V0-007` are unchanged. Live-tree protection is therefore
   bounded: a live tree past the bound is still removed and listed with `live_head:true`. The
   repository's live trees can need more than the budget, for example 143 worktrees at about

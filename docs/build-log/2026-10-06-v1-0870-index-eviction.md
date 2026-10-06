@@ -164,3 +164,12 @@ Reverting either fix fails its regression.
 - Correct the `repository-state-unstable` message so it names dirty-set churn instead of HEAD.
 - Make one repository probe per dogfood event instead of two on large dirty worktrees, which is the
   deadline root cause.
+
+## Integration amendment (rc3 batch 3)
+
+The lane ranked any live worktree tree ahead of the writing engine, following the acceptance text
+literally. The coordinator narrowed that at integration: only the writing engine's snapshot of a
+live tree outranks the engine order. Another engine's snapshot can never be reused
+(`IDX-SNAP-V0-006`), so after an engine upgrade the literal order would have evicted the reusable
+snapshots in favour of unusable live ones. The regression is the subtest "another engine's live tree
+does not outrank the writing engine".

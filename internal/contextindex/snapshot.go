@@ -534,8 +534,9 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 // evictSnapshots removes stale writer temporaries and the published files
 // beyond bound or snapshotStoreBytes, never the snapshot just written, and
 // names each file it removed. The ranking keeps the just-written snapshot,
-// then snapshots of a live worktree HEAD's tree, then the writing engine's,
-// then the newest (IDX-SNAP-V0-007, IDX-SNAP-V0-025).
+// then the writing engine's snapshots of a live worktree HEAD's tree, then
+// the writing engine's others, then another engine's live trees, then the
+// newest (IDX-SNAP-V0-007, IDX-SNAP-V0-025).
 func evictSnapshots(directory, keep string, bound int, live map[string]bool) []EvictedSnapshot {
 	return evictSnapshotsAt(directory, keep, bound, live, time.Now())
 }
@@ -572,19 +573,24 @@ func evictSnapshotsAt(directory, keep string, bound int, live map[string]bool, n
 		}
 		files = append(files, aged{path, info.ModTime().UnixNano(), info.Size(), snapshotEngineOf(path) == currentEngine, live[snapshotTreeOf(path)]})
 	}
-	// The just-written snapshot ranks first. A snapshot of a tree some live
-	// worktree has checked out comes next, so one worktree's write does not
-	// evict the snapshot another reuses; then snapshots the writing binary
-	// can read; each group newest first.
+	// The just-written snapshot ranks first. A snapshot the writing binary
+	// can read of a tree some live worktree has checked out comes next, so
+	// one worktree's write does not evict the snapshot another reuses; then
+	// the writing engine's other snapshots, then another engine's live trees,
+	// which no current binary can reuse; each group newest first.
 	sort.Slice(files, func(left, right int) bool {
 		if (files[left].path == keep) != (files[right].path == keep) {
 			return files[left].path == keep
 		}
-		if files[left].live != files[right].live {
-			return files[left].live
+		reusable := func(f aged) bool { return f.live && f.current }
+		if reusable(files[left]) != reusable(files[right]) {
+			return reusable(files[left])
 		}
 		if files[left].current != files[right].current {
 			return files[left].current
+		}
+		if files[left].live != files[right].live {
+			return files[left].live
 		}
 		return files[left].when > files[right].when
 	})

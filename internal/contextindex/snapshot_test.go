@@ -936,8 +936,9 @@ func mustEvalSymlinks(t *testing.T, path string) string {
 
 // TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst is V1-0870
 // (IDX-SNAP-V0-025): every removed snapshot is named with its size, tree,
-// engine and live flag; a live worktree HEAD's tree outranks the writing
-// engine and age, and the ranking stays bounded, so a live tree past the
+// engine and live flag; the writing engine's snapshot of a live worktree
+// HEAD's tree outranks age, another engine's live tree does not outrank the
+// writing engine, and the ranking stays bounded, so a live tree past the
 // bound is evicted and flagged rather than kept without limit.
 func TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
@@ -957,15 +958,26 @@ func TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst(t *testing.T) {
 		_, err := os.Stat(path)
 		return err == nil
 	}
-	t.Run("live tree outranks engine and age", func(t *testing.T) {
+	t.Run("live tree outranks age", func(t *testing.T) {
 		directory := t.TempDir()
 		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
 		newer := publish(t, directory, "sha1-tree8-engine.gob", time.Minute)
-		live := publish(t, directory, "sha1-tree1-rebuilt.gob", time.Hour)
+		live := publish(t, directory, "sha1-tree1-engine.gob", time.Hour)
 		evicted := evictSnapshotsAt(directory, current, 2, map[string]bool{"tree1": true}, now)
 		want := []EvictedSnapshot{{Kind: "snapshot", Path: newer, Bytes: int64(len("sha1-tree8-engine.gob")), Tree: "tree8", Engine: "engine"}}
 		if !reflect.DeepEqual(evicted, want) || !exists(live) || !exists(current) {
 			t.Fatalf("evicted %+v, want %+v; live kept=%v", evicted, want, exists(live))
+		}
+	})
+	t.Run("another engine's live tree does not outrank the writing engine", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		reusable := publish(t, directory, "sha1-tree8-engine.gob", time.Hour)
+		foreign := publish(t, directory, "sha1-tree1-rebuilt.gob", time.Minute)
+		evicted := evictSnapshotsAt(directory, current, 2, map[string]bool{"tree1": true}, now)
+		want := []EvictedSnapshot{{Kind: "snapshot", Path: foreign, Bytes: int64(len("sha1-tree1-rebuilt.gob")), Tree: "tree1", Engine: "rebuilt", LiveHead: true}}
+		if !reflect.DeepEqual(evicted, want) || !exists(reusable) {
+			t.Fatalf("evicted %+v, want %+v", evicted, want)
 		}
 	})
 	t.Run("without a live set the old ranking holds", func(t *testing.T) {
