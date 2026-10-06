@@ -28,9 +28,13 @@ on hosted macOS (V1-0846). Why rc.2 took four candidates is recorded in
 `docs/build-log/2026-10-06-rc2-candidate-failures-root-cause.md`, and the gate ledger now runs every
 unresolved package after a failed resolved batch (V1-0847, on `main` after this tag).
 
-Known issues. The untouched-repository evaluation (V1-0019) has not run on this build: the owner
-approved running urfave/cli run-001 and the Corvint and beamfall/core run-002 on the published
-candidate, so the stable-readiness record keeps that row `NOT_RUN` and 1.0 final stays gated on it.
+Known issues. The untouched-repository evaluation (V1-0019) ran on the published candidate, after the
+stable-readiness record was built, and failed. Task orientation missed critical files that the
+lexical baseline found: 6 files in 2 of 20 scored cases on urfave/cli, 9 files in 6 of 17 on the
+Corvint repository and 1 file in 1 of 20 on the private beamfall/core repository. Change consequence
+(0 misses in 18, 11 and 20 cases) and evidence-carrying completion (12 of 12 informative, no false
+complete verdict, on each) passed. Of the 15 public missed files, 11 are documentation or other
+non-Go files (`docs/build-log/2026-10-06-v1-0019-rc2-runs.md`). 1.0 final stays gated on V1-0019.
 On darwin, a lease commit on a store larger than the descriptor budget still re-reads the
 over-budget stat tuples under the writer lock (V1-0845); `os/exec` pipe-drain bounds of one second can
 fail a successful child on a saturated host (V1-0391); and the hosted release-gate workflow still
