@@ -454,7 +454,7 @@ func TestEvictSnapshotsKeepsNewestEightIncludingCurrent(t *testing.T) {
 		}
 	}
 	current := paths[len(paths)-1]
-	if evicted := evictSnapshots(directory, current, snapshotKeep); evicted != 2 {
+	if evicted := len(evictSnapshots(directory, current, snapshotKeep, nil)); evicted != 2 {
 		t.Fatalf("IDX-SNAP-V0-007: evicted %d snapshots, want 2", evicted)
 	}
 	entries, err := os.ReadDir(directory)
@@ -508,7 +508,7 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if evicted := evictSnapshotsAt(directory, "", snapshotKeep, now); evicted != 0 {
+		if evicted := len(evictSnapshotsAt(directory, "", snapshotKeep, nil, now)); evicted != 0 {
 			t.Fatalf("reported %d published snapshots evicted, want zero", evicted)
 		}
 		if _, err := os.Stat(stale.Name()); !os.IsNotExist(err) {
@@ -552,7 +552,7 @@ func TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst(t *testing.T) {
 		directory := t.TempDir()
 		current := publish(t, directory, "sha1-tree2-engine.gob", snapshotStoreBytes/2+1, 0)
 		older := publish(t, directory, "sha1-tree1-engine.gob", snapshotStoreBytes/2+1, time.Minute)
-		if evicted := evictSnapshotsAt(directory, current, snapshotKeep, now); evicted != 1 || exists(older) || !exists(current) {
+		if evicted := len(evictSnapshotsAt(directory, current, snapshotKeep, nil, now)); evicted != 1 || exists(older) || !exists(current) {
 			t.Fatalf("evicted %d; older kept=%v current kept=%v", evicted, exists(older), exists(current))
 		}
 	})
@@ -561,14 +561,14 @@ func TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst(t *testing.T) {
 		current := publish(t, directory, "sha1-tree3-engine.gob", 1, 0)
 		foreign := publish(t, directory, "sha1-tree2-rebuilt.gob", 1, time.Minute)
 		older := publish(t, directory, "sha1-tree1-engine.gob", 1, 2*time.Minute)
-		if evicted := evictSnapshotsAt(directory, current, 2, now); evicted != 1 || exists(foreign) || !exists(older) {
+		if evicted := len(evictSnapshotsAt(directory, current, 2, nil, now)); evicted != 1 || exists(foreign) || !exists(older) {
 			t.Fatalf("evicted %d; foreign kept=%v older same-engine kept=%v", evicted, exists(foreign), exists(older))
 		}
 	})
 	t.Run("orphaned temporary", func(t *testing.T) {
 		directory := t.TempDir()
 		orphan := publish(t, directory, "snapshot-1.tmp", 1, 20*time.Minute)
-		evictSnapshotsAt(directory, "", snapshotKeep, now)
+		evictSnapshotsAt(directory, "", snapshotKeep, nil, now)
 		if exists(orphan) {
 			t.Fatal("a temporary twenty minutes old survived eviction")
 		}
@@ -932,4 +932,131 @@ func mustEvalSymlinks(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return resolved
+}
+
+// TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst is V1-0870
+// (IDX-SNAP-V0-025): every removed snapshot is named with its size, tree,
+// engine and live flag; the writing engine's snapshot of a live worktree
+// HEAD's tree outranks age, another engine's live tree does not outrank the
+// writing engine, and the ranking stays bounded, so a live tree past the
+// bound is evicted and flagged rather than kept without limit.
+func TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	publish := func(t *testing.T, directory, name string, age time.Duration) string {
+		t.Helper()
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		when := now.Add(-age)
+		if err := os.Chtimes(path, when, when); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	exists := func(path string) bool {
+		_, err := os.Stat(path)
+		return err == nil
+	}
+	t.Run("live tree outranks age", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		newer := publish(t, directory, "sha1-tree8-engine.gob", time.Minute)
+		live := publish(t, directory, "sha1-tree1-engine.gob", time.Hour)
+		evicted := evictSnapshotsAt(directory, current, 2, map[string]bool{"tree1": true}, now)
+		want := []EvictedSnapshot{{Kind: "snapshot", Path: newer, Bytes: int64(len("sha1-tree8-engine.gob")), Tree: "tree8", Engine: "engine"}}
+		if !reflect.DeepEqual(evicted, want) || !exists(live) || !exists(current) {
+			t.Fatalf("evicted %+v, want %+v; live kept=%v", evicted, want, exists(live))
+		}
+	})
+	t.Run("another engine's live tree does not outrank the writing engine", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		reusable := publish(t, directory, "sha1-tree8-engine.gob", time.Hour)
+		foreign := publish(t, directory, "sha1-tree1-rebuilt.gob", time.Minute)
+		evicted := evictSnapshotsAt(directory, current, 2, map[string]bool{"tree1": true}, now)
+		want := []EvictedSnapshot{{Kind: "snapshot", Path: foreign, Bytes: int64(len("sha1-tree1-rebuilt.gob")), Tree: "tree1", Engine: "rebuilt", LiveHead: true}}
+		if !reflect.DeepEqual(evicted, want) || !exists(reusable) {
+			t.Fatalf("evicted %+v, want %+v", evicted, want)
+		}
+	})
+	t.Run("without a live set the old ranking holds", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		newer := publish(t, directory, "sha1-tree8-engine.gob", time.Minute)
+		foreign := publish(t, directory, "sha1-tree1-rebuilt.gob", time.Hour)
+		evicted := evictSnapshotsAt(directory, current, 2, nil, now)
+		if len(evicted) != 1 || evicted[0].Path != foreign || evicted[0].LiveHead || !exists(newer) {
+			t.Fatalf("evicted %+v", evicted)
+		}
+	})
+	t.Run("companions of an evicted snapshot are named", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		evictedGob := publish(t, directory, "sha1-tree8-engine.gob", time.Minute)
+		sectioned := publish(t, directory, "sha1-tree8-engine"+sectionedExtension, time.Minute)
+		legacyPack := publish(t, directory, "sha1-tree8-engine"+packExtension, time.Minute)
+		evicted := evictSnapshotsAt(directory, current, 1, map[string]bool{"tree8": true}, now)
+		size := func(path string) int64 { return int64(len(filepath.Base(path))) }
+		want := []EvictedSnapshot{
+			{Kind: "snapshot", Path: evictedGob, Bytes: size(evictedGob), Tree: "tree8", Engine: "engine", LiveHead: true},
+			{Kind: "sectioned", Path: sectioned, Bytes: size(sectioned), Tree: "tree8", Engine: "engine", LiveHead: true},
+			{Kind: "pack", Path: legacyPack, Bytes: size(legacyPack), Tree: "tree8", Engine: "engine", LiveHead: true},
+		}
+		if !reflect.DeepEqual(evicted, want) || exists(sectioned) || exists(legacyPack) {
+			t.Fatalf("evicted %+v, want %+v", evicted, want)
+		}
+	})
+	t.Run("live trees past the bound are evicted and flagged", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		kept := publish(t, directory, "sha1-tree1-engine.gob", time.Minute)
+		older := publish(t, directory, "sha1-tree2-engine.gob", time.Hour)
+		evicted := evictSnapshotsAt(directory, current, 2, map[string]bool{"tree1": true, "tree2": true}, now)
+		if len(evicted) != 1 || evicted[0].Path != older || !evicted[0].LiveHead || evicted[0].Tree != "tree2" || !exists(kept) {
+			t.Fatalf("evicted %+v", evicted)
+		}
+	})
+}
+
+// TestLiveWorktreeTreesNamesEveryLiveHead is V1-0870 (IDX-SNAP-V0-025): the
+// live set holds the tree at each worktree's HEAD and omits a worktree whose
+// directory is gone, which Git reports prunable.
+func TestLiveWorktreeTreesNamesEveryLiveHead(t *testing.T) {
+	roots := linkedWorktrees(t)
+	writeTestFile(t, roots[1], "pkg/second.go", "package pkg\n\nfunc Second() {}\n")
+	testGit(t, roots[1], "add", ".")
+	testGit(t, roots[1], "commit", "-qm", "second tree")
+	writeTestFile(t, roots[2], "pkg/third.go", "package pkg\n\nfunc Third() {}\n")
+	testGit(t, roots[2], "add", ".")
+	testGit(t, roots[2], "commit", "-qm", "third tree")
+	thirdTree := testGit(t, roots[2], "rev-parse", "HEAD^{tree}")
+	if err := os.RemoveAll(roots[2]); err != nil {
+		t.Fatal(err)
+	}
+	trees, observed := liveWorktreeTrees(roots[0])
+	want := map[string]bool{
+		testGit(t, roots[0], "rev-parse", "HEAD^{tree}"): true,
+		testGit(t, roots[1], "rev-parse", "HEAD^{tree}"): true,
+	}
+	if !observed || !reflect.DeepEqual(trees, want) || trees[thirdTree] {
+		t.Fatalf("live trees = %v observed=%v, want %v", trees, observed, want)
+	}
+	if _, observed := liveWorktreeTrees(filepath.Join(t.TempDir(), "missing")); observed {
+		t.Fatal("a root Git cannot read observed live trees")
+	}
+	unborn := t.TempDir()
+	testGit(t, unborn, "init", "-q")
+	if trees, observed := liveWorktreeTrees(unborn); !observed || len(trees) != 0 {
+		t.Fatalf("unborn HEAD: live trees = %v observed=%v, want none observed", trees, observed)
+	}
+	// A HEAD Git lists but cannot resolve to a tree must not shrink the live
+	// set silently: cat-file answers "missing" and exits zero.
+	detached := filepath.Join(testGit(t, roots[1], "rev-parse", "--path-format=absolute", "--git-dir"), "HEAD")
+	if err := os.WriteFile(detached, []byte(strings.Repeat("ab", 20)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if trees, observed := liveWorktreeTrees(roots[0]); observed {
+		t.Fatalf("an unresolvable HEAD observed live trees %v", trees)
+	}
 }

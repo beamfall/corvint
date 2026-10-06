@@ -59,6 +59,7 @@ func commandHelp(args []string) *wire.Result {
 			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons unless --lane-untouched is supplied, and is forbidden for candidate handoffs.",
 			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
+			"holderStatus STALE_HOLDER (attempt show, queue status) is advisory input for a coordinator choosing an evidence HANDOFF release; it is not release authority. The release keeps every fence above, and no read, heartbeat, renew or reap releases, frees or fences an attempt because its holder is stale.",
 			"--handoff-to implement|review|integrate (optional --handoff-reason) records advisory next-stage intent on a clean HANDOFF or REVIEW_RETURNED generation only; REVIEW_RETURNED accepts only implement and defaults to it. Other combinations refuse MALFORMED. Claims for another stage are not refused.",
 		}))
 		o.Set("handoffTargets", wire.Strings(intent.StageRoles))
@@ -73,7 +74,7 @@ func commandHelp(args []string) *wire.Result {
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
 	}
 	if name == "attempt heartbeat" {
-		o.Set("note", wire.String("Generation-fenced recorded signal with a 10-minute observation TTL. Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
+		o.Set("note", wire.String("Generation-fenced recorded signal. Reads classify it against the policy holderLiveness.heartbeatTTLSeconds (300..86400, default 600 when omitted). Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
 	}
 	if name == "pool sweep" {
 		o.Set("note", wire.String("Requires explicit timeoutSeconds 1..1800 and OWNER or an explicit OPERATOR policy grant. Replays return the original receipt or PENDING without repeating commands. Private logs can contain command-emitted secrets; explicit archive export includes evidence. FREE records operator-declared reset and verification, not proof of external physical safety."))

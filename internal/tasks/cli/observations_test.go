@@ -33,10 +33,49 @@ func TestCALV0048_HolderObservationBoundaries(t *testing.T) {
 				a.LastHeartbeatAt = &at
 			}
 			o := wire.NewObject()
-			addHolderObservation(o, a, base.Add(tc.delta))
+			addHolderObservation(o, a, base.Add(tc.delta), 600)
 			status, _ := o.Get("holderStatus")
 			if status.Str != tc.want {
 				t.Fatalf("got %s want %s", status.Str, tc.want)
+			}
+		})
+	}
+}
+
+// TestCALV0120_HolderObservationUsesPolicyTTL classifies the same recorded
+// signal against the effective policy TTL and reports that TTL; legacy
+// absence stays NOT_OBSERVED, never STALE_HOLDER, at any TTL.
+func TestCALV0120_HolderObservationUsesPolicyTTL(t *testing.T) {
+	at := wire.Timestamp("2026-10-01T00:00:00Z")
+	base, e := time.Parse(time.RFC3339, string(at))
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, tc := range []struct {
+		name      string
+		ttl       int64
+		delta     time.Duration
+		heartbeat bool
+		want      string
+	}{
+		{"short fresh", 300, 299 * time.Second, true, "FRESH_HOLDER"},
+		{"short boundary", 300, 300 * time.Second, true, "STALE_HOLDER"},
+		{"long fresh", 1800, 1799 * time.Second, true, "FRESH_HOLDER"},
+		{"long boundary", 1800, 1800 * time.Second, true, "STALE_HOLDER"},
+		{"legacy short", 300, 59 * time.Minute, false, "NOT_OBSERVED"},
+		{"legacy long", 86400, 59 * time.Minute, false, "NOT_OBSERVED"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := &snapshot.Attempt{Phase: "RUNNING", Lease: &snapshot.Lease{ExpiresAt: "2026-10-01T01:00:00Z"}}
+			if tc.heartbeat {
+				a.LastHeartbeatAt = &at
+			}
+			o := wire.NewObject()
+			addHolderObservation(o, a, base.Add(tc.delta), tc.ttl)
+			status, _ := o.Get("holderStatus")
+			ttl, _ := o.Get("heartbeatTTLSeconds")
+			if status.Str != tc.want || ttl.Str != string(wire.CountOf(tc.ttl)) {
+				t.Fatalf("got %s/%s want %s/%d", status.Str, ttl.Str, tc.want, tc.ttl)
 			}
 		})
 	}

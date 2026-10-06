@@ -71,6 +71,7 @@
     "cmd/corvint-mcp": [],
     "cmd/corvint-playwright-minimize": [],
     "cmd/corvint-postmerge-connect": [],
+    "cmd/corvint-postmerge-host-launcher": [],
     "cmd/corvint-postmerge-metrics": [],
     "cmd/corvint-public-release-check": [],
     "cmd/corvint-pulse": [
@@ -105,6 +106,25 @@
     "conformance/work-queue-v0": [],
     "examples/evidence-provider/v0/check": [],
     "experimental/analyzers/sqlnative": [],
+    "internal/analyzercap": [
+      "cmd/",
+      "experimental/analyzers/sqlnative/",
+      "go.mod",
+      "internal/analyzerdotnet/",
+      "internal/analyzergo/",
+      "internal/analyzerhtmlcss/",
+      "internal/analyzerjs/",
+      "internal/analyzerkotlinandroid/",
+      "internal/analyzernativebridge/",
+      "internal/analyzerpython/",
+      "internal/analyzerruby/",
+      "internal/analyzerrust/",
+      "internal/analyzershader/",
+      "internal/analyzershell/",
+      "internal/analyzerstructured/",
+      "internal/analyzerswift/",
+      "internal/pythongrammar/"
+    ],
     "internal/analyzerdotnet": [
       "cmd/corvint-analyzer-dotnet/",
       "go.mod"
@@ -139,6 +159,7 @@
     "internal/attest": [
       "interop/cem-0.1/"
     ],
+    "internal/authoritystore": [],
     "internal/betarung": [
       "conformance/cli-parity-v0/",
       "conformance/divergence-register.md"
@@ -179,9 +200,17 @@
     "internal/dashboard/adapters": [
       "internal/secretscreen/"
     ],
+    "internal/dashboard/source": [],
     "internal/delta": [
       "conformance/delta-v0/decision-vectors.json",
       "protocol/delta/schema.json"
+    ],
+    "internal/diagnostic": [
+      "cmd/",
+      "docs/specs/FIX-REGISTRY.tsv",
+      "docs/specs/diagnostic-repair-contract-v0.md",
+      "internal/",
+      "script/diagnostic-coverage.count"
     ],
     "internal/doccompiler": [],
     "internal/doccorpus": [
@@ -230,6 +259,13 @@
     "internal/playwrightminimize": [],
     "internal/postmergeconnector": [],
     "internal/postmergemetrics": [],
+    "internal/postmergeproof": [
+      "conformance/postmerge-runtime-v2/native-graph-binding.schema.json",
+      "conformance/postmerge-runtime-v2/process-policy.schema.json",
+      "conformance/postmerge-runtime-v2/process-preimages.schema.json",
+      "conformance/postmerge-runtime-v2/process-proof.schema.json",
+      "conformance/postmerge-runtime-v2/process-qualification.schema.json"
+    ],
     "internal/projectpath": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
@@ -273,6 +309,12 @@
       "internal/liveverify/",
       "internal/procgroup/"
     ],
+    "tools/compat-trial/build-fixtures": [
+      "go.mod",
+      "internal/liveverify/processidentity/",
+      "internal/procgroup/",
+      "tools/compat-trial/"
+    ],
     "tools/corvint-pr-tests": [
       "cmd/",
       "go.mod",
@@ -284,6 +326,11 @@
       "benchmarks/results/"
     ],
     "tools/gate-affected-select": [],
+    "tools/gate-ledger": [
+      "tools/gate-affected-select/main.go",
+      "tools/gate-affected-select/readers.go",
+      "tools/gate-affected-select/readscopes.go"
+    ],
     "tools/heading-nav-bench": [],
     "tools/retrieval-bench": []
   }

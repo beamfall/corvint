@@ -76,12 +76,22 @@ func expiredCLIStore(t *testing.T, count int) (string, []*store.Report) {
 
 func leaseCLIStore(t *testing.T, count int, baseTime time.Time) (string, []*store.Report) {
 	t.Helper()
+	return leaseCLIStoreWith(t, count, baseTime, nil, "")
+}
+
+// leaseCLIStoreWith is leaseCLIStore with an optional policy edit applied
+// before init and an optional claim stage.
+func leaseCLIStoreWith(t *testing.T, count int, baseTime time.Time, editPolicy func(*wire.Object), stage string) (string, []*store.Report) {
+	t.Helper()
 	r := fixture.TempRepo(t)
 	policy := fixture.PolicyValue()
 	budgets, _ := policy.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
 	capacity := wire.NewObject().Set("classes", wire.Array()).Set("maxActiveAttempts", wire.String("4")).Set("maxWorkersTotal", wire.String("4"))
 	policy.Obj.Set("capacity", wire.ObjectValue(capacity))
+	if editPolicy != nil {
+		editPolicy(policy.Obj)
+	}
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
 	repo, err := intent.Resolve(r.Root)
@@ -122,7 +132,7 @@ func leaseCLIStore(t *testing.T, count int, baseTime time.Time) (string, []*stor
 		if err != nil {
 			t.Fatal(err)
 		}
-		lease := transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: ticketID, Holder: "holder", LeaseMinutes: "5", Scope: []string{"src/" + string(rune('a'+i))}}
+		lease := transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: ticketID, Holder: "holder", LeaseMinutes: "5", Scope: []string{"src/" + string(rune('a'+i))}, Stage: stage}
 		report, err := store.Lease(context.Background(), repo, actor, store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "claim-reap-" + string(rune('a'+i)), Root: r.Root, Lease: lease, Derive: store.NoScopeDeriver}, at)
 		if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
 			t.Fatalf("claim %d: %+v %v", i, report, err)

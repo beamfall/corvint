@@ -1,6 +1,8 @@
 package journal
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -554,8 +556,16 @@ func checkScope(v wire.Value, q wire.QueueID) error {
 	return nil
 }
 
+// sortedPaths returns the keys of m in ascending byte order. Every walk that
+// can refuse uses it, so with several faults the refusal names the
+// byte-smallest faulty path and its code on every run (CAL-V0-114).
+func sortedPaths[V any](m map[string]V) []string {
+	return slices.Sorted(maps.Keys(m))
+}
+
 func (r Reader) projections(o *observation, canonical map[string]latest, checkIntent bool) error {
-	for p, record := range canonical {
+	for _, p := range sortedPaths(canonical) {
+		record := canonical[p]
 		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
 			continue
 		}
@@ -618,7 +628,8 @@ func (r Reader) projected(o *observation, p string, needRaw bool) (*wire.Digest,
 
 // strays refuses every listed projection the journal never posted.
 func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent bool) error {
-	for p, info := range o.files {
+	for _, p := range sortedPaths(o.files) {
+		info := o.files[p]
 		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
 			continue
 		}
@@ -737,7 +748,8 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		}
 	}
 	result.StructuralConsistency = ModeCheckpoint
-	for p, record := range st.canonical {
+	for _, p := range sortedPaths(st.canonical) {
+		record := st.canonical[p]
 		_, have := result.Records[p]
 		need := !have && r.selects(p, selected)
 		digest, raw, err := r.projected(o, p, need)
