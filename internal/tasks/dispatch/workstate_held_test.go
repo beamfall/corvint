@@ -106,7 +106,9 @@ func TestCALV0105_UnknownOrUnreadStateKeepsWindow(t *testing.T) {
 			c.WorkState = nil
 			c.Roles[0].Match.ExcludeStates = nil
 		},
-		"admitted": func(c *Config) { c.Roles = append(c.Roles, Role{Name: "lander", Host: "sh", Cap: 1, Match: &Match{States: []string{"hold-lane", "hold-dep"}}, Prompt: "p", IdleSeconds: 30, WallSeconds: 60}) },
+		"admitted": func(c *Config) {
+			c.Roles = append(c.Roles, Role{Name: "lander", Host: "sh", Cap: 1, Match: &Match{States: []string{"hold-lane", "hold-dep"}}, Prompt: "p", IdleSeconds: 30, WallSeconds: 60})
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			states := map[string]string{"h1": "hold-lane", "h2": "hold-dep", "r1": "ready"}
