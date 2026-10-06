@@ -42,8 +42,8 @@ Three things were missing:
 - The receipt adds:
   - `store` and `store_shared`;
   - `live_heads` and `live_trees`;
-  - `evicted_snapshots`, a list of `{kind, path, bytes, tree, engine, live_head}`. It is an empty
-    list, never null, when nothing was removed.
+  - `evicted_snapshots`, a list of `{kind, path, bytes, tree, engine, live_head}`. `kind` is
+    `snapshot`, `sectioned` or `pack`. It is an empty list, never null, when nothing was removed.
   `evicted` stays as the list's length. The `--if-stale` fresh receipt adds `store`.
 - `analyzerSchemaID` moves to `corvint-analyzer/106` because `TestAnalyzerSchemaInputs` pins the
   contextindex production source digest.
@@ -106,6 +106,21 @@ its store. Reproductions used a private clone and a private linked worktree unde
   to `dogfood-event-worktree-churn`, passes `dogfood-event-policy-drift` through, and leaves the
   rest unavailable. These are fixed strings with no caller data, so this needs only an `LCP-V0-008`
   spec change. The adapter already passes any valid code through `adapterRejectedReason`.
+
+## Review
+
+The Codex review (gpt-6-astra, read-only) reported no P0 or P1 findings and two P2 findings, both
+fixed with regressions:
+
+- **Companion files were not named.** Eviction also removes a gob snapshot's sectioned companion
+  and any legacy executable-keyed pack beside it, but the receipt named only the gob. They are now
+  listed with `kind` `sectioned` and `pack` (subtest "companions of an evicted snapshot are named").
+- **An unresolvable HEAD was reported as observed.** `cat-file --batch-check` answers `missing` and
+  exits zero, so a partial live set was reported `OBSERVED`. Now an unborn (all-zero) HEAD is
+  skipped explicitly, and any other HEAD that does not resolve to a tree makes the set
+  `NOT_OBSERVED` (cases in `TestLiveWorktreeTreesNamesEveryLiveHead`).
+
+Reverting either fix fails its regression.
 
 ## Evidence
 

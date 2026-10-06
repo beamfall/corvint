@@ -525,15 +525,17 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   it wrote and every published file it removed. `store` is the snapshot directory and
   `store_shared` is true when that directory is the Git common directory's store every linked
   worktree reads (`DIRTY-CACHE-013`). `evicted_snapshots` lists each removed file in removal order
-  as `{kind, path, bytes, tree, engine, live_head}`, where `kind` is `snapshot` for a `*.gob`
-  file and `pack` for an analyzer pack (`IDX-SNAP-V0-017`). The list is empty, never absent, when
+  as `{kind, path, bytes, tree, engine, live_head}`. `kind` is `snapshot` for a `*.gob` file,
+  `sectioned` for its sectioned companion, and `pack` for an analyzer pack (`IDX-SNAP-V0-017`) or a
+  legacy executable-keyed pack removed beside an evicted gob file. The list is empty, never absent, when
   nothing was removed, and `evicted` is its length. The swept writer temporaries are not
   published snapshots and are not listed. The `--if-stale` fresh receipt adds `store`. Before
   ranking, `index` reads the trees at the HEAD of every live worktree of the repository with
   `git worktree list --porcelain -z` and one `git cat-file --batch-check`. A worktree Git reports
-  bare or prunable, or whose HEAD is unborn, contributes no tree. `live_heads` is `OBSERVED` and
-  `live_trees` the count when both reads succeed. When either read fails, `live_heads` is
-  `NOT_OBSERVED`, `live_trees` is 0, and eviction falls back to the `IDX-SNAP-V0-007` order. The
+  bare or prunable, or whose HEAD is unborn (all zeros), contributes no tree. `live_heads` is
+  `OBSERVED` and `live_trees` the count when both reads succeed and every other listed HEAD
+  resolves to a tree. When either read fails, or any such HEAD does not resolve (Git answers
+  `missing` and exits zero), `live_heads` is `NOT_OBSERVED`, `live_trees` is 0, and eviction falls back to the `IDX-SNAP-V0-007` order. The
   gob ranking keeps the snapshot just written first. Snapshots whose tree segment names a live
   tree come next, then the writing engine's, each group newest first. The entry bound and the
   1 GiB byte budget of `IDX-SNAP-V0-007` are unchanged. Live-tree protection is therefore

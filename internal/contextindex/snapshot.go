@@ -118,8 +118,10 @@ type SnapshotReceipt struct {
 	EvictedSnapshots []EvictedSnapshot
 }
 
-// EvictedSnapshot is one published file an index write removed: a gob
-// snapshot or, under CORVINT_SNAPSHOT_FORMAT=pack, an analyzer pack. LiveHead
+// EvictedSnapshot is one published file an index write removed. Kind is
+// "snapshot" for a gob file, "sectioned" for its sectioned companion, and
+// "pack" for an analyzer pack (CORVINT_SNAPSHOT_FORMAT=pack) or a legacy
+// executable-keyed pack beside an evicted gob file. LiveHead
 // is true when its tree is checked out at a live worktree HEAD, which the
 // bounded ranking keeps first but cannot keep past the entry or byte bound
 // (IDX-SNAP-V0-025).
@@ -365,9 +367,10 @@ const (
 
 // liveWorktreeTrees is the set of trees checked out at the HEAD of every live
 // worktree of root's repository: the main worktree and each linked one Git
-// does not report bare or prunable. An unborn HEAD names no tree. observed is
-// false when either Git read fails; the caller then ranks without the set
-// (IDX-SNAP-V0-025). Only WriteSnapshot calls it, so the read verbs spawn
+// does not report bare or prunable. An unborn (all-zero) HEAD names no tree.
+// observed is false when either Git read fails or any other HEAD does not
+// resolve to a tree, so a partial set is never reported as the live set; the
+// caller then ranks without it (IDX-SNAP-V0-025). Only WriteSnapshot calls it, so the read verbs spawn
 // nothing more.
 func liveWorktreeTrees(root string) (map[string]bool, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), liveWorktreeDeadline)
@@ -377,13 +380,15 @@ func liveWorktreeTrees(root string) (map[string]bool, bool) {
 		return nil, false
 	}
 	var request bytes.Buffer
+	requested := 0
 	head, skip := "", false
 	for _, field := range strings.Split(string(listing), "\x00") {
 		switch {
 		case field == "":
 			// A record ends with an empty field.
-			if head != "" && !skip {
+			if head != "" && strings.Trim(head, "0") != "" && !skip {
 				request.WriteString(head + "^{tree}\n")
+				requested++
 			}
 			head, skip = "", false
 		case strings.HasPrefix(field, "HEAD "):
@@ -400,11 +405,18 @@ func liveWorktreeTrees(root string) (map[string]bool, bool) {
 	if err != nil {
 		return nil, false
 	}
-	for _, line := range strings.Split(string(resolved), "\n") {
-		// A missing object prints "<request> missing" and names no tree.
-		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == "tree" {
-			trees[fields[0]] = true
+	// Every requested HEAD must name a tree. Git answers a missing object with
+	// "<request> missing" and still exits zero.
+	lines := strings.Split(strings.TrimSuffix(string(resolved), "\n"), "\n")
+	if len(lines) != requested {
+		return nil, false
+	}
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || fields[1] != "tree" {
+			return nil, false
 		}
+		trees[fields[0]] = true
 	}
 	return trees, true
 }
@@ -589,13 +601,28 @@ func evictSnapshotsAt(directory, keep string, bound int, live map[string]bool, n
 				Tree: snapshotTreeOf(file.path), Engine: snapshotEngineOf(file.path), LiveHead: file.live,
 			})
 		}
-		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + sectionedExtension)
+		base := strings.TrimSuffix(file.path, ".gob")
+		evicted = appendRemovedCompanion(evicted, "sectioned", base+sectionedExtension, file.path, file.live)
 		// No current writer uses this name: packs are keyed by the analyzer
 		// engine (evictAnalyzerPacks). It removes executable-keyed packs that
 		// binaries before decision 0074 wrote.
-		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + packExtension)
+		evicted = appendRemovedCompanion(evicted, "pack", base+packExtension, file.path, file.live)
 	}
 	return evicted
+}
+
+// appendRemovedCompanion removes a published companion of an evicted gob
+// snapshot and names it when the removal succeeded, so the receipt lists
+// every published file eviction deleted (IDX-SNAP-V0-025).
+func appendRemovedCompanion(evicted []EvictedSnapshot, kind, path, gob string, live bool) []EvictedSnapshot {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || os.Remove(path) != nil {
+		return evicted
+	}
+	return append(evicted, EvictedSnapshot{
+		Kind: kind, Path: path, Bytes: info.Size(),
+		Tree: snapshotTreeOf(gob), Engine: snapshotEngineOf(gob), LiveHead: live,
+	})
 }
 
 // snapshotTreeOf is the tree segment of a snapshotPath or packPath name:

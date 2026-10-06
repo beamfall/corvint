@@ -978,6 +978,23 @@ func TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst(t *testing.T) {
 			t.Fatalf("evicted %+v", evicted)
 		}
 	})
+	t.Run("companions of an evicted snapshot are named", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
+		evictedGob := publish(t, directory, "sha1-tree8-engine.gob", time.Minute)
+		sectioned := publish(t, directory, "sha1-tree8-engine"+sectionedExtension, time.Minute)
+		legacyPack := publish(t, directory, "sha1-tree8-engine"+packExtension, time.Minute)
+		evicted := evictSnapshotsAt(directory, current, 1, map[string]bool{"tree8": true}, now)
+		size := func(path string) int64 { return int64(len(filepath.Base(path))) }
+		want := []EvictedSnapshot{
+			{Kind: "snapshot", Path: evictedGob, Bytes: size(evictedGob), Tree: "tree8", Engine: "engine", LiveHead: true},
+			{Kind: "sectioned", Path: sectioned, Bytes: size(sectioned), Tree: "tree8", Engine: "engine", LiveHead: true},
+			{Kind: "pack", Path: legacyPack, Bytes: size(legacyPack), Tree: "tree8", Engine: "engine", LiveHead: true},
+		}
+		if !reflect.DeepEqual(evicted, want) || exists(sectioned) || exists(legacyPack) {
+			t.Fatalf("evicted %+v, want %+v", evicted, want)
+		}
+	})
 	t.Run("live trees past the bound are evicted and flagged", func(t *testing.T) {
 		directory := t.TempDir()
 		current := publish(t, directory, "sha1-tree9-engine.gob", 0)
@@ -1015,5 +1032,19 @@ func TestLiveWorktreeTreesNamesEveryLiveHead(t *testing.T) {
 	}
 	if _, observed := liveWorktreeTrees(filepath.Join(t.TempDir(), "missing")); observed {
 		t.Fatal("a root Git cannot read observed live trees")
+	}
+	unborn := t.TempDir()
+	testGit(t, unborn, "init", "-q")
+	if trees, observed := liveWorktreeTrees(unborn); !observed || len(trees) != 0 {
+		t.Fatalf("unborn HEAD: live trees = %v observed=%v, want none observed", trees, observed)
+	}
+	// A HEAD Git lists but cannot resolve to a tree must not shrink the live
+	// set silently: cat-file answers "missing" and exits zero.
+	detached := filepath.Join(testGit(t, roots[1], "rev-parse", "--path-format=absolute", "--git-dir"), "HEAD")
+	if err := os.WriteFile(detached, []byte(strings.Repeat("ab", 20)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if trees, observed := liveWorktreeTrees(roots[0]); observed {
+		t.Fatalf("an unresolvable HEAD observed live trees %v", trees)
 	}
 }
