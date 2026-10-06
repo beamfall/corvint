@@ -193,7 +193,10 @@ A pool may opt into priority-yield admission (CAL-V0-101) with `"priorityAdmissi
 Then an explicit `claim <ticket> --pool test-env` is refused `BLOCKED RESOURCE_COLLISION` when the
 higher-priority `OPEN` tickets that record `requiresPool:"test-env"`, have no claim blocker and no
 live attempt are at least as many as the pool's free eligible members; the detail ends
-`yields to <ticketId>`, naming the first of them in plan order. Plan preview (default and `--pool`)
+`yields to <ticketId>`, naming the first of them in admission order (CAL-V0-105): priority first,
+then, at equal priority, tickets whose latest generation handed off to `review` or `integrate`
+(earliest handoff first), then plan order. When the ticket yielded to is such a downstream ticket the
+detail adds `; <ticketId> awaits <stage> since seq <seq>`. Plan preview (default and `--pool`)
 shows such a ticket `DEFERRED RESOURCE_COLLISION` with that ticket ID as blocker, and `claim --next`
 never picks it. A competitor whose blockers are unobservable never causes a refusal; `ticket show`
 reports `NOT_OBSERVED` claimability instead. Nothing is stored and there is no waitlist (V1-0785).

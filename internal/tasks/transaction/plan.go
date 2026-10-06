@@ -91,19 +91,16 @@ type PoolSelection struct {
 func PriorityFirst(in PlanInput) TicketPlan {
 	plan := TicketPlan{MaxActiveAttempts: in.Policy.MaxActiveAttempts, AvailableWorkers: availableWorkers(in), Entries: []PlanEntry{}}
 	selected := []PlanEntry{}
-	// waiting holds, per required pool, the OPEN unblocked entries planned so
-	// far: priorityWaiting for every later entry (CAL-V0-101).
-	waiting := map[string][]string{}
+	// waits holds each opted-in pool's admission order, so every entry's
+	// waiting list is priorityWaiting (CAL-V0-101, CAL-V0-105).
+	waits := newAdmissionWaits(in)
 	for _, rec := range planTickets(in.Tickets) {
 		e := planEntry(in, rec)
 		if e.State == "" {
-			e = choose(in, e, selected, waiting)
+			e = choose(in, e, selected, waits.of(in, rec))
 		}
 		if e.State == PlanSelected {
 			selected = append(selected, e)
-		}
-		if e.State != PlanBlocked && rec.Status == ticket.StatusOpen && rec.RequiresPool != "" {
-			waiting[rec.RequiresPool] = append(waiting[rec.RequiresPool], rec.TicketID.Raw)
 		}
 		plan.Entries = append(plan.Entries, e)
 	}

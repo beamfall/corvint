@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ func yieldTarget(out leaseOutcome) string {
 		return ""
 	}
 	_, to, _ := strings.Cut(out.result.Detail, "; yields to ")
+	to, _, _ = strings.Cut(to, "; ")
 	return to
 }
 
@@ -148,12 +150,13 @@ func policyNeutral(t *testing.T, transcript string, raw []byte) string {
 	return transcript
 }
 
-// CAL-V0-101 (acceptance 3): over generated pool and ticket states, the
-// --pool plan, the default plan, an explicit claim and claim-next agree on
-// every yield, and a SELECTED --pool entry is admitted by an explicit claim.
+// CAL-V0-101 (acceptance 3), CAL-V0-105: over generated pool, ticket and
+// handoff states, the --pool plan, the default plan, an explicit claim and
+// claim-next agree on every yield, and a SELECTED --pool entry is admitted
+// by an explicit claim.
 func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 	rng := rand.New(rand.NewSource(101))
-	yields := 0
+	yields, downstream := 0, 0
 	for iter := 0; iter < 400; iter++ {
 		flag := "true"
 		if rng.Intn(5) == 0 {
@@ -184,25 +187,47 @@ func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 				if pool == "" && rng.Intn(2) == 0 {
 					pool = "lanes"
 				}
-				if out := planClaim(f.claim(rec.TicketID.Raw, pool)); out.result == nil {
+				c := f.claim(rec.TicketID.Raw, pool)
+				if pool != "" && rng.Intn(2) == 0 {
+					c.l.Stage = "implement"
+				}
+				if out := planClaim(c); out.result == nil {
 					f.apply(t, out)
+					// CAL-V0-105: some claims hand off downstream, so the
+					// ticket waits again with a derived admission rank.
+					if a := attemptOf(t, out); a.Stage != "" && rng.Intn(3) != 0 {
+						f.release(t, a, wire.CodeHandoff, []string{"review", "integrate"}[rng.Intn(2)])
+						if a.PoolAllocation != nil && rng.Intn(2) == 0 {
+							f.confirmSafe(a.PoolAllocation.MemberID)
+						}
+					}
 				}
 			}
 		}
 		where := fmt.Sprintf("iter %d flag %q members %d", iter, flag, len(members))
 
 		pooled := PriorityFirst(f.planInput("lanes"))
-		ahead := []string{}
+		competing := []admissionRank{}
+		for _, e := range pooled.Entries {
+			if e.State != PlanBlocked && e.Ticket.RequiresPool == "lanes" {
+				competing = append(competing, admissionRankOf(f.st.attempts, e.Ticket))
+			}
+		}
+		sort.Slice(competing, func(i, j int) bool { return admissionLess(competing[i], competing[j]) })
 		for _, e := range pooled.Entries {
 			if e.State == PlanBlocked {
 				continue
 			}
-			// The plan's running waiting list is the direct predicate.
-			if direct, _ := priorityWaiting(f.planInput("lanes"), e.Ticket, "lanes"); fmt.Sprint(direct) != fmt.Sprint(ahead) {
-				t.Fatalf("%s: %s waiting %v, plan order %v", where, e.Ticket.TicketID.Raw, direct, ahead)
+			// The unblocked plan entries ranked ahead (CAL-V0-105) are the
+			// direct predicate.
+			ahead := []string{}
+			for _, r := range competing {
+				if admissionLess(r, admissionRankOf(f.st.attempts, e.Ticket)) {
+					ahead = append(ahead, r.rec.TicketID.Raw)
+				}
 			}
-			if e.Ticket.RequiresPool == "lanes" {
-				ahead = append(ahead, e.Ticket.TicketID.Raw)
+			if direct, _ := priorityWaiting(f.planInput("lanes"), e.Ticket, "lanes"); fmt.Sprint(direct) != fmt.Sprint(ahead) {
+				t.Fatalf("%s: %s waiting %v, admission order %v", where, e.Ticket.TicketID.Raw, direct, ahead)
 			}
 			out := planClaim(f.claim(e.Ticket.TicketID.Raw, "lanes"))
 			if got := yieldTarget(out); got != e.yieldTo {
@@ -210,6 +235,9 @@ func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 			}
 			if e.yieldTo != "" {
 				yields++
+				if to, _ := f.st.tickets.Get(e.yieldTo); admissionRankOf(f.st.attempts, to).stage != "" {
+					downstream++
+				}
 				if flag == "" || e.State != PlanDeferred || e.Reason != wire.CodeResourceCollision || len(e.Blockers) != 1 || e.Blockers[0] != e.yieldTo {
 					t.Fatalf("%s: yield entry %+v", where, e)
 				}
@@ -244,8 +272,8 @@ func TestCALV0101_PlanClaimAndClaimNextAgree(t *testing.T) {
 			}
 		}
 	}
-	if yields == 0 {
-		t.Fatal("generator produced no yield")
+	if yields == 0 || downstream == 0 {
+		t.Fatalf("generator produced %d yield(s), %d to a downstream ticket", yields, downstream)
 	}
 }
 
