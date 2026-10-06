@@ -39,8 +39,8 @@ the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger
 the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl` —
 neither is a direct input to ranking, evidence, or authority. Learning from these ledgers requires
 an explicit operator step and a frozen held-out gate ([AGENTS.md](AGENTS.md) invariant 4). Version
-`1.0.0-rc.2` is the next release candidate for Corvint 1.0, and `1.0.0-rc.1` is the published
-prerelease; [what 1.0 promises and what is still being qualified](#status-stated-plainly).
+`1.0.0-rc.2` is the published prerelease and the second release candidate for Corvint 1.0;
+[what 1.0 promises and what is still being qualified](#status-stated-plainly).
 
 ## Why Corvint
 
@@ -144,13 +144,13 @@ corvint --version
 ```
 
 Versioned assets are on the [releases page](https://github.com/beamfall/corvint/releases). The
-[Core rc.1 release](https://github.com/beamfall/corvint/releases/tag/v1.0.0-rc.1) contains only
+[Core rc.2 release](https://github.com/beamfall/corvint/releases/tag/v1.0.0-rc.2) contains only
 `corvint`, with four macOS/Linux archives, `SHA256SUMS` and `verification-report.json`. A matching
 native archive needs Git but no Go compiler; verify both the downloaded archive and its internal
 checksums before running it. Read the exact platform's qualification, including native versus
 emulated runs. Tasks has its own developer release; source companions are not automatically
-included in a Core archive. Source builds report `1.0.0-rc.2`; until that candidate is published,
-rc.1 is the newest Core release. Like rc.1, rc.2 and 1.0 are unsigned: `SHA256SUMS` only, publisher
+included in a Core archive. Source builds of `main` also report `1.0.0-rc.2` and carry fixes made
+after that tag. Like rc.1, rc.2 is unsigned, and 1.0 will be too: `SHA256SUMS` only, publisher
 identity `NOT_VERIFIED` (decision 0433). The [installation guide](docs/INSTALL.md) covers checks, first use,
 optional tools, upgrades and removal.
 
@@ -233,8 +233,8 @@ The [wire format, schemas, and conformance vectors](docs/CHANGE-EVIDENCE-MAP.md)
 
 ## Optional Go LSP evidence
 
-The following CLI/MCP selectors are newer than the published Core rc.1 binary and are present in
-`1.0.0-rc.2` source builds. Build the current source and matching MCP companion, or check your
+The following CLI/MCP selectors were added after rc.1 and are in the published `1.0.0-rc.2`
+binary. With an older build, or with an MCP companion that does not match your binary, check your
 installed `corvint help context` before using them.
 
 Corvint can use `gopls`, the Go language server, to add definition and reference relationships
@@ -364,6 +364,9 @@ newer source commands require their own checks and are not all present in that d
 Neither route inherits Core stability or grants publication authority.
 Optional named environment pools allocate isolated members with claims and quarantine them until
 explicit safe-reuse confirmation; see [external-agent usage](docs/TASKS-EXTERNAL-AGENTS.md#isolated-environment-pools).
+In source builds, `corvint-tasks run --attempt ID --detach -- COMMAND` lets an attempt-bound command
+outlive its agent session while staying heartbeated and fenced; a later session reads its outcome
+with `run --attach` ([attempt runner](docs/specs/corvint-tasks-attempt-runner-v0.md)).
 
 `corvint work observe` and `corvint work propose-wave` (also `corvint-work-queue`) read a
 queue snapshot and return deterministic shadow proposals: derived path clashes between tickets
@@ -506,8 +509,8 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> `1.0.0-rc.1` is the published release candidate for Corvint 1.0, and `1.0.0-rc.2` is the next
-> candidate, not yet built or published. The 1.0 stability promise (frozen
+> `1.0.0-rc.2` is the published release candidate for Corvint 1.0. It does not qualify for 1.0
+> final: its untouched-repository evaluation failed (Core jobs row below). The 1.0 stability promise (frozen
 > contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
 > else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). Stable 1.0
 > also requires the expanded Flows, safe navigation, documentation/MCP, full Beamfall roadmap
@@ -515,16 +518,16 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 > requirements do not expand Core's binary boundary or transfer its stability promise to
 > companions. The three Core jobs must pass on Corvint, Beamfall and one untouched public
 > repository (`PRS-V1-008`; urfave/cli for rc.2, decision 0432), alongside the expanded product qualification. Platform status comes
-> from each release's exact assets and evidence. The table distinguishes retained rc.1 evidence
-> from the expanded scope; it does not qualify later source changes.
+> from each release's exact assets and evidence. The table reports retained rc.2 evidence
+> separately from the expanded scope; it does not qualify source changes made after the rc.2 tag.
 
 | Surface | 1.0 label | Release evidence and current scope |
 |---|---|---|
 | `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
 | CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
 | Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
-| Core jobs | Core | **The rc.1 evaluation failed overall.** Orientation missed critical test files in 3/20 cases on go-chi/chi and 1/20 on Beamfall. Consequence and completion passed on those repositories; the Corvint run aborted before scoring. These results block 1.0 final ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). The rc.2 run on urfave/cli, Corvint and Beamfall has not run yet. |
-| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.1 install-lifecycle qualification. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. rc.1 is unsigned, and decision 0433 selects no signing for rc.2 and 1.0 as well: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
+| Core jobs | Core | **The rc.2 evaluation failed overall.** Task orientation missed critical files that the lexical baseline found: 6 files in 2 of 20 scored cases on urfave/cli, 9 files in 6 of 17 on Corvint and 1 file in 1 of 20 on Beamfall. Of the 15 public missed files, 11 are documentation or other non-Go files. Change consequence (no misses) and evidence-carrying completion (12 of 12 informative, no false complete verdict) passed on all three repositories. 1.0 final stays blocked on this evaluation ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). The rc.1 evaluation also failed orientation, on go-chi/chi and Beamfall; its Corvint run aborted before scoring. |
+| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.2 install-lifecycle qualification, in same-bytes mode and as the N-1 upgrade from rc.1 with rollback. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. rc.2 is unsigned, and decision 0433 selects no signing for 1.0 either: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). |
 | Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the retained held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
 | Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
 | Performance | Not claimed | No native performance qualification is claimed for rc.1 or rc.2. Earlier measurements compared against the retired Python runtime and do not qualify the Go-only release. |
