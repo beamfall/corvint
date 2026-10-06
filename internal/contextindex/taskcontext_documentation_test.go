@@ -249,3 +249,45 @@ func TestTaskContextLexicalFillCountsOnlyOpenPositions(t *testing.T) {
 		}
 	})
 }
+
+// TestTaskContextShareLineIsCountedThroughTheRecencyReorder is TCP-V0-061
+// under TCP-V0-035: the opt-in reorder moves code rows among the code
+// positions, so the head is counted, not named. A recent fourth code hit
+// promoted into the three-position head leaves no code row carried past the
+// head, so no share line claims the deferred documentation lost a position
+// to it: the omissions are the head's and the limit's.
+func TestTaskContextShareLineIsCountedThroughTheRecencyReorder(t *testing.T) {
+	t.Run("TCP-V0-061 TCP-V0-035", func(t *testing.T) {
+		root := recencyRepository(t)
+		for index := range 3 {
+			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index+1), "package code\n\n// needle signal\n")
+		}
+		for index := range 6 {
+			writeTestFile(t, root, fmt.Sprintf("docs/%c.md", 'a'+index), "needle signal\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "old sources")
+		writeTestFile(t, root, "code/04.go", "package code\n\n// needle signal\n")
+		recencyCommit(t, root, recencyNewDate, "new source")
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packet, err := TaskContext(context.Background(), index, "needle signal", "", 6)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := contextPairs(t, packet)
+		want := []string{
+			"lexical code/04.go", "lexical code/01.go", "lexical code/02.go",
+			"documentation docs/a.md", "documentation docs/b.md", "documentation docs/c.md",
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the recent code row promoted into the head: %v", got, want)
+		}
+		lines := contextUncertainty(t, packet)
+		if !slices.Equal(lines, []string{"1 code and 3 documentation rows the task matched lexically are omitted by the result limit 6"}) {
+			t.Fatalf("coverage.uncertainty = %q, want the limit line alone", lines)
+		}
+	})
+}

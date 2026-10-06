@@ -246,8 +246,11 @@ it must read, each with the relation that admitted it, without naming the task's
   documentation while a weaker code hit is carried; past the share a documentation hit follows
   every code hit, so the share, not its strength, may cut it while a weaker code hit is carried,
   and TCP-V0-061 states that class. The head never takes more than the positions the share
-  leaves to code (`fill - ceil(fill / 2)`, `fill` being TCP-V0-059's), so at a small limit a
-  stronger documentation hit is not cut by the head alone. Both classes retain the lexical slot's
+  leaves to code (`fill - ceil(fill / 2)`, `fill` being TCP-V0-059's), so at a small limit the
+  head alone never cuts a documentation hit inside the share; past the share, the head and the
+  share together may cut a stronger documentation hit while weaker code hits are carried (three
+  code and six stronger documentation hits at limit 6 carry the three code rows), which
+  TCP-V0-061's limit line counts. Both classes retain the lexical slot's
   confidence, authority, token rules, and final-limit behavior; their score is TCP-V0-060's.
   Before this amendment the fill placed at most two documentation rows after the head, then every
   remaining code row, then the remaining documentation rows: eight of the fifteen public rc.2
@@ -1004,8 +1007,10 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   the documentation share (S of F lexical positions); the strongest is \`path\` (bm25 X)`: the
   share, not the limit, kept them out, since without it they would hold that code row's
   position. A documentation hit the head or the limit displaced is counted in the first line
-  only, the head being TCP-V0-013's rule and not the share. A hit carried under another relation
-  is not omitted. When TCP-V0-016 withholds the ordinary rows, the withdrawn hits are stated as
+  only, the head being TCP-V0-013's rule and not the share; the head is counted, not named, so
+  that TCP-V0-035's reorder of the code rows among their positions (a recent code hit may hold
+  a head position) leaves the line unchanged. A hit carried under another relation is not
+  omitted. When TCP-V0-016 withholds the ordinary rows, the withdrawn hits are stated as
   `N code and M documentation rows the task matched lexically are withheld by the
   \`unsupported-conjunction\` verdict, not by the result limit L`, after the first line when the
   limit cut a reservation the task matched (the verdict withdraws no reservation, so that row is
@@ -1292,8 +1297,10 @@ row, and the limit line alone where the head or the deferred tail did, and
 `TestTaskContextLexicalScoreCarriesStrength` pins the score band,
 `TestTaskContextLexicalFillCountsOnlyOpenPositions` pins the fill accounting (a mentioned
 documentation row spends no share, a governing reservation is no fill position, withheld hits are
-stated as withheld) and `TestTaskContextStatesAReservationTheLimitCutAsOmitted`
-(`taskcontext_routed_test.go`) the reservation the limit cut under the verdict;
+stated as withheld), `TestTaskContextStatesAReservationTheLimitCutAsOmitted`
+(`taskcontext_routed_test.go`) the reservation the limit cut under the verdict and
+`TestTaskContextShareLineIsCountedThroughTheRecencyReorder` the counted head under TCP-V0-035's
+opt-in reorder (a recent code hit promoted into the head leaves the limit line alone);
 `TestTaskContextPlacesDocumentationAfterFiveCodeRows` is rewritten for the merged order. The recipe golden `testdata/context-recipe-default-golden.json` is regenerated: the
 same twelve rows, lexical scores by strength, `docs/guide.md` moved from the sixth to the tenth
 row and `docs/needle.md` from the sixth to the seventh (the mentioned `pkg/parser/parser.go` no
@@ -1419,4 +1426,4 @@ the recipe golden. No state persists.
 | TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `lexicalDeferred`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions` |
 | TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
-| TCP-V0-061 | `lexicalCoverage` (`lexicalHead`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line) and `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) |
+| TCP-V0-061 | `lexicalCoverage` (`lexicalHead`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head under TCP-V0-035's reorder) |

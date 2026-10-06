@@ -177,12 +177,31 @@ The second review (Codex, read-only, on the fixed commit) returned three finding
 9. P3, TCP-V0-059 promised at most `ceil(fill / 2)` documentation positions and TCP-V0-013 that
    no documentation hit is cut while a weaker code hit is carried, neither of which the deferred
    tail and the share hold: the spec now states that the deferred tail fills the positions no
-   code hit takes and qualifies the strength-order guarantee to the share.
+   code hit takes and qualifies the strength-order guarantee to the share (TCP-V0-013's head
+   sentence: past the share the head and the share together may cut a stronger documentation
+   hit while weaker code hits are carried, the three-code six-documentation limit-6 case).
 
 Rerun on the eight public cases after these fixes: every packet and every uncertainty line is
 identical to the previous rerun (27 carried, 11 treatment-only misses); the four share lines
 each name a code row the fill carried past the head, and the four cases without one had no
 share line before.
+
+The third review (Codex, read-only, on the second fixed commit) returned three findings:
+
+10. P1, `TestAnalyzerSchemaInputs` red: unchanged, the owner step of item 1; the digest at the
+    final commit is in the handoff.
+11. P2, `lexicalHead` named the head's members by path, which TCP-V0-035's opt-in reorder
+    invalidates: a recent code hit promoted into the head left the member it displaced counted
+    as a code row carried past the head, so the share line claimed a deferred documentation hit
+    lost its position to the share. Fixed; the head is a count, and a code row is carried past
+    the head when the fill's code rows outnumber the head positions (TCP-V0-061 amended).
+    Pinned by `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (three old code
+    hits, six stronger documentation hits and one recent code hit at limit 6 under
+    `CORVINT_CONTEXT_RECENCY=on`: the recent row holds a head position and the packet states
+    the limit line alone).
+12. P3, TCP-V0-013 said a stronger documentation hit is never cut by the head alone, which the
+    three-code six-documentation limit-6 case contradicts: qualified to the share, with the
+    `lexicalRows` comment and item 9 aligned.
 
 ## Rollback
 
