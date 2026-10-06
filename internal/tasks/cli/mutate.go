@@ -48,6 +48,9 @@ type mutateFlags struct {
 // envelope is composed here, so a caller never hand-writes the queue id,
 // profile or timestamp.
 func mutateCommand(env Env, verb string, args []string) *wire.Result {
+	if verb == "refine" && hasBatchFlag(args) {
+		return refineBatchCommand(env, args)
+	}
 	cmd := []string{"ticket", verb}
 	operation := mutationVerbs[verb]
 	flags, res := parseMutateFlags(cmd, args)
@@ -199,6 +202,10 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
+	}
+	if operation == mutation.OpRefine {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"
+		o.Set("batch", wire.String(batchHelp))
 	}
 	o.Set("usage", wire.String(usageText))
 	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))

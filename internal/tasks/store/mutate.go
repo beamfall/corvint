@@ -77,6 +77,18 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		return guardFailure(report, env.RequestID, err)
 	}
 	report.Redone = redone
+	return mutateLocked(ctx, repo, session, headState, request, env, now, report, &watch)
+}
+
+// mutateLocked is Mutate after the lock, the session, the writer guards and
+// §5.2 redo: the request lookup, the canonical audit, the model and the
+// commit of one envelope. The caller holds the writer lock for its whole run
+// and closes the change watch it leaves in *keep after releasing the lock.
+// MutateBatch runs it once per entry of a chunk under one lock (CAL-V0-106).
+func mutateLocked(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, keep **authority.ChangeGuard) (*Report, error) {
+	var watch *authority.ChangeGuard
+	var err error
+	defer func() { *keep = watch }()
 
 	// CAL-V0-070: one audit answers the request lookup and supplies the
 	// canonical intent records, with the same refusals as Lookup and Audit made
