@@ -1488,7 +1488,11 @@ arm is unchanged.
   resolves exactly or through its `.d<ext>.ts` declaration, as a bundler would; an
   extension-bearing candidate that fails still tries the five extensions appended; and a
   directory, including the repository root, resolves through its `index` file with the same
-  extensions. A resolved
+  extensions. `moduleResolution` is not read: `node10` runs the whole lookup with TypeScript and
+  declaration files first and JavaScript second, while `bundler`, `node16` and `nodenext` run it
+  once with every form, so a specifier resolves only when both orders pick the same file and is
+  unresolved otherwise. An empty `*` capture leaves the substitution as written, and an empty
+  `baseUrl` is the declaring config's directory, as in TypeScript. A resolved
   importer other than the changed path itself is a `reverse-import` row of the same shape,
   scores, evidence reason (`imports <specifier>`) and `syntax` authority as an oracle row, in
   addition to the oracle arm's rows. `NewWebImportResolver(index).Resolve(importer, specifier)`
@@ -1507,8 +1511,9 @@ arm is unchanged.
   declares, because TypeScript rejects the project as written. A package-named entry is legal but
   not indexed, so only the fields no earlier config declares become unknown. An unknown `baseUrl`
   or `paths` may claim any name, even a declared package's, so every bare specifier under that
-  config is unresolved. Two matching wildcard keys with the same prefix length, an absolute or
-  repository-escaping substitution (TypeScript could pick a file outside the index), and a
+  config is unresolved. Two matching wildcard keys with the same prefix length, a rooted
+  (leading slash, drive letter or URL) or repository-escaping substitution (TypeScript could pick
+  a file outside the index), and a
   candidate directory that holds a `package.json` (whose `exports`, `types` and `main` are not
   read) make that specifier unresolved rather than picking one.
 - `GPK-V0-079`: (proposed, pending owner acceptance; V1-0958) A web reverse-import row whose

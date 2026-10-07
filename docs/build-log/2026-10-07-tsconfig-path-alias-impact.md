@@ -156,3 +156,25 @@ resolver (observed):
 6. The repository root resolves as a directory, through its `index` file.
 
 On this repository, impact after these fixes still reports 12 specifiers in 8 sources.
+
+Round 2 reported three P2 findings and one P3 finding. All four were checked against TypeScript
+5.9.3 and accepted. Five `TestWebImportResolverFailsClosed` cases cover them, and all five fail on
+the round 1 resolver (observed):
+
+1. `moduleResolution` is not read, and `node10` tries TypeScript and declaration files in a first
+   pass and JavaScript in a second, while `bundler`, `node16` and `nodenext` try every form at once.
+   A specifier, relative or aliased, now resolves only when both orders pick the same file
+   (cases "node10 and bundler orders disagree" and "relative orders disagree").
+2. An empty `baseUrl` now means the declaring config's directory, as `normalizeNonListOptionValue`
+   does, instead of no `baseUrl`.
+3. Drive-letter, backslash and URL-shaped paths in `baseUrl`, substitutions and `extends` are now
+   rooted, so they count as outside the repository and leave the specifier unresolved.
+4. (P3) An empty `*` capture now leaves the substitution literal rather than substituting nothing.
+
+Timings after round 1, re-measured under concurrent load from other lanes (7-run medians): Page42
+impact 0.181 s base and 0.242 s new; util5 0.188 s base and 0.209 s new. The added cost stays at
+tens of milliseconds and impact stays sub-second.
+
+Out of scope: `TestSourceViewNativeSourceDigestsAreFrozen` in `cmd/corvint` fails on the base commit
+8af2bf62 as well (the `cmd/corvint/source_handoff.go` digest is not re-frozen). This change does not
+touch it.

@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"cmp"
 	"encoding/json"
 	jsonv2 "encoding/json/v2"
 	"path"
@@ -91,12 +92,10 @@ func NewWebImportResolver(index *Index) *WebImportResolver {
 // index rules as aliases; a missing relative target is unresolved.
 func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImportResolution {
 	if strings.HasPrefix(specifier, ".") {
-		target, _ := resolver.load(path.Join(path.Dir(importer), specifier))
-		return resolvedOrUnknown(target)
+		return resolvedOrUnknown(resolver.loadBoth(path.Join(path.Dir(importer), specifier)).target)
 	}
 	if prefix := resolver.profile.WebAliasPrefix; prefix != "" && strings.HasPrefix(specifier, prefix) {
-		target, _ := resolver.load(resolver.profile.WebAliasRoot + specifier[len(prefix):])
-		return resolvedOrUnknown(target)
+		return resolvedOrUnknown(resolver.loadBoth(resolver.profile.WebAliasRoot + specifier[len(prefix):]).target)
 	}
 	return resolver.resolveBare(importer, specifier)
 }
@@ -147,6 +146,44 @@ type webAliasOutcome struct {
 	unknown bool
 }
 
+// webPass selects the file forms one resolution pass may pick. Under
+// moduleResolution node10 TypeScript runs the whole lookup with TypeScript
+// and declaration files first and then again with JavaScript; bundler, node16
+// and nodenext run it once with every form. The mode is not read, so a name
+// resolves only when both orders agree (bothModes).
+type webPass uint8
+
+const (
+	webPassTyped webPass = 1 << iota
+	webPassUntyped
+	webPassAll = webPassTyped | webPassUntyped
+)
+
+func (pass webPass) admits(name string) bool {
+	typed := strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".tsx")
+	return typed && pass&webPassTyped != 0 || !typed && pass&webPassUntyped != 0
+}
+
+// bothModes keeps a resolution only when the node10 order and the
+// single-pass order give the same answer; otherwise the name is unknown.
+func bothModes(resolve func(webPass) webAliasOutcome) webAliasOutcome {
+	node10 := resolve(webPassTyped)
+	if node10.target == "" && !node10.unknown {
+		node10 = resolve(webPassUntyped)
+	}
+	if resolve(webPassAll) != node10 {
+		return webAliasOutcome{unknown: true}
+	}
+	return node10
+}
+
+func (resolver *WebImportResolver) loadBoth(candidate string) webAliasOutcome {
+	return bothModes(func(pass webPass) webAliasOutcome {
+		target, stop := resolver.load(candidate, pass)
+		return webAliasOutcome{target: target, unknown: stop}
+	})
+}
+
 func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutcome {
 	options := resolver.effective(config)
 	if !options.pathsKnown || !options.baseKnown {
@@ -154,6 +191,12 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 		// declared package's, so no answer is safe.
 		return webAliasOutcome{unknown: true}
 	}
+	return bothModes(func(pass webPass) webAliasOutcome {
+		return resolver.aliasIn(options, specifier, pass)
+	})
+}
+
+func (resolver *WebImportResolver) aliasIn(options *webOptions, specifier string, pass webPass) webAliasOutcome {
 	if options.paths != nil {
 		pattern, capture, matched, ambiguous := options.match(specifier)
 		if ambiguous {
@@ -164,18 +207,24 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 			// substitution resolves: TypeScript then goes straight to
 			// node_modules, so baseUrl is not tried.
 			for _, substitution := range options.paths[pattern] {
-				candidate, inside := options.webSubstitutionPath(strings.Replace(substitution, "*", capture, 1))
+				// An empty capture leaves the substitution as written, as in
+				// TypeScript, so `alias/` never names the target directory.
+				replaced := substitution
+				if capture != "" {
+					replaced = strings.Replace(substitution, "*", capture, 1)
+				}
+				candidate, inside := options.webSubstitutionPath(replaced)
 				if !inside {
 					// An absolute or escaping substitution may name a file
 					// outside the repository that TypeScript would pick.
 					return webAliasOutcome{unknown: true}
 				}
 				// A substitution naming a TypeScript extension is tried as
-				// written before any replacement.
+				// written before any replacement, in every pass.
 				if webExtension(substitution) != "" && resolver.exists(candidate) {
 					return webAliasOutcome{target: candidate}
 				}
-				target, stop := resolver.load(candidate)
+				target, stop := resolver.load(candidate, pass)
 				if target != "" {
 					return webAliasOutcome{target: target}
 				}
@@ -187,7 +236,7 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 		}
 	}
 	if options.baseURL != "" {
-		target, stop := resolver.load(path.Join(options.baseURL, specifier))
+		target, stop := resolver.load(path.Join(options.baseURL, specifier), pass)
 		if target != "" {
 			return webAliasOutcome{target: target}
 		}
@@ -231,7 +280,7 @@ var webImplicitExtensions = []string{".ts", ".tsx", ".d.ts", ".js", ".jsx"}
 // declaration, because a bundler resolves it. stop reports a directory holding
 // a package.json, whose entry point is not resolved here, so the caller
 // reports unknown instead of trying a later candidate.
-func (resolver *WebImportResolver) load(candidate string) (target string, stop bool) {
+func (resolver *WebImportResolver) load(candidate string, pass webPass) (target string, stop bool) {
 	candidate = path.Clean(candidate)
 	if candidate == ".." || strings.HasPrefix(candidate, "../") || strings.HasPrefix(candidate, "/") {
 		return "", false
@@ -244,20 +293,20 @@ func (resolver *WebImportResolver) load(candidate string) (target string, stop b
 		if extension := webExtension(candidate); extension != "" {
 			stem := strings.TrimSuffix(candidate, extension)
 			for _, replacement := range webReplacements[extension] {
-				if resolver.exists(stem + replacement) {
+				if resolver.has(stem+replacement, pass) {
 					return stem + replacement, false
 				}
 			}
 		} else if extension := path.Ext(candidate); extension != "" {
 			stem := strings.TrimSuffix(candidate, extension)
 			for _, name := range []string{candidate, stem + ".d" + extension + ".ts"} {
-				if resolver.exists(name) {
+				if resolver.has(name, pass) {
 					return name, false
 				}
 			}
 		}
 		for _, added := range webImplicitExtensions {
-			if resolver.exists(candidate + added) {
+			if resolver.has(candidate+added, pass) {
 				return candidate + added, false
 			}
 		}
@@ -266,11 +315,16 @@ func (resolver *WebImportResolver) load(candidate string) (target string, stop b
 		return "", true
 	}
 	for _, added := range webImplicitExtensions {
-		if resolver.exists(directory + "index" + added) {
+		if resolver.has(directory+"index"+added, pass) {
 			return directory + "index" + added, false
 		}
 	}
 	return "", false
+}
+
+// has reports a tracked file the pass may pick.
+func (resolver *WebImportResolver) has(name string, pass webPass) bool {
+	return pass.admits(name) && resolver.exists(name)
 }
 
 func (resolver *WebImportResolver) exists(name string) bool {
@@ -316,6 +370,7 @@ type webConfig struct {
 	extendsValid         bool
 	baseURL              string
 	baseURLSet           bool
+	baseURLNull          bool
 	paths                map[string][]string
 	pathsSet, pathsValid bool
 	moduleSuffixes       bool
@@ -379,8 +434,8 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 	}
 	options := raw.CompilerOptions
 	if len(options.BaseURL) != 0 {
-		config.baseURLSet = true
-		if string(options.BaseURL) != "null" && jsonv2.Unmarshal(options.BaseURL, &config.baseURL) != nil {
+		config.baseURLSet, config.baseURLNull = true, string(options.BaseURL) == "null"
+		if !config.baseURLNull && jsonv2.Unmarshal(options.BaseURL, &config.baseURL) != nil {
 			return nil
 		}
 	}
@@ -454,8 +509,12 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 		}
 		if config.baseURLSet && !baseDecided {
 			baseDecided = true
-			options.baseURL = webConfigPath(config.baseURL, config.directory, options.leafDirectory)
-			options.baseKnown = config.baseURL == "" || options.baseURL != ""
+			if !config.baseURLNull {
+				// TypeScript reads an empty baseUrl as the declaring
+				// config's directory.
+				options.baseURL = webConfigPath(cmp.Or(config.baseURL, "."), config.directory, options.leafDirectory)
+				options.baseKnown = options.baseURL != ""
+			}
 		}
 		if config.pathsSet && !pathsDecided {
 			pathsDecided = true
@@ -491,13 +550,14 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 // webConfigPath resolves a config-relative directory value to a repository
 // path, "" when it is absolute or leaves the repository.
 func webConfigPath(value, directory, leafDirectory string) string {
+	value = strings.ReplaceAll(value, "\\", "/")
 	if value == "" {
 		return ""
 	}
 	if rest, ok := strings.CutPrefix(value, "${configDir}"); ok {
 		directory, value = leafDirectory, "./"+strings.TrimPrefix(rest, "/")
 	}
-	if strings.HasPrefix(value, "/") {
+	if webRooted(value) {
 		return ""
 	}
 	joined := path.Join(directory, value)
@@ -512,9 +572,10 @@ func webConfigPath(value, directory, leafDirectory string) string {
 // `${configDir}` substitution, else against the paths base. inside is false
 // for an absolute substitution or one that leaves the repository.
 func (options *webOptions) webSubstitutionPath(substitution string) (candidate string, inside bool) {
+	substitution = strings.ReplaceAll(substitution, "\\", "/")
 	if rest, ok := strings.CutPrefix(substitution, "${configDir}"); ok {
 		candidate = path.Join(options.leafDirectory, rest)
-	} else if strings.HasPrefix(substitution, "/") {
+	} else if webRooted(substitution) {
 		return "", false
 	} else {
 		candidate = path.Join(options.pathsBase, substitution)
@@ -535,8 +596,9 @@ const (
 // missing. A package-named entry lives in node_modules, outside the index, and
 // is external; an absolute or repository-escaping entry is treated as missing.
 func (resolver *WebImportResolver) extendsPath(entry, directory string) (string, webExtendsState) {
+	entry = strings.ReplaceAll(entry, "\\", "/")
 	if !strings.HasPrefix(entry, "./") && !strings.HasPrefix(entry, "../") {
-		if entry == "" || strings.HasPrefix(entry, "/") || strings.HasPrefix(entry, "${configDir}") {
+		if entry == "" || webRooted(entry) || strings.HasPrefix(entry, "${configDir}") {
 			return "", webExtendsMissing
 		}
 		return "", webExtendsExternal
@@ -861,4 +923,14 @@ func webTypeOnlyImport(source Source, imported string, cache map[string]map[stri
 		cache[source.Path] = kinds
 	}
 	return kinds[imported]
+}
+
+// webRooted reports a path TypeScript treats as rooted (getEncodedRootLength):
+// a leading slash, a drive letter or a URL. It cannot name a file by its
+// repository-relative path.
+func webRooted(value string) bool {
+	if strings.HasPrefix(value, "/") || strings.Contains(value, "://") {
+		return true
+	}
+	return len(value) >= 2 && value[1] == ':' && ('a' <= value[0]|0x20 && value[0]|0x20 <= 'z')
 }

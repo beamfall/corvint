@@ -287,6 +287,25 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"tsconfig.json": `{"compilerOptions": {"paths": {"root": ["."]}}}`,
 			"index.ts":      page,
 		}, "root", WebImportResolution{"index.ts", WebImportRepository}},
+		"node10 and bundler orders disagree": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias": ["first/foo", "second/foo"]}}}`,
+			"first/foo.js":  page,
+			"second/foo.ts": page,
+		}, "alias", WebImportResolution{State: WebImportUnresolved}},
+		"relative orders disagree": {map[string]string{
+			"app/foo.js":       page,
+			"app/foo/index.ts": page,
+		}, "./foo", WebImportResolution{State: WebImportUnresolved}},
+		"empty baseUrl is the config directory": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"baseUrl": ""}}`,
+		}, "src/lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"drive-letter substitution": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias/*": ["C:/external/*", "src/lib/*"]}}}`,
+		}, "alias/page", WebImportResolution{State: WebImportUnresolved}},
+		"empty wildcard capture": {map[string]string{
+			"tsconfig.json":    `{"compilerOptions": {"paths": {"alias/*": ["src/lib/*"]}}}`,
+			"src/lib/index.ts": page,
+		}, "alias/", WebImportResolution{State: WebImportUnresolved}},
 		"jsconfig": {map[string]string{
 			"jsconfig.json": `{"compilerOptions": {"baseUrl": "src"}}`,
 		}, "lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
