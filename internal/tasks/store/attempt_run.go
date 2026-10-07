@@ -36,3 +36,20 @@ func AttemptRecord(ctx context.Context, repo *intent.Repository, attemptID strin
 	}
 	return a, nil
 }
+
+// AttemptRecords reads several attempts' current records from one audited
+// snapshot (ATR-V0-015). An attempt the snapshot does not hold, or whose
+// record does not decode, is omitted. It writes nothing.
+func AttemptRecords(ctx context.Context, repo *intent.Repository, attemptIDs []string) (map[string]*snapshot.Attempt, error) {
+	proof, err := readLeaseProof(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*snapshot.Attempt, len(attemptIDs))
+	for _, id := range attemptIDs {
+		if a, ok := lockedAttempt(proof, id); ok {
+			out[id] = a
+		}
+	}
+	return out, nil
+}

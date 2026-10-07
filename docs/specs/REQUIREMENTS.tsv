@@ -275,6 +275,7 @@ ATR-V0-011	docs/specs/corvint-tasks-attempt-runner-v0.md	61	`run --attach --atte
 ATR-V0-012	docs/specs/corvint-tasks-attempt-runner-v0.md	62	A detached run's process MUST be judged live only when its recorded PID currentl
 ATR-V0-013	docs/specs/corvint-tasks-attempt-runner-v0.md	63	A detached run MUST stay fenced by its lease as an attached run is: the supervis
 ATR-V0-014	docs/specs/corvint-tasks-attempt-runner-v0.md	64	A platform without new-session support (any other than Darwin and Linux) MUST re
+ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	65	(proposed, pending owner acceptance; V1-0931) After a detached supervisor has wr
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,

@@ -13,7 +13,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is proposed, pending owner acceptance, and implemented with a focused test on Darwin.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; dispatcher integration of detached runs (see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -43,8 +43,8 @@ periodic renewal while the command runs (coverage is established once before lau
 terminal input (the command runs in its own background process group); environment filtering (the
 command inherits the caller's environment, as any wrapper does); Windows. For detached runs, also:
 dispatcher integration, lease-holder transfer to a successor session, restart or adoption of a lost
-supervisor, signalling a run from `--attach`, output streaming or following, and pruning of finished
-run directories (see "Detached runs").
+supervisor, signalling a run from `--attach`, output streaming or following, and pruning of the run directories of a live attempt or on a read
+path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor).
 
 ## Requirements
 
@@ -62,6 +62,25 @@ run directories (see "Detached runs").
 - `ATR-V0-012`: A detached run's process MUST be judged live only when its recorded PID currently has its recorded start identity (`supervisor.ProcessIdentity`), never by a PID alone. When the supervisor is not live and a second read still shows no `FINISHED` record, attach MUST refuse with `SUPERVISOR_LOST`, exit 1, add a warning when the recorded command identity is still live (it runs unsupervised), and signal neither process.
 - `ATR-V0-013`: A detached run MUST stay fenced by its lease as an attached run is: the supervisor heartbeats about every 240 seconds, and a release, reap or generation change refuses the next beat, which stops and retires the command's group and records `LOST_LEASE` (ATR-V0-006). The supervisor MUST exit when its run ends (command exit, timeout, lost lease, interruption or pre-launch refusal) after its finish writes, so its life is bounded by the timeout, the 10-second cleanup bound and the bounded store writes. Its run-file writes have no time bound: the `FINISHED` writes start only after the command's group is retired and its outcome recorded, so a stalled filesystem delays the supervisor's exit and the attach result, never the timeout or the fence. It is never restarted, and the command's descendants are retired as in ATR-V0-003, with the same limits.
 - `ATR-V0-014`: A platform without new-session support (any other than Darwin and Linux) MUST refuse `--detach` and `--attach` with `UNSUPPORTED` before any write or start.
+- `ATR-V0-015`: (proposed, pending owner acceptance; V1-0931) After a detached supervisor has written
+  its own run's `FINISHED` record, it MUST retire the ended runs of terminal attempts beyond the
+  newest 16. The pass reads at most 1,024 attempt directories under `taskman-runs/` and at most 65
+  entries in each.
+
+  A run directory qualifies only when all of these hold:
+  - its record decodes, names that run ID, and hashes to that attempt directory;
+  - it has ended: its state is `FINISHED`, or neither its supervisor nor its recorded command is
+    live by start identity (ATR-V0-012);
+  - none of its files changed in the last hour.
+
+  When more than 16 qualify, one audited store read (`store.AttemptRecords`) MUST still find each
+  qualifying run's attempt, and only in a terminal phase. Qualifying runs beyond the newest 16 are
+  then removed, and so is an attempt directory left empty.
+
+  The pass MUST keep every run of a live or absent attempt. It MUST also keep runs it cannot prove
+  ended: a malformed record, a missing command identity, or an unreadable liveness check. It writes
+  no lease, receipt or journal entry, and a failure is left for a later pass. `--attach` and every
+  other read path MUST NOT retire anything (invariant 4).
 
 ## Outcome document
 
@@ -176,10 +195,11 @@ detached runs serve externally leased attempts driven by agent hosts outside the
 | Supervisor PID reused by an unrelated process | The start identity differs, so the run is not taken for live: `SUPERVISOR_LOST` (ATR-V0-012). |
 | Supervisor exited but not yet reaped | A finished record is read before liveness, so a finished run is unaffected. An unfinished, unreaped supervisor keeps its identity and looks live until its parent (init or a subreaper once the launcher has exited) reaps it; `--wait` bounds an attach. An explicit limit. |
 | Detached launch under the continuous dispatcher | The worker tree may adopt the supervisor and stop it with the worker, and hand-off releases the attempt, which fences the run; the run stops and normally records its outcome. Dispatcher integration is remaining work ("Detached runs"). |
-| Several runs of one attempt | Independent, as attached runs are; attach without `--run` refuses and lists them; at most 64 run directories per attempt, never pruned in V0 (ATR-V0-010, ATR-V0-011). |
+| Several runs of one attempt | Independent, as attached runs are; attach without `--run` refuses and lists them; at most 64 run directories per attempt; a live attempt's runs are never pruned, and after the attempt is terminal its ended runs beyond the newest 16 quiet ones are retired by a later supervisor (ATR-V0-010, ATR-V0-011, ATR-V0-015). |
 | Concurrent detached launches of one attempt near the cap | Each launcher counts again after creating its directory and gives it up when over 64, so at most 64 stay; concurrent launchers may each refuse (ATR-V0-008). |
 | Run-state filesystem stalls | The `RUNNING` write runs beside the runner and never delays its timeout, beats or fence; the launcher then exits 75 at its readiness bound. A stalled `FINISHED` write delays only the supervisor's exit; attach waits or reports `SUPERVISOR_LOST` if the supervisor is killed (ATR-V0-009, ATR-V0-013). |
 | Supervisor dies just after its `RUNNING` record | The launcher does not report `OK`: it rereads the record and replays a finished run or reports `SUPERVISOR_LOST` (ATR-V0-008, ATR-V0-012). |
+| Retired run attached or listed | A retired run is gone: attach refuses `MISSING_EVIDENCE` as for any absent run, and its `RUN_OUTCOME` stays in the journal. Retirement waits for an hour of quiet and a terminal attempt, and runs only when some supervisor finishes, so a host with no further detached runs keeps its old runs (ATR-V0-015). |
 | Output volume or an output write error | Older output is dropped and counted; the command is never failed by its output (ATR-V0-010). |
 | Run record or kept result altered or malformed | `MALFORMED`; nothing is replayed (ATR-V0-010, ATR-V0-011). |
 | Run record written by a build with another run-record version | `UNSUPPORTED_VERSION`; nothing is replayed (ATR-V0-010 as amended by CAL-V0-131). |
@@ -200,7 +220,9 @@ may refuse to audit them (inference, not tested), so a revert either keeps the v
 applies only to stores that recorded none. No state is erased or rewritten. For detached runs, a
 revert removes `--detach` and `--attach`; supervisors already running finish within their own bound.
 After none is live, `<git-common-dir>/taskman-runs/` may be deleted: it is private runtime state, never
-evidence or authority, and every recorded run's `RUN_OUTCOME` stays in the journal.
+evidence or authority, and every recorded run's `RUN_OUTCOME` stays in the journal. Reverting
+ATR-V0-015 alone stops retirement; run directories already removed stay removed, and no record,
+receipt or wire shape changes.
 
 ## Traceability
 
@@ -220,3 +242,4 @@ evidence or authority, and every recorded run's `RUN_OUTCOME` stays in the journ
 | ATR-V0-012 | `internal/tasks/cli/attempt_detach.go` (`processLive`, `supervisorLost`), `internal/tasks/supervisor` (`ProcessIdentity`) | TestATRV0012_AttachRefusesAProcessIdentityMismatch |
 | ATR-V0-013 | `internal/tasks/cli/attempt_detach.go` (`superviseRun`), `internal/tasks/cli/attempt_run.go` (`execute`) | TestATRV0013_FencedAttemptKillsTheDetachedCommand, TestATRV0008_DetachedRunSurvivesItsLauncher |
 | ATR-V0-014 | `internal/tasks/cli/attempt_detach_other.go`, `internal/tasks/cli/attempt_detach.go` (`launch`, `attemptAttach`) | NOT_PRODUCED: no test runs on a platform without new-session support; `GOOS=windows go vet` only |
+| ATR-V0-015 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRuns`, `runEnded`), `internal/tasks/cli/attempt_detach.go` (`superviseRun`), `internal/tasks/store/attempt_run.go` (`AttemptRecords`) | TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts |
