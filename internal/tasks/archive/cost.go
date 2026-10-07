@@ -269,3 +269,155 @@ func addWithin(a, b, limit uint64, where string) (uint64, error) {
 func addArchiveBytes(a, b uint64) (uint64, error) {
 	return addWithin(a, b, wire.MaxArchiveBytes, "stream")
 }
+
+// FileSetCost is the additive taskman-archive/0 encoding cost of a set of
+// manifest file entries: their count, payload bytes, encoded manifest entry
+// bytes (without separators) and tar header plus padded body bytes. It lets a
+// caller charge a previously measured, disjoint file set without listing it
+// again (CAL-V0-117). It proves nothing about the files themselves.
+type FileSetCost struct {
+	Files        int
+	PayloadBytes uint64
+	EntryBytes   uint64
+	TarBytes     uint64
+}
+
+// MeasureFileSet validates and measures entries exactly as
+// MeasureManifestEncoding measures its Files.
+func MeasureFileSet(files []FileEntry) (FileSetCost, error) {
+	if err := validateManifestFileCount(len(files)); err != nil {
+		return FileSetCost{}, err
+	}
+	if _, err := validateManifestFiles(files); err != nil {
+		return FileSetCost{}, err
+	}
+	var c FileSetCost
+	for _, f := range files {
+		one, err := entryCost(f.Path, f.Bytes.Uint64())
+		if err != nil {
+			return FileSetCost{}, err
+		}
+		if c, err = c.Add(one); err != nil {
+			return FileSetCost{}, err
+		}
+	}
+	return c, nil
+}
+
+// EntryCost validates one entry's path and size as MeasureManifestEncoding
+// does and returns its cost. It needs no content: with a canonical digest the
+// encoded size depends on path and size only.
+func EntryCost(path string, size uint64) (FileSetCost, error) {
+	if _, err := validateManifestFiles([]FileEntry{{Path: path, Sha256: canonicalDigestShape, Bytes: wire.SizeOf(size)}}); err != nil {
+		return FileSetCost{}, err
+	}
+	return entryCost(path, size)
+}
+
+func entryCost(path string, size uint64) (FileSetCost, error) {
+	if size > math.MaxInt64 {
+		return FileSetCost{}, wire.Errorf(wire.CodeLimitExceeded, path, "entry size exceeds int64 tar header range")
+	}
+	entry := uint64(len(wire.Encode(entryValue(FileEntry{Path: path, Sha256: canonicalDigestShape, Bytes: wire.SizeOf(size)}))))
+	header, err := measureHeaderBytes(path, size)
+	if err != nil {
+		return FileSetCost{}, err
+	}
+	body, err := roundTarBody(size)
+	if err != nil {
+		return FileSetCost{}, err
+	}
+	tarBytes, err := checkedAdd(header, body, path)
+	if err != nil {
+		return FileSetCost{}, err
+	}
+	return FileSetCost{Files: 1, PayloadBytes: size, EntryBytes: entry, TarBytes: tarBytes}, nil
+}
+
+// canonicalDigestShape has the encoded length of every valid digest.
+const canonicalDigestShape = wire.Digest("0000000000000000000000000000000000000000000000000000000000000000")
+
+// Add returns the cost of the disjoint union of c and o.
+func (c FileSetCost) Add(o FileSetCost) (FileSetCost, error) {
+	if o.Files < 0 || c.Files < 0 || o.Files > math.MaxInt-c.Files {
+		return FileSetCost{}, wire.Errorf(wire.CodeLimitExceeded, "/files", "file count overflow")
+	}
+	out := FileSetCost{Files: c.Files + o.Files}
+	var err error
+	if out.PayloadBytes, err = checkedAdd(c.PayloadBytes, o.PayloadBytes, "payload"); err != nil {
+		return FileSetCost{}, err
+	}
+	if out.EntryBytes, err = checkedAdd(c.EntryBytes, o.EntryBytes, ManifestName); err != nil {
+		return FileSetCost{}, err
+	}
+	if out.TarBytes, err = checkedAdd(c.TarBytes, o.TarBytes, "stream"); err != nil {
+		return FileSetCost{}, err
+	}
+	return out, nil
+}
+
+// MeasureManifestEncodingWith measures m as if its Files also held a disjoint,
+// previously validated file set of cost prefix. The caller owns disjointness
+// and the prefix's validity; the result equals MeasureManifestEncoding over
+// the union (CAL-V0-117).
+func MeasureManifestEncodingWith(m *Manifest, prefix FileSetCost) (ManifestEncoding, error) {
+	if prefix.Files == 0 {
+		return MeasureManifestEncoding(m)
+	}
+	if m == nil {
+		return ManifestEncoding{}, wire.Errorf(wire.CodeMalformed, ManifestName, "nil manifest")
+	}
+	if prefix.Files < 0 || len(m.Files) > math.MaxInt-prefix.Files {
+		return ManifestEncoding{}, wire.Errorf(wire.CodeLimitExceeded, "/files", "file count overflow")
+	}
+	n := len(m.Files) + prefix.Files
+	if err := validateManifestFileCount(n); err != nil {
+		return ManifestEncoding{}, err
+	}
+	emptyEncoding, err := validateManifestMetadata(m)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	payloadBytes, err := validateManifestFiles(m.Files)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	if payloadBytes, err = checkedAdd(payloadBytes, prefix.PayloadBytes, "/files"); err != nil {
+		return ManifestEncoding{}, err
+	}
+	own, err := MeasureFileSet(m.Files)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	all, err := own.Add(prefix)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	// One separator between consecutive entries, as measureManifestBytes adds.
+	manifestBytes, err := addWithin(uint64(len(emptyEncoding)), all.EntryBytes, uint64(MaxManifestBytes), ManifestName)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	if manifestBytes, err = addWithin(manifestBytes, uint64(n-1), uint64(MaxManifestBytes), ManifestName); err != nil {
+		return ManifestEncoding{}, err
+	}
+	manifestHeaderBytes, err := measureHeaderBytes(ManifestName, manifestBytes)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	manifestBodyBytes, err := roundTarBody(manifestBytes)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	tarBytes, err := addArchiveBytes(manifestHeaderBytes, manifestBodyBytes)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	if tarBytes, err = addArchiveBytes(tarBytes, all.TarBytes); err != nil {
+		return ManifestEncoding{}, err
+	}
+	if tarBytes, err = addArchiveBytes(tarBytes, tarTrailerBytes); err != nil {
+		return ManifestEncoding{}, err
+	}
+	return ManifestEncoding{Files: n, PayloadBytes: payloadBytes, ManifestBytes: manifestBytes, TarBytes: tarBytes}, nil
+}
