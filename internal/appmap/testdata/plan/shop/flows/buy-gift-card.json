@@ -1,0 +1,22 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "buy-gift-card",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "member",
+  "preconditions": [],
+  "steps": [
+    {"step_id": "buy", "action": "buy a gift card"}
+  ],
+  "outcomes": [
+    {"outcome_id": "purchased", "behavior": "gift card is purchased", "matcher": "toHaveText", "locator": "receipt", "value": "Gift card"}
+  ],
+  "variations": [],
+  "links": [],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [
+      {"step_id": "buy", "state": "/shop", "locator": {"test_id": "gift-card"}, "expect": ["purchased"]}
+    ]
+  }
+}
