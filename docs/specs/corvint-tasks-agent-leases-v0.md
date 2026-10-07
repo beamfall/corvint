@@ -4868,6 +4868,39 @@ Rollback: revert the decoder change, this amendment and the guide paragraph. Con
 use `prompts` or array prompts are then refused as unknown members or type errors; rewriting each
 role prompt inline restores them. No ledger, event or store shape changes.
 
+### V1-0979 complete-manual dependency warning
+
+Authoritative input: owner decision 2026-10-07 (V1-0978) recorded on native ticket V1-0979. In
+the Corvint queue, V1-0015 was completed by `complete-manual` while its COMPLETED-obligation
+dependency V1-0014 was OPEN, and nothing in the result said so. The owner chose to warn, not
+refuse: a manual disposition may override a dependency, and the warning makes the override
+visible. This amendment changes no payload, receipt, journal record, replay rule or outcome.
+
+- `CAL-V0-186`: (proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
+  COMPLETE_MANUAL receipt (not a replay, no-change or refusal), the command result MUST add one
+  envelope `warnings` entry for each COMPLETED-obligation dependency of the target whose ticket is
+  neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 satisfaction test), in the form
+  `COMPLETE_MANUAL overrode an unsatisfied dependency: <ticketId> (obligation COMPLETED) is
+  <status>`, where `<status>` is `not found` when the dependency ticket is not in the queue. The
+  entries MUST be in ticketId byte order and MUST be derived from the intent store the command
+  read before its write. GATE_PASSED dependencies are not evaluated. When every COMPLETED
+  dependency is satisfied the command MUST add no such warning. The completion MUST still commit,
+  and the receipt, journal entry, result item and outcome MUST be those the command produces
+  without this amendment.
+
+Non-goals: refusing or holding a manual completion; evaluating GATE_PASSED dependencies or
+execution prerequisites; warning on an exact replay (the original result carried it); warnings
+on other writers such as the admin console's ticket verbs.
+
+Failure modes: the dependency status is the pre-write read, so a dependency another writer
+completes between that read and the commit can be reported as unsatisfied; the warning is
+advisory and the committed state is unaffected. Rollback removes the helper and the warning; no
+store, journal or receipt state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-186 | `TestCALV0186_CompleteManualWarnsOnUnmetCompletedDependency` (`internal/tasks/cli`); `TestCALV0186_UnmetCompletedDependencies` (`internal/tasks/ticket`) |
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -5576,36 +5609,3 @@ receipt state depends on the batch form.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |
-
-## V1-0979 complete-manual dependency warning amendment
-
-Authoritative input: owner decision 2026-10-07 (V1-0978) recorded on native ticket V1-0979. In
-the Corvint queue, V1-0015 was completed by `complete-manual` while its COMPLETED-obligation
-dependency V1-0014 was OPEN, and nothing in the result said so. The owner chose to warn, not
-refuse: a manual disposition may override a dependency, and the warning makes the override
-visible. This amendment changes no payload, receipt, journal record, replay rule or outcome.
-
-- `CAL-V0-186`: (proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
-  COMPLETE_MANUAL receipt (not a replay, no-change or refusal), the command result MUST add one
-  envelope `warnings` entry for each COMPLETED-obligation dependency of the target whose ticket is
-  neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 satisfaction test), in the form
-  `COMPLETE_MANUAL overrode an unsatisfied dependency: <ticketId> (obligation COMPLETED) is
-  <status>`, where `<status>` is `not found` when the dependency ticket is not in the queue. The
-  entries MUST be in ticketId byte order and MUST be derived from the intent store the command
-  read before its write. GATE_PASSED dependencies are not evaluated. When every COMPLETED
-  dependency is satisfied the command MUST add no such warning. The completion MUST still commit,
-  and the receipt, journal entry, result item and outcome MUST be those the command produces
-  without this amendment.
-
-Non-goals: refusing or holding a manual completion; evaluating GATE_PASSED dependencies or
-execution prerequisites; warning on an exact replay (the original result carried it); warnings
-on other writers such as the admin console's ticket verbs.
-
-Failure modes: the dependency status is the pre-write read, so a dependency another writer
-completes between that read and the commit can be reported as unsatisfied; the warning is
-advisory and the committed state is unaffected. Rollback removes the helper and the warning; no
-store, journal or receipt state depends on it.
-
-| Requirement | Evidence |
-| --- | --- |
-| CAL-V0-186 | `TestCALV0186_CompleteManualWarnsOnUnmetCompletedDependency` (`internal/tasks/cli`); `TestCALV0186_UnmetCompletedDependencies` (`internal/tasks/ticket`) |

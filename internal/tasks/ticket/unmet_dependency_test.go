@@ -10,7 +10,8 @@ import (
 )
 
 // TestCALV0186_UnmetCompletedDependencies: only COMPLETED obligations count,
-// COMPLETED and ARCHIVED-from-COMPLETED satisfy them, a missing ticket is
+// COMPLETED and ARCHIVED-from-COMPLETED satisfy them (ARCHIVED from another
+// status does not), a missing ticket is
 // unmet with an empty status, and the result is in ticketId byte order
 // whatever order the record declares.
 func TestCALV0186_UnmetCompletedDependencies(t *testing.T) {
@@ -22,15 +23,19 @@ func TestCALV0186_UnmetCompletedDependencies(t *testing.T) {
 	from := ticket.StatusCompleted
 	tomb.ArchivedFrom = &from
 	tomb.Completion = done.Completion
+	shelved := fixture.Ticket("SHELVED")
+	shelved.Status = ticket.StatusArchived
+	fromOpen := ticket.StatusOpen
+	shelved.ArchivedFrom = &fromOpen
 	held := fixture.Ticket("HELD")
 	held.Status = "HELD"
 	open := fixture.Ticket("OPEN")
 	gated := fixture.Ticket("GATED")
 	target := fixture.Ticket("TARGET")
-	target.Dependencies = []ticket.Dependency{fixture.Dep("ZMISSING"), fixture.Dep("OPEN"), fixture.Dep("DONE"), fixture.Dep("TOMB"), fixture.GateDep("GATED", "verify"), fixture.Dep("HELD")}
-	inv := inventory(t, done, tomb, held, open, gated, target)
+	target.Dependencies = []ticket.Dependency{fixture.Dep("ZMISSING"), fixture.Dep("OPEN"), fixture.Dep("DONE"), fixture.Dep("TOMB"), fixture.GateDep("GATED", "verify"), fixture.Dep("HELD"), fixture.Dep("SHELVED")}
+	inv := inventory(t, done, tomb, shelved, held, open, gated, target)
 	got := inv.UnmetCompletedDependencies(fixture.TicketID("TARGET"))
-	want := []ticket.UnmetDependency{{TicketID: fixture.TicketID("HELD"), Status: "HELD"}, {TicketID: fixture.TicketID("OPEN"), Status: "OPEN"}, {TicketID: fixture.TicketID("ZMISSING")}}
+	want := []ticket.UnmetDependency{{TicketID: fixture.TicketID("HELD"), Status: "HELD"}, {TicketID: fixture.TicketID("OPEN"), Status: "OPEN"}, {TicketID: fixture.TicketID("SHELVED"), Status: "ARCHIVED"}, {TicketID: fixture.TicketID("ZMISSING")}}
 	if !slices.Equal(got, want) {
 		t.Fatalf("unmet = %+v, want %+v", got, want)
 	}
