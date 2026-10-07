@@ -130,36 +130,45 @@ func TestCALV0185_StallCountsSessionsWithoutStatusChange(t *testing.T) {
 // intervening tick absorbed the change.
 func TestCALV0185_TickDuringSessionKeepsStatusChange(t *testing.T) {
 	t.Run("CAL-V0-185", func(t *testing.T) {
-		gate := filepath.Join(t.TempDir(), "go")
-		c := testConfig(t, "while [ ! -f '"+gate+"' ]; do sleep 0.05; done")
-		c.StalledAfterSessions = intp(1)
-		q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
-		d, err := Open("prog", c, q, io.Discard)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = os.WriteFile(gate, nil, 0o600); _ = d.Close() })
-		ctx := context.Background()
-		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
-			t.Fatalf("launch: running %d %v", d.Running(), err)
-		}
-		q.obs.Tickets[0].Status = "HELD"
-		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
-			t.Fatalf("mid-session tick: running %d %v", d.Running(), err)
-		}
-		if err := os.WriteFile(gate, nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		waitEnded(t, d)
-		if err := d.Tick(ctx); err != nil {
-			t.Fatal(err)
-		}
-		ev := eventsOf(t, d, "finished")
-		if len(ev) != 1 || ev[0].Detail["sessionsSinceStatusChange"] != "0" {
-			t.Fatalf("finished events = %+v", ev)
-		}
-		if n := len(eventsOf(t, d, "stalled")); n != 0 {
-			t.Fatalf("%d stalled events for a session that changed the status", n)
+		for _, mid := range [][]string{{"HELD"}, {"HELD", "OPEN"}} {
+			gate := filepath.Join(t.TempDir(), "go")
+			c := testConfig(t, "while [ ! -f '"+gate+"' ]; do sleep 0.05; done")
+			c.StalledAfterSessions = intp(1)
+			q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+			d, err := Open("prog", c, q, io.Discard)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.WriteFile(gate, nil, 0o600); _ = d.Close() })
+			ctx := context.Background()
+			if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+				t.Fatalf("%v launch: running %d %v", mid, d.Running(), err)
+			}
+			// Each status is observed by a tick while the session runs; an
+			// OPEN -> HELD -> OPEN sequence still changed the status.
+			for _, status := range mid {
+				q.obs.Tickets[0].Status = status
+				if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+					t.Fatalf("%v mid-session tick: running %d %v", mid, d.Running(), err)
+				}
+			}
+			if err := os.WriteFile(gate, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			waitEnded(t, d)
+			if err := d.Tick(ctx); err != nil {
+				t.Fatal(err)
+			}
+			ev := eventsOf(t, d, "finished")
+			if len(ev) != 1 || ev[0].Detail["sessionsSinceStatusChange"] != "0" {
+				t.Fatalf("%v finished events = %+v", mid, ev)
+			}
+			if n := len(eventsOf(t, d, "stalled")); n != 0 {
+				t.Fatalf("%v: %d stalled events for a session that changed the status", mid, n)
+			}
+			if s := d.ledger.Stall[q.obs.Tickets[0].ID]; s == nil || s.Changed || s.Sessions != 0 || s.Status != mid[len(mid)-1] {
+				t.Fatalf("%v: stall state after finish = %+v", mid, s)
+			}
 		}
 	})
 }
@@ -225,8 +234,10 @@ func TestCALV0185_StallConfigAndLedgerAreClosed(t *testing.T) {
 			_, err := LoadLedger(dir, "prog")
 			return err
 		}
-		if err := write(`,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":4}}`); err != nil {
-			t.Fatalf("valid stall refused: %v", err)
+		for _, valid := range []string{`,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":4}}`, `,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":4,"changed":true}}`} {
+			if err := write(valid); err != nil {
+				t.Fatalf("valid stall %s refused: %v", valid, err)
+			}
 		}
 		for name, stall := range map[string]string{
 			"empty map":         `,"stall":{}`,
@@ -242,6 +253,9 @@ func TestCALV0185_StallConfigAndLedgerAreClosed(t *testing.T) {
 			"huge sessions":     `,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":1048577}}`,
 			"bad ticket key":    `,"stall":{"t1":{"status":"OPEN","sessions":1}}`,
 			"array":             `,"stall":[]`,
+			"changed false":     `,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":1,"changed":false}}`,
+			"changed null":      `,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":1,"changed":null}}`,
+			"changed string":    `,"stall":{"ticket:a:q:t1":{"status":"OPEN","sessions":1,"changed":"true"}}`,
 		} {
 			if err := write(stall); err == nil {
 				t.Errorf("%s: accepted", name)

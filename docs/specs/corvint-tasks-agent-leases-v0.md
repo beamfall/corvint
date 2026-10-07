@@ -4744,10 +4744,12 @@ cannot prove a value. No ticket, attempt or receipt record gains a field.
   key set of CAL-V0-167.
 - `CAL-V0-185`: (proposed, pending owner acceptance; V1-0966) The dispatcher MUST count, per
   ticket-keyed worker key, finished sessions since the ticket's native status last changed,
-  seeded at launch and kept in the ledger member `stall` (`{status, sessions}`, at most 8,192
-  tickets, each count saturating at 2^20). A status change during or between sessions restarts
-  the count at zero against the new status, and a tick during a running session leaves the
-  session's status change to its finish; a ticket that leaves the observation or reaches a
+  seeded at launch and kept in the ledger member `stall` (`{status, sessions, changed}`, at most
+  8,192 tickets, each count saturating at 2^20; `changed` is written only as `true`). A status
+  change during or between sessions restarts the count at zero against the new status. A tick
+  during a running session leaves the session's status change to its finish and records a status
+  it observed that differs as `changed`, so a change and a return before the finish (OPEN to HELD
+  to OPEN) still restarts the count; a ticket that leaves the observation or reaches a
   terminal status is dropped. A revision or work-state change without a status change still
   counts, so a program that never submits candidates is covered. Each `finished` event carries
   `sessionsSinceStatusChange` (a count, or `UNKNOWN` for a session the ledger has no launch seed

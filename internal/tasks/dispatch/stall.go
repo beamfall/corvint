@@ -12,10 +12,13 @@ import (
 // StallState is one CAL-V0-185 ticket's count of finished sessions since its
 // native status last changed. Status is the native status the count is
 // against; a work-state touch or a candidate never resets it, because only
-// a status transition does.
+// a status transition does. Changed records that a tick observed a status
+// other than Status while a session was running, so the session's finish
+// restarts the count even when the status has since returned.
 type StallState struct {
 	Status   string `json:"status"`
 	Sessions int    `json:"sessions"`
+	Changed  bool   `json:"changed,omitempty"`
 }
 
 // maxStallTickets bounds the ledger's stall map; maxStallSessions saturates
@@ -60,8 +63,9 @@ func (d *Dispatcher) countStall(t *Ticket, w *Worker, detail map[string]string) 
 		detail["sessionsSinceStatusChange"] = "UNKNOWN"
 		d.restartStall(t, w.Key)
 		return nil
-	case s.Status != t.Status:
-		// The session (or another writer during it) changed the status.
+	case s.Changed || s.Status != t.Status:
+		// The session (or another writer during it) changed the status,
+		// possibly and back again.
 		detail["sessionsSinceStatusChange"] = "0"
 		delete(d.ledger.Stall, w.Key)
 		d.restartStall(t, w.Key)
@@ -80,7 +84,9 @@ func (d *Dispatcher) countStall(t *Ticket, w *Worker, detail map[string]string) 
 // pruneStall drops the count of a ticket no longer observed or no longer
 // live, and restarts one whose status changed outside a session. A ticket
 // with a running session is left to countStall at that session's finish, so
-// a status change the session made is never absorbed by an earlier tick.
+// a status change the session made is never absorbed by an earlier tick; a
+// change observed meanwhile is kept as Changed, so a change and a return
+// before the finish still restarts the count.
 func (d *Dispatcher) pruneStall(obs *Observation) {
 	if len(d.ledger.Stall) == 0 {
 		return
@@ -97,6 +103,9 @@ func (d *Dispatcher) pruneStall(obs *Observation) {
 		t := byID[key]
 		switch {
 		case running[key]:
+			if t == nil || t.Status != s.Status {
+				s.Changed = true
+			}
 		case t == nil || !stallStatuses[t.Status]:
 			delete(d.ledger.Stall, key)
 		case t.Status != s.Status:

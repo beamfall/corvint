@@ -662,7 +662,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "ledger":
 				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config", "budget", "stall"}
 			case "stall-state":
-				fields = []string{"status", "sessions"}
+				fields = []string{"status", "sessions", "changed"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -745,6 +745,9 @@ func strictProgressJSON(raw []byte) bool {
 					child = "stall-state"
 				case "stall-state":
 					child = "infra-scalar"
+					if key == "changed" {
+						child = "loop-pending" // written only as true
+					}
 				case "infra-episode":
 					child = "infra-scalar"
 				case "seen":

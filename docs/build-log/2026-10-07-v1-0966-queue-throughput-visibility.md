@@ -119,6 +119,15 @@ Codex (gpt-6-astra, read-only) round 1 on 75ebd31f reported no P0 or P1 and thre
    spec failure mode. Binding it would need a forward chain walk, which is the receipt scan the
    issue rules out.
 
+Round 2 on 261c98c6 reported no P0 or P1 and one P2: the running-session skip discarded a status
+change observed mid-session, so OPEN to HELD to OPEN before the finish counted against the old
+streak and could emit a false `stalled`. Fixed: a tick that observes a different status for a
+running ticket records `changed` (written only as `true`) in the ledger stall entry, and the finish
+restarts the count when it is set. The marker is durable across a dispatcher restart. The
+unreleased `/3` schema pin was recomputed (the version stays `/3`, which is new in this branch).
+`TestCALV0185_TickDuringSessionKeepsStatusChange` now also runs the OPEN to HELD to OPEN sequence,
+which fails without the fix, and the ledger format test covers the `changed` member forms.
+
 ## Dogfood use
 
 At lane start, `corvint affected --base 0b45b052` and `corvint --root . context --task ...
