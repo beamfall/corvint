@@ -4127,7 +4127,8 @@ dispatcher cannot place a pipe or a rename between the worker and its log.
   after the cut, which the next tick compares against. The `finished` summary (CAL-V0-058) MUST read a live log shorter than its 64 KiB
   window as the continuation of the rotated segment, and it MUST skip the marker line.
 - `CAL-V0-144`: (proposed; V1-0930) When a tick finishes at least one worker, after those workers leave
-  the ledger, the dispatcher MUST remove finished worker directories beyond the 32 newest. A
+  the ledger, the dispatcher MUST remove finished worker directories beyond the 32 newest that are
+not kept for a reason below; a kept directory takes none of the 32. A
   directory's age is the newest modification time of the directory and its log segments. The pass
   reads at most 4,096 entries of `workers/`. It MUST keep every directory in any of these cases:
   - the ledger records its worker;
@@ -4139,7 +4140,9 @@ dispatcher cannot place a pipe or a rename between the worker and its log.
   - the `leader` file that launch writes into it holds a PID and start identity whose tree may still
     run: the leader still has that identity, or a live process is in its process group or session.
     An unreadable identity, process table or session also keeps the directory, and so does a
-    malformed `leader` file.
+    malformed `leader` file. A process that exits between the table read and its session read may
+    have forked a child the table does not show, so the table is then read once more and both
+    reads' groups and sessions count.
 
   Removal failures are left for the next pass.
 
@@ -4171,6 +4174,9 @@ Failure modes:
   log directory. The process itself is never signalled.
 - A reused leader PID, or a process group or session ID reused by an unrelated process, keeps a
   finished directory. Removal is only deferred.
+- A session member that exits after forking during the first table read is covered by the second
+  read. A chain in which that child also forks and exits before the second read finishes is not,
+  and its directory can be removed if it has also been silent for an hour.
 - A pass reads only the first 4,096 entries of `workers/`, in directory order. Retirement within
   that window is complete. Directories beyond it wait until the window shrinks, so more than about
   4,000 protected or recent directories in the window would stall the rest.
@@ -4533,7 +4539,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
-| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired` (`internal/tasks/dispatch`) |
+| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

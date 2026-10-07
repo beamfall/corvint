@@ -150,9 +150,12 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 		return finished[i].name > finished[j].name
 	})
+	// A directory whose recorded tree may still run is kept and takes no
+	// retention slot, so the newest maxRetainedWorkerDirs are counted among
+	// the removable ones only.
 	var groups, sessions map[int]bool
-	read, usable := false, false
-	for _, x := range finished[maxRetainedWorkerDirs:] {
+	read, usable, retained := false, false, 0
+	for _, x := range finished {
 		path := filepath.Join(root, x.name)
 		pid, id, err := readLeader(path)
 		switch {
@@ -169,6 +172,10 @@ func (d *Dispatcher) retireWorkerDirs() {
 			if !usable || treeMayRun(pid, id, groups, sessions) {
 				continue
 			}
+		}
+		if retained < maxRetainedWorkerDirs {
+			retained++
+			continue
 		}
 		_ = os.RemoveAll(path)
 	}

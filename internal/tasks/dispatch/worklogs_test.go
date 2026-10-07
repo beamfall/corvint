@@ -259,3 +259,84 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 		t.Fatalf("an unprotected oldest directory was kept: %v", err)
 	}
 }
+
+// TestCALV0144_ProtectedDirsTakeNoRetentionSlot plants 33 quiet finished
+// directories whose recorded leader is this live process, newer than one
+// finished directory with no leader. The protected directories are kept and
+// take none of the 32 retention slots, so the older finished one stays too.
+func TestCALV0144_ProtectedDirsTakeNoRetentionSlot(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	self, err := processIdentity(os.Getpid())
+	if err != nil || self == "" {
+		t.Fatalf("own identity: %q %v", self, err)
+	}
+	now := time.Now()
+	plant := func(name, leader string, at time.Time) {
+		dir := d.workerDir(name)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if leader != "" {
+			if err := os.WriteFile(filepath.Join(dir, workerLeaderName), []byte(leader), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		os.Chtimes(dir, at, at)
+	}
+	for i := 0; i < maxRetainedWorkerDirs+1; i++ {
+		plant(fmt.Sprintf("held-%02d", i), fmt.Sprintf("%d %s\n", os.Getpid(), self), now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plant("older", "", now.Add(-10*time.Hour))
+	d.retireWorkerDirs()
+	if _, err := os.Stat(d.workerDir("older")); err != nil {
+		t.Fatalf("protected directories took the retention slots: %v", err)
+	}
+	for i := 0; i < maxRetainedWorkerDirs+1; i++ {
+		if _, err := os.Stat(d.workerDir(fmt.Sprintf("held-%02d", i))); err != nil {
+			t.Fatalf("held-%02d was retired: %v", i, err)
+		}
+	}
+}
+
+// TestCALV0144_IncompleteSessionReadIsRetaken reads a table in which a
+// process is gone before its session is read, as when it forked a child the
+// table does not show. The table is read once more and the two reads are
+// joined, so the second read's sessions count. A gap left only by the table
+// reader itself needs no second read.
+func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
+	gone := exec.Command("/bin/sh", "-c", "exit 0")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	pid, self := gone.Process.Pid, os.Getpid()
+	sid, err := getsid(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev := superviseProcs
+	defer func() { superviseProcs = prev }()
+	reads := 0
+	table := func(ppid int, comm string) {
+		reads = 0
+		superviseProcs = func() (map[int]proc, error) {
+			reads++
+			if reads == 1 {
+				return map[int]proc{pid: {pid: pid, ppid: ppid, pgid: pid, comm: comm}}, nil
+			}
+			return map[int]proc{self: {pid: self, ppid: 1, pgid: self, comm: "go"}}, nil
+		}
+	}
+	table(1, "sh")
+	_, sessions, ok := liveTrees()
+	if !ok || reads != 2 || !sessions[sid] {
+		t.Fatalf("after a gone process: ok=%v reads=%d session kept=%v", ok, reads, sessions[sid])
+	}
+	table(self, "ps")
+	if _, _, ok := liveTrees(); !ok || reads != 1 {
+		t.Fatalf("after the gone table reader: ok=%v reads=%d", ok, reads)
+	}
+}

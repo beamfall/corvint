@@ -35,7 +35,9 @@ Retirement runs only after a tick finishes a worker. It keeps these directories:
   the leader's PID and start identity. The tree may run if the leader still has that identity, or
   if a live process remains in its process group or session.
 
-Of the rest it keeps the newest 32. A pass reads at most 4,096 entries.
+Of the rest it keeps the newest 32; a protected directory takes none of those slots. When a
+process exits between the process-table read and its session read, the table is read once more
+and both reads count. A pass reads at most 4,096 entries.
 
 ## Bounds
 
@@ -79,6 +81,18 @@ four major findings and one minor finding. Two of them concern this ticket:
 A third finding, that the bounded scan could starve retirement, is documented with its precise
 condition in CAL-V0-144 rather than fixed with a cursor.
 
+The one permitted re-review, of `643e7cf8`, again requested changes. Two findings concerned this
+ticket, and both were fixed afterwards without a further review:
+
+- A session member that exited after forking, between the table read and its session read, was
+  skipped. The table is now read once more and both reads are joined. Failing closed on every
+  such gap was tried and rejected: this host showed five exiting processes in each table read, so
+  retirement would never run. A fork-and-exit chain across both reads remains a documented
+  residual. `TestCALV0144_IncompleteSessionReadIsRetaken` fails against the previous code.
+- Protected directories used up the 32 retention slots. Protection is now decided before a
+  directory is counted. `TestCALV0144_ProtectedDirsTakeNoRetentionSlot` fails against the
+  previous code.
+
 ## Limits
 
 - Bytes appended between the size check and the truncation are lost.
@@ -87,6 +101,7 @@ condition in CAL-V0-144 rather than fixed with a cursor.
 - A tree with no `leader` file is protected only by the one-hour quiet window. This covers a crash
   between the spawn and the `leader` write, and a directory from an older build.
 - A pass sees only the first 4,096 directory entries.
+- A session member chain that forks and exits across both process-table reads is not seen.
 
 Linux runs and live dispatcher qualification were NOT_RUN.
 

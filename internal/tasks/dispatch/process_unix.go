@@ -266,23 +266,36 @@ func openReaderMarker(path string) (*os.File, error) {
 }
 
 // liveTrees reads the process groups and sessions that have a live member,
-// for CAL-V0-144. ok is false when the table or any session is unreadable.
+// for CAL-V0-144. A process that exits between the table read and its
+// session read may have forked a child the table does not show, so the read
+// is taken once more and both reads are joined: that child is alive at the
+// second table read or has itself exited. ok is false when a table or a
+// session is unreadable.
 func liveTrees() (groups, sessions map[int]bool, ok bool) {
-	procs, err := superviseProcs()
-	if err != nil {
-		return nil, nil, false
-	}
 	groups, sessions = map[int]bool{}, map[int]bool{}
-	for pid, p := range procs {
-		groups[p.pgid] = true
-		sid, err := getsid(pid)
-		if err == syscall.ESRCH {
-			continue // exited since the table was read
-		}
+	self := os.Getpid()
+	for read := 0; read < 2; read++ {
+		procs, err := superviseProcs()
 		if err != nil {
 			return nil, nil, false
 		}
-		sessions[sid] = true
+		gone := false
+		for pid, p := range procs {
+			groups[p.pgid] = true
+			sid, err := getsid(pid)
+			if err == syscall.ESRCH {
+				// The table reader itself forks nothing.
+				gone = gone || p.ppid != self || p.comm != "ps"
+				continue
+			}
+			if err != nil {
+				return nil, nil, false
+			}
+			sessions[sid] = true
+		}
+		if !gone {
+			break
+		}
 	}
 	return groups, sessions, true
 }
