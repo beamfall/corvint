@@ -152,3 +152,53 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0186_WriterAuditReadsIntentOnce covers CAL-V0-186 (proposed): a
+// writer audit reads each intent file's bytes once, in its first capture.
+// The walk takes selected intent records from those bytes, and the second
+// capture reuses them for a file that is still the same file with the same
+// size and modification time; the bytes it returns are the bytes on disk.
+func TestCALV0186_WriterAuditReadsIntentOnce(t *testing.T) {
+	repo, r := setup(t)
+	for _, id := range []string{"A", "B"} {
+		appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
+	}
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil || full.Mode != ModeFull {
+		t.Fatalf("complete audit: %v", err)
+	}
+	wc, err := full.WriterCheckpoint(observed.Files)
+	if err != nil || wc == nil {
+		t.Fatalf("writer checkpoint: %v", err)
+	}
+	// One tail receipt, so the walk also projects a ticket posted after the
+	// checkpoint.
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("C"): fixture.Ticket("C").Encode()}, "", true, true, false)
+	reads := map[string]int{}
+	old := afterNativeRead
+	t.Cleanup(func() { afterNativeRead = old })
+	afterNativeRead = func(p string) { reads[p]++ }
+	for _, forMutation := range []bool{false, true} {
+		clear(reads)
+		res, _, err := r.AuditForWriter(wc, "", forMutation)
+		if err != nil || res.Mode != ModeWriter {
+			t.Fatalf("forMutation=%v: writer audit: %v", forMutation, err)
+		}
+		intents := 0
+		for p, n := range reads {
+			if strings.HasPrefix(p, "intent/") {
+				intents++
+				if n != 1 {
+					t.Fatalf("forMutation=%v: %s read %d times", forMutation, p, n)
+				}
+			}
+		}
+		if intents < 4 {
+			t.Fatalf("forMutation=%v: %d intent files read, want queue, policy and three tickets", forMutation, intents)
+		}
+		tk, ok := res.Records[ticketPath("C")]
+		if !ok || tk.Raw == nil || !bytes.Equal(tk.Raw, fixture.Ticket("C").Encode()) || tk.Sha256 == nil || *tk.Sha256 != wire.Sum(tk.Raw) {
+			t.Fatalf("forMutation=%v: selected ticket record %+v", forMutation, tk)
+		}
+	}
+}

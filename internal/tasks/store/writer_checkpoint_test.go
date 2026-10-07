@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -641,6 +642,88 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 	}
 	if proof, err := journalReader(repo, head).Audit(); err != nil || proof.StructuralConsistency != "CONSISTENT" {
 		t.Fatalf("final audit: %+v %v", proof, err)
+	}
+}
+
+// CAL-V0-186 (proposed): the writer audit reads each intent file once, so
+// the pre-effect recheck is what binds the modeled intent bytes, and it still
+// compares content, not stat stamps. An in-place edit after the observation
+// that keeps the ticket file's inode, size and modification time publishes
+// nothing on the fast route and is decided by the complete route.
+func TestCALV0186_FastWriteRechecksIntentContent(t *testing.T) {
+	repo := writerStore(t, 70)
+	holdLeasePolicy(t, repo)
+	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
+	holdGit(t, root, "init", "-q", "-b", "main")
+	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+	_, ticketFile := mutationBoundaryFiles(t, repo)
+	entries, err := os.ReadDir(filepath.Dir(ticketFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimTarget := fixture.TicketID(strings.TrimSuffix(entries[len(entries)-1].Name(), ".json"))
+	// flip toggles the case of the title's first letter in place and restores
+	// the modification time, so only the content differs.
+	flip := func(t *testing.T) func() {
+		before, err := os.Stat(ticketFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := os.ReadFile(ticketFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := bytes.Index(raw, []byte(`"title":"`)) + len(`"title":"`)
+		write := func(b byte) {
+			f, err := os.OpenFile(ticketFile, os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.WriteAt([]byte{b}, int64(i)); err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chtimes(ticketFile, before.ModTime(), before.ModTime()); err != nil {
+				t.Fatal(err)
+			}
+		}
+		write(raw[i] ^ 0x20)
+		after, err := os.Stat(ticketFile)
+		if err != nil || !os.SameFile(before, after) || after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {
+			t.Fatalf("edit changed the stat stamps: %v", err)
+		}
+		return func() { write(raw[i]) }
+	}
+	claim := func(ctx context.Context) (*Report, error) {
+		return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "content-lease", Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: claimTarget, Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
+	}
+	for _, tc := range []struct {
+		name, stage string
+		write       func(context.Context) (*Report, error)
+	}{
+		{"mutate", "fast.observe", writerCreate(repo, "content-mutate", WallClock())},
+		{"lease", "fast.lease.observe", claim},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if readWriterCheckpoint(repo) == nil {
+				if run := writerMutate(t, repo, fmt.Sprintf("reseed-%d", headSeqOf(t, repo)), nil); !run.completed() {
+					t.Fatalf("reseed: %+v %v", run.rep, run.err)
+				}
+			}
+			before := mutationPublished(t, repo)
+			undo := func() {}
+			run := stagedWrite(tc.write, at(tc.stage, func() { undo = flip(t) }))
+			defer undo()
+			if run.fast() || !strings.Contains(strings.Join(run.stages, "\n"), tc.stage+"=") || wire.CodeOf(run.err) != wire.CodeIntentDiverged {
+				t.Fatalf("write: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if after := mutationPublished(t, repo); after != before {
+				t.Fatalf("published %s, before %s", after, before)
+			}
+			sameDecision(t, run, writerOracle(t, repo, tc.write))
+		})
 	}
 }
 

@@ -88,7 +88,8 @@ func newNativeRead(n Native) *nativeRead {
 	return &nativeRead{native: n, roots: map[string]*os.Root{}, dirs: map[string]*os.File{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
 }
 
-var afterReadNames func(string) // deterministic enumeration/metadata race witness
+var afterReadNames func(string)  // deterministic enumeration/metadata race witness
+var afterNativeRead func(string) // per-file read witness (CAL-V0-186)
 // pinnedReads is false only in the CAL-V0-070 equivalence test, which compares
 // per-file InRoot opens with reads beneath a pinned parent descriptor.
 var pinnedReads = true
@@ -252,6 +253,9 @@ func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 		err = s.closed(err, closeReadFile(f))
 		if err == nil && s.physical != nil {
 			err = s.physical.add(p, raw)
+		}
+		if err == nil && afterNativeRead != nil {
+			afterNativeRead(p)
 		}
 	}()
 	st, e := f.Stat()

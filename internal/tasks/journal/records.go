@@ -614,6 +614,11 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 // and digested by the capture this audit is bound to, so they are not read a
 // second time unless the caller needs the bytes themselves.
 func (r Reader) projected(o *observation, p string, needRaw bool) (*wire.Digest, []byte, error) {
+	if raw, ok := o.intentRaw[p]; ok {
+		// A writer capture kept the bytes it digested (CAL-V0-186, proposed).
+		d := o.intentDigests[p]
+		return &d, raw, nil
+	}
 	if strings.HasPrefix(p, "intent/") && !needRaw {
 		if d, ok := o.intentDigests[p]; ok {
 			return &d, nil, nil
