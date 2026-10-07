@@ -56,6 +56,31 @@ func (d *Dispatcher) WatchConfig(read func() ([]byte, error), initial []byte) {
 	d.configRead, d.configSha256, d.configAt = read, hex.EncodeToString(sum[:]), d.Now().UTC()
 }
 
+// configPending reports whether reloadConfig would act at this tick, so an
+// idle skip (CAL-V0-139) cannot delay a CAL-V0-127 reload: the file differs
+// from the applied bytes and is not the refusal already recorded, or it
+// matches them again after a refusal. A read error is pending, so the full
+// tick reports it.
+func (d *Dispatcher) configPending() bool {
+	if d.configRead == nil {
+		return false
+	}
+	raw, err := d.configRead()
+	if err != nil {
+		return true
+	}
+	digest := sha256.Sum256(raw)
+	sum := hex.EncodeToString(digest[:])
+	var refused *ConfigRefusal
+	if d.ledger.Config != nil {
+		refused = d.ledger.Config.Refused
+	}
+	if sum == d.configSha256 {
+		return refused != nil
+	}
+	return refused == nil || refused.Sha256 != sum
+}
+
 // reloadConfig applies a changed, valid configuration file at the tick
 // boundary. An unreadable or invalid file, or one changing stateDir or
 // workRoot, is refused once per distinct content: the applied configuration

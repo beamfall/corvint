@@ -291,6 +291,9 @@ func ledgerFormat(members map[string]json.RawMessage) error {
 	for name := range members {
 		found := false
 		for i := 0; i < known.NumField() && !found; i++ {
+			if !known.Field(i).IsExported() {
+				continue // never encoded, such as the CAL-V0-139 durable digest
+			}
 			tag, _, _ := strings.Cut(known.Field(i).Tag.Get("json"), ",")
 			found = strings.EqualFold(name, tag)
 		}

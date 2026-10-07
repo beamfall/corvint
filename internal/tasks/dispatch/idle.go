@@ -86,7 +86,7 @@ func (d *Dispatcher) idleSkip(ctx context.Context) bool {
 	if v, err := w.Witness(); err != nil || v != g.witness {
 		return false
 	}
-	if d.unparkRequested() {
+	if d.unparkRequested() || d.configPending() {
 		return false
 	}
 	d.idle = g

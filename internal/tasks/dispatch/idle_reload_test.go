@@ -1,0 +1,84 @@
+//go:build darwin || linux
+
+package dispatch
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+// CAL-V0-127 with CAL-V0-139: a changed configuration file ends an idle
+// skip, so it still applies at the next tick; an unchanged or already
+// refused file keeps the skip, and restoring the applied file ends it.
+func TestCALV0127_ConfigChangeEndsAnIdleSkip(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match = &Match{Labels: []string{"no-such-label"}}
+	clock := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	q := &witnessQueue{witness: "w1"}
+	q.obs.Tickets = []Ticket{ticket("T-1", "P1", 1)}
+	path := filepath.Join(t.TempDir(), "dispatch.json")
+	writeRaw := func(raw []byte) {
+		t.Helper()
+		if err := os.WriteFile(path, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	applied, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRaw(applied)
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	d.Now = func() time.Time { return clock }
+	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(path) }, applied)
+	tick := func(want int, why string) {
+		t.Helper()
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatalf("%s: tick: %v", why, err)
+		}
+		if q.observes != want {
+			t.Fatalf("%s: %d full observations, want %d", why, q.observes, want)
+		}
+	}
+	tick(1, "first tick")
+	tick(2, "a tick that records the observation reads in full")
+	tick(2, "an unchanged configuration file keeps the idle skip")
+
+	next := cloneConfig(t, c)
+	next.Roles[0].Prompt = "changed {ticketLocal}"
+	raw, err := json.Marshal(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRaw(raw)
+	tick(3, "a changed configuration file reads in full")
+	if d.Config.Roles[0].Prompt != "changed {ticketLocal}" || d.ledger.Config == nil || d.ledger.Config.AppliedSha256 != digest(raw) {
+		t.Fatalf("change not applied at the next tick: %+v", d.ledger.Config)
+	}
+	tick(4, "the applied record changed the ledger")
+	tick(4, "the new fixed point skips")
+
+	invalid := []byte(`{"profile":"nope"}`)
+	writeRaw(invalid)
+	tick(5, "an invalid file reads in full and is refused")
+	if r := d.ledger.Config.Refused; r == nil || r.Sha256 != digest(invalid) {
+		t.Fatalf("refusal %+v", d.ledger.Config)
+	}
+	tick(6, "the refusal changed the ledger")
+	tick(6, "an already refused file keeps the skip")
+
+	writeRaw(raw)
+	tick(7, "restoring the applied file reads in full")
+	if d.ledger.Config.Refused != nil {
+		t.Fatalf("restored file kept the refusal: %+v", d.ledger.Config)
+	}
+}
