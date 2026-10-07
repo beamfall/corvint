@@ -196,8 +196,8 @@ These are agent decisions, made fail-closed and accepted by the owner in decisio
 
 Decision 0443 answers questions 1 to 4 and 7 by keeping the current behaviour: TEA-style ledger
 history, no notes on COMPLETED home tickets, supersede and retract within the home ticket only,
-no WORKER grant, and the stated bounds. Questions 5 and 6 stay open as V1-0964 and question 8 as
-V1-0962.
+no WORKER grant, and the stated bounds. Decision 0444 answers questions 5, 6 and 8 with yes; the
+work and its requirements are V1-0964 (5, 6) and V1-0962 (8).
 
 1. Accept TEA-style ledger history, or require ON-V0-style derived events for know-how?
 2. Should COMPLETED home tickets accept notes, given the release digest binding (decision 2)?
