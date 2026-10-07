@@ -4158,6 +4158,14 @@ not kept for a reason below; a kept directory takes none of the 32. A
   4,096 marks writes no new one, so confirmation of newly removable directories waits for the next
   pass after the prune. Removal failures are left for the next pass.
 
+  Confirmation MUST NOT wait for another worker to finish. A pass that leaves a mark pending, or
+  that could not write one because the mark set was full, schedules one confirming pass in memory
+  for one minute later. The first tick at or after that time runs it even when no worker finished.
+  That tick is at most one tick interval late, so it falls within every mark's maximum age. The
+  CAL-V0-139 idle gate treats the scheduled time as a deadline. When no pass is scheduled, a tick
+  does no retirement work and reads nothing extra. A dispatcher that opens with a non-empty
+  `.retiring` directory runs one pass on its first tick; that check reads one directory entry.
+
 Bound: a recorded worker keeps at most 8 MiB per stream in its rotated segment. Its live file holds
 at most 8 MiB plus what the worker writes during one tick interval (`tickSeconds`, at most 3,600 s).
 A finished worker's logs were cut on its last supervising tick. Beyond the recorded and the
@@ -4558,7 +4566,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
-| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded` (`internal/tasks/dispatch`) |
+| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish`, `TestCALV0144_RestartConfirmsLeftMarks` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

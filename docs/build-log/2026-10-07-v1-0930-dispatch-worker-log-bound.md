@@ -25,7 +25,8 @@ activity:
 
 The `finished` summary reads a short live tail as the continuation of `.1`.
 
-Retirement runs only after a tick finishes a worker. It keeps these directories:
+Retirement runs after a tick finishes a worker, and on the tick a pending confirmation falls due.
+It keeps these directories:
 
 - those the ledger records;
 - those whose exit is still awaited;
@@ -46,6 +47,11 @@ removable with the same age, and a re-read just before removal still shows that 
 finding clears the mark. A mark older than 10 minutes or three ticks, whichever is longer, is
 stale and starts confirmation over. Marks are pruned from their own directory, and at most 4,096
 exist; a pass that reads that many writes none.
+
+A pass that leaves a mark pending schedules one confirming pass in memory, one minute later. The
+first tick at or after that time runs it, so confirmation never waits for another worker to
+finish. The idle gate wakes for it. Without a pending mark, a tick does no retirement work. A
+restart with a non-empty `.retiring` directory runs one pass on its first tick.
 
 ## Bounds
 
@@ -130,6 +136,25 @@ turn, and the matching test failed each time:
 - writing marks when a full set was read;
 - dropping the first read's sessions;
 - dropping the second read's sessions.
+
+The coordinator's Codex review of `bfca29a2` confirmed the three earlier fixes. It found one more
+MAJOR: retirement ran only when a worker finished. With finishes more than the mark's maximum age
+apart, every pass found the earlier marks stale, marked them again and removed nothing. A pass now
+schedules its own confirmation, as above.
+
+Two new tests cover this:
+- `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish` drives `Tick` with the idle gate's safety
+  interval at one hour. One worker finishes, no other does, and a tick 70 s later removes the
+  marked directory. Three later full ticks with nothing pending leave a planted mark of an absent
+  directory in place, which shows that they ran no retirement pass.
+- `TestCALV0144_RestartConfirmsLeftMarks` shows that the first tick after a restart confirms a
+  mark left by the previous run.
+
+Four mutations each made a test fail:
+- not scheduling the confirming pass in `finish`;
+- dropping the idle gate deadline;
+- dropping the start-up check;
+- running retirement on every tick.
 
 ## Limits
 

@@ -122,6 +122,7 @@ func capWorkerLog(dir, name string) bool {
 // per tick, so the two are always in different ticks. Failures are left for
 // the next pass.
 func (d *Dispatcher) retireWorkerDirs() {
+	d.retireConfirm = time.Time{}
 	root := filepath.Join(d.dir, "workers")
 	f, err := os.Open(root)
 	if err != nil {
@@ -213,11 +214,21 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 	}
 	markAge := max(workerRetireMarkMaxAge, 3*time.Duration(d.Config.TickSeconds)*time.Second)
+	// A pass that leaves a mark schedules its own confirming pass: a tick
+	// workerRetireConfirm from now, and at most one tick later, is inside
+	// every mark's maximum age, so confirmation never waits on another
+	// worker finishing.
+	pending := false
 	writeMark := func(mark string, age time.Time) {
-		if os.MkdirAll(marks, 0o700) == nil {
-			_ = os.WriteFile(mark, []byte(fmt.Sprintf("%d %d\n", now.UnixNano(), age.UnixNano())), 0o600)
+		if os.MkdirAll(marks, 0o700) == nil && os.WriteFile(mark, []byte(fmt.Sprintf("%d %d\n", now.UnixNano(), age.UnixNano())), 0o600) == nil {
+			pending = true
 		}
 	}
+	defer func() {
+		if pending {
+			d.retireConfirm = now.Add(workerRetireConfirm)
+		}
+	}()
 	for name, newest := range removable {
 		mark := filepath.Join(marks, name)
 		markedAt, age, err := readRetireMark(mark)
@@ -227,6 +238,8 @@ func (d *Dispatcher) retireWorkerDirs() {
 			if !full && held < maxRetireMarks {
 				held++
 				writeMark(mark, newest)
+			} else {
+				pending = true // marked by the pass after the prune
 			}
 		case err != nil || since < 0 || since > markAge:
 			writeMark(mark, newest) // malformed or stale: confirmation starts over
@@ -242,7 +255,11 @@ func (d *Dispatcher) retireWorkerDirs() {
 			}
 			if os.RemoveAll(path) == nil {
 				_ = os.Remove(mark)
+			} else {
+				pending = true
 			}
+		default:
+			pending = true // marked under workerRetireConfirm ago
 		}
 	}
 }

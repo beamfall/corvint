@@ -594,6 +594,111 @@ func TestCALV0144_MarksAreBounded(t *testing.T) {
 	}
 }
 
+// TestCALV0144_TicksConfirmMarksWithoutAnotherFinish finishes one worker,
+// whose pass marks the oldest removable directory, and then lets no other
+// worker finish. A later tick inside the mark's window confirms it on its
+// own, through the idle gate's deadline. Once no mark is pending, full ticks
+// run no retirement pass: a planted mark of an absent directory, which any
+// pass would clear, stays.
+func TestCALV0144_TicksConfirmMarksWithoutAnotherFinish(t *testing.T) {
+	defer func(d time.Duration) { idleFullEvery = d }(idleFullEvery)
+	idleFullEvery = time.Hour
+	c := testConfig(t, `printf '{"type":"text","part":{"text":"done"}}\n'`)
+	q := &witnessQueue{witness: "w1"}
+	q.obs.Tickets = []Ticket{ticket("t1", "P1", 1)}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	ctx := context.Background()
+	if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+		t.Fatalf("tick: %v running %d", err, d.Running())
+	}
+	q.obs.Tickets = nil
+	waitEnded(t, d)
+	if err := d.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !marked(d, "target") || d.retireConfirm.IsZero() {
+		t.Fatalf("the finishing pass: marked=%v confirm=%v", marked(d, "target"), d.retireConfirm)
+	}
+	base := time.Now()
+	tickAt := func(at time.Duration) {
+		t.Helper()
+		d.Now = func() time.Time { return base.Add(at) }
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, at := range []time.Duration{10 * time.Second, 30 * time.Second, 50 * time.Second} {
+		tickAt(at)
+		if _, err := os.Stat(d.workerDir("target")); err != nil {
+			t.Fatalf("removed %v after marking: %v", at, err)
+		}
+	}
+	tickAt(70 * time.Second)
+	if _, err := os.Stat(d.workerDir("target")); !os.IsNotExist(err) || marked(d, "target") {
+		t.Fatalf("the confirming tick kept the directory: %v, marked=%v", err, marked(d, "target"))
+	}
+	if !d.retireConfirm.IsZero() {
+		t.Fatalf("a confirmation is still scheduled at %v", d.retireConfirm)
+	}
+	if err := os.WriteFile(filepath.Join(d.dir, "workers", workerRetireMarks, "absent"), []byte("0 0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A changed witness makes each of these a full tick.
+	for i, at := range []time.Duration{3 * time.Minute, 10 * time.Minute, 20 * time.Minute} {
+		q.witness = fmt.Sprintf("idle-%d", i)
+		observes := q.observes
+		tickAt(at)
+		if q.observes == observes {
+			t.Fatalf("the tick at %v was skipped", at)
+		}
+	}
+	if !marked(d, "absent") {
+		t.Fatal("a tick with no pending mark ran a retirement pass")
+	}
+}
+
+// TestCALV0144_RestartConfirmsLeftMarks marks a directory and closes the
+// dispatcher. The next dispatcher's first tick, with no worker finishing,
+// confirms the mark.
+func TestCALV0144_RestartConfirmsLeftMarks(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	d, err := Open("prog", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	d.retireWorkerDirs()
+	if !marked(d, "target") {
+		t.Fatal("a removable directory was not marked")
+	}
+	d.Close()
+	d, err = Open("prog", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	d.Now = func() time.Time { return now.Add(2 * time.Minute) }
+	if err := d.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(d.workerDir("target")); !os.IsNotExist(err) {
+		t.Fatalf("the first tick after a restart kept a marked directory: %v", err)
+	}
+}
+
 func plantQuiet(t *testing.T, d *Dispatcher, name, leader string, at time.Time) {
 	t.Helper()
 	dir := d.workerDir(name)
