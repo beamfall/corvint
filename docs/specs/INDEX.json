@@ -666,7 +666,7 @@
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
     "title": "Corvint Tasks pool safe reuse V0",
     "reqPrefix": "PSR-V0",
-    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439)",
+    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 proposed (V1-0946)",
     "delivery": "experimental",
     "claim": "Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.",
     "dependsOn": [

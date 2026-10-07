@@ -380,7 +380,7 @@ func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
 	// The roster never meets a deferred ticket, so the launch tick records
 	// its hold from the deferral (CAL-V0-158).
 	spend := d.spendGate(clock)
-	spend.holdDeferred(obs.Tickets)
+	spend.holdDeferred(obs.Tickets, nil)
 	d.recordBudget(spend)
 	if h := d.ledger.Budget.Held; len(h) != 2 || h[0].Name != ts[0].ID || h[1].Name != ts[1].ID || h[0].Limit != LimitSessions {
 		t.Fatalf("deferred holds %+v", h)
@@ -399,6 +399,28 @@ func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
 	if h := d.budgetHeld(ts, clock); len(h) != 0 {
 		t.Fatalf("a ticket another role can serve is held: %v", h)
 	}
+	// A pending relaunch launches only under its own role, so that role's
+	// exhaustion holds its ticket even while another role could serve it.
+	d.detached = map[string]*detachedMarker{"run1": {RunID: "run1", Ticket: ts[0].ID, Role: c.Roles[0].Name, Phase: DetachedRelaunch, ReadyAt: clock}}
+	if h := d.budgetHeld(ts, clock); len(h) != 1 || !h[ts[0].ID] {
+		t.Fatalf("a relaunch whose role is exhausted is not held: %v", h)
+	}
+	// The deferral keeps the restriction: another role never launches it.
+	deferred := append([]Ticket(nil), ts...)
+	for i, p := range plan(map[string]bool{ts[0].ID: true}) {
+		for j := range deferred {
+			if deferred[j].ID == i {
+				deferred[j].Plan, deferred[j].PlanReason = p.State, p.Reason
+			}
+		}
+	}
+	launches, _ := roster(c, &Observation{Tickets: deferred}, nil, nil, nil, nil, map[string]string{ts[0].ID: c.Roles[0].Name}, nil)
+	for _, a := range launches {
+		if a.Ticket == ts[0].ID {
+			t.Fatalf("a budget-held relaunch launched under %s", a.Role)
+		}
+	}
+	d.detached = nil
 	c.Roles, c.Roles[0].Budget = c.Roles[:1], nil
 	if h := d.budgetHeld(ts, clock); h != nil {
 		t.Fatalf("no budget holds %v", h)

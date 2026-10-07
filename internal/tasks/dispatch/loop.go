@@ -1205,12 +1205,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	// CAL-V0-149: a finished detached run relaunches its ticket's role.
 	relaunch := d.relaunches()
-	prefer := map[string]string{}
-	for t, m := range relaunch {
-		prefer[t] = m.Role
-	}
+	prefer := preferredRoles(relaunch)
 	spend := d.spendGate(now)
-	spend.holdDeferred(obs.Tickets)
+	spend.holdDeferred(obs.Tickets, prefer)
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend)
 	d.recordHeld(obs, held)
 	// Holds are recorded after the launches, so a budget event counts them.

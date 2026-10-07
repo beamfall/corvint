@@ -166,6 +166,7 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
 	DirectPoolAdmission      *DirectPoolAdmission
+	SharedAllocation         *SharedAllocation
 	LaneUntouchedAttestation *LaneUntouchedAttestation
 	// OperatorNote pins the ticket's note reference at admission (ON-V0-007).
 	OperatorNote *ticket.OperatorNoteReference
@@ -465,7 +466,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	if err := wire.ProfileVersion("/profile", v, ProfileAttempt); err != nil {
 		return nil, err
 	}
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers", "sharedAllocation")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -478,6 +479,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "laneUntouchedAttestation") {
 		a.LaneUntouchedAttestation = readLaneUntouched(r.Field("laneUntouchedAttestation"))
+	}
+	if wire.Has(v, "sharedAllocation") {
+		a.SharedAllocation = readSharedAllocation(r.Field("sharedAllocation"))
 	}
 	// A nested refusal recorded above stands: return it before an
 	// independent decoder could replace it (CAL-V0-131).
@@ -592,6 +596,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 // identity naming the ticket's queue.
 func (a *Attempt) check() error {
 	if err := a.checkLaneUntouched(); err != nil {
+		return err
+	}
+	if err := a.checkSharedAllocation(); err != nil {
 		return err
 	}
 	q, err := AttemptQueue(a.AttemptID)
@@ -724,6 +731,9 @@ func (a *Attempt) Encode() ([]byte, error) {
 	}
 	if a.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", LaneUntouchedAttestationValue(a.LaneUntouchedAttestation))
+	}
+	if a.SharedAllocation != nil {
+		o.Set("sharedAllocation", SharedAllocationValue(a.SharedAllocation))
 	}
 	if a.OperatorNote != nil {
 		o.Set("operatorNote", a.OperatorNote.Value())

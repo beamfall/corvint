@@ -275,6 +275,25 @@ journal keeps sequence numbers, not wall-clock time, so `since` and `observedAt`
 as is any outcome pool state no longer retains (for example a FREE member's history). An unknown
 `--pool` or `--member` refuses `MALFORMED` (PSR-V0-013..015).
 
+To batch several lanes on one environment, a holder can bind further tickets to an allocation it
+already holds instead of taking another member (PSR-V0-016..021, proposed):
+
+```sh
+corvint-tasks claim AT-124 --pool test-env --stage implement --share-allocation <allocationId> --holder builder --request-id share-124
+```
+
+The share needs the same holder, pool and stage as the ALLOCATED member, a live unsupervised
+external-agent attempt on it, and at most 4 bound attempts in all; it takes no member or author
+exclusion and is not available with `--next`. Refusals are stable: `FENCED` (allocation not current),
+`RESOURCE_COLLISION` (another holder), `MALFORMED` (other pool or stage), `UNSUPPORTED` (supervised),
+`LIMIT_EXCEEDED` (bound full). The member stays ALLOCATED until the last bound attempt ends and is
+quarantined once; when the original attempt ends first the next bound attempt takes over the
+allocation. `pool status` lists `boundAttempts` (PRIMARY then SHARED) and `attempt show` adds
+`poolBinding`. A shared allocation cannot attach to a supervisor or be released lane-untouched.
+Bindings are written as the optional `shared` (pools.json) and `sharedAllocation` (attempt record)
+keys; a binary that predates them refuses the store `MALFORMED` rather than misreading it. A search
+for the byte string `"sharedAllocation"` in `.git/taskman` tells whether a share was ever admitted.
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
