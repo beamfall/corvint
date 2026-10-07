@@ -119,17 +119,20 @@ AFU-V1-039	docs/specs/application-flow-understanding-v1.md	631	A committed fixtu
 AFU-V1-040	docs/specs/application-flow-understanding-v1.md	634	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	838	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	846	Logical flow and paragraph IDs depend on provider namespace, repository-relative
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	852	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	858	Materialization requires a new directory under existing nonsymlink parents and
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	864	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	870	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	907	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	914	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	923	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	929	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	935	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	842	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	850	Logical flow and paragraph IDs depend on provider namespace, repository-relative
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	856	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	862	Materialization requires a new directory under existing nonsymlink parents and
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	868	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	874	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	911	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	918	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	927	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	933	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	939	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	971	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	975	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	979	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
