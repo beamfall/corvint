@@ -33,6 +33,7 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 	var fields []string
 	haveFields, wantSummary := false, false
 	rest := make([]string, 0, len(args))
+	flagged := map[string]bool{} // arguments in a flag position, not values
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -63,16 +64,17 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 			}
 			fields = parsed
 		default:
+			flagged[a] = true
 			rest = append(rest, a)
 		}
 	}
 	if haveFields && wantSummary {
 		return compactRefusal(cmd, "--fields and --summary are exclusive")
 	}
-	if wantSummary && spec.exclusive != "" && containsArg(rest, spec.exclusive) {
+	if wantSummary && spec.exclusive != "" && flagged[spec.exclusive] {
 		return compactRefusal(cmd, "--summary cannot be combined with "+spec.exclusive)
 	}
-	if wantSummary && spec.extra != "" && !containsArg(rest, spec.extra) {
+	if wantSummary && spec.extra != "" && !flagged[spec.extra] {
 		rest = append(rest, spec.extra)
 	}
 	res := read(rest)

@@ -191,6 +191,11 @@ func TestCALV0167_SummaryShapes(t *testing.T) {
 				t.Fatalf("plan entry summary %q", k)
 			}
 		}
+		// A pool label spelled like the exclusive flag is a value, not
+		// --selected-only.
+		if x := atm(t, root, nil, "plan", "preview", "--pool", "--selected-only", "--summary"); strings.Contains(string(x.stdout), "cannot be combined") {
+			t.Fatalf("pool value taken as --selected-only: %s", x.stdout)
+		}
 		if !fixture.SameTree(before, fixture.TreeSnapshot(t, root)) {
 			t.Fatal("a summary read wrote files")
 		}

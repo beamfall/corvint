@@ -87,6 +87,18 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 		if e != nil || code != 0 || field(r.Items[0], "operation").Str != "CREATE" || len(field(r.Items[0], "payloadKeys").Arr) == 0 {
 			t.Fatal("legacy mutation help changed")
 		}
+		// CAL-V0-170: --verbose is accepted beside the in-parser mutation
+		// help, which is already the full text, and refused without --help.
+		var verbose bytes.Buffer
+		code = cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"ticket", "create", "--payload-stdin", "--help", "--verbose"}, Stdin: unreadHelpInput{}, Stdout: &verbose})
+		if code != 0 || !bytes.Equal(verbose.Bytes(), out.Bytes()) {
+			t.Fatalf("verbose mutation help: %s", verbose.Bytes())
+		}
+		var bare bytes.Buffer
+		code = cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"ticket", "create", "--payload-stdin", "--verbose"}, Stdin: unreadHelpInput{}, Stdout: &bare})
+		if r, e := wire.DecodeResult(bare.Bytes()); e != nil || code == 0 || r.Outcome == wire.OutcomeOK || !strings.Contains(strings.Join(r.Warnings, ";"), "--verbose") {
+			t.Fatalf("--verbose without --help: %s", bare.Bytes())
+		}
 
 	})
 }
