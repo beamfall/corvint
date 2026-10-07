@@ -204,22 +204,42 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			specifiers = append(specifiers, s)
 		}
 		sort.Strings(specifiers)
+		imps := []Import{}
 		for _, s := range specifiers {
-			imp := Import{Specifier: s, Names: []string{}}
+			// One Import per statement: separate statements from one module bind different names,
+			// and each borrowed statement must carry exactly the names it binds.
+			byStmt := map[string]int{}
 			for _, bd := range binds {
-				if bd.Module == s {
-					imp.Names = append(imp.Names, bd.Local)
-					imp.Line = bd.Line
+				if bd.Module != s {
+					continue
 				}
+				stmt := statementAt(text, bd.Line, s)
+				k, seen := byStmt[stmt]
+				if !seen {
+					k = len(imps)
+					byStmt[stmt] = k
+					imps = append(imps, Import{Specifier: s, Statement: stmt, Line: bd.Line, Names: []string{}})
+				}
+				imps[k].Names = append(imps[k].Names, bd.Local)
 			}
-			if imp.Line == 0 {
-				imp.Line = importLine(text, s)
+			if len(byStmt) == 0 {
+				line := importLine(text, s)
+				imps = append(imps, Import{Specifier: s, Statement: statementAt(text, line, s), Line: line, Names: []string{}})
 			}
-			imp.Statement = statementAt(text, imp.Line, s)
+		}
+		sort.SliceStable(imps, func(i, j int) bool { return imps[i].Line < imps[j].Line })
+		for _, imp := range imps {
+			s := imp.Specifier
 			if target := contextindex.ResolveWebImport(ix, p, s); target != "" {
 				imp.Status, imp.Resolved = importResolved, target
 			} else {
 				imp.Status = importStatus(s, packages)
+			}
+			if imp.Status == importResolved && !under(imp.Resolved, rootDir) && webSuffix[strings.ToLower(path.Ext(imp.Resolved))] {
+				// A first-party module outside tests.root is not read, yet it may import a page
+				// object, so the chain through it is not known to be complete.
+				tf.Join = StatusUnknown
+				b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-outside-tests", Path: p, Line: imp.Line})
 			}
 			if imp.Status == importUnresolved {
 				tf.Join = StatusUnknown
@@ -228,7 +248,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			tf.Imports = append(tf.Imports, imp)
 		}
 		for _, rm := range facts.methods {
-			meth := Method{ID: methodID(p, rm.name), Name: rm.name, Anchor: spanOf(e, data, rm.start, rm.end), Selectors: []Selector{}}
+			meth := Method{ID: methodID(p, rm.name), Name: rm.name, Anchor: spanOf(e, data, rm.start, rm.end), Callable: rm.callable, Selectors: []Selector{}}
 			for _, s := range facts.selectors {
 				if s.Line >= rm.start && s.Line <= rm.end {
 					meth.Selectors = append(meth.Selectors, s)
@@ -306,18 +326,23 @@ func (b *builder) join() {
 			}
 			continue
 		}
-		targets := map[string]bool{}
+		targets, unresolved := map[string]bool{}, false
 		for _, g := range tf.Gotos {
 			if g.Screen != "" {
 				targets[g.Screen] = true
+			} else {
+				unresolved = true
 			}
 		}
-		switch len(targets) {
-		case 1:
+		switch {
+		case unresolved:
+			// a target the map cannot place may be a second screen, so no single binding is known
+			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unresolved-target", Path: p})
+		case len(targets) == 1:
 			for id := range targets {
 				tf.Screen, tf.ScreenBasis = id, "page-object-url"
 			}
-		case 0:
+		case len(targets) == 0:
 			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unbound", Path: p})
 		default:
 			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-ambiguous", Path: p})

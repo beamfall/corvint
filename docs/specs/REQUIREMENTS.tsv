@@ -208,19 +208,19 @@ ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
 AMAP-V0-001	docs/specs/application-map-v0.md	68	The map MUST be compiled from a closed `application-map-manifest/0` document
 AMAP-V0-002	docs/specs/application-map-v0.md	77	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
-AMAP-V0-003	docs/specs/application-map-v0.md	84	Screens MUST be keyed by app plus template. Two resolved screens with the same
-AMAP-V0-004	docs/specs/application-map-v0.md	90	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
-AMAP-V0-005	docs/specs/application-map-v0.md	97	Test files MUST be joined to screens through the contextindex import graph:
-AMAP-V0-006	docs/specs/application-map-v0.md	110	Each screen MUST aggregate permissions and flags (inherited from the nearest
-AMAP-V0-007	docs/specs/application-map-v0.md	114	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
-AMAP-V0-008	docs/specs/application-map-v0.md	126	Edges MUST come only from evidence: `flow-step` edges between adjacent
-AMAP-V0-009	docs/specs/application-map-v0.md	131	The map MUST be deterministic for one revision: sorted nodes, edges, files and
-AMAP-V0-010	docs/specs/application-map-v0.md	135	Every element MUST be pinned to the anchor it was read from. A projection MUST
-AMAP-V0-011	docs/specs/application-map-v0.md	145	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
-AMAP-V0-012	docs/specs/application-map-v0.md	155	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
-AMAP-V0-013	docs/specs/application-map-v0.md	160	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
-AMAP-V0-014	docs/specs/application-map-v0.md	174	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
-AMAP-V0-015	docs/specs/application-map-v0.md	183	Building and projecting MUST NOT write to the repository, the index, or any
+AMAP-V0-003	docs/specs/application-map-v0.md	88	Screens MUST be keyed by app plus template. Two resolved screens with the same
+AMAP-V0-004	docs/specs/application-map-v0.md	95	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
+AMAP-V0-005	docs/specs/application-map-v0.md	102	Test files MUST be joined to screens through the contextindex import graph:
+AMAP-V0-006	docs/specs/application-map-v0.md	117	Each screen MUST aggregate permissions and flags (inherited from the nearest
+AMAP-V0-007	docs/specs/application-map-v0.md	121	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
+AMAP-V0-008	docs/specs/application-map-v0.md	137	Edges MUST come only from evidence: `flow-step` edges between adjacent
+AMAP-V0-009	docs/specs/application-map-v0.md	142	The map MUST be deterministic for one revision: sorted nodes, edges, files and
+AMAP-V0-010	docs/specs/application-map-v0.md	146	Every element MUST be pinned to the anchor it was read from. A projection MUST
+AMAP-V0-011	docs/specs/application-map-v0.md	161	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
+AMAP-V0-012	docs/specs/application-map-v0.md	171	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
+AMAP-V0-013	docs/specs/application-map-v0.md	176	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
+AMAP-V0-014	docs/specs/application-map-v0.md	198	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
+AMAP-V0-015	docs/specs/application-map-v0.md	207	Building and projecting MUST NOT write to the repository, the index, or any
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

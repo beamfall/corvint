@@ -25,6 +25,8 @@ type reuseView struct {
 	Method   string `json:"method"`
 	Ref      string `json:"ref"`
 	Strength string `json:"strength"`
+	// Freshness is the method anchor's state; a STALE method is listed but never called.
+	Freshness string `json:"freshness"`
 }
 
 // closestSpec picks the spec the scaffold borrows from (AMAP-V0-013): a spec with a complete
@@ -144,12 +146,31 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	}
 	p.check()
 	stale := map[string]bool{}
+	// A method whose anchor changed may no longer exist or do what the step needs, and a method
+	// that takes parameters needs arguments the flow does not supply, so neither is called; the
+	// step falls back to a TODO and the skipped reuse is reported.
+	type skippedCall struct {
+		call
+		reason, note string
+	}
+	skipped := map[string]skippedCall{}
+	for id, c := range calls {
+		switch {
+		case p.state(c.meth.Anchor) == Stale:
+			skipped[id] = skippedCall{c, "stale-reuse", "is STALE at the evaluated revision"}
+		case !c.meth.Callable:
+			skipped[id] = skippedCall{c, "reuse-not-callable", "is not a public method callable without arguments"}
+		default:
+			continue
+		}
+		delete(calls, id)
+	}
 	cv := closestView{Status: StatusUnknown, Reason: "no-asserting-spec"}
 	proposed, dir := "", ""
 	imports, unknowns := []any{}, []any{}
 	// imported holds, per resolved file, the local names the borrowed imports bind from it; locals
 	// holds every name they bind. A class is usable only under a name actually bound to it.
-	imported, locals := map[string]map[string]bool{}, map[string]bool{}
+	imported, locals, bound := map[string]map[string]bool{}, map[string]bool{}, map[string]bool{}
 	if closest != nil {
 		cv = closestView{File: closest.Path, Status: StatusResolved, Assertions: closest.Assertions, ScreensShared: screensShared,
 			ReuseShared: reuseShared, Anchor: p.anchorView(closest.Anchor)}
@@ -174,6 +195,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			}
 			for _, n := range imp.Names {
 				locals[n] = true
+				bound[n] = bound[n] || ok
 			}
 			stmt := imp.Statement
 			if stmt == "" {
@@ -242,6 +264,12 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		vars[f.Path] = v
 		order = append(order, f.Path)
 	}
+	if !bound["test"] {
+		// Neither borrowed nor generated imports bind test (the closest spec may call it under
+		// another name, or there is no closest spec), so the draft says so rather than guess.
+		imports = append(imports, "// UNRESOLVED import { test }: no borrowed import binds test;")
+		unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: fl.ID, Reason: "test-unbound"})
+	}
 	lines := []any{fmt.Sprintf("test(%s, async ({ page }) => {", quote(fl.FlowID))}
 	for _, pre := range fl.Preconditions {
 		lines = append(lines, "  // precondition: "+pre)
@@ -258,11 +286,17 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		lines = append(lines, fmt.Sprintf("  // step %s: %s [%s]", st.ID, st.Action, where))
 		if c, ok := calls[st.ID]; ok && !blocked[c.file.Path] {
 			lines = append(lines, fmt.Sprintf("  await %s.%s(); // reuse %s [%s]", vars[c.file.Path], c.meth.Name, c.ref, st.Selector.Strength))
-			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength})
-			if p.state(c.meth.Anchor) == Stale {
+			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: p.state(c.meth.Anchor)})
+			continue
+		}
+		if c, ok := skipped[st.ID]; ok {
+			fresh := p.state(c.meth.Anchor)
+			lines = append(lines, fmt.Sprintf("  // reuse %s %s; not called", c.ref, c.note))
+			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: fresh})
+			unknowns = append(unknowns, Unknown{Kind: "scaffold-reuse", Ref: c.meth.ID, Reason: c.reason, Path: c.file.Path, Line: c.meth.Anchor.Start})
+			if fresh == Stale {
 				stale[c.meth.ID] = true
 			}
-			continue
 		}
 		switch {
 		case st.Selector == nil:

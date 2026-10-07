@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -977,5 +978,307 @@ func TestAMAPV0013GeneratedBindingCollision(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no collision unknown: %v", doc["unknowns"])
+	}
+}
+
+// AMAP-V0-007: role options passed by reference, a regex name and a string continued across lines
+// are handled without guessing: the first two are unknown, and the continuation keeps later line
+// numbers exact.
+func TestAMAPV0007RegexReferencedOptionsAndContinuations(t *testing.T) {
+	f := readFacts("page.getByRole('button', options);\npage.getByRole('button', { name: /Book/ });\npage.getByTestId('a\\\nb');\npage.getByTestId('c');")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, fmt.Sprintf("%s:%s:%s:%s@%d", s.Kind, s.Value, s.Name, s.Strength, s.Line))
+	}
+	want := "role:::unknown@1|role:::unknown@2|test-id:ab::strong@3|test-id:c::strong@5"
+	if strings.Join(got, "|") != want {
+		t.Fatalf("selectors:\n got %s\nwant %s", strings.Join(got, "|"), want)
+	}
+}
+
+// AMAP-V0-002: a repeated object key takes the last value in JavaScript, so the map never reports
+// the superseded one; a repeated router data key reads non-literal.
+func TestAMAPV0002RepeatedKeys(t *testing.T) {
+	toks, _ := lexJS(`{ a: '1', a: '2' }`)
+	v, _ := parseValue(toks, 0)
+	if a, ok := v.get("a"); !ok || a.str != "2" {
+		t.Fatalf("get a = %+v", a)
+	}
+	root, _ := fixtureRepo(t)
+	routes := "app/routes.js"
+	data, _ := os.ReadFile(filepath.Join(root, routes))
+	writeFile(t, root, routes, strings.Replace(string(data), "data: { permissions: ['teesheet.view'],", "data: { permissions: ['public'], permissions: ['teesheet.view'],", 1))
+	m := build(t, root, commitAll(t, root, "repeated permissions"))
+	s := screenByID(t, m, "app.clubs.teesheets")
+	if !hasUnknown(m, "screen-permissions", s.ID, "non-literal-value") || strings.Contains(strings.Join(s.Permissions, ","), "public") {
+		t.Fatalf("permissions %v unknowns %+v", s.Permissions, m.Unknowns)
+	}
+}
+
+// AMAP-V0-005: a page object with any navigation target the map cannot place is not bound to its
+// one placeable target, and keeps the join UNKNOWN.
+func TestAMAPV0005UnresolvedTargetBlocksBinding(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	page := "e2e/pages/home.page.ts"
+	data, _ := os.ReadFile(filepath.Join(root, page))
+	writeFile(t, root, page, strings.Replace(string(data), "  async goToTeeSheets() {", "  async away() {\n    await this.page.goto(target);\n  }\n\n  async goToTeeSheets() {", 1))
+	m := build(t, root, commitAll(t, root, "dynamic goto"))
+	if f := m.file(page); f.Screen != "" || !hasUnknown(m, "page-object", f.ID, "page-object-unresolved-target") {
+		t.Fatalf("home page bound to %q despite an unplaceable target", f.Screen)
+	}
+	if m.testJoin() != StatusUnknown {
+		t.Fatal("join RESOLVED")
+	}
+}
+
+// AMAP-V0-005: a resolved first-party import outside tests.root is not read, so the importing
+// file's join is UNKNOWN rather than a silently shortened chain.
+func TestAMAPV0005ImportOutsideTests(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "shared/flows.ts", "export function go() {}\n")
+	spec := "e2e/specs/shared.spec.ts"
+	writeFile(t, root, spec, "import { test } from '@playwright/test';\nimport { go } from '../../shared/flows';\n\ntest('shared', async () => {\n  go();\n});\n")
+	m := build(t, root, commitAll(t, root, "import outside tests"))
+	if f := m.file(spec); f.Join != StatusUnknown || !hasUnknown(m, "import", f.ID, "import-outside-tests") {
+		t.Fatalf("join %s unknowns %+v", f.Join, m.Unknowns)
+	}
+}
+
+// AMAP-V0-010: an import attribution rests on every file of its chain, so a changed intermediate
+// workflow makes the attribution's chain_freshness STALE while the spec's own anchor is FRESH.
+func TestAMAPV0010ChainFreshness(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	wf := "e2e/workflows/booking.ts"
+	data, _ := os.ReadFile(filepath.Join(root, wf))
+	writeFile(t, root, wf, strings.Replace(string(data), "await sheet.book();", "await sheet.book();\n  await sheet.book();", 1))
+	commitAll(t, root, "change the workflow")
+	doc := screenDoc(t, m, "app.home", Options{Root: root, Full: true})
+	found := false
+	for _, it := range doc["specs"].([]any) {
+		v := it.(map[string]any)
+		if v["file"] == "e2e/specs/booking-workflow.spec.ts" {
+			found = true
+			if v["anchor"].(map[string]any)["freshness"] != Fresh || v["chain_freshness"] != Stale {
+				t.Fatalf("spec %v chain %v", v["anchor"], v["chain_freshness"])
+			}
+		}
+		if v["file"] == "e2e/specs/teesheet-click.spec.ts" && v["chain_freshness"] != Fresh {
+			t.Fatalf("unchanged chain reads %v", v["chain_freshness"])
+		}
+	}
+	if !found {
+		t.Fatalf("workflow spec not attributed: %v", doc["specs"])
+	}
+}
+
+// AMAP-V0-013: a reused method whose anchor is STALE at the evaluated revision is listed with its
+// freshness and reported, but never called.
+func TestAMAPV0013StaleReuseNotCalled(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	page := "e2e/pages/teesheet.page.ts"
+	data, _ := os.ReadFile(filepath.Join(root, page))
+	writeFile(t, root, page, strings.Replace(string(data), "{ name: 'Book' }).click();", "{ name: 'Book' }).dblclick();", 1))
+	commitAll(t, root, "change book")
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if strings.Contains(body, "await teeSheetPage.book();") || !strings.Contains(body, "await teeSheetPage.selectSlot();") ||
+		!strings.Contains(body, "is STALE at the evaluated revision") || !strings.Contains(body, `"reason":"stale-reuse"`) {
+		t.Fatalf("scaffold: %s", body)
+	}
+	for _, it := range decode(t, raw)["reuse"].([]any) {
+		v := it.(map[string]any)
+		if want := map[bool]string{true: Stale, false: Fresh}[v["method"] == "method:"+page+"#book"]; v["freshness"] != want {
+			t.Fatalf("reuse %v", v)
+		}
+	}
+}
+
+// AMAP-V0-007: a short or non-hex \u escape at the end of the source never reads past it, and its
+// literal is inexact.
+func TestAMAPV0007ShortUnicodeEscape(t *testing.T) {
+	for _, src := range []string{"String.raw`\\u`", "x = '\\u", "x = '\\u12'", "x = `\\u{12`", "x = '\\u12x4'"} {
+		toks, _ := lexJS(src)
+		last := toks[len(toks)-1]
+		if (last.kind != tokString && last.kind != tokTemplate) || literal(last) {
+			t.Errorf("%q: last token %+v reads literal", src, last)
+		}
+		readFacts(src)
+	}
+}
+
+// AMAP-V0-003: "://" inside a query or fragment is data, not the start of an authority.
+func TestAMAPV0003QueryURLIsNotAuthority(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	x := newScreenIndex(m.HashPrefix, m.Screens)
+	for url, want := range map[string]string{
+		"/#!/home?returnTo=https://host/#!/clubs/7/teesheets":    "screen:admin:app.home",
+		"https://host/#!/home?next=ftp://x/#!/clubs/7/teesheets": "screen:admin:app.home",
+	} {
+		if got, _ := x.byURL(url); got != want {
+			t.Errorf("byURL(%s) = %q, want %q", url, got, want)
+		}
+	}
+}
+
+// AMAP-V0-002: a literal object that is only a prefix of the argument ({...} && config) is not the
+// configuration the program passes, so the state is UNKNOWN.
+func TestAMAPV0002ConfigMustBeWholeArgument(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	routes := "app/routes.js"
+	data, _ := os.ReadFile(filepath.Join(root, routes))
+	text := strings.Replace(string(data), "      url: 'home'\n    })", "      url: 'home'\n    } && config)", 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, routes, text)
+	m := build(t, root, commitAll(t, root, "prefix config"))
+	if s := screenByID(t, m, "app.home"); s.Status != StatusUnknown || s.Reason != "non-literal-value" || s.Template != "" {
+		t.Fatalf("app.home %s %s %q", s.Status, s.Reason, s.Template)
+	}
+}
+
+// AMAP-V0-010: an attribution through a page object the manifest places on a screen rests on the
+// manifest too, so rebinding it reads the old chain STALE.
+func TestAMAPV0010ManifestBindingFreshness(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	check := func(want string) {
+		t.Helper()
+		doc := screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Full: true})
+		n := 0
+		for _, it := range doc["specs"].([]any) {
+			v := it.(map[string]any)
+			if strings.Contains(fmt.Sprint(v["via"]), "e2e/pages/teesheet.page.ts") {
+				n++
+				if v["chain_freshness"] != want {
+					t.Fatalf("spec %v chain %v, want %s", v["file"], v["chain_freshness"], want)
+				}
+			}
+		}
+		if n == 0 {
+			t.Fatalf("no spec reaches the declared page object: %v", doc["specs"])
+		}
+	}
+	check(Fresh)
+	manifest := "appmap.json"
+	data, _ := os.ReadFile(filepath.Join(root, manifest))
+	writeFile(t, root, manifest, strings.Replace(string(data), `"state": "app.clubs.teesheets"`, `"state": "app.clubs.settings"`, 1))
+	commitAll(t, root, "rebind the tee sheet page")
+	check(Stale)
+}
+
+// AMAP-V0-013: a reused method that takes parameters, or a getter, static, private or protected
+// member, is not called.
+func TestAMAPV0013MethodWithArgumentsNotCalled(t *testing.T) {
+	for line, want := range map[string]bool{
+		"  async book() {": true, "  book = async () => {": true, "  async book(slot: string) {": false,
+		"  async book(n = 1) {": false, "  get book() {": false, "  private async book() {": false,
+		"  static book() {": false, "  protected book = async () => {": false, "  readonly book = () => {": true,
+	} {
+		if got := callable(line, "book"); got != want {
+			t.Errorf("callable(%q) = %v", line, got)
+		}
+	}
+	if f := readFacts("export async function go() {\n  await x();\n}\n"); len(f.methods) != 1 || f.methods[0].callable {
+		t.Fatalf("a module function is not an instance method: %+v", f.methods)
+	}
+	root, _ := fixtureRepo(t)
+	page := "e2e/pages/teesheet.page.ts"
+	data, _ := os.ReadFile(filepath.Join(root, page))
+	writeFile(t, root, page, strings.Replace(string(data), "async book() {", "async book(slot: string) {", 1))
+	m := build(t, root, commitAll(t, root, "book takes a slot"))
+
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if strings.Contains(body, "await teeSheetPage.book(") || !strings.Contains(body, "await teeSheetPage.selectSlot();") ||
+		!strings.Contains(body, "is not a public method callable without arguments") || !strings.Contains(body, `"reason":"reuse-not-callable"`) {
+		t.Fatalf("scaffold: %s", body)
+	}
+}
+
+// AMAP-V0-007: only data-testid is the getByTestId attribute; data-test and data-test-id stay CSS
+// and never share the test-id selector's identity.
+func TestAMAPV0007TestIDAttributeIsExact(t *testing.T) {
+	f := readFacts("page.locator('[data-test=\"save\"]');\npage.locator('[data-test-id=save]');\npage.locator('[data-testid=\"save\"]');\npage.getByTestId('save');")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, s.Kind+":"+s.Strength)
+	}
+	if want := "css:weak|css:weak|test-id:strong|test-id:strong"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+	if f.selectors[0].ID == f.selectors[3].ID || f.selectors[2].ID != f.selectors[3].ID {
+		t.Fatalf("selector identities %v", f.selectors)
+	}
+}
+
+// AMAP-V0-007: a getByRole options literal counts only as the whole argument.
+func TestAMAPV0007RoleOptionsWholeArgument(t *testing.T) {
+	f := readFacts("page.getByRole('button', { name: 'Book' } && options);\npage.getByRole('button', { name: 'Book' },);\npage.getByRole('button', { name: 'Book' });")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, fmt.Sprintf("%s:%s:%s@%d", s.Value, s.Name, s.Strength, s.Line))
+	}
+	if want := "::unknown@1|button:Book:medium@2|button:Book:medium@3"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+}
+
+// AMAP-V0-005: separate import statements from one module stay separate, each with exactly the
+// names it binds, so a borrowed statement never claims a name another statement binds.
+func TestAMAPV0005SeparateImportsFromOneModule(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	writeFile(t, root, spec, strings.Replace(string(data), "import { TeeSheetPage }", "import { helper } from '../pages/home.page';\nimport { TeeSheetPage }", 1))
+	m := build(t, root, commitAll(t, root, "two imports from one module"))
+	n := 0
+	for _, imp := range m.file(spec).Imports {
+		if imp.Specifier != "../pages/home.page" {
+			continue
+		}
+		n++
+		for _, name := range imp.Names {
+			if !strings.Contains(imp.Statement, name) {
+				t.Fatalf("statement %q does not bind %s", imp.Statement, name)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatalf("%d imports from ../pages/home.page: %+v", n, m.file(spec).Imports)
+	}
+}
+
+// AMAP-V0-013: a scaffold whose borrowed imports bind no test reports it instead of calling an
+// unbound name silently.
+func TestAMAPV0013TestUnbound(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	raw, err := ProjectScaffold(context.Background(), build(t, root, rev), "book-tee-time", Options{Root: root})
+	if err != nil || strings.Contains(string(raw), "test-unbound") {
+		t.Fatalf("baseline scaffold: %v %s", err, raw)
+	}
+	specs, _ := filepath.Glob(filepath.Join(root, "e2e/specs/*.spec.ts"))
+	for _, p := range specs {
+		data, _ := os.ReadFile(p)
+		rel, _ := filepath.Rel(root, p)
+		text := strings.Replace(string(data), "import { test, expect }", "import { test as it, expect }", 1)
+		writeFile(t, root, rel, strings.ReplaceAll(text, "\ntest(", "\nit("))
+	}
+	m := build(t, root, commitAll(t, root, "test as it"))
+	raw, err = ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := string(raw); !strings.Contains(body, "// UNRESOLVED import { test }") || !strings.Contains(body, `"reason":"test-unbound"`) {
+		t.Fatalf("scaffold: %s", body)
 	}
 }

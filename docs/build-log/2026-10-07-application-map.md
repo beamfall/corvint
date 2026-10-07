@@ -136,8 +136,64 @@ each confirmed and repaired with a regression test that fails without its fix:
 7. A map file claiming reuse for a step with no selector crashed `scaffold` —
    `TestAMAPV0013ReuseWithoutSelector`.
 
-AMAP-V0-005, 007, 010, 011 and 013 were amended in the same change. Later rounds are recorded in
-the lane handoff.
+AMAP-V0-005, 007, 010, 011 and 013 were amended in the same change.
+
+Round 3 (diff `8af2bf62..43c65094`) reported eight findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. `scaffold` called a reused page-object method whose anchor was `STALE` at the evaluated
+   revision — `TestAMAPV0013StaleReuseNotCalled` (no call; TODO, `freshness: STALE`, `stale-reuse`).
+2. `getByRole('button', opts)` read as a role with no name although `opts` may carry one —
+   `TestAMAPV0007RegexReferencedOptionsAndContinuations` (the selector reads `unknown`).
+3. A regular-expression literal was a literal string value —
+   `TestAMAPV0007RegexReferencedOptionsAndContinuations` (now non-literal).
+4. A page object with one literal and one non-literal target bound to the literal one —
+   `TestAMAPV0005UnresolvedTargetBlocksBinding` (`page-object-unresolved-target`, unbound).
+5. An import resolving outside `tests.root` was treated as a resolved dead end —
+   `TestAMAPV0005ImportOutsideTests` (`import-outside-tests`, join `UNKNOWN`).
+6. A spec attributed through a workflow read `FRESH` after the workflow changed —
+   `TestAMAPV0010ChainFreshness` (`chain_freshness` over the spec and its `via` files).
+7. A repeated object key read the first value where JavaScript keeps the last —
+   `TestAMAPV0002RepeatedKeys` (last value for `get`; a router object with a repeated key is
+   non-literal).
+8. Line continuations inside a quoted string did not advance the line count of later anchors —
+   `TestAMAPV0007RegexReferencedOptionsAndContinuations`.
+
+Findings 4, 5, 7 and 1 resolve design forks fail-closed; they are owner questions 8 to 11 in the
+spec. AMAP-V0-002, 005, 007, 010 and 013 and the unknown reasons were amended in the same change.
+
+Round 4 (diff `8af2bf62..f263921f`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. A short `\u` escape at the end of a template (``String.raw`\u` ``) consumed past the source and
+   panicked the lexer — `TestAMAPV0007ShortUnicodeEscape`.
+2. `://` anywhere in a URL started an authority, so `/login?returnTo=https://h/#!/x` resolved to
+   `/x` — `TestAMAPV0003QueryURLIsNotAuthority` (only a leading scheme).
+3. A literal object that was only a prefix of the `.state` argument (`{...} && config`) was read
+   as the configuration — `TestAMAPV0002ConfigMustBeWholeArgument`.
+4. A manifest rebinding a page object left chains through it `FRESH` —
+   `TestAMAPV0010ManifestBindingFreshness` (the whole-file manifest anchor joins a declared chain).
+5. `scaffold` called a reused method that takes parameters with none —
+   `TestAMAPV0013MethodWithArgumentsNotCalled` (`no_args`; `reuse-takes-arguments`).
+
+Finding 5 and the whole-file manifest anchor resolve forks fail-closed (owner question 12).
+
+Round 5 (diff `8af2bf62..aad51492`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. `[data-test=...]` and `[data-test-id=...]` were normalised to the `data-testid` test-ID
+   selector — `TestAMAPV0007TestIDAttributeIsExact` (they stay CSS).
+2. A role options literal that was only part of its argument (`{ name } && options`) named the
+   selector — `TestAMAPV0007RoleOptionsWholeArgument`.
+3. Getters, static, private and protected members and module functions were callable reuse —
+   `TestAMAPV0013MethodWithArgumentsNotCalled` (`callable` replaces round 4's `no_args`;
+   `reuse-not-callable` replaces `reuse-takes-arguments`).
+4. Two import statements from one module merged into one `Import` whose statement bound only some
+   of its names — `TestAMAPV0005SeparateImportsFromOneModule` (one `Import` per statement).
+5. The scaffold called `test` when the closest spec bound it only as an alias —
+   `TestAMAPV0013TestUnbound` (`test-unbound`, fail-closed; owner question 13).
+
+Later rounds are recorded in the lane handoff.
 
 ## Analyzer schema bump
 

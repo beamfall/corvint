@@ -94,6 +94,7 @@ func lexJS(text string) ([]token, string) {
 		case c == '\'' || c == '"':
 			body, inexact, end := readQuoted(text, i)
 			toks = append(toks, token{kind: tokString, text: body, line: line, inexact: inexact})
+			line += strings.Count(text[i:end], "\n") // line continuations
 			blank(i+1, end-1)
 			i = end
 		case c == '`':
@@ -111,7 +112,8 @@ func lexJS(text string) ([]token, string) {
 				continue
 			}
 			blank(i+1, j-1)
-			toks = append(toks, token{kind: tokString, text: "", line: line})
+			// A regex is a value but never a literal string: a pattern is not the text it matches.
+			toks = append(toks, token{kind: tokString, text: "", line: line, inexact: true})
 			i = j
 		case isIdentStart(c):
 			j := i + 1
@@ -232,7 +234,10 @@ func unicodeEscape(text string, j int) (rune, int, bool) {
 		return r, j + end + 1, ok && r <= utf8.MaxRune
 	}
 	r, ok := hexRune(text, j, j+4)
-	return r, j + 4, ok
+	if !ok {
+		return 0, j, false // never consume past a short or non-hex escape
+	}
+	return r, j + 4, true
 }
 
 func hexRune(text string, from, to int) (rune, bool) {
@@ -322,10 +327,11 @@ type jsPair struct {
 	value jsValue
 }
 
+// get returns the value of key; as in JavaScript, the last of repeated keys wins.
 func (v jsValue) get(key string) (jsValue, bool) {
-	for _, p := range v.obj {
-		if p.key == key {
-			return p.value, true
+	for i := len(v.obj) - 1; i >= 0; i-- {
+		if v.obj[i].key == key {
+			return v.obj[i].value, true
 		}
 	}
 	return jsValue{}, false
@@ -426,6 +432,11 @@ func parseObject(toks []token, i int) (jsValue, int) {
 		} else {
 			var val jsValue
 			val, i = parseValue(toks, i+2)
+			if _, dup := v.get(t.text); dup {
+				// A repeated key replaces the earlier value; mark the object as not plain so a
+				// reader that walks members cannot act on the superseded one (AMAP-V0-002).
+				v.obj = append(v.obj, jsPair{key: "", value: jsValue{kind: "other", line: t.line}})
+			}
 			v.obj = append(v.obj, jsPair{key: t.text, value: val})
 		}
 		if next(toks, i, ",") {

@@ -218,9 +218,12 @@ type Import struct {
 
 // Method is one page-object or workflow method with the selectors it uses.
 type Method struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Anchor    Anchor     `json:"anchor"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Anchor Anchor `json:"anchor"`
+	// Callable is true only for a public instance method whose header literally declares no
+	// parameters; the scaffold calls nothing else (AMAP-V0-013).
+	Callable  bool       `json:"callable"`
 	Selectors []Selector `json:"selectors"`
 }
 

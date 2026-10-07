@@ -29,7 +29,9 @@ var selectorKinds = map[string]struct{ kind, strength string }{
 	"locator":          {"css", strengthWeak},
 }
 
-var testIDAttribute = regexp.MustCompile(`^\[data-test(?:id|-id)?=["']?([^"'\]]+)["']?\]$`)
+// Only data-testid is the attribute getByTestId reads; data-test and data-test-id are other
+// attributes, so they stay CSS and never share a test-id selector.
+var testIDAttribute = regexp.MustCompile(`^\[data-testid=["']?([^"'\]]+)["']?\]$`)
 
 // newSelector builds a content-addressed selector: the same kind, value and name keep one ID in
 // every file and at every revision.
@@ -59,6 +61,7 @@ type rawGoto struct {
 type rawMethod struct {
 	name       string
 	start, end int
+	callable   bool
 }
 
 type rawNew struct {
@@ -121,9 +124,18 @@ func readFacts(text string) fileFacts {
 					kind = "text"
 				}
 			}
+			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && !isPunct(toks[i+4], ")") && !isPunct(toks[i+4], "{") {
+				// options passed by reference may carry any name
+				f.selectors = append(f.selectors, newSelector(sk.kind, "", "", strengthUnknown, t.line))
+				continue
+			}
 			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && isPunct(toks[i+4], "{") {
 				var named bool
-				if name, named = roleName(toks, i+4, lit); !named {
+				// The literal object must be the whole options argument; ({...} && options)
+				// passes options, whose name the map cannot read.
+				end := closeParen(toks, i+4)
+				whole := next(toks, end+1, ")") || (next(toks, end+1, ",") && next(toks, end+2, ")"))
+				if name, named = roleName(toks, i+4, lit); !named || !whole {
 					f.selectors = append(f.selectors, newSelector(sk.kind, "", "", strengthUnknown, t.line))
 					continue
 				}
@@ -160,10 +172,10 @@ func readFacts(text string) fileFacts {
 				f.class = m[1]
 			}
 		}
-		name := ""
-		for _, re := range []*regexp.Regexp{methodLine, arrowLine, funcLine} {
+		name, member := "", false
+		for k, re := range []*regexp.Regexp{methodLine, arrowLine, funcLine} {
 			if m := re.FindStringSubmatch(l); m != nil && !notMethod[m[1]] {
-				name = m[1]
+				name, member = m[1], k < 2
 				break
 			}
 		}
@@ -171,10 +183,30 @@ func readFacts(text string) fileFacts {
 			continue
 		}
 		if end := blockEnd(lines, n); end > n {
-			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1})
+			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1, callable: member && callable(l, name)})
 		}
 	}
 	return f
+}
+
+// hiddenMember matches the modifiers that make a class member unreachable as instance.name().
+var hiddenMember = regexp.MustCompile(`\b(?:private|protected|static|get|set)\b`)
+
+// callable reports whether a class member header declares a public instance method whose first
+// parameter list is literally empty: no getter, setter, static, private or protected member, and no
+// multi-line or defaulted parameter list.
+func callable(line, name string) bool {
+	at := strings.Index(line, name)
+	if hiddenMember.MatchString(line[:at]) {
+		return false
+	}
+	rest := line[at+len(name):]
+	lp := strings.IndexByte(rest, '(')
+	if lp < 0 {
+		return false
+	}
+	rp := strings.IndexByte(rest[lp:], ')')
+	return rp > 0 && strings.TrimSpace(rest[lp+1:lp+rp]) == ""
 }
 
 // roleName reads the literal name property of the getByRole options object opening at toks[open].
