@@ -43,7 +43,11 @@ test closure. The useful result is bounded evidence with an open semantic fronti
   and non-Go range receipts select/name this experimental profile automatically.
   The selector is unavailable with `--base` or `--working-tree-untracked`.
   Ruby reverse-import resolution remains explicitly unavailable; JS/TS reuses
-  existing relative/profile import rules without inferring runtime call semantics.
+  existing relative/profile import rules, plus the tsconfig/jsconfig alias arm
+  `GPK-V0-077` to `GPK-V0-081` propose (proposed, pending owner acceptance;
+  V1-0958), without inferring runtime call semantics. A non-test JS/TS changed
+  path in a repository with an unresolved bare import specifier carries
+  `bare-import-unresolved` with the repository-wide count (`GPK-V0-080`).
 - `NGI-V0-004`: Added paths MUST carry the same receipt/evidence envelope and
   target Git blob binding as Go evidence. Range markers/ADR relations MUST remain
   exact-hunk qualified and caller-authored authority MUST remain withheld.
@@ -90,6 +94,7 @@ for languages not admitted by this new range capability.
 | `observed-computed-dispatch` | A computed-call candidate was observed. |
 | `autoload-unresolved` | Ruby autoload was observed without resolved runtime semantics. |
 | `dynamic-load-unresolved` | A load argument is dynamic, interpolated or concatenated. |
+| `bare-import-unresolved` | Bare JS/TS import specifiers resolve to no repository file or declared package, so reverse importers are not closed; `count` is the repository-wide specifier count (`GPK-V0-080`, proposed). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -100,7 +105,7 @@ names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
 |---|---|---|
 | `NGI-V0-001` | shared suffix helper; MCP descriptor/validator | `TestNonGoImpactMCPAdmission` |
 | `NGI-V0-002` | shared range compiler language classification | `TestNonGoRangeImpact` |
-| `NGI-V0-003` | shared lexical mask and structured frontier | `TestNonGoImpactDynamicUnknowns` |
+| `NGI-V0-003` | shared lexical mask and structured frontier; `bare-import-unresolved` in `nonGoImpactUnknowns` | `TestNonGoImpactDynamicUnknowns`; `TestImpactSyntaxReportsBareImportUnresolved` and `TestImpactKeepsFrozenBareReadingWithoutManifest` (`internal/contextindex/webresolve_test.go`) |
 | `NGI-V0-004` | existing range bindings/reducer | `TestNonGoRangeImpactLegacyGoBytes`, `TestNonGoRangeImpactGoModuleValidationPriority`, `TestNonGoImpactCLIProfile` |
 | `NGI-V0-005` | impactHelp and MCP description | `TestNonGoImpactMCPAdmission`; actual CLI help check in the build-log |
 | `NGI-V0-006` | committed fixture conformance | `TestNonGoRangeImpactMixed`, `TestNonGoRangeImpactRefusals`; tests above and existing range/impact regressions |

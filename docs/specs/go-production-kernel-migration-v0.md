@@ -896,6 +896,11 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-058` (proposed, not accepted) | `probeRepositorySharing` and `finishConcurrently` in `internal/gokernel/repository.go`, `observeAndBuildContext` in `internal/gokernel/harness.go`, `LoadEventSnapshotObserved` in `internal/contextindex/snapshot.go`, and `harnessSharedIndexedContext` in `cmd/corvint/harness_context.go`, reachable only under `CORVINT_HARNESS_SHARED_OBSERVATION=1` | `TestSharedBracketSpawnsFourGitProcessesUnlessTheProfileIsEmitted` and `TestSharedBracketRerunsTheReadWhenTheObservationMoves` (`internal/gokernel/repository_shared_test.go`), which pin the stage order, the profile-only-when-emitted spawn, and the retry re-running the read; `TestHarnessSharedObservationEmitsByteIdenticalReceipts` and `TestHarnessSharedObservationSpawnCount` (`cmd/corvint/harness_shared_observation_test.go`), which compare both paths' bytes over five repository states and five events and count Git spawns through a PATH shim; the `cli-parity-v0` harness replay on both paths and the Beamfall timing in `docs/plans/shared-observation-prototype-2026-09-05.md` |
 | `GPK-V0-065` (proposed, not accepted) | `queryBracket` and `EvalQueryShared` in `internal/contextindex/shared_query.go`, the `bracket` argument `evalQuery` and `evalLearnedCandidates` thread in `internal/contextindex/eval_query.go`, `LoadQuerySnapshot` returning the hit's `LoaderObservation` and `LoadSharedQuerySnapshot` taking no closing identity read in `internal/contextindex/snapshot.go`, `WithProbeReuse` and `probeMemo` in `internal/gitstatus/status.go`, `ReadObserved` and `observedStabilityCheck` in `internal/tracerecordrepo`, and `repositoryQueryContext` and `querySnapshotIndex` in `cmd/corvint/harness_context.go`, reachable only under `CORVINT_QUERY_SHARED_OBSERVATION=1` | `TestEvalQuerySharedMatchesEvalQueryWithFewerGitProcesses` (`internal/contextindex/shared_query_test.go`), which compares the canonical receipt of both paths on a snapshot hit and counts the learn stage's Git calls through a PATH wrapper; `TestEvalQuerySharedRefusesDriftInsideTheWindow`, whose four subtests inject a tree or status change after `git log` and pin the `unsupported-query-drift` refusal with and without the trace read's deferred comparison; `TestQuerySharedObservationEmitsByteIdenticalOutput` (`cmd/corvint/query_shared_observation_test.go`), which compares standalone `query` and `batch` bytes over a clean and a mixed worktree and pins the spawn counts; `TestProbeReuseAnswersRepeatedProbesFromUnchangedMetadata` (`internal/gitstatus/probe_reuse_test.go`), which pins that probes repeat without the opt-in, are answered once under it over unchanged bytes, and repeat over changed bytes; the paired timing on three real repositories in `docs/plans/shared-query-observation-2026-09-14.md` |
 | `GPK-V0-076` | `ProbeRepositoryAround`, `probeRepositoryAround`, `Observation.Repository` and `ErrRepositoryDrift` in `internal/gokernel/repository.go`; `LoadSnapshotObserved` in `internal/contextindex/snapshot.go`; the one caller, `localEventRead` in `cmd/corvint/local_completion_event.go` (`LCP-V0-016`) | `TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift` (`internal/gokernel/repository_around_test.go`), whose three subtests pin the four-process bracket with the read issued after one complete observation and no `ls-tree`, the `ErrRepositoryDrift` refusal with the read run once, and a failed read returning before the closing observation; `TestDogfoodEventSpawnsOneBracket` and `TestDogfoodEventRefusesRepositoryDriftInsideTheBracket` (`cmd/corvint/dogfood_event_bracket_test.go`) |
+| `GPK-V0-077` (accepted by decision 0445; V1-0958) | `WebImportResolver`, `NewWebImportResolver`, `Resolve`, `load`, `alias` and `buildWebImportGraph` in `internal/contextindex/webresolve.go`; the `webGraph` merge in `impact` (`internal/contextindex/impact.go`) | `TestImpactResolvesTSConfigPathAliasImporters`, which FAILS without the merge, and `TestWebImportResolverFixture` (`internal/contextindex/webresolve_test.go`) |
+| `GPK-V0-078` (accepted by decision 0445; V1-0958) | `parseWebConfig`, `jsoncToJSON`, `effective`, `extendsPath` and `match` in `internal/contextindex/webresolve.go` | `TestWebImportResolverFailsClosed`, `TestJSONCToJSON` |
+| `GPK-V0-079` (accepted by decision 0445; V1-0958) | `WebImportKinds`, `walkWebImports` and `webSpecifier` in `internal/contextindex/webimports.go`; `webTypeOnlyImport` and the type-only weakening in `impact` | `TestWebImportKinds`; the type-only assertions of `TestImpactResolvesTSConfigPathAliasImporters` |
+| `GPK-V0-080` (accepted by decision 0445; V1-0958) | `resolveBare`, `declaredPackage`, `webManifestIndexed` in `internal/contextindex/webresolve.go`; the disclosure in `impact`; `bare-import-unresolved` in `nonGoImpactUnknowns` (`internal/contextindex/non_go_impact.go`) | `TestImpactSyntaxReportsBareImportUnresolved`, `TestImpactKeepsFrozenBareReadingWithoutManifest`; the unchanged `impact-web` rows of `conformance/cli-parity-v0` |
+| `GPK-V0-081` (accepted by decision 0445; V1-0958) | the lazy once-per-call graph and the resolver's memo maps in `internal/contextindex/webresolve.go` | the before/after timings in `docs/build-log/2026-10-07-tsconfig-path-alias-impact.md` |
 | `GPK-V0-060` | `rangeAllowedUntracked` in `internal/contextindex/range_impact.go`; rule, status parser, and digest in `internal/untrackedallowance/allowance.go` | `TestRangeImpactAllowsCommittedIgnoredUntrackedPath`, `TestRangeImpactAllowsDisjointUntrackedPath`, `TestRangeImpactRefusesUntrackedPathOverlappingGoBuild`, `TestRangeImpactBindsUntrackedAllowanceDigest` |
 | `GPK-V0-061` | unchanged dirty-path block in `internal/tracerecordrepo/read.go` and `authorityTraceState` in `internal/contextindex/history.go` | `TestReadStaysBlockedForDisjointUntrackedPath`, `TestRepositoryQueryMixedWorktreeDoesNotReadMalformedTraceStore` |
 | `GPK-V0-063` (accepted, decision 0166) | `admittedEntries` returns its skipped-suffix count, which `Index.UnsupportedSuffixCount` persists through every snapshot encoding and `receipt` (`internal/contextindex/receipt.go`) adds to `exclusions.count` | `TestReceiptCountsUnsupportedSuffixExclusions` (`internal/contextindex/index_test.go`) over the eager, selective-query, and event-snapshot paths; `TestSectionedSnapshotDecodesEverySectionToTheGobValues` and `TestPackSnapshotDecodesEverySectionToTheGobValues`, whose fixture tracks two `.java` paths; `TestExclusionCountDivergenceAdmitsOnlyALargerCount` (`conformance/cli-parity-v0/runner_test.go`); the 20 `cli-parity-v0` cases replaying `PASS-WITH-KNOWN-DIVERGENCE ... register=DR-0023` byte-exact against their unchanged frozen oracle digests |
@@ -1454,3 +1459,133 @@ prove a retrieval-quality improvement.
   its retry and its profile-only-when-emitted spawn are unchanged. Measured in the fixture: four
   Git processes per dogfood event where `stop` took ten and an index-backed event thirteen.
   Rollback: revert; the surface returns to its two `ProbeRepositoryContext` calls.
+
+## Accepted amendment: tsconfig path aliases, type-only edges and unresolved bare imports
+
+Source: GitHub issue 659 (native V1-0958). Rule (c) of `GPK-V0-027` resolves only relative and
+profile-alias specifiers, so `impact` on a TypeScript page object that specs import through
+tsconfig `baseUrl`/`paths` listed no spec, and a selection built on it came back empty rather than
+incomplete. `GPK-V0-069` named `tsconfig` `paths` as future work; these requirements take it up.
+The owner accepted all five, with the lane's defaults, in decision 0445. They change only the `impact` packet: the
+context, span, lookup, checkpoint and frame surfaces keep calling `reverseImporters`, whose oracle
+arm is unchanged.
+
+- `GPK-V0-077`: (accepted by decision 0445; V1-0958) Rule (c) gains an alias arm. For
+  each importer with a rule (c) suffix and each bare specifier (neither `.`-relative nor the
+  profile alias prefix), the governing config is the nearest `tsconfig.json`, else
+  `jsconfig.json`, at or above the importer's directory; `include`, `files` and project
+  references are not evaluated. Resolution follows TypeScript's order: an exact `paths` key, else
+  the matching wildcard key with the longest prefix, trying its substitutions in order (relative
+  to the effective `baseUrl`, else to the declaring config's directory; `${configDir}` to the leaf
+  config's directory; a substitution naming a TypeScript extension is tried as written first);
+  then `baseUrl`, but only when no `paths` key matched, because a matched key that resolves no
+  substitution sends TypeScript straight to `node_modules`; then the `GPK-V0-080` package
+  test. A candidate path resolves to an indexed or tracked file by TypeScript's
+  `tryAddingExtensions` order: `.ts`, `.d.ts`, `.js` and an extensionless candidate try `.ts`,
+  `.tsx`, `.d.ts`, `.js`, `.jsx`; `.tsx` and `.jsx` try `.tsx`, `.ts`, `.d.ts`, `.jsx`, `.js`;
+  the `.mjs`/`.mts` and `.cjs`/`.cts` families try their TypeScript, declaration and JavaScript
+  forms; `.json` tries `.d.json.ts` then `.json`; any other named file (a stylesheet, say)
+  resolves exactly or through its `.d<ext>.ts` declaration, as a bundler would; an
+  extension-bearing candidate that fails still tries the five extensions appended; and a
+  directory, including the repository root, resolves through its `index` file with the same
+  extensions. A candidate with a trailing slash, or a relative specifier whose last segment is
+  `.` or `..`, names a directory only. JSON and other non-module
+  files resolve whatever `resolveJsonModule` and `allowArbitraryExtensions` say, because impact
+  asks which files depend on the changed one and the importer depends on that file at run time
+  even where the type checker would not resolve it. The mode is TypeScript 5.9's computed
+  `moduleResolution`: the declared value, else one derived from `module` (`commonjs` is node10,
+  `node16` to `nodenext` are node16, `preserve` is bundler, any other value is classic), else from
+  `target` (none, `es3` or `es5` is node10, any later target is classic), each field taken from
+  the first config that declares it. node10 runs the whole lookup with TypeScript and declaration
+  files (`.ts`, `.tsx`, `.mts`, `.cts` and their declaration forms) first and JavaScript second;
+  bundler runs it once with every form. Under node10 a target that only the JavaScript pass
+  reaches is unresolved when the name is a `GPK-V0-080` declared package, because its types,
+  which are not indexed, would win. In every mode, a name that resolves to no alias target, or
+  only through node10's JavaScript pass, is unresolved when a `typeRoots` directory in force
+  holds a tracked declaration for it (scoped names as written, since TypeScript mangles them
+  only under `node_modules/@types`), or when the
+  `typeRoots` are unknown or leave the repository, because TypeScript searches them after
+  `node_modules`; a `node_modules` root is left to the package test. node16 and nodenext run it once, but a file's ESM or CommonJS
+  mode is not read and only CommonJS mode adds extensions or reads a directory index, so a target
+  reached that way is unresolved. Classic resolution also searches every ancestor directory for
+  a bare name, which is not modelled, so every bare specifier under a classic config is
+  unresolved; its relative specifiers resolve without a directory index. An unknown or invalid
+  mode makes every specifier under that config unresolved. An empty `*` capture leaves the
+  substitution as written, and an empty `baseUrl` is the declaring config's directory, as in
+  TypeScript. A resolved
+  importer other than the changed path itself is a `reverse-import` row of the same shape,
+  scores, evidence reason (`imports <specifier>`) and `syntax` authority as an oracle row, in
+  addition to the oracle arm's rows. `NewWebImportResolver(index).Resolve(importer, specifier)`
+  is the exported form of the same rule, returning `repository` with a target, `package`, or
+  `unresolved`; it also resolves relative and profile-alias specifiers with the loader above,
+  under the governing config's mode, or node10 when no config governs.
+- `GPK-V0-078`: (accepted by decision 0445; V1-0958) Config reading never guesses.
+  A config is read as JSONC (line and block comments and trailing commas removed outside strings)
+  and decoded strictly: invalid UTF-8, duplicate keys, an unterminated string or comment, or more
+  than 1 MiB makes it unreadable. `extends` (a string or an array) is walked child first, the
+  last array entry before earlier ones, and the first declaration of `baseUrl`, `paths`,
+  `moduleResolution`, `module` or `target` wins (a JSON `null` declares the field unset). A relative entry names an indexed config as written
+  or with `.json` added. A cycle, an unreadable or missing relative config, an absolute or
+  repository-escaping entry, more than 16 links in one chain, more than 64 configs in one graph,
+  a first-declared `moduleSuffixes` other than `[""]` (or none declared before a package-named
+  entry, which may declare one), or invalid `paths` (more than one `*` in a key or
+  substitution, an empty substitution list) makes the whole config unknown, even a field the leaf
+  declares, because TypeScript rejects the project as written. A package-named entry is legal but
+  not indexed, so only the fields no earlier config declares become unknown; an undecided mode
+  field therefore makes the mode unknown unless a known field before it decides it. An unknown `baseUrl`
+  or `paths` may claim any name, even a declared package's, so every bare specifier under that
+  config is unresolved. Two matching wildcard keys with the same prefix length, a rooted
+  (leading slash, drive letter or URL) or repository-escaping substitution (TypeScript could pick
+  a file outside the index), and a
+  candidate directory that holds a `package.json` (whose `exports`, `types` and `main` are not
+  read) make that specifier unresolved rather than picking one.
+- `GPK-V0-079`: (accepted by decision 0445; V1-0958) A web reverse-import row whose
+  importer names the specifier only in `import type` or `export type` statements (the clause's
+  first word is `type` and the next token is not `from`, `,` or `=`) is type-only: TypeScript
+  erases it, so it scores 100 below the runtime row it would otherwise be (600, or 550 for a
+  test importer), says `type-only import of module containing <path> (no runtime dependency)`,
+  and carries `medium` evidence confidence. An inline `import { type X }` and any statement naming
+  the specifier as a value keep the runtime row. Type-only importers still relate their markers,
+  as before. `WebImportKinds(text)` exports the per-specifier classification.
+- `GPK-V0-080`: (accepted by decision 0445; V1-0958) A bare specifier that resolves to
+  no repository file is a package only when it has a URL scheme (`node:`, `bun:`, `https:`), when
+  its package name (`@scope/name` or the first segment) is a Node builtin, the name of a nested
+  workspace `package.json` (already disclosed by `GPK-V0-069`), or is declared, directly or as
+  its `@types/` package, under `dependencies`, `devDependencies`, `peerDependencies` or
+  `optionalDependencies` of a `package.json` at or above the importer. Every other bare
+  specifier, including an absolute path, a `#` subpath import and the root package's own name, is
+  unresolved: it may name any repository file. When an `impact` request has a non-test, indexed
+  web changed path and the repository holds M such specifiers in K sources, the packet MUST add
+  `reverse-import results for N changed paths are incomplete: M bare import specifiers in K
+  sources resolve to no repository file or declared package` to `coverage.uncertainty`, through
+  the disclosure list so `EvalImpact` keeps it, and the `non-go-syntax-v0` profile MUST add the
+  `bare-import-unresolved` unknown (count M) to each such path. A relative specifier that
+  resolves to nothing is not counted. Frozen-parity carve-out: when the index holds no
+  `package.json`, `tsconfig.json` or `jsconfig.json`, the default profile keeps `GPK-V0-027`'s
+  frozen reading of a bare specifier as a dependency and adds no line, so the `impact-web` parity
+  corpus (`GPK-V0-033`) stays byte-identical; the `non-go-syntax-v0` profile still reports the
+  unknown there. Committed-range impact is unchanged.
+- `GPK-V0-081`: (accepted by decision 0445; V1-0958) The alias arm reads only the
+  immutable index: configs and manifests are indexed sources and existence is a map lookup, so no
+  request walks the filesystem. It is built at most once per `impact` call and only when a
+  non-test web changed path asks for it; each config and manifest is parsed once and each
+  (config, specifier) pair resolved once per build; type-only classification re-lexes only the
+  importers already found. The index format, its digest and every frozen snapshot are unchanged.
+  Measured on a generated 20,005-file TypeScript repository (decision record in
+  `docs/build-log/2026-10-07-tsconfig-path-alias-impact.md`): index build is unchanged and one
+  `impact` call grows by tens of milliseconds.
+
+Non-goals: package entry points and `exports`, `rootDirs`, project references, bundler-only
+aliases (Vite, webpack), `require()` and `import x = require()` edges, and resolving the
+`affected-plan/0` adapter's aliases. That adapter already raises the
+`typescript:path-alias-unresolved` frontier and returns scope `UNKNOWN` on the issue's fixture,
+so it fails closed; giving it this resolver is follow-up work. Evidence:
+`TestImpactResolvesTSConfigPathAliasImporters`, which FAILS without the alias arm;
+`TestWebImportResolverFixture`, `TestWebImportResolverFailsClosed`, `TestJSONCToJSON`,
+`TestWebImportKinds`, `TestImpactSyntaxReportsBareImportUnresolved` and
+`TestImpactKeepsFrozenBareReadingWithoutManifest` (`internal/contextindex/webresolve_test.go`),
+over the committed fixture `internal/contextindex/testdata/tsconfig-paths.json`. Rollback: remove
+the `webGraph` merge, the type-only weakening and the disclosure from `impact` in
+`internal/contextindex/impact.go` and the `bare-import-unresolved` row from
+`nonGoImpactUnknowns`; `reverseImporters` and the index were never changed, so no snapshot,
+receipt or trace needs migration.

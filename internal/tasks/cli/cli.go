@@ -74,6 +74,7 @@ var ReadVerbs = []string{
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
+	"ticket know-how add", "ticket know-how retract", "ticket know-how list",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
@@ -152,6 +153,9 @@ func Run(env Env) int {
 		}
 		if args[1] == "note" {
 			return emit(env.Stdout, noteCommand(env, args[2:]))
+		}
+		if args[1] == "know-how" {
+			return emit(env.Stdout, knowHowCommand(env, args[2:]))
 		}
 		switch args[1] {
 		case "escalate":

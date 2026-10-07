@@ -63,6 +63,7 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 	"externalReviews":        externalReviews,
 	"executionPrerequisites": executionPrerequisites,
 	"attachedEvidence":       attachedEvidence,
+	"knowHow":                knowHow,
 }
 
 // ticketObject checks the closed ticket record object and returns the

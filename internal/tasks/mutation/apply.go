@@ -521,6 +521,8 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt:         ctx.Now,
 		}
 		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
+	case *KnowHowAddPayload, *KnowHowRetractPayload:
+		return ctx.knowHowStep(work, p)
 	case *GrantApprovalPayload:
 		if p.Actor != ctx.Binding.ID {
 			return refuse(OutcomeUnauthorized, "", "grant actor %q is not the invoking actor %q", p.Actor, ctx.Binding.ID)

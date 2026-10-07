@@ -143,3 +143,19 @@ another service file importing `internal/groupreap` and for another Core package
 admitted file, and positive controls for the two admitted edges. Rule 5 needs no change because
 `internal/groupreap` is already in the source-archive subset. Rollback is reverting the helper
 wrapper and removing this two-file edge; the #464 and #481 edges stay.
+
+## V1-0955 addendum — know-how write secret screen
+
+Agent decision, 2026-10-07, made while delivering GitHub issue beamfall/corvint#655 (native
+V1-0955); it was not a direct owner statement and was accepted by the owner in decision 0443.
+The proposed know-how note writer (`docs/specs/corvint-tasks-know-how-notes-v0.md`, KHN-V0-004)
+screens note text, reasons, route tokens and paths with Core's shared `internal/secretscreen`
+patterns instead of keeping a second, drifting copy. Rule 2 gains one more exact edge, limited to
+two files: `internal/tasks/mutation/know_how.go` and `internal/tasks/mutation/know_how_test.go`
+may import `internal/secretscreen`. The rest of `internal/tasks/mutation` and every other Tasks
+file stay refused, and these files admit no other Core package. `TestImportViolationControls`
+keeps negative controls for another mutation file and a CLI file importing `internal/secretscreen`
+and for another Core package imported from the admitted file, and positive controls for the two
+admitted edges. `internal/secretscreen` imports only the standard library. Rule 5 needs no change
+because it is already in the source-archive subset (V1-0456). Rollback is reverting the know-how
+writer and removing this two-file edge; the other edges stay.

@@ -345,7 +345,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 		},
 		{
 			Name:        ToolImpact,
-			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile imports. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
+			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
 				"snapshot": snapshotSchema(),
