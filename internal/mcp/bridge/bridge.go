@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -27,6 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/lspevidence"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 const (
@@ -841,17 +841,8 @@ func validRelativePath(value string, maxRunes int) bool {
 	return true
 }
 
-func validRoot(root string) bool {
-	if root == "" || len(root) > 4096 || !utf8.ValidString(root) || !filepath.IsAbs(root) || filepath.Clean(root) != root {
-		return false
-	}
-	for _, character := range root {
-		if character == 0 || unicode.IsControl(character) {
-			return false
-		}
-	}
-	return true
-}
+// validRoot applies the MCPV0-001 root bounds, shared with multi-root and appmap roots.
+func validRoot(root string) bool { return rootalias.ValidRoot(root) }
 
 func objectSchema(properties map[string]any, required []any) map[string]any {
 	return map[string]any{

@@ -119,7 +119,7 @@ func newFreshness(ctx context.Context, o Options, anchors []Anchor) *freshness {
 	paths := []string{}
 	seen := map[string]bool{}
 	for _, a := range anchors {
-		if a.Path != "" && !seen[a.Path] {
+		if a.Repo == "" && a.Path != "" && !seen[a.Path] {
 			seen[a.Path] = true
 			paths = append(paths, a.Path)
 		}
@@ -138,6 +138,9 @@ func newFreshness(ctx context.Context, o Options, anchors []Anchor) *freshness {
 	// several revisions, or a forged one), and each disagreement needs the content to judge.
 	pinned := map[string]map[string]bool{}
 	for _, a := range anchors {
+		if a.Repo != "" {
+			continue
+		}
 		if pinned[a.Path] == nil {
 			pinned[a.Path] = map[string]bool{}
 		}
@@ -164,9 +167,11 @@ func newFreshness(ctx context.Context, o Options, anchors []Anchor) *freshness {
 }
 
 // of is FRESH when the anchored lines are byte-identical at the evaluated revision, STALE when the
-// path is gone or the lines differ, and UNKNOWN when Git could not answer.
+// path is gone or the lines differ, and UNKNOWN when Git could not answer. An anchor read from an
+// aliased root is UNKNOWN: projections read only --root, never another repository's same path
+// (AMAP-V0-019).
 func (f *freshness) of(a Anchor) string {
-	if f.failed {
+	if f.failed || a.Repo != "" {
 		return FreshUnknown
 	}
 	oid, ok := f.oids[a.Path]
@@ -532,6 +537,7 @@ func viewSelector(s *Selector) *selectorView {
 }
 
 type anchorView struct {
+	Repo      string `json:"repo,omitempty"`
 	Ref       string `json:"ref"`
 	Blob      string `json:"blob"`
 	Freshness string `json:"freshness"`
@@ -545,7 +551,7 @@ func anchorRef(a Anchor) string {
 }
 
 func (p *projection) anchorView(a Anchor) anchorView {
-	return anchorView{Ref: anchorRef(a), Blob: a.Blob, Freshness: p.state(a)}
+	return anchorView{Repo: a.Repo, Ref: anchorRef(a), Blob: a.Blob, Freshness: p.state(a)}
 }
 
 type stepView struct {

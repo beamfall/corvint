@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 func init() { flowSubcommands["appmap"] = runFlowsAppmap }
@@ -15,6 +16,7 @@ func init() { flowSubcommands["appmap"] = runFlowsAppmap }
 const flowsAppmapHelp = `
 Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap build --manifest FILE [--revision REV]
+      [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS]
   corvint [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
@@ -23,7 +25,11 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and
-test suite read at REV (default HEAD) and writes it to stdout. screen, flow, find and
+test suite read at REV (default HEAD) and writes it to stdout. A manifest whose tests name
+"repo": ALIAS reads them from the root --repo binds to ALIAS, at its HEAD commit, which the
+map pins; --manifest-repo reads the manifest from such a root. An undeclared alias, a root
+that is not a Git worktree, or uncommitted changes under what the map reads from it refuse.
+Projections read only --root, so anchors from an aliased root read UNKNOWN. screen, flow, find and
 scaffold are capped projections of a map file: each writes one JSON document within
 --budget bytes (256..65536; defaults 4096, 6144, 2048 and 6144) or --full (1 MiB), with
 per-section omitted counts. Anchors are checked against --revision (default HEAD) and
@@ -48,13 +54,25 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	revision := f.String("revision", "", "revision to compile or to check anchors against")
 	if verb == "build" {
 		manifest := f.String("manifest", "", "tracked manifest path inside the root")
-		if f.Parse(args) != nil || *manifest == "" || f.NArg() != 0 {
-			return errors.New("flows appmap build requires --manifest FILE and optional --revision REV")
+		manifestRepo := f.String("manifest-repo", "", "alias of the root holding the manifest")
+		roots := appmap.Roots{Repos: map[string]string{}}
+		// --repo uses the multi-root MCP spelling and alias rules (MMR-V0-001, MMR-V0-002).
+		f.Func("repo", "ALIAS=ABSOLUTE_ROOT (repeatable)", func(v string) error {
+			alias, path, aliased := rootalias.Split(v)
+			if !aliased || path == "" || roots.Repos[alias] != "" || len(roots.Repos) == rootalias.MaxRoots {
+				return errors.New("invalid --repo")
+			}
+			roots.Repos[alias] = path
+			return nil
+		})
+		if f.Parse(args) != nil || *manifest == "" || f.NArg() != 0 || (*manifestRepo != "" && !rootalias.Valid(*manifestRepo)) {
+			return errors.New("flows appmap build requires --manifest FILE, optional --revision REV, --repo ALIAS=ABSOLUTE_ROOT (repeatable) and --manifest-repo ALIAS")
 		}
 		if *revision == "" {
 			*revision = "HEAD"
 		}
-		m, err := appmap.Build(ctx, root, *manifest, *revision)
+		roots.ManifestRepo = *manifestRepo
+		m, err := appmap.BuildRoots(ctx, root, *manifest, *revision, roots)
 		if err != nil {
 			return err
 		}

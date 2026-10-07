@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 const (
@@ -171,7 +172,7 @@ func parseArguments(arguments []string) (roots []rootDeclaration, versionOnly bo
 		if arguments[index] != "--root" || arguments[index+1] == "" {
 			return nil, false, false
 		}
-		alias, root, aliased := splitAlias(arguments[index+1])
+		alias, root, aliased := rootalias.Split(arguments[index+1])
 		if (!aliased && len(arguments) != 2) || (aliased && (root == "" || aliases[alias])) {
 			return nil, false, false
 		}
