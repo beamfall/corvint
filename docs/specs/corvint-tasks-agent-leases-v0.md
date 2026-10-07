@@ -4310,8 +4310,10 @@ by the orchestrator on 2026-10-07. They are recorded in
   - the role no longer launches ticket sessions;
   - the ticket is no longer observed;
   - another holder holds a live attempt of the ticket;
-  - another worker already runs on the ticket;
+  - a worker other than the run's own ended worker already runs on the ticket;
   - it has waited more than 24 hours.
+
+  While the run's own ended worker stays in the ledger, the relaunch waits; it does not become moot.
 - `CAL-V0-150`: (proposed, pending owner acceptance; V1-0936) `corvint-tasks dispatch status` MUST
   add a `detachedRuns` array only while markers exist. The array has one object per marker, with
   `runId`, `attempt`, `ticket`, `role`, `worker`, `phase`, `state` and `deferUntil`, and optional

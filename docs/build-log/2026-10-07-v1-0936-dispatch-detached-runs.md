@@ -97,6 +97,13 @@ then marked the attempt done before `advanceDetached` ran, so the deferral never
 `TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral` fails on the round-3 code. An existing marker
 now only prevents a second marker; `advanceDetached` decides whether the hand-off still waits.
 
+Round 4 reported one P2 finding, which was fixed. After the round-3 fix, the run's own ended worker,
+still in the ledger, made the advanced relaunch moot, so the outcome was lost. Reproduced: the
+extended `TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral` fails on the round-4 code. The
+mootness check now ignores the marker's own worker; the roster still launches nothing on the
+ticket until that worker leaves the ledger. The four allowed rounds are used; this fix had no
+further Codex round.
+
 ## Out-of-scope finding
 
 `TestCALV0127_ReloadRemovedRoleKeepsWorkers` and `TestCALV0127_ReloadKeepsLaunchDeadlines`

@@ -544,8 +544,10 @@ func (d *Dispatcher) relaunchMoot(obs *Observation, m *detachedMarker, now time.
 			return "another holder took the ticket"
 		}
 	}
+	// The run's own ended worker may stay in the ledger while its progress
+	// is accounted; the roster launches nothing on the ticket until it leaves.
 	for _, w := range d.ledger.Workers {
-		if w.Ticket == m.Ticket {
+		if w.Ticket == m.Ticket && w.ID != m.Worker {
 			return "worker " + w.ID + " already runs on the ticket"
 		}
 	}

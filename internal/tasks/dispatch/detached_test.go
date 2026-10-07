@@ -474,6 +474,12 @@ func TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral(t *testing.T) {
 	if len(r.q.released) != 1 || len(markerFiles(t, r.d)) != 1 || r.d.detached[testRunID].Phase != DetachedRelaunch {
 		t.Fatalf("released %v marker %+v", r.q.released, r.d.detached[testRunID])
 	}
+	// While that worker is still accounted, the relaunch waits; it is not moot.
+	r.d.ledger.Workers = append(r.d.ledger.Workers, &r.w)
+	r.d.advanceDetached(context.Background(), &obs, map[string]bool{}, nil)
+	if m := r.d.detached[testRunID]; m == nil || m.Phase != DetachedRelaunch || len(markerFiles(t, r.d)) != 1 {
+		t.Fatalf("the run's own ended worker made the relaunch moot: %+v", m)
+	}
 }
 
 // CAL-V0-146: the deferral is bounded by the run's own timeout plus the
