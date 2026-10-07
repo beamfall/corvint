@@ -81,6 +81,10 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		worker = "1"
 	}
 	if f.Action == "ATTACH" {
+		// PSR-V0-019: a supervised stage stop quarantines the whole allocation.
+		if c.sharesAllocation(a) {
+			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt on a shared allocation cannot attach to a supervisor"))
+		}
 		if a.Supervision != nil || a.RuntimeID != snapshot.RuntimeExternalAgent || a.Phase != "RUNNING" {
 			return c.fail(malformed("supervised attach phase"))
 		}

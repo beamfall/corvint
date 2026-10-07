@@ -9,19 +9,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-132 (proposed amendment): a dispatcher drained under the build that
-// wrote taskman-dispatch-state/0 restarts under a build that writes /1. The
-// drained ledger is adopted under /0's closed member set, keeps its backoff
-// history and is rewritten as /1 by the next save; a /0 ledger that still
-// records a worker or carries a member /0 never had refuses
-// UNSUPPORTED_VERSION without being rewritten.
+// CAL-V0-132 (proposed amendment) and CAL-V0-160: a dispatcher drained under
+// the build that wrote taskman-dispatch-state/1 restarts under a build that
+// writes /2. The drained ledger is adopted under /1's closed member set,
+// keeps its backoff history, starts its budget history at the adoption and
+// is rewritten as /2 by the next save; a /1 ledger that still records a
+// worker or carries a member /1 never had refuses UNSUPPORTED_VERSION
+// without being rewritten.
 func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.GlobalCap = 1
@@ -61,13 +61,26 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		t.Fatal(err)
 	}
 	drained := bytes.Replace(current, []byte(`"`+StateProfile+`"`), []byte(`"`+drainedStateProfile+`"`), 1)
-	if bytes.Equal(drained, current) || bytes.Contains(drained, []byte(`"config"`)) {
-		t.Fatal("version 0 fixture not reached")
+	// Version 1 had no budget history: the fixture drops what version 2
+	// recorded for the launch.
+	var current1 map[string]json.RawMessage
+	if err := json.Unmarshal(drained, &current1); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := current1["budget"]; !ok {
+		t.Fatal("the launch recorded no budget history")
+	}
+	delete(current1, "budget")
+	if drained, err = json.Marshal(current1); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(drained, current) || bytes.Contains(drained, []byte(`"budget"`)) {
+		t.Fatal("version 1 fixture not reached")
 	}
 
 	// Refusals first: none of these rewrites the file. A repeated or
 	// case-aliased member, at any depth, could otherwise hide a worker or a
-	// member version 0 never had from the drained-only check.
+	// member version 1 never had from the drained-only check.
 	with := func(name, value string) []byte {
 		t.Helper()
 		var members map[string]json.RawMessage
@@ -88,9 +101,8 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 	}
 	for name, bad := range map[string][]byte{
 		"a recorded worker":                      with("workers", `[{"id":"w1"}]`),
-		"the config record":                      with("config", `{"appliedSha256":"`+strings.Repeat("a", 64)+`","appliedAt":"2026-10-07T12:00:00Z"}`),
-		"a CPU sample field":                     with("pressure", `{"sample":{"cpuBusyTicks":1}}`),
-		"a case-folded alias":                    with("CONFIG", `{}`),
+		"the budget history":                     with("budget", `{"sessions":[],"truncated":"0001-01-01T00:00:00Z","historyFrom":"0001-01-01T00:00:00Z","held":[]}`),
+		"a case-folded alias":                    with("BUDGET", `{}`),
 		"an unknown member":                      with("workerLimits", `{}`),
 		"a worker hidden by a duplicate workers": prefix(`"workers":[{"id":"w1"}]`),
 		"a duplicate pressure":                   prefix(`"pressure":{"sample":{"cpuBusyTicks":1}},"pressure":{"sample":{}}`),
@@ -129,16 +141,16 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 	}
 	l, err := LoadLedger(ProgramDir(c, "prog"), "prog")
 	if err != nil {
-		t.Fatalf("drained version 0 ledger: %v", err)
+		t.Fatalf("drained version 1 ledger: %v", err)
 	}
-	if l.Profile != StateProfile || l.Config != nil || l.Backoff[key] == nil || !l.Backoff[key].CooldownUntil.Equal(cooldown) {
+	if l.Profile != StateProfile || l.Budget == nil || l.Budget.HistoryFrom.IsZero() || len(l.Budget.Sessions) != 0 || l.Backoff[key] == nil || !l.Backoff[key].CooldownUntil.Equal(cooldown) {
 		t.Fatalf("adopted ledger %+v", l)
 	}
 	if after, _ := os.ReadFile(path); !bytes.Equal(after, drained) {
 		t.Fatal("reading the drained ledger rewrote it")
 	}
 
-	// Restart through the dispatcher entry point; the next save writes /1.
+	// Restart through the dispatcher entry point; the next save writes /2.
 	d, err = Open("prog", c, q, io.Discard)
 	if err != nil {
 		t.Fatalf("restart over the drained ledger: %v", err)

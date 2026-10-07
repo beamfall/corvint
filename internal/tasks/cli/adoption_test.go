@@ -61,7 +61,7 @@ func TestExternalAgentHelpNamesAdmissionAndPayloadRules(t *testing.T) {
 	if got := field(x.res.Items[0], "releaseReasonCodes"); len(got.Arr) != len(wire.Codes) {
 		t.Fatal("release reasons do not match closed codes")
 	}
-	x = atm(t, r.Root, nil, "ticket", "create", "--help")
+	x = atm(t, r.Root, nil, "ticket", "create", "--help", "--verbose")
 	for _, want := range []string{"UTF-8", "touchPaths", "ordered arrays"} {
 		if !strings.Contains(string(x.stdout), want) {
 			t.Errorf("missing payload rule %s", want)

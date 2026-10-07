@@ -23,6 +23,11 @@ const (
 // so it is never a wire code, a stored value or a claim refusal.
 const PlanReasonWorkStateHeld = "WORK_STATE_HELD"
 
+// PlanReasonBudgetHeld is the deferral reason of a ticket a dispatcher
+// budget holds (CAL-V0-155). Like WORK_STATE_HELD it is derived dispatcher
+// output only, never a wire code, a stored value or a claim refusal.
+const PlanReasonBudgetHeld = "BUDGET_HELD"
+
 // PlanInput is the state one taskman-priority-first/0 plan reads: the
 // intent inventory, whether an admission barrier is present, the live
 // reservations, and every attempt record, which decides retry exhaustion.
@@ -49,6 +54,10 @@ type PlanInput struct {
 	// deferred as WORK_STATE_HELD before it can use the window (CAL-V0-105).
 	// It is derived per observation, never stored; nil plans as before.
 	WorkStateHeld map[string]bool
+	// BudgetHeld names, by raw ticket ID, the tickets a dispatcher budget
+	// holds: an otherwise plannable entry among them is deferred as
+	// BUDGET_HELD before it can use the window (CAL-V0-155).
+	BudgetHeld map[string]bool
 }
 
 // PlanEntry is one planned ticket. Resources are what a claim of it would
@@ -109,6 +118,8 @@ func PriorityFirst(in PlanInput) TicketPlan {
 		e := planEntry(in, rec)
 		if e.State == "" && in.WorkStateHeld[rec.TicketID.Raw] {
 			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonWorkStateHeld, []string{PlanReasonWorkStateHeld}
+		} else if e.State == "" && in.BudgetHeld[rec.TicketID.Raw] {
+			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonBudgetHeld, []string{PlanReasonBudgetHeld}
 		} else if e.State == "" {
 			e = choose(in, e, selected, waits.of(in, rec))
 		}

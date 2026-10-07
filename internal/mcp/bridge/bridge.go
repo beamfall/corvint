@@ -1082,3 +1082,10 @@ func (registry *Registry) boundedPlanning(ctx context.Context, tool string, snap
 	}
 	return boundedObserved(tool, snapshot.binding, receipt)
 }
+
+// SharesRoot reports whether two registries pinned the same root directory, so
+// one multi-root process never binds a repository under two aliases (MMR-V0-003).
+func (registry *Registry) SharesRoot(other *Registry) bool {
+	return registry != nil && other != nil && registry.rootIdentity != nil && other.rootIdentity != nil &&
+		os.SameFile(registry.rootIdentity, other.rootIdentity)
+}

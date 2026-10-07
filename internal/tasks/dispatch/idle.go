@@ -45,7 +45,7 @@ type idleMark struct {
 // pressure sampling all read or change something else, so they always tick
 // in full.
 func (d *Dispatcher) idleEligible() bool {
-	if len(d.ledger.Workers) > 0 || d.sweepJob != nil || len(d.recoveries) > 0 || len(d.uncertain) > 0 {
+	if len(d.ledger.Workers) > 0 || d.sweepJob != nil || len(d.recoveries) > 0 || len(d.uncertain) > 0 || len(d.detached) > 0 {
 		return false
 	}
 	if d.Config.WorkState != nil || d.Config.Pressure != nil {
@@ -169,6 +169,11 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
+	if r := d.ledger.Budget; r != nil {
+		for _, h := range r.Held {
+			early(h.ResetsAt) // CAL-V0-158: a budget hold releases on the clock
+		}
+	}
 	if !d.retireConfirm.IsZero() {
 		early(d.retireConfirm) // a pending CAL-V0-144 confirmation
 	}

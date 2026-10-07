@@ -22,23 +22,34 @@ import (
 
 func TestParseArgumentsIsClosed(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
+	tooMany := make([]string, 0, 2*(maxRoots+1))
+	for index := 0; index <= maxRoots; index++ {
+		tooMany = append(tooMany, "--root", "r"+strings.Repeat("x", index%8)+string(rune('a'+index%26))+"-"+string(rune('a'+index/26))+"="+root)
+	}
 	for _, test := range []struct {
 		name        string
 		arguments   []string
-		root        string
+		roots       []rootDeclaration
 		versionOnly bool
 		ok          bool
 	}{
-		{"root", []string{"--root", root}, root, false, true},
-		{"version", []string{"--version"}, "", true, true},
-		{"missing", nil, "", false, false},
-		{"unknown", []string{"--listen", "127.0.0.1:0"}, "", false, false},
-		{"extra", []string{"--root", root, "--version"}, "", false, false},
+		{"root", []string{"--root", root}, []rootDeclaration{{root: root}}, false, true},
+		{"version", []string{"--version"}, nil, true, true},
+		{"missing", nil, nil, false, false},
+		{"unknown", []string{"--listen", "127.0.0.1:0"}, nil, false, false},
+		{"extra", []string{"--root", root, "--version"}, nil, false, false},
+		{"MMR-V0-001 one aliased root", []string{"--root", "core=" + root}, []rootDeclaration{{"core", root}}, false, true},
+		{"MMR-V0-001 two aliased roots", []string{"--root", "core=" + root, "--root", "docs=" + root}, []rootDeclaration{{"core", root}, {"docs", root}}, false, true},
+		{"MMR-V0-001 plain root mixed with aliased", []string{"--root", root, "--root", "docs=" + root}, nil, false, false},
+		{"MMR-V0-001 two plain roots", []string{"--root", root, "--root", root}, nil, false, false},
+		{"MMR-V0-001 empty aliased root", []string{"--root", "core="}, nil, false, false},
+		{"MMR-V0-002 duplicate alias", []string{"--root", "core=" + root, "--root", "core=" + root + "/x"}, nil, false, false},
+		{"MMR-V0-002 more roots than the cap", tooMany, nil, false, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			gotRoot, gotVersion, gotOK := parseArguments(test.arguments)
-			if gotRoot != test.root || gotVersion != test.versionOnly || gotOK != test.ok {
-				t.Fatalf("parse=%q,%v,%v", gotRoot, gotVersion, gotOK)
+			gotRoots, gotVersion, gotOK := parseArguments(test.arguments)
+			if !reflect.DeepEqual(gotRoots, test.roots) || gotVersion != test.versionOnly || gotOK != test.ok {
+				t.Fatalf("parse=%#v,%v,%v", gotRoots, gotVersion, gotOK)
 			}
 		})
 	}

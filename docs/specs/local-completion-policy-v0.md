@@ -228,6 +228,11 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   explicit-anchor context over its bounded candidate profile fails `unsupported-dogfood-context-bounds`
   (`internal/contextindex/local_completion_context.go:247,627`); the native event reports either as
   the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go:135`).
+  Amendment (2026-10-07, accepted by decision 0441; V1-0939, V1-0942): the receipt rules
+  above are unchanged, but the Claude Code and Codex adapters inject its `corvint-hook-context/0`
+  projection (`AHI-045`); an anchorless prompt whose receipt holds only governance, current scope
+  and `explicit-task-anchor-required` injects nothing (`AHI-046`); and the trusted workflow guidance
+  appears only on a main-thread SessionStart (`AHI-047`).
 - `LCP-V0-012`: Private plans, observations and report sets MUST have explicit byte/count limits,
   strict schema/duplicate-field/path validation, atomic publication and bounded ownership. No daemon,
   network, new database, transcript scanner or arbitrary background executor is added. Every spawned
@@ -457,7 +462,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code and uncancellable-read expiry; native first/recursive Stop regressions |
 | LCP-V0-009 | `TestDogfoodEventGoPythonWireAndSession`; `TestDogfoodEventStrictInputAndDeadline`; `TestAdapterRejectedReasonSurfacesEngineErrorCode`; `TestRejectedEventReasonAppendsEngineCode`; `TestAdapterErrorTailIsBounded` |
 | LCP-V0-010 | `TestDogfoodPromptFrozenAnchors`; `TestDogfoodPromptScopeDoesNotResolveAndPreservesStaleness`; frozen follow-up and explicit/unknown/ambiguous anchors |
-| LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope` |
+| LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope`; accepted adapter amendment (decision 0441): `TestClaudeNativeDogfoodLifecycle` (AHI-046 and AHI-047 subtests), `TestAHI047GuidanceIsMainThreadSessionStartOnly` |
 | LCP-V0-012 | `TestLocalStateBoundsAndContention`; `TestVerificationCancellationCleansDescendant`; `TestDogfoodPromptBoundsAndCancellation` |
 | LCP-V0-013 | `TestDogfoodPromptMentionAnchors` (frozen `mention-cases.json`); `TestDogfoodPromptMentionIdentityAndRefusals`; `TestUseCaseHostileTaskOrientation` prompt-mention cases |
 | LCP-V0-014 | `TestDogfoodFinishRunsFromBinaryInForeignRepository` (built binary, non-Corvint repository with no `script/`, `VERSION` or `cmd/corvint`, poisoned `DOGFOOD_*`, `CORVINT_BIN` and `PATH`); `TestLocalCompletionRealEvidenceWorkflow` (in-tree) |

@@ -52,15 +52,10 @@ const (
 // be renamed away: the newest part of an oversized stream is copied to
 // <name>.1, replacing the previous segment, and the live file is truncated in
 // place; the worker's next append lands at its new end. It reports whether
-// any stream was cut.
-func capWorkerLogs(dir string) bool {
-	cut := false
-	for _, name := range []string{"stdout.log", "stderr.log"} {
-		if capWorkerLog(dir, name) {
-			cut = true
-		}
-	}
-	return cut
+// any stream was cut, and whether stdout.log was (CAL-V0-157).
+func capWorkerLogs(dir string) (cut, stdout bool) {
+	stdout = capWorkerLog(dir, "stdout.log")
+	return capWorkerLog(dir, "stderr.log") || stdout, stdout
 }
 
 func capWorkerLog(dir, name string) bool {

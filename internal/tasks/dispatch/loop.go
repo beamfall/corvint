@@ -105,6 +105,15 @@ type Dispatcher struct {
 	// is due while worker directories hold retirement marks; zero when none
 	// is pending, so ticks without marks do no retirement work.
 	retireConfirm time.Time
+	// detached holds this dispatcher's CAL-V0-147 detached run markers by
+	// run ID, loaded at Open; deferredNow names, for the current tick, the
+	// run each ended worker's hand-off waits for; heldBy keeps the live
+	// attempts each worker held at the last observation (CAL-V0-145);
+	// detachedHeld names the runs whose markers another build wrote.
+	detached     map[string]*detachedMarker
+	detachedHeld map[string]bool
+	deferredNow  map[string]string
+	heldBy       map[string][]Attempt
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -181,6 +190,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		d.emit(Event{Kind: "adopted", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg})
 	}
 	d.reconcileInfraRetry()
+	d.loadDetached()
 	if err := d.ledger.save(dir); err != nil {
 		_ = d.lock.Close()
 		return nil, err
@@ -334,6 +344,7 @@ func (d *Dispatcher) tick(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+	d.noteHeld(obs)
 	ended := d.supervise()
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -401,10 +412,12 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	for _, a := range alerts {
 		d.emit(Event{Kind: "alert", Message: a})
 	}
-	// CAL-V0-105: tickets the work state holds leave the selection window,
-	// replanned from the same snapshot, so they no longer starve the rest.
-	if held := workStateHeld(d.Config, obs.Tickets); len(held) > 0 && obs.Replan != nil {
-		plan := obs.Replan(held)
+	// CAL-V0-105, CAL-V0-155: tickets the work state or a budget holds
+	// leave the selection window, replanned from the same snapshot, so they
+	// no longer starve the rest.
+	held, budgetHeld := workStateHeld(d.Config, obs.Tickets), d.budgetHeld(obs.Tickets, d.Now())
+	if len(held)+len(budgetHeld) > 0 && obs.Replan != nil {
+		plan := obs.Replan(held, budgetHeld)
 		for i := range obs.Tickets {
 			if v, ok := plan[obs.Tickets[i].ID]; ok {
 				obs.Tickets[i].Plan, obs.Tickets[i].PlanReason = v.State, v.Reason
@@ -591,7 +604,8 @@ func (d *Dispatcher) supervise() []*Worker {
 			d.codes[w.ID] = code
 		default:
 		}
-		if err := refreshTree(w, procs); err != nil {
+		exempt := d.exemptFor(w)
+		if err := refreshTree(w, procs, exempt); err != nil {
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s; keeping it as recorded: %v", w.ID, err)})
 			continue
 		}
@@ -622,7 +636,7 @@ func (d *Dispatcher) supervise() []*Worker {
 			w.State, w.KillReason = "KILLING", reason
 			d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText[reason]), Detail: map[string]string{"reason": reason, "processes": strconv.Itoa(len(w.Members))}})
 		}
-		switch gone, err := killTree(w, time.Duration(cfg.KillGraceSeconds)*time.Second); {
+		switch gone, err := killTree(w, time.Duration(cfg.KillGraceSeconds)*time.Second, exempt); {
 		case err != nil:
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s while stopping it; retrying next tick: %v", w.ID, err)})
 		case gone:
@@ -647,11 +661,17 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 	dir := d.workerDir(w.ID)
 	size := workerLogBytes(dir)
 	busy := size != w.LogBytes
+	// CAL-V0-157: usage is read before the cut, which then loses whatever
+	// the read did not reach.
+	readUsage(dir, w.Usage)
 	// CAL-V0-143: the cut follows the comparison, so output that is then
 	// truncated still counts as activity, and the next tick compares against
 	// the size left after the cut.
-	if capWorkerLogs(dir) {
+	if cut, stdout := capWorkerLogs(dir); cut {
 		size = workerLogBytes(dir)
+		if stdout && w.Usage != nil {
+			w.Usage.cut()
+		}
 	}
 	w.LogBytes = size
 	for _, p := range w.ActivityPaths {
@@ -674,7 +694,13 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.recoverExits(ctx, obs, done) {
 		wrote = true
 	}
+	d.deferredNow = map[string]string{}
 	if d.Config.Heal.Handoff {
+		// CAL-V0-146..148: hand-offs wait for verified detached runs.
+		fresh := d.deferHandoffs(obs, ended, done)
+		if d.advanceDetached(ctx, obs, done, fresh) {
+			wrote = true
+		}
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
 				if ctx.Err() != nil {
@@ -687,33 +713,7 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 					continue
 				}
 				done[a.ID], wrote = true, true
-				evidence := ""
-				if a.Candidate == "" {
-					evidence = "dispatch:" + w.ID
-				}
-				err := d.Queue.Release(ctx, a, evidence, requestID("release", w.ID, a.ID, a.Generation))
-				detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "phase": a.Phase}
-				if err != nil {
-					detail["error"] = err.Error()
-					if d.Config.Heal.ExitRecoveryOn() {
-						detail["recovery"] = "RETRYING"
-						d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v; retrying, then reaping once its lease expires", d.local(obs, a.Ticket), a.ID, w.ID, err), Detail: detail})
-						r := &exitRecovery{attempt: a, worker: w.ID, role: w.Role, releases: 1, releaseErr: err.Error()}
-						if now := d.Now(); a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) {
-							r.next = now.Add(d.recoveryBackoff(1))
-						}
-						if d.recoveries == nil {
-							d.recoveries = map[string]*exitRecovery{}
-						}
-						d.recoveries[a.ID] = r
-						d.stepRecovery(ctx, obs, r, a) // an already expired lease is reaped at once
-						continue
-					}
-					d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v", d.local(obs, a.Ticket), a.ID, w.ID, err), Detail: detail})
-					d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Worker: w.ID, Message: fmt.Sprintf("%s still holds a live %s attempt that the dispatcher could not hand off; inspect it with `corvint-tasks attempt show %s`", d.local(obs, a.Ticket), a.Phase, a.ID), Detail: detail})
-					continue
-				}
-				d.emit(Event{Kind: "handoff", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("handed off %s (attempt %s) after %s ended", d.local(obs, a.Ticket), a.ID, w.ID), Detail: detail})
+				d.handoff(ctx, obs, w.ID, w.Role, a, nil)
 			}
 		}
 	}
@@ -737,6 +737,40 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 		}
 	}
 	return wrote
+}
+
+// handoff releases the live attempt a of the ended worker through the
+// fenced lease transaction; a refused release starts its CAL-V0-104 exit
+// recovery. extra adds event detail.
+func (d *Dispatcher) handoff(ctx context.Context, obs *Observation, worker, role string, a Attempt, extra map[string]string) {
+	evidence := ""
+	if a.Candidate == "" {
+		evidence = "dispatch:" + worker
+	}
+	err := d.Queue.Release(ctx, a, evidence, requestID("release", worker, a.ID, a.Generation))
+	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "phase": a.Phase}
+	maps.Copy(detail, extra)
+	if err != nil {
+		detail["error"] = err.Error()
+		if d.Config.Heal.ExitRecoveryOn() {
+			detail["recovery"] = "RETRYING"
+			d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: role, Worker: worker, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v; retrying, then reaping once its lease expires", d.local(obs, a.Ticket), a.ID, worker, err), Detail: detail})
+			r := &exitRecovery{attempt: a, worker: worker, role: role, releases: 1, releaseErr: err.Error()}
+			if now := d.Now(); a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) {
+				r.next = now.Add(d.recoveryBackoff(1))
+			}
+			if d.recoveries == nil {
+				d.recoveries = map[string]*exitRecovery{}
+			}
+			d.recoveries[a.ID] = r
+			d.stepRecovery(ctx, obs, r, a) // an already expired lease is reaped at once
+			return
+		}
+		d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: role, Worker: worker, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v", d.local(obs, a.Ticket), a.ID, worker, err), Detail: detail})
+		d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Worker: worker, Message: fmt.Sprintf("%s still holds a live %s attempt that the dispatcher could not hand off; inspect it with `corvint-tasks attempt show %s`", d.local(obs, a.Ticket), a.Phase, a.ID), Detail: detail})
+		return
+	}
+	d.emit(Event{Kind: "handoff", Ticket: a.Ticket, Role: role, Worker: worker, Message: fmt.Sprintf("handed off %s (attempt %s) after %s ended", d.local(obs, a.Ticket), a.ID, worker), Detail: detail})
 }
 
 // exitRecoveryTries bounds the hand-off releases (the first included) and
@@ -930,10 +964,19 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		class := d.classify(t, w, progress)
 		summary := Summary(d.workerDir(w.ID))
 		msg := fmt.Sprintf("%s worker %s finished on %s (exit %s, %s)", w.Role, w.ID, d.keyText(w.Key), code, map[string]string{SessionProgress: "progress recorded", SessionInfrastructure: "infrastructure session", SessionHeld: "held by a typed escalation", SessionNoProgress: "no progress"}[class])
+		run := d.deferredNow[w.ID]
+		if run != "" {
+			msg += "; its detached run " + run + " continues"
+		}
 		if summary != "" {
 			msg += ": " + summary
 		}
-		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}})
+		detail := map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}
+		if run != "" {
+			detail["detachedRun"] = run
+		}
+		d.finishUsage(w, detail)
+		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.remove(w.ID)
 		// ESC-V0-008: classification precedes no-progress parking. An
 		// infrastructure session is unknown progress for the ladder and a
@@ -943,7 +986,9 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			continue
 		}
 		d.infraEnded(w.Key, w.ID, progress)
-		if class == SessionHeld {
+		// CAL-V0-148: a session that left its detached run running is not
+		// a run without progress; the run's outcome decides the next one.
+		if class == SessionHeld || run != "" && !progress {
 			continue
 		}
 		if t != nil && t.EscalationUnknown && d.Config.InfrastructureRetry != nil {
@@ -1152,13 +1197,21 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 	}
 	d.stampMemberAges(obs, now)
+	d.syncSpend(now)
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
 		return
 	}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget)
+	// CAL-V0-149: a finished detached run relaunches its ticket's role.
+	relaunch := d.relaunches()
+	prefer := preferredRoles(relaunch)
+	spend := d.spendGate(now)
+	spend.holdDeferred(obs.Tickets, prefer)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend)
 	d.recordHeld(obs, held)
+	// Holds are recorded after the launches, so a budget event counts them.
+	defer d.recordBudget(spend)
 	retried := map[string]bool{}
 	for _, a := range launches {
 		// A cancelled dispatcher (service stop) launches nothing further.
@@ -1212,11 +1265,33 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{nextStage}": a.NextStage}
+		// CAL-V0-149: the successor is named before anything can spawn, so a
+		// crash can lose the relaunch but never repeat it.
+		var run *detachedMarker
+		// An infrastructure retry of the same role is that session too.
+		if m := relaunch[a.Ticket]; m != nil && a.Ticket != "" && m.Role == a.Role {
+			m.Phase, m.Successor = DetachedLaunched, id
+			if err := d.saveDetached(m); err != nil {
+				m.Phase, m.Successor = DetachedRelaunch, ""
+				if ep != nil {
+					ep.State = InfraWaiting // nothing spawned; the identity is kept
+				}
+				release(true)
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("relaunch for detached run %s not started: its marker could not be saved: %v", m.RunID, err)})
+				continue
+			}
+			run = m
+		}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage}
 		// {operatorNote} renders only into the role prompt (ON-V0-011); argv,
-		// env and activity paths never see the operator prose directly.
+		// env and activity paths never see the operator prose directly. So
+		// does {detachedRun} (CAL-V0-149), empty for an ordinary launch.
 		promptValues := maps.Clone(values)
 		promptValues["{operatorNote}"] = RenderOperatorNote(a.Ticket, a.OperatorNote)
+		promptValues["{detachedRun}"] = ""
+		if run != nil {
+			promptValues["{detachedRun}"] = detachedLine(run)
+		}
 		values["{prompt}"] = Render(role.Prompt, promptValues)
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
@@ -1230,6 +1305,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
+		if run != nil {
+			env = append(env, detachedEnv(run)...)
+		}
 		pid, identity, exit, err := launch(argv, env, d.Config.WorkRoot, d.workerDir(id))
 		if err != nil {
 			b := d.ledger.Backoff[a.Key]
@@ -1246,6 +1324,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			var started *startedError
 			if errors.As(err, &started) {
 				d.uncertain = append(d.uncertain, started)
+				// CAL-V0-156: a launch that may have started is charged,
+				// and its usage is never observed.
+				d.recordSession(a, id, UsageUnknown, now)
 			}
 			if ep != nil && started != nil {
 				// An ambiguous spawn consumes the reservation and holds.
@@ -1254,11 +1335,21 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			} else if ep != nil {
 				ep.State = InfraWaiting // proved before spawn; the identity is kept
 			}
+			if run != nil && started == nil {
+				// Proved before spawn: the relaunch stays due.
+				run.Phase, run.Successor = DetachedRelaunch, ""
+				if err := d.saveDetached(run); err != nil {
+					d.emit(Event{Kind: "alert", Ticket: a.Ticket, Message: fmt.Sprintf("relaunch for detached run %s failed before spawn and its marker could not be restored; it is not retried: %v", run.RunID, err)})
+				}
+			}
 			release(started == nil)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
-		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model}
+		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model, Effort: role.Effort}
+		if role.UsageFormat != "" {
+			w.Usage = &WorkerUsage{Format: role.UsageFormat}
+		}
 		if h := d.ledger.Progress[a.Key]; h != nil {
 			w.BaseFingerprint, w.ProgressDigest = baseFingerprint(obs, a.Key), h.Current
 		}
@@ -1266,6 +1357,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			w.ActivityPaths = append(w.ActivityPaths, Render(p, values))
 		}
 		d.ledger.Workers = append(d.ledger.Workers, w)
+		d.recordSession(a, id, UsageRunning, now)
 		d.exits[id] = exit
 		if ep != nil {
 			ep.State = InfraRunning
@@ -1290,8 +1382,14 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
+		if role.Effort != "" {
+			detail["effort"] = role.Effort
+		}
 		if n := a.OperatorNote; n != nil {
 			detail["operatorNote"], detail["operatorNoteRevision"] = n.State, n.Revision
+		}
+		if run != nil {
+			detail["detachedRun"], detail["runExit"] = run.RunID, strconv.Itoa(*run.ExitStatus)
 		}
 		d.emit(Event{Kind: "launched", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("launched %s slot %d on %s as %s (%s, pid %d)", a.Role, a.Slot, d.keyText(a.Key), id, role.Host, pid), Detail: detail})
 	}

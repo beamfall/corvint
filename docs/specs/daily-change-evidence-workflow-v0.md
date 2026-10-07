@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -293,6 +293,27 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   caught later, these
   three inputs were read whole before any bound was checked, and a malformed receipt was
   indistinguishable from one that names no tree.
+- `DCW-V0-033`: (accepted by decision 0441; V1-0940) This amends the stdout
+  parity of `DCW-V0-020` for a passing check only. On PASS, `dogfood check` and the check inside
+  `dogfood seal` MUST print one line `dogfood-check: SUMMARY cem=STATE hunks=N supported=N
+  unknown=N mechanical=N ocm=STATE [requirements=N linked=N unlinked=N]
+  report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` in place of
+  the CEM and OCM status JSON, then any `DCW-V0-024` note and the unchanged terminator
+  `dogfood-check: PASS`. The detail file MUST hold the exact JSON lines the former output printed,
+  written owner-only after removing whatever was at that path. A state that is not 1 to 64 letters,
+  digits, `-` or `_`, or a field the JSON does not carry, prints `NOT_OBSERVED`, so the line cannot
+  invent a value or be split; `ocm=NOT_ASSESSED` marks a declared no-intent change.
+  `DOGFOOD_VERBOSE=1`, or a detail file that cannot be written, MUST print the former output
+  byte for byte. A failing CEM policy MUST still print its full status JSON before the `FAIL`
+  line, because that JSON is the repair detail; every other FAIL, REFUSE and NOTE line is unchanged.
+  Non-goals: no change to the report, the CEM, the OCM, the aggregate capture or any exit status;
+  the seal line is unchanged.
+  Failure modes: a parser that read the status JSON from check stdout gets the summary instead
+  and must read the detail file or set `DOGFOOD_VERBOSE=1`; the in-repository consumers read only
+  the `dogfood-check: PASS` suffix (`internal/localcompletion` aggregate capture, the daily-loop
+  harnesses) or the report.
+  Reason: a passing check printed about 2.1 KiB of JSON that the agent running it rarely reads;
+  measurement is in `docs/build-log/2026-10-07-hook-context-and-dogfood-summary.md`.
 
 ## Code vocabulary
 
@@ -409,6 +430,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
 | `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-032` (accepted, decision 0430) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
+| `DCW-V0-033` (accepted by decision 0441; V1-0940) | `internal/dogfoodflow/check.go` `verifyBinding`, `checkSummary`, `summaryString`; `cmd/corvint/dogfood_flow.go` (`DOGFOOD_VERBOSE`); `TestDCWV0033CheckSummaryAbstainsOnUnobservedFields` (missing, malformed and forged fields print `NOT_OBSERVED`), `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (exact two-line PASS, detail file holds both status lines, `DOGFOOD_VERBOSE=1` restores the former bytes, seal prints the summary, terminator and seal line), `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (`ocm=NOT_ASSESSED` then the note) | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
@@ -429,6 +451,9 @@ and a report written under it fails `dogfood check` with `context-abstention-evi
 Roll back `DCW-V0-032` by reverting its change: an empty plan is again a zero-citation no-op on any map,
 the three inputs are read whole, and the receipt notes return to the `DCW-V0-031` codes; no report,
 map or receipt format changes, so evidence from either side stays readable.
+Roll back `DCW-V0-033` by reverting its change, or per run with `DOGFOOD_VERBOSE=1`: check stdout
+returns to the status JSON lines; the detail file is then stale and unused, and no report, map or
+capture format changes.
 Roll back `DCW-V0-020..023` by restoring `script/dogfood-change.sh` and `script/dogfood-check.sh`
 from `e667812`; the make targets, inputs and artifacts are the same on both sides, so evidence
 from either side stays readable. The subverbs may remain unused.

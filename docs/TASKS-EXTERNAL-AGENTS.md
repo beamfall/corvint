@@ -275,6 +275,25 @@ journal keeps sequence numbers, not wall-clock time, so `since` and `observedAt`
 as is any outcome pool state no longer retains (for example a FREE member's history). An unknown
 `--pool` or `--member` refuses `MALFORMED` (PSR-V0-013..015).
 
+To batch several lanes on one environment, a holder can bind further tickets to an allocation it
+already holds instead of taking another member (PSR-V0-016..021, proposed):
+
+```sh
+corvint-tasks claim AT-124 --pool test-env --stage implement --share-allocation <allocationId> --holder builder --request-id share-124
+```
+
+The share needs the same holder, pool and stage as the ALLOCATED member, a live unsupervised
+external-agent attempt on it, and at most 4 bound attempts in all; it takes no member or author
+exclusion and is not available with `--next`. Refusals are stable: `FENCED` (allocation not current),
+`RESOURCE_COLLISION` (another holder), `MALFORMED` (other pool or stage), `UNSUPPORTED` (supervised),
+`LIMIT_EXCEEDED` (bound full). The member stays ALLOCATED until the last bound attempt ends and is
+quarantined once; when the original attempt ends first the next bound attempt takes over the
+allocation. `pool status` lists `boundAttempts` (PRIMARY then SHARED) and `attempt show` adds
+`poolBinding`. A shared allocation cannot attach to a supervisor or be released lane-untouched.
+Bindings are written as the optional `shared` (pools.json) and `sharedAllocation` (attempt record)
+keys; a binary that predates them refuses the store `MALFORMED` rather than misreading it. A search
+for the byte string `"sharedAllocation"` in `.git/taskman` tells whether a share was ever admitted.
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
@@ -379,6 +398,15 @@ note for the admitted attempt. The placeholder is refused in host argv, env and 
 that passes `{prompt}` as one whole argv element, has no other placeholder in argv, names no shell or interpreter (`sh`, `bash`,
 `env`, `python`, `node` and similar) and takes no code-string option such as `-c`, `+c`, `-e`,
 `--eval` or `--command`; use a wrapper executable when a shell is needed.
+
+Detached runs under the dispatcher (proposed, CAL-V0-145..154): on Darwin and Linux a worker may
+start `corvint-tasks run --detach` and end. The dispatcher spares the run's identity-verified
+supervisor, defers the attempt's hand-off while the run is `RUNNING` (at most its timeout plus 3
+minutes), and when it finishes hands off and launches one session for the same ticket and role. That
+session's role prompt may include `{detachedRun}`, a one-line outcome with the `run --attach` replay
+command that is empty for every other launch. Its environment also carries `CORVINT_DISPATCH_RUN_ID`,
+`_ATTEMPT`, `_EXIT`, `_RESULT` and `_OUTPUT`. The placeholder is refused in host argv, env and activity paths.
+`dispatch status` lists tracked runs under `detachedRuns`.
 
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry
@@ -509,10 +537,23 @@ the existing safe OWNER `ticket reopen` flow for fresh acceptance; help and hand
 
 Every command and command family supports exact `--help` and `-h`, including `plan preview`,
 `submit`, lease `release`, and release-artifact subcommands. Help returns OK with usage and flags
-without a queue, stdin reads, locks or writes. Lease release help includes accepted reason codes
-and handoff preconditions. Omitted commands explain that execution remains NOT_RUN. Existing
-mutation `operation` and `payloadKeys` help is preserved. A flag value spelled `--help` remains a
-value; unknown command paths still refuse.
+without a queue, stdin reads, locks or writes. `<command> --help` is terse: usage, flags and the
+mutation `operation` and `payloadKeys`, plus a `verboseHelp` pointer when more exists (CAL-V0-170).
+`<command> --help --verbose` returns the full text, including lease release reason codes and
+handoff preconditions. Omitted commands explain that execution remains NOT_RUN. A flag value
+spelled `--help` remains a value; unknown command paths still refuse.
+
+## Keep read output compact
+
+Agents should request `--summary` or `--fields KEY[.SUB],...` on `queue status`, `ticket show`,
+`ticket list`, `ticket search`, `roadmap`, `attempt show` and `plan preview`, and never print a full
+JSON result into a transcript. `--summary` returns a fixed small shape per item; `--fields` keeps
+only the named item keys (one dotted level). Both keep the result envelope and run after the read,
+so they change nothing it observes. An unknown or malformed field refuses `MALFORMED` without
+partial output (CAL-V0-165 to CAL-V0-168). `queue status` omits the per-ticket `retries` array
+unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETED or ARCHIVED items
+omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
+warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
 
 ## Read beside concurrent writers
 
@@ -574,7 +615,7 @@ attempt (CAL-V0-121). The release keeps every ordinary fence and HANDOFF precond
 releases, reaps or hands off a stale holder automatically. A TTL change is a policy change and
 fences live evidence handoffs `STALE_POLICY`, so set it before claims.
 
-`ticket show`, full `plan preview` and `queue status.retries` expose current acceptance-revision
+`ticket show`, full `plan preview` and `queue status --retries` expose current acceptance-revision
 charged debt, the current policy limit, remaining retry capacity and admission exhaustion.
 Remaining zero still permits an initial claim or an eligible clean handoff. Reason buckets are
 EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remains UNKNOWN and
@@ -615,7 +656,11 @@ earlier build until its ledger records none, then restart under the new build,
 which keeps the backoff and cooldown history and rewrites the ledger as `/1` on its next save
 (proposed). A `/0` ledger that still records a worker, or carries any member `/0` never had,
 at any depth or under any repeated or case-folded spelling, or trailing data, refuses unchanged, and an earlier
-build refuses `/1`. A store `VERSION` another
+build refuses `/1`. The ledger then moved from `/1` to `/2` when it gained the budget history,
+the worker usage account and the declared effort (CAL-V0-161, proposed). The same rule applies one
+version on: a build that writes `/2` adopts only a drained `/1` ledger, starts its budget history
+at the adoption time (`historyFrom` in `dispatch status`), and refuses a `/0` ledger. An earlier
+build refuses `/2`, so drain before rolling back. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

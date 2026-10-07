@@ -12,11 +12,50 @@ import (
 // Exact help requests bypass every parser, store read, stdin read and launcher.
 // More elaborate existing mutation-help forms continue through their parser;
 // a scalar flag value spelled --help is never intercepted here.
+//
+// A trailing --help or -h returns the terse form (CAL-V0-170): usage,
+// implemented, flags and, for mutations, operation and payload keys, plus a
+// verboseHelp pointer when anything was left out. `--help --verbose` (either
+// order) returns the full help object.
 func commandHelp(args []string) *wire.Result {
-	if len(args) < 2 || (args[len(args)-1] != "--help" && args[len(args)-1] != "-h") {
+	isHelp := func(a string) bool { return a == "--help" || a == "-h" }
+	n := len(args)
+	verbose := n >= 3 && ((args[n-1] == "--verbose" && isHelp(args[n-2])) || (isHelp(args[n-1]) && args[n-2] == "--verbose"))
+	cmd := args
+	switch {
+	case verbose:
+		cmd = args[:n-2]
+	case n >= 2 && isHelp(args[n-1]):
+		cmd = args[:n-1]
+	default:
 		return nil
 	}
-	cmd := args[:len(args)-1]
+	result := fullCommandHelp(cmd)
+	if result == nil || verbose {
+		return result
+	}
+	return terseHelp(cmd, result)
+}
+
+// terseKeys are the help keys an agent needs to form a valid call.
+var terseKeys = []string{"usage", "implemented", "flags", "operation", "payloadKeys", "optionalPayloadKeys"}
+
+func terseHelp(cmd []string, full *wire.Result) *wire.Result {
+	o := full.Items[0].Obj
+	name := strings.Join(cmd, " ")
+	keep := append([]string{}, terseKeys...)
+	if isOmitted(name) {
+		keep = append(keep, "note")
+	}
+	terse := pick(full.Items[0], keep...)
+	if len(terse.Obj.Keys) < len(o.Keys) {
+		terse.Obj.Set("verboseHelp", wire.String("corvint-tasks "+name+" --help --verbose"))
+	}
+	full.Items[0] = terse
+	return full
+}
+
+func fullCommandHelp(cmd []string) *wire.Result {
 	name := strings.Join(cmd, " ")
 	if len(cmd) == 2 && cmd[0] == "ticket" {
 		if operation, ok := mutationVerbs[cmd[1]]; ok {
@@ -126,13 +165,13 @@ var commandUsage = map[string]string{
 	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
 
 	"version":            "corvint-tasks version (alias --version)",
-	"ticket list":        "corvint-tasks ticket list [--offset N] [--limit N]",
-	"ticket search":      "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
-	"ticket show":        "corvint-tasks ticket show <ticketId|local>",
+	"ticket list":        "corvint-tasks ticket list [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+	"ticket search":      "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+	"ticket show":        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 	"ticket blockers":    "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket export":      "corvint-tasks ticket export [--offset N] [--limit N]",
-	"queue status":       "corvint-tasks queue status",
-	"roadmap":            "corvint-tasks roadmap [--offset N] [--limit N]",
+	"queue status":       "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
+	"roadmap":            "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 	"critical-path":      "corvint-tasks critical-path <ticketId|local>",
 	"gate list":          "corvint-tasks gate list",
 	"gate show":          "corvint-tasks gate show <gateId>",
@@ -151,14 +190,14 @@ var commandUsage = map[string]string{
 	"release list":       "corvint-tasks release list",
 	"release show":       "corvint-tasks release show RELEASE",
 	"release readiness":  "corvint-tasks release readiness RELEASE",
-	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--timing] [--role ROLE]",
+	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--timing] [--role ROLE]",
 	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
 	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":              "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
-	"attempt show":       "corvint-tasks attempt show <attemptId>",
-	"plan preview":       "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only]",
+	"attempt show":       "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
+	"plan preview":       "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 	"submit":             "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
 	"gate run":           "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR] [--role ROLE]",
 	"complete":           "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
@@ -216,6 +255,9 @@ func helpFlags(o *wire.Object, key string) []string {
 	flags := []string{"--help", "-h"}
 	for _, word := range strings.Fields(v.Str) {
 		word = strings.Trim(word, "[]();")
+		if i := strings.IndexAny(word, "[="); i > 0 {
+			word = word[:i] // --exclude-authors[=all] names --exclude-authors
+		}
 		if strings.HasPrefix(word, "--") && word != "--help" {
 			found := false
 			for _, f := range flags {

@@ -29,6 +29,15 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if f.batch {
 		return usage(cmd, "unknown flag --batch")
 	}
+	if f.help {
+		// --help anywhere in a release mutation argv answers help and
+		// never writes (CAL-V0-170); a trailing --help never gets here.
+		helpArgs := append(append([]string{}, cmd...), "--help")
+		if f.verbose {
+			helpArgs = append(helpArgs, "--verbose")
+		}
+		return commandHelp(helpArgs)
+	}
 	if f.requestID == "" || f.target == "" {
 		return usage(cmd, "--request-id and --target are required")
 	}

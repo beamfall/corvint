@@ -128,6 +128,14 @@ func DecodeClaudeResult(raw []byte) (string, HostResult, error) {
 	return r.SessionID, result, nil
 }
 
+// ClaudeResultFailed reports whether a Claude Code result object reports a
+// failure under DecodeClaudeResult's success rule, so the dispatcher's usage
+// reader (CAL-V0-157) leaves a failed session's total PARTIAL.
+func ClaudeResultFailed(raw []byte) bool {
+	r, e := readClaudeResult(raw)
+	return e != nil || r.Subtype != "success" || r.IsError == nil || *r.IsError
+}
+
 // ObservedClaudeSession is the bounded session of a Claude Code result
 // object, or "" when the output is not one.
 func ObservedClaudeSession(raw []byte) string {
@@ -175,6 +183,11 @@ func claudeCounter(v json.RawMessage) (uint64, bool) {
 	}
 	return n, true
 }
+
+// ExactMembers is exactMembers for the dispatcher's usage reader
+// (CAL-V0-157), so a repeated or case-folded member cannot replace an
+// observed counter or event type.
+func ExactMembers(raw []byte, names []string) error { return exactMembers(raw, names) }
 
 // exactMembers refuses a JSON text that repeats a member name in any object,
 // or whose top-level object carries a member that differs from one of names

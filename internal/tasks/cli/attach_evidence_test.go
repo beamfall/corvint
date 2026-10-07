@@ -90,7 +90,7 @@ func TestTEAV0001_TicketAttachEvidenceThroughTheCLI(t *testing.T) {
 		t.Fatalf("receipt audit: %+v", audit.res)
 	}
 
-	help := atm(t, r.Root, nil, "ticket", "attach-evidence", "--help")
+	help := atm(t, r.Root, nil, "ticket", "attach-evidence", "--help", "--verbose")
 	for _, want := range []string{"evidence", "reason", "acceptanceRevision", "DUPLICATE_ID"} {
 		if !strings.Contains(string(help.stdout), want) {
 			t.Errorf("attach-evidence help lacks %q", want)

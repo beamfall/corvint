@@ -38,6 +38,9 @@ type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
 	payloadFromStdin, help, template           bool
+	// verbose is --verbose, accepted only beside --help (CAL-V0-170); the
+	// in-parser mutation help is always the full text.
+	verbose bool
 	// batch is --batch, recognized only in a flag position, never as the
 	// value of another flag (CAL-V0-106); only ticket refine accepts it.
 	batch bool
@@ -109,6 +112,10 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			f.help = true
 			continue
 		}
+		if args[i] == "--verbose" {
+			f.verbose = true
+			continue
+		}
 		if args[i] == "--template" {
 			f.template = true
 			continue
@@ -131,6 +138,9 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	}
 	if f.payload != "" && f.payloadFromStdin {
 		return f, usage(cmd, "--payload and --payload-stdin are exclusive")
+	}
+	if f.verbose && !f.help {
+		return f, usage(cmd, "--verbose is accepted only with --help")
 	}
 	return f, nil
 }

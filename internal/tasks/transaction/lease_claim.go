@@ -238,9 +238,12 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 		return nil, e
 	}
 	a.Lease = &snapshot.Lease{Holder: c.l.Holder, GrantedSeq: c.seq, ExpiresAt: addMinutes(c.in.RecordedAt, c.l.LeaseMinutes)}
+	if en := c.sharedEntry(); c.l.ShareAllocation != "" && en != nil {
+		a.SharedAllocation = &snapshot.SharedAllocation{SourceAttemptID: en.AttemptID, SourceGeneration: en.Generation, BoundSeq: c.seq}
+	}
 	if prior == nil {
 		a.AttemptID, e = c.freshID()
-		if e == nil && a.PoolAllocation != nil && c.in.LeaseFacts.Pool.AllocationID == "" {
+		if e == nil && a.PoolAllocation != nil && c.in.LeaseFacts.Pool.AllocationID == "" && a.SharedAllocation == nil {
 			a.DirectPoolAdmission = &snapshot.DirectPoolAdmission{AttemptID: a.AttemptID, Generation: a.Generation, OriginalAdmissionSeq: c.seq, Allocation: a.PoolAllocation, Holder: a.Lease.Holder, Stage: a.Stage}
 		}
 		return a, e
@@ -387,8 +390,11 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	if live := c.liveOn(rec.TicketID.Raw); live != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "attempt "+live+" is live")
 	}
-	if refusal := c.yieldRefusal(rec); refusal != nil {
-		return *refusal
+	// A shared claim takes no member, so it never yields one (CAL-V0-101).
+	if c.l.ShareAllocation == "" {
+		if refusal := c.yieldRefusal(rec); refusal != nil {
+			return *refusal
+		}
 	}
 	if other := c.collision(sc.Resources, ""); other != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live attempt "+other)
@@ -399,6 +405,11 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	prior, refusal := c.retryOf(rec)
 	if refusal != nil {
 		return *refusal
+	}
+	if c.l.ShareAllocation != "" {
+		if refusal = c.shareRefusal(); refusal != nil {
+			return *refusal
+		}
 	}
 	if c.authors, refusal = c.authorExclusion(rec.TicketID.Raw); refusal != nil {
 		return *refusal

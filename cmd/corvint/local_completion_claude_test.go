@@ -36,6 +36,10 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 			if !active && output["decision"] != "block" {
 				t.Fatalf("first Stop did not block: %v", output)
 			}
+			// AHI-047: the block names its recovery argv but repeats no SessionStart guidance.
+			if reason := fmt.Sprint(output["reason"]); !active && (!strings.Contains(reason, "Next: ") || strings.Contains(reason, "workflow argv")) {
+				t.Fatalf("first Stop block reason: %q", reason)
+			}
 			if active && (output["decision"] != nil || !strings.Contains(fmt.Sprint(output["systemMessage"]), "unresolved")) {
 				t.Fatalf("recursive Stop did not release unresolved: %v", output)
 			}
@@ -68,31 +72,57 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 			}
 		}
 	})
-	t.Run("LCP-V0-010 LCP-V0-011 governed prompt retains declared scope and uncertainty", func(t *testing.T) {
+	t.Run("LCP-V0-010 LCP-V0-011 AHI-046 anchorless prompt keeps scope and uncertainty in the receipt and injects nothing", func(t *testing.T) {
 		output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "user-prompt", map[string]any{"session_id": "native-session-é", "prompt": "what about it"})
-		contextText, _ := claudeHookOutput(t, output)["additionalContext"].(string)
-		if strings.Contains(contextText, "what about it") || !strings.Contains(contextText, `"explicit-task-anchor-required"`) || !strings.Contains(contextText, `"declared_scope"`) || !strings.Contains(contextText, `"coverage"`) {
-			t.Fatalf("native context lost privacy/scope/uncertainty: %s", contextText)
+		if len(output) != 0 {
+			t.Fatalf("anchorless prompt injected context: %v", output)
 		}
-		start := strings.Index(contextText, "{\"adapter\":")
-		end := strings.LastIndex(contextText, "\nEND CORVINT REPOSITORY DATA")
-		if start < 0 || end <= start {
-			t.Fatalf("native receipt not preserved: %s", contextText)
+		result, reason := invokeDogfoodEvent(lifecycleDeadlineContext(), root, "claude-code", "user-prompt", map[string]any{"sessionIdSha256": key, "task": "what about it"}, adapterOutputLimit)
+		if reason != "" {
+			t.Fatal(reason)
 		}
-		var result map[string]any
-		if err := json.Unmarshal([]byte(contextText[start:end]), &result); err != nil {
-			t.Fatal(err)
+		raw, _ := json.Marshal(result)
+		if bytes.Contains(raw, []byte("what about it")) || !bytes.Contains(raw, []byte(`"explicit-task-anchor-required"`)) || !bytes.Contains(raw, []byte(`"declared_scope":[{`)) || !bytes.Contains(raw, []byte(`"coverage"`)) {
+			t.Fatalf("engine receipt lost privacy/scope/uncertainty: %s", raw)
 		}
-		encoded, err := dogfoodEventBytes(result, 8000)
-		if err != nil || !bytes.Equal(bytes.TrimSuffix(encoded, []byte{'\n'}), []byte(contextText[start:end])) {
-			t.Fatalf("adapter changed the sealed native receipt: %v", err)
+		if projection := hookContextProjection("user-prompt", result, false); projection != nil {
+			t.Fatalf("anchorless prompt projected %v", projection)
 		}
 	})
-	t.Run("AHI-003 AHI-012 IDX-SNAP-V0-012 native startup resume clear compact stay read only", func(t *testing.T) {
+	t.Run("AHI-045 AHI-047 anchored prompt injects the projection without guidance", func(t *testing.T) {
+		output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "user-prompt", map[string]any{"session_id": "native-session-é", "prompt": "Explain `AGENTS.md`"})
+		contextText, _ := claudeHookOutput(t, output)["additionalContext"].(string)
+		if strings.Contains(contextText, "workflow argv") || !strings.HasPrefix(contextText, untrustedDataPrefix) {
+			t.Fatalf("prompt context carries guidance or lacks the envelope: %s", contextText)
+		}
+		var projection map[string]any
+		if err := json.Unmarshal(envelopedProjection(t, contextText), &projection); err != nil {
+			t.Fatal(err)
+		}
+		evidence, _ := projection["task_evidence"].([]any)
+		policy, _ := projection["policy"].(map[string]any)
+		if projection["profile"] != hookContextProfile || len(evidence) == 0 || policy["lifecycle"] != "active" {
+			t.Fatalf("anchored prompt projection: %v", projection)
+		}
+		for _, dropped := range []string{"adapter", "repository", "requestSha256", "resultDigest", "frontier", "completion", "context", "coverage", "degradations"} {
+			if _, ok := projection[dropped]; ok {
+				t.Fatalf("projection carries %s: %v", dropped, projection)
+			}
+		}
+	})
+	t.Run("AHI-003 AHI-012 AHI-047 IDX-SNAP-V0-012 native startup resume clear compact stay read only", func(t *testing.T) {
 		for _, source := range []string{"startup", "resume", "clear", "compact"} {
 			output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "session-start", map[string]any{"session_id": "native-session-é", "source": source})
-			if claudeHookOutput(t, output)["hookEventName"] != "SessionStart" {
-				t.Fatalf("wrong native startup envelope: %v", output)
+			hook := claudeHookOutput(t, output)
+			contextText, _ := hook["additionalContext"].(string)
+			if hook["hookEventName"] != "SessionStart" || !strings.Contains(contextText, `"--session-key","`+key+`"`) {
+				t.Fatalf("main-thread %s start lacks the workflow argv: %v", source, output)
+			}
+			// A subagent SessionStart (agent_id present) takes the prompt rule: a clean tree with
+			// nothing actionable injects nothing, guidance included.
+			subagent := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "session-start", map[string]any{"session_id": "native-session-é", "source": source, "agent_id": "a1b2c3", "agent_type": "general-purpose"})
+			if len(subagent) != 0 {
+				t.Fatalf("subagent %s start injected: %v", source, subagent)
 			}
 		}
 	})

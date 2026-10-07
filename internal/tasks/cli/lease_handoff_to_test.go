@@ -120,7 +120,7 @@ func TestCALV0084_CLIHandoffTargetNextStage(t *testing.T) {
 func TestCALV0083_ReleaseHelpListsHandoffCodes(t *testing.T) {
 	t.Run("CAL-V0-083 ReleaseHelpListsHandoffCodes", func(t *testing.T) {
 		var out bytes.Buffer
-		code := cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"release", "--help"}, Stdin: unreadHelpInput{}, Stdout: &out})
+		code := cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"release", "--help", "--verbose"}, Stdin: unreadHelpInput{}, Stdout: &out})
 		r, e := wire.DecodeResult(out.Bytes())
 		if e != nil || code != 0 {
 			t.Fatalf("release help: %s (%v)", out.Bytes(), e)

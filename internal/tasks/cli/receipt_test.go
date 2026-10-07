@@ -177,7 +177,7 @@ func TestTMV0008_AS07_ReceiptAuditUsageAndUninitialized(t *testing.T) {
 // reads nor changes their bytes.
 func TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints(t *testing.T) {
 	r := receiptFixture(t)
-	help := atm(t, r.Root, nil, "receipt", "audit", "--help")
+	help := atm(t, r.Root, nil, "receipt", "audit", "--help", "--verbose")
 	note := field(help.res.Items[0], "note").Str
 	for _, want := range []string{"<state directory>.writer-checkpoint", "<state directory>.checkpoint.json", "Removing <state directory>.writer-checkpoint forces the next write through the complete audit", "never resumed from a checkpoint"} {
 		if help.res.Outcome != wire.OutcomeOK || !strings.Contains(note, want) {
