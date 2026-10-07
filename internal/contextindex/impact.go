@@ -85,7 +85,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	if len(forbidden) != 0 {
 		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
 		if err == nil && syntaxFrontier {
-			err = attachNonGoImpactUnknowns(result, index, cleaned)
+			err = attachNonGoImpactUnknowns(result, index, cleaned, 0)
 		}
 		return result, nil, err
 	}
@@ -104,6 +104,11 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	dirIndex := dirPathIndex(index)
 	sortedPaths := sortedSourcePaths(index)
 	goCallers := make(map[string]goCaller)
+	// The alias arm of rule (c) (GPK-V0-077, proposed) resolves every bare
+	// web specifier once per call, and only when a web path asks for it.
+	var webGraph *webImportGraph
+	webChanged := 0
+	typeOnlyKinds := make(map[string]map[string]bool)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
 		ranked = append(ranked, rankedResult{score: 1000, order: 0, key: changedPath, result: map[string]any{
@@ -214,7 +219,18 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		}
 		if !isTestPath(changedPath) {
 			exported := exportedGoNames(index, changedPath)
-			for _, importer := range reverseImporters(index, changedPath) {
+			importers := reverseImporters(index, changedPath)
+			webPath := webSuffixes[strings.ToLower(pythonPathSuffix(changedPath))]
+			if webPath {
+				if webGraph == nil {
+					webGraph = buildWebImportGraph(index)
+				}
+				webChanged++
+				if aliased := webGraph.importers[changedPath]; len(aliased) != 0 {
+					importers = sortImporters(append(append([]importer(nil), importers...), aliased...))
+				}
+			}
+			for _, importer := range importers {
 				importerMarkers := markerKeysForPath(index, importer.path)
 				if isTestPath(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
 					for _, key := range importerMarkers {
@@ -234,13 +250,21 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 					score = 650
 				}
 				importerSource := index.Sources[importer.path]
+				summary, confidence := "directly imports package/module containing "+changedPath, "high"
+				if webPath && webTypeOnlyImport(importerSource, importer.imported, typeOnlyKinds) {
+					// A type-only edge is erased at compile time: the importer
+					// type-checks against the changed path but does not run it
+					// (GPK-V0-079, proposed), so it ranks below every runtime edge.
+					score -= 100
+					summary, confidence = "type-only import of module containing "+changedPath+" (no runtime dependency)", "medium"
+				}
 				ranked = append(ranked, rankedResult{score: score, order: 1, key: importer.path,
 					broadModuleRootImport: broadModuleRootImporter(index, changedPath, importer),
 					caller:                score == 700 && namesAny(importerSource, exported), result: map[string]any{
 						"kind": "reverse-import", "id": importer.path, "score": score,
-						"summary": "directly imports package/module containing " + changedPath,
+						"summary": summary,
 						"evidence": []any{evidence(importer.path, line, importerSource.BlobHash,
-							"imports "+importer.imported, "high", "syntax")},
+							"imports "+importer.imported, confidence, "syntax")},
 					}})
 			}
 		}
@@ -301,9 +325,19 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	}
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
+	unresolvedImports := 0
+	if webGraph != nil && webGraph.unresolved != 0 && (syntaxFrontier || webManifestIndexed(index)) {
+		// GPK-V0-080 (proposed): a bare specifier that names no repository
+		// file and no declared package may name any changed path, so every
+		// web reverse-import answer here is incomplete, not complete-and-empty.
+		unresolvedImports = webGraph.unresolved
+		disclosures = append(disclosures, fmt.Sprintf(
+			"reverse-import results for %d changed paths are incomplete: %d bare import specifiers in %d sources resolve to no repository file or declared package",
+			webChanged, webGraph.unresolved, webGraph.sources))
+	}
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
-		err = attachNonGoImpactUnknowns(result, index, cleaned)
+		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports)
 	}
 	return result, disclosures, err
 }

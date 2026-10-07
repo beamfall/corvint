@@ -423,7 +423,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	558	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1420	`store.Mutate` MUST take its request lookup and its canonical intent records fro
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1819	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1837	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	5165	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	5215	`corvint-tasks ticket create --template` MUST return, in one
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1999	The optional policy `supervision` object MAY carry `host`, whose admitted
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2075	A `claude-code` stage MUST invoke the pinned executable with the prompt on
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2209	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
@@ -450,7 +450,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2894	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2928	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3052	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3108	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	5348	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	5398	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3149	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3195	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1320	On macOS the memory signal MUST be the kernel memory-pressure level
@@ -516,6 +516,10 @@ CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4643	(accepted by decisio
 CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4645	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
 CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4648	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
 CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4654	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
+CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	4711	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`
+CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	4718	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and
+CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	4723	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the
+CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	4729	(accepted by decision 0442; V1-0954) Every role prompt check (known
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -1506,37 +1510,42 @@ GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	407	A context packet 
 GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	446	A receipt's coverage counts are denominated in the universe of results the ranki
 GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	486	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	784	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	934	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	1000	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	939	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	1005	The standalone `corvint query` `repository`-intent profile introduced
 GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	509	An abstaining packet MUST name the reason it abstained at every surface that emi
 GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	526	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1070	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1100	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1118	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1075	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1105	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1123	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
 GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	651	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
 GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	583	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
 GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	589	(accepted, decision 0052, 2026-09-04) when a query term
 GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	598	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
 GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	537	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1147	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1158	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1152	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1163	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	674	A target is shipped only after its native conformance, filesystem-safety,
 GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	607	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1177	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1241	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1265	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1192	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1275	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1208	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1182	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1246	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1270	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1197	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1280	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1213	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	623	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1290	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1306	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1321	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1340	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1364	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1382	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1398	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
-GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1443	(accepted by decision 0439; V1-0881; no GitHub issue)
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1295	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1311	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1326	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1345	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1369	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1387	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1403	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1448	(accepted by decision 0439; V1-0881; no GitHub issue)
+GPK-V0-077	docs/specs/go-production-kernel-migration-v0.md	1473	(accepted by decision 0445; V1-0958) Rule (c) gains an alias arm. For
+GPK-V0-078	docs/specs/go-production-kernel-migration-v0.md	1522	(accepted by decision 0445; V1-0958) Config reading never guesses.
+GPK-V0-079	docs/specs/go-production-kernel-migration-v0.md	1542	(accepted by decision 0445; V1-0958) A web reverse-import row whose
+GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	1550	(accepted by decision 0445; V1-0958) A bare specifier that resolves to
+GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	1568	(accepted by decision 0445; V1-0958) The alias arm reads only the
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1680,6 +1689,13 @@ KAT-V0-005	docs/specs/kotlin-jvm-affected-test-v0.md	39	`src/test` and `src/jvmT
 KAT-V0-006	docs/specs/kotlin-jvm-affected-test-v0.md	42	Static package/import edges, aliases, wildcard imports, same-package visibility,
 KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	45	Unparsed source, dynamic/reflection-driven discovery, custom source sets, unknow
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	48	Fixed inputs MUST reproduce byte-identical graph and selection bodies
+KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	46	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path
+KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	56	A ticket record MAY carry the optional member `knowHow`. When present it is a
+KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	72	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
+KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	87	Before an entry is appended, the writer MUST screen the text, the reason, the
+KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	91	Freshness MUST be computed at read time against the reader's committed `HEAD`,
+KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	100	`claim` and `claim --next` MUST add a `knowHow` member to their result.
+KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	117	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation
@@ -2001,9 +2017,9 @@ NEC-V0-008	docs/specs/necessity-labels-v0.md	71	The verb MUST be read-only: no i
 NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,
 NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path
 NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic
-NGI-V0-004	docs/specs/non-go-impact-v0.md	47	Added paths MUST carry the same receipt/evidence envelope and
-NGI-V0-005	docs/specs/non-go-impact-v0.md	59	`impact --help` and MCP description MUST publish a per-language
-NGI-V0-006	docs/specs/non-go-impact-v0.md	63	Conformance MUST include each new suffix/language, negative
+NGI-V0-004	docs/specs/non-go-impact-v0.md	51	Added paths MUST carry the same receipt/evidence envelope and
+NGI-V0-005	docs/specs/non-go-impact-v0.md	63	`impact --help` and MCP description MUST publish a per-language
+NGI-V0-006	docs/specs/non-go-impact-v0.md	67	Conformance MUST include each new suffix/language, negative
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence

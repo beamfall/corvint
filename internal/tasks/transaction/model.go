@@ -1030,6 +1030,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if e := importAttachedEvidence(post, pre, where); e != nil {
 		return e
 	}
+	if e := importKnowHow(post, pre, where); e != nil {
+		return e
+	}
 	path := "intent/tickets/" + post.TicketID.Local + ".json"
 	if pre == nil {
 		if _, exists := inv.files[path]; exists {
@@ -1285,6 +1288,21 @@ func importAttachedEvidence(post, pre *ticket.Record, where string) error {
 	}
 	if !wire.Equal(ticket.AttachedEvidenceValue(want), ticket.AttachedEvidenceValue(post.AttachedEvidence)) {
 		return wire.Errorf(wire.CodeMalformed, where+"/attachedEvidence", "an imported record cannot add, rewrite or drop attached evidence")
+	}
+	return nil
+}
+
+// importKnowHow keeps an IMPORT batch from adding, rewriting or dropping
+// know-how entries (KHN-V0-003): only KNOWHOW_ADD and KNOWHOW_RETRACT write
+// them, so an imported record carries exactly the ledger of the record it
+// replaces.
+func importKnowHow(post, pre *ticket.Record, where string) error {
+	var want []ticket.KnowHowEntry
+	if pre != nil {
+		want = pre.KnowHow
+	}
+	if !wire.Equal(ticket.KnowHowValue(want), ticket.KnowHowValue(post.KnowHow)) {
+		return wire.Errorf(wire.CodeMalformed, where+"/knowHow", "an imported record cannot add, rewrite or drop know-how entries")
 	}
 	return nil
 }

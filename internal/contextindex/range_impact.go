@@ -308,7 +308,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if err := verifyRangeBase(ctx, index, base, baseTree); err != nil {
 		return nil, err
 	}
-	if err := attachNonGoImpactUnknowns(result, index, admittedPaths); err != nil {
+	if err := attachNonGoImpactUnknowns(result, index, admittedPaths, 0); err != nil {
 		return nil, err
 	}
 	if err := stabilizePacketBytes(result); err != nil {

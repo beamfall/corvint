@@ -94,6 +94,9 @@ Issue 657 bumps the analyzer schema to `corvint-analyzer/108`
 (`internal/contextindex/analyzer_schema.go`). The separate issue-655/656/659 batch also uses
 108. This branch keeps 108; whichever batch lands second must bump to 109 when it merges `main`.
 
+This batch lands second. Merging the issue-655/656/659 batch moved it to `corvint-analyzer/109`,
+with the input audit pin re-taken after the merge (`TestAnalyzerSchemaInputs`).
+
 ## Evidence
 
 - `go test -count=1 ./internal/appmap/ ./internal/flowcoverage ./internal/specindex

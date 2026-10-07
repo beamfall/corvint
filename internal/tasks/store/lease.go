@@ -59,7 +59,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
 			report.ReapReceipts = reapReceipts
-			return report, claimedTicket(repo, choice.Lease.Verb, report, err)
+			return report, claimedTicket(repo, choice.Root, choice.Lease.Verb, report, err)
 		}
 		for _, x := range report.Expired {
 			child, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
@@ -102,8 +102,9 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 
 // claimedTicket names the ticket a completed claim holds, which `claim
 // --next` did not name. An attempt's ticket never changes, so reading its
-// record after the commit is enough.
-func claimedTicket(repo *intent.Repository, verb string, report *Report, err error) error {
+// record after the commit is enough. root is the claimant's checkout, whose
+// HEAD the delivered know-how freshness is computed against (KHN-V0-006).
+func claimedTicket(repo *intent.Repository, root, verb string, report *Report, err error) error {
 	if err != nil || report.AttemptID == "" || (verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext) {
 		return err
 	}
@@ -141,6 +142,7 @@ func claimedTicket(repo *intent.Repository, verb string, report *Report, err err
 	report.Ticket = a.TicketID.Raw
 	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
 	report.Delivery = claimDelivery(repo, a)
+	report.Delivery.KnowHow = claimKnowHow(repo, root, a.TicketID.Raw)
 	return nil
 }
 

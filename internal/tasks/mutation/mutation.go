@@ -62,6 +62,11 @@ const (
 	// OpAttachEvidence records evidence digests and a reason on an OPEN
 	// ticket without changing its acceptance (TEA-V0-001).
 	OpAttachEvidence = "ATTACH_EVIDENCE"
+	// OpKnowHowAdd records one know-how note, or supersedes an active one,
+	// on a live native home ticket; OpKnowHowRetract withdraws one
+	// (KHN-V0-003). Neither changes acceptance.
+	OpKnowHowAdd     = "KNOWHOW_ADD"
+	OpKnowHowRetract = "KNOWHOW_RETRACT"
 )
 
 // Actor is the envelope's untrusted actor claim. It is compared against the
@@ -265,6 +270,32 @@ type AttachEvidencePayload struct {
 
 func (*AttachEvidencePayload) operation() string { return OpAttachEvidence }
 
+// KnowHowAddPayload is the KNOWHOW_ADD payload (KHN-V0-003): the note text,
+// its pinned file anchors and the writer's HEAD commit, optional route
+// tokens, an optional superseded note with its reason, and writer-asserted
+// provenance. Actor, time and seq come from the writer, never from here.
+type KnowHowAddPayload struct {
+	Text         string
+	Anchors      []ticket.KnowHowAnchor
+	Routes       []string
+	Commit       string
+	Supersedes   *wire.Count
+	Reason       *string
+	Attempt      *string
+	Generation   *wire.Size
+	EvidencePath *string
+}
+
+func (*KnowHowAddPayload) operation() string { return OpKnowHowAdd }
+
+// KnowHowRetractPayload is {note, reason} (KHN-V0-003).
+type KnowHowRetractPayload struct {
+	Note   wire.Count
+	Reason string
+}
+
+func (*KnowHowRetractPayload) operation() string { return OpKnowHowRetract }
+
 var envelopeKeys = []string{
 	"profile", "requestId", "actor", "queueId", "targetId", "expectedRevision", "operation", "payload", "issuedAt",
 }
@@ -295,6 +326,8 @@ var PayloadKeys = map[string][]string{
 	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
 	OpRevokeApproval:  {"grantId", "reason"},
 	OpAttachEvidence:  {"evidence", "reason"},
+	OpKnowHowAdd:      {"anchors", "attempt", "commit", "evidencePath", "generation", "reason", "routes", "supersedes", "text"},
+	OpKnowHowRetract:  {"note", "reason"},
 	OpNoteSet:         {"text", "supersedes"},
 	OpNoteClear:       {"supersedes"},
 	OpReviewRecord:    {"request"},
@@ -466,6 +499,26 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 	case OpAttachEvidence:
 		r.Closed(PayloadKeys[op]...)
 		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
+	case OpKnowHowAdd:
+		r.Closed(PayloadKeys[op]...)
+		k := &KnowHowAddPayload{
+			Text:         ticket.ReadKnowHowText(r.Field("text")),
+			Anchors:      ticket.ReadKnowHowAnchors(r.Field("anchors")),
+			Routes:       ticket.ReadKnowHowRoutes(r.Field("routes")),
+			Commit:       r.Field("commit").OID(),
+			Supersedes:   r.Field("supersedes").CountOrNull(),
+			Attempt:      r.Field("attempt").StringOrNull((*wire.Reader).Identifier),
+			Generation:   r.Field("generation").SizeOrNull(),
+			EvidencePath: r.Field("evidencePath").StringOrNull(ticket.ReadKnowHowFile),
+		}
+		k.Reason = r.Field("reason").StringOrNull(ticket.ReadKnowHowReason)
+		if r.Err() == nil && (k.Supersedes == nil) != (k.Reason == nil) {
+			r.Field("reason").Fail(wire.CodeMalformed, "reason is required exactly when supersedes names a note")
+		}
+		p = k
+	case OpKnowHowRetract:
+		r.Closed(PayloadKeys[op]...)
+		p = &KnowHowRetractPayload{Note: r.Field("note").Count(), Reason: ticket.ReadKnowHowReason(r.Field("reason"))}
 	case OpNoteSet, OpNoteClear:
 		p = readNote(op, r)
 	case OpReviewRecord, OpReviewResubmit:
@@ -843,6 +896,27 @@ func PayloadValue(p Payload) wire.Value {
 		o.Set("reason", wire.String(p.Reason))
 	case *AttachEvidencePayload:
 		o.Set("evidence", ticket.DigestsValue(p.Evidence))
+		o.Set("reason", wire.String(p.Reason))
+	case *KnowHowAddPayload:
+		o.Set("text", wire.String(p.Text))
+		o.Set("anchors", ticket.KnowHowAnchorsValue(p.Anchors))
+		routes := p.Routes
+		if routes == nil {
+			routes = []string{}
+		}
+		o.Set("routes", wire.Strings(routes))
+		o.Set("commit", wire.String(p.Commit))
+		o.Set("supersedes", countOrNull(p.Supersedes))
+		o.Set("reason", wire.StringOrNull(p.Reason))
+		o.Set("attempt", wire.StringOrNull(p.Attempt))
+		if p.Generation == nil {
+			o.Set("generation", wire.Null())
+		} else {
+			o.Set("generation", wire.String(string(*p.Generation)))
+		}
+		o.Set("evidencePath", wire.StringOrNull(p.EvidencePath))
+	case *KnowHowRetractPayload:
+		o.Set("note", wire.String(string(p.Note)))
 		o.Set("reason", wire.String(p.Reason))
 	case *NotePayload:
 		if p.Op == OpNoteSet {

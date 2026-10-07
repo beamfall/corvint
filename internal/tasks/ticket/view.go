@@ -423,6 +423,11 @@ func (v View) Value(includeRecord bool) wire.Value {
 	if len(rec.AttachedEvidence) > 0 {
 		o.Set("attachedEvidence", AttachedEvidenceValue(rec.AttachedEvidence))
 	}
+	// KHN-V0-002: the complete know-how ledger, history included. Its text is
+	// untrusted agent-authored data, never instructions or authority.
+	if len(rec.KnowHow) > 0 {
+		o.Set("knowHow", KnowHowValue(rec.KnowHow))
+	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))
 	o.Set("publication", wire.String(string(v.Publication)))
