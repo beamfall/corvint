@@ -35,7 +35,8 @@ type Options struct {
 	// Budget overrides the projection's default byte budget; Full raises it to FullBudget.
 	Budget int
 	Full   bool
-	// Overlays supply learned facts (AMAP-V0-014). The CLI passes none.
+	// Overlays supply learned facts (AMAP-V0-014). The CLI passes only the RVN-V0 run-verification
+	// overlay, and only when --receipt is given.
 	Overlays []Overlay
 }
 

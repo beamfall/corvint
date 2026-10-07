@@ -16,7 +16,9 @@ const flowsAppmapHelp = `
 Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap build --manifest FILE [--revision REV]
   corvint [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV]
+      [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
+      [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
@@ -27,6 +29,13 @@ scaffold are capped projections of a map file: each writes one JSON document wit
 per-section omitted counts. Anchors are checked against --revision (default HEAD) and
 read FRESH, STALE or UNKNOWN. Unresolved routes, imports and steps read UNKNOWN. None of
 these commands writes to the repository.
+
+Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
+external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
+printed step then gets a learned fact (source run-verification) whose kind is VERIFIED at the
+receipt's application revision, UNVERIFIED_AT_HEAD when its source changed since, CONTRADICTED
+by a failing outcome, or unverified with a reason. Verification is learned evidence; it never changes a node, edge,
+selector strength or freshness. A --bind test key absent from every receipt refuses.
 `
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
@@ -67,6 +76,11 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	query := f.String(queryFlag, "", "query")
 	budget := f.Int("budget", 0, "byte budget")
 	full := f.Bool("full", false, "raise the cap to the full ceiling")
+	var receipts, binds []string
+	if verb == "screen" || verb == "flow" {
+		f.Func("receipt", "Playwright external provider receipt (repeatable)", func(v string) error { receipts = append(receipts, v); return nil })
+		f.Func("bind", "STEP_ID=TEST_KEY binding (repeatable)", func(v string) error { binds = append(binds, v); return nil })
+	}
 	usage := "flows appmap " + verb + " requires --map FILE --" + queryFlag + " VALUE, optional --budget N or --full, and --revision REV"
 	if f.Parse(args) != nil || *mapFile == "" || *query == "" || f.NArg() != 0 {
 		return errors.New(usage)
@@ -75,7 +89,15 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if err != nil {
 		return err
 	}
-	data, err := project(ctx, m, *query, appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full})
+	verification, err := appmap.LoadVerification(m, receipts, binds)
+	if err != nil {
+		return err
+	}
+	o := appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full}
+	if verification != nil {
+		o.Overlays = []appmap.Overlay{verification.Overlay(m, o)}
+	}
+	data, err := project(ctx, m, *query, o)
 	if err != nil {
 		return err
 	}

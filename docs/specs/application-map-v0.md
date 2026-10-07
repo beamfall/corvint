@@ -259,7 +259,9 @@ with one coded JSON error on stderr and nothing on stdout.
 overlays in `Options.Overlays`. Element IDs are the stable IDs of Definitions, so a fact recorded
 against `step:book-tee-time/select-slot` or `method:e2e/pages/teesheet.page.ts#selectSlot` finds
 its element in any later map where that element still exists. Issue 658 (V1-0957, run-verified
-steps) attaches here; this slice defines the seam only and implements no verification.
+steps) is specified separately in `docs/specs/run-verified-navigation-v0.md` (RVN-V0): it adds an
+optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies step status as a
+`run-verification` overlay through this seam.
 
 ## Non-goals and simpler baseline
 
@@ -267,7 +269,7 @@ steps) attaches here; this slice defines the seam only and implements no verific
   follow-ups. No Cypress `cy.visit` or Playwright fixture-injected page objects.
 - No TypeScript `paths`/`baseUrl` alias resolution (V1-0958 owns it).
 - No MCP tools, documentation-corpus records or persisted index; the map is an explicit file.
-- No run verification, ranking or learning; overlays are advisory.
+- No ranking or learning; overlays are advisory. Run verification is RVN-V0, opt-in per call.
 - No browser execution and no write of the scaffold.
 - Simpler baseline: grep specs by URL. It misses click-through specs and is unbounded; the
   fixture's `teesheet-click.spec.ts` is the counter-example.

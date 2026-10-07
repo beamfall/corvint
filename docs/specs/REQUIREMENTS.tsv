@@ -2475,6 +2475,14 @@ RUST-AFFECTED-V0-007	docs/specs/rust-affected-test-understanding-v0.md	88	`thirt
 RUST-AFFECTED-V0-008	docs/specs/rust-affected-test-understanding-v0.md	90	A `cucumber` dependency or `.feature` input MUST report unresolved
 RUST-AFFECTED-V0-009	docs/specs/rust-affected-test-understanding-v0.md	92	Unreadable source, unresolved manifest structure, source outside a Cargo
 RUST-AFFECTED-V0-010	docs/specs/rust-affected-test-understanding-v0.md	96	The adapter MUST satisfy the common language-seam witness, exclusion,
+RVN-V0-001	docs/specs/run-verified-navigation-v0.md	65	`corvint flows appmap screen` and `flow` MUST accept repeatable
+RVN-V0-002	docs/specs/run-verified-navigation-v0.md	75	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro
+RVN-V0-003	docs/specs/run-verified-navigation-v0.md	83	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a
+RVN-V0-004	docs/specs/run-verified-navigation-v0.md	92	Placed evidence MUST be compared with the projection's evaluated revision
+RVN-V0-005	docs/specs/run-verified-navigation-v0.md	97	The status MUST be exactly one of `VERIFIED`, `UNVERIFIED_AT_HEAD`,
+RVN-V0-006	docs/specs/run-verified-navigation-v0.md	106	When receipts are supplied, the `screen` and `flow` projections MUST print the
+RVN-V0-007	docs/specs/run-verified-navigation-v0.md	120	The fact and its text MUST always carry authority `learned`. A run status MUST N
+RVN-V0-008	docs/specs/run-verified-navigation-v0.md	127	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
 SAC-001	docs/specs/swift-apple-analyzer-candidate-v0.md	32	`internal/analyzerswift` and `cmd/corvint-analyzer-swift` remain isolated native
 SAC-002	docs/specs/swift-apple-analyzer-candidate-v0.md	35	The request is the frozen experimental envelope with family `swift-apple`, exact
 SAC-003	docs/specs/swift-apple-analyzer-candidate-v0.md	45	The closed coordinate descriptor binds Swift language `6.3`, SwiftPM tools `6.0`

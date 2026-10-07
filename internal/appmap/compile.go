@@ -526,9 +526,18 @@ func (b *builder) flows(ctx context.Context, r repo, root string) error {
 				requires = append(requires, "flow:"+pf)
 			}
 		}
+		tests := map[string][]string{}
+		for _, l := range intent.Links {
+			if l.Basis == "declared" && l.Target.Type == "test" {
+				tests[l.From] = append(tests[l.From], l.Target.TestKey)
+			}
+		}
 		prev := ""
 		for _, fs := range intent.Steps {
 			st := Step{ID: "step:" + intent.FlowID + "/" + fs.StepID, Action: fs.Action, Status: StatusUnknown, Reuse: []string{}}
+			if keys := tests[fs.StepID]; len(keys) > 0 {
+				st.Tests = uniqueSorted(keys)
+			}
 			ns, ok := nav[fs.StepID]
 			if !ok || intent.Kind != "ui" {
 				st.Reason = "no-navigation-step"

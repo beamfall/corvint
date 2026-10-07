@@ -2703,6 +2703,25 @@
     ]
   },
   {
+    "path": "docs/specs/run-verified-navigation-v0.md",
+    "title": "Run-Verified Navigation V0",
+    "reqPrefix": "RVN-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Playwright receipts bound to map steps read VERIFIED at their app revision, UNVERIFIED_AT_HEAD after a source change, CONTRADICTED on failure.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/observation-corpus-authority-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/rust-affected-test-understanding-v0.md",
     "title": "Rust Affected-Test Understanding V0",
     "reqPrefix": "RUST-AFFECTED-V0",

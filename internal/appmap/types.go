@@ -172,6 +172,9 @@ type Step struct {
 	Reason   string    `json:"reason,omitempty"`
 	Selector *Selector `json:"selector,omitempty"`
 	Reuse    []string  `json:"reuse"`
+	// Tests are the test keys the flow intent's declared `test` links bind to this step
+	// (RVN-V0-002); inferred links never bind.
+	Tests []string `json:"tests,omitempty"`
 }
 
 // Selector is one locator with its strength class (AMAP-V0-007). Its ID is content-addressed, so
