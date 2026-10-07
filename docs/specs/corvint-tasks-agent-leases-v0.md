@@ -4247,7 +4247,8 @@ read read-only.
   `fields`) before the store is opened. After the read, a key that no item carries, a `KEY.SUB`
   whose key is a scalar, or a `KEY.SUB` that no element of any non-empty container carries MUST
   refuse `MALFORMED` with no items and the read's snapshot. A missing `retries` key names the
-  `--retries` flag. No new result code is added.
+  `--retries` flag. No new result code is added. The argument after one of the read's own
+  value-taking flags stays that flag's value, so `ticket search --text --summary` searches for the text.
 - `CAL-V0-167`: (proposed, pending owner acceptance; V1-0935) `--summary` on the same four reads
   MUST return a fixed shape per item:
   - `queue status`: `queueId`, `tickets`, `byStatus`, `blocked`, `headSeq`, `writeBarrier`,

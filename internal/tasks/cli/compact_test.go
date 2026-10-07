@@ -375,6 +375,14 @@ func TestCALV0174_SearchAndRoadmapCompact(t *testing.T) {
 		}
 		compactRefused(t, r.Root, append(search, "--fields", "record")...)
 		compactRefused(t, r.Root, "roadmap", "--fields", "nope")
+		// A value of the read's own flag is passed through, not taken as a
+		// projection option: this searches for the literal text.
+		for _, text := range []string{"--summary", "--fields", "--fields=ticketId"} {
+			x := atm(t, r.Root, nil, "ticket", "search", "--text", text)
+			if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 0 {
+				t.Fatalf("--text %s: %s", text, x.stdout)
+			}
+		}
 
 		size := func(args ...string) int { return len(compactPage(t, r.Root, args...).stdout) }
 		sDefault, sSummary := size(search...), size(append(search, "--summary")...)

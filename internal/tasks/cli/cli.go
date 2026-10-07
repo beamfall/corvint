@@ -140,9 +140,9 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary}, func(a []string) *wire.Result { return ticketList(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: pageValueFlags}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
-			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
@@ -213,12 +213,12 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
 	case "roadmap":
-		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary}, func(a []string) *wire.Result { return roadmap(env, a) }))
+		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: pageValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
 		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
 		if len(args) > 1 && args[1] == "preview" {
-			return emit(env.Stdout, compactRead([]string{"plan", "preview"}, args[2:], compactSpec{summary: planSummary, exclusive: "--selected-only"}, func(a []string) *wire.Result { return planPreview(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"plan", "preview"}, args[2:], compactSpec{summary: planSummary, exclusive: "--selected-only", values: []string{"--pool", "--stage", "--exclude-member"}}, func(a []string) *wire.Result { return planPreview(env, a) }))
 		}
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
@@ -579,6 +579,13 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 	}
 	return out, pos, nil
 }
+
+// pageValueFlags and searchValueFlags are the value-taking flags of the paged
+// reads, so `--fields` and `--summary` extraction leaves their values alone.
+var (
+	pageValueFlags   = []string{"--offset", "--limit"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
+)
 
 // page is the parsed `--offset` / `--limit` pair (§3.3): offset ≥ 0, limit
 // 1..PageMax, default PageDefault. Both are checked before any read.

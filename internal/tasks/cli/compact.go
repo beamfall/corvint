@@ -17,11 +17,14 @@ const maxCompactFields = 32
 // compactSpec describes one read's summary. summary maps a full item to its
 // documented shape; extra is appended to the read's args under --summary for
 // a field that is opt-in on the full output (unless already given); a flag in
-// exclusive cannot be combined with --summary.
+// exclusive cannot be combined with --summary. values names the read's own
+// flags that take the next argument as their value; that value is passed
+// through unread, so `--text --summary` still searches for "--summary".
 type compactSpec struct {
 	summary   func(item wire.Value) wire.Value
 	extra     string
 	exclusive string
+	values    []string
 }
 
 // compactRead strips `--fields` and `--summary` from args, runs read on the
@@ -33,6 +36,9 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
+		case containsArg(spec.values, a) && i+1 < len(args):
+			rest = append(rest, a, args[i+1])
+			i++
 		case a == "--summary":
 			if wantSummary {
 				return compactRefusal(cmd, "duplicate --summary")
