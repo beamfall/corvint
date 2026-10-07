@@ -299,7 +299,7 @@ Global options:
   on an unsupported-* failure (harness event also on success); a ledger storage
   failure never alters the response. cem begin, prepare, cite, and mark write local
   CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
-  flows and maintain write local state; COMMAND --help names each write.
+  flows and maintain write local state (detail in their COMMAND --help).
 `
 
 const adapterHelp = `Run one bounded native host adapter.
