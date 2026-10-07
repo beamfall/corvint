@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -74,7 +75,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
-	d.WatchConfig(func() ([]byte, error) { return intent.ReadFile(values["--config"], dispatch.MaxConfig) }, raw)
+	d.WatchConfig(func() ([]byte, error) { return intent.ReadFile(values["--config"], dispatch.MaxConfig) }, func() (fs.FileInfo, error) { return os.Lstat(values["--config"]) }, raw)
 	runErr := d.Run(ctx, ticks)
 	closeErr := d.Close()
 	o := wire.NewObject()

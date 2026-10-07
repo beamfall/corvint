@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,8 @@ import (
 
 // CAL-V0-127 with CAL-V0-139: a changed configuration file ends an idle
 // skip, so it still applies at the next tick; an unchanged or already
-// refused file keeps the skip, and restoring the applied file ends it.
+// refused file keeps the skip without being read again, and restoring the
+// applied file ends it.
 func TestCALV0127_ConfigChangeEndsAnIdleSkip(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.Roles[0].Match = &Match{Labels: []string{"no-such-label"}}
@@ -39,15 +41,22 @@ func TestCALV0127_ConfigChangeEndsAnIdleSkip(t *testing.T) {
 	}
 	defer d.Close()
 	d.Now = func() time.Time { return clock }
-	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(path) }, applied)
+	reads := 0
+	d.WatchConfig(func() ([]byte, error) { reads++; return os.ReadFile(path) }, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
+	observed := 0
 	tick := func(want int, why string) {
 		t.Helper()
+		before := reads
 		if err := d.Tick(context.Background()); err != nil {
 			t.Fatalf("%s: tick: %v", why, err)
 		}
 		if q.observes != want {
 			t.Fatalf("%s: %d full observations, want %d", why, q.observes, want)
 		}
+		if skipped := q.observes == observed; skipped && reads != before {
+			t.Fatalf("%s: a skipped tick read the unchanged configuration file %d times", why, reads-before)
+		}
+		observed = q.observes
 	}
 	tick(1, "first tick")
 	tick(2, "a tick that records the observation reads in full")

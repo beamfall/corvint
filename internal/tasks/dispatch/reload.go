@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -50,27 +52,66 @@ func (r *ConfigRecord) validate() error {
 
 // WatchConfig makes each tick re-read the configuration with read before it
 // observes the store (CAL-V0-127); initial are the bytes d.Config was decoded
-// from.
-func (d *Dispatcher) WatchConfig(read func() ([]byte, error), initial []byte) {
+// from. stat, when not nil, describes the same file without reading it, so
+// an idle skip (CAL-V0-139) re-reads only after the file's stat changed.
+func (d *Dispatcher) WatchConfig(read func() ([]byte, error), stat func() (fs.FileInfo, error), initial []byte) {
 	sum := sha256.Sum256(initial)
-	d.configRead, d.configSha256, d.configAt = read, hex.EncodeToString(sum[:]), d.Now().UTC()
+	d.configRead, d.configStat, d.configSha256, d.configAt = read, stat, hex.EncodeToString(sum[:]), d.Now().UTC()
+	d.configSeen, d.configSeenSha256 = nil, ""
+}
+
+// readConfig reads the configuration file. The stat taken before the read
+// is kept with the bytes' digest, so a later identical stat can stand for
+// them; a change after the stat only makes the next stat differ.
+func (d *Dispatcher) readConfig() ([]byte, string, error) {
+	var seen fs.FileInfo
+	if d.configStat != nil {
+		seen, _ = d.configStat()
+	}
+	d.configSeen, d.configSeenSha256 = nil, ""
+	raw, err := d.configRead()
+	if err != nil {
+		return nil, "", err
+	}
+	digest := sha256.Sum256(raw)
+	sum := hex.EncodeToString(digest[:])
+	if seen != nil {
+		d.configSeen, d.configSeenSha256 = seen, sum
+	}
+	return raw, sum, nil
+}
+
+// sameConfigStat reports an unchanged file: same identity, size, mode and
+// modification time. A rewrite that keeps all four within the filesystem's
+// timestamp granularity is not seen until the next full tick reads the file.
+func sameConfigStat(a, b fs.FileInfo) bool {
+	return os.SameFile(a, b) && a.Size() == b.Size() && a.Mode() == b.Mode() && a.ModTime().Equal(b.ModTime())
 }
 
 // configPending reports whether reloadConfig would act at this tick, so an
 // idle skip (CAL-V0-139) cannot delay a CAL-V0-127 reload: the file differs
 // from the applied bytes and is not the refusal already recorded, or it
-// matches them again after a refusal. A read error is pending, so the full
-// tick reports it.
+// matches them again after a refusal. An unchanged stat reuses the digest
+// of the bytes last read and reads nothing; a changed stat reads the file.
+// A stat or read error is pending, so the full tick reports it.
 func (d *Dispatcher) configPending() bool {
 	if d.configRead == nil {
 		return false
 	}
-	raw, err := d.configRead()
-	if err != nil {
-		return true
+	sum, same := d.configSeenSha256, false
+	if d.configStat != nil && d.configSeen != nil {
+		now, err := d.configStat()
+		if err != nil {
+			return true
+		}
+		same = sameConfigStat(d.configSeen, now)
 	}
-	digest := sha256.Sum256(raw)
-	sum := hex.EncodeToString(digest[:])
+	if !same {
+		var err error
+		if _, sum, err = d.readConfig(); err != nil {
+			return true
+		}
+	}
 	var refused *ConfigRefusal
 	if d.ledger.Config != nil {
 		refused = d.ledger.Config.Refused
@@ -92,12 +133,7 @@ func (d *Dispatcher) reloadConfig() {
 		return
 	}
 	now := d.Now().UTC()
-	raw, err := d.configRead()
-	sum := ""
-	if err == nil {
-		digest := sha256.Sum256(raw)
-		sum = hex.EncodeToString(digest[:])
-	}
+	raw, sum, err := d.readConfig()
 	rec := d.ledger.Config
 	if err == nil && sum == d.configSha256 {
 		if rec != nil && rec.Refused != nil {

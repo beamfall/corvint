@@ -64,6 +64,12 @@ type Dispatcher struct {
 	configRead   func() ([]byte, error)
 	configSha256 string
 	configAt     time.Time
+	// configStat describes the configuration file without reading it;
+	// configSeen is its stat before the last successful read and
+	// configSeenSha256 those bytes' digest (CAL-V0-139).
+	configStat       func() (fs.FileInfo, error)
+	configSeen       fs.FileInfo
+	configSeenSha256 string
 	// memberSince holds the lane member state episodes observed by this
 	// run (CAL-V0-129).
 	memberSince map[string]memberEpisode

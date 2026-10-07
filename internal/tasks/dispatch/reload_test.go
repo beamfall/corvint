@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -34,7 +35,7 @@ func newReloadFixture(t *testing.T, c *Config, q *fakeQueue) *reloadFixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { d.Close() })
-	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(f.path) }, raw)
+	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(f.path) }, func() (fs.FileInfo, error) { return os.Lstat(f.path) }, raw)
 	f.d = d
 	return f
 }
@@ -470,7 +471,7 @@ func TestCALV0127_ConfigRecordBesideStrictRecords(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte(`{"profile":"nope"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(cfg) }, []byte("initial"))
+	d.WatchConfig(func() ([]byte, error) { return os.ReadFile(cfg) }, func() (fs.FileInfo, error) { return os.Lstat(cfg) }, []byte("initial"))
 	if err := d.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
