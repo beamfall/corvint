@@ -382,8 +382,34 @@ func webClauseToken(token webToken) bool {
 // did. The specifier positions are exactly genericImport's three: a quoted
 // string after `from`, directly after `import`, and inside `import(`.
 func webImports(text string) (map[string]struct{}, string) {
-	lexer := &webLexer{text: text}
 	result := make(map[string]struct{})
+	unterminated := walkWebImports(text, func(specifier string, _ bool) {
+		result[specifier] = struct{}{}
+	})
+	return result, unterminated
+}
+
+// WebImportKinds reports every module specifier of a JavaScript or TypeScript
+// source with whether it is type-only: true only when every statement naming
+// it is an `import type` or `export type` statement, which TypeScript erases
+// and which therefore creates no runtime dependency (GPK-V0-079, proposed).
+// A specifier named once as a value and once as a type is a value edge. The
+// second result is the unterminated-construct reason webImports reports.
+func WebImportKinds(text string) (map[string]bool, string) {
+	result := make(map[string]bool)
+	unterminated := walkWebImports(text, func(specifier string, typeOnly bool) {
+		if previous, seen := result[specifier]; seen {
+			result[specifier] = previous && typeOnly
+			return
+		}
+		result[specifier] = typeOnly
+	})
+	return result, unterminated
+}
+
+// walkWebImports visits each specifier-carrying statement in source order.
+func walkWebImports(text string, visit func(specifier string, typeOnly bool)) string {
+	lexer := &webLexer{text: text}
 	previous := webToken{}
 	for {
 		token, ok := lexer.next()
@@ -394,58 +420,71 @@ func webImports(text string) (map[string]struct{}, string) {
 			previous = token
 			continue
 		}
-		specifier, last := webSpecifier(lexer, token.text)
+		specifier, typeOnly, last := webSpecifier(lexer, token.text)
 		if specifier != "" {
-			result[specifier] = struct{}{}
+			visit(specifier, typeOnly)
 		}
 		previous = last
 	}
-	return result, lexer.unterminated
+	return lexer.unterminated
 }
 
 // webSpecifier consumes one `import` or `export` statement's head and reports
-// the specifier it carries, empty when it carries none. It also reports the
-// last token it consumed, so the caller's property-access guard stays aligned.
-func webSpecifier(lexer *webLexer, keyword string) (string, webToken) {
+// the specifier it carries, empty when it carries none, and whether the
+// statement is type-only. It also reports the last token it consumed, so the
+// caller's property-access guard stays aligned.
+//
+// A statement is type-only when its first clause word is `type` and the next
+// token is neither `from`, `,` nor `=`: `import type X from`, `import type {
+// X } from`, `import type * as N from`, `export type { X } from` and `export
+// type * from` are, while `import type from "x"` and `import type, { x } from
+// "x"` bind a value named type. Inline `import { type X }` stays a value edge,
+// which can only overstate a dependency, never hide one.
+func webSpecifier(lexer *webLexer, keyword string) (string, bool, webToken) {
 	token, ok := lexer.next()
 	if !ok {
-		return "", webToken{}
+		return "", false, webToken{}
 	}
 	if keyword == "import" {
 		// `import "x"` is the side-effect form; `import("x")` the dynamic one.
 		// A dynamic import whose argument is not a literal names no module the
 		// index can record, and contributes nothing rather than guessing.
 		if token.kind == webString {
-			return quotedSpecifier(token), token
+			return quotedSpecifier(token), false, token
 		}
 		if token.kind == webPunct && token.text == "(" {
 			argument, present := lexer.next()
 			if !present {
-				return "", webToken{}
+				return "", false, webToken{}
 			}
-			return quotedSpecifier(argument), argument
+			return quotedSpecifier(argument), false, argument
 		}
 	}
+	typeOnly, first := false, true
 	for {
 		if token.kind == webWord && token.text == "from" {
 			specifier, present := lexer.next()
 			if !present {
-				return "", webToken{}
+				return "", false, webToken{}
 			}
 			if specifier.kind == webString {
-				return quotedSpecifier(specifier), specifier
+				return quotedSpecifier(specifier), typeOnly, specifier
 			}
 			// `import { from }`: a binding spelled from is a clause word.
 			token = specifier
 			continue
 		}
 		if !webClauseToken(token) {
-			return "", token
+			return "", false, token
 		}
 		next, present := lexer.next()
 		if !present {
-			return "", token
+			return "", false, token
 		}
+		if first && token.kind == webWord && token.text == "type" {
+			typeOnly = !(next.kind == webWord && next.text == "from") && !(next.kind == webPunct && (next.text == "," || next.text == "="))
+		}
+		first = false
 		token = next
 	}
 }
