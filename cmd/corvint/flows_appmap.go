@@ -31,7 +31,7 @@ these commands writes to the repository.
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find or scaffold")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
 	}
 	verb, args := args[0], args[1:]
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
@@ -56,12 +56,15 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		_, err = out.Write(data)
 		return err
 	}
+	if verb == "plan" {
+		return runFlowsAppmapPlan(ctx, root, args, out)
+	}
 	type projector func(context.Context, *appmap.Map, string, appmap.Options) ([]byte, error)
 	project, queryFlag := map[string]projector{
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find or scaffold")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

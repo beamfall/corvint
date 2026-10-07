@@ -29,7 +29,7 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
-	root, artifact, versionOnly, ok := parseArguments(arguments)
+	root, artifact, maps, versionOnly, ok := parseArguments(arguments)
 	if !ok || !protocolOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: invalid arguments")
 		return 2
@@ -43,7 +43,12 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: repository unavailable")
 		return 2
 	}
-	handler := &toolHandler{registry: registry}
+	planner, plannerErr := newMapPlanner(root, maps)
+	if plannerErr != nil {
+		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: application map unavailable")
+		return 2
+	}
+	handler := &toolHandler{registry: registry, planner: planner}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
 		Name:            serverName, Version: serverVersion,
@@ -62,17 +67,31 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	return 0
 }
 
-func parseArguments(arguments []string) (root, artifact string, versionOnly, ok bool) {
+// parseArguments accepts --version, or --root R --artifact A followed by up to eight --map FILE
+// pairs naming root-relative application maps for corvint.map_plan (AMSP-V0-010).
+func parseArguments(arguments []string) (root, artifact string, maps []string, versionOnly, ok bool) {
 	if len(arguments) == 1 && arguments[0] == "--version" {
-		return "", "", true, true
+		return "", "", nil, true, true
 	}
-	if len(arguments) != 4 || arguments[0] != "--root" || arguments[1] == "" || arguments[2] != "--artifact" || arguments[3] == "" {
-		return "", "", false, false
+	if len(arguments) < 4 || len(arguments)%2 != 0 || arguments[0] != "--root" || arguments[1] == "" || arguments[2] != "--artifact" || arguments[3] == "" {
+		return "", "", nil, false, false
 	}
-	return arguments[1], arguments[3], false, true
+	for i := 4; i < len(arguments); i += 2 {
+		if arguments[i] != "--map" || arguments[i+1] == "" {
+			return "", "", nil, false, false
+		}
+		maps = append(maps, arguments[i+1])
+	}
+	if len(maps) > maxConfiguredMaps {
+		return "", "", nil, false, false
+	}
+	return arguments[1], arguments[3], maps, false, true
 }
 
-type toolHandler struct{ registry *corpusbridge.Registry }
+type toolHandler struct {
+	registry *corpusbridge.Registry
+	planner  *mapPlanner
+}
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
@@ -86,6 +105,9 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 			}
 		}
 		tools := handler.registry.Tools()
+		if handler.planner != nil {
+			tools = append(tools, handler.planner.descriptor())
+		}
 		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
@@ -117,6 +139,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if err != nil {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
+	if name == mapPlanTool && handler.planner != nil {
+		return handler.callMapPlan(ctx, raw)
+	}
 	structured, text, toolFailure, transportErr := handler.registry.Call(ctx, name, raw)
 	if transportErr != nil {
 		if transportErr.Code == "invalid-arguments" || transportErr.Code == "unsupported-tool" {
@@ -135,6 +160,37 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	framed, frameErr := repoenvelope.Frame(text)
 	if frameErr != nil {
 		return toolFailureResult(name, repoenvelope.CollisionCode, repoenvelope.CollisionCode)
+	}
+	return map[string]any{
+		"content":           []any{map[string]any{"type": "text", "text": framed}},
+		"isError":           false,
+		"structuredContent": structured,
+	}, nil
+}
+
+// callMapPlan frames the plan like every other tool result: the model-facing text in the
+// untrusted-data envelope, the plan itself as structured content.
+func (handler *toolHandler) callMapPlan(ctx context.Context, raw []byte) (map[string]any, *protocol.RPCError) {
+	text, code, message, valid := handler.planner.call(ctx, raw)
+	if !valid {
+		return nil, protocol.InvalidParams("Invalid params")
+	}
+	if ctx.Err() != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	if code != "" {
+		return toolFailureResult(mapPlanTool, code, message)
+	}
+	if text == "" {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	var structured map[string]any
+	if json.Unmarshal([]byte(text), &structured) != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	framed, frameErr := repoenvelope.Frame(text)
+	if frameErr != nil {
+		return toolFailureResult(mapPlanTool, repoenvelope.CollisionCode, repoenvelope.CollisionCode)
 	}
 	return map[string]any{
 		"content":           []any{map[string]any{"type": "text", "text": framed}},

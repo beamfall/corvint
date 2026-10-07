@@ -196,6 +196,25 @@
     ]
   },
   {
+    "path": "docs/specs/application-map-scenario-planner-v0.md",
+    "title": "Application Map Scenario Planner V0",
+    "reqPrefix": "AMSP-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A plain-language multi-step request becomes one capped, deterministic E2E plan over application maps that fails closed on unmapped or stale steps.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint",
+      "cmd/corvint-corpus-mcp"
+    ]
+  },
+  {
     "path": "docs/specs/application-map-v0.md",
     "title": "Application Map V0",
     "reqPrefix": "AMAP-V0",

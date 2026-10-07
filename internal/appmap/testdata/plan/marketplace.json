@@ -1,0 +1,12 @@
+{
+  "schema": "application-map-manifest/0",
+  "app": "marketplace",
+  "routers": [{"path": "shop/routes.js", "dialect": "ui-router-states/0"}],
+  "flows": "shop/flows",
+  "tests": {
+    "root": "shop-e2e",
+    "specs": ["shop-e2e/specs"],
+    "page_objects": ["shop-e2e/pages"]
+  },
+  "page_object_screens": [{"path": "shop-e2e/pages/shop.page.ts", "state": "shop"}]
+}
