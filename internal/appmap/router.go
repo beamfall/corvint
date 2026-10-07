@@ -61,6 +61,9 @@ func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 // wholeArg parses the last argument of the call closing at toks[end]. A literal that is only a
 // prefix of the argument ({...} && config) is not what the program passes, so it reads "other".
 func wholeArg(toks []token, i, end int) jsValue {
+	if i >= len(toks) || i > end {
+		return jsValue{kind: "other"} // a truncated call has no argument to read
+	}
 	v, after := parseValue(toks, i)
 	if after == end || (after+1 == end && isPunct(toks[after], ",")) {
 		return v
@@ -400,10 +403,14 @@ func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 	if loc := urlScheme.FindStringIndex(u); loc != nil {
 		// Only a leading scheme starts an authority; "://" inside a query or fragment is data.
 		rest := u[loc[1]:]
-		if j := strings.IndexByte(rest, '/'); j >= 0 {
-			u = rest[j:]
-		} else {
+		// The authority ends at the first '/', '?' or '#': https://host?next=/home is the root.
+		switch j := strings.IndexAny(rest, "/?#"); {
+		case j < 0:
 			u = "/"
+		case rest[j] == '/':
+			u = rest[j:]
+		default:
+			u = "/" + rest[j:]
 		}
 	}
 	if x.hashPrefix != "" {

@@ -193,6 +193,23 @@ regression test that a mutation of its fix makes fail:
 5. The scaffold called `test` when the closest spec bound it only as an alias —
    `TestAMAPV0013TestUnbound` (`test-unbound`, fail-closed; owner question 13).
 
+
+Round 6 (diff `8af2bf62..e72b30ec`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. An object-literal method before, after or inside the page-object class was callable reuse —
+   `TestAMAPV0013MethodOutsideClassNotCallable` (only members directly in the class body).
+2. An import statement over 8 lines was copied in part, or guessed as a side-effect import —
+   `TestAMAPV0013UnreadImportStatement` (`unread-statement`, commented, binds nothing).
+3. `https://host?next=/home` resolved to `/home` — `TestAMAPV0003AuthorityEndsAtQueryOrFragment`
+   (the authority ends at the first `/`, `?` or `#`).
+4. A regular expression after an `if (...)` condition lexed as code, fabricating a selector —
+   `TestAMAPV0007RegexAfterControlCondition` (a paren stack marks control conditions; `else`,
+   `throw`, `await` and similar keywords also allow a regular expression).
+5. A router file ending inside `app.state('home',` panicked — `TestAMAPV0002TruncatedStateCall`.
+
+Each round finds further edge cases in the token- and line-level JavaScript reader; owner question
+14 asks whether adopter-scale qualification should decide on a full parser before promotion.
 Later rounds are recorded in the lane handoff.
 
 ## Analyzer schema bump

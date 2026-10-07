@@ -166,16 +166,19 @@ func readFacts(text string) fileFacts {
 		}
 	}
 	lines := strings.Split(code, "\n")
+	classStart, classEnd, lastEnd := -1, -1, -1
 	for n, l := range lines {
 		if f.class == "" {
 			if m := classLine.FindStringSubmatch(l); m != nil {
-				f.class = m[1]
+				f.class, classStart, classEnd = m[1], n, blockEnd(lines, n)
 			}
 		}
 		name, member := "", false
 		for k, re := range []*regexp.Regexp{methodLine, arrowLine, funcLine} {
 			if m := re.FindStringSubmatch(l); m != nil && !notMethod[m[1]] {
-				name, member = m[1], k < 2
+				// A member is callable on the class only when it sits directly in the class body:
+				// not before or after it, and not inside another method (an object literal's method).
+				name, member = m[1], k < 2 && n > classStart && n < classEnd && n > lastEnd
 				break
 			}
 		}
@@ -184,6 +187,7 @@ func readFacts(text string) fileFacts {
 		}
 		if end := blockEnd(lines, n); end > n {
 			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1, callable: member && callable(l, name)})
+			lastEnd = max(lastEnd, end)
 		}
 	}
 	return f
@@ -316,16 +320,17 @@ func statementAt(text string, line int, specifier string) string {
 			break
 		}
 	}
-	out := []string{}
+	out, found := []string{}, false
 	for k := start; k < len(lines) && k < start+8; k++ {
 		out = append(out, strings.TrimRight(lines[k], " \t\r"))
 		if strings.Contains(lines[k], specifier) {
+			found = true
 			break
 		}
 	}
 	s := strings.Join(out, "\n")
-	if len(s) > 512 {
-		return ""
+	if !found || len(s) > 512 {
+		return "" // an unfinished or oversized statement is not read
 	}
 	return s
 }
