@@ -138,3 +138,13 @@ focused test; the fixes were not reviewed again:
   supervised host's own success rule through a new exported `ClaudeResultFailed`.
 - With both limits exhausted, `resetsAt` came from the sessions limit even when the token limit
   released later. The hold now names the limit the window releases last.
+
+## Cross-lane integration finding
+
+The cross-lane Codex review of the integration branch found that a budget-held relaunch could
+starve other tickets. A CAL-V0-149 relaunch launches only under its own role, but the
+`BUDGET_HELD` deferral considered every matching role. When the relaunch role was exhausted and
+another matching role was not, the ticket was neither deferred nor launched, so it held a
+one-ticket selection window until the budget reset. The budget hold now considers only the
+relaunch role for such a ticket, the same restriction the roster applies. A regression in
+`TestCALV0155_BudgetHeldTicketLeavesSelectionWindow` fails without the fix.

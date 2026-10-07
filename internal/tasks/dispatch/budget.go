@@ -246,10 +246,10 @@ func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 	if !budgeted {
 		return nil
 	}
-	g := d.spendGate(now)
+	g, prefer := d.spendGate(now), preferredRoles(d.relaunches())
 	var held map[string]bool
 	for _, t := range ts {
-		if len(g.ticketHolds(t)) > 0 {
+		if len(g.ticketHolds(t, prefer[t.ID])) > 0 {
 			if held == nil {
 				held = map[string]bool{}
 			}
@@ -262,8 +262,10 @@ func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 // ticketHolds returns the exhausted scopes that hold t outside the
 // selection window: its ticket scope, or else every enabled ticket role that
 // would match it, were it selected, when each has an exhausted role scope.
+// A pending relaunch's preferred role, when it would match, is the only
+// role considered, as the roster launches it under no other (CAL-V0-149).
 // It returns nil when t is not held.
-func (g *spendGate) ticketHolds(t Ticket) []BudgetHold {
+func (g *spendGate) ticketHolds(t Ticket, prefer string) []BudgetHold {
 	if g.c.TicketBudget != nil {
 		if h, ok := g.exhausted([2]string{ScopeTicket, t.ID}); ok {
 			return []BudgetHold{h}
@@ -271,8 +273,12 @@ func (g *spendGate) ticketHolds(t Ticket) []BudgetHold {
 	}
 	selected := t
 	selected.Plan = "SELECTED"
+	roles := g.c.Roles
+	if r := g.c.roleNamed(prefer); r != nil && r.Cap > 0 && r.Lane == nil && r.Match != nil && matches(r.Match, selected) {
+		roles = []Role{*r}
+	}
 	var out []BudgetHold
-	for _, r := range g.c.Roles {
+	for _, r := range roles {
 		if r.Match == nil || r.Cap == 0 || !matches(r.Match, selected) {
 			continue
 		}
@@ -291,12 +297,12 @@ func (g *spendGate) ticketHolds(t Ticket) []BudgetHold {
 // holdDeferred records the holds of the tickets the observation deferred as
 // budget-held: the roster never meets them, so their holds would otherwise
 // go unreported (CAL-V0-158).
-func (g *spendGate) holdDeferred(ts []Ticket) {
+func (g *spendGate) holdDeferred(ts []Ticket, prefer map[string]string) {
 	for _, t := range ts {
 		if t.PlanReason != PlanReasonBudgetHeld {
 			continue
 		}
-		for _, h := range g.ticketHolds(t) {
+		for _, h := range g.ticketHolds(t, prefer[t.ID]) {
 			if k := [2]string{h.Scope, h.Name}; !g.has(k) {
 				g.holds[k] = h
 			}

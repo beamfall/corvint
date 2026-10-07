@@ -569,6 +569,16 @@ func (d *Dispatcher) relaunches() map[string]*detachedMarker {
 	return out
 }
 
+// preferredRoles maps each ticket with a pending relaunch to the role that
+// relaunches it (CAL-V0-149).
+func preferredRoles(relaunch map[string]*detachedMarker) map[string]string {
+	out := map[string]string{}
+	for t, m := range relaunch {
+		out[t] = m.Role
+	}
+	return out
+}
+
 // detachedLine is the one-line {detachedRun} rendering of a relaunch's run
 // outcome (CAL-V0-149).
 func detachedLine(m *detachedMarker) string {
