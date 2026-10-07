@@ -147,7 +147,7 @@ wrapper and removing this two-file edge; the #464 and #481 edges stay.
 ## V1-0955 addendum — know-how write secret screen
 
 Agent decision, 2026-10-07, made while delivering GitHub issue beamfall/corvint#655 (native
-V1-0955); it is not a direct owner statement and is listed as an owner question in that change.
+V1-0955); it was not a direct owner statement and was accepted by the owner in decision 0443.
 The proposed know-how note writer (`docs/specs/corvint-tasks-know-how-notes-v0.md`, KHN-V0-004)
 screens note text, reasons, route tokens and paths with Core's shared `internal/secretscreen`
 patterns instead of keeping a second, drifting copy. Rule 2 gains one more exact edge, limited to

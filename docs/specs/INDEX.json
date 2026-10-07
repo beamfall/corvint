@@ -746,7 +746,7 @@
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
     "title": "Corvint Tasks know-how notes V0",
     "reqPrefix": "KHN-V0",
-    "intent": "proposed, pending owner acceptance (V1-0955)",
+    "intent": "accepted by decision 0443 (V1-0955)",
     "delivery": "experimental",
     "claim": "Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.",
     "dependsOn": [

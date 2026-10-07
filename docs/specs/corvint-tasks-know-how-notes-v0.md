@@ -2,12 +2,12 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: proposed, pending owner acceptance (V1-0955)
+Intent status: accepted by decision 0443 (V1-0955)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
 ("cross-ticket know-how notes"), implemented on orchestrator instruction on 2026-10-07. The
-requirements below are proposed and the owner has not accepted them. The issue's adopter context
+requirements below were accepted by the owner in decision 0443. The issue's adopter context
 stays in the issue. The write path reuses the
 [evidence attachments profile](corvint-tasks-evidence-attachments-v0.md) pattern (TEA-V0-001: an
 optional record member changed only by an ordinary receipt-backed mutation). The claim surface is
@@ -15,9 +15,9 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: proposed, pending owner acceptance (V1-0955); experimental; `ticket know-how add|retract|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Status: accepted by decision 0443 (V1-0955); experimental; `ticket know-how add|retract|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
 - Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT through Apply, write-time secret screen and blob pins, read-time freshness from one batched Git call, a 2 KiB claim projection and an authority boundary test.
-- Blocked on: owner acceptance of the requirements and the owner questions; archive round trip, concurrency and redo witnesses; Core packet delivery is a non-goal here.
+- Blocked on: owner questions 5, 6 and 8 (V1-0964, V1-0962); archive round trip, concurrency and redo witnesses; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -168,7 +168,7 @@ screen and no audited history, and it does not reach a claim.
 
 ## Resolved decisions
 
-These are agent decisions, made fail-closed and pending owner acceptance.
+These are agent decisions, made fail-closed and accepted by the owner in decision 0443.
 
 1. **TEA pattern rather than derived events.** The write path is the TEA-V0-001 pattern: an
    optional record member changed only by ordinary mutations. It does not use the ON-V0 derived
@@ -193,6 +193,11 @@ These are agent decisions, made fail-closed and pending owner acceptance.
    current freshness instead of stale state.
 
 ## Owner questions
+
+Decision 0443 answers questions 1 to 4 and 7 by keeping the current behaviour: TEA-style ledger
+history, no notes on COMPLETED home tickets, supersede and retract within the home ticket only,
+no WORKER grant, and the stated bounds. Questions 5 and 6 stay open as V1-0964 and question 8 as
+V1-0962.
 
 1. Accept TEA-style ledger history, or require ON-V0-style derived events for know-how?
 2. Should COMPLETED home tickets accept notes, given the release digest binding (decision 2)?
