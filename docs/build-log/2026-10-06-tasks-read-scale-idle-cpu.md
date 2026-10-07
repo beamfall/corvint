@@ -142,7 +142,26 @@ expected saving of roughly half the remaining read CPU at 10,000 tickets. It nee
 consistency argument (mtime granularity, same-size rewrites within one tick) and is left for the
 owner.
 
-FOLLOWUP_MEASUREMENTS
+Follow-up evidence: 9114dc99 (before) against 9565d5fe (after) on the same stores, interleaved,
+host load 8.6 to 11.4, medians of 5. Wall s / CPU s.
+
+| Read | A before | A after | D before | D after |
+|---|---|---|---|---|
+| queue status | 0.29 / 0.32 | 0.19 / 0.21 | 1.79 / 2.15 | 1.38 / 1.70 |
+| ticket show | 0.20 / 0.21 | 0.15 / 0.17 | 1.72 / 1.96 | 1.23 / 1.43 |
+| plan preview (full) | 0.22 / 0.25 | 0.18 / 0.21 | LIMIT_EXCEEDED | 1.32 / 1.71 |
+| plan preview --selected-only | 0.22 / 0.25 | 0.16 / 0.17 | 1.69 / 1.93 | 1.14 / 1.36 |
+
+Idle `dispatch` (5 s tick, no matching role, 120 s window, CPU s per minute):
+
+| Store | before | after |
+|---|---|---|
+| A (1,000 tickets) | 2.98 | 0.23 |
+| D (10,000 tickets) | 17.77 | 1.44 |
+
+The remaining idle cost at D is the 60 s safety-net full read (about 1.5 CPU s each); the stat-keyed
+cache above would roughly halve it. Focused tests pass: `go test ./supervisor ./journal ./wire
+./store ./dispatch ./cli` (`internal/tasks`, one package at a time, `GOMAXPROCS=3`).
 
 ## Rollback
 
