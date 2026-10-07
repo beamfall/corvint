@@ -25,9 +25,10 @@ import (
 // then waits until the finish file $2 exists. It has a lifetime of its own,
 // independent of the runner and of the finish file: it also ends once $4
 // seconds have passed or its directory $3 is gone, so a runner killed before
-// it retired the command cannot leave the loop running.
+// it retired the command cannot leave the loop running. Its sleeps close fd 3,
+// so a pipe on fd 3 reaches EOF when the loop itself exits.
 const survivorFixture = `end=$(( $(date +%s) + $4 )); echo $$ > "$1"
-while [ ! -f "$2" ] && [ -d "$3" ] && [ "$(date +%s)" -lt "$end" ]; do sleep 0.05; done`
+while [ ! -f "$2" ] && [ -d "$3" ] && [ "$(date +%s)" -lt "$end" ]; do sleep 0.05 3>&-; done`
 
 // CAL-V0-130, CAL-V0-131 and CAL-V0-133: an attempt claimed by build N keeps
 // heartbeating, renewing and releasing after build N+1 is installed in place

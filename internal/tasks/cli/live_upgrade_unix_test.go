@@ -5,6 +5,7 @@ package cli_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -172,21 +173,50 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 				t.Fatal(err)
 			}
 			started, ready := filepath.Join(fixtureDir, "started"), filepath.Join(dir, "ready")
+			// Exit is detected by EOF on a pipe whose write end only the
+			// runner and the fixture hold (as fd 3), not by the pid
+			// disappearing: an orphaned fixture that exits can stay a zombie
+			// on a host whose adopter does not reap.
+			exitRead, exitWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Registered first, so it runs after the cleanups below that
+			// read exit from this pipe.
+			t.Cleanup(func() { exitRead.Close() })
 			// The stand-in runner ignores SIGTERM, starts the fixture
-			// exactly as the upgrade test's runner does, and is SIGKILLed.
+			// exactly as the upgrade test's runner does, and is SIGKILLed,
+			// which closes its copy of fd 3.
 			runnerCmd := exec.Command("/bin/sh", "-c", `trap "" TERM; /bin/sh -c "$1" survivor "$2" "$3" "$4" "$5" & echo ready > "$6"; wait`,
 				"runner", survivorFixture, started, filepath.Join(fixtureDir, "finish"), fixtureDir, tc.seconds, ready)
 			runnerCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-			if err := runnerCmd.Start(); err != nil {
+			runnerCmd.ExtraFiles = []*os.File{exitWrite}
+			err = runnerCmd.Start()
+			exitWrite.Close()
+			if err != nil {
 				t.Fatal(err)
 			}
+			exited := make(chan struct{})
+			go func() {
+				_, _ = io.Copy(io.Discard, exitRead)
+				close(exited)
+			}()
 			runner := watchSurvivor(runnerCmd)
+			t.Cleanup(func() {
+				if err := runner.retire(time.Second, 5*time.Second); err != nil {
+					t.Error(err)
+				}
+			})
 			sent := recordSignals(runner)
-			waitForLine(t, ready, 10*time.Second)
 			pid, err := strconv.Atoi(strings.TrimSpace(waitForLine(t, started, 10*time.Second)))
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Should the fixture not exit, the failure leaves nothing
+			// running: while the pipe is open the fixture is still alive,
+			// so it is SIGKILLed (with its group only when it leads one).
+			t.Cleanup(func() { retireFixture(t, pid, exited, 5*time.Second) })
+			waitForLine(t, ready, 10*time.Second)
 			if err := runner.retire(200*time.Millisecond, 5*time.Second); err != nil {
 				t.Fatal(err)
 			}
@@ -194,20 +224,46 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 				t.Fatalf("signals sent: %v", *sent)
 			}
 			// The runner is gone and nothing retired the fixture's group.
-			if err := syscall.Kill(pid, 0); err != nil {
-				t.Fatalf("fixture already gone before its bound: %v", err)
+			select {
+			case <-exited:
+				t.Fatal("fixture already gone before its bound")
+			default:
 			}
 			if tc.remove {
 				if err := os.RemoveAll(fixtureDir); err != nil {
 					t.Fatal(err)
 				}
 			}
-			for deadline := time.Now().Add(tc.within); syscall.Kill(pid, 0) == nil; time.Sleep(50 * time.Millisecond) {
-				if time.Now().After(deadline) {
-					t.Fatalf("fixture loop %d still running %s after its runner was killed", pid, tc.within)
-				}
+			select {
+			case <-exited:
+			case <-time.After(tc.within):
+				t.Fatalf("fixture loop %d still running %s after its runner was killed", pid, tc.within)
 			}
 		})
+	}
+}
+
+// retireFixture kills a fixture loop that has not exited. The open pipe
+// proves it alive, so its pid is still its own; its process group is killed
+// only when it leads that group.
+func retireFixture(t *testing.T, pid int, exited <-chan struct{}, bound time.Duration) {
+	t.Helper()
+	select {
+	case <-exited:
+		return
+	default:
+	}
+	target := pid
+	if group, err := syscall.Getpgid(pid); err == nil && group == pid {
+		target = -pid
+	}
+	if err := syscall.Kill(target, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		t.Errorf("kill fixture %d: %v", target, err)
+	}
+	select {
+	case <-exited:
+	case <-time.After(bound):
+		t.Errorf("fixture %d still running %s after cleanup killed it", pid, bound)
 	}
 }
 
