@@ -50,8 +50,11 @@ func handoffPoolStore(t *testing.T) *leaseStore {
 
 // CAL-V0-044/046: genuine policy receipts, allocation and renewal afterimages
 // bind the complete interval. Restoring relevant endpoints cannot erase it.
+// CAL-V0-122: an added member stays compatible; replacing another member or
+// changing the allocated pool's settings still fences. The writer refuses any
+// change to an occupied member's own definition before it can reach a handoff.
 func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
-	for _, name := range []string{"other-reservation", "version-no-pool", "members-add", "other-pool", "pools-add", "capacity", "budget", "retry", "gate", "roles", "environment", "cem"} {
+	for _, name := range []string{"other-reservation", "version-no-pool", "members-add", "other-pool", "pools-add", "capacity", "budget", "retry", "gate", "roles", "environment", "cem", "other-member-replaced", "pool-setting"} {
 		for _, candidate := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/candidate=%v", name, candidate), func(t *testing.T) {
 				s := handoffPoolStore(t)
@@ -90,6 +93,11 @@ func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
 						pools.Arr[0].Obj.Set("reservedFor", obj("b", str("implement")))
 					case "members-add":
 						pools.Arr[0].Obj.Set("members", wire.Strings([]string{"a", "b", "d"}))
+					case "other-member-replaced":
+						pools.Arr[0].Obj.Set("members", wire.Strings([]string{oldAttempt.PoolAllocation.MemberID, "d"}))
+					case "pool-setting":
+						pools.Arr[0].Obj.Set("members", wire.Strings([]string{"a", "b", "d"}))
+						pools.Arr[0].Obj.Set("priorityAdmission", wire.Bool(true))
 					case "other-pool":
 						pools.Arr[1].Obj.Set("reservedFor", obj("c", str("review")))
 					case "pools-add":
@@ -139,7 +147,7 @@ func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
 				}
 				r = s.lease(t, "return", l, 0, nil)
 				got := s.attempt(t, a.AttemptID)
-				if name == "other-reservation" || name == "version-no-pool" {
+				if name == "other-reservation" || name == "version-no-pool" || name == "members-add" {
 					if r.Outcome.Outcome != mutation.OutcomeCompleted || got.Phase != "CANCELLED" || got.Quiescence != "FENCED" || got.RetryAccounting.Disposition != wire.CodeReviewReturned || got.RetryCount != oldAttempt.RetryCount || got.PolicySha256 != oldAttempt.PolicySha256 || got.ConfigSha256 != oldAttempt.ConfigSha256 || len(s.entries(t)) != 0 {
 						t.Fatalf("clean return: %+v %+v", r, got)
 					}
@@ -161,6 +169,44 @@ func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
 			})
 		}
 	}
+}
+
+// CAL-V0-122: removing or reconfiguring a live attempt's own member is never
+// additive. The policy writer already refuses it while the member is occupied,
+// so the attempt keeps its original policy and its clean handoff.
+func TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate(t *testing.T) {
+	s := handoffPoolStore(t)
+	c := claimOf(s.ticket(t, "own-member"), "src/")
+	c.Stage, c.Pool = "review", "lanes"
+	a := s.lease(t, "claim", c, 0, nil)
+	own := s.attempt(t, a.AttemptID).PoolAllocation.MemberID
+	other := map[bool]string{true: "a", false: "b"}[own == "b"]
+	raw, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, ".taskman", "policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, change := range []func(p wire.Value){
+		func(p wire.Value) { p.Arr[0].Obj.Set("members", wire.Strings([]string{other, "d"})) },
+		func(p wire.Value) { p.Arr[0].Obj.Set("memberConfig", obj(own, obj())) },
+		func(p wire.Value) { p.Arr[0].Obj.Set("reservedFor", obj(own, str("implement"))) },
+	} {
+		v, _ := wire.Parse(raw)
+		version, _ := v.Obj.Get("policyVersion")
+		n, _ := strconv.Atoi(version.Str)
+		v.Obj.Set("policyVersion", str(strconv.Itoa(n+1)))
+		pools, _ := v.Obj.Get("pools")
+		change(pools)
+		r, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest(fmt.Sprintf("own-member-%d", i), version.Str, wire.EncodeFile(v)), now(t))
+		if err != nil || r.Outcome.Outcome == mutation.OutcomeCompleted || !r.Outcome.HasCode(wire.CodeMalformed) {
+			t.Fatalf("own-member change %d: %+v %v", i, r, err)
+		}
+	}
+	l := releaseOf(a)
+	l.Reason, l.Evidence = wire.CodeReviewReturned, "external-review"
+	if r := s.lease(t, "return", l, 0, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("return: %+v", r)
+	}
+	s.consistent(t)
 }
 
 func TestCALV0044_ConcurrentCompatibleReturnsCommitOnce(t *testing.T) {
