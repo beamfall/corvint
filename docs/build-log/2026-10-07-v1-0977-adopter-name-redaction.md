@@ -11,8 +11,12 @@ behavior provider (`internal/doccorpus/behavior.go` `BehaviorRevisions.E2E`, plu
 `docs/specs/application-flow-understanding-v1.md`, `docs/specs/documentation-corpus-v1.md` and
 `docs/BUILD-LOG.md`) was NOT renamed: AFU-V1-006 pins the `/1` provider bytes
 (`TestAFUV1BehaviorProviderV1BytesUnchanged`), so a rename changes the digest and breaks existing
-producers. Those four paths still contain the name pending an owner decision (accept a `/1` wire break
-with a repinned digest, or add a neutral alias on decode while keeping the legacy encoding).
+producers. Those four paths are a bounded, recorded exception.
+
+Coordinator decision (2026-10-07): the frozen `/1` member stays exactly as it is, with no wire break
+and no decode alias. The neutral member is deferred to the next provider version, tracked as V1-0985.
+Residual paths: `internal/doccorpus/behavior.go`, `docs/BUILD-LOG.md`,
+`docs/specs/application-flow-understanding-v1.md`, `docs/specs/documentation-corpus-v1.md`.
 One NATO-alphabet fixture word that matched the same
 text (`conformance/frontier-v0/runner_impl.go`) was changed to `gamma`; it only labels generated hunks.
 
