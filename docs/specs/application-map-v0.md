@@ -70,8 +70,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   `^[a-z0-9][a-z0-9._-]{0,63}$`, `hash_prefix` one of empty, `#` or `#!`, 1..64 `routers` each
   with a known `dialect`, optional `flows` intent directory, a `tests` layout whose `specs`,
   `page_objects`, `workflows` and `scenarios` directories lie under `tests.root`, and optional
-  `page_object_screens` bindings. An unknown member, escaping or absent path, or unknown dialect
-  MUST refuse with `appmap-invalid-manifest`; an unresolvable revision with
+  `page_object_screens` bindings. An unknown member, escaping or absent path, a declared test or
+  flow directory that is not a directory at the revision, or an unknown dialect MUST refuse with
+  `appmap-invalid-manifest`; an unresolvable revision with
   `appmap-invalid-revision`; an invalid flow intent with `appmap-invalid-flows`. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-002`: The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
   `.state({name, ...})` call with literal `name`, `parent`, `url`, `abstract` and
@@ -101,7 +102,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   directly (`basis: goto`). An import that is neither resolved nor an external package (including
   a TypeScript `paths` alias until V1-0958 lands) MUST leave that file's join `UNKNOWN`
   (`unresolved-import`), and every screen projection's `test_join` MUST read `UNKNOWN` while any
-  spec's join is `UNKNOWN`; attributions found through resolved imports are kept as a lower bound.
+  test file's join is `UNKNOWN` or any test file was excluded by the index or could not be read
+  (`excluded-by-index`, `unparsed-imports`), since such a file may be the one that reaches a
+  screen; attributions found through resolved imports are kept as a lower bound.
   The map MUST NOT implement alias resolution itself. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-006`: Each screen MUST aggregate permissions and flags (inherited from the nearest
   declaring ancestor, with `permissions_from` / `flags_from`), flow preconditions, page objects and
@@ -110,7 +113,10 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
 - `AMAP-V0-007`: Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
   attribute locator are `strong`; `getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`
   and `getByTitle` are `medium`; `getByText` and other CSS locators are `weak`; a non-literal
-  argument is `unknown`. A secret-shaped literal is dropped and reported `secret-shaped`.
+  argument is `unknown`. A literal counts only as a whole argument (followed by `)` or `,`), so
+  `'save-' + id` is non-literal, as is such a `goto` URL (`non-literal-url`); a `getByRole` name is
+  read from the options object's top-level `name` member in any position. A secret-shaped literal
+  is dropped and reported `secret-shaped`.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-008`: Edges MUST come only from evidence: `flow-step` edges between adjacent
   resolved navigation steps (a step that is not placed on one screen breaks the chain, so no edge
@@ -125,7 +131,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   evaluate the anchors it prints against `--revision` (default `HEAD`) with one tree read and
   bounded blob reads: the same blob, or the same span digest at the same lines, is `FRESH`; an
   absent path or a different span is `STALE`; an unresolvable revision or Git failure is
-  `UNKNOWN`. A line shift without a content change therefore reads `STALE` (fail-closed).
+  `UNKNOWN`. A line shift without a content change therefore reads `STALE` (fail-closed). The
+  check MUST run even when the evaluated revision is the map's own, because a map file's anchors
+  are claims of the file, not proof.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-011`: `screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
   document no larger than its budget: defaults 4096, 6144, 2048 and 6144 bytes; `--budget` in
@@ -137,7 +145,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   later planner (V1-0959) can compose projections without re-reading the map.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-012`: `find` MUST match a 2..128 byte query case-insensitively against element IDs and
-  labels of screens, flows, steps, files, methods and selectors, returning references without
+  labels of screens, flows, steps, files, methods and selectors (every element's ID, not only its
+  label), returning references without
   freshness evaluation (`evaluated_revision: NOT_EVALUATED`); other lengths refuse with
   `appmap-invalid-query`. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-013`: `scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
@@ -145,11 +154,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   by flow screens reached, reused page-object files on its chains, fewer import hops, then path.
   It borrows that spec's imports only when each is external or resolves to a file in the map, else
   emits it commented `// UNRESOLVED` with an unknown; it imports and calls existing page-object
-  methods for steps that reuse them, and leaves locator and outcome TODOs otherwise. With no
+  methods for steps that reuse them, adding an import under the class's own name when the borrowed
+  imports bind it only under an alias (or `// UNRESOLVED` with `binding-collision` when that name is
+  already bound), and leaves locator and outcome TODOs otherwise. A selector of strength
+  `unknown` is never offered as reuse. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
-  per projection for the element IDs that projection prints, its facts are kept only for those IDs,
+  per projection for the element IDs that projection selects, its facts are kept only for those IDs
+  and, after byte trimming, only while the element's ID is still printed elsewhere in the
+  document (a dropped fact counts in `omitted.learned`),
   only when `text` is at most 1024 bytes and not secret-shaped, capped at 4096 facts
   (`overlay-bound-exceeded`), printed in a separate `learned` section with `authority: learned`
   and `freshness: STALE` when their element's anchor is stale. An overlay error is reported as
@@ -173,7 +187,7 @@ with one coded JSON error on stderr and nothing on stdout.
 
 | Code | Meaning |
 | --- | --- |
-| `appmap-invalid-manifest` | The manifest is absent, not closed, over its bound, or names an escaping path, unknown dialect or directory outside `tests.root`. |
+| `appmap-invalid-manifest` | The manifest is absent, not closed, over its bound, or names an escaping path, unknown dialect, directory outside `tests.root`, or declared directory absent at the revision. |
 | `appmap-invalid-revision` | The build revision does not resolve to a commit. |
 | `appmap-invalid-flows` | A flow intent under the manifest's `flows` directory does not decode. |
 | `appmap-invalid-map` | A map file is not a regular file, is over 64 MiB, is not closed, has trailing data, a wrong schema or a digest mismatch. |
@@ -187,7 +201,7 @@ with one coded JSON error on stderr and nothing on stdout.
 `unresolved-parent`, `parent-cycle`, `ambiguous-template`, `no-matching-screen`,
 `no-matching-flow`, `partial-segment-substitution`, `no-navigation-step`, `unresolved-import`,
 `import-depth-exceeded`, `unparsed-imports`, `excluded-by-index`, `page-object-unbound`,
-`page-object-ambiguous`, `unknown-state`, `secret-shaped`, `no-asserting-spec`,
+`page-object-ambiguous`, `unknown-state`, `secret-shaped`, `no-asserting-spec`, `binding-collision`,
 `overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import` and `overlay`.
@@ -221,7 +235,10 @@ steps) attaches here; this slice defines the seam only and implements no verific
 - Failure modes: a dynamic route or parent (`UNKNOWN`), colliding templates (`UNKNOWN` with
   candidates), an alias or missing import (join `UNKNOWN`), a page object with no or several URLs
   (unbound), Git unavailable at projection time (`UNKNOWN` freshness), an oversized repository
-  (`appmap-bound-exceeded`), an overlay failure (`overlay-unavailable`, map facts unaffected).
+  (`appmap-bound-exceeded`), an overlay failure (`overlay-unavailable`, map facts unaffected), a
+  test file the index excluded or could not read (join `UNKNOWN`), a partial literal argument
+  (`unknown` strength or `non-literal-url`), and a hand-edited map whose anchors disagree with Git
+  (`STALE`, even at the map's own revision).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -229,20 +246,20 @@ steps) attaches here; this slice defines the seam only and implements no verific
 
 | Requirement | Evidence |
 | --- | --- |
-| AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals` |
-| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution` |
+| AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0001DeclaredDirectoriesExist` |
+| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject` |
 | AMAP-V0-003 | `TestAMAPV0002HierarchyResolution` |
 | AMAP-V0-004 | `TestAMAPV0004FlowSteps` |
-| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin` |
+| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-006 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0004FlowSteps` |
-| AMAP-V0-007 | `TestAMAPV0007SelectorStrength` |
+| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-008 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0004FlowSteps` |
 | AMAP-V0-009 | `TestAMAPV0009DeterministicArtifact`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-010 | `TestAMAPV0010StaleAnchors` |
+| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-012 | `TestAMAPV0012Find` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold` |
-| AMAP-V0-014 | `TestAMAPV0014OverlaySeam` |
+| AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused` |
+| AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,

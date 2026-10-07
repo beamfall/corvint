@@ -67,9 +67,17 @@ func (m *Map) method(id string) (*TestFile, *Method) {
 
 // testJoin is UNKNOWN while any spec's import closure is incomplete: such a spec may reach any
 // screen, so no screen's spec list can be called complete (AMAP-V0-005).
+// testJoin is RESOLVED only when every test file was read and every import chain resolved. A
+// file the index excluded or could not load has no TestFile at all, yet it may be the spec (or the
+// page object or workflow) that reaches a screen, so its absence keeps the join UNKNOWN.
 func (m *Map) testJoin() string {
 	for _, f := range m.Files {
-		if f.Role == roleSpec && f.Join != StatusResolved {
+		if f.Join != StatusResolved {
+			return StatusUnknown
+		}
+	}
+	for _, u := range m.Unknowns {
+		if u.Kind == "file" {
 			return StatusUnknown
 		}
 	}
@@ -403,14 +411,14 @@ func ProjectFind(ctx context.Context, m *Map, text string, o Options) ([]byte, e
 	}
 	seenSel := map[string]bool{}
 	addSel := func(sel Selector, ref string) {
-		if !seenSel[sel.ID] && hit(sel.Value, sel.Name) {
+		if !seenSel[sel.ID] && hit(sel.ID, sel.Value, sel.Name) {
 			seenSel[sel.ID] = true
 			selectors = append(selectors, findItem{sel.ID, sel.Kind + ":" + sel.Value + nameSuffix(sel.Name), ref})
 			p.element(sel.ID)
 		}
 	}
 	for _, fl := range m.Flows {
-		if hit(fl.ID) {
+		if hit(fl.ID, fl.FlowID) {
 			flows = append(flows, findItem{fl.ID, fl.FlowID, anchorRef(fl.Anchor)})
 			p.element(fl.ID)
 		}
@@ -426,12 +434,12 @@ func ProjectFind(ctx context.Context, m *Map, text string, o Options) ([]byte, e
 		}
 	}
 	for _, f := range m.Files {
-		if hit(append([]string{f.Path, f.Class}, f.Tests...)...) {
+		if hit(append([]string{f.ID, f.Path, f.Class}, f.Tests...)...) {
 			files = append(files, findItem{f.ID, f.Role, anchorRef(f.Anchor)})
 			p.element(f.ID)
 		}
 		for _, me := range f.Methods {
-			if hit(me.Name) {
+			if hit(me.ID, me.Name) {
 				methods = append(methods, findItem{me.ID, me.Name, anchorRef(me.Anchor)})
 				p.element(me.ID)
 			}

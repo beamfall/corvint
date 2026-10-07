@@ -84,6 +84,11 @@ func readFacts(text string) fileFacts {
 		}
 		return "", false
 	}
+	// whole reports whether toks[j] is a complete argument: an expression such as
+	// '/home' + suffix is not a literal even though it starts with one.
+	whole := func(j int) bool {
+		return j+1 < len(toks) && (isPunct(toks[j+1], ")") || isPunct(toks[j+1], ","))
+	}
 	for i := 0; i+1 < len(toks); i++ {
 		t := toks[i]
 		if t.kind != tokIdent || !isPunct(toks[i+1], "(") {
@@ -98,7 +103,7 @@ func readFacts(text string) fileFacts {
 				arg = toks[i+2]
 			}
 			value, ok := lit(arg)
-			if !ok {
+			if !ok || !whole(i+2) {
 				f.selectors = append(f.selectors, newSelector(sk.kind, "", "", strengthUnknown, t.line))
 				continue
 			}
@@ -116,16 +121,13 @@ func readFacts(text string) fileFacts {
 					kind = "text"
 				}
 			}
-			if t.text == "getByRole" && i+7 < len(toks) && isPunct(toks[i+3], ",") && isPunct(toks[i+4], "{") &&
-				toks[i+5].text == "name" && isPunct(toks[i+6], ":") {
-				if n, ok := lit(toks[i+7]); ok && !secretscreen.MatchString(n) {
-					name = n
-				}
+			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && isPunct(toks[i+4], "{") {
+				name = roleName(toks, i+4, lit)
 			}
 			f.selectors = append(f.selectors, newSelector(kind, value, name, strength, t.line))
 		case dotted && (t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL"):
 			g := rawGoto{line: t.line}
-			if i+2 < len(toks) && (toks[i+2].kind == tokString || toks[i+2].kind == tokTemplate) {
+			if i+2 < len(toks) && (toks[i+2].kind == tokString || toks[i+2].kind == tokTemplate) && whole(i+2) {
 				g.url = toks[i+2].text
 				if secretscreen.MatchString(g.url) {
 					g.url, g.reason = "", "secret-shaped"
@@ -169,6 +171,30 @@ func readFacts(text string) fileFacts {
 		}
 	}
 	return f
+}
+
+// roleName reads the literal name property of the getByRole options object opening at toks[open],
+// at depth 1 and in any position. A missing, computed or partial name reads as no name.
+func roleName(toks []token, open int, lit func(token) (string, bool)) string {
+	depth := 0
+	for j := open; j < len(toks); j++ {
+		switch {
+		case isPunct(toks[j], "{") || isPunct(toks[j], "(") || isPunct(toks[j], "["):
+			depth++
+		case isPunct(toks[j], "}") || isPunct(toks[j], ")") || isPunct(toks[j], "]"):
+			depth--
+			if depth == 0 {
+				return ""
+			}
+		case depth == 1 && toks[j].text == "name" && (isPunct(toks[j-1], "{") || isPunct(toks[j-1], ",")) &&
+			j+3 < len(toks) && isPunct(toks[j+1], ":") && (isPunct(toks[j+3], ",") || isPunct(toks[j+3], "}")):
+			if n, ok := lit(toks[j+2]); ok && !secretscreen.MatchString(n) {
+				return n
+			}
+			return ""
+		}
+	}
+	return ""
 }
 
 // blockEnd returns the index of the line whose '}' closes the first '{' opened on line start.

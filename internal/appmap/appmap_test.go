@@ -639,3 +639,192 @@ func readText(t *testing.T, root, name string) string {
 	}
 	return string(data)
 }
+
+// Review regressions (Codex round 1). Each case fails without its fix.
+
+// AMAP-V0-002: a URL shorter than a multi-placeholder template is no match, never a panic.
+func TestAMAPV0002WildcardExhaustedSubject(t *testing.T) {
+	for _, c := range []struct {
+		pattern, s string
+		want       bool
+	}{{"foo{}-{}", "foo", false}, {"foo{}-{}", "foo-", false}, {"foo{}-{}", "fooa-b", true}, {"{}", "", false}} {
+		if got := wildcardMatch(c.pattern, c.s); got != c.want {
+			t.Errorf("wildcardMatch(%q, %q) = %v", c.pattern, c.s, got)
+		}
+	}
+}
+
+// AMAP-V0-005 AMAP-V0-007: a literal that only starts an argument expression is not a literal, and
+// a role name is read at any position of the options object.
+func TestAMAPV0007PartialLiterals(t *testing.T) {
+	f := readFacts(`page.getByTestId('save-' + id); page.goto('/home' + suffix); page.goto('/home', { waitUntil: 'load' });
+page.getByRole('button', { exact: true, name: 'Save' }); page.getByRole('link', { name: 'A' + b });
+page.getByRole('tab', { nested: { name: 'Inner' } });`)
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, s.Kind+":"+s.Value+":"+s.Name+":"+s.Strength)
+	}
+	want := "test-id:::unknown role:button:Save:medium role:link::medium role:tab::medium"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("selectors:\n got %s\nwant %s", strings.Join(got, " "), want)
+	}
+	if len(f.gotos) != 2 || f.gotos[0].url != "" || f.gotos[0].reason != "non-literal-url" || f.gotos[1].url != "/home" {
+		t.Fatalf("gotos: %+v", f.gotos)
+	}
+}
+
+// AMAP-V0-013: an unreadable selector has no value to compare, so it is never offered as reuse.
+func TestAMAPV0013UnknownSelectorNotReused(t *testing.T) {
+	unknown := newSelector("test-id", "", "", strengthUnknown, 4)
+	b := &builder{order: []string{"e2e/pages/a.ts"}, files: map[string]*TestFile{"e2e/pages/a.ts": {
+		Selectors: []Selector{unknown, newSelector("test-id", "", "", strengthUnknown, 9)},
+		Methods:   []Method{{ID: "method:e2e/pages/a.ts#go", Selectors: []Selector{unknown}}},
+	}}}
+	if got := b.reuseIndex(); len(got) != 0 {
+		t.Fatalf("unknown selector indexed as reuse: %v", got)
+	}
+}
+
+// AMAP-V0-005: a spec the index could not read has no TestFile, so the join cannot be complete.
+func TestAMAPV0005UnreadSpecKeepsJoinUnknown(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	gitTest(t, root, "rm", "-q", "e2e/specs/alias.spec.ts", "e2e/specs/unresolved.spec.ts")
+	if err := os.WriteFile(filepath.Join(root, "e2e/specs/binary.spec.ts"), []byte("import x from '\xff\xfe';\x00\x01"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := build(t, root, commitAll(t, root, "unreadable spec"))
+	file := false
+	for _, u := range m.Unknowns {
+		file = file || (u.Kind == "file" && u.Path == "e2e/specs/binary.spec.ts")
+	}
+	if !file {
+		t.Fatalf("unreadable spec not reported: %+v", m.Unknowns)
+	}
+	if m.testJoin() != StatusUnknown {
+		t.Fatal("join RESOLVED with an unread spec")
+	}
+}
+
+// AMAP-V0-001: a declared test or flow directory that is absent, or a file, at the revision is
+// refused rather than silently contributing no files.
+func TestAMAPV0001DeclaredDirectoriesExist(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	ctx := context.Background()
+	for name, tests := range map[string]string{
+		"missing specs":    `{"root":"e2e","specs":["e2e/nope"],"page_objects":["e2e/pages"]}`,
+		"file as scenario": `{"root":"e2e","specs":["e2e/specs"],"page_objects":["e2e/pages"],"scenarios":["e2e/specs/login.spec.ts"]}`,
+		"missing root":     `{"root":"tests","specs":["tests/specs"],"page_objects":["tests/pages"]}`,
+	} {
+		writeFile(t, root, "bad.json", `{"schema":"application-map-manifest/0","app":"admin","routers":[{"path":"app/routes.js","dialect":"ui-router-states/0"}],"tests":`+tests+`}`)
+		if _, err := Build(ctx, root, "bad.json", commitAll(t, root, name)); codeOf(err) != "appmap-invalid-manifest" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	writeFile(t, root, "bad.json", `{"schema":"application-map-manifest/0","app":"admin","routers":[{"path":"app/routes.js","dialect":"ui-router-states/0"}],"flows":"none","tests":{"root":"e2e","specs":["e2e/specs"],"page_objects":["e2e/pages"]}}`)
+	if _, err := Build(ctx, root, "bad.json", commitAll(t, root, "missing flows")); codeOf(err) != "appmap-invalid-manifest" {
+		t.Errorf("missing flows: %v", err)
+	}
+}
+
+// AMAP-V0-010: at the map's own revision anchors are still checked against Git, so a map whose
+// anchor claims content the revision does not hold reads STALE, not FRESH.
+func TestAMAPV0010SameRevisionVerified(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	page := "e2e/pages/teesheet.page.ts"
+	f := m.file(page)
+	for i := range f.Methods {
+		if f.Methods[i].Name == "selectSlot" {
+			f.Methods[i].Anchor.Blob = strings.Repeat("0", 40)
+			f.Methods[i].Anchor.SpanSHA256 = strings.Repeat("0", 64)
+		}
+	}
+	doc := screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Revision: rev, Full: true})
+	if got := freshnessOf(doc, "page_object_methods", "method:"+page+"#selectSlot"); got != Stale {
+		t.Errorf("forged anchor at the map revision reads %q", got)
+	}
+	if got := freshnessOf(doc, "page_object_methods", "method:"+page+"#book"); got != Fresh {
+		t.Errorf("honest anchor at the map revision reads %q", got)
+	}
+}
+
+// AMAP-V0-013: a page object the closest spec imports under an alias is imported again under its
+// own name, so the generated constructor is bound.
+func TestAMAPV0013AliasedImportRebound(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	text := strings.Replace(string(data), "import { HomePage } from", "import { HomePage as Home } from", 1)
+	writeFile(t, root, spec, strings.Replace(text, "new HomePage(page)", "new Home(page)", 1))
+	m := build(t, root, commitAll(t, root, "aliased import"))
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decode(t, raw)
+	if doc["closest"].(map[string]any)["file"] != spec {
+		t.Fatalf("closest: %v", doc["closest"])
+	}
+	imports, body := fmtJSON(doc["imports"]), fmtJSON(doc["lines"])
+	if !strings.Contains(body, "new HomePage(page)") || !strings.Contains(imports, `import { HomePage } from \"../pages/home.page\";`) {
+		t.Fatalf("HomePage constructed but not bound:\n%s\n%s", imports, body)
+	}
+}
+
+// AMAP-V0-012: find matches method, file and selector IDs, not only their labels.
+func TestAMAPV0012FindByID(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	sel := newSelector("test-id", "slot", "", strengthStrong, 0).ID
+	for _, c := range []struct{ query, want string }{
+		{"page.ts#selectslot", `"method:e2e/pages/teesheet.page.ts#selectSlot"`},
+		{sel[len("selector:"):], `"` + sel + `"`},
+		{"file:e2e/specs/login", `"file:e2e/specs/login.spec.ts"`},
+	} {
+		raw, err := ProjectFind(context.Background(), m, c.query, Options{Full: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(raw), c.want) {
+			t.Errorf("find %q missed %s: %s", c.query, c.want, raw)
+		}
+	}
+}
+
+// AMAP-V0-014: a learned fact is printed only while its element is; trimming the element drops
+// the fact and counts it as omitted.
+func TestAMAPV0014FactsFollowTrimmedElements(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	probe := &fakeOverlay{}
+	screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Full: true, Overlays: []Overlay{probe}})
+	ov := &fakeOverlay{}
+	for _, id := range probe.asked {
+		ov.facts = append(ov.facts, Fact{ElementID: id, Source: "runs", Kind: "note", Text: strings.Repeat("n", 40)})
+	}
+	trimmed := false
+	for budget := 1024; budget <= 6144; budget += 256 {
+		raw, err := ProjectScreen(context.Background(), m, "app.clubs.teesheets", Options{Root: root, Budget: budget, Overlays: []Overlay{ov}})
+		if err != nil {
+			continue
+		}
+		doc := decode(t, raw)
+		learned := doc["learned"].([]any)
+		delete(doc, "learned")
+		rest := fmtJSON(doc)
+		for _, it := range learned {
+			id := it.(map[string]any)["element_id"].(string)
+			if !strings.Contains(rest, `"`+id+`"`) {
+				t.Fatalf("budget %d: fact about %s printed without its element", budget, id)
+			}
+		}
+		omitted := int(doc["omitted"].(map[string]any)["learned"].(float64))
+		if len(learned)+omitted != len(ov.facts) {
+			t.Fatalf("budget %d: %d learned + %d omitted != %d facts", budget, len(learned), omitted, len(ov.facts))
+		}
+		trimmed = trimmed || omitted > 0
+	}
+	if !trimmed {
+		t.Fatal("no budget trimmed any fact; the case is not exercised")
+	}
+}

@@ -95,13 +95,12 @@ func LoadMap(filename string) (*Map, error) {
 // freshness compares returned anchors with the evaluated revision (AMAP-V0-010).
 type freshness struct {
 	evaluated string
-	same      bool
 	failed    bool
 	oids      map[string]string
 	data      map[string][]byte
 }
 
-func newFreshness(ctx context.Context, m *Map, o Options, anchors []Anchor) *freshness {
+func newFreshness(ctx context.Context, o Options, anchors []Anchor) *freshness {
 	f := &freshness{oids: map[string]string{}, data: map[string][]byte{}}
 	revision := o.Revision
 	if revision == "" {
@@ -113,11 +112,9 @@ func newFreshness(ctx context.Context, m *Map, o Options, anchors []Anchor) *fre
 		f.failed, f.evaluated = true, FreshUnknown
 		return f
 	}
+	// Anchors are checked against Git even when the evaluated revision is the map's own: the map
+	// file is caller-supplied and its digest is self-computed, so its blob IDs are claims, not proof.
 	f.evaluated = rev
-	if rev == m.Revision {
-		f.same = true
-		return f
-	}
 	paths := []string{}
 	seen := map[string]bool{}
 	for _, a := range anchors {
@@ -136,16 +133,21 @@ func newFreshness(ctx context.Context, m *Map, o Options, anchors []Anchor) *fre
 		return f
 	}
 	changed := []blobEntry{}
-	pinned := map[string]string{}
+	// Every blob any anchor pins for a path: anchors of one path need not agree (a map built from
+	// several revisions, or a forged one), and each disagreement needs the content to judge.
+	pinned := map[string]map[string]bool{}
 	for _, a := range anchors {
-		pinned[a.Path] = a.Blob
+		if pinned[a.Path] == nil {
+			pinned[a.Path] = map[string]bool{}
+		}
+		pinned[a.Path][a.Blob] = true
 	}
 	for _, e := range entries {
 		if !seen[e.path] {
 			continue
 		}
 		f.oids[e.path] = e.oid
-		if e.oid != pinned[e.path] && e.size <= maxRouterBytes {
+		if (len(pinned[e.path]) > 1 || !pinned[e.path][e.oid]) && e.size <= maxRouterBytes {
 			changed = append(changed, e)
 		}
 	}
@@ -163,10 +165,7 @@ func newFreshness(ctx context.Context, m *Map, o Options, anchors []Anchor) *fre
 // of is FRESH when the anchored lines are byte-identical at the evaluated revision, STALE when the
 // path is gone or the lines differ, and UNKNOWN when Git could not answer.
 func (f *freshness) of(a Anchor) string {
-	switch {
-	case f.same:
-		return Fresh
-	case f.failed:
+	if f.failed {
 		return FreshUnknown
 	}
 	oid, ok := f.oids[a.Path]
@@ -196,6 +195,11 @@ type section struct {
 	key   string
 	items []any
 }
+
+// annotation is an item about another element. After trimming, it survives only while that
+// element's ID is still printed as a JSON string elsewhere in the document, so a learned fact never
+// outlives the element the budget dropped (AMAP-V0-014).
+type annotation interface{ annotates() string }
 
 // render writes head fields, then each section's leading items, then `omitted` counts, keeping
 // the whole document within budget bytes (AMAP-V0-011). Sections are filled evenly first and then
@@ -277,6 +281,31 @@ func render(head []field, sections []section, budget int) ([]byte, error) {
 		}
 		keep[i] = l
 	}
+	shown := make([][][]byte, len(sections))
+	var printed bytes.Buffer
+	for _, h := range headRaw {
+		printed.Write(h)
+	}
+	for i, s := range sections {
+		shown[i] = items[i][:keep[i]]
+		for k, it := range shown[i] {
+			if _, ok := s.items[k].(annotation); !ok {
+				printed.Write(it)
+			}
+		}
+	}
+	for i, s := range sections {
+		kept := [][]byte{}
+		for k, it := range shown[i] {
+			if a, ok := s.items[k].(annotation); ok {
+				if id, _ := json.Marshal(a.annotates()); !bytes.Contains(printed.Bytes(), id) {
+					continue
+				}
+			}
+			kept = append(kept, it)
+		}
+		shown[i] = kept
+	}
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	for _, h := range headRaw {
@@ -287,11 +316,11 @@ func render(head []field, sections []section, budget int) ([]byte, error) {
 		key, _ := json.Marshal(s.key)
 		buf.Write(key)
 		buf.WriteString(":[")
-		for k := 0; k < keep[i]; k++ {
+		for k, it := range shown[i] {
 			if k > 0 {
 				buf.WriteByte(',')
 			}
-			buf.Write(items[i][k])
+			buf.Write(it)
 		}
 		buf.WriteString("],")
 	}
@@ -303,7 +332,7 @@ func render(head []field, sections []section, budget int) ([]byte, error) {
 		key, _ := json.Marshal(s.key)
 		buf.Write(key)
 		buf.WriteByte(':')
-		buf.WriteString(strconv.Itoa(len(items[i]) - keep[i]))
+		buf.WriteString(strconv.Itoa(len(items[i]) - len(shown[i])))
 	}
 	buf.WriteString("}}")
 	if buf.Len() > budget {
@@ -337,7 +366,7 @@ func (p *projection) element(ids ...string) {
 }
 
 // check runs the freshness comparison once over every cited anchor.
-func (p *projection) check() { p.fresh = newFreshness(p.ctx, p.m, p.o, p.anchors) }
+func (p *projection) check() { p.fresh = newFreshness(p.ctx, p.o, p.anchors) }
 
 func (p *projection) state(a Anchor) string { return p.fresh.of(a) }
 
@@ -358,6 +387,8 @@ type learnedItem struct {
 	Fact
 	Freshness string `json:"freshness,omitempty"`
 }
+
+func (l learnedItem) annotates() string { return l.ElementID }
 
 // learned asks every overlay once for facts about the projection's elements (AMAP-V0-014).
 func (p *projection) learned(stale map[string]bool) ([]any, []any) {

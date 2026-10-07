@@ -454,8 +454,13 @@ func wildcardMatch(pattern, s string) bool {
 		if i == len(parts)-2 {
 			return len(s) > len(p) && strings.HasSuffix(s, p)
 		}
+		// Each placeholder consumes at least one byte; a middle part needs literal text to
+		// delimit it, and an exhausted subject cannot match.
+		if s == "" || p == "" {
+			return false
+		}
 		k := strings.Index(s[1:], p)
-		if k < 0 || p == "" {
+		if k < 0 {
 			return false
 		}
 		s = s[1+k+len(p):]

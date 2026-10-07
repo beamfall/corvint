@@ -144,7 +144,9 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	cv := closestView{Status: StatusUnknown, Reason: "no-asserting-spec"}
 	proposed, dir := "", ""
 	imports, unknowns := []any{}, []any{}
-	imported := map[string]bool{}
+	// imported holds, per resolved file, the local names the borrowed imports bind from it; locals
+	// holds every name they bind. A class is usable only under a name actually bound to it.
+	imported, locals := map[string]map[string]bool{}, map[string]bool{}
 	if closest != nil {
 		cv = closestView{File: closest.Path, Status: StatusResolved, Assertions: closest.Assertions, ScreensShared: screensShared,
 			ReuseShared: reuseShared, Anchor: p.anchorView(closest.Anchor)}
@@ -160,7 +162,15 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			// there resolves identically from the proposed path.
 			ok := imp.Status == importExternal || (imp.Status == importResolved && m.file(imp.Resolved) != nil)
 			if ok && imp.Status == importResolved {
-				imported[imp.Resolved] = true
+				if imported[imp.Resolved] == nil {
+					imported[imp.Resolved] = map[string]bool{}
+				}
+				for _, n := range imp.Names {
+					imported[imp.Resolved][n] = true
+				}
+			}
+			for _, n := range imp.Names {
+				locals[n] = true
 			}
 			stmt := imp.Statement
 			if stmt == "" {
@@ -187,14 +197,22 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			vars[c.file.Path] = lowerFirst(c.file.Class)
 			order = append(order, c.file.Path)
 		}
-		if !imported[c.file.Path] {
-			imported[c.file.Path] = true
-			if dir == "" {
-				imports = append(imports, "// UNRESOLVED import { "+c.file.Class+" } from <no proposed path>;")
-				continue
+		if !imported[c.file.Path][c.file.Class] {
+			// Not bound under its own name: absent, aliased (import { X as Y }), default or namespace.
+			if imported[c.file.Path] == nil {
+				imported[c.file.Path] = map[string]bool{}
 			}
-			spec, _ := relSpecifier(dir, c.file.Path)
-			imports = append(imports, "import { "+c.file.Class+" } from "+quote(spec)+";")
+			imported[c.file.Path][c.file.Class] = true
+			switch {
+			case dir == "":
+				imports = append(imports, "// UNRESOLVED import { "+c.file.Class+" } from <no proposed path>;")
+			case locals[c.file.Class]:
+				imports = append(imports, "// UNRESOLVED import { "+c.file.Class+" } collides with a borrowed binding;")
+				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: c.file.ID, Reason: "binding-collision", Path: c.file.Path})
+			default:
+				spec, _ := relSpecifier(dir, c.file.Path)
+				imports = append(imports, "import { "+c.file.Class+" } from "+quote(spec)+";")
+			}
 		}
 	}
 	lines := []any{fmt.Sprintf("test(%s, async ({ page }) => {", quote(fl.FlowID))}

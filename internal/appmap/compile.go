@@ -34,6 +34,19 @@ func Build(ctx context.Context, root, manifestPath, revision string) (*Map, erro
 	if err != nil {
 		return nil, err
 	}
+	// A declared directory absent at the revision would silently drop its files from the join.
+	dirs := append([]string{m.Tests.Root}, m.Tests.Specs...)
+	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
+	if m.Flows != "" {
+		dirs = append(dirs, m.Flows)
+	}
+	missing, err := r.missingDirs(rev, dirs)
+	if err != nil {
+		return nil, invalidManifest("declared directories unreadable: %v", err)
+	}
+	if len(missing) > 0 {
+		return nil, invalidManifest("declared directory %q is not a directory at the evaluated revision", missing[0])
+	}
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}
 	if err = b.routers(r); err != nil {
@@ -552,7 +565,7 @@ func uniqueRequirements(in []Requirement) []Requirement {
 	return out
 }
 
-// reuseIndex maps each selector ID to the code that already performs it: page-object and
+// reuseIndex maps each readable selector ID to the code that already performs it: page-object and
 // workflow methods first, then the spec lines that use it outside any method.
 func (b *builder) reuseIndex() map[string][]string {
 	methods, lines := map[string][]string{}, map[string][]string{}
@@ -561,12 +574,15 @@ func (b *builder) reuseIndex() map[string][]string {
 		inMethod := map[int]bool{}
 		for _, m := range tf.Methods {
 			for _, s := range m.Selectors {
-				methods[s.ID] = append(methods[s.ID], m.ID)
 				inMethod[s.Line] = true
+				if s.Strength != strengthUnknown {
+					methods[s.ID] = append(methods[s.ID], m.ID)
+				}
 			}
 		}
 		for _, s := range tf.Selectors {
-			if !inMethod[s.Line] {
+			// An unreadable selector has no value to compare, so it never counts as reuse.
+			if !inMethod[s.Line] && s.Strength != strengthUnknown {
 				lines[s.ID] = append(lines[s.ID], refAt(p, s.Line))
 			}
 		}

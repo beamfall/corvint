@@ -93,6 +93,38 @@ func (r repo) tree(rev string, prefixes []string, limit int) ([]blobEntry, error
 	return entries, nil
 }
 
+// missingDirs returns the declared directories that are not trees at rev. One
+// `git cat-file --batch-check` answers them all; a name Git cannot take on one line is missing.
+func (r repo) missingDirs(rev string, dirs []string) ([]string, error) {
+	missing, asked := []string{}, []string{}
+	var in bytes.Buffer
+	for _, d := range dirs {
+		if strings.ContainsAny(d, "\n\r") {
+			missing = append(missing, d)
+			continue
+		}
+		asked = append(asked, d)
+		in.WriteString(rev + ":" + d + "\n")
+	}
+	if len(asked) == 0 {
+		return missing, nil
+	}
+	out, err := r.git(1<<20, in.Bytes(), "cat-file", "--batch-check=%(objecttype)")
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSuffix(string(out), "\n"), "\n")
+	if len(lines) != len(asked) {
+		return nil, errors.New("application map tree unreadable")
+	}
+	for i, d := range asked {
+		if lines[i] != "tree" {
+			missing = append(missing, d)
+		}
+	}
+	return missing, nil
+}
+
 // blobs reads every entry through one `git cat-file --batch`, checking each recorded size.
 func (r repo) blobs(entries []blobEntry, perFile, total int) (map[string][]byte, error) {
 	out := map[string][]byte{}

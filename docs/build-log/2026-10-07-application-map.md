@@ -65,7 +65,8 @@ either is an owner question.
 
 - `GOTOOLCHAIN=local go test -count=1 ./internal/appmap/` passes (AMAP-V0 tests listed in the
   spec's traceability table).
-- `TestAMAPV0FlowsAppmapCLI` in `cmd/corvint` passes; `internal/specindex` passes.
+- `TestAMAPV0FlowsAppmapCLI` in `cmd/corvint` passes; `internal/specindex` passes;
+  `internal/contextindex` passes after the analyzer schema bump.
 - gofmt and go vet are clean on the changed packages.
 - Remaining focused-test, gate and review results are recorded in the lane handoff.
 
@@ -87,4 +88,39 @@ either is an owner question.
 
 ## Codex review
 
-Recorded in the lane handoff; declined findings, if any, are listed there with reasons.
+Round 1 (`codex exec -m gpt-6-astra -s read-only`, diff `8af2bf62..c5609cfb`) reported nine P2
+findings. Each was confirmed against the source and repaired with a regression test that fails
+without the fix (checked by reverting each fix in turn):
+
+1. `wildcardMatch` sliced an exhausted subject and panicked (`/foo{a}-{b}` against `/foo`) —
+   `TestAMAPV0002WildcardExhaustedSubject`.
+2. A literal that only starts an argument (`'save-' + id`, `'/home' + suffix`) was read as the
+   literal — `TestAMAPV0007PartialLiterals`.
+3. A spec the index excluded or could not read had no `TestFile`, so `test_join` read `RESOLVED`
+   — `TestAMAPV0005UnreadSpecKeepsJoinUnknown`. `test_join` now also reads `UNKNOWN` for any
+   non-resolved page object or workflow join.
+4. A declared test or flow directory absent at the revision was accepted and silently contributed
+   nothing — `TestAMAPV0001DeclaredDirectoriesExist` (one `git cat-file --batch-check`).
+5. At the map's own revision every anchor read `FRESH` unchecked, so a hand-edited map could claim
+   any blob — `TestAMAPV0010SameRevisionVerified`. Writing it exposed a second gap: freshness kept
+   one pinned blob per path, so an anchor disagreeing with its siblings read `UNKNOWN`; every
+   pinned blob is now compared.
+6. The scaffold called `new HomePage` when the closest spec imported `{ HomePage as Home }` —
+   `TestAMAPV0013AliasedImportRebound` (an own-name import is added; a name clash reads
+   `binding-collision`).
+7. A `getByRole` name was read only as the first option, and unknown-strength selectors (all with
+   an empty value) shared one ID and could be offered as reuse —
+   `TestAMAPV0007PartialLiterals`, `TestAMAPV0013UnknownSelectorNotReused`.
+8. `find` did not match method, file or selector IDs — `TestAMAPV0012FindByID`.
+9. A learned fact survived byte trimming of its element — `TestAMAPV0014FactsFollowTrimmedElements`
+   (render drops an annotation whose element ID is no longer printed and counts it as omitted).
+
+AMAP-V0-001, 005, 007, 010, 012, 013 and 014 were amended in the same change. Later rounds are
+recorded in the lane handoff.
+
+## Analyzer schema bump
+
+`internal/contextindex/webimport_api.go` is a consumer-only wrapper, but `TestAnalyzerSchemaInputs`
+(IDX-SNAP-V0-017) deliberately pins every production source of the package, so `analyzerSchemaID`
+moves to `corvint-analyzer/108` with the new audit digest (precedent: 64ccc2ac bumped it for an audited source change).
+Extraction and encoding are unchanged; existing packs are re-derived once.
