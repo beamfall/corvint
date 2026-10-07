@@ -133,9 +133,11 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   `UNVERIFIED_AT_HEAD`. Any other text, or a `VERIFIED` fact without a full object ID, reads
   `unverified` and is reported `verification-invalid`. Several facts about one element resolve
   to the most restrictive (`CONTRADICTED`, then `unverified`, then `UNVERIFIED_AT_HEAD`, then
-  `VERIFIED@`). An overlay error is reported `verification-unavailable`, and past 4096 facts the
-  rest are dropped and reported `verification-bound-exceeded`; neither changes anything else. A
-  MAPPED step reads `run-verified` only when every one of its elements stands `VERIFIED@`,
+  `VERIFIED@`). An element ID printed by steps of two applications cannot be attributed, so it
+  reads `unverified` and is reported `verification-ambiguous`. An overlay error is reported
+  `verification-unavailable` and changes nothing else. Past 4096 facts, every fact is discarded
+  (a dropped one may be the contradiction), so every element reads `unverified`, and this is
+  reported `verification-bound-exceeded`. A MAPPED step reads `run-verified` only when every one of its elements stands `VERIFIED@`,
   including each action's selector; otherwise it reads `candidate`. Plan `authority` is always
   `candidate`. Candidate research, overlays and setup preconditions MUST never raise any of
   these values. (proposed, pending owner acceptance; V1-0959)
@@ -147,15 +149,18 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
     for `follow`;
   - a `routeParam` capture for each handoff the step produces;
   - a call to the reused page-object method only when that method is FRESH and `Callable`
-    (public, no declared parameters), its class binding is unique and some file in the map imports that class by
-    name (`import { Class }`, not `import type`); otherwise a TODO on the step's locator, and
-    a class with no named-import evidence is printed as an `UNRESOLVED import` comment, never
+    (public, no declared parameters), its class binding is unique, and some file in the map
+    imports that class by name (`import { Class }`, not `import type`) with both that file and
+    the class file FRESH at the evaluated revision; otherwise a TODO on the step's locator, and
+    a class with no FRESH named-import evidence is printed as an `UNRESOLVED import` comment, never
     as an import;
   - one `TODO assert outcome <id>` line naming the matcher, locator and value of each declared
     outcome.
 
   A step that is not MAPPED throws `<STATUS> step <n>: <reason>` and prints its exploration.
-  Template text MUST be escaped for JavaScript, and every route parameter MUST be read through
+  Template text MUST be escaped for JavaScript, no emitted line may contain a line terminator
+  (CR, LF, U+2028 or U+2029; repository text in comments is flattened), and every route
+  parameter MUST be read through
   `param("<app>:<name>")`, which throws when the parameter is unbound.
   (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-009`: The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
@@ -202,7 +207,7 @@ The planner owns no new error code. It reuses `appmap-invalid-query`,
 `appmap-budget-too-small` and `appmap-invalid-map` from AMAP-V0. An unresolvable `revision` is
 not refused: it makes freshness `UNKNOWN` (AMSP-V0-003).
 Unknown kind is `verification`, with reasons `verification-unavailable`,
-`verification-invalid` and `verification-bound-exceeded`.
+`verification-invalid`, `verification-ambiguous` and `verification-bound-exceeded`.
 
 ## Verification seam
 
@@ -243,8 +248,11 @@ receipt binding, ledger or run.
   - a map path outside `--root`: the MCP refuses to start;
   - a reused method that is not `Callable` (takes arguments or is not public): not called,
     with a TODO;
-  - a page-object class with no named import in the suite (for example a default export):
-    `UNRESOLVED import` comment, not called;
+  - a page-object class with no FRESH named import in the suite (for example a default export,
+    or a map older than the import): `UNRESOLVED import` comment, not called;
+  - an element ID shared by two applications: `unverified`, reported;
+  - more than 4096 verification facts: all discarded, reported;
+  - repository text containing line terminators: flattened into its comment;
   - an unverified selector on an otherwise verified step: the step stays `candidate`;
   - MCP arguments outside the schema (unknown key, `null`, wrong type, out of range):
     `Invalid params`.
@@ -261,8 +269,8 @@ receipt binding, ledger or run.
 | AMSP-V0-004 | `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-005 | `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0005StaleAndUnknownFreshness` |
 | AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0006HandoffStaysInItsApp` |
-| AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified` |
-| AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport` |
+| AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`, `TestAMSPV0007CollidingElementIDsStayUnverified`, `TestAMSPV0007FactCapOverflowDoesNotPromote` |
+| AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport`, `TestAMSPV0008StaleImportEvidenceNotTrusted`, `TestAMSPV0008DraftLinesStayOneLine` |
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
 
@@ -305,3 +313,6 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 6. Should every map have to come from the one repository at `--root`, as it must today?
 7. Should the MCP offer a `full` mode, for example with a streamed or paged response? Today it
    has none, because a full draft could exceed the 1 MiB message cap.
+8. Should overlay facts carry an app or map binding (for example an app-qualified element ID), so
+   that an element ID shared by two applications can still be verified? Today such an ID reads
+   `unverified`.

@@ -535,7 +535,119 @@ func TestAMSPV0008DefaultExportNotNamedImport(t *testing.T) {
 	d := doc["draft"].(map[string]any)
 	src, imports := stringOf(d["lines"]), stringOf(d["imports"])
 	if strings.Contains(src, "buyGiftCard()") || strings.Contains(src, "new ShopPage") || strings.Contains(imports, "import { ShopPage } from") ||
-		!strings.Contains(imports, "UNRESOLVED import { ShopPage }: no named import") || !strings.Contains(src, "getByTestId(") {
+		!strings.Contains(imports, "UNRESOLVED import { ShopPage }: no FRESH named import") || !strings.Contains(src, "getByTestId(") {
 		t.Fatalf("draft: %s %s", imports, src)
 	}
 }
+
+// AMSP-V0-008: import evidence must be FRESH. A map built before the page object became a
+// default export still records a named import, but the importing spec has changed since.
+func TestAMSPV0008StaleImportEvidenceNotTrusted(t *testing.T) {
+	root, _, maps := planRepo(t)
+	market := maps[1]
+	for _, p := range []string{"shop-e2e/pages/shop.page.ts", "shop-e2e/specs/buy.spec.ts"} {
+		data, _ := os.ReadFile(filepath.Join(root, p))
+		s := strings.Replace(string(data), "export class ShopPage", "export default class ShopPage", 1)
+		writeFile(t, root, p, strings.Replace(s, "import { ShopPage }", "import ShopPage", 1))
+	}
+	rev := commitAll(t, root, "default export, map not rebuilt")
+	doc := planOf(t, []*Map{market}, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	d := doc["draft"].(map[string]any)
+	src, imports := stringOf(d["lines"]), stringOf(d["imports"])
+	if strings.Contains(src, "buyGiftCard()") || strings.Contains(imports, "import { ShopPage } from") ||
+		!strings.Contains(imports, "UNRESOLVED import { ShopPage }: no FRESH named import") {
+		t.Fatalf("draft trusted stale import evidence: %s %s", imports, src)
+	}
+}
+
+// AMSP-V0-008: repository text interpolated into a draft comment cannot end the comment and
+// escape the test.fixme guard.
+func TestAMSPV0008DraftLinesStayOneLine(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	injected := "\n});\nglobalThis.__injected = true;\ntest(\"injected\", async ({ browser }) => {\n//"
+	for _, term := range []string{"\n", "\r", "\u2028", "\u2029"} {
+		for i := range maps[1].Screens {
+			maps[1].Screens[i].Permissions = []string{strings.ReplaceAll(injected, "\n", term)}
+		}
+		doc := planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+		for _, l := range doc["draft"].(map[string]any)["lines"].([]any) {
+			line := l.(string)
+			if strings.ContainsAny(line, "\r\n\u2028\u2029") {
+				t.Fatalf("draft line spans lines: %q", line)
+			}
+			if strings.Contains(line, "__injected") && !strings.Contains(line[:strings.Index(line, "__injected")], "//") {
+				t.Fatalf("injected text outside a comment: %q", line)
+			}
+		}
+	}
+}
+
+// AMSP-V0-007: element IDs carry no app, so verification of an ID printed by two apps cannot be
+// attributed and never promotes either step.
+func TestAMSPV0007CollidingElementIDsStayUnverified(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	raw, _ := json.Marshal(maps[1])
+	twin := &Map{}
+	if err := json.Unmarshal(raw, twin); err != nil {
+		t.Fatal(err)
+	}
+	twin.App = "voucher"
+	for i := range twin.Flows {
+		fl := &twin.Flows[i]
+		fl.FlowID, fl.ID = "redeem-voucher-code", "flow:redeem-voucher-code"
+		for j := range fl.Steps {
+			fl.Steps[j].Action = "redeem voucher code"
+		}
+		for j := range fl.Outcomes {
+			fl.Outcomes[j].Behavior = "voucher is redeemed"
+		}
+	}
+	all := &fakeVerifier{status: func(string) string { return "VERIFIED@" + rev }}
+	steps := []string{"buy a gift card", "redeem voucher code"}
+	o := PlanOptions{Options: Options{Root: root, Revision: rev, Overlays: verifiers(all)}}
+	doc := planOf(t, []*Map{maps[1], twin}, steps, o)
+	got := planSteps(t, doc)
+	if got[0]["app"] != "marketplace" || got[1]["app"] != "voucher" {
+		t.Fatalf("resolution: %v %v", got[0]["app"], got[1]["app"])
+	}
+	for _, st := range got {
+		if st["confidence"] == "run-verified" {
+			t.Fatalf("step %v promoted on unattributable verification", st["index"])
+		}
+	}
+	if !strings.Contains(stringOf(doc["unknowns"]), "verification-ambiguous") {
+		t.Fatalf("collision not reported: %v", doc["unknowns"])
+	}
+	// Each app alone still promotes on the same facts.
+	if st := planSteps(t, planOf(t, []*Map{maps[1]}, steps[:1], o))[0]; st["confidence"] != "run-verified" {
+		t.Fatalf("single app confidence = %v", st["confidence"])
+	}
+}
+
+// AMSP-V0-007: past the fact cap no retained fact stands, since a dropped one may be the
+// contradiction.
+func TestAMSPV0007FactCapOverflowDoesNotPromote(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	o := PlanOptions{Options: Options{Root: root, Revision: rev}}
+	st := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, o))[0]
+	buy := actions(st)[0]["step"].(string)
+	flood := overlayFunc(func(ids []string) []Fact {
+		out := []Fact{}
+		for len(out) < maxFacts {
+			for _, id := range ids {
+				out = append(out, Fact{ElementID: id, Kind: VerificationFactKind, Text: "VERIFIED", Revision: rev})
+			}
+		}
+		return append(out, Fact{ElementID: buy, Kind: VerificationFactKind, Text: "CONTRADICTED"})
+	})
+	o.Overlays = []Overlay{flood}
+	doc := planOf(t, maps, []string{"buy a gift card"}, o)
+	st = planSteps(t, doc)[0]
+	if st["confidence"] == "run-verified" || !strings.Contains(stringOf(doc["unknowns"]), "verification-bound-exceeded") {
+		t.Fatalf("overflow: confidence %v unknowns %v", st["confidence"], doc["unknowns"])
+	}
+}
+
+type overlayFunc func(ids []string) []Fact
+
+func (f overlayFunc) Facts(_ context.Context, ids []string) ([]Fact, error) { return f(ids), nil }

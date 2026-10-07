@@ -126,6 +126,27 @@ verified, repaired, and pinned by a regression that failed before the repair:
 5. **An MCP `full` response could exceed 1 MiB.** `full` was removed from the MCP. A test pins
    that a 16-step, maximum-budget draft stays under `protocol.MaxMessageBytes`.
 
+Round 2 (diff `43c65094..239f1699`) confirmed that the round-1 fixes hold. It raised four new
+P2 findings, each verified, repaired, and pinned by a regression that failed on `239f1699`:
+
+1. **Comment injection.** Session permissions and some other repository text were
+   interpolated into `//` comments without flattening. A newline could close the comment and
+   the guarded callback, which yields module-level code. Every emitted draft line is now
+   flattened: CR, LF, U+2028 and U+2029 become spaces. This is safe because code text is always
+   quoted. Pinned by `TestAMSPV0008DraftLinesStayOneLine`.
+2. **Verification leaked across apps with colliding element IDs.** AMAP-V0 IDs carry no app,
+   and a selector ID is derived from locator content. An ID printed by two apps now reads
+   `unverified`, reported `verification-ambiguous`. Pinned by
+   `TestAMSPV0007CollidingElementIDsStayUnverified`. App-qualified facts are owner question 8.
+3. **The fact cap could drop a contradiction and keep `run-verified`.** On overflow every
+   fact is now discarded, so nothing is promoted. A dropped `CONTRADICTED` therefore reads
+   `candidate` rather than `CONTRADICTED`; that is fail-closed for promotion, but the
+   contradiction is not shown. Pinned by `TestAMSPV0007FactCapOverflowDoesNotPromote`.
+4. **Stale import evidence.** With a map older than a switch to `export default`, the method
+   anchor stayed FRESH while the import statement was stale. Named-import evidence now
+   requires the importing file and the class file to be FRESH; both anchors are added to the
+   plan's freshness set. Pinned by `TestAMSPV0008StaleImportEvidenceNotTrusted`.
+
 The same default-export assumption exists in the issue-657 `ProjectScaffold`
 (`internal/appmap/scaffold.go`). It is outside this slice and is reported to the orchestrator,
 not changed here.

@@ -455,6 +455,13 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 					if me != nil {
 						anchors = append(anchors, me.Anchor)
 					}
+					if f != nil {
+						// The class file and every file importing it are the import evidence.
+						anchors = append(anchors, f.Anchor)
+						for _, tf := range importersOf(pf.m, f.Path) {
+							anchors = append(anchors, tf.Anchor)
+						}
+					}
 				}
 			}
 			ps.methods, ps.files = append(ps.methods, shown), append(ps.files, files)
@@ -489,22 +496,39 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 
 	// Ask the verification seam once (AMSP-V0-007).
 	verifyIDs := map[string]bool{}
+	idApps := map[string]map[string]bool{} // element ID -> apps whose plan steps print it
+	addID := func(id, app string) {
+		verifyIDs[id] = true
+		if idApps[id] == nil {
+			idApps[id] = map[string]bool{}
+		}
+		idApps[id][app] = true
+	}
 	for _, ps := range plan {
 		if pf := ps.res.flow; pf != nil {
 			for j, st := range pf.f.Steps {
-				verifyIDs[st.ID] = true
+				addID(st.ID, pf.m.App)
 				if st.Selector != nil {
-					verifyIDs[st.Selector.ID] = true
+					addID(st.Selector.ID, pf.m.App)
 				}
 				for _, me := range ps.methods[j] {
 					if me != nil {
-						verifyIDs[me.ID] = true
+						addID(me.ID, pf.m.App)
 					}
 				}
 			}
 		}
 	}
 	unknowns := []any{}
+	// Element IDs carry no app, so a fact about an ID printed by two apps cannot be attributed to
+	// either: such an ID reads unverified whatever its facts say.
+	ambiguous := map[string]bool{}
+	for _, id := range sortedKeys(idApps) {
+		if len(idApps[id]) > 1 {
+			ambiguous[id] = true
+			unknowns = append(unknowns, Unknown{Kind: "verification", Ref: id, Reason: "verification-ambiguous"})
+		}
+	}
 	facts, kept := map[string][]Fact{}, 0
 	if len(verifyIDs) > 0 {
 		ids := sortedKeys(verifyIDs)
@@ -520,7 +544,9 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 					continue
 				}
 				if kept == maxFacts {
+					// A dropped fact may be the contradiction, so no retained fact can stand.
 					unknowns = append(unknowns, Unknown{Kind: "verification", Ref: "map_plan", Reason: "verification-bound-exceeded"})
+					facts = map[string][]Fact{}
 					break overlays
 				}
 				facts[f.ElementID] = append(facts[f.ElementID], f)
@@ -531,6 +557,9 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 	invalid := map[string]bool{}
 	verify := func(id, freshness string) string {
 		v := planUnverified
+		if ambiguous[id] {
+			return v
+		}
 		for i, f := range facts[id] {
 			got, ok := verificationOf(f, fresh.evaluated, freshness)
 			if !ok && !invalid[id] {
@@ -826,7 +855,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 		{"full", o.Full}, {"authority", "candidate"}, {"status", status}, {"steps", stepsOut}, {"sessions", sessionList},
 		{"handoff", handoffOut}, {"gaps", gaps}}
 	if o.Draft {
-		head = append(head, field{"draft", draft(plan, sessionList, handoffs, byApp, steps)})
+		head = append(head, field{"draft", draft(plan, sessionList, handoffs, byApp, steps, fresh)})
 	}
 	sort.SliceStable(unknowns, func(i, j int) bool { return unknownLess(unknowns[i].(Unknown), unknowns[j].(Unknown)) })
 	return render(head, []section{{"unknowns", unknowns}}, budget)
@@ -935,7 +964,7 @@ var commentSafe = strings.NewReplacer("\r", " ", "\n", " ", " ", " ", " ", "
 // draft writes the Playwright skeleton: one browser context per app, one test.step per request
 // step, reused page-object calls, guarded navigation, captured handoff parameters and each named
 // outcome assertion as a TODO. A step that is not MAPPED throws instead of running (AMSP-V0-008).
-func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, byApp map[string]*Map, steps []string) draftView {
+func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, byApp map[string]*Map, steps []string, fresh *freshness) draftView {
 	sum := sha256.Sum256([]byte(strings.Join(steps, "\x00")))
 	dir := ""
 	for _, ps := range plan {
@@ -982,9 +1011,9 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 				continue
 			}
 			v := ident[ps.App] + f.Class
-			if !namedExport(byApp[ps.App], f) {
+			if !namedExport(byApp[ps.App], f, fresh) {
 				blocked[key] = true
-				dv.Imports = append(dv.Imports, "// UNRESOLVED import { "+f.Class+" }: no named import of it from "+commentSafe.Replace(f.Path)+" in the suite")
+				dv.Imports = append(dv.Imports, "// UNRESOLVED import { "+commentSafe.Replace(f.Class)+" }: no FRESH named import of it from "+commentSafe.Replace(f.Path)+" in the suite")
 				continue
 			}
 			if o, taken := owner[f.Class]; (taken && o != f.Path) || owner[v] != "" || !jsName.MatchString(f.Class) {
@@ -1015,7 +1044,11 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 			t = t[:len(t)-1]
 		}
 	}
-	L := func(format string, args ...any) { dv.Lines = append(dv.Lines, fmt.Sprintf(format, args...)) }
+	// Every draft line stays one line: code text is quoted, so a line terminator can only come
+	// from repository text interpolated into a comment, where it would end the comment.
+	L := func(format string, args ...any) {
+		dv.Lines = append(dv.Lines, commentSafe.Replace(fmt.Sprintf(format, args...)))
+	}
 	L("test(%s, async ({ browser }) => {", quote("plan: "+t))
 	L(`  test.fixme(true, "draft skeleton: write every named outcome assertion and resolve each TODO, then remove this line");`)
 	L(`  const params = new Map<string, string>();`)
@@ -1127,11 +1160,31 @@ func reuseTarget(ps *planStep, j int) *TestFile {
 	return f
 }
 
-// namedExport is true when some file of the map imports class from f under its own name in a
-// braces import, which is the only evidence the map holds that `import { Class }` binds it; a
-// default, aliased, namespace or type-only import, or no import at all, is not evidence.
-func namedExport(m *Map, f *TestFile) bool {
-	for _, tf := range m.Files {
+// importersOf lists the map files with a resolved import of path.
+func importersOf(m *Map, path string) []*TestFile {
+	out := []*TestFile{}
+	for i := range m.Files {
+		for _, imp := range m.Files[i].Imports {
+			if imp.Status == importResolved && imp.Resolved == path {
+				out = append(out, &m.Files[i])
+				break
+			}
+		}
+	}
+	return out
+}
+
+// namedExport reports whether the suite binds f's class by name: some file with a resolved, non-type
+// import of f.Path lists exactly f.Class between braces, and both that file and f are FRESH at the
+// evaluated revision, so the map's import statement still describes the code (AMSP-V0-008).
+func namedExport(m *Map, f *TestFile, fresh *freshness) bool {
+	if fresh.of(f.Anchor) != Fresh {
+		return false
+	}
+	for _, tf := range importersOf(m, f.Path) {
+		if fresh.of(tf.Anchor) != Fresh {
+			continue
+		}
 		for _, imp := range tf.Imports {
 			if imp.Status != importResolved || imp.Resolved != f.Path || strings.HasPrefix(strings.TrimSpace(imp.Statement), "import type") {
 				continue
