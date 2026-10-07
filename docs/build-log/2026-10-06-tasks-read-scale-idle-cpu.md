@@ -197,6 +197,19 @@ Each finding was reproduced by a failing test before its fix.
   ledger: full ticks keep the in-memory ledger and overwrite `state.json`, while a ticket file
   edited outside the journal is seen by the periodic full read.
 
+## Review round 2 (Codex, 4ee55e49..c8315a93, one P2)
+
+- P2, the listing binding counted names without checking their type (`store/receipt_files.go`).
+  An earlier receipt replaced by a symlink or a directory kept the count, so the carried fold
+  answered while the whole-history fold refuses (UNSUPPORTED_FILESYSTEM for a symlink, MALFORMED
+  for a directory). `listsPrefix` now reads directory entries and requires each carried name to be
+  a regular file by its entry type, from the same directory read; Go's `ReadDir` lstats an entry
+  only when the file system reports no type. No receipt is opened. Failing first on c8315a93:
+  `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular` (symlink and directory
+  subtests), which now fall back with the same error and code and clear the carried state. A
+  permission-only change to an earlier regular receipt joins in-place content rewrites as the
+  documented CAL-V0-138 exception, detected by `receipt audit` and refresh.
+
 ## Rollback
 
 Revert the code and the spec subsection. No stored state, request, receipt or wire shape changes;

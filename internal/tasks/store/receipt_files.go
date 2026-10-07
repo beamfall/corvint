@@ -87,8 +87,11 @@ func (r *receiptFiles) binding() error {
 }
 
 // listsPrefix reports that the pinned receipts/ directory still names every
-// receipt 1..last, by listing its names (CAL-V0-138). It reads names only;
-// a receipt's content is not re-hashed.
+// receipt 1..last as a regular file, from one directory read (CAL-V0-138).
+// The type comes from the directory entry; Go's ReadDir lstats an entry
+// only when the file system reports no type. A symlink, directory or other
+// non-regular entry, or a missing name, fails the check. A receipt's
+// content is not read or re-hashed.
 func (r *receiptFiles) listsPrefix(last uint64) bool {
 	if r.root == nil {
 		return false
@@ -98,20 +101,24 @@ func (r *receiptFiles) listsPrefix(last uint64) bool {
 		return false
 	}
 	defer d.Close()
-	names, err := d.Readdirnames(-1)
+	entries, err := d.ReadDir(-1)
 	if err != nil {
 		return false
 	}
 	var n uint64
-	for _, name := range names {
-		digits, ok := strings.CutSuffix(name, ".json")
+	for _, e := range entries {
+		digits, ok := strings.CutSuffix(e.Name(), ".json")
 		if !ok || len(digits) != 12 {
 			continue
 		}
 		seq, err := strconv.ParseUint(digits, 10, 64)
-		if err == nil && seq >= 1 && seq <= last {
-			n++
+		if err != nil || seq < 1 || seq > last {
+			continue
 		}
+		if !e.Type().IsRegular() {
+			return false
+		}
+		n++
 	}
 	return n == last
 }

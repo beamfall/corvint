@@ -3303,12 +3303,15 @@ essential. These requirements are proposed; acceptance is human-owned.
   run`) MAY carry its review binding fold in process memory between ticks and fold only the
   receipts appended since. It MUST continue only while the receipt it last folded keeps its digest,
   the `receipts/` directory listing still names every receipt from 1 to that receipt (canonical
-  names, exact count), and every new receipt chains to its predecessor; any shorter history, removed
-  or renamed earlier receipt, rewritten last receipt, unreadable or undecodable receipt, or binding
-  refusal MUST discard the carried state and answer exactly as the whole-history fold from receipt 1.
-  An earlier receipt's content rewritten in place under its own name is not re-hashed by each carried
-  fold; as decided for V1-0645, such a prefix edit is detected by `receipt audit` (JOURNAL_FORKED)
-  and refresh, not by every fold. This is a guarantee change from the whole-history fold, which
+  names, exact count, each a regular file by its directory entry type), and every new receipt chains
+  to its predecessor; any shorter history, removed or renamed earlier receipt, earlier receipt
+  replaced by a symlink, directory or other non-regular entry, rewritten last receipt, unreadable or
+  undecodable receipt, or binding refusal MUST discard the carried state and answer exactly as the
+  whole-history fold from receipt 1. An earlier receipt's content rewritten in place under its own
+  name, and a permission-only change to an earlier regular receipt that the whole-history fold would
+  refuse UNSUPPORTED_FILESYSTEM when it cannot open it, are not re-checked by each carried fold; as
+  decided for V1-0645, such prefix edits are detected by `receipt audit` and refresh (a content
+  rewrite refuses JOURNAL_FORKED), not by every fold. This is a guarantee change from the whole-history fold, which
   re-reads every receipt, and needs owner acceptance. Nothing is persisted.
 - `CAL-V0-139`: proposed (V1-0894; GitHub #641). A long-running dispatcher whose queue offers a
   store witness MAY skip a tick's store read only after a full tick left its ledger bytes unchanged
@@ -3359,8 +3362,8 @@ An idle dispatcher does not see a ticket file rewritten in place outside the jou
 full read, at most 60 seconds later; the periodic full read sees it. A ledger (`state.json`) edited
 by another process is never reloaded by a running dispatcher: every full tick keeps its in-memory
 ledger and overwrites `state.json` with it, as before. A carried review fold does not re-hash an
-earlier receipt's content on each tick; an in-place rewrite of one under its own name is found by
-`receipt audit` and refresh (CAL-V0-138). The Core plan decoder (`internal/taskman`) keeps its own
+earlier receipt's content or permissions on each tick; an in-place content rewrite or permission
+change of one under its own name is found by `receipt audit` and refresh (CAL-V0-138). The Core plan decoder (`internal/taskman`) keeps its own
 pre-existing 1,000-entry limit and does not read a full 10,000-entry plan. The
 shared audit capture trusts a same-size intent file to the read's second probe, which re-hashes
 every file after the body.
@@ -3374,7 +3377,8 @@ Acceptance evidence: `TestCALV0135_ReceiptFoldPinnedReader`, `TestCALV0138_Revie
 `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`,
 `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`,
 `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`);
-`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved` (`internal/tasks/store`);
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`,
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular` (`internal/tasks/store`);
 `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`,
 `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`, `TestCALV0139_DispatchQueueWitness`,
 `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads`, `TestCALV0141_PlanNodeBoundScalesPerEntry`,
@@ -3686,7 +3690,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |
 | CAL-V0-136 | `TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`, `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux) (`internal/tasks/supervisor`) |
 | CAL-V0-137 | `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`) |
-| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
+| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
 | CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
 | CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
