@@ -3,6 +3,7 @@ package dispatch
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode"
@@ -21,6 +22,34 @@ type PressureConfig struct {
 	LevelCaps          map[string]int `json:"levelCaps"`
 	ExemptRoles        []string       `json:"exemptRoles,omitempty"`
 	ExemptTickets      []string       `json:"exemptTickets,omitempty"`
+	// CPU utilization thresholds are busy/total tick fractions over the
+	// interval since the previous sample (CAL-V0-125). They are required
+	// only when a Signals entry selects the cpu signal.
+	CPUHigh     float64 `json:"cpuHigh,omitempty"`
+	CPUCritical float64 `json:"cpuCritical,omitempty"`
+	CalmCPU     float64 `json:"calmCpu,omitempty"`
+	// Signals selects, per host OS, which signals set the level
+	// (CAL-V0-126). An OS without an entry keeps the default: load plus
+	// the kernel memory-pressure level (Darwin) or swap (Linux).
+	Signals map[string][]string `json:"signals,omitempty"`
+}
+
+// pressureSignalsAvailable names the signals each supported host sampler
+// can observe. Darwin CPU ticks need host_processor_info, which is not
+// reachable from a CGO_ENABLED=0 binary without forbidden linkname
+// trampolines, so Darwin cannot select cpu (CAL-V0-125).
+var pressureSignalsAvailable = map[string][]string{
+	"darwin": {PressureSignalLoad, PressureSignalMemory},
+	"linux":  {PressureSignalCPU, PressureSignalLoad, PressureSignalSwap},
+}
+
+func (c PressureConfig) selectsCPU() bool {
+	for _, names := range c.Signals {
+		if contains(names, PressureSignalCPU) {
+			return true
+		}
+	}
+	return false
 }
 
 func finiteNonnegative(x float64) bool { return !math.IsNaN(x) && !math.IsInf(x, 0) && x >= 0 }
@@ -34,6 +63,31 @@ func (c PressureConfig) Validate() error {
 	}
 	if !finiteNonnegative(c.CalmSwap) || !finiteNonnegative(c.SwapHigh) || !finiteNonnegative(c.SwapCritical) || !(c.CalmSwap < c.SwapHigh && c.SwapHigh < c.SwapCritical && c.SwapCritical <= 1) {
 		return fmt.Errorf("pressure swap thresholds require 0 <= calm < high < critical <= 1")
+	}
+	if (c.selectsCPU() || c.CPUHigh != 0 || c.CPUCritical != 0 || c.CalmCPU != 0) && (!finiteNonnegative(c.CalmCPU) || !finiteNonnegative(c.CPUHigh) || !finiteNonnegative(c.CPUCritical) || !(c.CalmCPU < c.CPUHigh && c.CPUHigh < c.CPUCritical && c.CPUCritical <= 1)) {
+		return fmt.Errorf("pressure cpu thresholds require 0 <= calmCpu < cpuHigh < cpuCritical <= 1 when cpu is selected or configured")
+	}
+	oses := make([]string, 0, len(c.Signals))
+	for goos := range c.Signals {
+		oses = append(oses, goos)
+	}
+	sort.Strings(oses)
+	for _, goos := range oses {
+		names := c.Signals[goos]
+		available, ok := pressureSignalsAvailable[goos]
+		if !ok {
+			return fmt.Errorf("pressure signals name unsupported host OS %q (darwin or linux)", goos)
+		}
+		if len(names) == 0 || len(names) > len(available) {
+			return fmt.Errorf("pressure signals for %s must select 1..%d signals", goos, len(available))
+		}
+		seen := map[string]bool{}
+		for _, name := range names {
+			if !contains(available, name) || seen[name] {
+				return fmt.Errorf("pressure signals for %s must be unique names from %s", goos, strings.Join(available, ", "))
+			}
+			seen[name] = true
+		}
 	}
 	if c.TicksToChange < 1 || c.TicksToChange > 3600 {
 		return fmt.Errorf("pressure ticksToChange must be 1..3600")
@@ -78,6 +132,7 @@ type PressureState struct {
 
 // Pressure signal names reported as a level's reason, in sorted order.
 const (
+	PressureSignalCPU    = "cpu"
 	PressureSignalLoad   = "load"
 	PressureSignalMemory = "memory"
 	PressureSignalSwap   = "swap"
@@ -90,7 +145,7 @@ func ValidPressureReason(level int, reason []string) bool {
 		return len(reason) == 0
 	}
 	for i, r := range reason {
-		if r != PressureSignalLoad && r != PressureSignalMemory && r != PressureSignalSwap {
+		if r != PressureSignalCPU && r != PressureSignalLoad && r != PressureSignalMemory && r != PressureSignalSwap {
 			return false
 		}
 		if i > 0 && reason[i-1] >= r {
@@ -139,42 +194,72 @@ func classifyPressure(x, calm, high, critical float64) pressureClass {
 	return pressureElevated
 }
 
-// pressureSignals returns the load signal and one memory signal, or false
-// when either is UNKNOWN. The memory signal is the kernel memory-pressure
-// level when the sample carries one (Darwin: normal is calm, warn is high,
-// critical is critical), otherwise the used/total swap fraction (Linux). A
-// sample whose memory signal is absent never falls back to another one.
-func pressureSignals(c PressureConfig, sample PressureSample) ([]pressureSignal, bool) {
-	load, ok := sample.LoadPerCPU()
-	if !ok {
-		return nil, false
+// pressureSignals returns the participating signals, or false when any is
+// UNKNOWN. Without a Signals entry for goos they are load and one memory
+// signal: the kernel memory-pressure level when the sample carries one
+// (Darwin: normal is calm, warn is high, critical is critical), otherwise the
+// used/total swap fraction (Linux). A sample whose memory signal is absent
+// never falls back to another one. A Signals entry replaces that default with
+// exactly the named signals (CAL-V0-126).
+func pressureSignals(c PressureConfig, goos string, sample PressureSample) ([]pressureSignal, bool) {
+	names, selected := c.Signals[goos]
+	if !selected {
+		names = []string{PressureSignalLoad, PressureSignalSwap}
+		if sample.MemoryPressureKnown || sample.MemoryPressureLevel != 0 {
+			names[1] = PressureSignalMemory
+		}
 	}
-	signals := []pressureSignal{{PressureSignalLoad, classifyPressure(load, c.CalmLoadPerCPU, c.LoadPerCPUHigh, c.LoadPerCPUCritical)}}
-	if sample.MemoryPressureKnown || sample.MemoryPressureLevel != 0 {
-		level, ok := sample.MemoryPressure()
-		if !ok {
+	signals := make([]pressureSignal, 0, len(names))
+	for _, name := range names {
+		var class pressureClass
+		switch name {
+		case PressureSignalLoad:
+			load, ok := sample.LoadPerCPU()
+			if !ok {
+				return nil, false
+			}
+			class = classifyPressure(load, c.CalmLoadPerCPU, c.LoadPerCPUHigh, c.LoadPerCPUCritical)
+		case PressureSignalMemory:
+			level, ok := sample.MemoryPressure()
+			if !ok {
+				return nil, false
+			}
+			class = map[int]pressureClass{MemoryPressureNormal: pressureCalm, MemoryPressureWarn: pressureHigh, MemoryPressureCritical: pressureCritical}[level]
+		case PressureSignalSwap:
+			swap, ok := sample.SwapFraction()
+			if !ok {
+				return nil, false
+			}
+			class = classifyPressure(swap, c.CalmSwap, c.SwapHigh, c.SwapCritical)
+		case PressureSignalCPU:
+			cpu, ok := sample.CPUUtilizationFraction()
+			if !ok {
+				return nil, false
+			}
+			class = classifyPressure(cpu, c.CalmCPU, c.CPUHigh, c.CPUCritical)
+		default:
 			return nil, false
 		}
-		class := map[int]pressureClass{MemoryPressureNormal: pressureCalm, MemoryPressureWarn: pressureHigh, MemoryPressureCritical: pressureCritical}[level]
-		return append(signals, pressureSignal{PressureSignalMemory, class}), true
+		signals = append(signals, pressureSignal{name, class})
 	}
-	swap, ok := sample.SwapFraction()
-	if !ok {
-		return nil, false
-	}
-	return append(signals, pressureSignal{PressureSignalSwap, classifyPressure(swap, c.CalmSwap, c.SwapHigh, c.SwapCritical)}), true
+	return signals, true
 }
 
 // StepPressure is pure: thresholds use one-minute load per positive host CPU,
-// either signal can raise pressure, and both must be calm before release.
+// any participating signal can raise pressure, and all must be calm before
+// release. The participating signals are those selected for this host OS.
 func StepPressure(c PressureConfig, state PressureState, sample PressureSample) (PressureState, error) {
+	return stepPressure(c, runtime.GOOS, state, sample)
+}
+
+func stepPressure(c PressureConfig, goos string, state PressureState, sample PressureSample) (PressureState, error) {
 	if err := c.Validate(); err != nil {
 		return state, err
 	}
 	if state.Level < 0 || state.Level > 2 || state.PendingLevel < 0 || state.PendingLevel > 2 || state.PendingTicks < 0 || state.PendingTicks >= c.TicksToChange {
 		return state, fmt.Errorf("invalid pressure state")
 	}
-	signals, ok := pressureSignals(c, sample)
+	signals, ok := pressureSignals(c, goos, sample)
 	if !ok {
 		state.Unknown = true
 		state.PendingLevel = state.Level

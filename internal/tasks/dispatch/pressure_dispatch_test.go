@@ -145,7 +145,9 @@ func TestCALV0068_ConfigValidation(t *testing.T) {
 
 type pressureFeed struct{ sample PressureSample }
 
-func (f *pressureFeed) read(context.Context, time.Time) PressureSample { return f.sample }
+func (f *pressureFeed) read(context.Context, time.Time, pressureWant) PressureSample {
+	return f.sample
+}
 
 func throttled(t *testing.T, d *Dispatcher) []Event {
 	t.Helper()

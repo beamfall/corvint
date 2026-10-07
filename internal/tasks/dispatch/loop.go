@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -51,9 +52,26 @@ type Dispatcher struct {
 	sweepNext     time.Time
 	closed        bool
 	closeErr      error
-	// pressureSampler reads host pressure once per tick (CAL-V0-068); tests
-	// inject samples. Nil uses the platform sampler.
-	pressureSampler func(context.Context, time.Time) PressureSample
+	// pressureSampler reads host pressure once per tick (CAL-V0-068) for the
+	// selected signals only (CAL-V0-125); tests inject samples. Nil uses the
+	// platform sampler. goos names the host OS for signal selection; empty
+	// is runtime.GOOS.
+	pressureSampler func(context.Context, time.Time, pressureWant) PressureSample
+	goos            string
+	// configRead re-reads the configuration file at each tick (CAL-V0-127);
+	// nil disables reload. configSha256 and configAt identify the applied
+	// bytes and when they were applied.
+	configRead   func() ([]byte, error)
+	configSha256 string
+	configAt     time.Time
+	// memberSince holds the lane member state episodes observed by this
+	// run (CAL-V0-129).
+	memberSince map[string]memberEpisode
+	// launchedUnder keeps, for each worker running when a reload applied,
+	// the configuration it launched under: supervision deadlines and kill
+	// grace follow it, so a reload affects only later launches (CAL-V0-127).
+	// A worker absent from it launched under the current configuration.
+	launchedUnder map[string]*Config
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
@@ -123,6 +141,8 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	}
 	d := &Dispatcher{Program: program, Config: c, Queue: q, Out: out, Now: time.Now, dir: dir, nonce: hex.EncodeToString(nonce[:]), ledger: l, exits: map[string]<-chan int{}, codes: map[string]int{}, lock: lock}
 	d.reconcileEscalation()
+	// CAL-V0-127: a restart applies its configuration afresh.
+	l.Config = nil
 	// CAL-V0-068: pressure state exists only while configured. A restart
 	// keeps the recorded level, so it cannot bypass a throttle, but cancels
 	// pending dwell and is UNKNOWN until this run's first sample.
@@ -269,6 +289,8 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 			d.tickSaved = d.ledger.save(d.dir) == nil
 		}
 	}()
+	// CAL-V0-127: a changed configuration applies before this tick acts.
+	d.reloadConfig()
 	obs, err := d.observe(ctx)
 	if d.readerErr != nil {
 		return d.readerErr
@@ -529,8 +551,9 @@ func (d *Dispatcher) supervise() []*Worker {
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s; keeping it as recorded: %v", w.ID, err)})
 			continue
 		}
-		role := d.role(w.Role)
-		host := d.Config.Hosts[w.Host]
+		cfg := d.launchConfig(w)
+		role := cfg.roleNamed(w.Role)
+		host := cfg.Hosts[w.Host]
 		if d.active(w, procs, host) {
 			w.LastActive = now
 		}
@@ -555,7 +578,7 @@ func (d *Dispatcher) supervise() []*Worker {
 			w.State, w.KillReason = "KILLING", reason
 			d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText[reason]), Detail: map[string]string{"reason": reason, "processes": strconv.Itoa(len(w.Members))}})
 		}
-		switch gone, err := killTree(w, time.Duration(d.Config.KillGraceSeconds)*time.Second); {
+		switch gone, err := killTree(w, time.Duration(cfg.KillGraceSeconds)*time.Second); {
 		case err != nil:
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s while stopping it; retrying next tick: %v", w.ID, err)})
 		case gone:
@@ -1079,6 +1102,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			skip[laneKey(m.Pool, m.Member)] = true
 		}
 	}
+	d.stampMemberAges(obs, now)
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
 		return
@@ -1446,11 +1470,28 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 	if sampler == nil {
 		sampler = samplePressure
 	}
-	sample := boundPressureSample(sampler(ctx, d.Now().UTC()))
+	goos := d.goos
+	if goos == "" {
+		goos = runtime.GOOS
+	}
+	// CAL-V0-125: only the selected signals are sampled. With cpu selected,
+	// the previous sample of this run supplies the tick baseline; Open
+	// clears it and a reload that adds pressure starts without one, so the
+	// first sample after either has UNKNOWN CPU utilization. Without cpu,
+	// no tick or utilization field reaches the ledger.
+	want := c.want(goos)
+	sample := sampler(ctx, d.Now().UTC(), want)
+	if want.cpu {
+		sample = withCPUUtilization(rec.Sample, sample)
+	} else {
+		sample.CPUBusyTicks, sample.CPUTotalTicks, sample.CPUTicksKnown = 0, 0, false
+		sample.CPUUtilization, sample.CPUUtilizationKnown = 0, false
+	}
+	sample = boundPressureSample(sample)
 	if ctx.Err() != nil {
 		return nil, false
 	}
-	next, err := StepPressure(*c, rec.State, sample)
+	next, err := stepPressure(*c, goos, rec.State, sample)
 	if err != nil {
 		// Unreachable for a validated config and a ledger normalized by
 		// Open; keep the level as an UNKNOWN sample would.
@@ -1523,6 +1564,10 @@ func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
 		memoryText = "swap " + swap
 	}
 	detail["memoryPressureLevel"] = memory
+	detail["cpuUtilization"] = StateUnknown
+	if x, ok := rec.Sample.CPUUtilizationFraction(); ok {
+		detail["cpuUtilization"] = strconv.FormatFloat(x, 'f', 3, 64)
+	}
 	detail["reason"] = PressureReasonText(st)
 	names := make([]string, 0, 10)
 	for _, h := range next {
@@ -1551,13 +1596,23 @@ func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
 
 func (d *Dispatcher) workerDir(id string) string { return filepath.Join(d.dir, "workers", id) }
 
-func (d *Dispatcher) role(name string) *Role {
-	for i := range d.Config.Roles {
-		if d.Config.Roles[i].Name == name {
-			return &d.Config.Roles[i]
+func (d *Dispatcher) role(name string) *Role { return d.Config.roleNamed(name) }
+
+func (c *Config) roleNamed(name string) *Role {
+	for i := range c.Roles {
+		if c.Roles[i].Name == name {
+			return &c.Roles[i]
 		}
 	}
 	return nil
+}
+
+// launchConfig is the configuration worker w launched under (CAL-V0-127).
+func (d *Dispatcher) launchConfig(w *Worker) *Config {
+	if c := d.launchedUnder[w.ID]; c != nil {
+		return c
+	}
+	return d.Config
 }
 
 // busy reports a key with a worker in the ledger.

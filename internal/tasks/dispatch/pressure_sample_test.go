@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -59,19 +60,19 @@ func TestIssue497_BoundedFileReads(t *testing.T) {
 	if err := os.WriteFile(path, []byte("1234"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := readPressureFile(context.Background(), path, 4)
+	raw, err := readPressureFile(context.Background(), osPressureOpen, path, 4)
 	if err != nil || string(raw) != "1234" {
 		t.Fatal(string(raw), err)
 	}
-	if _, err := readPressureFile(context.Background(), path, 3); err == nil {
+	if _, err := readPressureFile(context.Background(), osPressureOpen, path, 3); err == nil {
 		t.Fatal("overflow accepted")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := readPressureFile(ctx, path, 4); err != context.Canceled {
+	if _, err := readPressureFile(ctx, osPressureOpen, path, 4); err != context.Canceled {
 		t.Fatal(err)
 	}
-	if _, err := readPressureFile(context.Background(), path+"-missing", 4); err == nil {
+	if _, err := readPressureFile(context.Background(), osPressureOpen, path+"-missing", 4); err == nil {
 		t.Fatal("missing file accepted")
 	}
 }
@@ -192,7 +193,7 @@ func TestIssue497_LiveSampler(t *testing.T) {
 	}
 	s := SamplePressure(context.Background())
 	load, loadOK := s.LoadPerCPU()
-	signals, signalsOK := pressureSignals(issue497Config(), s)
+	signals, signalsOK := pressureSignals(issue497Config(), runtime.GOOS, s)
 	if !loadOK || !signalsOK || s.SampledAt.IsZero() {
 		t.Fatalf("live host metrics unavailable: %+v", s)
 	}
