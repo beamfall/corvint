@@ -58,11 +58,17 @@ func stableEncodeFrame(op byte, oidLen int, fields []string) []byte {
 	return b
 }
 
-func stableRawRead(fd int, n int) ([]byte, bool) {
+// read reads exactly n bytes of control frame from fd 3. It waits for each
+// read on the owner watch and retires if the owner exits first, so a leaked
+// control end cannot park the keeper before it has a frame.
+func (o stableKeeperOwner) read(n int) ([]byte, bool) {
 	b := make([]byte, n)
 	for got := 0; got < n; {
-		k, err := syscall.Read(fd, b[got:])
-		if err == syscall.EINTR {
+		if !o.await(3, syscall.EVFILT_READ, 0) {
+			stableKeeperRetire()
+		}
+		k, err := syscall.Read(3, b[got:])
+		if err == syscall.EINTR || err == syscall.EAGAIN {
 			continue
 		}
 		if err != nil || k <= 0 {
@@ -73,8 +79,8 @@ func stableRawRead(fd int, n int) ([]byte, bool) {
 	return b, true
 }
 
-func stableKeeperFrame() ([]string, byte, bool) {
-	h, ok := stableRawRead(3, 10)
+func stableKeeperFrame(owner stableKeeperOwner) ([]string, byte, bool) {
+	h, ok := owner.read(10)
 	if !ok || string(h[:4]) != "CEMK" || h[4] != 1 || h[7] != 0 || (h[6] != 1 && h[6] != 2) {
 		return nil, 0, false
 	}
@@ -86,7 +92,7 @@ func stableKeeperFrame() ([]string, byte, bool) {
 	total := 10
 	fields := []string{}
 	for i := 0; i < count; i++ {
-		l, ok := stableRawRead(3, 2)
+		l, ok := owner.read(2)
 		if !ok {
 			return nil, 0, false
 		}
@@ -95,7 +101,7 @@ func stableKeeperFrame() ([]string, byte, bool) {
 		if total > stableFrameMax || n > 4096 || (i >= 2 && n != oidLen) {
 			return nil, 0, false
 		}
-		f, ok := stableRawRead(3, n)
+		f, ok := owner.read(n)
 		if !ok {
 			return nil, 0, false
 		}
@@ -189,7 +195,7 @@ func stableKeeperMain() {
 	if !alive {
 		stableKeeperRetire()
 	}
-	argv, _, ok := stableKeeperFrame()
+	argv, _, ok := stableKeeperFrame(owner)
 	if !ok {
 		stableKeeperStatus(stableStatusProtocolError, 0)
 		os.Exit(2)

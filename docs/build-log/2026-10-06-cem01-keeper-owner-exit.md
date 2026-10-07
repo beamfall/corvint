@@ -31,6 +31,9 @@ is NOT_OBSERVED. The fix covers both.
   - If the owner has already gone at start (registration fails, or the parent pid has changed), the
     keeper retires immediately.
   - The keeper also retires immediately if the kqueue cannot be created or registered (fail closed).
+- **While reading its control frame:** each read first waits on kqueue for fd 3 to become
+  readable or for the owner to exit. An owner that exits after sending only part of a frame no
+  longer leaves the keeper blocked in `read`.
 - **While Git runs:** the keeper waits on kqueue for either the Git child's exit or the owner's
   exit. If the owner exits first, the keeper kills its own group, Git included.
 - **While holding:** the keeper waits on kqueue for fd 3 to become readable or for the owner to
@@ -43,8 +46,11 @@ is NOT_OBSERVED. The fix covers both.
   apply only when no owner is left to make that decision.
 - Tests:
   - The protocol-error test now creates its socketpair the way the production owner does.
-  - Two new tests re-execute the test binary as a short-lived owner. That owner leaks its control
+  - Three new tests re-execute the test binary as a short-lived owner. That owner leaks its control
     end into a long-lived `/bin/sleep` holder, then exits:
+    - `TestStableLifecycleKeeperOwnerExitMidFrame`: the owner sends 6 bytes of the frame header,
+      waits 500 ms so the keeper is blocked in the frame read rather than retiring at start, then
+      exits.
     - `TestStableLifecycleKeeperOwnerExitWhileHolding`: a failed launch, then the hold loop.
     - `TestStableLifecycleKeeperOwnerExitWhileRunning`: a fake Git that runs `sleep 300`.
   - Each test requires the keeper (and the Git child) to be gone within 10 seconds while the holder
@@ -52,14 +58,28 @@ is NOT_OBSERVED. The fix covers both.
 
 ## Evidence
 
-- Against the unfixed keeper (base `0c27e35f`), both new tests fail with "outlived its owner" after
-  10 s. With the fix, the lifecycle suite passes; both new tests take under 0.05 s.
-- The full `interop/cem01-go` module tests and vet are recorded below. `go vet` was also run with
-  `GOOS=linux` and `GOOS=windows`, which is compile evidence only.
+- Against the unfixed keeper (base `0c27e35f`), the holding and running tests fail with "outlived
+  its owner" after 10 s.
+- The mid-frame test fails the same way against the first version of this fix, whose frame reads
+  were not owner-aware (two runs).
+  - Without the 500 ms wait it passed against that version. The owner exited before the keeper
+    started, so the keeper retired at start and never reached the frame read.
+- With the fix, the lifecycle suite passes in three consecutive runs. The holding and running
+  tests take under 0.05 s; the mid-frame test takes 0.53 s, almost all of it the deliberate wait.
+- The full `interop/cem01-go` module tests pass (`ok`, 183.8 s, `-p 1`, `GOMAXPROCS=3`), and `go vet`
+  passes with `GOOS=darwin`, `linux` and `windows`. The linux and windows vets are compile evidence
+  only. No `cem01-go.test` process remained after the run.
+- Independent review (Codex round 1) found two P2s, both fixed here:
+  - the frame read was not owner-aware;
+  - the test helper had an unchecked deadline and could leak processes on failure. It now prints
+    pids before any step that can fail, bounds the owner run at 30 s, and kills only parsed pids
+    above 1 at cleanup.
+  - Codex confirmed the running and holding paths, and that `ESRCH` is returned for an exited but
+    unreaped child.
 - No other platform is affected. The keeper exists only on Darwin; `stable_process_other.go`
   stubs it out elsewhere. The production binary (`main.go`) and the test binary share the same
   keeper entry point, so the fix covers both.
 
 ## Rollback
 
-Revert this change. The keeper then waits only for control EOF again, and the two new tests fail.
+Revert this change. The keeper then waits only for control EOF again, and the three new tests fail.
