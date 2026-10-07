@@ -206,7 +206,7 @@ func TestKHNV0006_SelectionAndProjection(t *testing.T) {
 		e.Text = strings.Repeat("t", 400)
 		notes = append(notes, store.KnowHowNote{TicketID: "T", Entry: e, Anchors: []string{store.KnowHowCurrent}, Freshness: store.KnowHowCurrent})
 	}
-	items, omitted := store.ProjectKnowHow(notes, true, store.KnowHowDeliveryMaxBytes)
+	items, omitted := store.ProjectKnowHow(notes, true, store.KnowHowDeliveryMaxBytes, nil)
 	if len(items) == 0 || omitted == 0 || len(items)+omitted != len(notes) {
 		t.Fatalf("projection: %d items, %d omitted", len(items), omitted)
 	}
@@ -220,13 +220,13 @@ func TestKHNV0006_SelectionAndProjection(t *testing.T) {
 	// An array that encodes to exactly the cap fits: no separator is charged
 	// before the first item.
 	exact := len(wire.Encode(wire.Array(items...)))
-	if again, left := store.ProjectKnowHow(notes, true, exact); len(again) != len(items) || left != omitted {
+	if again, left := store.ProjectKnowHow(notes, true, exact, nil); len(again) != len(items) || left != omitted {
 		t.Fatalf("an exactly fitting prefix of %d bytes kept %d of %d items", exact, len(again), len(items))
 	}
-	if again, _ := store.ProjectKnowHow(notes, true, exact-1); len(again) != len(items)-1 {
+	if again, _ := store.ProjectKnowHow(notes, true, exact-1, nil); len(again) != len(items)-1 {
 		t.Fatalf("one byte under the prefix kept %d of %d items", len(again), len(items))
 	}
-	if items, omitted := store.ProjectKnowHow(notes[:1], false, store.KnowHowDeliveryMaxBytes); len(items) != 1 || omitted != 0 || !strings.Contains(string(wire.Encode(items[0])), `"blob"`) {
+	if items, omitted := store.ProjectKnowHow(notes[:1], false, store.KnowHowDeliveryMaxBytes, nil); len(items) != 1 || omitted != 0 || !strings.Contains(string(wire.Encode(items[0])), `"blob"`) {
 		t.Fatal("full item lacks its pins")
 	}
 }

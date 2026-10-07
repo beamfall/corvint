@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -205,26 +206,34 @@ func strOrNull(s *string) wire.Value {
 	return wire.String(*s)
 }
 
-// ProjectKnowHow keeps the longest prefix of the ordered notes whose array
-// fits maxBytes of canonical encoding and returns them with the number left
-// out (KHN-V0-006). It stops at the first item that does not fit, so the
-// order the reader sees is never reshuffled to fill the cap.
-func ProjectKnowHow(notes []KnowHowNote, compact bool, maxBytes int) ([]wire.Value, int) {
+// ProjectKnowHow keeps the longest prefix of the ordered notes for which
+// envelope(omitted) plus the canonical encoding of the notes array fits
+// maxBytes, and returns it with the number left out (KHN-V0-006). envelope
+// is the size the enclosing member adds around the array for a given omitted
+// count; nil means a bare array. Every prefix is a candidate, so the order the
+// reader sees is never reshuffled to fill the cap.
+func ProjectKnowHow(notes []KnowHowNote, compact bool, maxBytes int, envelope func(omitted int) int) ([]wire.Value, int) {
+	if envelope == nil {
+		envelope = func(int) int { return 0 }
+	}
 	items := []wire.Value{}
-	used := len("[]")
+	best := 0
+	array := len("[]")
 	for i, n := range notes {
 		v := KnowHowNoteValue(n, compact)
-		size := len(wire.Encode(v))
+		array += len(wire.Encode(v))
 		if i > 0 {
-			size++ // the separating comma
+			array++ // the separating comma
 		}
-		if used+size > maxBytes {
-			return items, len(notes) - i
+		if array > maxBytes {
+			break // no longer prefix fits either
 		}
-		used += size
 		items = append(items, v)
+		if array+envelope(len(notes)-len(items)) <= maxBytes {
+			best = len(items)
+		}
 	}
-	return items, 0
+	return items[:best], len(notes) - best
 }
 
 // ClaimedKnowHow is what a claim or claim-next delivers from the know-how
@@ -273,23 +282,30 @@ func catFileAtCommit(root, rev string, paths []string) (string, []catFileObject,
 	if root == "" {
 		return "", nil, wire.Errorf(wire.CodeUnsupported, "git", "no checkout to observe")
 	}
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		return "", nil, gitObservationFailed(err)
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		_, _ = inR.Close(), inW.Close()
+		return "", nil, gitObservationFailed(err)
+	}
+	defer outR.Close()
 	c := exec.Command("git", "-c", "credential.helper=", "cat-file", "--batch-check=%(objectname) %(objecttype)")
 	c.Dir = root
 	c.Env = gitEnvironment()
-	stdin, err := c.StdinPipe()
+	c.Stdin, c.Stdout = inR, outW
+	err = c.Start()
+	// The child holds its own copies; closing ours lets EOF reach both sides.
+	_, _ = inR.Close(), outW.Close()
 	if err != nil {
+		_ = inW.Close()
 		return "", nil, gitObservationFailed(err)
 	}
-	stdout, err := c.StdoutPipe()
-	if err != nil {
-		return "", nil, gitObservationFailed(err)
-	}
-	if err := c.Start(); err != nil {
-		return "", nil, gitObservationFailed(err)
-	}
-	out := bufio.NewReader(stdout)
-	commit, objs, err := askAtCommit(stdin, out, rev, paths)
-	_ = stdin.Close()
+	out := bufio.NewReader(outR)
+	commit, objs, err := askAtCommit(inW, out, rev, paths)
+	_ = inW.Close()
 	_, _ = io.Copy(io.Discard, out)
 	if werr := c.Wait(); err == nil && werr != nil {
 		err = gitObservationFailed(werr)

@@ -254,11 +254,12 @@ func claimedKnowHowValue(k store.ClaimedKnowHow) wire.Value {
 		o := wire.NewObject().Set("trust", wire.String(knowHowTrust)).Set("state", wire.String("UNAVAILABLE"))
 		return wire.ObjectValue(o.Set("code", wire.String(wire.CodeOf(k.Err))).Set("notes", wire.Null()))
 	}
-	// The cap covers the whole member: the notes array gets what the
-	// envelope leaves at its widest, with omitted = matched and the hint.
-	envelope := deliveredKnowHow(k.Head, len(k.Notes), len(k.Notes), nil)
-	budget := store.KnowHowDeliveryMaxBytes - (len(wire.Encode(envelope)) - len("[]"))
-	items, omitted := store.ProjectKnowHow(k.Notes, true, budget)
+	// The cap covers the whole member: each candidate prefix is measured with
+	// its own omitted count and the hint it would carry.
+	envelope := func(omitted int) int {
+		return len(wire.Encode(deliveredKnowHow(k.Head, len(k.Notes), omitted, nil))) - len("[]")
+	}
+	items, omitted := store.ProjectKnowHow(k.Notes, true, store.KnowHowDeliveryMaxBytes, envelope)
 	return deliveredKnowHow(k.Head, len(k.Notes), omitted, items)
 }
 
