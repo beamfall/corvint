@@ -2532,7 +2532,7 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood ha
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	225	`corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	234	The bundle MUST bind the complete receipt and state by a content SHA-256 and
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	241	`corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
-SHA-256	docs/specs/operator-update-v0.md	125	Negative checksum/availability/download/compatibility cases are deterministic fi
+SHA-256	docs/specs/operator-update-v0.md	130	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c

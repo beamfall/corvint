@@ -11,8 +11,10 @@ needs the latest committed transaction's previous executable and receipt.
 
 - Proposed `UPD-V0-007` (pending owner acceptance) in `docs/specs/operator-update-v0.md`.
 - `apply` and `rollback` take an exclusive lock on the state directory for the whole run and first
-  remove every `transaction-*` directory without `receipt.json` (`sweepIncomplete`). Only apply
-  creates transactions, and only under that lock, so such a directory is provably abandoned.
+  remove every `transaction-<digits>` directory without `receipt.json` last modified more than 30
+  minutes ago (`sweepIncomplete`). A run is bounded at five minutes, so no live apply, including one
+  from an older updater that does not take the state lock, can own it; a younger one is named in
+  `left` and swept later.
 - After a successful activation, `retainCommitted` removes the committed transaction's
   `archive.tar.gz`, `smoke-home` and extracted candidate (the installed bytes), keeping the
   receipt, `previous`, checksums, release metadata, qualification evidence and notices, then removes
@@ -23,8 +25,8 @@ needs the latest committed transaction's previous executable and receipt.
 
 ## Measured
 
-`TestUPDV0007RetentionBoundInterruptedSweepAndRollback`-shaped fixture with a 4 MiB padded
-executable, three successive applies (builds 162, 163, 164), state-directory bytes after each:
+The `TestUPDV0007RetentionBoundInterruptedSweepAndRollback` fixture without its seeded extra
+entries, a 4 MiB padded executable, three successive applies (builds 162, 163, 164), state-directory bytes after each:
 
 | | after apply 1 | after apply 2 | after apply 3 |
 |---|---|---|---|
@@ -40,7 +42,17 @@ rollback), rollback after pruning restoring the exact build-163 digest, a second
 another component's transaction kept, a malformed receipt left and named, and a held state lock
 refusing the run.
 
+## Review
+
+Codex (gpt-6-astra, read-only) found two majors in the first version: any `transaction-*`
+directory without a receipt was swept, so an operator's `transaction-notes` would be deleted, and
+an older updater without the state lock sharing the state directory (different destination) could
+lose a live staging directory. Fixed by the `transaction-<digits>` name check and the 30-minute
+age floor; both cases are in the test.
+
 ## Limits
+
+- An interrupted apply is swept by the first run at least 30 minutes later, not the very next run.
 
 - Rollback depth is one step. Earlier transactions are removed once superseded, which changes the
   previous behaviour of keeping all of them.

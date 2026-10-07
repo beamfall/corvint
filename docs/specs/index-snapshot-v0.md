@@ -592,8 +592,11 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `<sha1|sha256>-<tree-oid>-<16-hex engine>.{gob,sect,aip}` (kinds `snapshot`, `sectioned`, `pack`),
   the `build-cost.json` record (`build-cost`), and a writer temporary (`snapshot-*.tmp`,
   `blob-*.tmp`, `.gitignore-*.tmp`) older than the existing ten-minute staleness cutoff
-  (`temporary`). Removals go through a root bound to that directory, so a symlinked entry is
-  never followed. When nothing is left, the store's own `.gitignore` is removed if it holds
+  (`temporary`). `.corvint` and `.corvint/index` are opened only when a no-follow `lstat` shows a
+  real directory and the opened descriptor is that same directory, and every removal is relative to
+  those descriptors, so a symlinked entry is never followed and swapping either directory for a
+  link mid-sweep cannot redirect a removal; the directory itself is removed only if it is still the
+  one opened. When nothing is left, the store's own `.gitignore` is removed if it holds
   exactly `*\n` (`ignore`), then the empty directory (`directory`, 0 bytes). A `.corvint/index`
   that is a symlink or not a directory, a link, a subdirectory, a fresh temporary, any other
   name, an unreadable entry, a failed removal and an unfinished listing past the entry bound are

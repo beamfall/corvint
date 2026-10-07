@@ -11,8 +11,9 @@ it. On this machine the primary checkout's held 303 MiB in five snapshots and a 
 
 - Proposed `IDX-SNAP-V0-027` (pending owner acceptance) in `docs/specs/index-snapshot-v0.md`:
   after an `index` write publishes to the shared store and evicts there, `WriteSnapshot` calls
-  `sweepLegacyStore` on the writing worktree's `.corvint/index/`. Through an `os.Root` bound to
-  that directory it removes regular files named as a snapshot, sectioned companion or pack
+  `sweepLegacyStore` on the writing worktree's `.corvint/index/`. It opens `.corvint` and the
+  store as `os.Root` descriptors only when each matches a no-follow `lstat` (`os.SameFile`), and
+  through them removes regular files named as a snapshot, sectioned companion or pack
   (`<format>-<tree>-<engine>.{gob,sect,aip}`), `build-cost.json`, and writer temporaries older
   than the existing ten-minute cutoff; then, only when nothing was left and the listing was
   complete, the `*\n` ignore file and the empty directory.
@@ -35,6 +36,13 @@ six files. Before (base 5808c26c): an `index` write to the shared store does not
 `.corvint/index` (no code path names it when `store.shared`; inferred from the code, not
 instrumented), so all 1,055,295 bytes remain. After: one write removes all six files and the
 directory; `legacy_removed` names each with its byte count, which sum to 1,055,295.
+
+## Review
+
+Codex (gpt-6-astra, read-only) found a blocker: the first version `lstat`ed `.corvint/index` and
+then reopened it by path, so a link swapped in between could redirect removals outside the store.
+Fixed by the descriptor identity check above and a re-check before removing the directory. The
+race itself has no deterministic test; the static-link cases are tested.
 
 ## Limits
 

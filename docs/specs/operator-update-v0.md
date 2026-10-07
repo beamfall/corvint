@@ -58,16 +58,21 @@ The baseline is manual archive verification and copying binaries, with external 
   qualification limits, partial failures and known durability exclusions in command output/docs.
 - `UPD-V0-007`: (proposed 2026-10-07, V1-0929, pending owner acceptance) The state directory MUST
   stay bounded to what rollback needs. `apply` and `rollback` MUST hold an exclusive lock on the
-  state directory for the whole run; under it they first remove every `transaction-*` directory
-  without `receipt.json` (an apply killed before its receipt, which rollback can never use). After
+  state directory for the whole run; under it they first remove every updater transaction
+  directory (named `transaction-<digits>`, as `os.MkdirTemp` creates it) that has no `receipt.json`
+  and was last modified more than 30 minutes ago: an apply killed before its receipt, which rollback
+  can never use for any component, and which no live run can still own because a run is bounded at
+  five minutes (this also covers an older updater without the state lock sharing the directory). A
+  younger one is kept and named in `left`, and is swept by a later run. After
   a successful activation, apply MUST remove the committed transaction's `archive.tar.gz`,
   `smoke-home` and extracted candidate executable (whose bytes are now the installed ones), keeping
   `receipt.json`, `previous`, the release checksums and metadata, qualification evidence, and the
   retained notices, manifests and source; it then removes every other transaction whose receipt
   names the same component and canonical destination. Each removed path is named in the result's
   `removed`; a transaction entry that is a link or not a directory, has an unreadable or malformed
-  receipt, or fails to remove is kept and named in `left` as `path: reason`. Transactions of another
-  component or destination, and non-transaction entries, are untouched. `check` writes nothing and
+  receipt, or fails to remove is kept and named in `left` as `path: reason`. Transactions with a
+  receipt for another component or destination, and entries not named like an updater transaction,
+  are untouched. `check` writes nothing and
   takes no state lock. Rollback depth is therefore one step: the latest committed transaction
   restores the previous executable; an earlier one is gone once superseded. A transaction left by a
   failed activation after its receipt was written is kept until the next successful apply of that
@@ -117,7 +122,7 @@ and callers restart them when the applicable host integration requires it.
 | UPD-V0-003 | bounded transport, paths and destination lock | `TestUPDV0003ArchivePathsAndLocks`: caps, aliases, traversal, concurrent state roots |
 | UPD-V0-004 | candidate preparation and activation | `TestUPDV0004ActivationDowngradeCancelRace`, `TestUPDV0004UnchangedCleanupAndDestinationDrift`, `TestUPDV0004PartialArchiveCancellation`: no-op, downgrade, race and partial-download cancellation |
 | UPD-V0-005 | bound prepared receipts and rollback | `TestUPDV0005ApplyRollbackAndPreparedReceipt` and `TestUPDV0005PreparedReceiptInterruptionRecovery`: exact restored digest, interrupted prepared state and drift |
-| UPD-V0-007 (proposed) | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant at one executable instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, an interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |
+| UPD-V0-007 (proposed) | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, a fresh receipt-less transaction and a `transaction-notes` operator directory kept, a stale interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the

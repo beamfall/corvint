@@ -119,14 +119,14 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		if err = privateDir(c.StateDir); err != nil {
 			return r, err
 		}
-		// The state lock makes a transaction without a receipt provably
-		// abandoned: only apply creates one, and only while holding it.
+		// The state lock serialises updaters that share this state; the
+		// incomplete sweep also requires an age no live run can reach.
 		unlockState, stateErr := lockDirectory(c.StateDir)
 		if stateErr != nil {
 			return r, fmt.Errorf("state directory: %w", stateErr)
 		}
 		defer unlockState()
-		r.Removed, r.Left = sweepIncomplete(c.StateDir)
+		r.Removed, r.Left = sweepIncomplete(c.StateDir, time.Now())
 	}
 	if command == "rollback" {
 		r.Receipt, err = e.rollback(ctx, destination)
@@ -314,18 +314,27 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	return r, err
 }
 
-const transactionPrefix = "transaction-"
+// transactionName matches the directories apply creates with
+// os.MkdirTemp(state, "transaction-"); any other name is not the updater's.
+var transactionName = regexp.MustCompile(`^transaction-[0-9]+$`)
 
-// sweepIncomplete removes every transaction directory without receipt.json:
-// an apply killed before its receipt was written, which rollback can never use.
-// The caller holds the state lock, so no live apply owns one (proposed UPD-V0-007).
-func sweepIncomplete(state string) (removed, left []string) {
+// incompleteStaleAfter is how old a transaction without a receipt must be
+// before it is swept. Run bounds a whole command at five minutes, so a
+// directory last modified longer ago than this cannot belong to a live run,
+// including one from an updater that predates the state lock.
+const incompleteStaleAfter = 30 * time.Minute
+
+// sweepIncomplete removes every updater transaction directory without
+// receipt.json that is older than incompleteStaleAfter: an apply killed before
+// its receipt was written, which rollback can never use, whatever component it
+// was for (proposed UPD-V0-007).
+func sweepIncomplete(state string, now time.Time) (removed, left []string) {
 	entries, err := os.ReadDir(state)
 	if err != nil {
 		return nil, []string{state + ": " + err.Error()}
 	}
 	for _, entry := range entries {
-		if !strings.HasPrefix(entry.Name(), transactionPrefix) {
+		if !transactionName.MatchString(entry.Name()) {
 			continue
 		}
 		dir := filepath.Join(state, entry.Name())
@@ -340,6 +349,10 @@ func sweepIncomplete(state string) (removed, left []string) {
 		}
 		if !os.IsNotExist(err) {
 			left = append(left, dir+": "+err.Error())
+			continue
+		}
+		if now.Sub(info.ModTime()) < incompleteStaleAfter {
+			left = append(left, dir+": incomplete transaction younger than "+incompleteStaleAfter.String())
 			continue
 		}
 		if err = os.RemoveAll(dir); err != nil {
@@ -374,7 +387,7 @@ func retainCommitted(state, stage, candidate string, committed receipt) (removed
 	}
 	for _, entry := range entries {
 		dir := filepath.Join(state, entry.Name())
-		if !strings.HasPrefix(entry.Name(), transactionPrefix) || dir == stage {
+		if !transactionName.MatchString(entry.Name()) || dir == stage {
 			continue
 		}
 		info, err := os.Lstat(dir)
@@ -383,6 +396,9 @@ func retainCommitted(state, stage, candidate string, committed receipt) (removed
 			continue
 		}
 		b, err := readRegular(filepath.Join(dir, "receipt.json"), metadataLimit)
+		if errors.Is(err, os.ErrNotExist) {
+			continue // incomplete: sweepIncomplete owns it
+		}
 		if err != nil {
 			left = append(left, dir+": "+err.Error())
 			continue

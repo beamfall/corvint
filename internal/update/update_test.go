@@ -523,15 +523,29 @@ func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
 	if err := os.MkdirAll(state, 0700); err != nil {
 		t.Fatal(err)
 	}
-	killed := filepath.Join(state, "transaction-killed")
-	if err := os.MkdirAll(filepath.Join(killed, "extracted"), 0700); err != nil {
+	// An apply killed before its receipt, long enough ago that no run can
+	// still own it; a fresh one a live run may still be staging; and an
+	// operator directory that only looks like a transaction.
+	stale := time.Now().Add(-2 * incompleteStaleAfter)
+	killed := filepath.Join(state, "transaction-100")
+	fresh := filepath.Join(state, "transaction-400")
+	notes := filepath.Join(state, "transaction-notes")
+	for _, dir := range []string{killed, fresh, notes} {
+		if err := os.MkdirAll(filepath.Join(dir, "extracted"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "archive.tar.gz"), scriptBinary(1, pad), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(dir, stale, stale); err != nil && dir != fresh {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chtimes(fresh, time.Now(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(killed, "archive.tar.gz"), scriptBinary(1, pad), 0600); err != nil {
-		t.Fatal(err)
-	}
-	other := filepath.Join(state, "transaction-tasks")
-	malformed := filepath.Join(state, "transaction-malformed")
+	other := filepath.Join(state, "transaction-200")
+	malformed := filepath.Join(state, "transaction-300")
 	for dir, body := range map[string]string{other: `{"Component":"tasks","Destination":"/elsewhere/corvint-tasks"}`, malformed: "not json"} {
 		if err := os.Mkdir(dir, 0700); err != nil {
 			t.Fatal(err)
@@ -560,19 +574,19 @@ func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
 	if strings.Join(first.Removed, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("first apply removed %q, want %q", first.Removed, want)
 	}
-	if len(first.Left) != 1 || !strings.HasPrefix(first.Left[0], malformed+": ") {
+	if len(first.Left) != 2 || first.Left[0] != fresh+": incomplete transaction younger than 30m0s" || !strings.HasPrefix(first.Left[1], malformed+": ") {
 		t.Fatalf("first apply left %q", first.Left)
 	}
 	if !slices.Contains(second.Removed, stage) || slices.Contains(second.Removed, other) {
 		t.Fatalf("second apply removed %q", second.Removed)
 	}
-	for _, kept := range []string{other, malformed, unrelated, third.Receipt, filepath.Join(filepath.Dir(third.Receipt), "previous"), filepath.Join(filepath.Dir(third.Receipt), "verification-report.json")} {
+	for _, kept := range []string{other, malformed, unrelated, fresh, filepath.Join(notes, "archive.tar.gz"), third.Receipt, filepath.Join(filepath.Dir(third.Receipt), "previous"), filepath.Join(filepath.Dir(third.Receipt), "verification-report.json")} {
 		if _, err := os.Lstat(kept); err != nil {
 			t.Fatalf("%s was removed: %v", kept, err)
 		}
 	}
 	transactions, _ := filepath.Glob(filepath.Join(state, "transaction-*"))
-	if len(transactions) != 3 {
+	if len(transactions) != 5 {
 		t.Fatalf("transactions after three applies: %q", transactions)
 	}
 	// An apply killed after its stage existed and before its receipt: the
@@ -582,6 +596,9 @@ func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = os.WriteFile(filepath.Join(interrupted, "archive.tar.gz"), []byte("partial"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Chtimes(interrupted, stale, stale); err != nil {
 		t.Fatal(err)
 	}
 	// Rollback refuses any unreadable receipt (UPD-V0-005), so the operator

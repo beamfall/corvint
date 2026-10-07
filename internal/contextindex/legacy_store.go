@@ -36,24 +36,21 @@ type LegacyEntry struct {
 // not a real directory, is left and named. directory is "" when there is no
 // legacy store.
 func sweepLegacyStore(root string, now time.Time) (directory string, removed []EvictedSnapshot, left []LegacyEntry) {
-	corvint := filepath.Join(root, ".corvint")
 	directory = filepath.Join(root, filepath.FromSlash(snapshotSubpath))
-	if info, err := os.Lstat(corvint); err != nil || !info.IsDir() {
+	// Every step after these checks is relative to descriptors whose identity
+	// matched a no-follow Lstat, so swapping `.corvint` or `.corvint/index`
+	// for a link mid-sweep cannot redirect a removal outside the store.
+	corvint, ok := openRealDirectory(nil, filepath.Join(root, ".corvint"))
+	if !ok {
 		return "", nil, nil
 	}
-	info, err := os.Lstat(directory)
-	if errors.Is(err, os.ErrNotExist) {
+	defer corvint.Close()
+	if _, err := corvint.Lstat("index"); errors.Is(err, os.ErrNotExist) {
 		return "", nil, nil
 	}
-	if err != nil {
-		return directory, nil, []LegacyEntry{{directory, "unreadable: " + err.Error()}}
-	}
-	if !info.IsDir() {
+	store, ok := openRealDirectory(corvint, "index")
+	if !ok {
 		return directory, nil, []LegacyEntry{{directory, "not a real directory"}}
-	}
-	store, err := os.OpenRoot(directory)
-	if err != nil {
-		return directory, nil, []LegacyEntry{{directory, "unreadable: " + err.Error()}}
 	}
 	defer store.Close()
 	listing, err := store.Open(".")
@@ -134,7 +131,17 @@ func sweepLegacyStore(root string, now time.Time) (directory string, removed []E
 		}
 		removed = append(removed, EvictedSnapshot{Kind: "ignore", Path: ignorePath, Bytes: info.Size()})
 	}
-	if err := os.Remove(directory); err != nil {
+	opened, err := store.Stat(".")
+	if err == nil {
+		var named os.FileInfo
+		if named, err = corvint.Lstat("index"); err == nil && !os.SameFile(opened, named) {
+			err = errors.New("replaced during the sweep")
+		}
+	}
+	if err == nil {
+		err = corvint.Remove("index")
+	}
+	if err != nil {
 		return directory, removed, append(left, LegacyEntry{directory, "remove failed: " + err.Error()})
 	}
 	removed = append(removed, EvictedSnapshot{Kind: "directory", Path: directory})
@@ -155,4 +162,28 @@ func legacyIgnoreIsCorvints(store *os.Root) bool {
 
 func trimPublishedExtension(path string) string {
 	return path[:len(path)-len(filepath.Ext(path))] + ".gob"
+}
+
+// openRealDirectory opens name, relative to parent or as a path when parent is
+// nil, only when it is a real directory and the opened descriptor is that same
+// directory, not one a link or a concurrent swap put in its place.
+func openRealDirectory(parent *os.Root, name string) (*os.Root, bool) {
+	lstat, open := os.Lstat, os.OpenRoot
+	if parent != nil {
+		lstat, open = parent.Lstat, parent.OpenRoot
+	}
+	before, err := lstat(name)
+	if err != nil || !before.IsDir() {
+		return nil, false
+	}
+	opened, err := open(name)
+	if err != nil {
+		return nil, false
+	}
+	after, err := opened.Stat(".")
+	if err != nil || !os.SameFile(before, after) {
+		opened.Close()
+		return nil, false
+	}
+	return opened, true
 }
