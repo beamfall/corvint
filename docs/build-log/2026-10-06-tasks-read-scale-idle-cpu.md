@@ -163,6 +163,40 @@ The remaining idle cost at D is the 60 s safety-net full read (about 1.5 CPU s e
 cache above would roughly halve it. Focused tests pass: `go test ./supervisor ./journal ./wire
 ./store ./dispatch ./cli` (`internal/tasks`, one package at a time, `GOMAXPROCS=3`).
 
+## Review round 1 (Codex, 76f7f2ac..4ee55e49, NOT PASS)
+
+Each finding was reproduced by a failing test before its fix.
+
+- P1, unchanged-ledger skip claimed durability it never established (`dispatch/ledger.go`). The
+  ledger now keeps the digest of the bytes it last saved with file fsync, rename and directory
+  fsync all succeeding, cleared on any save error; a save skips only those bytes, still in place.
+  `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync` injects a directory sync failure and
+  shows the next identical save syncs again and reports honestly.
+- P2-1, a deadline crossed during a full tick was dropped (`dispatch/idle.go`). Any lease,
+  cooldown or sweep deadline after the tick's start and at or before settle leaves the gate
+  unarmed. `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm` advances the clock inside the
+  tick's observation.
+- P2-2, the carried review fold ignored removal of an earlier receipt (`store/review_fold.go`).
+  The carry is now bound to the `receipts/` name listing (canonical names 1..carried seq, exact
+  count); a change falls back to the whole-history fold, which refuses as before
+  (`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`). An earlier receipt's content
+  rewritten in place under its own name is still not re-hashed by each fold; as decided for
+  V1-0645, `receipt audit` (JOURNAL_FORKED) and refresh detect it
+  (`TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`). CAL-V0-138 now states this
+  as a guarantee change for owner acceptance. The listing costs one directory read per tick.
+- P2-3, a full plan encoded under 890,000 nodes could not be decoded by `DecodeResult` (250,000).
+  The generic bound is unchanged; `wire.DecodeResultLimit(raw, maxNodes)` decodes under a
+  caller bound capped at `wire.MaxResultNodes` (890,000), and `Encode` refuses a `MaxNodes` above
+  that cap. `TestCALV0141_PlanNodeBoundScalesPerEntry` round-trips the 10,000-entry plan. No
+  in-tree Go consumer decodes plan preview bytes besides the Core decoder
+  (`internal/taskman/decode.go`), whose pre-existing 1,000-entry limit is left as a follow-up.
+- P3-1, retained pending sweep records blocked the gate only while sweeping was configured. They
+  now block it unconditionally
+  (`TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping`).
+- P3-2, the failure-mode text now says a running dispatcher never reloads an externally edited
+  ledger: full ticks keep the in-memory ledger and overwrite `state.json`, while a ticket file
+  edited outside the journal is seen by the periodic full read.
+
 ## Rollback
 
 Revert the code and the spec subsection. No stored state, request, receipt or wire shape changes;

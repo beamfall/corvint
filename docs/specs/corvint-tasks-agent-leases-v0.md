@@ -3301,10 +3301,15 @@ essential. These requirements are proposed; acceptance is human-owned.
   than that interval, and the leader and interrupt wakeups stay immediate.
 - `CAL-V0-138`: proposed (V1-0894; GitHub #641). A long-running dispatcher (`dispatch`, `service
   run`) MAY carry its review binding fold in process memory between ticks and fold only the
-  receipts appended since. It MUST continue only while the receipt it last folded keeps its digest
-  and every new receipt chains to its predecessor; any shorter or rewritten history, unreadable or
-  undecodable receipt, or binding refusal MUST discard the carried state and answer exactly as the
-  whole-history fold from receipt 1. Nothing is persisted.
+  receipts appended since. It MUST continue only while the receipt it last folded keeps its digest,
+  the `receipts/` directory listing still names every receipt from 1 to that receipt (canonical
+  names, exact count), and every new receipt chains to its predecessor; any shorter history, removed
+  or renamed earlier receipt, rewritten last receipt, unreadable or undecodable receipt, or binding
+  refusal MUST discard the carried state and answer exactly as the whole-history fold from receipt 1.
+  An earlier receipt's content rewritten in place under its own name is not re-hashed by each carried
+  fold; as decided for V1-0645, such a prefix edit is detected by `receipt audit` (JOURNAL_FORKED)
+  and refresh, not by every fold. This is a guarantee change from the whole-history fold, which
+  re-reads every receipt, and needs owner acceptance. Nothing is persisted.
 - `CAL-V0-139`: proposed (V1-0894; GitHub #641). A long-running dispatcher whose queue offers a
   store witness MAY skip a tick's store read only after a full tick left its ledger bytes unchanged
   (no events, no launches) and while the witness, the configuration and the ledger it settled on
@@ -3314,7 +3319,13 @@ essential. These requirements are proposed; acceptance is human-owned.
   directories and every top-level intent entry; a witness error reads in full. A skipped tick MUST
   give way to a full tick at the earliest of 60 seconds after the last full read, an observed lease
   expiry, a recorded cooldown and a scheduled pool sweep, and whenever the clock is behind the
-  armed tick. The ledger MUST NOT be rewritten when its encoded bytes are unchanged.
+  armed tick. A deadline that falls after a full tick started and at or before it settles MUST
+  leave the gate unarmed, so the next tick reads in full; only deadlines strictly after the settle
+  time arm it, and the earliest bounds the skip window. A retained pending pool sweep record blocks
+  the gate whether or not the configuration sweeps. The ledger MUST NOT be rewritten when its
+  encoded bytes are unchanged, still in place and were last saved by this ledger with every step
+  (file fsync, rename and directory fsync) succeeding; any failed save forgets that, so the next
+  identical save writes and syncs again and reports its own result.
 - `CAL-V0-140`: proposed (V1-0893; GitHub #641). Within one snapshot-pinned read, the journal
   audit's before and after captures MUST reuse the intent bytes the read's first probe hashed for
   every intent file whose current size matches, and MUST read any other file fresh. A same-size
@@ -3325,7 +3336,10 @@ essential. These requirements are proposed; acceptance is human-owned.
   against a JSON node bound of the base 250,000 nodes plus 64 nodes per plan entry (at most 890,000
   at the 10,000-ticket queue bound), so a full queue previews instead of refusing LIMIT_EXCEEDED. An
   entry is typically 27 nodes; a result over the scaled bound still refuses LIMIT_EXCEEDED. Every
-  other result keeps the base bound and the output bytes are unchanged.
+  other result keeps the base bound and the output bytes are unchanged. No bound may exceed
+  `wire.MaxResultNodes` (890,000) on encode. The generic `DecodeResult` keeps the base bound; a
+  consumer of the full plan decodes through the bounded route `DecodeResultLimit(raw, maxNodes)`,
+  which refuses LIMIT_EXCEEDED for a bound outside 1..890,000.
 - `CAL-V0-142`: proposed (V1-0894; GitHub #641). `service run` MUST build its dispatcher's queue
   with the configured ticket pools, as `dispatch` does.
 
@@ -3341,8 +3355,13 @@ group for 90 seconds after publishing the capsule, so the classification is unch
 record layout is pinned to `kinfo_proc` (648 bytes); a kernel that changes it fails the length
 check and the scan is uncertain, exactly as when `ps` fails. A carried fold
 whose process outlives a store rewrite is caught by the digest and chain checks and refolds.
-An idle dispatcher does not see a ticket file rewritten in place outside the journal, or a ledger
-mutated in place by another process, until its next full read, at most 60 seconds later. The
+An idle dispatcher does not see a ticket file rewritten in place outside the journal until its next
+full read, at most 60 seconds later; the periodic full read sees it. A ledger (`state.json`) edited
+by another process is never reloaded by a running dispatcher: every full tick keeps its in-memory
+ledger and overwrites `state.json` with it, as before. A carried review fold does not re-hash an
+earlier receipt's content on each tick; an in-place rewrite of one under its own name is found by
+`receipt audit` and refresh (CAL-V0-138). The Core plan decoder (`internal/taskman`) keeps its own
+pre-existing 1,000-entry limit and does not read a full 10,000-entry plan. The
 shared audit capture trusts a same-size intent file to the read's second probe, which re-hashes
 every file after the body.
 
@@ -3352,8 +3371,12 @@ Acceptance evidence: `TestCALV0135_ReceiptFoldPinnedReader`, `TestCALV0138_Revie
 `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`);
 `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux)
 (`internal/tasks/supervisor`); `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`,
-`TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers` (`internal/tasks/dispatch`);
-`TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0139_DispatchQueueWitness`,
+`TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`,
+`TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`,
+`TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`);
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved` (`internal/tasks/store`);
+`TestCALV0138_CarriedReviewFoldMatchesWholeHistory`,
+`TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`, `TestCALV0139_DispatchQueueWitness`,
 `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads`, `TestCALV0141_PlanNodeBoundScalesPerEntry`,
 `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`);
 `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); synthetic-store and
@@ -3663,8 +3686,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |
 | CAL-V0-136 | `TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`, `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux) (`internal/tasks/supervisor`) |
 | CAL-V0-137 | `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`) |
-| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory` (`internal/tasks/cli`) |
-| CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
+| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
+| CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
 | CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
