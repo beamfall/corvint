@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -316,5 +317,24 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	return mutateResult(cmd, report)
+	res := mutateResult(cmd, report)
+	if operation == mutation.OpCompleteManual && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		res.Warnings = append(res.Warnings, unmetDependencyWarnings(store0.Inventory, report.Ticket)...)
+	}
+	return res
+}
+
+// unmetDependencyWarnings names each COMPLETED-obligation dependency that a
+// committed COMPLETE_MANUAL overrode (CAL-V0-186). It reads the intent store
+// the command loaded before the write; the receipt and journal are unchanged.
+func unmetDependencyWarnings(inv *ticket.Inventory, target string) []string {
+	var out []string
+	for _, d := range inv.UnmetCompletedDependencies(target) {
+		status := d.Status
+		if status == "" {
+			status = "not found"
+		}
+		out = append(out, fmt.Sprintf("COMPLETE_MANUAL overrode an unsatisfied dependency: %s (obligation COMPLETED) is %s", d.TicketID, status))
+	}
+	return out
 }

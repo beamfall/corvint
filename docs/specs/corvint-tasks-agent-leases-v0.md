@@ -31,7 +31,7 @@ owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 2
 owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (CAL-V0-107, ticket V1-0852),
 owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (CAL-V0-108, ticket V1-0855),
 owner request [issue 625](https://github.com/beamfall/corvint/issues/625) (CAL-V0-106, ticket V1-0854), owner request [issue 636](https://github.com/beamfall/corvint/issues/636) (CAL-V0-109..110, ticket V1-0862), owner request [issue 646](https://github.com/beamfall/corvint/issues/646) (CAL-V0-125..126, ticket V1-0891, accepted by decision 0439), owner request [issue 645](https://github.com/beamfall/corvint/issues/645) (CAL-V0-127..129, ticket V1-0890, accepted by decision 0439),
-owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
+owner decision 2026-10-07 on native ticket V1-0979 (CAL-V0-186, proposed), owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -5576,3 +5576,36 @@ receipt state depends on the batch form.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |
+
+## V1-0979 complete-manual dependency warning amendment
+
+Authoritative input: owner decision 2026-10-07 (V1-0978) recorded on native ticket V1-0979. In
+the Corvint queue, V1-0015 was completed by `complete-manual` while its COMPLETED-obligation
+dependency V1-0014 was OPEN, and nothing in the result said so. The owner chose to warn, not
+refuse: a manual disposition may override a dependency, and the warning makes the override
+visible. This amendment changes no payload, receipt, journal record, replay rule or outcome.
+
+- `CAL-V0-186`: (proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
+  COMPLETE_MANUAL receipt (not a replay, no-change or refusal), the command result MUST add one
+  envelope `warnings` entry for each COMPLETED-obligation dependency of the target whose ticket is
+  neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 satisfaction test), in the form
+  `COMPLETE_MANUAL overrode an unsatisfied dependency: <ticketId> (obligation COMPLETED) is
+  <status>`, where `<status>` is `not found` when the dependency ticket is not in the queue. The
+  entries MUST be in ticketId byte order and MUST be derived from the intent store the command
+  read before its write. GATE_PASSED dependencies are not evaluated. When every COMPLETED
+  dependency is satisfied the command MUST add no such warning. The completion MUST still commit,
+  and the receipt, journal entry, result item and outcome MUST be those the command produces
+  without this amendment.
+
+Non-goals: refusing or holding a manual completion; evaluating GATE_PASSED dependencies or
+execution prerequisites; warning on an exact replay (the original result carried it); warnings
+on other writers such as the admin console's ticket verbs.
+
+Failure modes: the dependency status is the pre-write read, so a dependency another writer
+completes between that read and the commit can be reported as unsatisfied; the warning is
+advisory and the committed state is unaffected. Rollback removes the helper and the warning; no
+store, journal or receipt state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-186 | `TestCALV0186_CompleteManualWarnsOnUnmetCompletedDependency` (`internal/tasks/cli`); `TestCALV0186_UnmetCompletedDependencies` (`internal/tasks/ticket`) |
