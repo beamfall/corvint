@@ -4111,8 +4111,9 @@ same 2×8 MiB bound that detached runs keep (ATR-V0-010). A worker is a new sess
 writes through append-mode descriptors it holds itself, and it outlives the dispatcher, so the
 dispatcher cannot place a pipe or a rename between the worker and its log.
 
-- `CAL-V0-143`: (proposed; V1-0930) On every supervising tick, before it compares log sizes for activity
+- `CAL-V0-143`: (proposed; V1-0930) On every supervising tick, right after it compares log sizes for activity
   (CAL-V0-056), the dispatcher MUST cap each recorded worker's `stdout.log` and `stderr.log`.
+  Output that is then cut still counts as activity.
   A stream whose live file exceeds 8 MiB MUST be cut as follows:
   - Its newest bytes, starting at a line boundary when one lies within the first 64 KiB of the
     kept range, are written to a temporary file in the worker directory behind one marker line.
@@ -4123,7 +4124,7 @@ dispatcher cannot place a pipe or a rename between the worker and its log.
     new end.
 
   The truncation MUST happen even when the copy fails. The recorded log bytes become the size
-  after the cut. The `finished` summary (CAL-V0-058) MUST read a live log shorter than its 64 KiB
+  after the cut, which the next tick compares against. The `finished` summary (CAL-V0-058) MUST read a live log shorter than its 64 KiB
   window as the continuation of the rotated segment, and it MUST skip the marker line.
 - `CAL-V0-144`: (proposed; V1-0930) When a tick finishes at least one worker, after those workers leave
   the ledger, the dispatcher MUST remove finished worker directories beyond the 32 newest. A
@@ -4134,7 +4135,11 @@ dispatcher cannot place a pipe or a rename between the worker and its log.
   - an infrastructure retry episode names it as its launch, because its absence proves that
     launch never spawned (CAL-V0-104 reconcile);
   - it changed within the last hour;
-  - it cannot be read.
+  - it cannot be read;
+  - the `leader` file that launch writes into it holds a PID and start identity whose tree may still
+    run: the leader still has that identity, or a live process is in its process group or session.
+    An unreadable identity, process table or session also keeps the directory, and so does a
+    malformed `leader` file.
 
   Removal failures are left for the next pass.
 
@@ -4157,19 +4162,28 @@ Failure modes:
   and is cut again on the next tick.
 - A stopped dispatcher caps nothing. Workers adopted on restart are capped on the first tick.
 - A live tree that the ledger does not record, left by a crash between launch and the ledger save,
-  is protected only by the one-hour quiet window and the 32 newest. One that stays silent for an
-  hour while 32 newer finished directories exist can lose its log directory, though the process
-  itself is not touched.
+  is kept through its `leader` file. Two cases are protected only by the one-hour quiet window and
+  the 32 newest:
+  - a crash between the spawn and the `leader` write, or a failed `leader` write;
+  - a directory written by a build without this amendment.
+
+  Such a tree that stays silent for an hour while 32 newer finished directories exist can lose its
+  log directory. The process itself is never signalled.
+- A reused leader PID, or a process group or session ID reused by an unrelated process, keeps a
+  finished directory. Removal is only deferred.
+- A pass reads only the first 4,096 entries of `workers/`, in directory order. Retirement within
+  that window is complete. Directories beyond it wait until the window shrinks, so more than about
+  4,000 protected or recent directories in the window would stall the rest.
 - An interrupted cut can leave one `<stream>.tmp-*` file in the worker directory. It is removed
   with the directory.
 
 Acceptance evidence: `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`,
-`TestCALV0144_FinishedWorkerDirsAreRetired` (`internal/tasks/dispatch`); bounds and limits in
+`TestCALV0143_CappedOutputCountsAsActivity`, `TestCALV0144_FinishedWorkerDirsAreRetired` (`internal/tasks/dispatch`); bounds and limits in
 `docs/build-log/2026-10-07-v1-0930-dispatch-worker-log-bound.md`. Live dispatcher qualification is
 NOT_RUN.
 
-Rollback: revert the code and this amendment. Remaining `.1` segments and the directories already
-removed stay as they are. No ledger, event, request or wire shape changes.
+Rollback: revert the code and this amendment. Remaining `.1` segments, `leader` files and the
+directories already removed stay as they are. No ledger, event, request or wire shape changes.
 
 ## Amendments to TCP-00
 
@@ -4518,7 +4532,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
-| CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns` (`internal/tasks/dispatch`) |
+| CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
 | CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 

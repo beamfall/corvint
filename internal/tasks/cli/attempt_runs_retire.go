@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -21,6 +23,9 @@ const (
 	// endedRunQuiet keeps a run whose files changed this recently, so an
 	// attach that is reading a just-finished run still finds it.
 	endedRunQuiet = time.Hour
+	// retiredRunPrefix names a run directory moved out of its attempt's
+	// directory before removal, so a reader never sees a half-removed run.
+	retiredRunPrefix = ".retired-"
 )
 
 // retireEndedRuns removes the run directories of terminal attempts beyond the
@@ -28,8 +33,9 @@ const (
 // own run's FINISHED record is written. A run is removed only when its record
 // decodes and names its own directory, it has ended (FINISHED, or both its
 // supervisor and its recorded command are proven gone), it is quiet, and one
-// audited snapshot holds its attempt in a terminal phase. Anything unproven is
-// kept, and every failure is left for a later pass.
+// audited snapshot holds its attempt in a terminal phase at the run's
+// generation or a later one. Anything unproven is kept, and every failure is
+// left for a later pass.
 func (r *attemptRunner) retireEndedRuns() {
 	root := filepath.Join(r.repo.CommonDir, "taskman-runs")
 	f, err := os.Open(root)
@@ -40,12 +46,17 @@ func (r *attemptRunner) retireEndedRuns() {
 	f.Close()
 	type endedRun struct {
 		dir, base, attemptID string
+		generation           uint64
 		mtime                time.Time
 	}
 	var ended []endedRun
 	now := time.Now()
 	for _, a := range attempts {
 		if !a.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(a.Name(), retiredRunPrefix) {
+			_ = os.RemoveAll(filepath.Join(root, a.Name())) // an earlier pass stopped mid-removal
 			continue
 		}
 		base := filepath.Join(root, a.Name())
@@ -62,11 +73,15 @@ func (r *attemptRunner) retireEndedRuns() {
 			if err != nil || rec.RunID != e.Name() || attemptRunsName(rec.AttemptID) != a.Name() || !runEnded(rec) {
 				continue
 			}
+			generation, err := strconv.ParseUint(rec.Generation, 10, 64)
+			if err != nil {
+				continue
+			}
 			newest, ok := newestRunChange(dir)
 			if !ok || now.Sub(newest) < endedRunQuiet {
 				continue
 			}
-			ended = append(ended, endedRun{dir, base, rec.AttemptID, newest})
+			ended = append(ended, endedRun{dir, base, rec.AttemptID, generation, newest})
 		}
 	}
 	if len(ended) <= maxRetainedEndedRuns {
@@ -87,9 +102,11 @@ func (r *attemptRunner) retireEndedRuns() {
 	if err != nil {
 		return
 	}
+	// A retry keeps the attempt ID and opens a newer generation, so a run is
+	// removed only when the terminal record is at its generation or later.
 	terminal := ended[:0]
 	for _, e := range ended {
-		if a := records[e.attemptID]; a != nil && !a.Live() {
+		if a := records[e.attemptID]; a != nil && !a.Live() && e.generation <= a.Generation.Uint64() {
 			terminal = append(terminal, e)
 		}
 	}
@@ -103,9 +120,14 @@ func (r *attemptRunner) retireEndedRuns() {
 		return terminal[i].dir > terminal[j].dir
 	})
 	for _, e := range terminal[maxRetainedEndedRuns:] {
-		if os.RemoveAll(e.dir) == nil {
-			_ = os.Remove(e.base) // only when no run is left
+		// The run leaves its attempt's directory in one rename, so attach
+		// finds either the whole run or none of it.
+		moved := filepath.Join(root, retiredRunPrefix+filepath.Base(e.base)+"-"+filepath.Base(e.dir))
+		if os.Rename(e.dir, moved) != nil {
+			continue
 		}
+		_ = os.RemoveAll(moved)
+		_ = os.Remove(e.base) // only when no run is left
 	}
 }
 

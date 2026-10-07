@@ -74,8 +74,16 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
   - none of its files changed in the last hour.
 
   When more than 16 qualify, one audited store read (`store.AttemptRecords`) MUST still find each
-  qualifying run's attempt, and only in a terminal phase. Qualifying runs beyond the newest 16 are
-  then removed, and so is an attempt directory left empty.
+  qualifying run's attempt in a terminal phase, at the run's recorded generation or a later one. A
+  retry keeps the attempt ID and opens a newer generation. Qualifying runs beyond the newest 16 are
+  then removed.
+
+  Each removed run MUST first leave its attempt directory in one rename, to
+  `taskman-runs/.retired-<attempt>-<run>`, and is then deleted. A later pass deletes any such
+  directory that an interrupted pass left behind. An attempt directory left empty is removed.
+
+  If attach has already read a `FINISHED` record and then finds the whole run gone, it MUST refuse
+  `MISSING_EVIDENCE`, as for any absent run.
 
   The pass MUST keep every run of a live or absent attempt. It MUST also keep runs it cannot prove
   ended: a malformed record, a missing command identity, or an unreadable liveness check. It writes
@@ -200,6 +208,8 @@ detached runs serve externally leased attempts driven by agent hosts outside the
 | Run-state filesystem stalls | The `RUNNING` write runs beside the runner and never delays its timeout, beats or fence; the launcher then exits 75 at its readiness bound. A stalled `FINISHED` write delays only the supervisor's exit; attach waits or reports `SUPERVISOR_LOST` if the supervisor is killed (ATR-V0-009, ATR-V0-013). |
 | Supervisor dies just after its `RUNNING` record | The launcher does not report `OK`: it rereads the record and replays a finished run or reports `SUPERVISOR_LOST` (ATR-V0-008, ATR-V0-012). |
 | Retired run attached or listed | A retired run is gone: attach refuses `MISSING_EVIDENCE` as for any absent run, and its `RUN_OUTCOME` stays in the journal. Retirement waits for an hour of quiet and a terminal attempt, and runs only when some supervisor finishes, so a host with no further detached runs keeps its old runs (ATR-V0-015). |
+| A retry claims a terminal attempt between the store read and the removal | The store read takes no lock. A retry that revives the attempt can therefore lose some runs. They are only that attempt's earlier-generation runs, ended and quiet for an hour. No run of the new generation is removed, because removal requires the run's generation to be no newer than the terminal record that was read (ATR-V0-015). |
+| More than 1,024 attempt directories | A pass reads the first 1,024 in directory order and completes retirement within them. Attempts beyond that window wait until the window shrinks. If the window holds mostly live or absent attempts, or runs that cannot be proven ended, the attempts behind it stall (ATR-V0-015). |
 | Output volume or an output write error | Older output is dropped and counted; the command is never failed by its output (ATR-V0-010). |
 | Run record or kept result altered or malformed | `MALFORMED`; nothing is replayed (ATR-V0-010, ATR-V0-011). |
 | Run record written by a build with another run-record version | `UNSUPPORTED_VERSION`; nothing is replayed (ATR-V0-010 as amended by CAL-V0-131). |
@@ -242,4 +252,4 @@ receipt or wire shape changes.
 | ATR-V0-012 | `internal/tasks/cli/attempt_detach.go` (`processLive`, `supervisorLost`), `internal/tasks/supervisor` (`ProcessIdentity`) | TestATRV0012_AttachRefusesAProcessIdentityMismatch |
 | ATR-V0-013 | `internal/tasks/cli/attempt_detach.go` (`superviseRun`), `internal/tasks/cli/attempt_run.go` (`execute`) | TestATRV0013_FencedAttemptKillsTheDetachedCommand, TestATRV0008_DetachedRunSurvivesItsLauncher |
 | ATR-V0-014 | `internal/tasks/cli/attempt_detach_other.go`, `internal/tasks/cli/attempt_detach.go` (`launch`, `attemptAttach`) | NOT_PRODUCED: no test runs on a platform without new-session support; `GOOS=windows go vet` only |
-| ATR-V0-015 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRuns`, `runEnded`), `internal/tasks/cli/attempt_detach.go` (`superviseRun`), `internal/tasks/store/attempt_run.go` (`AttemptRecords`) | TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts |
+| ATR-V0-015 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRuns`, `runEnded`), `internal/tasks/cli/attempt_detach.go` (`superviseRun`, `replayRun`), `internal/tasks/store/attempt_run.go` (`AttemptRecords`) | TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts, TestATRV0015_AttachOfARunRetiredMidReadIsMissing |

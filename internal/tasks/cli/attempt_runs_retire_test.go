@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -96,6 +97,14 @@ func TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		liveAttemptRuns = append(liveAttemptRuns, finished(baseB, b.AttemptID, fmt.Sprintf("00000000000006%02x", i), old.Add(-20*time.Hour)))
 	}
+	// A run recorded at a generation newer than the terminal record is kept:
+	// a retry reuses the attempt ID at a newer generation.
+	newer := finished(baseA, a.AttemptID, "00000000000008aa", old.Add(-30*time.Hour))
+	rewriteGeneration(t, newer, "999")
+	leftover := filepath.Join(filepath.Dir(baseA), ".retired-"+filepath.Base(baseA)+"-00000000000009aa")
+	if err := os.MkdirAll(leftover, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	misplaced := finished(filepath.Join(filepath.Dir(baseA), "0123456789abcdef0123456789abcdef"), a.AttemptID, "00000000000007aa", old.Add(-20*time.Hour))
 	releaseAttempt(t, root, a, "retire-release-a")
 	releaseAttempt(t, root, c, "retire-release-c")
@@ -120,15 +129,45 @@ func TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts(t *testing.T) {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
+	if _, err := os.Stat(leftover); !os.IsNotExist(err) {
+		t.Errorf("a run left mid-removal was kept: %v", err)
+	}
 	for _, dir := range retired {
 		if _, err := os.Stat(dir); !os.IsNotExist(err) {
 			t.Errorf("%s was kept: %v", dir, err)
 		}
 	}
-	keptAll := append(append(append([]string{}, kept...), liveDir, malformed, misplaced, filepath.Join(baseB, runID)), liveAttemptRuns...)
+	keptAll := append(append(append([]string{}, kept...), liveDir, malformed, misplaced, newer, filepath.Join(baseB, runID)), liveAttemptRuns...)
 	for _, dir := range keptAll {
 		if _, err := os.Stat(filepath.Join(dir, "record.json")); err != nil {
 			t.Errorf("%s was retired: %v", dir, err)
 		}
+	}
+}
+
+func rewriteGeneration(t *testing.T, dir, generation string) {
+	t.Helper()
+	p := filepath.Join(dir, "record.json")
+	st, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rec map[string]any
+	raw, err := os.ReadFile(p)
+	if err == nil {
+		err = json.Unmarshal(raw, &rec)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec["generation"] = generation
+	if raw, err = json.Marshal(rec); err == nil {
+		err = os.WriteFile(p, append(raw, '\n'), 0o600)
+	}
+	if err == nil {
+		err = os.Chtimes(p, st.ModTime(), st.ModTime())
+	}
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -102,11 +104,44 @@ printf '{"type":"text","part":{"text":"capped done"}}\n'`)
 	}
 }
 
+// TestCALV0143_CappedOutputCountsAsActivity writes more than a segment into a
+// worker's log between two ticks whose recorded size is zero, as after an
+// earlier cut. The comparison precedes the cut, so the burst counts as
+// activity, and the size left after the cut is what the next tick compares.
+func TestCALV0143_CappedOutputCountsAsActivity(t *testing.T) {
+	defer func(n int64) { workerLogSegmentBytes = n }(workerLogSegmentBytes)
+	workerLogSegmentBytes = 4 << 10
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	w := &Worker{ID: "burst", PID: -1}
+	dir := d.workerDir(w.ID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	burst := strings.Repeat("output line\n", 1024)
+	if err := os.WriteFile(filepath.Join(dir, "stdout.log"), []byte(burst), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !d.active(w, map[int]proc{}, Host{}) {
+		t.Fatal("a burst that was then cut did not count as activity")
+	}
+	if w.LogBytes != 0 {
+		t.Fatalf("recorded log bytes %d, want the size after the cut", w.LogBytes)
+	}
+	if d.active(w, map[int]proc{}, Host{}) {
+		t.Fatal("an unchanged log counted as activity")
+	}
+}
+
 // TestCALV0144_FinishedWorkerDirsAreRetired fills workers/ with 40 quiet
 // finished directories and one that changed within the quiet window. When a
 // real worker finishes, only the 32 newest quiet finished directories stay
 // beside the recent one and the just-finished worker's own; a directory an
-// infrastructure retry names is kept however old it is.
+// infrastructure retry names, or whose recorded tree may still run, is kept
+// however old it is.
 func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 	c := testConfig(t, `printf '{"type":"text","part":{"text":"done"}}\n'`)
 	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
@@ -161,6 +196,47 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 			t.Errorf("%s was retired: %v", name, err)
 		}
 	}
+	if _, _, err := readLeader(d.workerDir(id)); err != nil {
+		t.Fatalf("launch kept no leader: %v", err)
+	}
+	// Directories the ledger never recorded, as after a crash between launch
+	// and the ledger save, are kept while their recorded tree may run: a live
+	// leader, or a session whose leader exited but whose child still runs. A
+	// leader that is gone with no member left is retired.
+	leader := func(name string, pid int, identity string) {
+		plant(name, now.Add(-12*time.Hour))
+		if err := os.WriteFile(filepath.Join(d.workerDir(name), workerLeaderName), []byte(fmt.Sprintf("%d %s\n", pid, identity)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		os.Chtimes(d.workerDir(name), now.Add(-12*time.Hour), now.Add(-12*time.Hour))
+	}
+	self, err := processIdentity(os.Getpid())
+	if err != nil || self == "" {
+		t.Fatalf("own identity: %q %v", self, err)
+	}
+	leader("live-leader", os.Getpid(), self)
+	orphan := exec.Command("/bin/sh", "-c", "sleep 60 & exit 0")
+	orphan.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := orphan.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Kill(-orphan.Process.Pid, syscall.SIGKILL)
+	orphanID, err := processIdentity(orphan.Process.Pid)
+	if err != nil || orphanID == "" {
+		t.Fatalf("orphan identity: %q %v", orphanID, err)
+	}
+	if err := orphan.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	leader("live-session", orphan.Process.Pid, orphanID)
+	gone := exec.Command("/bin/sh", "-c", "exit 0")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	leader("gone-leader", gone.Process.Pid, "gone-identity")
+	plant("bad-leader", now.Add(-12*time.Hour))
+	os.WriteFile(filepath.Join(d.workerDir("bad-leader"), workerLeaderName), []byte("not a leader"), 0o600)
+	os.Chtimes(d.workerDir("bad-leader"), now.Add(-12*time.Hour), now.Add(-12*time.Hour))
 	// The oldest directory stays while a reserved infrastructure retry names
 	// it, since its absence would prove that launch never spawned.
 	plant("infra-held", now.Add(-10*time.Hour))
@@ -168,6 +244,14 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 	d.retireWorkerDirs()
 	if _, err := os.Stat(d.workerDir("infra-held")); err != nil {
 		t.Fatalf("a directory named by an infrastructure retry was retired: %v", err)
+	}
+	for _, name := range []string{"live-leader", "live-session", "bad-leader"} {
+		if _, err := os.Stat(d.workerDir(name)); err != nil {
+			t.Errorf("%s was retired: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(d.workerDir("gone-leader")); !os.IsNotExist(err) {
+		t.Errorf("a directory whose tree is gone was kept: %v", err)
 	}
 	d.ledger.InfraRetry = nil
 	d.retireWorkerDirs()

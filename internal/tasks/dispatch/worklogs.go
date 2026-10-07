@@ -2,11 +2,15 @@ package dispatch
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +30,7 @@ const (
 	// maxWorkerDirScan bounds one retirement pass; a larger backlog shrinks
 	// over later passes.
 	maxWorkerDirScan  = 4096
+	workerLeaderName  = "leader"
 	workerLogMarkerOf = "corvint-tasks dispatch: %s reached %d bytes and was truncated; this segment keeps its last %d bytes\n"
 )
 
@@ -34,27 +39,32 @@ const (
 // append-mode descriptors and may outlive the dispatcher, so the file cannot
 // be renamed away: the newest part of an oversized stream is copied to
 // <name>.1, replacing the previous segment, and the live file is truncated in
-// place; the worker's next append lands at its new end.
-func capWorkerLogs(dir string) {
+// place; the worker's next append lands at its new end. It reports whether
+// any stream was cut.
+func capWorkerLogs(dir string) bool {
+	cut := false
 	for _, name := range []string{"stdout.log", "stderr.log"} {
-		capWorkerLog(dir, name)
+		if capWorkerLog(dir, name) {
+			cut = true
+		}
 	}
+	return cut
 }
 
-func capWorkerLog(dir, name string) {
+func capWorkerLog(dir, name string) bool {
 	path := filepath.Join(dir, name)
 	lst, err := os.Lstat(path)
 	if err != nil || !lst.Mode().IsRegular() || lst.Size() <= workerLogSegmentBytes {
-		return
+		return false
 	}
 	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
-		return
+		return false
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil || !os.SameFile(lst, st) || st.Size() <= workerLogSegmentBytes {
-		return
+		return false
 	}
 	size := st.Size()
 	marker := fmt.Sprintf(workerLogMarkerOf, name, size, workerLogSegmentBytes)
@@ -85,14 +95,15 @@ func capWorkerLog(dir, name string) {
 	}
 	// The cap holds even when the copy failed; bytes appended after the stat
 	// are lost with the truncation.
-	_ = f.Truncate(0)
+	return f.Truncate(0) == nil
 }
 
 // retireWorkerDirs removes finished worker directories beyond the newest
 // maxRetainedWorkerDirs (CAL-V0-144). A directory is never removed while the
 // ledger records its worker, its exit is still awaited, an infrastructure
-// retry names it as its launch (its absence proves no spawn), or it changed
-// within workerDirQuiet. Failures are left for the next pass.
+// retry names it as its launch (its absence proves no spawn), it changed
+// within workerDirQuiet, or its recorded leader's tree may still run.
+// Failures are left for the next pass.
 func (d *Dispatcher) retireWorkerDirs() {
 	root := filepath.Join(d.dir, "workers")
 	f, err := os.Open(root)
@@ -139,9 +150,48 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 		return finished[i].name > finished[j].name
 	})
+	var groups, sessions map[int]bool
+	read, usable := false, false
 	for _, x := range finished[maxRetainedWorkerDirs:] {
-		_ = os.RemoveAll(filepath.Join(root, x.name))
+		path := filepath.Join(root, x.name)
+		pid, id, err := readLeader(path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			// A directory from a build that recorded no leader: the quiet
+			// window is its only evidence.
+		case err != nil:
+			continue
+		default:
+			if !read {
+				read = true
+				groups, sessions, usable = liveTrees()
+			}
+			if !usable || treeMayRun(pid, id, groups, sessions) {
+				continue
+			}
+		}
+		_ = os.RemoveAll(path)
 	}
+}
+
+// readLeader reads the leader PID and start identity launch kept in a
+// worker directory.
+func readLeader(dir string) (int, string, error) {
+	f, err := os.Open(filepath.Join(dir, workerLeaderName))
+	if err != nil {
+		return 0, "", err
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, 256))
+	if err != nil {
+		return 0, "", err
+	}
+	pidText, id, ok := strings.Cut(strings.TrimSuffix(string(raw), "\n"), " ")
+	pid, perr := strconv.Atoi(pidText)
+	if !ok || perr != nil || pid <= 0 || id == "" {
+		return 0, "", fmt.Errorf("malformed worker leader in %s", dir)
+	}
+	return pid, id, nil
 }
 
 // newestMtime is the latest change time of a worker directory and its log
@@ -158,4 +208,15 @@ func newestMtime(path string) (time.Time, bool) {
 		}
 	}
 	return newest, true
+}
+
+// workerLogBytes is the combined size of a worker's live log files.
+func workerLogBytes(dir string) int64 {
+	var size int64
+	for _, name := range []string{"stdout.log", "stderr.log"} {
+		if st, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			size += st.Size()
+		}
+	}
+	return size
 }

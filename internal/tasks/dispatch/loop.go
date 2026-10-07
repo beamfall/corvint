@@ -632,17 +632,16 @@ var killText = map[string]string{
 // active reports output growth, an activity path advancing, or a running
 // tool process since the previous tick.
 func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
-	busy := false
-	var size int64
-	capWorkerLogs(d.workerDir(w.ID)) // CAL-V0-143, before the sizes are compared
-	for _, name := range []string{"stdout.log", "stderr.log"} {
-		if st, err := os.Stat(filepath.Join(d.workerDir(w.ID), name)); err == nil {
-			size += st.Size()
-		}
+	dir := d.workerDir(w.ID)
+	size := workerLogBytes(dir)
+	busy := size != w.LogBytes
+	// CAL-V0-143: the cut follows the comparison, so output that is then
+	// truncated still counts as activity, and the next tick compares against
+	// the size left after the cut.
+	if capWorkerLogs(dir) {
+		size = workerLogBytes(dir)
 	}
-	if size != w.LogBytes {
-		w.LogBytes, busy = size, true
-	}
+	w.LogBytes = size
 	for _, p := range w.ActivityPaths {
 		if st, err := os.Stat(p); err == nil && st.ModTime().After(w.ActivityMtime) {
 			if !w.ActivityMtime.IsZero() {
