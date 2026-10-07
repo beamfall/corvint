@@ -25,6 +25,8 @@ type reuseView struct {
 	Method   string `json:"method"`
 	Ref      string `json:"ref"`
 	Strength string `json:"strength"`
+	// Freshness is the method anchor's state; a STALE method is listed but never called.
+	Freshness string `json:"freshness"`
 }
 
 // closestSpec picks the spec the scaffold borrows from (AMAP-V0-013): a spec with a complete
@@ -144,6 +146,15 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	}
 	p.check()
 	stale := map[string]bool{}
+	// A method whose anchor changed may no longer exist or do what the step needs, so it is not
+	// called; the step falls back to a TODO and the stale reuse is reported.
+	staleCalls := map[string]call{}
+	for id, c := range calls {
+		if p.state(c.meth.Anchor) == Stale {
+			staleCalls[id] = c
+			delete(calls, id)
+		}
+	}
 	cv := closestView{Status: StatusUnknown, Reason: "no-asserting-spec"}
 	proposed, dir := "", ""
 	imports, unknowns := []any{}, []any{}
@@ -258,11 +269,14 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		lines = append(lines, fmt.Sprintf("  // step %s: %s [%s]", st.ID, st.Action, where))
 		if c, ok := calls[st.ID]; ok && !blocked[c.file.Path] {
 			lines = append(lines, fmt.Sprintf("  await %s.%s(); // reuse %s [%s]", vars[c.file.Path], c.meth.Name, c.ref, st.Selector.Strength))
-			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength})
-			if p.state(c.meth.Anchor) == Stale {
-				stale[c.meth.ID] = true
-			}
+			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: p.state(c.meth.Anchor)})
 			continue
+		}
+		if c, ok := staleCalls[st.ID]; ok {
+			lines = append(lines, fmt.Sprintf("  // reuse %s is STALE at the evaluated revision; not called", c.ref))
+			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: Stale})
+			unknowns = append(unknowns, Unknown{Kind: "scaffold-reuse", Ref: c.meth.ID, Reason: "stale-reuse", Path: c.file.Path, Line: c.meth.Anchor.Start})
+			stale[c.meth.ID] = true
 		}
 		switch {
 		case st.Selector == nil:

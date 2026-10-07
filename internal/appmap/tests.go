@@ -121,6 +121,11 @@ func readFacts(text string) fileFacts {
 					kind = "text"
 				}
 			}
+			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && !isPunct(toks[i+4], ")") && !isPunct(toks[i+4], "{") {
+				// options passed by reference may carry any name
+				f.selectors = append(f.selectors, newSelector(sk.kind, "", "", strengthUnknown, t.line))
+				continue
+			}
 			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && isPunct(toks[i+4], "{") {
 				var named bool
 				if name, named = roleName(toks, i+4, lit); !named {

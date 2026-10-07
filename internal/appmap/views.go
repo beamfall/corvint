@@ -173,8 +173,11 @@ func ProjectScreen(ctx context.Context, m *Map, query string, o Options) ([]byte
 		}
 	}
 	for _, a := range s.Specs {
+		anchors, _ := m.chain(a)
+		for _, an := range anchors {
+			p.cite(an)
+		}
 		if f := m.file(a.File); f != nil {
-			p.cite(f.Anchor)
 			p.element(f.ID)
 		}
 	}
@@ -244,7 +247,7 @@ func ProjectScreen(ctx context.Context, m *Map, query string, o Options) ([]byte
 	specs := []any{}
 	for _, a := range s.Specs {
 		v := p.specView(a)
-		if v.Anchor.Freshness == Stale {
+		if v.Chain == Stale {
 			stale[fileID(a.File)] = true
 		}
 		specs = append(specs, v)
@@ -332,8 +335,9 @@ func ProjectFlow(ctx context.Context, m *Map, query string, o Options) ([]byte, 
 				seenSpec[a.File] = true
 				specFiles = append(specFiles, a)
 				specScreens = append(specScreens, s.ID)
-				if f := m.file(a.File); f != nil {
-					p.cite(f.Anchor)
+				anchors, _ := m.chain(a)
+				for _, an := range anchors {
+					p.cite(an)
 				}
 			}
 		}

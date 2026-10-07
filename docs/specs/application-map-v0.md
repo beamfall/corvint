@@ -80,7 +80,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   A child URL is appended to its parent's template; `^` marks an absolute URL; `:p`, `{p}` and
   `{p:type}` become `{p}`; `?a&b` becomes the query list. A non-literal name, URL or value, a
   duplicate name, a missing, unresolved or cyclic parent MUST make that state and every descendant
-  `UNKNOWN` with its reason, never guessed. (proposed, pending owner acceptance; V1-0956)
+  `UNKNOWN` with its reason, never guessed. A repeated key in one object literal makes that object
+  non-literal, since the map cannot prove which value the program sees; a regular-expression
+  literal is a non-literal value. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-003`: Screens MUST be keyed by app plus template. Two resolved screens with the same
   collision key MUST be reported `ambiguous-template`, and a lookup (by element ID, state name,
   template or URL) that matches several screens MUST return status `UNKNOWN` with the candidates,
@@ -98,10 +100,12 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   spec or workflow → (workflows, scenarios, support)* → page object → screen, at most 8 hops. A page
   object is bound to a screen by a manifest `page_object_screens` entry or, failing that, by
   exactly one literal `goto`/`waitForURL`/`toHaveURL` target; zero or several targets read
-  `page-object-unbound` / `page-object-ambiguous`. A spec's own literal navigation attributes it
+  `page-object-unbound` / `page-object-ambiguous`; a page object with any non-literal target (`goto(target)`) stays unbound
+  (`page-object-unresolved-target`), since that target may be the screen. A spec's own literal navigation attributes it
   directly (`basis: goto`). An import that is neither resolved nor an external package (including
   a TypeScript `paths` alias until V1-0958 lands) MUST leave that file's join `UNKNOWN`
-  (`unresolved-import`), and every screen projection's `test_join` MUST read `UNKNOWN` while any
+  (`unresolved-import`); an import that resolves to a source file outside `tests.root` leaves it
+  `UNKNOWN` (`import-outside-tests`), since the join does not read beyond the test tree, and every screen projection's `test_join` MUST read `UNKNOWN` while any
   test file's join is `UNKNOWN`, any test file was excluded by the index or could not be read
   (`excluded-by-index`, `unparsed-imports`), or any page object is `page-object-unbound`,
   `page-object-ambiguous` or `unknown-state`, since such a file may be the one that reaches a
@@ -120,7 +124,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   continuations); a legacy octal escape or lone surrogate makes the literal non-literal. A
   `getByRole` name is read from the options object's top-level `name` member in any position, and
   the selector is `unknown` when the object has a spread, a computed or shorthand key, a repeated
-  `name`, or a non-literal name, since any of these can set a name the map cannot read. A
+  `name`, or a non-literal name, and when the options are passed by reference
+  (`getByRole('button', opts)`), since any of these can set a name the map cannot read. Line
+  continuations inside a string advance the line count of later anchors. A
   secret-shaped literal is dropped and reported `secret-shaped`.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-008`: Edges MUST come only from evidence: `flow-step` edges between adjacent
@@ -141,6 +147,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   are claims of the file, not proof. A screen's template, query, permissions and flags derive from
   its ancestors' states, so `screen` and `flow` also check every ancestor anchor and print the
   worst of them with the screen's own as `lineage_freshness` (`STALE` over `UNKNOWN` over `FRESH`).
+  A spec attributed through imports derives from every file on its chain, so each spec item also
+  prints `chain_freshness`, the worst of the spec's and every `via` file's anchor (`UNKNOWN` when a
+  chain file is absent from the map), and a screen with a `STALE` chain is not cited as `FRESH`.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-011`: `screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
   document no larger than its budget: defaults 4096, 6144, 2048 and 6144 bytes; `--budget` in
@@ -168,7 +177,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   whose class or variable name is already taken is emitted `// UNRESOLVED` with
   `binding-collision`, and its steps fall back to TODOs. It leaves locator and outcome TODOs
   otherwise. A selector of strength `unknown`, and a step with no selector (whatever a map file
-  claims as its reuse), is never offered as reuse. With no
+  claims as its reuse), is never offered as reuse. A reused method whose anchor is `STALE` at the
+  evaluated revision is not called: the step keeps a commented note and a TODO, its reuse item
+  reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
@@ -212,10 +223,10 @@ with one coded JSON error on stderr and nothing on stdout.
 `unresolved-parent`, `parent-cycle`, `ambiguous-template`, `no-matching-screen`,
 `no-matching-flow`, `partial-segment-substitution`, `no-navigation-step`, `unresolved-import`,
 `import-depth-exceeded`, `unparsed-imports`, `excluded-by-index`, `page-object-unbound`,
-`page-object-ambiguous`, `unknown-state`, `secret-shaped`, `no-asserting-spec`, `binding-collision`,
-`overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
+`page-object-ambiguous`, `page-object-unresolved-target`, `import-outside-tests`, `unknown-state`,
+`secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
-`page-object`, `selector`, `scaffold`, `scaffold-import` and `overlay`.
+`page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse` and `overlay`.
 
 ## Overlay seam
 
@@ -252,7 +263,10 @@ steps) attaches here; this slice defines the seam only and implements no verific
   (`unknown`), an ancestor state changed under an unchanged screen (`lineage_freshness: STALE`),
   two reused page objects with one class name (`binding-collision`), and a hand-edited map whose
   anchors disagree with Git (`STALE`, even at the map's own revision) or that claims reuse for a
-  step with no selector (TODO, no call).
+  step with no selector (TODO, no call), a repeated object key (non-literal), a role name passed by
+  reference (`unknown`), a page object with a non-literal target (unbound), an import outside
+  `tests.root` (join `UNKNOWN`), a changed workflow under an unchanged spec (`chain_freshness:
+  STALE`), and a reused method changed since the map was built (`stale-reuse`, no call).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -261,18 +275,18 @@ steps) attaches here; this slice defines the seam only and implements no verific
 | Requirement | Evidence |
 | --- | --- |
 | AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0001DeclaredDirectoriesExist` |
-| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject` |
+| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys` |
 | AMAP-V0-003 | `TestAMAPV0002HierarchyResolution` |
 | AMAP-V0-004 | `TestAMAPV0004FlowSteps` |
-| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0007PartialLiterals` |
+| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0005UnresolvedTargetBlocksBinding`, `TestAMAPV0005ImportOutsideTests`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-006 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0004FlowSteps` |
-| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads` |
+| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads`, `TestAMAPV0007RegexReferencedOptionsAndContinuations` |
 | AMAP-V0-008 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0004FlowSteps` |
 | AMAP-V0-009 | `TestAMAPV0009DeterministicArtifact`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale` |
+| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 
@@ -310,3 +324,10 @@ needs migration. Map files are explicit outputs and may be discarded.
 5. Should `test_join` be per screen instead of `UNKNOWN` globally while any spec is unresolved?
 6. Are the default budgets (4/6/2/6 KiB) right?
 7. Should a pure line shift read `FRESH` by content search instead of the fail-closed `STALE`?
+8. Should the join follow imports beyond `tests.root` (shared source helpers) instead of the
+   fail-closed `import-outside-tests`?
+9. Should a page object with one literal and one non-literal target bind to the literal one instead
+   of the fail-closed `page-object-unresolved-target`?
+10. Should a repeated object key take the last value (JavaScript semantics) instead of making the
+    router object non-literal?
+11. Should the scaffold still call a `STALE` reused method with a warning instead of leaving a TODO?

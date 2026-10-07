@@ -586,10 +586,34 @@ type specView struct {
 	Assertions int        `json:"assertions"`
 	Join       string     `json:"join"`
 	Anchor     anchorView `json:"anchor"`
+	Chain      string     `json:"chain_freshness"`
+}
+
+// chain returns the anchors an attribution rests on: the spec and, for an import attribution,
+// every file on its import chain, since a changed intermediate import can move the spec to
+// another screen (AMAP-V0-010). complete is false when the map lacks a file on the chain.
+func (m *Map) chain(a Attribution) (anchors []Anchor, complete bool) {
+	files := []string{a.File}
+	if a.Basis == "import" {
+		files = append(files, a.Via...)
+	}
+	complete = true
+	for _, p := range files {
+		if f := m.file(p); f != nil {
+			anchors = append(anchors, f.Anchor)
+		} else {
+			complete = false
+		}
+	}
+	return anchors, complete
 }
 
 func (p *projection) specView(a Attribution) specView {
-	v := specView{File: a.File, Basis: a.Basis, Via: a.Via, Join: StatusUnknown}
+	anchors, complete := p.m.chain(a)
+	v := specView{File: a.File, Basis: a.Basis, Via: a.Via, Join: StatusUnknown, Chain: p.worst(anchors)}
+	if !complete && v.Chain != Stale {
+		v.Chain = FreshUnknown
+	}
 	if f := p.m.file(a.File); f != nil {
 		v.Assertions, v.Join, v.Anchor = f.Assertions, f.Join, p.anchorView(f.Anchor)
 	}

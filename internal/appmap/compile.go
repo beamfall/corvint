@@ -221,6 +221,12 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			} else {
 				imp.Status = importStatus(s, packages)
 			}
+			if imp.Status == importResolved && !under(imp.Resolved, rootDir) && webSuffix[strings.ToLower(path.Ext(imp.Resolved))] {
+				// A first-party module outside tests.root is not read, yet it may import a page
+				// object, so the chain through it is not known to be complete.
+				tf.Join = StatusUnknown
+				b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-outside-tests", Path: p, Line: imp.Line})
+			}
 			if imp.Status == importUnresolved {
 				tf.Join = StatusUnknown
 				b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "unresolved-import", Path: p, Line: imp.Line})
@@ -306,18 +312,23 @@ func (b *builder) join() {
 			}
 			continue
 		}
-		targets := map[string]bool{}
+		targets, unresolved := map[string]bool{}, false
 		for _, g := range tf.Gotos {
 			if g.Screen != "" {
 				targets[g.Screen] = true
+			} else {
+				unresolved = true
 			}
 		}
-		switch len(targets) {
-		case 1:
+		switch {
+		case unresolved:
+			// a target the map cannot place may be a second screen, so no single binding is known
+			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unresolved-target", Path: p})
+		case len(targets) == 1:
 			for id := range targets {
 				tf.Screen, tf.ScreenBasis = id, "page-object-url"
 			}
-		case 0:
+		case len(targets) == 0:
 			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unbound", Path: p})
 		default:
 			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-ambiguous", Path: p})
