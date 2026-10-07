@@ -116,6 +116,13 @@ type SnapshotReceipt struct {
 	LiveHeads        string
 	LiveTrees        int
 	EvictedSnapshots []EvictedSnapshot
+	// LegacyStore is the worktree's `.corvint/index` when the write went to
+	// the shared store and that superseded directory existed; LegacyRemoved
+	// names every file the write removed from it and LegacyLeft every entry
+	// it left, with the reason (proposed IDX-SNAP-V0-027).
+	LegacyStore   string
+	LegacyRemoved []EvictedSnapshot
+	LegacyLeft    []LegacyEntry
 }
 
 // EvictedSnapshot is one published file an index write removed. Kind is
@@ -354,6 +361,9 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 		receipt.EvictedSnapshots = append(receipt.EvictedSnapshots, evictAnalyzerPacks(directory, receipt.PackPath, bound, live)...)
 	}
 	receipt.Evicted = len(receipt.EvictedSnapshots)
+	if store.shared {
+		receipt.LegacyStore, receipt.LegacyRemoved, receipt.LegacyLeft = sweepLegacyStore(index.Root, time.Now())
+	}
 	return receipt, nil
 }
 

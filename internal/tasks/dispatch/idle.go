@@ -169,6 +169,9 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
+	if !d.retireConfirm.IsZero() {
+		early(d.retireConfirm) // a pending CAL-V0-144 confirmation
+	}
 	d.laneAgeDeadlines(early)
 	if d.Config.PoolSweep != nil {
 		early(d.sweepNext)

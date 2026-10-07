@@ -304,8 +304,7 @@ func validRunID(s string) bool {
 // runsDir is the attempt's private run directory beside the journal, never
 // inside it (ATR-V0-010).
 func runsDir(repo *intent.Repository, attemptID string) string {
-	sum := sha256.Sum256([]byte(attemptID))
-	return filepath.Join(repo.CommonDir, "taskman-runs", hex.EncodeToString(sum[:16]))
+	return filepath.Join(repo.CommonDir, "taskman-runs", attemptRunsName(attemptID))
 }
 
 func flagBeforeDelimiter(args []string, flag string) bool {
@@ -611,6 +610,7 @@ func (r *attemptRunner) superviseRun(argv []string) int {
 	if err := writeRunRecord(dir, rec); err != nil {
 		return fail(fmt.Errorf("finished record not written: %w", err))
 	}
+	r.retireEndedRuns() // ATR-V0-015, after this run's result is kept
 	return status
 }
 
@@ -638,6 +638,13 @@ func runItem(rec *runRecord, dir, attemptID, runID string) wire.Value {
 func replayRun(env Env, dir string, rec *runRecord) int {
 	cmd := []string{"run"}
 	raw, err := readBounded(filepath.Join(dir, runResultName), maxRunResultBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		// A run retired after its record was read leaves as a whole
+		// (ATR-V0-015): with the record gone too, the run is absent, not corrupt.
+		if _, rerr := readRunRecord(dir); errors.Is(rerr, fs.ErrNotExist) {
+			return emit(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeMissingEvidence}, Warnings: []string{prose("detached run " + filepath.Base(dir) + " was retired while it was read")}})
+		}
+	}
 	if err != nil {
 		return emit(env.Stdout, errorResult(cmd, err))
 	}

@@ -111,6 +111,10 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
 		return 0, "", nil, &startedError{pid: pid, exit: exit, err: fmt.Errorf("worker start identity unreadable: %w", err)}
 	}
+	// The leader's identity stays beside its logs, so a directory whose
+	// worker the ledger never recorded is not retired while its tree may run
+	// (CAL-V0-144). A failed write leaves the directory to the quiet window.
+	_ = os.WriteFile(filepath.Join(logDir, workerLeaderName), []byte(strconv.Itoa(pid)+" "+id+"\n"), 0o600)
 	return pid, id, exit, nil
 }
 
@@ -259,4 +263,51 @@ func busyChild(w *Worker, procs map[int]proc, ignore []string) bool {
 // openReaderMarker refuses symlinks and cannot block on a raced FIFO.
 func openReaderMarker(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+}
+
+// liveTrees reads the process groups and sessions that have a live member,
+// for CAL-V0-144. A process that exits between the table read and its
+// session read may have forked a child the table does not show, so the read
+// is taken once more and both reads are joined: that child is alive at the
+// second table read or has itself exited. ok is false when a table or a
+// session is unreadable.
+func liveTrees() (groups, sessions map[int]bool, ok bool) {
+	groups, sessions = map[int]bool{}, map[int]bool{}
+	self := os.Getpid()
+	for read := 0; read < 2; read++ {
+		procs, err := superviseProcs()
+		if err != nil {
+			return nil, nil, false
+		}
+		gone := false
+		for pid, p := range procs {
+			groups[p.pgid] = true
+			sid, err := getsid(pid)
+			if err == syscall.ESRCH {
+				// The table reader itself forks nothing.
+				gone = gone || p.ppid != self || p.comm != "ps"
+				continue
+			}
+			if err != nil {
+				return nil, nil, false
+			}
+			sessions[sid] = true
+		}
+		if !gone {
+			break
+		}
+	}
+	return groups, sessions, true
+}
+
+// treeMayRun reports whether a worker tree whose leader started as pid with
+// start identity id may still run: the leader still has that identity, or a
+// live process remains in its process group or session. An unreadable
+// identity reports true.
+func treeMayRun(pid int, id string, groups, sessions map[int]bool) bool {
+	cur, err := processIdentity(pid)
+	if err != nil || cur != "" && cur == id {
+		return true
+	}
+	return groups[pid] || sessions[pid]
 }

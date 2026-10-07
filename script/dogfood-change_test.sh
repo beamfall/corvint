@@ -415,7 +415,14 @@ test "$wrong_output" = 'dogfood-change: REFUSE corvint-version-mismatch expected
 evidence=$(git -C "$test_root/repo" rev-parse --absolute-git-dir)/corvint
 mkdir -p "$evidence"
 printf 'stale impact stderr\n' > "$evidence/coordination-time-impact.stderr"
+# A stale envelope of a step that never runs again must be cleared by the next run that uses this
+# evidence directory; a dot-file is not a step envelope and is kept.
+printf 'stale orphan stderr\n' > "$evidence/orphan-step.stderr"
+printf 'kept\n' > "$evidence/.operator-note.stderr"
 git clone -q "$test_root/repo" "$test_root/default-repo"
+default_evidence=$(git -C "$test_root/default-repo" rev-parse --absolute-git-dir)/corvint
+mkdir -p "$default_evidence"
+printf 'stale orphan stderr\n' > "$default_evidence/orphan-step.stderr"
 : > "$test_root/default-corvint.log"
 : > "$test_root/default-go.log"
 # Each parallel phase owns a process group so interrupted harness cleanup reaches its children.
@@ -429,6 +436,7 @@ set -m
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>/dev/null || first_status=$?
   test "$first_status" = 1
+  test ! -e "$default_evidence/orphan-step.stderr"
   built_corvint=$(git rev-parse --absolute-git-dir)/corvint/corvint
   test -x "$built_corvint"
   git -c user.name=t -c user.email=t@example.invalid add .corvint/change.cem.json
@@ -534,6 +542,8 @@ phase_jobs="$phase_jobs $!"
   # DCW-V0-016: each compiled packet's coverage fields, copied under the packet's names.
   rg -Fxq '  ,"packetCoverage": [{"step": "coordination-time-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "coordination-time-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
   test "$(cat "$evidence/coordination-time-impact.stderr")" = 'current impact stderr'
+  test ! -e "$evidence/orphan-step.stderr"
+  test "$(cat "$evidence/.operator-note.stderr")" = kept
   test "$(rg -c ' ocm prepare ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' ocm status ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' dogfood-observe ' "$test_root/corvint.log")" = "$(rg -c '"name":' .corvint/dogfood-report.json)"

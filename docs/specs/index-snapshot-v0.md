@@ -58,7 +58,8 @@ what any packet says.
   message), so a body overwritten with the same number of bytes, or a zeroed range the gob decoder
   would accept, is detectable on read. Amendment (proposed 2026-10-06, V1-0870, pending owner
   review): the receipt also carries `store`, `store_shared`, `live_heads`, `live_trees` and
-  `evicted_snapshots` (`IDX-SNAP-V0-025`).
+  `evicted_snapshots` (`IDX-SNAP-V0-025`). Amendment (accepted by decision 0440, V1-0928): when the writing worktree still has a superseded `.corvint/index`, it also
+  carries `legacy_store`, `legacy_removed` and `legacy_left` (`IDX-SNAP-V0-027`).
 - `IDX-SNAP-V0-002`: `context` reads the repository's identity and status as a build's opening
   observation does, and when a file named by the current object format, tree OID, and engine
   exists with a matching header, uses it with `Root` set, `DirtyPaths` set to the status
@@ -578,6 +579,40 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `WriteSnapshot`, `evictSnapshots` and `evictAnalyzerPacks`, and the new receipt keys from
   `runIndex`; the count-only `evicted` remains.
 
+### Accepted (decision 0440, V1-0928): superseded per-worktree store
+
+- `IDX-SNAP-V0-027`: (accepted by decision 0440; V1-0928) after an `index`
+  write publishes to the shared store (`store_shared:true`, `DIRTY-CACHE-013`) and runs its
+  `IDX-SNAP-V0-025` eviction, it MUST sweep the writing worktree's own `.corvint/index/`, the
+  per-worktree store the shared one superseded (`IDX-SNAP-V0-001` location amendment). Only the
+  writer does this; no read verb and no `index --if-stale` fresh probe removes anything (`AGENTS.md`
+  invariant 4). The sweep inspects at most 256 entries (four times the shared store's entry cap)
+  and removes only regular files it recognises: a snapshot, sectioned companion or pack named
+  `<sha1|sha256>-<tree-oid>-<16-hex engine>.{gob,sect,aip}` (kinds `snapshot`, `sectioned`, `pack`),
+  the `build-cost.json` record (`build-cost`), and a writer temporary (`snapshot-*.tmp`,
+  `blob-*.tmp`, `.gitignore-*.tmp`) older than the existing ten-minute staleness cutoff
+  (`temporary`). `.corvint` and `.corvint/index` are opened only when a no-follow `lstat` shows a
+  real directory and the opened descriptor is that same directory, and every removal is relative to
+  those descriptors, so a symlinked entry is never followed and swapping either directory for a
+  link mid-sweep cannot redirect a file removal; the directory itself is removed with `rmdir`
+  after re-checking that it is still the one opened, so a file or link swapped in is never deleted
+  and at worst an empty directory swapped in at that path in the last instant is. When nothing is left, the store's own `.gitignore` is removed if it holds
+  exactly `*\n` (`ignore`), then the empty directory (`directory`, 0 bytes). A `.corvint/index`
+  that is a symlink or not a directory, a link, a subdirectory, a fresh temporary, any other
+  name, an unreadable entry, a failed removal and an unfinished listing past the entry bound are
+  left in place. The write is never refused by the sweep. When that directory exists, the receipt
+  adds `legacy_store` (its path), `legacy_removed` (each removed file in the `evicted_snapshots`
+  shape, `live_head:false`, tree and engine filled for the three published kinds) and
+  `legacy_left` (`{path, reason}`); the three keys are absent when it does not, so the frozen
+  receipt (`core-compatibility-freeze-v1.md`) is unchanged for a repository without one. The
+  fallback store (`store_shared:false`) is the live store and is never swept. Falsifier: an `index`
+  write that removes a file it does not list, removes anything outside that directory or behind a
+  link, removes an unrecognised entry or a fresh temporary, touches the shared store beyond
+  `IDX-SNAP-V0-025`, or any read verb that removes a legacy file. Rollback: delete
+  `internal/contextindex/legacy_store.go`, the `sweepLegacyStore` call in `WriteSnapshot`, the
+  three receipt fields and `legacyLeftPayload`; the legacy directory is then kept as before and
+  can be removed by hand (it is disposable derived state).
+
 ## Non-goals and authority
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
@@ -653,6 +688,15 @@ path.
 - `git worktree list` or `cat-file` fails or exceeds its bound during `index`: the receipt reports
   `live_heads:"NOT_OBSERVED"` and eviction uses the engine-and-age order alone; the write is not
   refused.
+- A superseded `.corvint/index` holding something the sweep does not recognise (an operator file,
+  a `blobs/` shard directory an experimental build left, a link): those entries, the ignore file and
+  the directory stay, every write names them in `legacy_left`, and the operator removes them by
+  hand (`IDX-SNAP-V0-027`). More than 256 entries are finished over several writes only when the
+  first batch is removable; a batch of unrecognised entries stalls it, reported as "entry bound
+  reached". An older Corvint binary that still uses that store in the same worktree loses its
+  snapshots and rebuilds; a temporary it is still writing is younger than the cutoff and kept.
+  Another worktree's legacy store, and one in a repository whose fresh probe never writes, is
+  swept only by its own next write.
 
 ## Acceptance evidence
 
@@ -698,6 +742,13 @@ invocation, plus the Python adapter's no-background and interruption regressions
 `index --if-stale` tests remain unchanged. GPK-V0-017(a)'s original automatic-refresh condition is
 not satisfied by explicit warmup; this change claims no packet-5 promotion.
 
+`TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`
+(`internal/contextindex/legacy_store_test.go`) and `TestIndexReceiptNamesTheSweptLegacyStore`
+(`cmd/corvint/index_snapshot_test.go`) for `IDX-SNAP-V0-027`: a seeded 1 MiB legacy
+store is reclaimed in full and named, the shared snapshot still loads, links, a fresh temporary and
+unrecognised entries are left with their reason, and the receipt keeps the frozen key set when no
+legacy store exists (`docs/build-log/2026-10-07-legacy-index-store-sweep.md`).
+
 ## Rollback
 
 Rolling back the lifecycle amendment retains safe bounded reads and explicit supervised warmup;
@@ -739,4 +790,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
 | IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
+| IDX-SNAP-V0-027 | `sweepLegacyStore`, `WriteSnapshot`, `runIndex`, `legacyLeftPayload` | `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`, `TestIndexReceiptNamesTheSweptLegacyStore` |
 | IDX-SNAP-V0-026 | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |

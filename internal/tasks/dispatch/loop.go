@@ -101,6 +101,10 @@ type Dispatcher struct {
 	// (CAL-V0-139).
 	idle      *idleGate
 	idleLease time.Time
+	// retireConfirm is when the next confirming CAL-V0-144 retirement pass
+	// is due while worker directories hold retirement marks; zero when none
+	// is pending, so ticks without marks do no retirement work.
+	retireConfirm time.Time
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -180,6 +184,14 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if err := d.ledger.save(dir); err != nil {
 		_ = d.lock.Close()
 		return nil, err
+	}
+	// CAL-V0-144: marks left by an earlier run are confirmed, or started
+	// over, by one pass on the first tick.
+	if f, err := os.Open(filepath.Join(dir, "workers", workerRetireMarks)); err == nil {
+		if names, _ := f.Readdirnames(1); len(names) > 0 {
+			d.retireConfirm = time.Unix(0, 1)
+		}
+		f.Close()
 	}
 	return d, nil
 }
@@ -632,16 +644,16 @@ var killText = map[string]string{
 // active reports output growth, an activity path advancing, or a running
 // tool process since the previous tick.
 func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
-	busy := false
-	var size int64
-	for _, name := range []string{"stdout.log", "stderr.log"} {
-		if st, err := os.Stat(filepath.Join(d.workerDir(w.ID), name)); err == nil {
-			size += st.Size()
-		}
+	dir := d.workerDir(w.ID)
+	size := workerLogBytes(dir)
+	busy := size != w.LogBytes
+	// CAL-V0-143: the cut follows the comparison, so output that is then
+	// truncated still counts as activity, and the next tick compares against
+	// the size left after the cut.
+	if capWorkerLogs(dir) {
+		size = workerLogBytes(dir)
 	}
-	if size != w.LogBytes {
-		w.LogBytes, busy = size, true
-	}
+	w.LogBytes = size
 	for _, p := range w.ActivityPaths {
 		if st, err := os.Stat(p); err == nil && st.ModTime().After(w.ActivityMtime) {
 			if !w.ActivityMtime.IsZero() {
@@ -882,6 +894,11 @@ func requestID(parts ...string) string {
 // starts a cooldown and, at parkAfter, parks the key for the owner.
 func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending map[string]bool) {
 	now := d.Now()
+	// CAL-V0-144: retirement runs once the finished workers left the ledger,
+	// and on its own once pending marks are due for confirmation.
+	if len(ended) > 0 || !d.retireConfirm.IsZero() && !now.Before(d.retireConfirm) {
+		defer d.retireWorkerDirs()
+	}
 	for _, w := range ended {
 		if pending[w.ID] {
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "declared progress accounting deferred until a known work state"})
