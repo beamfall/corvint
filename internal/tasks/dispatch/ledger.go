@@ -668,7 +668,13 @@ func (l *Ledger) save(dir string) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(filepath.Join(dir, "state.json"), raw)
+	// CAL-V0-139: bytes already in place are not rewritten or synced again;
+	// every rename into place followed its file's fsync.
+	path := filepath.Join(dir, "state.json")
+	if old, err := readBounded(path, maxLedger); err == nil && bytes.Equal(old, raw) {
+		return nil
+	}
+	return writeAtomic(path, raw)
 }
 
 func writeAtomic(path string, raw []byte) error {

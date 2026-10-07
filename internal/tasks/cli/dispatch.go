@@ -65,7 +65,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools(), reviews: &store.ReviewFold{}}, env.Stderr)
+	d, e := dispatch.Open(values["--program"], c, newDispatchQueue(env, c), env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
@@ -459,6 +459,11 @@ type dispatchQueue struct {
 	// reviews carries the review binding fold across this dispatcher's
 	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
 	reviews *store.ReviewFold
+}
+
+// newDispatchQueue is the queue of a dispatcher running config c.
+func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
+	return dispatchQueue{env: env, pools: c.TicketPools(), reviews: &store.ReviewFold{}}
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
