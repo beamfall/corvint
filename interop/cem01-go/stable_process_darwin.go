@@ -123,9 +123,72 @@ func stableKeeperStatus(kind byte, value uint32) {
 	}
 }
 
-// stableKeeperMain is the private keeper. It never returns.
+// stableKeeperOwner watches the keeper's owner, its parent at start, so the
+// keeper never outlives it. Control EOF alone is not enough: a copy of the
+// owner's control end leaked into any longer-lived process keeps fd 3 open
+// and would park the keeper forever.
+type stableKeeperOwner struct{ kq, pid int }
+
+// stableKeeperWatchOwner registers the owner's exit; false means the owner is
+// already gone or cannot be watched, and the keeper must not proceed.
+func stableKeeperWatchOwner() (stableKeeperOwner, bool) {
+	o := stableKeeperOwner{kq: -1, pid: os.Getppid()}
+	kq, err := syscall.Kqueue()
+	if err != nil || o.pid <= 1 {
+		return o, false
+	}
+	o.kq = kq
+	ev := []syscall.Kevent_t{{Ident: uint64(o.pid), Filter: syscall.EVFILT_PROC, Flags: syscall.EV_ADD, Fflags: syscall.NOTE_EXIT}}
+	if _, err := syscall.Kevent(kq, ev, nil, nil); err != nil {
+		return o, false
+	}
+	// Reparenting on owner exit makes a race with registration visible here.
+	return o, os.Getppid() == o.pid
+}
+
+// await blocks until the one-shot event (ident, filter) fires, returning
+// true, or the owner exits, returning false. Any kqueue failure is treated
+// as owner loss so the keeper fails closed.
+func (o stableKeeperOwner) await(ident uint64, filter int16, fflags uint32) bool {
+	ch := []syscall.Kevent_t{{Ident: ident, Filter: filter, Flags: syscall.EV_ADD | syscall.EV_ONESHOT, Fflags: fflags}}
+	if _, err := syscall.Kevent(o.kq, ch, nil, nil); err != nil {
+		// A child that has already exited cannot be registered; Wait reaps it.
+		return filter == syscall.EVFILT_PROC && err == syscall.ESRCH
+	}
+	ev := make([]syscall.Kevent_t, 2)
+	for {
+		n, err := syscall.Kevent(o.kq, nil, ev, nil)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err != nil {
+			return false
+		}
+		for _, e := range ev[:n] {
+			if e.Filter == syscall.EVFILT_PROC && e.Ident == uint64(o.pid) {
+				return false
+			}
+		}
+		if n > 0 {
+			return true
+		}
+	}
+}
+
+// stableKeeperRetire kills the keeper's own group, the Git child included.
+func stableKeeperRetire() {
+	_ = syscall.Kill(0, syscall.SIGKILL)
+	os.Exit(2)
+}
+
+// stableKeeperMain is the private keeper. It never returns. It retires its
+// group on control EOF or as soon as its owner exits, whichever comes first.
 func stableKeeperMain() {
 	syscall.CloseOnExec(3)
+	owner, alive := stableKeeperWatchOwner()
+	if !alive {
+		stableKeeperRetire()
+	}
 	argv, _, ok := stableKeeperFrame()
 	if !ok {
 		stableKeeperStatus(stableStatusProtocolError, 0)
@@ -137,6 +200,9 @@ func stableKeeperMain() {
 		os.Stdin.Close()
 		os.Stdout.Close()
 		os.Stderr.Close()
+		if !owner.await(uint64(p.Pid), syscall.EVFILT_PROC, syscall.NOTE_EXIT) {
+			stableKeeperRetire()
+		}
 		st, err := p.Wait()
 		ws, _ := st.Sys().(syscall.WaitStatus)
 		switch {
@@ -147,17 +213,16 @@ func stableKeeperMain() {
 		}
 	}
 	buf := make([]byte, 64)
-	for {
+	for owner.await(3, syscall.EVFILT_READ, 0) {
 		n, err := syscall.Read(3, buf)
-		if err == syscall.EINTR {
+		if err == syscall.EINTR || err == syscall.EAGAIN {
 			continue
 		}
 		if err != nil || n <= 0 {
 			break
 		}
 	}
-	_ = syscall.Kill(0, syscall.SIGKILL)
-	os.Exit(2)
+	stableKeeperRetire()
 }
 
 type stableLimitReader struct {

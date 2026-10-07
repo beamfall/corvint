@@ -8,6 +8,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -266,8 +269,21 @@ func TestStableLifecycleRetirePostReapBoundIsInsideOuterBound(t *testing.T) {
 	}
 }
 
-func TestStableLifecycleKeeperProtocolError(t *testing.T) {
+// lifecycleSocketpair mirrors the owner: both ends close on exec, created
+// under ForkLock so no concurrently started child inherits either.
+func lifecycleSocketpair() ([2]int, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err == nil {
+		syscall.CloseOnExec(fds[0])
+		syscall.CloseOnExec(fds[1])
+	}
+	return fds, err
+}
+
+func TestStableLifecycleKeeperProtocolError(t *testing.T) {
+	fds, err := lifecycleSocketpair()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,4 +312,116 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	if n != 12 || string(st[:4]) != "CEMS" || st[5] != stableStatusProtocolError {
 		t.Fatalf("keeper status %q", st[:n])
 	}
+}
+
+const lifecycleOrphanEnv = "CEM01_TEST_ORPHAN_OWNER"
+
+func init() {
+	if git := os.Getenv(lifecycleOrphanEnv); git != "" && len(os.Args) == 1 {
+		lifecycleOrphanOwner(git)
+	}
+}
+
+// lifecycleOrphanOwner is a re-executed owner that starts a keeper for git,
+// leaks its own control end into a long-lived holder, prints the keeper,
+// holder and child pids, and exits without closing anything, as an owner
+// killed mid-transaction would. The holder keeps the keeper's fd 3 open, so
+// only the owner's exit can retire the keeper.
+func lifecycleOrphanOwner(git string) {
+	fds, err := lifecycleSocketpair()
+	if err != nil {
+		os.Exit(3)
+	}
+	owner, keeper := os.NewFile(uintptr(fds[0]), "owner"), os.NewFile(uintptr(fds[1]), "keeper")
+	exe, err := os.Executable()
+	if err != nil {
+		os.Exit(3)
+	}
+	k := exec.Command(exe, stableKeeperProtocol)
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, lifecycleOrphanEnv+"=") {
+			k.Env = append(k.Env, e)
+		}
+	}
+	k.ExtraFiles = []*os.File{keeper}
+	k.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	h := exec.Command("/bin/sleep", "300")
+	h.ExtraFiles = []*os.File{owner}
+	h.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if k.Start() != nil || h.Start() != nil {
+		os.Exit(3)
+	}
+	if _, err := owner.Write(stableEncodeFrame(stableOpFormat, 40, []string{git, filepath.Dir(git)})); err != nil {
+		os.Exit(3)
+	}
+	_ = owner.SetReadDeadline(time.Now().Add(10 * time.Second))
+	st := make([]byte, 12)
+	if n, _ := io.ReadFull(owner, st); n != 12 || string(st[:4]) != "CEMS" {
+		os.Exit(3)
+	}
+	fmt.Printf("%d %d %d %d\n", k.Process.Pid, h.Process.Pid, st[5], binary.BigEndian.Uint32(st[8:]))
+	os.Exit(0)
+}
+
+// lifecycleOrphan runs the orphan owner and returns the keeper pid, the
+// reported status and its value; the holder is killed at cleanup.
+func lifecycleOrphan(t *testing.T, git string) (int, byte, int) {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe)
+	cmd.Env = append(os.Environ(), lifecycleOrphanEnv+"="+git)
+	out, err := cmd.Output()
+	var keeper, holder, kind, value int
+	if _, serr := fmt.Sscan(string(out), &keeper, &holder, &kind, &value); err != nil || serr != nil {
+		t.Fatalf("orphan owner: %v %q", err, out)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(holder, syscall.SIGKILL) })
+	if syscall.Kill(holder, 0) != nil {
+		t.Fatal("holder of the leaked control end is not running")
+	}
+	return keeper, byte(kind), value
+}
+
+// lifecycleGoneWithin waits for each pid to be absent, test-side only.
+func lifecycleGoneWithin(t *testing.T, d time.Duration, pids ...int) {
+	t.Helper()
+	deadline := time.Now().Add(d)
+	for _, pid := range pids {
+		for syscall.Kill(pid, 0) != syscall.ESRCH {
+			if time.Now().After(deadline) {
+				for _, p := range pids {
+					_ = syscall.Kill(p, syscall.SIGKILL)
+				}
+				t.Fatalf("pid %d outlived its owner", pid)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+}
+
+// A keeper parked after a failed launch retires when its owner exits even
+// though a leaked copy of the owner's control end keeps fd 3 open.
+func TestStableLifecycleKeeperOwnerExitWhileHolding(t *testing.T) {
+	keeper, kind, _ := lifecycleOrphan(t, filepath.Join(s0eTemp(t), "missing-git"))
+	if kind != stableStatusLaunchFailed {
+		t.Fatalf("status %d, want launch failure", kind)
+	}
+	lifecycleGoneWithin(t, 10*time.Second, keeper)
+}
+
+// A keeper waiting on a running Git child retires its whole group, child
+// included, when its owner exits.
+func TestStableLifecycleKeeperOwnerExitWhileRunning(t *testing.T) {
+	git := filepath.Join(s0eTemp(t), "git")
+	if err := os.WriteFile(git, []byte("#!/bin/sh\nexec /bin/sleep 300\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keeper, kind, child := lifecycleOrphan(t, git)
+	if kind != stableStatusStarted || child <= 1 {
+		t.Fatalf("status %d child %d, want started", kind, child)
+	}
+	lifecycleGoneWithin(t, 10*time.Second, keeper, child)
 }
