@@ -228,9 +228,9 @@ AMSP-V0-004	docs/specs/application-map-scenario-planner-v0.md	91	The plan MUST o
 AMSP-V0-005	docs/specs/application-map-scenario-planner-v0.md	98	A step MUST read, in this order of precedence:
 AMSP-V0-006	docs/specs/application-map-scenario-planner-v0.md	114	Navigation MUST be composed over MAPPED steps only:
 AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	126	Verification MUST be read from the AMAP-V0-014 overlays in
-AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	144	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
-AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	166	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
-AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	172	The planner MUST be served by two surfaces:
+AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	148	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
+AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	170	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
+AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	176	The planner MUST be served by two surfaces:
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -2491,8 +2491,8 @@ RVN-V0-003	docs/specs/run-verified-navigation-v0.md	83	An outcome MUST count as 
 RVN-V0-004	docs/specs/run-verified-navigation-v0.md	92	Placed evidence MUST be compared with the projection's evaluated revision
 RVN-V0-005	docs/specs/run-verified-navigation-v0.md	97	The status MUST be exactly one of `VERIFIED`, `UNVERIFIED_AT_HEAD`,
 RVN-V0-006	docs/specs/run-verified-navigation-v0.md	106	When receipts are supplied, the `screen` and `flow` projections MUST print the
-RVN-V0-007	docs/specs/run-verified-navigation-v0.md	120	The fact and its text MUST always carry authority `learned`. A run status MUST N
-RVN-V0-008	docs/specs/run-verified-navigation-v0.md	127	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
+RVN-V0-007	docs/specs/run-verified-navigation-v0.md	122	The fact and its text MUST always carry authority `learned`. A run status MUST N
+RVN-V0-008	docs/specs/run-verified-navigation-v0.md	129	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
 SAC-001	docs/specs/swift-apple-analyzer-candidate-v0.md	32	`internal/analyzerswift` and `cmd/corvint-analyzer-swift` remain isolated native
 SAC-002	docs/specs/swift-apple-analyzer-candidate-v0.md	35	The request is the frozen experimental envelope with family `swift-apple`, exact
 SAC-003	docs/specs/swift-apple-analyzer-candidate-v0.md	45	The closed coordinate descriptor binds Swift language `6.3`, SwiftPM tools `6.0`

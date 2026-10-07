@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	js "github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 // planRepo commits the issue-657 fixture, then the planner overlay (testdata/plan: two more admin
@@ -272,9 +274,9 @@ func TestAMSPV0005StaleAndUnknownFreshness(t *testing.T) {
 	}
 }
 
-// fakeVerifier is an Overlay that answers VerificationFactKind facts. status returns
+// fakeVerifier is an Overlay that answers VerificationSource facts. status returns
 // "VERIFIED@<rev>" for a VERIFIED fact at rev, any other text verbatim, or "" for no fact. Every
-// ID also gets a VERIFIED fact of another kind, and an unasked ID gets one of the right kind; the
+// ID also gets a VERIFIED fact of another source, and an unasked ID gets one of the right source; the
 // planner must ignore both.
 type fakeVerifier struct {
 	calls  int
@@ -291,18 +293,18 @@ func (f *fakeVerifier) Facts(_ context.Context, ids []string) ([]Fact, error) {
 	}
 	out := []Fact{}
 	for _, id := range ids {
-		out = append(out, Fact{ElementID: id, Source: "fake", Kind: "note", Text: "VERIFIED", Revision: strings.Repeat("c", 40)})
+		out = append(out, Fact{ElementID: id, Source: "fake", Kind: Verified, Revision: strings.Repeat("c", 40)})
 		s := f.status(id)
 		if s == "" {
 			continue
 		}
-		fact := Fact{ElementID: id, Source: "fake", Kind: VerificationFactKind, Text: s}
+		fact := Fact{ElementID: id, Source: VerificationSource, Kind: s}
 		if rev, ok := strings.CutPrefix(s, "VERIFIED@"); ok {
-			fact.Text, fact.Revision = "VERIFIED", rev
+			fact.Kind, fact.Revision = Verified, rev
 		}
 		out = append(out, fact)
 	}
-	out = append(out, Fact{ElementID: "step:not-asked/x", Kind: VerificationFactKind, Text: "VERIFIED", Revision: strings.Repeat("a", 40)})
+	out = append(out, Fact{ElementID: "step:not-asked/x", Source: VerificationSource, Kind: Verified, Revision: strings.Repeat("a", 40)})
 	return out, nil
 }
 
@@ -314,7 +316,7 @@ func verifiers(v ...*fakeVerifier) []Overlay {
 	return out
 }
 
-// AMSP-V0-007: per-step verification comes only through VerificationFactKind overlay facts.
+// AMSP-V0-007: per-step verification comes only through VerificationSource overlay facts.
 // Absent reads unverified, VERIFIED stands only at the evaluated revision, CONTRADICTED is a gap,
 // conflicting facts resolve to the most restrictive, malformed or failed verification is
 // reported, and the plan's authority stays candidate.
@@ -635,10 +637,10 @@ func TestAMSPV0007FactCapOverflowDoesNotPromote(t *testing.T) {
 		out := []Fact{}
 		for len(out) < maxFacts {
 			for _, id := range ids {
-				out = append(out, Fact{ElementID: id, Kind: VerificationFactKind, Text: "VERIFIED", Revision: rev})
+				out = append(out, Fact{ElementID: id, Source: VerificationSource, Kind: Verified, Revision: rev})
 			}
 		}
-		return append(out, Fact{ElementID: buy, Kind: VerificationFactKind, Text: "CONTRADICTED"})
+		return append(out, Fact{ElementID: buy, Source: VerificationSource, Kind: Contradicted})
 	})
 	o.Overlays = []Overlay{flood}
 	doc := planOf(t, maps, []string{"buy a gift card"}, o)
@@ -651,3 +653,64 @@ func TestAMSPV0007FactCapOverflowDoesNotPromote(t *testing.T) {
 type overlayFunc func(ids []string) []Fact
 
 func (f overlayFunc) Facts(_ context.Context, ids []string) ([]Fact, error) { return f(ids), nil }
+
+// planVerification loads receipts and bindings over every plan map and returns one run
+// verification overlay per map, as `flows appmap plan --receipt` passes them.
+func planVerification(t *testing.T, maps []*Map, o Options, receipts []string, binds ...string) Options {
+	t.Helper()
+	v, err := LoadPlanVerification(maps, receipts, binds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := o
+	for _, m := range maps {
+		o.Overlays = append(o.Overlays, v.Overlay(m, base))
+	}
+	return o
+}
+
+// AMSP-V0-007, RVN-V0-006: the planner reads the receipt-bound run-verification overlay. A
+// passing receipt bound to a step reads VERIFIED@<rev> at the receipt's revision; the step's
+// selector has no run-verification producer and stays unverified, so the step reads candidate
+// until it has no selector; a later router change reads UNVERIFIED_AT_HEAD.
+func TestAMSPV0007ReceiptVerificationOverlay(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	r := pwpReceipt(t, rev, js.StatePassed)
+	receipt := writeReceipt(t, r)
+	const step = "step:check-slot-status/read-status"
+	request := []string{"check the slot status"}
+	plan := func(revision string) (map[string]any, map[string]any, map[string]any) {
+		o := planVerification(t, maps, Options{Root: root, Revision: revision}, []string{receipt}, step+"="+r.Tests[0].ID)
+		doc := planOf(t, maps, request, PlanOptions{Options: o})
+		s := planSteps(t, doc)[0]
+		return doc, s, actions(s)[0]
+	}
+	doc, s, a := plan(rev)
+	sel, _ := a["selector"].(map[string]any)
+	if a["step"] != step || a["verification"] != "VERIFIED@"+rev || sel == nil || sel["verification"] != Unverified ||
+		s["confidence"] != "candidate" || strings.Contains(stringOf(doc["unknowns"]), "verification-") {
+		t.Fatalf("bound step: %v selector %v confidence %v unknowns %v", a["verification"], sel, s["confidence"], doc["unknowns"])
+	}
+	// The receipt names its own revision; planning at a later one cannot read VERIFIED@.
+	writeFile(t, root, "notes.txt", "unrelated\n")
+	if _, _, a := plan(commitAll(t, root, "unrelated")); a["verification"] != UnverifiedAtHead {
+		t.Fatalf("later revision: %v", a["verification"])
+	}
+	// With no selector (and so no reused method) every element of the step is VERIFIED@.
+	_, st := maps[0].step(step)
+	saved := st.Selector
+	st.Selector = nil
+	if _, s, _ := plan(rev); s["confidence"] != "run-verified" {
+		t.Fatalf("selector-free step confidence %v", s["confidence"])
+	}
+	st.Selector = saved
+	routes := readText(t, root, "app/routes.js")
+	writeFile(t, root, "app/routes.js", strings.Replace(routes, "flags: ['new_teesheet']", "flags: ['new_teesheet', 'beta']", 1))
+	commitAll(t, root, "change teesheet state")
+	if _, s, a := plan(""); a["verification"] != UnverifiedAtHead || s["status"] != StepStale {
+		t.Fatalf("changed source: %v %v", a["verification"], s["status"])
+	}
+	if _, err := LoadPlanVerification(maps, []string{receipt}, []string{"step:none/x=" + r.Tests[0].ID}); codeOf(err) != "appmap-verify-unknown-step" {
+		t.Fatalf("unknown step bind: %v", err)
+	}
+}

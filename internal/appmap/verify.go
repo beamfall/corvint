@@ -126,6 +126,13 @@ func validTestKey(k string) bool {
 // LoadVerification decodes receipt files through the PWP provider document contract and checks
 // each `STEP_ID=TEST_KEY` binding against the map and the receipts (RVN-V0-001, RVN-V0-002).
 func LoadVerification(m *Map, receiptFiles, binds []string) (*Verification, error) {
+	return LoadPlanVerification([]*Map{m}, receiptFiles, binds)
+}
+
+// LoadPlanVerification is LoadVerification over the maps of one plan (AMSP-V0-007): a binding
+// must name a step of at least one map. Build one Overlay per map from the result; a step ID
+// that two maps share is unattributable and the planner reads it unverified.
+func LoadPlanVerification(maps []*Map, receiptFiles, binds []string) (*Verification, error) {
 	if len(receiptFiles) == 0 {
 		if len(binds) > 0 {
 			return nil, verifyError("appmap-invalid-query", "--bind requires at least one --receipt")
@@ -167,8 +174,15 @@ func LoadVerification(m *Map, receiptFiles, binds []string) (*Verification, erro
 		if !ok || !strings.HasPrefix(step, "step:") || !validTestKey(key) {
 			return nil, verifyError("appmap-invalid-query", "--bind must be STEP_ID=TEST_KEY")
 		}
-		if _, st := m.step(step); st == nil {
-			return nil, verifyError("appmap-verify-unknown-step", "--bind names no step of the map: %s", step)
+		found := false
+		for _, m := range maps {
+			if _, st := m.step(step); st != nil {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, verifyError("appmap-verify-unknown-step", "--bind names no step of any --map: %s", step)
 		}
 		if !ids[key] {
 			return nil, verifyError("appmap-verify-test-absent", "--bind test key is absent from every --receipt: %s", key)

@@ -16,7 +16,7 @@ orchestrator note of 2026-10-07 on [issue 660](https://github.com/beamfall/corvi
 ## Agent digest
 - Claim: Playwright receipts bound to map steps read VERIFIED at their app revision, UNVERIFIED_AT_HEAD after a source change, CONTRADICTED on failure.
 - Status: proposed (pending owner acceptance; V1-0957); experimental. RVN-V0-001..008 are implemented in `internal/appmap/verify.go` and `corvint flows appmap screen|flow --receipt --bind` over the committed AMAP fixture with synthetic PWP receipts; no live Playwright run or adopter qualification.
-- Exists: `Step.tests` from declared AFU-V1 `test` links, a `run-verification` AMAP-V0-014 overlay fact per bound step on `screen` and `flow`, `appmap.VerifySteps` for in-process callers (V1-0959), three owned refusal codes.
+- Exists: `Step.tests` from declared AFU-V1 `test` links, a `run-verification` AMAP-V0-014 overlay fact per bound step on `screen`, `flow` and `plan` (the V1-0959 scenario planner reads the same facts, AMSP-V0-007), `appmap.VerifySteps` for in-process callers, three owned refusal codes.
 - Blocked on: owner acceptance; AMAP-V0 (V1-0956) acceptance; live receipt qualification.
 - Read next: Requirements; Status lattice; Failure modes; Owner questions.
 
@@ -115,7 +115,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   the projection. Verification MUST be computed per call, persist nothing, and leave the repository and
   worktree unchanged. In-process callers MUST obtain the same statuses from
   `appmap.VerifySteps(ctx, map, flow, verification, Options)` keyed by step ID, including unbound
-  steps (`no-binding`). (proposed, pending owner
+  steps (`no-binding`). The V1-0959 planner (`flows appmap plan --receipt --bind`, AMSP-V0-007)
+  MUST read these same facts, one overlay per plan map, identifying them by `source` and reading
+  the status from `kind`; it emits and reads no selector or method facts. (proposed, pending owner
   acceptance; V1-0957)
 - `RVN-V0-007`: The fact and its text MUST always carry authority `learned`. A run status MUST NOT change any
   other projection field, the selector's static strength (`selector_evidence` is a separate
@@ -150,7 +152,9 @@ working directory, like `--map`. `find`, `scaffold` and `build` are unchanged. T
 `application-map/0` gains an optional `tests` array on steps (omitted when empty), so maps without
 declared test links are byte-identical. Go callers: `appmap.LoadVerification(map, receipts, binds)`
 then `Options.Overlays = []Overlay{verification.Overlay(map, options)}`, or
-`appmap.VerifySteps(ctx, map, flow, verification, options)`; statuses are `appmap.Verified`,
+`appmap.VerifySteps(ctx, map, flow, verification, options)`. A multi-map caller such as
+`flows appmap plan` uses `appmap.LoadPlanVerification(maps, receipts, binds)`, where a binding
+may name a step of any map, then one `Overlay` per map; statuses are `appmap.Verified`,
 `UnverifiedAtHead`, `Contradicted` and `Unverified` on `appmap.StepVerification.Status`.
 
 ### Owned error codes
@@ -170,7 +174,7 @@ or too many inputs.
 - No ledger or history: a status is recomputed on every call and never remembered.
 - No per-screen, per-method or per-selector status beyond the step's `selector_evidence` label.
 - No `flows navigate` or MCP surface; no TypeScript alias resolution (V1-0958); no scenario
-  planning (V1-0959 reads these statuses).
+  planning (V1-0959 reads these facts; its corpus MCP `map_plan` passes no receipts).
 - No recency rule: a newer pass does not clear an older placed failure.
 - Simpler baseline: "the test passed in CI". It names no app revision, does not notice a later
   router change, and does not say which navigation step the test exercised.
@@ -221,5 +225,6 @@ rollback also rebuilds maps. No stored state needs migration.
    uses router-state lineage only, to avoid demoting every receipt when an intent gains a link.
 4. Should verification be a typed projection field instead of an overlay `Fact` (AMAP-V0-014)?
    V0 uses the overlay seam (orchestrator direction) and leaves the projection code unchanged;
-   text consumers parse the fact's JSON `text`, and V1-0959 reads the typed `VerifySteps`.
+   text consumers parse the fact's JSON `text`, and the V1-0959 planner reads `source` and
+   `kind` of the same facts.
 5. Should `flows navigate` and MCP tools expose the same status?

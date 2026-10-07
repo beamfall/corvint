@@ -15,7 +15,7 @@ run-verified steps, which will supply verification statuses).
 - Claim: A plain-language multi-step request becomes one capped, deterministic E2E plan over application maps that fails closed on unmapped or stale steps.
 - Status: proposed (pending owner acceptance; V1-0959); experimental. AMSP-V0-001..010 are implemented in `internal/appmap/plan.go`, `corvint flows appmap plan` and the corpus MCP tool `corvint.map_plan`, over the committed AMAP-V0 fixture plus a two-app overlay; no adopter-scale qualification.
 - Exists: step resolution by explicit `flow:<id>` or weighted term coverage, one browser session per app, `goto`/`stay`/`follow`/`in-screen` navigation, route-parameter handoff, a Playwright draft and the verification seam over AMAP-V0-014 overlay facts.
-- Blocked on: owner acceptance; receipt-bound verification arrives with V1-0957 as an AMAP-V0-014 overlay of `run-verification` facts, and until then every element reads `unverified`.
+- Blocked on: owner acceptance. Receipt-bound verification (V1-0957, RVN-V0-006) reaches the CLI through `--receipt`/`--bind`; it covers steps only, so selectors and shown methods stay `unverified` (owner question 9), and the corpus MCP passes no receipts.
 - Read next: Requirements; Verification seam; Failure modes; Owner questions.
 
 ## User and measurable job
@@ -125,12 +125,13 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   handoffs. (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-007`: Verification MUST be read from the AMAP-V0-014 overlays in
   `Options.Overlays`: each overlay's `Facts` is called once per plan with the sorted unique step,
-  selector and shown-method IDs, and only facts of kind `run-verification`
-  (`VerificationFactKind`) about those IDs count. Such a fact's text is `VERIFIED`,
-  `UNVERIFIED_AT_HEAD`, `CONTRADICTED` or `unverified`. No overlay, or no fact for an ID, reads
+  selector and shown-method IDs, and only facts with source `run-verification`
+  (`appmap.VerificationSource`, the RVN-V0-006 fact shape) about those IDs count. Such a fact's
+  kind is its status: `VERIFIED`, `UNVERIFIED_AT_HEAD`, `CONTRADICTED` or `unverified`; its
+  `text` is not read. No overlay, or no fact for an ID, reads
   `unverified`. A `VERIFIED` fact reads `VERIFIED@<rev>` only when its revision `<rev>` is a full
   object ID equal to the evaluated revision and the element's anchor is FRESH; otherwise it reads
-  `UNVERIFIED_AT_HEAD`. Any other text, or a `VERIFIED` fact without a full object ID, reads
+  `UNVERIFIED_AT_HEAD`. Any other kind, or a `VERIFIED` fact without a full object ID, reads
   `unverified` and is reported `verification-invalid`. Several facts about one element resolve
   to the most restrictive (`CONTRADICTED`, then `unverified`, then `UNVERIFIED_AT_HEAD`, then
   `VERIFIED@`). An element ID printed by steps of two applications cannot be attributed, so it
@@ -138,7 +139,10 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   `verification-unavailable` and changes nothing else. Past 4096 facts, every fact is discarded
   (a dropped one may be the contradiction), so every element reads `unverified`, and this is
   reported `verification-bound-exceeded`. A MAPPED step reads `run-verified` only when every one of its elements stands `VERIFIED@`,
-  including each action's selector; otherwise it reads `candidate`. Plan `authority` is always
+  including each action's selector and shown method; otherwise it reads `candidate`. A step's
+  `VERIFIED` fact MUST NOT verify its selector or methods (its `selector_evidence` label is not
+  read), and the RVN-V0 producer emits step facts only, so a step with a selector or a shown
+  method stays `candidate` (owner question 9). Plan `authority` is always
   `candidate`. Candidate research, overlays and setup preconditions MUST never raise any of
   these values. (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-008`: With `draft`, the plan MUST include a Playwright skeleton that is guarded by
@@ -171,8 +175,11 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   bytes. (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-010`: The planner MUST be served by two surfaces:
   - `corvint flows appmap plan --map FILE... (--step TEXT... | --request TEXT) [--draft]
-    [--budget N | --full] [--revision REV]`, which writes the library bytes and nothing
-    else;
+    [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...`,
+    which writes the library bytes and nothing else. `--receipt` and `--bind` are decoded
+    and refused exactly as by RVN-V0-001 and RVN-V0-002, except that a binding may name a step
+    of any `--map`; with them, the CLI passes one RVN-V0-006 run-verification overlay per map
+    (`appmap.LoadPlanVerification`), and without them none;
   - the read-only, idempotent corpus MCP tool `corvint.map_plan`. It is listed only when
     `corvint-corpus-mcp` is started with 1..8 `--map FILE` arguments; each file must be local
     to `--root` after symlink resolution, and the maps are loaded once at startup. The tool
@@ -181,7 +188,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
     JSON number in 256..65536) and `draft` (a boolean). Arguments are decoded strictly: an
     unknown key, a `null`, a wrong type or an out-of-range value refuses. The MCP offers no
     `full`, so every response stays under the 1 MiB message cap; the CLI `--full` is the
-    escape. Its text result is the plan in the untrusted-data envelope, and
+    escape. It takes no receipts and passes no overlay, so every element it plans reads
+    `unverified`. Its text result is the plan in the untrusted-data envelope, and
     `structuredContent` is the plan object.
 
   On both surfaces, invalid arguments refuse (CLI exit 2; MCP `Invalid params`), and a planner
@@ -212,13 +220,19 @@ Unknown kind is `verification`, with reasons `verification-unavailable`,
 ## Verification seam
 
 The planner reads verification from the issue-657 overlay seam (`Overlay.Facts`, AMAP-V0-014)
-through `PlanOptions.Options.Overlays`, using only facts of kind `run-verification`
-(`appmap.VerificationFactKind`). The CLI and the MCP pass no overlays today, so every element
-reads `unverified`. Issue 658 (V1-0957) is expected to supply a receipt-bound overlay keyed by
-the AMAP-V0 element IDs: one fact per step, selector and shown method, with `text` set to its
-status and `revision` set to the commit that a `VERIFIED` status was observed at. An element it
-does not cover stays `unverified`, which keeps its step at `candidate`. This slice implements no
-receipt binding, ledger or run.
+through `PlanOptions.Options.Overlays`, using only facts whose source is `run-verification`
+(`appmap.VerificationSource`). The one fact contract is the RVN-V0-006 shape that the issue-658
+producer (V1-0957) emits: `{element_id: STEP_ID, source: "run-verification", kind: STATUS,
+revision?, text: <StepVerification JSON>, authority: "learned"}`. The planner reads the status
+from `kind` and the cited application revision from `revision`; `text` stays for projection
+readers. `flows appmap plan --receipt FILE --bind STEP_ID=TEST_KEY` builds the overlays with
+`appmap.LoadPlanVerification(maps, receipts, binds)` and `Verification.Overlay(map, options)`,
+one per map. The producer emits nothing for an unbound step and nothing for selector or method
+IDs, so those read `unverified` and keep their step at `candidate`. Because RVN-V0 `VERIFIED`
+cites the receipt's application revision and the planner requires that revision to equal the
+evaluated one, a receipt verifies a plan only when planned at its own revision; at a later
+revision it reads `UNVERIFIED_AT_HEAD` even when the step's anchors are unchanged. The corpus MCP
+passes no overlay. This slice implements no ledger or run.
 
 ## Non-goals and simpler baseline
 
@@ -269,10 +283,10 @@ receipt binding, ledger or run.
 | AMSP-V0-004 | `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-005 | `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0005StaleAndUnknownFreshness` |
 | AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0006HandoffStaysInItsApp` |
-| AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`, `TestAMSPV0007CollidingElementIDsStayUnverified`, `TestAMSPV0007FactCapOverflowDoesNotPromote` |
+| AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007ReceiptVerificationOverlay`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`, `TestAMSPV0007CollidingElementIDsStayUnverified`, `TestAMSPV0007FactCapOverflowDoesNotPromote` |
 | AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport`, `TestAMSPV0008StaleImportEvidenceNotTrusted`, `TestAMSPV0008DraftLinesStayOneLine` |
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |
-| AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
+| AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
 
 Implementation: `internal/appmap/plan.go`, `cmd/corvint/flows_appmap_plan.go`,
 `cmd/corvint-corpus-mcp/mapplan.go`. Build log:
@@ -294,7 +308,8 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 
 ## Follow-ups (proposed tickets)
 
-1. Wire the V1-0957 receipt overlay into the CLI and the MCP.
+1. Wire the V1-0957 receipt overlay into the corpus MCP (the CLI is wired; the MCP needs a
+   strict, root-confined receipt argument).
 2. Step-level matching, so one request step can name part of a flow.
 3. Generate outcome assertion code from the declared matcher, locator and value.
 4. Adopter-scale qualification of resolution precision against a labelled request set.
@@ -319,3 +334,9 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 8. Should overlay facts carry an app or map binding (for example an app-qualified element ID), so
    that an element ID shared by two applications can still be verified? Today such an ID reads
    `unverified`.
+9. Should a step's passing receipt also verify that step's selector (RVN-V0 already labels it
+   `selector_evidence: run-verified`) or its reused page-object methods? Today it does not: a
+   bound test may reach the step through another locator or without the method, so they stay
+   `unverified` and `run-verified` is reachable only for a step with no selector and no shown
+   method. Should a VERIFIED status also carry over to a later evaluated revision when the
+   step's anchors are unchanged, as the RVN-V0 projections allow?

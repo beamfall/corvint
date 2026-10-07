@@ -45,28 +45,20 @@ const (
 	StepContradicted = "CONTRADICTED"
 )
 
-// VerificationFactKind is the overlay Fact kind the planner reads as run verification
-// (AMSP-V0-007). Such a fact's Text is one of VERIFIED, UNVERIFIED_AT_HEAD, CONTRADICTED or
-// unverified, and a VERIFIED fact names the full commit it was observed at in Revision. Facts of
-// any other kind are not verification. The receipt-bound producer is issue 658 (V1-0957); until
-// an overlay supplies such facts every element reads unverified.
-const VerificationFactKind = "run-verification"
+// The planner reads run verification from AMAP-V0-014 overlay facts whose Source is
+// VerificationSource (AMSP-V0-007, RVN-V0-006): the fact's Kind is its status (Verified,
+// UnverifiedAtHead, Contradicted or Unverified) and a VERIFIED fact names the full commit it was
+// observed at in Revision. Facts of any other source are not verification; the fact Text is not
+// read. Without such facts every element reads unverified.
 
-// Plan verification statuses (AMSP-V0-007). They are unexported so the issue-658 package-level
-// status names stay free.
-const (
-	planVerified         = "VERIFIED"
-	planVerifiedPrefix   = "VERIFIED@"
-	planUnverifiedAtHead = "UNVERIFIED_AT_HEAD"
-	planContradicted     = "CONTRADICTED"
-	planUnverified       = "unverified"
-)
+// planVerifiedPrefix marks a VERIFIED status that stands at the evaluated revision.
+const planVerifiedPrefix = "VERIFIED@"
 
 // PlanOptions are the planner inputs beyond the shared projection Options.
 type PlanOptions struct {
 	Options
 	// Draft adds the Playwright spec skeleton to the plan (AMSP-V0-008). Verification is read
-	// from Options.Overlays (VerificationFactKind facts); with none every element reads unverified.
+	// from Options.Overlays (VerificationSource facts); with none every element reads unverified.
 	Draft bool
 }
 
@@ -337,21 +329,21 @@ type draftView struct {
 // UNVERIFIED_AT_HEAD; an unknown value or a VERIFIED fact without a full commit ID reads
 // unverified and is reported (AMSP-V0-007).
 func verificationOf(f Fact, evaluated, freshness string) (string, bool) {
-	switch f.Text {
-	case planUnverified:
-		return planUnverified, true
-	case planUnverifiedAtHead, planContradicted:
-		return f.Text, true
-	case planVerified:
+	switch f.Kind {
+	case Unverified:
+		return Unverified, true
+	case UnverifiedAtHead, Contradicted:
+		return f.Kind, true
+	case Verified:
 		if !isHexID(f.Revision) {
-			return planUnverified, false
+			return Unverified, false
 		}
 		if f.Revision != evaluated || freshness != Fresh {
-			return planUnverifiedAtHead, true
+			return UnverifiedAtHead, true
 		}
 		return planVerifiedPrefix + f.Revision, true
 	}
-	return planUnverified, false
+	return Unverified, false
 }
 
 // verificationRank orders folded statuses from the most to the least restrictive, so conflicting
@@ -359,11 +351,11 @@ func verificationOf(f Fact, evaluated, freshness string) (string, bool) {
 // when every fact agrees.
 func verificationRank(v string) int {
 	switch {
-	case v == planContradicted:
+	case v == Contradicted:
 		return 0
-	case v == planUnverified:
+	case v == Unverified:
 		return 1
-	case v == planUnverifiedAtHead:
+	case v == UnverifiedAtHead:
 		return 2
 	}
 	return 3
@@ -540,7 +532,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 				continue
 			}
 			for _, f := range got {
-				if f.Kind != VerificationFactKind || !verifyIDs[f.ElementID] {
+				if f.Source != VerificationSource || !verifyIDs[f.ElementID] {
 					continue
 				}
 				if kept == maxFacts {
@@ -556,7 +548,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 	}
 	invalid := map[string]bool{}
 	verify := func(id, freshness string) string {
-		v := planUnverified
+		v := Unverified
 		if ambiguous[id] {
 			return v
 		}
@@ -626,14 +618,14 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 			if st.Selector != nil {
 				sr := selectorRef{ID: st.Selector.ID, selectorView: *viewSelector(st.Selector), Verification: verify(st.Selector.ID, fa.Freshness)}
 				av.Selector = &sr
-				if sr.Verification == planContradicted {
+				if sr.Verification == Contradicted {
 					contradicted = append(contradicted, st.Selector.ID)
 				}
 				if !strings.HasPrefix(sr.Verification, planVerifiedPrefix) {
 					allVerified = false
 				}
 			}
-			if av.Verification == planContradicted {
+			if av.Verification == Contradicted {
 				contradicted = append(contradicted, st.ID)
 			}
 			if !strings.HasPrefix(av.Verification, planVerifiedPrefix) {
@@ -647,7 +639,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 				mf := fresh.of(me.Anchor)
 				note(mf, anchorRef(me.Anchor))
 				mr := methodRef{ID: me.ID, Ref: refAt(ps.files[j][k].Path, me.Anchor.Start), Freshness: mf, Verification: verify(me.ID, mf)}
-				if mr.Verification == planContradicted {
+				if mr.Verification == Contradicted {
 					contradicted = append(contradicted, me.ID)
 				}
 				if !strings.HasPrefix(mr.Verification, planVerifiedPrefix) {
@@ -822,7 +814,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 					continue
 				}
 				seenPre[pf.f.ID+"\x00"+t] = true
-				pv := preconditionView{Flow: pf.f.ID, Text: t, Status: planUnverified}
+				pv := preconditionView{Flow: pf.f.ID, Text: t, Status: Unverified}
 				if by := flowStep[app+"/"+t]; strings.HasPrefix(t, "flow:") && by > 0 && by < ps.Index {
 					pv.SatisfiedBy = by
 				}
