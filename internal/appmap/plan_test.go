@@ -624,6 +624,12 @@ func TestAMSPV0007CollidingElementIDsStayUnverified(t *testing.T) {
 	if st := planSteps(t, planOf(t, []*Map{maps[1]}, steps[:1], o))[0]; st["confidence"] != "run-verified" {
 		t.Fatalf("single app confidence = %v", st["confidence"])
 	}
+	// A supplied map that shares the IDs makes them unattributable even when no step selects it:
+	// its overlay could answer for them.
+	doc = planOf(t, []*Map{maps[1], twin}, steps[:1], o)
+	if st := planSteps(t, doc)[0]; st["confidence"] == "run-verified" || !strings.Contains(stringOf(doc["unknowns"]), "verification-ambiguous") {
+		t.Fatalf("unselected twin: confidence %v unknowns %v", st["confidence"], doc["unknowns"])
+	}
 }
 
 // AMSP-V0-007: past the fact cap no retained fact stands, since a dropped one may be the

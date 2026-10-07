@@ -134,8 +134,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   `UNVERIFIED_AT_HEAD`. Any other kind, or a `VERIFIED` fact without a full object ID, reads
   `unverified` and is reported `verification-invalid`. Several facts about one element resolve
   to the most restrictive (`CONTRADICTED`, then `unverified`, then `UNVERIFIED_AT_HEAD`, then
-  `VERIFIED@`). An element ID printed by steps of two applications cannot be attributed, so it
-  reads `unverified` and is reported `verification-ambiguous`. An overlay error is reported
+  `VERIFIED@`). An element ID that two supplied maps hold (as a step, selector or method,
+  whether or not a planned step selects that map) cannot be attributed, so it reads
+  `unverified` and is reported `verification-ambiguous`. An overlay error is reported
   `verification-unavailable` and changes nothing else. Past 4096 facts, every fact is discarded
   (a dropped one may be the contradiction), so every element reads `unverified`, and this is
   reported `verification-bound-exceeded`. A MAPPED step reads `run-verified` only when every one of its elements stands `VERIFIED@`,
@@ -264,7 +265,7 @@ passes no overlay. This slice implements no ledger or run.
     with a TODO;
   - a page-object class with no FRESH named import in the suite (for example a default export,
     or a map older than the import): `UNRESOLVED import` comment, not called;
-  - an element ID shared by two applications: `unverified`, reported;
+  - an element ID shared by two supplied maps, even one no step selects: `unverified`, reported;
   - more than 4096 verification facts: all discarded, reported;
   - repository text containing line terminators: flattened into its comment;
   - an unverified selector on an otherwise verified step: the step stays `candidate`;

@@ -469,3 +469,20 @@ func TestRVNV0006OversizedFactFailsClosed(t *testing.T) {
 		t.Fatalf("fact %+v", f)
 	}
 }
+
+// RVN-V0-006: VerifySteps and the overlay agree on a status whose evidence exceeds the fact bound.
+func TestRVNV0006OversizedEvidenceParity(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	r := pwpReceipt(t, rev, js.StatePassed)
+	r.Tests[0].Project.Name = strings.Repeat("p", maxFactBytes)
+	r.Tests[0].ID = receiptTestID(r, r.Tests[0])
+	v := verification(t, m, []string{writeReceipt(t, r)}, slotStep+"="+r.Tests[0].ID)
+	got := VerifySteps(context.Background(), m, "book-tee-time", v, Options{Root: root})[slotStep]
+	if got.Status != Unverified || got.Reason != "evidence-too-large" {
+		t.Fatalf("VerifySteps %+v", got)
+	}
+	if fact := stepVerification(t, m, root, slotStep, v); fact["status"] != Unverified || fact["reason"] != "evidence-too-large" {
+		t.Fatalf("overlay %v", fact)
+	}
+}

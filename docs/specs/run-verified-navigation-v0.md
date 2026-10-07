@@ -115,7 +115,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   the projection. Verification MUST be computed per call, persist nothing, and leave the repository and
   worktree unchanged. In-process callers MUST obtain the same statuses from
   `appmap.VerifySteps(ctx, map, flow, verification, Options)` keyed by step ID, including unbound
-  steps (`no-binding`). The V1-0959 planner (`flows appmap plan --receipt --bind`, AMSP-V0-007)
+  steps (`no-binding`), with the same `evidence-too-large` degradation. The V1-0959 planner (`flows appmap plan --receipt --bind`, AMSP-V0-007)
   MUST read these same facts, one overlay per plan map, identifying them by `source` and reading
   the status from `kind`; it emits and reads no selector or method facts. (proposed, pending owner
   acceptance; V1-0957)
@@ -202,7 +202,7 @@ or too many inputs.
 | RVN-V0-003 | `TestRVNV0003UnresolvedRevisionNeverVerifies`, `TestRVNV0003FailingReceiptContradicts` |
 | RVN-V0-004 | `TestRVNV0004SourceChangeUnverifiesAtHead` |
 | RVN-V0-005 | `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0003FailingReceiptContradicts`, `TestRVNV0004SourceChangeUnverifiesAtHead` |
-| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0006OversizedFactFailsClosed`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
+| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0006OversizedFactFailsClosed`, `TestRVNV0006OversizedEvidenceParity`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
 | RVN-V0-007 | `TestRVNV0007AuthorityLimit`, `TestRVNV0002PassingReceiptVerifiesStep` |
 | RVN-V0-008 | `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly` |
 

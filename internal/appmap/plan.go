@@ -324,6 +324,36 @@ type draftView struct {
 	Lines        []string `json:"lines"`
 }
 
+// heldIDs returns the subset of ids naming a step, selector or method of m.
+func (m *Map) heldIDs(ids map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	add := func(id string) {
+		if ids[id] {
+			out[id] = true
+		}
+	}
+	for _, fl := range m.Flows {
+		for _, st := range fl.Steps {
+			add(st.ID)
+			if st.Selector != nil {
+				add(st.Selector.ID)
+			}
+		}
+	}
+	for _, f := range m.Files {
+		for _, sel := range f.Selectors {
+			add(sel.ID)
+		}
+		for _, me := range f.Methods {
+			add(me.ID)
+			for _, sel := range me.Selectors {
+				add(sel.ID)
+			}
+		}
+	}
+	return out
+}
+
 // verificationOf folds one verification fact into the closed set: a VERIFIED fact reads
 // VERIFIED@<rev> only when its Revision is the evaluated revision and the anchor is FRESH, else
 // UNVERIFIED_AT_HEAD; an unknown value or a VERIFIED fact without a full commit ID reads
@@ -511,8 +541,16 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 			}
 		}
 	}
+	// Every overlay is asked every ID, and a run-verification overlay answers for its own map's
+	// elements, so an asked ID that any other supplied map also holds counts as that map's too,
+	// selected for a step or not.
+	for _, m := range maps {
+		for id := range m.heldIDs(verifyIDs) {
+			idApps[id][m.App] = true
+		}
+	}
 	unknowns := []any{}
-	// Element IDs carry no app, so a fact about an ID printed by two apps cannot be attributed to
+	// Element IDs carry no app, so a fact about an ID held by two apps cannot be attributed to
 	// either: such an ID reads unverified whatever its facts say.
 	ambiguous := map[string]bool{}
 	for _, id := range sortedKeys(idApps) {

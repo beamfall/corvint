@@ -67,6 +67,22 @@ could never show a receipt's status.
   root-confined, bounded file input of its own. That is not trivial, so the tool passes no
   overlay. AMSP-V0-010 and follow-up 1 say so.
 
+## Independent review
+
+Codex CLI (`gpt-6-astra`, read-only) reviewed the seam and wiring delta
+(`6a1dab87..HEAD -- internal/appmap cmd`, scoped to the seam, including the issue-658 overlay
+commit that had not been reviewed before).
+
+- Round 1, P1: the planner computed ID ambiguity only over the maps that planned steps select,
+  but it asks every supplied map's overlay. A step ID shared with an unselected map could
+  therefore borrow that map's `VERIFIED` fact. Fixed: an asked ID held by any two supplied maps
+  (as a step, selector or method) is `verification-ambiguous`. Regression: the
+  `TestAMSPV0007CollidingElementIDsStayUnverified` unselected-twin case, which fails without the
+  fix.
+- Round 1, P2: `VerifySteps` skipped the overlay's 1024-byte `evidence-too-large` degradation,
+  so the two RVN-V0-006 surfaces could disagree. Fixed: both share `boundedVerification`.
+  Regression: `TestRVNV0006OversizedEvidenceParity`, which fails without the fix.
+
 ## Analyzer schema
 
 Issue 657 bumps the analyzer schema to `corvint-analyzer/108`

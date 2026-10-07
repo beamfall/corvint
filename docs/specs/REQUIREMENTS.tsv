@@ -228,9 +228,9 @@ AMSP-V0-004	docs/specs/application-map-scenario-planner-v0.md	91	The plan MUST o
 AMSP-V0-005	docs/specs/application-map-scenario-planner-v0.md	98	A step MUST read, in this order of precedence:
 AMSP-V0-006	docs/specs/application-map-scenario-planner-v0.md	114	Navigation MUST be composed over MAPPED steps only:
 AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	126	Verification MUST be read from the AMAP-V0-014 overlays in
-AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	148	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
-AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	170	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
-AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	176	The planner MUST be served by two surfaces:
+AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	149	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
+AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	171	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
+AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	177	The planner MUST be served by two surfaces:
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

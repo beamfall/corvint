@@ -407,7 +407,7 @@ func VerifySteps(ctx context.Context, m *Map, flow string, v *Verification, o Op
 	e := newVerifier(ctx, m, v, o)
 	out := map[string]StepVerification{}
 	for _, st := range fl.Steps {
-		out[st.ID] = *e.verify(st)
+		out[st.ID], _ = boundedVerification(*e.verify(st))
 	}
 	return out
 }
@@ -454,13 +454,21 @@ func (vo verificationOverlay) Facts(ctx context.Context, ids []string) ([]Fact, 
 	return facts, nil
 }
 
-// verificationFact renders one status as a fact. A text over the overlay fact bound degrades to
-// an unverified fact rather than being dropped silently (fail closed).
-func verificationFact(id string, sv StepVerification) Fact {
+// boundedVerification returns sv and its compact JSON, or, when that JSON exceeds the overlay
+// fact bound, an unverified `evidence-too-large` status (fail closed), so VerifySteps and the
+// overlay always agree (RVN-V0-006).
+func boundedVerification(sv StepVerification) (StepVerification, []byte) {
 	raw, err := json.Marshal(sv)
 	if err != nil || len(raw) > maxFactBytes {
 		sv = StepVerification{Status: Unverified, Reason: "evidence-too-large", Outcomes: sv.Outcomes, Authority: AuthorityLearned}
 		raw, _ = json.Marshal(sv)
 	}
+	return sv, raw
+}
+
+// verificationFact renders one status as a fact. A text over the overlay fact bound degrades to
+// an unverified fact rather than being dropped silently (fail closed).
+func verificationFact(id string, sv StepVerification) Fact {
+	sv, raw := boundedVerification(sv)
 	return Fact{ElementID: id, Source: VerificationSource, Kind: sv.Status, Revision: sv.Revision, Text: string(raw), Authority: AuthorityLearned}
 }
