@@ -187,7 +187,7 @@ or too many inputs.
 
 | Requirement | Evidence |
 | --- | --- |
-| RVN-V0-001 | `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0FlowsAppmapVerificationCLI` |
+| RVN-V0-001 | `TestRVNV0001ReceiptRewriteDetected`, `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0FlowsAppmapVerificationCLI` |
 | RVN-V0-002 | `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0002DeclaredBindings`, `TestRVNV0002InferredLinkDoesNotBind`, `TestRVNV0FlowsAppmapVerificationCLI` |
 | RVN-V0-003 | `TestRVNV0003UnresolvedRevisionNeverVerifies`, `TestRVNV0003FailingReceiptContradicts` |
 | RVN-V0-004 | `TestRVNV0004SourceChangeUnverifiesAtHead` |

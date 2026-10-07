@@ -408,3 +408,27 @@ func TestRVNV0006StatusIgnoresUnrelatedAnchors(t *testing.T) {
 		t.Fatalf("projection %v, VerifySteps %+v", got, direct)
 	}
 }
+
+// RVN-V0-001: a receipt rewritten in place between two observations is detected by size or
+// modification time even though its identity (inode) is unchanged.
+func TestRVNV0001ReceiptRewriteDetected(t *testing.T) {
+	name := filepath.Join(t.TempDir(), "receipt.json")
+	writeFile(t, filepath.Dir(name), "receipt.json", "{}")
+	before, err := os.Lstat(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := os.Lstat(name); !unchanged(before, again) {
+		t.Fatal("an untouched file reads changed")
+	}
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.WriteString(`{"x":1}`)
+	f.Close()
+	after, err := os.Lstat(name)
+	if err != nil || !os.SameFile(before, after) || unchanged(before, after) {
+		t.Fatalf("in-place rewrite not detected: %v", err)
+	}
+}

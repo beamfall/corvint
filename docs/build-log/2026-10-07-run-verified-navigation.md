@@ -69,6 +69,11 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
     Repaired: each step reads only its own router lineage at the app and evaluated revisions,
     cached per (revision, lineage). Regression `TestRVNV0006StatusIgnoresUnrelatedAnchors` fails on
     the round-1 code and passes after.
+- Codex round 2 (`e72b30ec..1ec5c6d4`): both round-1 repairs confirmed; one P2: an in-place
+  rewrite between `Lstat` and open was accepted because only identity was compared there.
+  Repaired: size and mtime are compared at all three observations (`unchanged`); regression
+  `TestRVNV0001ReceiptRewriteDetected` covers the comparison (the window itself is not
+  deterministically reproducible).
 - Out of scope, reported to the orchestrator: `appmap.LoadMap` (V1-0956) has the same
   `Lstat`-then-`os.Open` FIFO window for `--map`.
 

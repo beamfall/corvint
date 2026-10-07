@@ -91,7 +91,7 @@ func readReceipt(filename string) ([]byte, error) {
 	}
 	defer f.Close()
 	opened, err := f.Stat()
-	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) || !unchanged(before, opened) {
 		return nil, bad
 	}
 	raw, err := io.ReadAll(io.LimitReader(f, testvaliditydoc.MaxInputBytes+1))
@@ -99,10 +99,15 @@ func readReceipt(filename string) ([]byte, error) {
 		return nil, bad
 	}
 	after, err := f.Stat()
-	if err != nil || after.Size() != opened.Size() || !after.ModTime().Equal(opened.ModTime()) || int64(len(raw)) != after.Size() {
+	if err != nil || !unchanged(opened, after) || int64(len(raw)) != after.Size() {
 		return nil, bad
 	}
 	return raw, nil
+}
+
+// unchanged reports whether two observations of one file agree in size and modification time.
+func unchanged(a, b os.FileInfo) bool {
+	return a.Size() == b.Size() && a.ModTime().Equal(b.ModTime())
 }
 
 func validTestKey(k string) bool {
