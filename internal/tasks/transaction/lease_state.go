@@ -96,6 +96,9 @@ func loadAttempts(in Input, set *snapshot.ReservationSet) (map[string]*snapshot.
 }
 
 func countPrefix(inv *Inventory, prefix string) int {
+	if inv.Summarized() && (strings.HasPrefix(prefix, "receipts/") || strings.HasPrefix(prefix, "requests/")) {
+		inv.markMiss()
+	}
 	n := 0
 	for path := range inv.files {
 		if strings.HasPrefix(path, prefix) {
