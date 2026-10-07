@@ -3378,7 +3378,8 @@ Acceptance evidence: `TestCALV0135_ReceiptFoldPinnedReader`, `TestCALV0138_Revie
 `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`,
 `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`);
 `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`,
-`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular` (`internal/tasks/store`);
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_ListsPrefix`
+(`internal/tasks/store`);
 `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`,
 `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`, `TestCALV0139_DispatchQueueWitness`,
 `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads`, `TestCALV0141_PlanNodeBoundScalesPerEntry`,
@@ -3690,7 +3691,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |
 | CAL-V0-136 | `TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`, `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux) (`internal/tasks/supervisor`) |
 | CAL-V0-137 | `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`) |
-| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
+| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_DispatcherTickFold`, `BenchmarkCALV0138_ListsPrefix` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
 | CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
 | CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |

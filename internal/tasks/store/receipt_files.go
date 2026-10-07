@@ -88,15 +88,20 @@ func (r *receiptFiles) binding() error {
 
 // listsPrefix reports that the pinned receipts/ directory still names every
 // receipt 1..last as a regular file, from one directory read (CAL-V0-138).
-// The type comes from the directory entry; Go's ReadDir lstats an entry
-// only when the file system reports no type. A symlink, directory or other
-// non-regular entry, or a missing name, fails the check. A receipt's
-// content is not read or re-hashed.
+// It lists a fresh descriptor opened at "." beneath the pinned directory
+// descriptor, not through the Root: Go's ReadDir on a Root-opened file
+// fstatats every entry, while on this descriptor it takes each type from the
+// directory entry and fstatats, relative to the descriptor, only an entry
+// whose type the file system does not report. A symlink, directory or other
+// non-regular entry, or a missing name, fails the check. A receipt's content
+// is not read or re-hashed. Where safeopen has no pinned descriptors (outside
+// Darwin and Linux) the receipt reads already refuse, so the carried fold
+// never advances there and this check is never reached.
 func (r *receiptFiles) listsPrefix(last uint64) bool {
-	if r.root == nil {
+	if r.root == nil || r.pinned.root != r.root || r.pinned.dir == nil {
 		return false
 	}
-	d, err := r.root.Open(".")
+	d, err := safeopen.InDir(r.pinned.dir, ".", os.O_RDONLY, 0)
 	if err != nil {
 		return false
 	}

@@ -183,7 +183,7 @@ Each finding was reproduced by a failing test before its fix.
   rewritten in place under its own name is still not re-hashed by each fold; as decided for
   V1-0645, `receipt audit` (JOURNAL_FORKED) and refresh detect it
   (`TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`). CAL-V0-138 now states this
-  as a guarantee change for owner acceptance. The listing costs one directory read per tick.
+  as a guarantee change for owner acceptance. The listing cost is measured in review round 3.
 - P2-3, a full plan encoded under 890,000 nodes could not be decoded by `DecodeResult` (250,000).
   The generic bound is unchanged; `wire.DecodeResultLimit(raw, maxNodes)` decodes under a
   caller bound capped at `wire.MaxResultNodes` (890,000), and `Encode` refuses a `MaxNodes` above
@@ -203,12 +203,36 @@ Each finding was reproduced by a failing test before its fix.
   An earlier receipt replaced by a symlink or a directory kept the count, so the carried fold
   answered while the whole-history fold refuses (UNSUPPORTED_FILESYSTEM for a symlink, MALFORMED
   for a directory). `listsPrefix` now reads directory entries and requires each carried name to be
-  a regular file by its entry type, from the same directory read; Go's `ReadDir` lstats an entry
-  only when the file system reports no type. No receipt is opened. Failing first on c8315a93:
+  a regular file by its entry type, from the same directory read. No receipt is opened. (The
+  round-2 claim that this added no per-entry stat was wrong; see round 3.) Failing first on c8315a93:
   `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular` (symlink and directory
   subtests), which now fall back with the same error and code and clear the carried state. A
   permission-only change to an earlier regular receipt joins in-place content rewrites as the
   documented CAL-V0-138 exception, detected by `receipt audit` and refresh.
+
+## Review round 3 (Codex, 20cf49c4, one P2)
+
+- P2, the round-2 listing cost O(history) `fstatat` calls per carried fold: Go 1.27.1's
+  `newUnixDirent` (`os/file_unix.go`) stats every entry of a directory opened through an
+  `os.Root`, even when the directory entry reports its type. `listsPrefix` now lists a fresh
+  descriptor opened at "." beneath the pinned receipts descriptor (`safeopen.InDir`, no-follow,
+  close-on-exec), which is not Root-opened, so `ReadDir` takes each type from the directory entry
+  and only an entry of unreported type is stat'd, by `fstatat` relative to that descriptor. The
+  descriptor is closed on every path and the final binding check is unchanged. Outside Darwin and
+  Linux the pinned receipt reads already refuse, so the carried fold never reaches the listing.
+- `BenchmarkCALV0138_ListsPrefix` (`internal/tasks/store`), 13,000 empty receipts, `-benchtime=50x
+  -count=5`, `GOMAXPROCS=3`, Darwin arm64, host load about 7, medians:
+
+| Listing | ns/op |
+|---|---|
+| names only (`Readdirnames` through the Root, the c8315a93 approach) | 4,830,346 |
+| `ReadDir` through the Root (20cf49c4) | 20,789,654 |
+| `listsPrefix` on the pinned-descriptor listing (this change) | 5,534,528 |
+
+  The new listing costs 1.15 times the names-only floor and 0.27 times (3.8 times less than) the
+  Root `ReadDir` it replaces; before this change `listsPrefix` measured 21,258,959 ns/op in the
+  same benchmark. So a carried fold at 13,000 receipts pays about 5.5 ms for the listing, a
+  directory read that grows with the history.
 
 ## Rollback
 
