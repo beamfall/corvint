@@ -594,10 +594,8 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		completion, _ := result["completion"].(map[string]any)
 		if completion["decision"] == "block" {
 			key := input["sessionIdSha256"].(string)
+			// The Next argv is the recovery; the workflow guidance is SessionStart-only (AHI-047).
 			reason := completionBlockText + blockUnmet(result) + "\n" + blockNextArgv(root, key)
-			if host == "claude-code" {
-				reason += "\n" + claudeGuidance(root, key)
-			}
 			return map[string]any{"decision": "block", "reason": reason}
 		}
 		if completion["reason"] == "local-policy-continuation-limit" {

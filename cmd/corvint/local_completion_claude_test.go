@@ -36,6 +36,10 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 			if !active && output["decision"] != "block" {
 				t.Fatalf("first Stop did not block: %v", output)
 			}
+			// AHI-047: the block names its recovery argv but repeats no SessionStart guidance.
+			if reason := fmt.Sprint(output["reason"]); !active && (!strings.Contains(reason, "Next: ") || strings.Contains(reason, "workflow argv")) {
+				t.Fatalf("first Stop block reason: %q", reason)
+			}
 			if active && (output["decision"] != nil || !strings.Contains(fmt.Sprint(output["systemMessage"]), "unresolved")) {
 				t.Fatalf("recursive Stop did not release unresolved: %v", output)
 			}
