@@ -40,8 +40,10 @@ only that task plus an optional session-ID hash. A missing `corvint` binary make
 exit 127, which Codex shows as a failed hook (`hook exited with code 127`) without blocking the event;
 no event routes to a legacy runtime. Every runtime
 response passes the separate `corvint-dogfood-event/0` full-result digest, adapter, event, repository,
-support-level, prompt-privacy and local-policy validation boundary before repository data is placed
-in the fixed untrusted-data envelope. The legacy `corvint-harness-event/0` CLI profile stays unchanged.
+support-level, prompt-privacy and local-policy validation boundary; only its actionable
+`corvint-hook-context/0` projection (AHI-045) is then placed in the fixed untrusted-data envelope, and
+a `UserPromptSubmit` with nothing actionable injects nothing (AHI-046). The legacy
+`corvint-harness-event/0` CLI profile stays unchanged.
 
 The installed `corvint` process owns input normalization, the bounded native event, validation,
 and host rendering under the existing event deadline. No adapter subprocess or detached worker is

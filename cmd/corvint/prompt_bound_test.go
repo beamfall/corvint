@@ -85,9 +85,10 @@ func TestAHI016ClaudeOverBoundPromptInjectsDisclosedContextWithoutStoring(t *tes
 		t.Fatalf("over-bound prompt still degraded: %s err=%v", &stdout, err)
 	}
 	contextText := output["hookSpecificOutput"].(map[string]any)["additionalContext"].(string)
-	disclosureEnd := strings.Index(contextText, "Corvint local workflow argv")
+	// The workflow argv is SessionStart-only (AHI-047), so the trusted disclosure leads straight
+	// into the envelope.
 	envelope := strings.Index(contextText, untrustedDataPrefix)
-	if !strings.HasPrefix(contextText, "Corvint prompt bound (trusted adapter disclosure)") || disclosureEnd < 0 || envelope < disclosureEnd {
+	if !strings.HasPrefix(contextText, "Corvint prompt bound (trusted adapter disclosure)") || envelope < 0 || strings.Contains(contextText, "Corvint local workflow argv") {
 		t.Fatalf("disclosure is not trusted text ahead of the envelope: %s", contextText)
 	}
 	if strings.Contains(contextText, "degrading") || strings.Contains(contextText, "Why does") {

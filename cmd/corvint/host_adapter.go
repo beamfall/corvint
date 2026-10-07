@@ -309,7 +309,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	if reason != "" {
 		return withCodexSnapshotRemediation(root, reason, codexDegraded(eventName, reason))
 	}
-	return withAdapterContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result), disclosure), kernel)
+	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
 
 // adapterEnvKey carries a per-invocation replacement for os.LookupEnv on the Claude adapter's
@@ -356,7 +356,8 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		}
 		return output
 	}
-	guidance := claudeGuidance(root, normalized["sessionIdSha256"].(string))
+	subagent := claudeSubagent(payload)
+	guidance := claudeSessionGuidance(root, normalized["sessionIdSha256"].(string), event, subagent)
 	reserve, _ := json.Marshal(renderClaudeContext(event, "", guidance))
 	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
@@ -368,9 +369,9 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		refuse()
 		return withSnapshotRemediation(root, event, reason, claudeDegradedOutput(event, reason))
 	}
-	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result)
+	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
-	return withAdapterContextSuffix(withPromptBoundDisclosure(output, disclosure), kernel)
+	return withHookContextSuffix(withPromptBoundDisclosure(output, disclosure), claudeEventName(event), kernel)
 }
 
 // claudeSessionHash is the Claude adapter's session identity hash.
@@ -585,7 +586,10 @@ func invokeDogfoodEvent(ctx context.Context, root, host, event string, input map
 	return result, ""
 }
 
-func renderAdapterResult(host, eventName, event, root string, input, result map[string]any) map[string]any {
+// renderAdapterResult renders a dogfood-event receipt as native hook output. A context event
+// injects the hookContextProjection, or nothing when it carries nothing actionable (AHI-045,
+// AHI-046); subagent marks a Claude Code subagent SessionStart, which gets the prompt rule.
+func renderAdapterResult(host, eventName, event, root string, input, result map[string]any, subagent bool) map[string]any {
 	if event == "stop" {
 		completion, _ := result["completion"].(map[string]any)
 		if completion["decision"] == "block" {
@@ -611,9 +615,14 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		}
 		return codexDegraded(eventName, "corvint-degradations-unrecognised")
 	}
-	raw, _ := json.Marshal(result)
+	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
+	if projection == nil {
+		return map[string]any{}
+	}
+	raw, _ := json.Marshal(projection)
 	if host == "claude-code" {
-		return renderClaudeContext(event, string(raw), claudeGuidance(root, input["sessionIdSha256"].(string)))
+		key, _ := input["sessionIdSha256"].(string)
+		return renderClaudeContext(event, string(raw), claudeSessionGuidance(root, key, event, subagent))
 	}
 	context, err := repoenvelope.Frame(string(raw))
 	if err != nil {

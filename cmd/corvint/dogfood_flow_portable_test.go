@@ -140,15 +140,27 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
-	if code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") {
+	// DCW-V0-033: PASS prints one summary line; the full status JSON is in the detail file.
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
+	summary := "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
+	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	full, err := os.ReadFile(detail)
+	if err != nil || strings.Count(string(full), "\n") != 2 || !strings.Contains(string(full), `"tool":"cem-status"`) || !strings.Contains(string(full), `"tool":"dogfood-ocm-status"`) {
+		t.Fatalf("detail file %s err=%v", full, err)
+	}
+	// DOGFOOD_VERBOSE=1 restores the former full output: the same JSON lines, then PASS.
+	if code, verbose, stderr := run.exec(t, root, []string{"DOGFOOD_VERBOSE=1"}, "dogfood", "check", base); code != 0 || verbose != string(full)+"dogfood-check: PASS\n" {
+		t.Fatalf("verbose check exit=%d stdout=%s stderr=%s", code, verbose, stderr)
 	}
 	nested := filepath.Join(root, "fixture")
 	if code, _, stderr = run.exec(t, nested, nil, "dogfood", "check", base); code != 2 || stderr != "dogfood-check: REFUSE not-repository-root\n" {
 		t.Fatalf("nested root exit=%d stderr=%s", code, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
-	if code != 0 || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
+	if code != 0 || stdout != summary+"\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	cemGit(t, root, "cat-file", "-e", "HEAD:.corvint/changes/"+bind+".cem.json")
@@ -215,7 +227,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
-	if code != 0 || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Contains(stdout, "dogfood-ocm-status") {
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=") || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Count(stdout, "\n") != 3 || strings.Contains(stdout, "dogfood-ocm-status") {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)

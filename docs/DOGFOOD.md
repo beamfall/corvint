@@ -128,13 +128,16 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. These paths and
    `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
    form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
-9. Run `make dogfood-check BASE=$BASE`. Expected: CEM and OCM status JSON, then
-   `dogfood-check: PASS`. A base whose committed CEM names a base outside its history also prints
+9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
+   supported=N unknown=N mechanical=N ocm=STATE ... report=.corvint/dogfood-report.json
+   detail=<git-dir>/corvint/dogfood-check.stdout` line, then `dogfood-check: PASS` (`DCW-V0-033`).
+   The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
+   in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
    window since the previous bound CEM contains commits no sidecar covers instead prints
    `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE` followed by one
    `  unbound SHA` line per commit; neither note changes the verdict.
-10. Run `make dogfood-seal BASE=$BASE`. Expected: `dogfood-seal: PASS
+10. Run `make dogfood-seal BASE=$BASE`. Expected: the step 9 lines, then `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
     recorded by step 6 (section 7). The verifier digests and `outputsAgree` in the report's

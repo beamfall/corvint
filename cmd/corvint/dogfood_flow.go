@@ -120,7 +120,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	}
 	options := dogfoodflow.CheckOptions{
 		Root: root, Base: base, BaseVerifier: runner("--base-verifier"), TreeVerifier: runner("--tree-verifier"),
-		Exception: os.Getenv("DOGFOOD_EXCEPTION"),
+		Exception: os.Getenv("DOGFOOD_EXCEPTION"), Verbose: os.Getenv("DOGFOOD_VERBOSE") == "1",
 	}
 	if _, ok := flags["--override-verifier"]; ok {
 		override := runner("--override-verifier")
