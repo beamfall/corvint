@@ -63,6 +63,9 @@ plus an `NGI-V0-003` amendment and the closed code `bare-import-unresolved`
 - **Fixture.** The committed fixture is one JSON document (`internal/contextindex/testdata/tsconfig-paths.json`)
   rather than loose `.ts` files. Loose files would put its deliberately unresolved aliases into this
   repository's own index.
+- **Analyzer schema.** `analyzerSchemaID` moves to `corvint-analyzer/108`. `TestAnalyzerSchemaInputs`
+  pins every production contextindex source, and this change edits `webimports.go` and adds
+  `webresolve.go`. Snapshots therefore rebuild once.
 - **Capability text.** The MCP impact description (and its two goldens) and `impact --help` now say
   relative/profile/tsconfig imports, and the MCP text says unresolved bare imports are unknown.
 
