@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: proposed
+Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corvint/issues/657)
 (native ticket V1-0956), `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
@@ -14,7 +14,7 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: proposed (pending owner acceptance; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -63,7 +63,7 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 ## Requirements
 
-Every requirement below is (proposed, pending owner acceptance; V1-0956).
+Every requirement below is (accepted by decision 0446; V1-0956).
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -73,7 +73,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   `page_object_screens` bindings. An unknown member, escaping or absent path, a declared test or
   flow directory that is not a directory at the revision, or an unknown dialect MUST refuse with
   `appmap-invalid-manifest`; an unresolvable revision with
-  `appmap-invalid-revision`; an invalid flow intent with `appmap-invalid-flows`. (proposed, pending owner acceptance; V1-0956)
+  `appmap-invalid-revision`; an invalid flow intent with `appmap-invalid-flows`. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-002`: The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
   `.state({name, ...})` call with literal `name`, `parent`, `url`, `abstract` and
   `data.permissions` / `data.flags`, and resolve hierarchy from the dotted name or `parent`.
@@ -85,8 +85,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   literal is a non-literal value. A literal object counts only as the whole argument, so
   `.state('home', {url: '/x'} && config)` reads `non-literal-value` (and `.state({...} || x)`
   `non-literal-name`). A file that ends inside a state call (`app.state('home',`) reads that
-  state's configuration as non-literal and never fails the build. (proposed, pending owner
-  acceptance; V1-0956)
+  state's configuration as non-literal and never fails the build. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-003`: Screens MUST be keyed by app plus template. Two resolved screens with the same
   collision key MUST be reported `ambiguous-template`, and a lookup (by element ID, state name,
   template or URL) that matches several screens MUST return status `UNKNOWN` with the candidates,
@@ -94,14 +93,14 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   manifest's hash prefix, removes the authority only after a leading scheme (`https://host`), so a
   `://` inside a query or fragment is data; the authority ends at the first `/`, `?` or `#`, so
   `https://host?next=/home` is the root, never `/home`; and it refuses a `${...}` substitution inside a segment
-  (`partial-segment-substitution`). (proposed, pending owner acceptance; V1-0956)
+  (`partial-segment-substitution`). (accepted by decision 0446; V1-0956)
 - `AMAP-V0-004`: Each AFU-V1 navigation step MUST become a map step on the unique screen whose
   template matches its state template, with its selector and strength and the page-object methods
   that already use the same selector (`reuse`). A step without a navigation entry reads
   `no-navigation-step`; one whose state matches zero or several screens reads `UNKNOWN` with that
   reason. Flow preconditions and precondition flows are attached to every screen a resolved step
   lands on.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 - `AMAP-V0-005`: Test files MUST be joined to screens through the contextindex import graph:
   spec or workflow → (workflows, scenarios, support)* → page object → screen, at most 8 hops. A page
   object is bound to a screen by a manifest `page_object_screens` entry or, failing that, by
@@ -116,11 +115,11 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   (`excluded-by-index`, `unparsed-imports`), or any page object is `page-object-unbound`,
   `page-object-ambiguous` or `unknown-state`, since such a file may be the one that reaches a
   screen; attributions found through resolved imports are kept as a lower bound.
-  The map MUST NOT implement alias resolution itself. (proposed, pending owner acceptance; V1-0956)
+  The map MUST NOT implement alias resolution itself. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-006`: Each screen MUST aggregate permissions and flags (inherited from the nearest
   declaring ancestor, with `permissions_from` / `flags_from`), flow preconditions, page objects and
   their methods, workflows, scenarios, specs (with basis and import chain) and flow steps, each
-  with its anchor. (proposed, pending owner acceptance; V1-0956)
+  with its anchor. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-007`: Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
   attribute locator are `strong` (`data-test` and `data-test-id` locators are CSS); `getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`
   and `getByTitle` are `medium`; `getByText` and other CSS locators are `weak`; a non-literal
@@ -139,16 +138,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   since any of these can set a name the map cannot read. Line
   continuations inside a string advance the line count of later anchors. A
   secret-shaped literal is dropped and reported `secret-shaped`.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 - `AMAP-V0-008`: Edges MUST come only from evidence: `flow-step` edges between adjacent
   resolved navigation steps (a step that is not placed on one screen breaks the chain, so no edge
   is inferred across it), and `test-sequence` edges between page objects of different screens
   constructed in order within one spec or workflow, each citing its source element and span. No
-  edge is inferred from router hierarchy alone. (proposed, pending owner acceptance; V1-0956)
+  edge is inferred from router hierarchy alone. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-009`: The map MUST be deterministic for one revision: sorted nodes, edges, files and
   unknowns, and a `digest` (SHA-256 over the encoding with an empty digest). Loading a map file
   MUST refuse a symlink, a file over 64 MiB, an unknown member, trailing data, a wrong schema or a
-  digest mismatch with `appmap-invalid-map`. (proposed, pending owner acceptance; V1-0956)
+  digest mismatch with `appmap-invalid-map`. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-010`: Every element MUST be pinned to the anchor it was read from. A projection MUST
   evaluate the anchors it prints against `--revision` (default `HEAD`) with one tree read and
   bounded blob reads: the same blob, or the same span digest at the same lines, is `FRESH`; an
@@ -163,7 +162,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   chain file is absent from the map), and a screen with a `STALE` chain is not cited as `FRESH`.
   A page object placed by a manifest `page_object_screens` entry rests on the manifest, so the
   manifest anchor joins its chain and the screen's citations.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 - `AMAP-V0-011`: `screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
   document no larger than its budget: defaults 4096, 6144, 2048 and 6144 bytes; `--budget` in
   256..65536; `--full` raises the ceiling to 1 MiB and is exclusive with `--budget`
@@ -173,12 +172,12 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   `schema`, `app`, `map_revision`, `map_digest`, `evaluated_revision`, `budget` and `full`, so a
   later planner (V1-0959) can compose projections without re-reading the map. `flow` reports the
   unknowns of the flow, its steps and every screen it prints.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 - `AMAP-V0-012`: `find` MUST match a 2..128 byte query case-insensitively against element IDs and
   labels of screens, flows, steps, files, methods and selectors (every element's ID, not only its
   label), returning references without
   freshness evaluation (`evaluated_revision: NOT_EVALUATED`); other lengths refuse with
-  `appmap-invalid-query`. (proposed, pending owner acceptance; V1-0956)
+  `appmap-invalid-query`. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-013`: `scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
   a spec with a resolved join and at least one assertion that reaches a screen on the flow, ranked
   by flow screens reached, reused page-object files on its chains, fewer import hops, then path.
@@ -204,7 +203,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   `unread-statement`. When no borrowed, resolvable import binds `test`, the scaffold emits
   `// UNRESOLVED import { test }` and reports `scaffold-import` / `test-unbound`. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
   per projection for the element IDs that projection selects, its facts are kept only for those IDs
   and, after byte trimming, only while the element's ID is still printed elsewhere in the
@@ -213,12 +212,12 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   (`overlay-bound-exceeded`), printed in a separate `learned` section with `authority: learned`
   and `freshness: STALE` when their element's anchor is stale. An overlay error is reported as
   `overlay-unavailable`. Overlay facts MUST NOT change any node, edge, strength, join or
-  freshness. (proposed, pending owner acceptance; V1-0956)
+  freshness. (accepted by decision 0446; V1-0956)
 - `AMAP-V0-015`: Building and projecting MUST NOT write to the repository, the index, or any
   ledger; they read Git objects only, with no network, database or background process. Inputs are
   bounded (64 router files, 4 MiB per router, 20000 states and test files, 1 MiB per test file,
   128 MiB of test source, 64 MiB map) and a breach refuses with `appmap-bound-exceeded`.
-  (proposed, pending owner acceptance; V1-0956)
+  (accepted by decision 0446; V1-0956)
 
 ## Wire contract
 
@@ -351,6 +350,8 @@ needs migration. Map files are explicit outputs and may be discarded.
 9. Fall back to the next reuse candidate when the first page object's binding collides.
 
 ## Owner questions
+
+Decision 0446 keeps every V0 default below; each question stays open for a later owner answer.
 
 1. Should a static segment outrank a parameter (`/clubs/new` over `/clubs/{id}`) instead of the
    current fail-closed `ambiguous-template`?

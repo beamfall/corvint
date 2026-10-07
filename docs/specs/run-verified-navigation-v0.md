@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: proposed
+Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: owner request [issue 658](https://github.com/beamfall/corvint/issues/658)
 (native ticket V1-0957), `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
@@ -15,7 +15,7 @@ orchestrator note of 2026-10-07 on [issue 660](https://github.com/beamfall/corvi
 
 ## Agent digest
 - Claim: Playwright receipts bound to map steps read VERIFIED at their app revision, UNVERIFIED_AT_HEAD after a source change, CONTRADICTED on failure.
-- Status: proposed (pending owner acceptance; V1-0957); experimental. RVN-V0-001..008 are implemented in `internal/appmap/verify.go` and `corvint flows appmap screen|flow --receipt --bind` over the committed AMAP fixture with synthetic PWP receipts; no live Playwright run or adopter qualification.
+- Status: accepted (decision 0446; V1-0957); experimental. RVN-V0-001..008 are implemented in `internal/appmap/verify.go` and `corvint flows appmap screen|flow --receipt --bind` over the committed AMAP fixture with synthetic PWP receipts; no live Playwright run or adopter qualification.
 - Exists: `Step.tests` from declared AFU-V1 `test` links, a `run-verification` AMAP-V0-014 overlay fact per bound step on `screen`, `flow` and `plan` (the V1-0959 scenario planner reads the same facts, AMSP-V0-007), `appmap.VerifySteps` for in-process callers, three owned refusal codes.
 - Blocked on: owner acceptance; AMAP-V0 (V1-0956) acceptance; live receipt qualification.
 - Read next: Requirements; Status lattice; Failure modes; Owner questions.
@@ -60,7 +60,7 @@ component joined them.
 
 ## Requirements
 
-Every requirement below is (proposed, pending owner acceptance; V1-0957).
+Every requirement below is (accepted by decision 0446; V1-0957).
 
 - `RVN-V0-001`: `corvint flows appmap screen` and `flow` MUST accept repeatable
   `--receipt FILE` (at most 16) and `--bind STEP_ID=TEST_KEY` (at most 64) and nothing else new.
@@ -71,7 +71,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   provider document (any PWP profile); otherwise refuse with `appmap-verify-invalid-receipt`.
   `--bind` without `--receipt`, or too many inputs, MUST refuse with `appmap-invalid-query`. With no
   `--receipt` the projection MUST be byte-identical to AMAP-V0 output. Identical receipts are
-  deduplicated by SHA-256. (proposed, pending owner acceptance; V1-0957)
+  deduplicated by SHA-256. (accepted by decision 0446; V1-0957)
 - `RVN-V0-002`: A step's bound keys MUST be the union of `Step.tests` (compiled into the map from
   the flow intent's `basis: declared` links whose target type is `test`; an `inferred` link never
   binds) and its `--bind` keys. A `--bind` whose step ID does not start with `step:` or whose key
@@ -79,7 +79,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   `appmap-invalid-query`; a step ID absent from the map MUST refuse with
   `appmap-verify-unknown-step`; a key equal to no outcome ID of any supplied receipt MUST refuse
   with `appmap-verify-test-absent`. A receipt outcome binds a step only when its PWP test ID equals
-  a bound key; titles, files and URLs never bind. (proposed, pending owner acceptance; V1-0957)
+  a bound key; titles, files and URLs never bind. (accepted by decision 0446; V1-0957)
 - `RVN-V0-003`: An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds and
   its state is `passed`, and as a failure only when it is ready and its state is `failed` or
   `timedOut`; every other outcome is `inconclusive-outcome`. A pass or failure MUST be placed before
@@ -88,12 +88,12 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   reads `anchor-differs-at-app-revision`; freshness UNKNOWN at a resolved revision reads
   `freshness-unknown`. An unknown or unresolvable revision MUST never yield `VERIFIED` or
   `CONTRADICTED`, and a failure with an unresolved revision (`unplaced-failure`) MUST block
-  `VERIFIED`. (proposed, pending owner acceptance; V1-0957)
+  `VERIFIED`. (accepted by decision 0446; V1-0957)
 - `RVN-V0-004`: Placed evidence MUST be compared with the projection's evaluated revision
   (`--revision`, default HEAD): any app-source anchor STALE there MUST yield `UNVERIFIED_AT_HEAD`
   citing the placed evidence and its revision; any UNKNOWN there MUST yield `unverified` with
   `freshness-unknown`. Recompiling the map at a later revision pins the new source, so an older
-  receipt then reads `anchor-differs-at-app-revision`. (proposed, pending owner acceptance; V1-0957)
+  receipt then reads `anchor-differs-at-app-revision`. (accepted by decision 0446; V1-0957)
 - `RVN-V0-005`: The status MUST be exactly one of `VERIFIED`, `UNVERIFIED_AT_HEAD`,
   `CONTRADICTED` or `unverified`, decided in this order: no bound outcome (`no-binding` or
   `no-receipt-outcome`); evaluated freshness UNKNOWN; evaluated STALE (`UNVERIFIED_AT_HEAD`); a
@@ -101,8 +101,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   (`VERIFIED`); else `unverified` with the first reason of `freshness-unknown`, `unplaced-failure`,
   `app-revision-unresolved`, `anchor-differs-at-app-revision`, `inconclusive-outcome`. A step whose
   AMAP status is not resolved reads `unverified` with `step-unresolved`. The cited evidence is the
-  least by (revision, receipt SHA-256, test key, project). (proposed, pending owner acceptance;
-  V1-0957)
+  least by (revision, receipt SHA-256, test key, project). (accepted by decision 0446; V1-0957)
 - `RVN-V0-006`: When receipts are supplied, the `screen` and `flow` projections MUST print the
   status of every selected step that has a binding as one AMAP-V0-014 learned fact
   `{element_id: STEP_ID, source: "run-verification", kind: STATUS, revision?, text, authority}`,
@@ -117,19 +116,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   `appmap.VerifySteps(ctx, map, flow, verification, Options)` keyed by step ID, including unbound
   steps (`no-binding`), with the same `evidence-too-large` degradation. The V1-0959 planner (`flows appmap plan --receipt --bind`, AMSP-V0-007)
   MUST read these same facts, one overlay per plan map, identifying them by `source` and reading
-  the status from `kind`; it emits and reads no selector or method facts. (proposed, pending owner
-  acceptance; V1-0957)
+  the status from `kind`; it emits and reads no selector or method facts. (accepted by decision 0446; V1-0957)
 - `RVN-V0-007`: The fact and its text MUST always carry authority `learned`. A run status MUST NOT change any
   other projection field, the selector's static strength (`selector_evidence` is a separate
   `run-verified` or `run-contradicted` label), freshness, candidate-research or intent status, and
   MUST NOT feed ranking, evidence admission or authority: no ranking or authority package imports
   `internal/appmap`. Per OCA-V0-004 a `VERIFIED` step is owner-labelled run evidence that one bound
-  test passed against one app revision, not a truth claim about unobserved behavior. (proposed,
-  pending owner acceptance; V1-0957)
+  test passed against one app revision, not a truth claim about unobserved behavior. (accepted by decision 0446; V1-0957)
 - `RVN-V0-008`: Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
   freshness once per distinct (revision, router lineage) per call (one tree read plus the bounded
-  AMAP-V0 blob reads each), with no background work, network, browser execution or cache file. (proposed, pending
-  owner acceptance; V1-0957)
+  AMAP-V0 blob reads each), with no background work, network, browser execution or cache file. (accepted by decision 0446; V1-0957)
 
 ## Status lattice
 
@@ -217,6 +213,8 @@ Experimental and opt-in: nothing changes without `--receipt`. Rollback is revert
 rollback also rebuilds maps. No stored state needs migration.
 
 ## Owner questions
+
+Decision 0446 keeps every V0 default below; each question stays open for a later owner answer.
 
 1. Should a declared (unattested) app identity be allowed to place evidence, or only attested `/1`
    and `/2` receipts? V0 allows declared and labels it.

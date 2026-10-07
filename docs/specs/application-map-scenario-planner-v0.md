@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: proposed
+Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: owner request [issue 660](https://github.com/beamfall/corvint/issues/660)
 (native ticket V1-0959), `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
@@ -13,7 +13,7 @@ run-verified steps, which will supply verification statuses).
 
 ## Agent digest
 - Claim: A plain-language multi-step request becomes one capped, deterministic E2E plan over application maps that fails closed on unmapped or stale steps.
-- Status: proposed (pending owner acceptance; V1-0959); experimental. AMSP-V0-001..010 are implemented in `internal/appmap/plan.go`, `corvint flows appmap plan` and the corpus MCP tool `corvint.map_plan`, over the committed AMAP-V0 fixture plus a two-app overlay; no adopter-scale qualification.
+- Status: accepted (decision 0446; V1-0959); experimental. AMSP-V0-001..010 are implemented in `internal/appmap/plan.go`, `corvint flows appmap plan` and the corpus MCP tool `corvint.map_plan`, over the committed AMAP-V0 fixture plus a two-app overlay; no adopter-scale qualification.
 - Exists: step resolution by explicit `flow:<id>` or weighted term coverage, one browser session per app, `goto`/`stay`/`follow`/`in-screen` navigation, route-parameter handoff, a Playwright draft and the verification seam over AMAP-V0-014 overlay facts.
 - Blocked on: owner acceptance. Receipt-bound verification (V1-0957, RVN-V0-006) reaches the CLI through `--receipt`/`--bind`; it covers steps only, so selectors and shown methods stay `unverified` (owner question 9), and the corpus MCP passes no receipts.
 - Read next: Requirements; Verification seam; Failure modes; Owner questions.
@@ -64,14 +64,14 @@ data from one flow to the next. The corpus MCP serves documentation-corpus tools
 
 ## Requirements
 
-Every requirement below is (proposed, pending owner acceptance; V1-0959).
+Every requirement below is (accepted by decision 0446; V1-0959).
 
 - `AMSP-V0-001`: `map_plan` MUST accept 1..8 application maps, each naming a distinct app,
   and 1..16 request steps, each 1..512 bytes of single-line UTF-8 text with no control
   character. A whole request is split per Definitions. Anything outside these bounds MUST
   refuse with `appmap-invalid-query` before any Git read. The output is one closed
   `application-map-plan/0` document. The planner MUST read only the maps and Git, write
-  nothing, and run no browser. (proposed, pending owner acceptance; V1-0959)
+  nothing, and run no browser. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-002`: Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
   flow exactly. Otherwise the planner scores inverse-document-frequency weighted term coverage
   over each flow's ID, step actions and outcome behaviours, after lower-casing, stop-word
@@ -79,7 +79,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   denominator. The best flow is chosen only when its coverage is strictly above 0.5 and
   strictly above the runner-up. Otherwise the step reads `UNMAPPED` with reason
   `no-matching-flow` or `ambiguous-flow` and at most 3 candidates. The result MUST NOT depend
-  on the order of the maps. (proposed, pending owner acceptance; V1-0959)
+  on the order of the maps. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-003`: Freshness MUST come from one Git read at the evaluated revision. That read
   covers the anchors of the resolved flows, the screen lineage of each flow step, the shown
   reuse methods, the closest asserting spec and the setup scenarios. The evaluated revision
@@ -87,14 +87,14 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   `lineage_freshness`, and each reused method reports its own freshness. When Git cannot
   evaluate the anchors, or the revision does not resolve to a commit, the result is `UNKNOWN`,
   never `FRESH`.
-  (proposed, pending owner acceptance; V1-0959)
+  (accepted by decision 0446; V1-0959)
 - `AMSP-V0-004`: The plan MUST open one session per application that has at least one resolved
   step. Each session names a unique page variable and records the union of its screens'
   permissions, the map's `test_join` and one setup. The setup is the scenario file that covers
   the most of that application's steps, or `UNKNOWN no-scenario`. It also lists every flow
   precondition, including `flow:<id>` requirements, as `unverified`. A `flow:<id>`
   precondition met by an earlier MAPPED step of the same plan records that step as
-  `satisfied_by_step`. (proposed, pending owner acceptance; V1-0959)
+  `satisfied_by_step`. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-005`: A step MUST read, in this order of precedence:
   - `UNMAPPED`: the step is unresolved (AMSP-V0-002), the flow has no steps
     (`no-flow-steps`), any flow step is unplaced or abstract (`unplaced-step`), or the flow
@@ -110,7 +110,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   to do, and the element IDs involved. The plan reads `COMPLETE` only when every step is
   MAPPED. Otherwise it reads `INCOMPLETE` and lists each gap. The planner MUST NOT compose
   navigation or code for a step that is not MAPPED.
-  (proposed, pending owner acceptance; V1-0959)
+  (accepted by decision 0446; V1-0959)
 - `AMSP-V0-006`: Navigation MUST be composed over MAPPED steps only:
   - The first action of a step is `stay` when its screen is the screen the same session's
     previous MAPPED step ended on, and `goto` otherwise.
@@ -122,7 +122,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   new `setup` handoff. Each parameter first reached by a `follow` action MUST be produced by
   that step, together with the URL template it is captured from. Handoff never crosses
   applications: a parameter is keyed by `<app>:<name>`, so the same name in two apps is two
-  handoffs. (proposed, pending owner acceptance; V1-0959)
+  handoffs. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-007`: Verification MUST be read from the AMAP-V0-014 overlays in
   `Options.Overlays`: each overlay's `Facts` is called once per plan with the sorted unique step,
   selector and shown-method IDs, and only facts with source `run-verification`
@@ -145,7 +145,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   read), and the RVN-V0 producer emits step facts only, so a step with a selector or a shown
   method stays `candidate` (owner question 9). Plan `authority` is always
   `candidate`. Candidate research, overlays and setup preconditions MUST never raise any of
-  these values. (proposed, pending owner acceptance; V1-0959)
+  these values. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-008`: With `draft`, the plan MUST include a Playwright skeleton that is guarded by
   `test.fixme` and has a proposed path beside the closest asserting spec. The skeleton has one
   browser context per session and exactly one `test.step` per request step. A MAPPED step's
@@ -167,13 +167,13 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   (CR, LF, U+2028 or U+2029; repository text in comments is flattened), and every route
   parameter MUST be read through
   `param("<app>:<name>")`, which throws when the parameter is unbound.
-  (proposed, pending owner acceptance; V1-0959)
+  (accepted by decision 0446; V1-0959)
 - `AMSP-V0-009`: The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
   (1 MiB); the two cannot be combined. The head (schema, maps, evaluated revision, budget,
   authority, status, steps, sessions, handoff, gaps and draft) is never trimmed, and a budget
   it does not fit MUST refuse with `appmap-budget-too-small`. Only `unknowns` may be trimmed,
   with its omitted count reported. The same inputs at the same revision MUST give the same
-  bytes. (proposed, pending owner acceptance; V1-0959)
+  bytes. (accepted by decision 0446; V1-0959)
 - `AMSP-V0-010`: The planner MUST be served by two surfaces:
   - `corvint flows appmap plan --map FILE... (--step TEXT... | --request TEXT) [--draft]
     [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...`,
@@ -194,7 +194,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
     `structuredContent` is the plan object.
 
   On both surfaces, invalid arguments refuse (CLI exit 2; MCP `Invalid params`), and a planner
-  refusal keeps its code. (proposed, pending owner acceptance; V1-0959)
+  refusal keeps its code. (accepted by decision 0446; V1-0959)
 
 ## Wire contract
 
@@ -319,6 +319,8 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
    navigates instead of staying (review round 3).
 
 ## Owner questions
+
+Decision 0446 keeps every V0 default below; each question stays open for a later owner answer.
 
 1. Is flow-level resolution with a strict coverage above 0.5 the right fail-closed default,
    and is the light suffix folding acceptable? It folds `settings` to `sett` on both sides.
