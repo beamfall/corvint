@@ -879,10 +879,22 @@ func TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
+	assertAffectedCompactSummarizesFull(t, compact, full, fullRaw)
+	for _, arguments := range [][]string{{"--full", "--full"}, {"--full=true"}, {"--full", "--playwright-config", "playwright.config.ts"}} {
+		if _, err := parseAffectedOptions(arguments); err == nil {
+			t.Fatalf("%v must be refused", arguments)
+		}
+	}
+}
+
+// assertAffectedCompactSummarizesFull checks that a default affected-plan/1
+// document is the AFP-V0-035 projection of the --full document.
+func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]any, fullRaw []byte) {
+	t.Helper()
 	if compact["profile"] != affectedCompactProfile || full["profile"] != affectedProfile {
 		t.Fatalf("profiles: default %v, --full %v", compact["profile"], full["profile"])
 	}
-	for _, member := range []string{"advice", "mutates", "ok", "provider", "range", "revision", "tool"} {
+	for _, member := range []string{"advice", "mutates", "ok", "provider", "range", "revision", "snapshot", "tool"} {
 		if !reflect.DeepEqual(compact[member], full[member]) {
 			t.Fatalf("%s differs: %v != %v", member, compact[member], full[member])
 		}
@@ -922,10 +934,5 @@ func TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan(t *testing.T) {
 	if len(groups) != 1 || int(group["count"].(float64)) != len(fullExcluded) || group["universe"] != fullPlan["graphDigest"] ||
 		group["reason"] != "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT" || group["invalidation"] != "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH" {
 		t.Fatalf("groups must state the shared exclusion values once: %v", groups)
-	}
-	for _, arguments := range [][]string{{"--full", "--full"}, {"--full=true"}, {"--full", "--playwright-config", "playwright.config.ts"}} {
-		if _, err := parseAffectedOptions(arguments); err == nil {
-			t.Fatalf("%v must be refused", arguments)
-		}
 	}
 }
