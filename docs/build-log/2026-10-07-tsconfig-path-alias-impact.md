@@ -230,3 +230,14 @@ fail on the round 3 resolver (observed).
 The cost of this rule: a config that extends a package now leaves every bare specifier unresolved
 unless the leaf itself declares `baseUrl`, `paths`, the mode and `moduleSuffixes`. This is an owner
 question.
+
+Round 5 reported two P2 findings. Both were accepted, and both new cases fail on the round 4
+resolver (observed).
+
+1. TypeScript also searches `typeRoots` when a bare name resolves nowhere. The check now resolves
+   each in-repository, non-`node_modules` root against the name, with scoped names mangled. A
+   tracked declaration there, or unknown or outside roots, makes the name unresolved in every mode.
+   The same check replaces round 4's blanket node10 rule, so a `typeRoots` list without a matching
+   declaration keeps the package reading. A guard case covers that.
+2. A relative specifier whose last segment is `.` or `..` names a directory, as in TypeScript's
+   `normalizePathForCJSResolution`.

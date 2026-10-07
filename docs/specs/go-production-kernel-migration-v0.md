@@ -1488,7 +1488,8 @@ arm is unchanged.
   resolves exactly or through its `.d<ext>.ts` declaration, as a bundler would; an
   extension-bearing candidate that fails still tries the five extensions appended; and a
   directory, including the repository root, resolves through its `index` file with the same
-  extensions. A candidate with a trailing slash names a directory only. JSON and other non-module
+  extensions. A candidate with a trailing slash, or a relative specifier whose last segment is
+  `.` or `..`, names a directory only. JSON and other non-module
   files resolve whatever `resolveJsonModule` and `allowArbitraryExtensions` say, because impact
   asks which files depend on the changed one and the importer depends on that file at run time
   even where the type checker would not resolve it. The mode is TypeScript 5.9's computed
@@ -1498,9 +1499,12 @@ arm is unchanged.
   the first config that declares it. node10 runs the whole lookup with TypeScript and declaration
   files (`.ts`, `.tsx`, `.mts`, `.cts` and their declaration forms) first and JavaScript second;
   bundler runs it once with every form. Under node10 a target that only the JavaScript pass
-  reaches is unresolved when the name is a `GPK-V0-080` declared package or a `typeRoots`
-  declaration is in force or unknown, because a declaration found there, which is not resolved
-  here, would win. node16 and nodenext run it once, but a file's ESM or CommonJS
+  reaches is unresolved when the name is a `GPK-V0-080` declared package, because its types,
+  which are not indexed, would win. In every mode, a name that resolves to no alias target, or
+  only through node10's JavaScript pass, is unresolved when a `typeRoots` directory in force
+  holds a tracked declaration for it (scoped names mangled as `scope__name`), or when the
+  `typeRoots` are unknown or leave the repository, because TypeScript searches them after
+  `node_modules`; a `node_modules` root is left to the package test. node16 and nodenext run it once, but a file's ESM or CommonJS
   mode is not read and only CommonJS mode adds extensions or reads a directory index, so a target
   reached that way is unresolved. Classic resolution also searches every ancestor directory for
   a bare name, which is not modelled, so every bare specifier under a classic config is

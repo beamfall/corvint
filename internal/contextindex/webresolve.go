@@ -93,6 +93,10 @@ func NewWebImportResolver(index *Index) *WebImportResolver {
 // missing relative target is unresolved.
 func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImportResolution {
 	if strings.HasPrefix(specifier, ".") {
+		if last := path.Base(specifier); last == "." || last == ".." {
+			// TypeScript reads a final `.` or `..` segment as a directory.
+			specifier += "/"
+		}
 		return resolvedOrUnknown(resolver.loadFrom(importer, webJoin(path.Dir(importer), specifier)).target)
 	}
 	if prefix := resolver.profile.WebAliasPrefix; prefix != "" && strings.HasPrefix(specifier, prefix) {
@@ -249,12 +253,36 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 	outcome := inMode(options.mode, func(pass webPass) webAliasOutcome {
 		return resolver.aliasIn(options, specifier, pass)
 	})
-	if outcome.untyped && options.typeRoots {
-		// node10 searches typeRoots for a declaration before its
-		// JavaScript pass, and typeRoots directories are not resolved here.
+	if (outcome.untyped || outcome.target == "" && !outcome.unknown) && resolver.typeRootDeclares(options, specifier) {
+		// After node_modules, TypeScript looks for the name's declaration
+		// in typeRoots: before node10's JavaScript pass, and before giving
+		// up. Which of node_modules (not indexed) and that declaration
+		// wins is not known here.
 		return webAliasOutcome{unknown: true}
 	}
 	return outcome
+}
+
+// typeRootDeclares reports whether a typeRoots directory may declare
+// specifier: the declaration is tracked, or the roots are unknown or outside
+// the repository. A node_modules root is the package test's business.
+func (resolver *WebImportResolver) typeRootDeclares(options *webOptions, specifier string) bool {
+	if options.typeRootsUnknown {
+		return true
+	}
+	name := specifier
+	if scope, rest, scoped := strings.Cut(strings.TrimPrefix(name, "@"), "/"); scoped && strings.HasPrefix(name, "@") {
+		name = scope + "__" + rest
+	}
+	for _, root := range options.typeRoots {
+		if root == "node_modules" || strings.HasPrefix(root, "node_modules/") || strings.Contains(root, "/node_modules") {
+			continue
+		}
+		if target, _, stop := resolver.load(path.Join(root, name), webPassTyped, true); target != "" || stop {
+			return true
+		}
+	}
+	return false
 }
 
 func (resolver *WebImportResolver) aliasIn(options *webOptions, specifier string, pass webPass) webAliasOutcome {
@@ -443,8 +471,10 @@ type webConfig struct {
 	pathsSet, pathsValid bool
 	moduleSuffixes       bool
 	moduleSuffixesSet    bool
-	// typeRootsSet records a typeRoots declaration, typeRoots a non-null one.
-	typeRootsSet, typeRoots bool
+	// typeRootsSet records a typeRoots declaration, typeRoots its entries
+	// (nil for JSON null) and typeRootsValid a list of strings.
+	typeRootsSet, typeRootsValid bool
+	typeRoots                    []string
 	// settings holds moduleResolution, module and target, in that order.
 	settings [3]webSetting
 }
@@ -467,9 +497,10 @@ type webOptions struct {
 	baseKnown, pathsKnown             bool
 	paths                             map[string][]string
 	mode                              webMode
-	// typeRoots is true when a typeRoots declaration is in force or unknown:
-	// node10 searches those directories before any JavaScript file.
-	typeRoots bool
+	// typeRoots are the repository directories of the typeRoots in force;
+	// typeRootsUnknown is set when they are unknown or leave the repository.
+	typeRoots        []string
+	typeRootsUnknown bool
 }
 
 func (resolver *WebImportResolver) parse(name string) *webConfig {
@@ -535,7 +566,7 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 	}
 	config.moduleSuffixesSet = len(options.ModuleSuffixes) != 0
 	config.typeRootsSet = len(options.TypeRoots) != 0
-	config.typeRoots = config.typeRootsSet && string(options.TypeRoots) != "null"
+	config.typeRootsValid = !config.typeRootsSet || string(options.TypeRoots) == "null" || jsonv2.Unmarshal(options.TypeRoots, &config.typeRoots) == nil
 	if moduleSuffixes := strings.TrimSpace(string(options.ModuleSuffixes)); moduleSuffixes != "" && moduleSuffixes != "null" {
 		var values []string
 		config.moduleSuffixes = jsonv2.Unmarshal(options.ModuleSuffixes, &values) != nil || len(values) != 1 || values[0] != ""
@@ -656,7 +687,7 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 			}
 		}
 		if !typeRootsDecided {
-			typeRootsDecided, options.typeRoots = true, true
+			typeRootsDecided, options.typeRootsUnknown = true, true
 		}
 		if !suffixDecided {
 			// An unread config may declare moduleSuffixes, which changes
@@ -681,7 +712,12 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 			}
 		}
 		if config.typeRootsSet && !typeRootsDecided {
-			typeRootsDecided, options.typeRoots = true, config.typeRoots
+			typeRootsDecided, options.typeRootsUnknown = true, !config.typeRootsValid
+			for _, root := range config.typeRoots {
+				directory := webConfigPath(root, config.directory, options.leafDirectory)
+				options.typeRootsUnknown = options.typeRootsUnknown || directory == ""
+				options.typeRoots = append(options.typeRoots, directory)
+			}
 		}
 		if config.baseURLSet && !baseDecided {
 			baseDecided = true

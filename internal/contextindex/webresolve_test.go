@@ -243,6 +243,19 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"src/alias.js":           page,
 			"types/alias/index.d.ts": page,
 		}, "alias", WebImportResolution{State: WebImportUnresolved}},
+		"typeRoots may declare an unaliased package": {map[string]string{
+			"tsconfig.json":        `{"compilerOptions": {"typeRoots": ["./types"]}}`,
+			"package.json":         `{"dependencies": {"lib": "1.0.0"}}`,
+			"types/lib/index.d.ts": page,
+		}, "lib", WebImportResolution{State: WebImportUnresolved}},
+		"typeRoots without the declaration keep the package": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"typeRoots": ["./types", "./node_modules/@types"]}}`,
+			"package.json":  `{"dependencies": {"lib": "1.0.0"}}`,
+		}, "lib", WebImportResolution{State: WebImportPackage}},
+		"final dot segment names a directory": {map[string]string{
+			"app.ts":       page,
+			"app/index.ts": page,
+		}, ".", WebImportResolution{"app/index.ts", WebImportRepository}},
 		"bundler takes JavaScript before typeRoots": {map[string]string{
 			"tsconfig.json":          `{"compilerOptions": {"moduleResolution": "bundler", "typeRoots": ["./types"], "paths": {"alias": ["src/alias"]}}}`,
 			"src/alias.js":           page,
