@@ -53,7 +53,10 @@ are deliberately kept out of the repository.
 - **MCP surface.** `corvint-corpus-mcp` takes up to eight optional `--map FILE` pairs after
   `--root`/`--artifact`. Each path must be local to the root after symlink resolution. The maps
   are loaded once at startup, and the tool is listed only when maps are configured. The input
-  schema is closed (`additionalProperties: false`, with exactly one of `steps` or `request`).
+  schema is closed (`additionalProperties: false`, with exactly one of `steps` or `request`),
+  and the handler decodes it strictly to the same bounds. There is no MCP `full`, because a
+  full draft could exceed the 1 MiB message cap; the CLI `--full` remains the escape (owner
+  question 7).
 
 ## Verification seam (issue 658)
 
@@ -83,6 +86,33 @@ fake verifier.
   - `TestAMSPV0008MethodWithArgumentsNotCalled` failed before the `NoArgs` guard.
   - The `methods_total` and strict-threshold cases are pinned in
     `TestAMSPV0002MultiStepPlanOnFixture` and `TestAMSPV0005UnmappedStepsFailClosed`.
+
+## Codex review
+
+Round 1 (`codex exec`, read-only, diff `43c65094..4874a24a`) raised five P2 findings. Each was
+verified, repaired, and pinned by a regression that failed before the repair:
+
+1. **Handoff leaked across apps.** The draft kept one global `params` map, so a `clubId` from
+   one app could satisfy another app's route. Parameters are now keyed `<app>:<name>` in
+   `params.set`, `param()` and `urlExpr`. Pinned by `TestAMSPV0006HandoffStaysInItsApp`.
+2. **An unverified selector could still give `run-verified`.** Selector verification now takes
+   part in the step's all-verified check. Pinned by
+   `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`. The selector `id` is now printed, so
+   its verification can be traced.
+3. **A named import was assumed for every page-object class.** A default-export class got
+   `import { Class }`. The draft now imports and calls a class only when some map file has a
+   resolved, non-type named import of exactly that class. Otherwise it prints an
+   `UNRESOLVED import` comment. Pinned by `TestAMSPV0008DefaultExportNotNamedImport`.
+4. **MCP argument validation was weaker than the schema.** It accepted `null`s, both `steps`
+   and `request`, out-of-range or fractional budgets, and a string budget. The handler now
+   decodes strictly. Pinned by the invalid-argument cases in `TestAMSPV0010CorpusMCPMapPlan`;
+   eleven of them were accepted by the round-1 code.
+5. **An MCP `full` response could exceed 1 MiB.** `full` was removed from the MCP. A test pins
+   that a 16-step, maximum-budget draft stays under `protocol.MaxMessageBytes`.
+
+The same default-export assumption exists in the issue-657 `ProjectScaffold`
+(`internal/appmap/scaffold.go`). It is outside this slice and is reported to the orchestrator,
+not changed here.
 
 ## Dogfood friction
 

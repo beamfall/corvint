@@ -160,18 +160,58 @@ func TestAMSPV0010CorpusMCPMapPlan(t *testing.T) {
 	if wantObject["status"] != "COMPLETE" || !strings.Contains(string(want), "await test.step(") {
 		t.Fatalf("plan: %s", want)
 	}
+	seventeen := []any{}
+	for range 17 {
+		seventeen = append(seventeen, "book a tee time")
+	}
 	for _, args := range []map[string]any{
 		{},
 		{"request": request, "steps": []any{"x"}},
+		{"request": request, "steps": []any{}},
+		{"request": request, "steps": nil},
 		{"request": request, "extra": true},
 		{"request": request, "budget": 1.5},
+		{"request": request, "budget": 0},
+		{"request": request, "budget": 1},
+		{"request": request, "budget": nil},
+		{"request": request, "budget": "4096"},
+		{"request": request, "full": true},
+		{"request": request, "draft": nil},
+		{"request": request, "revision": nil},
+		{"request": nil},
 		{"request": ""},
 		{"steps": []any{}},
+		{"steps": seventeen},
+		{"steps": []any{""}},
+		{"steps": []any{strings.Repeat("x", 513)}},
+		{"steps": []any{1}},
 		{"request": request, "revision": ""},
 	} {
 		if _, rpc := h.call(context.Background(), map[string]any{"name": mapPlanTool, "arguments": args}); rpc == nil {
 			t.Errorf("arguments %v accepted", args)
 		}
+	}
+	var tool map[string]any
+	result, _ = h.Handle(context.Background(), protocol.Request{Method: "tools/list", Params: map[string]any{}}, nil)
+	raw, _ := json.Marshal(result["tools"])
+	var tools []map[string]any
+	_ = json.Unmarshal(raw, &tools)
+	for _, td := range tools {
+		if td["name"] == mapPlanTool {
+			tool = td
+		}
+	}
+	if _, full := tool["inputSchema"].(map[string]any)["properties"].(map[string]any)["full"]; full {
+		t.Fatal("map_plan advertises an unbounded full escape")
+	}
+	// The largest plan the tool can return, framed and copied into structured content, fits one
+	// MCP message.
+	big, rpc := h.call(context.Background(), map[string]any{"name": mapPlanTool, "arguments": map[string]any{"steps": seventeen[:16], "budget": appmap.MaxBudget, "draft": true}})
+	if rpc != nil || big["isError"] != false {
+		t.Fatalf("max-budget plan: %v %v", big["isError"], rpc)
+	}
+	if encoded, _ := json.Marshal(big); len(encoded) >= protocol.MaxMessageBytes {
+		t.Fatalf("max-budget response is %d bytes", len(encoded))
 	}
 	refused, rpc := h.call(context.Background(), map[string]any{"name": mapPlanTool, "arguments": map[string]any{"request": request, "budget": 300}})
 	if rpc != nil || refused["isError"] != true || refused["structuredContent"].(map[string]any)["code"] != "appmap-budget-too-small" {

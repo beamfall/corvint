@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -79,7 +80,6 @@ func (p *mapPlanner) descriptor() bridge.ToolDescriptor {
 				"request":  map[string]any{"type": "string", "minLength": 1, "maxLength": maxRequestBytes},
 				"revision": map[string]any{"type": "string", "minLength": 1, "maxLength": maxRevisionBytes},
 				"budget":   map[string]any{"type": "integer", "minimum": appmap.MinBudget, "maximum": appmap.MaxBudget},
-				"full":     map[string]any{"type": "boolean"},
 				"draft":    map[string]any{"type": "boolean"},
 			},
 			"oneOf":                []any{map[string]any{"required": []any{"steps"}}, map[string]any{"required": []any{"request"}}},
@@ -89,35 +89,75 @@ func (p *mapPlanner) descriptor() bridge.ToolDescriptor {
 }
 
 type mapPlanArguments struct {
-	Steps    []string `json:"steps"`
-	Request  *string  `json:"request"`
-	Revision *string  `json:"revision"`
-	Budget   int      `json:"budget"`
-	Full     bool     `json:"full"`
-	Draft    bool     `json:"draft"`
+	steps    []string
+	request  string
+	revision string
+	budget   int
+	draft    bool
+}
+
+// decodeMapPlanArguments enforces the advertised input schema: a closed key set, no null, exactly
+// one of steps or request, and every type and bound. There is no full escape over MCP: a plan is
+// at most MaxBudget bytes, so the framed text plus its structured copy stay within one message.
+func decodeMapPlanArguments(raw []byte) (mapPlanArguments, bool) {
+	var a mapPlanArguments
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil || fields == nil {
+		return a, false
+	}
+	str := func(v json.RawMessage, limit int) (string, bool) {
+		var s string
+		return s, json.Unmarshal(v, &s) == nil && s != "" && len(s) <= limit
+	}
+	_, hasSteps := fields["steps"]
+	_, hasRequest := fields["request"]
+	if hasSteps == hasRequest {
+		return a, false
+	}
+	for key, v := range fields {
+		ok := false
+		switch key {
+		case "steps":
+			var items []json.RawMessage
+			ok = json.Unmarshal(v, &items) == nil && len(items) >= 1 && len(items) <= 16
+			for _, item := range items {
+				s, good := str(item, 512)
+				ok = ok && good
+				a.steps = append(a.steps, s)
+			}
+		case "request":
+			a.request, ok = str(v, maxRequestBytes)
+		case "revision":
+			a.revision, ok = str(v, maxRevisionBytes)
+		case "budget":
+			var n *float64 // a JSON number only: a string or null does not decode to it
+			if json.Unmarshal(v, &n) == nil && n != nil {
+				ok = *n == math.Trunc(*n) && *n >= appmap.MinBudget && *n <= appmap.MaxBudget
+				a.budget = int(*n)
+			}
+		case "draft":
+			ok = json.Unmarshal(v, &a.draft) == nil && string(bytes.TrimSpace(v)) != "null"
+		}
+		if !ok {
+			return a, false
+		}
+	}
+	return a, true
 }
 
 // call returns the plan text or a coded failure; ok is false for arguments outside the schema.
 // Empty text with no code is an internal failure.
 func (p *mapPlanner) call(ctx context.Context, raw []byte) (text string, code, message string, ok bool) {
-	var a mapPlanArguments
-	d := json.NewDecoder(bytes.NewReader(raw))
-	d.DisallowUnknownFields()
-	if d.Decode(&a) != nil || (len(a.Steps) == 0) == (a.Request == nil) ||
-		(a.Request != nil && (*a.Request == "" || len(*a.Request) > maxRequestBytes)) ||
-		(a.Revision != nil && (*a.Revision == "" || len(*a.Revision) > maxRevisionBytes)) {
+	a, valid := decodeMapPlanArguments(raw)
+	if !valid {
 		return "", "", "", false
 	}
-	steps := a.Steps
-	if a.Request != nil {
-		steps = appmap.SplitRequest(*a.Request)
-	}
-	revision := ""
-	if a.Revision != nil {
-		revision = *a.Revision
+	steps := a.steps
+	if a.request != "" {
+		steps = appmap.SplitRequest(a.request)
 	}
 	data, err := appmap.Plan(ctx, p.maps, steps, appmap.PlanOptions{
-		Options: appmap.Options{Root: p.root, Revision: revision, Budget: a.Budget, Full: a.Full}, Draft: a.Draft})
+		Options: appmap.Options{Root: p.root, Revision: a.revision, Budget: a.budget}, Draft: a.draft})
 	if err != nil {
 		var coded *gokernel.Error
 		if errors.As(err, &coded) {

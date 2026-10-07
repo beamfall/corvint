@@ -121,7 +121,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   Each route parameter of a `goto` screen MUST be consumed from an existing handoff, or from a
   new `setup` handoff. Each parameter first reached by a `follow` action MUST be produced by
   that step, together with the URL template it is captured from. Handoff never crosses
-  applications. (proposed, pending owner acceptance; V1-0959)
+  applications: a parameter is keyed by `<app>:<name>`, so the same name in two apps is two
+  handoffs. (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-007`: Verification MUST be read once per plan, through `Verifier.Status`, with the
   sorted unique step, selector and shown-method IDs. A nil verifier, an omitted ID or an empty
   value reads `unverified`. A `VERIFIED@<rev>` stands only when `<rev>` is a full object ID
@@ -129,7 +130,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   `UNVERIFIED_AT_HEAD`. Any other value reads `unverified` and is reported
   `verification-invalid`. A verifier error is reported `verification-unavailable` and changes
   nothing else. A MAPPED step reads `run-verified` only when every one of its elements stands
-  `VERIFIED@`; otherwise it reads `candidate`. Plan `authority` is always `candidate`.
+  `VERIFIED@`, including each action's selector; otherwise it reads `candidate`. Plan `authority` is always `candidate`.
   Candidate research, overlays and setup preconditions MUST never raise any of these values.
   (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-008`: With `draft`, the plan MUST include a Playwright skeleton that is guarded by
@@ -140,13 +141,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
     for `follow`;
   - a `routeParam` capture for each handoff the step produces;
   - a call to the reused page-object method only when that method is FRESH, declares no
-    parameters and its class binding is unique; otherwise a TODO on the step's locator;
+    parameters, its class binding is unique and some file in the map imports that class by
+    name (`import { Class }`, not `import type`); otherwise a TODO on the step's locator, and
+    a class with no named-import evidence is printed as an `UNRESOLVED import` comment, never
+    as an import;
   - one `TODO assert outcome <id>` line naming the matcher, locator and value of each declared
     outcome.
 
   A step that is not MAPPED throws `<STATUS> step <n>: <reason>` and prints its exploration.
   Template text MUST be escaped for JavaScript, and every route parameter MUST be read through
-  `param()`, which throws when the parameter is unbound.
+  `param("<app>:<name>")`, which throws when the parameter is unbound.
   (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-009`: The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
   (1 MiB); the two cannot be combined. The head (schema, maps, evaluated revision, budget,
@@ -161,9 +165,13 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   - the read-only, idempotent corpus MCP tool `corvint.map_plan`. It is listed only when
     `corvint-corpus-mcp` is started with 1..8 `--map FILE` arguments; each file must be local
     to `--root` after symlink resolution, and the maps are loaded once at startup. The tool
-    takes exactly one of `steps` or `request` (at most 8192 bytes), plus optional `revision`,
-    `budget`, `full` and `draft`. Its text result is the plan in the untrusted-data envelope,
-    and `structuredContent` is the plan object.
+    takes exactly one of `steps` (1..16 non-empty strings of at most 512 bytes) or `request`
+    (at most 8192 bytes), plus optional `revision` (at most 128 bytes), `budget` (an integral
+    JSON number in 256..65536) and `draft` (a boolean). Arguments are decoded strictly: an
+    unknown key, a `null`, a wrong type or an out-of-range value refuses. The MCP offers no
+    `full`, so every response stays under the 1 MiB message cap; the CLI `--full` is the
+    escape. Its text result is the plan in the untrusted-data envelope, and
+    `structuredContent` is the plan object.
 
   On both surfaces, invalid arguments refuse (CLI exit 2; MCP `Invalid params`), and a planner
   refusal keeps its code. (proposed, pending owner acceptance; V1-0959)
@@ -181,7 +189,7 @@ A step carries `index`, `request`, `status`, `reason`, `confidence`, `app`, `flo
 `asserts[]`, `produces[]`, `consumes[]`, `spec` and `exploration[]{need, detail, refs}`.
 
 An action carries `step`, `action`, `screen`, `url`, `status`, `navigation`,
-`lineage_freshness`, `selector` (with `verification`), `verification`, `methods[]{id, ref,
+`lineage_freshness`, `selector{id, …, verification}`, `verification`, `methods[]{id, ref,
 freshness, verification}` and `methods_total`.
 
 The planner owns no new error code. It reuses `appmap-invalid-query`,
@@ -223,7 +231,12 @@ by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or 
     `unverified`;
   - a budget too small for the head: refused;
   - a map path outside `--root`: the MCP refuses to start;
-  - a reused method that takes arguments: not called, with a TODO.
+  - a reused method that takes arguments: not called, with a TODO;
+  - a page-object class with no named import in the suite (for example a default export):
+    `UNRESOLVED import` comment, not called;
+  - an unverified selector on an otherwise verified step: the step stays `candidate`;
+  - MCP arguments outside the schema (unknown key, `null`, wrong type, out of range):
+    `Invalid params`.
 - Limits: term matching is lexical, so synonyms do not match; one flow per step; a precondition
   is only listed, never checked; the setup scenario is chosen by coverage, not by content.
 
@@ -236,9 +249,9 @@ by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or 
 | AMSP-V0-003 | `TestAMSPV0005StaleAndUnknownFreshness` |
 | AMSP-V0-004 | `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-005 | `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0005StaleAndUnknownFreshness` |
-| AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed` |
-| AMSP-V0-007 | `TestAMSPV0007VerificationSeam` |
-| AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled` |
+| AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0006HandoffStaysInItsApp` |
+| AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified` |
+| AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport` |
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
 
@@ -279,3 +292,5 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 5. Should the MCP reload maps when their files change, instead of loading them once at
    startup?
 6. Should every map have to come from the one repository at `--root`, as it must today?
+7. Should the MCP offer a `full` mode, for example with a streamed or paged response? Today it
+   has none, because a full draft could exceed the 1 MiB message cap.

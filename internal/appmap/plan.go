@@ -223,6 +223,7 @@ type methodRef struct {
 }
 
 type selectorRef struct {
+	ID string `json:"id"`
 	selectorView
 	Verification string `json:"verification"`
 }
@@ -561,10 +562,13 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 			}
 			av.Verification = verify(st.ID, fa.Freshness)
 			if st.Selector != nil {
-				sr := selectorRef{selectorView: *viewSelector(st.Selector), Verification: verify(st.Selector.ID, fa.Freshness)}
+				sr := selectorRef{ID: st.Selector.ID, selectorView: *viewSelector(st.Selector), Verification: verify(st.Selector.ID, fa.Freshness)}
 				av.Selector = &sr
 				if sr.Verification == Contradicted {
 					contradicted = append(contradicted, st.Selector.ID)
+				}
+				if !strings.HasPrefix(sr.Verification, VerifiedPrefix) {
+					allVerified = false
 				}
 			}
 			if av.Verification == Contradicted {
@@ -849,8 +853,13 @@ func templateParts(url string) (lits []string, params []string) {
 	}
 }
 
-// urlExpr is a JavaScript expression for a URL template, every parameter read through param().
-func urlExpr(url string) string {
+// paramKey names one route parameter of one app in the draft's params map; handoff never crosses
+// apps, so two apps with a parameter of the same name keep separate values.
+func paramKey(app, param string) string { return app + ":" + param }
+
+// urlExpr is a JavaScript expression for a URL template of app, every parameter read through
+// param().
+func urlExpr(app, url string) string {
 	lits, params := templateParts(url)
 	if len(params) == 0 {
 		return quote(url)
@@ -861,7 +870,7 @@ func urlExpr(url string) string {
 	for i, l := range lits {
 		b.WriteString(esc.Replace(l))
 		if i < len(params) {
-			b.WriteString("${param(" + quote(params[i]) + ")}")
+			b.WriteString("${param(" + quote(paramKey(app, params[i])) + ")}")
 		}
 	}
 	b.WriteByte('`')
@@ -940,6 +949,11 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 				continue
 			}
 			v := ident[ps.App] + f.Class
+			if !namedExport(byApp[ps.App], f) {
+				blocked[key] = true
+				dv.Imports = append(dv.Imports, "// UNRESOLVED import { "+f.Class+" }: no named import of it from "+commentSafe.Replace(f.Path)+" in the suite")
+				continue
+			}
 			if o, taken := owner[f.Class]; (taken && o != f.Path) || owner[v] != "" || !jsName.MatchString(f.Class) {
 				blocked[key] = true
 				dv.Imports = append(dv.Imports, "// UNRESOLVED import { "+f.Class+" } collides with an existing binding")
@@ -994,7 +1008,7 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 	}
 	for _, h := range handoffs {
 		if h.Source == "setup" {
-			L("  params.set(%s, \"TODO\"); // %s: bind from setup for steps %s", quote(h.Param), h.App, ints(h.ConsumedBy))
+			L("  params.set(%s, \"TODO\"); // bind from setup for steps %s", quote(paramKey(h.App, h.Param)), ints(h.ConsumedBy))
 		}
 	}
 	for _, ps := range plan {
@@ -1017,14 +1031,14 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 		for j, av := range ps.Actions {
 			switch av.Navigation {
 			case "goto":
-				L("    await %s.goto(%s);", page, urlExpr(av.URL))
+				L("    await %s.goto(%s);", page, urlExpr(ps.App, av.URL))
 			case "stay":
 				L("    await expect(%s).toHaveURL(%s); // stay: no re-navigation", page, urlRegex(av.URL, ""))
 			case "follow":
 				L("    await %s.waitForURL(%s);", page, urlRegex(av.URL, ""))
 				for _, h := range handoffs {
 					if h.Producer == ps.Index && h.Capture == av.URL && len(h.ConsumedBy) > 0 {
-						L("    params.set(%s, routeParam(%s.url(), %s)); // handoff to steps %s", quote(h.Param), page, urlRegex(av.URL, h.Param), ints(h.ConsumedBy))
+						L("    params.set(%s, routeParam(%s.url(), %s)); // handoff to steps %s", quote(paramKey(h.App, h.Param)), page, urlRegex(av.URL, h.Param), ints(h.ConsumedBy))
 					}
 				}
 			}
@@ -1078,6 +1092,29 @@ func callable(ps *planStep, j int) *TestFile {
 		return nil
 	}
 	return f
+}
+
+// namedExport is true when some file of the map imports class from f under its own name in a
+// braces import, which is the only evidence the map holds that `import { Class }` binds it; a
+// default, aliased, namespace or type-only import, or no import at all, is not evidence.
+func namedExport(m *Map, f *TestFile) bool {
+	for _, tf := range m.Files {
+		for _, imp := range tf.Imports {
+			if imp.Status != importResolved || imp.Resolved != f.Path || strings.HasPrefix(strings.TrimSpace(imp.Statement), "import type") {
+				continue
+			}
+			i, j := strings.IndexByte(imp.Statement, '{'), strings.IndexByte(imp.Statement, '}')
+			if i < 0 || j < i {
+				continue
+			}
+			for _, name := range strings.Split(imp.Statement[i+1:j], ",") {
+				if strings.TrimSpace(name) == f.Class {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func specRefText(s *specRef) string {

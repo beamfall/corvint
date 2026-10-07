@@ -374,8 +374,8 @@ func TestAMSPV0008DraftSkeleton(t *testing.T) {
 	for _, want := range []string{
 		"TODO assert outcome booked:", "TODO assert outcome status-shown:", "TODO assert outcome purchased:", "TODO assert outcome saved:",
 		"await adminTeeSheetPage.selectSlot();", "await marketplaceShopPage.buyGiftCard();",
-		`params.set("clubId", routeParam(adminPage.url(), /\/#!\/clubs\/([^/?#]+)\/teesheets(?:[?#]|$)/));`,
-		"await adminPage.goto(`/#!/clubs/${param(\"clubId\")}/settings`);",
+		`params.set("admin:clubId", routeParam(adminPage.url(), /\/#!\/clubs\/([^/?#]+)\/teesheets(?:[?#]|$)/));`,
+		"await adminPage.goto(`/#!/clubs/${param(\"admin:clubId\")}/settings`);",
 		"await expect(adminPage).toHaveURL(",
 		`throw new Error("UNMAPPED step 5: no-matching-flow");`,
 		"test.fixme(true,",
@@ -406,7 +406,7 @@ func TestAMSPV0009BudgetRefusesNotTruncates(t *testing.T) {
 
 // URL helpers escape template text for JavaScript.
 func TestAMSPV0008URLHelpersEscape(t *testing.T) {
-	if got := urlExpr("/a`b$/{id}\\"); got != "`/a\\`b\\$/${param(\"id\")}\\\\`" {
+	if got := urlExpr("app", "/a`b$/{id}\\"); got != "`/a\\`b\\$/${param(\"app:id\")}\\\\`" {
 		t.Fatalf("urlExpr = %s", got)
 	}
 	if got := urlRegex("/a.b/{id}/c", "id"); got != `/\/a\.b\/([^/?#]+)\/c(?:[?#]|$)/` {
@@ -430,5 +430,82 @@ func TestAMSPV0008MethodWithArgumentsNotCalled(t *testing.T) {
 	if strings.Contains(src, "adminTeeSheetPage.book(") || !strings.Contains(src, "adminTeeSheetPage.selectSlot();") ||
 		!strings.Contains(src, "takes arguments the flow does not supply; not called") {
 		t.Fatalf("draft: %s", src)
+	}
+}
+
+// AMSP-V0-006, AMSP-V0-008: two apps with a route parameter of the same name keep separate values
+// in the draft; handoff never crosses apps.
+func TestAMSPV0006HandoffStaysInItsApp(t *testing.T) {
+	root, _, _ := planRepo(t)
+	data, _ := os.ReadFile(filepath.Join(root, "shop/routes.js"))
+	writeFile(t, root, "shop/routes.js", strings.Replace(string(data), "url: '/shop'", "url: '/clubs/:clubId/shop'", 1))
+	flow := filepath.Join(root, "shop/flows/buy-gift-card.json")
+	data, _ = os.ReadFile(flow)
+	writeFile(t, root, "shop/flows/buy-gift-card.json", strings.Replace(string(data), `"state": "/shop"`, `"state": "/clubs/{clubId}/shop"`, 1))
+	rev := commitAll(t, root, "shop under a club")
+	market, err := Build(context.Background(), root, "marketplace.json", rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := planOf(t, []*Map{build(t, root, rev), market}, SplitRequest(fourSteps), PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	src := stringOf(doc["draft"].(map[string]any)["lines"])
+	for _, want := range []string{`params.set(\"marketplace:clubId\", \"TODO\")`, `param(\"marketplace:clubId\")`, `param(\"admin:clubId\")`} {
+		if !strings.Contains(src, want) {
+			t.Errorf("draft lacks %s: %s", want, src)
+		}
+	}
+	if strings.Contains(src, `param(\"clubId\")`) || strings.Contains(src, `params.set(\"clubId\"`) {
+		t.Fatalf("unscoped parameter: %s", src)
+	}
+	for _, h := range doc["handoff"].([]any) {
+		if hv := h.(map[string]any); hv["app"] == "marketplace" && (hv["source"] != "setup" || stringOf(hv["consumed_by"]) != "[3]") {
+			t.Fatalf("marketplace handoff = %v", hv)
+		}
+	}
+}
+
+// AMSP-V0-007: an unverified selector keeps its step at candidate even when the step and its
+// methods are verified.
+func TestAMSPV0007UnverifiedSelectorBlocksRunVerified(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	st := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}}))[0]
+	all := map[string]string{}
+	for _, av := range actions(st) {
+		all[av["step"].(string)] = VerifiedPrefix + rev
+		for _, me := range av["methods"].([]any) {
+			all[me.(map[string]any)["id"].(string)] = VerifiedPrefix + rev
+		}
+	}
+	got := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Verifier: &fakeVerifier{status: func(id string) string { return all[id] }}}))[0]
+	if got["confidence"] != "candidate" {
+		t.Fatalf("confidence with unverified selector = %v", got["confidence"])
+	}
+	sel := actions(st)[0]["selector"].(map[string]any)["id"].(string)
+	all[sel] = VerifiedPrefix + rev
+	got = planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Verifier: &fakeVerifier{status: func(id string) string { return all[id] }}}))[0]
+	if got["confidence"] != "run-verified" {
+		t.Fatalf("confidence with every element verified = %v", got["confidence"])
+	}
+}
+
+// AMSP-V0-008: a page-object class the suite never imports by name is not imported or called.
+func TestAMSPV0008DefaultExportNotNamedImport(t *testing.T) {
+	root, _, _ := planRepo(t)
+	for _, p := range []string{"shop-e2e/pages/shop.page.ts", "shop-e2e/specs/buy.spec.ts"} {
+		data, _ := os.ReadFile(filepath.Join(root, p))
+		s := strings.Replace(string(data), "export class ShopPage", "export default class ShopPage", 1)
+		writeFile(t, root, p, strings.Replace(s, "import { ShopPage }", "import ShopPage", 1))
+	}
+	rev := commitAll(t, root, "default export")
+	market, err := Build(context.Background(), root, "marketplace.json", rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := planOf(t, []*Map{market}, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	d := doc["draft"].(map[string]any)
+	src, imports := stringOf(d["lines"]), stringOf(d["imports"])
+	if strings.Contains(src, "buyGiftCard()") || strings.Contains(src, "new ShopPage") || strings.Contains(imports, "import { ShopPage } from") ||
+		!strings.Contains(imports, "UNRESOLVED import { ShopPage }: no named import") || !strings.Contains(src, "getByTestId(") {
+		t.Fatalf("draft: %s %s", imports, src)
 	}
 }
