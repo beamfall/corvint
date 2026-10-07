@@ -193,7 +193,34 @@ regression test that a mutation of its fix makes fail:
 5. The scaffold called `test` when the closest spec bound it only as an alias —
    `TestAMAPV0013TestUnbound` (`test-unbound`, fail-closed; owner question 13).
 
-Later rounds are recorded in the lane handoff.
+
+Round 6 (diff `8af2bf62..e72b30ec`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. An object-literal method before, after or inside the page-object class was callable reuse —
+   `TestAMAPV0013MethodOutsideClassNotCallable` (only members directly in the class body).
+2. An import statement over 8 lines was copied in part, or guessed as a side-effect import —
+   `TestAMAPV0013UnreadImportStatement` (`unread-statement`, commented, binds nothing).
+3. `https://host?next=/home` resolved to `/home` — `TestAMAPV0003AuthorityEndsAtQueryOrFragment`
+   (the authority ends at the first `/`, `?` or `#`).
+4. A regular expression after an `if (...)` condition lexed as code, fabricating a selector —
+   `TestAMAPV0007RegexAfterControlCondition` (a paren stack marks control conditions; `else`,
+   `throw`, `await` and similar keywords also allow a regular expression).
+5. A router file ending inside `app.state('home',` panicked — `TestAMAPV0002TruncatedStateCall`.
+
+Each round finds further edge cases in the token- and line-level JavaScript reader; owner question
+14 asks whether adopter-scale qualification should decide on a full parser before promotion.
+
+Round 7 (diff `8af2bf62..5280ee31`) reported three P2 findings. The lane stopped review rounds on
+the coordinator's instruction (no P0 or P1 remained); they are recorded as follow-ups, not
+repaired, and the slice stays experimental:
+
+1. A field initializer's object-literal method (`helpers = { async book() {} }`) inside the class
+   body still reads callable (`tests.go`, class-body depth is not tracked).
+2. Two import statements on one line each carry the whole line as their statement, so a scaffold
+   borrowing both duplicates bindings (`statementAt` returns whole lines).
+3. A loaded map whose selector reads `strength: "unknown"` with a populated `reuse` list still
+   yields a call; `LoadMap` does not validate that relation (`scaffold.go`).
 
 ## Analyzer schema bump
 

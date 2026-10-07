@@ -42,6 +42,13 @@ const substMark = "\x00"
 
 // lexJS tokenizes text and returns the tokens and a copy of text with every comment and literal
 // body blanked to spaces (newlines kept), for line-shaped scans of code only.
+var (
+	controlKeywords = map[string]bool{"if": true, "while": true, "for": true, "with": true}
+	regexKeywords   = map[string]bool{"return": true, "typeof": true, "case": true, "in": true, "of": true,
+		"else": true, "do": true, "void": true, "delete": true, "throw": true, "new": true,
+		"instanceof": true, "yield": true, "await": true}
+)
+
 func lexJS(text string) ([]token, string) {
 	toks := []token{}
 	code := []byte(text)
@@ -53,6 +60,9 @@ func lexJS(text string) ([]token, string) {
 			}
 		}
 	}
+	// parens records, for each open '(', whether it opens a control-statement condition; after
+	// its ')' a '/' starts a regular expression (if (x) /re/.test(s)), not a division.
+	parens, closedControl := []bool{}, false
 	prevAllowsRegex := func() bool {
 		if len(toks) == 0 {
 			return true
@@ -60,9 +70,12 @@ func lexJS(text string) ([]token, string) {
 		p := toks[len(toks)-1]
 		switch p.kind {
 		case tokIdent:
-			return p.text == "return" || p.text == "typeof" || p.text == "case" || p.text == "in" || p.text == "of"
+			return regexKeywords[p.text]
 		case tokPunct:
-			return p.text != ")" && p.text != "]" && p.text != "}"
+			if p.text == ")" {
+				return closedControl
+			}
+			return p.text != "]" && p.text != "}"
 		}
 		return false
 	}
@@ -130,6 +143,16 @@ func lexJS(text string) ([]token, string) {
 			toks = append(toks, token{kind: tokNumber, text: text[i:j], line: line})
 			i = j
 		default:
+			switch c {
+			case '(':
+				prev := len(toks) > 0 && toks[len(toks)-1].kind == tokIdent && controlKeywords[toks[len(toks)-1].text]
+				parens = append(parens, prev)
+			case ')':
+				closedControl = false
+				if n := len(parens); n > 0 {
+					closedControl, parens = parens[n-1], parens[:n-1]
+				}
+			}
 			toks = append(toks, token{kind: tokPunct, text: string(c), line: line})
 			i++
 		}

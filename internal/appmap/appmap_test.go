@@ -1282,3 +1282,88 @@ func TestAMAPV0013TestUnbound(t *testing.T) {
 		t.Fatalf("scaffold: %s", body)
 	}
 }
+
+// AMAP-V0-013: only a method directly in the class body is callable reuse; an object literal's
+// method before, after or inside the class is not.
+func TestAMAPV0013MethodOutsideClassNotCallable(t *testing.T) {
+	for _, src := range []string{
+		"export class HomePage {}\nconst helpers = {\n  async click() {\n    return 1;\n  },\n};\n",
+		"const helpers = {\n  async click() {\n    return 1;\n  },\n};\nexport class HomePage {\n}\n",
+		"export class HomePage {\n  async open() {\n    const o = {\n      async click() {\n        return 1;\n      },\n    };\n  }\n}\n",
+	} {
+		for _, m := range readFacts(src).methods {
+			if m.name == "click" && m.callable {
+				t.Errorf("%q: click reads callable", src)
+			}
+		}
+	}
+	if f := readFacts("export class HomePage {\n  async click() {\n    return 1;\n  }\n}\n"); len(f.methods) != 1 || !f.methods[0].callable {
+		t.Fatalf("a class method is callable: %+v", f.methods)
+	}
+}
+
+// AMAP-V0-013: an import statement the map could not read in full is never copied as a partial
+// statement or guessed as a side-effect import; the scaffold reports it UNRESOLVED with the names
+// it binds.
+func TestAMAPV0013UnreadImportStatement(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	long := "import {\n  TeeSheetPage,\n" + strings.Repeat("\n", 10) + "} from '../pages/teesheet.page';"
+	text := strings.Replace(string(data), "import { TeeSheetPage } from '../pages/teesheet.page';", long, 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, spec, text)
+	m := build(t, root, commitAll(t, root, "oversized import"))
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root, Full: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if !strings.Contains(body, `"reason":"unread-statement"`) || !strings.Contains(body, "// UNRESOLVED import { TeeSheetPage } from") {
+		t.Fatalf("scaffold: %s", body)
+	}
+	if strings.Contains(body, `"import {\n  TeeSheetPage,`) || strings.Contains(body, `"import \"../pages/teesheet.page\";"`) {
+		t.Fatalf("partial statement copied: %s", body)
+	}
+}
+
+// AMAP-V0-003: the authority ends at the first '/', '?' or '#', so a query value is never a path.
+func TestAMAPV0003AuthorityEndsAtQueryOrFragment(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	x := newScreenIndex(m.HashPrefix, m.Screens)
+	if got, _ := x.byURL("https://host?next=/home"); got == "screen:admin:app.home" {
+		t.Errorf("https://host?next=/home resolved to %s", got)
+	}
+	if got, _ := x.byURL("https://host#!/home"); got != "screen:admin:app.home" {
+		t.Errorf("https://host#!/home = %q", got)
+	}
+}
+
+// AMAP-V0-007: after a control-statement condition a '/' starts a regular expression, so text in
+// it never reads as a selector; after other parentheses it stays a division.
+func TestAMAPV0007RegexAfterControlCondition(t *testing.T) {
+	for _, src := range []string{
+		"if (enabled) /page.getByTestId('save')/.test(text);",
+		"while (x) /page.getByTestId('save')/.test(text);",
+		"if (a) b(); else /page.getByTestId('save')/.test(text);",
+	} {
+		for _, s := range readFacts(src).selectors {
+			if s.Strength == "strong" {
+				t.Errorf("%q: fabricated selector %+v", src, s)
+			}
+		}
+	}
+	if f := readFacts("x = (a) / 2; page.getByTestId('save');"); len(f.selectors) != 1 || f.selectors[0].Strength != "strong" {
+		t.Fatalf("division after a parenthesis: %+v", f.selectors)
+	}
+}
+
+// AMAP-V0-002: a router file truncated inside a state call reads, never panics.
+func TestAMAPV0002TruncatedStateCall(t *testing.T) {
+	for _, src := range []string{"app.state('home',", "app.state('home', ", "app.state({"} {
+		parseRouter(blobEntry{path: "r.js"}, []byte(src))
+	}
+}

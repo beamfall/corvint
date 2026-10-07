@@ -185,6 +185,10 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			// The proposed file sits beside the closest spec, so a specifier the index resolved
 			// there resolves identically from the proposed path.
 			ok := imp.Status == importExternal || (imp.Status == importResolved && m.file(imp.Resolved) != nil)
+			// A statement the map could not read in full (over 8 lines or 512 bytes, or not an
+			// import statement) is never copied or guessed as a side-effect import.
+			unread := imp.Statement == ""
+			ok = ok && !unread
 			if ok && imp.Status == importResolved {
 				if imported[imp.Resolved] == nil {
 					imported[imp.Resolved] = map[string]bool{}
@@ -198,12 +202,19 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 				bound[n] = bound[n] || ok
 			}
 			stmt := imp.Statement
-			if stmt == "" {
-				stmt = "import " + quote(imp.Specifier) + ";"
+			switch {
+			case unread && len(imp.Names) > 0:
+				stmt = "import { " + strings.Join(imp.Names, ", ") + " } from " + quote(imp.Specifier) + "; (statement not read in full)"
+			case unread:
+				stmt = "import ... from " + quote(imp.Specifier) + "; (statement not read in full)"
 			}
 			if !ok {
+				reason := "unresolved-import"
+				if unread {
+					reason = "unread-statement"
+				}
 				stmt = "// UNRESOLVED " + strings.ReplaceAll(stmt, "\n", "\n// ")
-				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: closest.ID, Reason: "unresolved-import", Path: closest.Path, Line: imp.Line})
+				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: closest.ID, Reason: reason, Path: closest.Path, Line: imp.Line})
 			}
 			imports = append(imports, stmt)
 		}
