@@ -509,6 +509,9 @@ func EncodeEscalationRequest(r EscalationRequest) ([]byte, error) {
 }
 func DecodeEscalationRequest(b []byte) (EscalationRequest, error) {
 	var r EscalationRequest
+	if e := wire.RawProfileVersion("/profile", b, EscalationRequestProfile); e != nil {
+		return r, e
+	}
 	if e := escalationDecode(b, &r); e != nil {
 		return r, e
 	}
@@ -522,6 +525,9 @@ func EncodeEscalationEvent(v EscalationEvent) ([]byte, error) {
 }
 func DecodeEscalationEvent(b []byte) (EscalationEvent, error) {
 	var e EscalationEvent
+	if err := wire.RawProfileVersion("/profile", b, EscalationEventProfile); err != nil {
+		return e, err
+	}
 	if err := escalationDecode(b, &e); err != nil {
 		return e, err
 	}

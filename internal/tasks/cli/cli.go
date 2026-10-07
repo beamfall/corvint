@@ -16,9 +16,13 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
+	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -383,12 +387,44 @@ func helpResult() *wire.Result {
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
+// LiveFormats is the CAL-V0-131 sorted set of every format this build
+// persists and decodes again: the store VERSION and each profile of the
+// journal, intent, lease, run, release, review, pool, dispatcher and user
+// service records, plus the command-result envelope a supervisor reads back.
+// Output-only profiles are left out (TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+// keeps the two sets apart). Two builds whose sets are equal may replace each
+// other in place (CAL-V0-130); any other pair needs a drain.
+func LiveFormats() []string {
+	f := []string{
+		strings.TrimSpace(snapshot.VersionBytes), wire.ProfileCommandResult,
+		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
+		archive.Profile, journal.ProfileCheckpoint, mutation.Profile, mutation.OutcomeProfile,
+		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
+		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileInit,
+		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
+		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
+		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
+		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
+		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0",
+		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
+		release.Profile, release.AttestationProfile, release.MutationProfile,
+		transaction.RunOutcomeProfile, runRecordProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/0",
+		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
+		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
+	}
+	sort.Strings(f)
+	return f
+}
+
 func versionResult() *wire.Result {
 	o := wire.NewObject()
 	o.Set("version", wire.String(Version+"+build."+Build))
 	o.Set("goVersion", wire.String(runtime.Version()))
 	o.Set("slice", wire.String("TCP-01"))
 	o.Set("verification", wire.String("NOT_RUN"))
+	o.Set("formats", wire.Strings(LiveFormats()))
 	return &wire.Result{Command: []string{"version"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

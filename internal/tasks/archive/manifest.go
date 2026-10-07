@@ -135,6 +135,9 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, Profile); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "exportedAtSeq", "headSha256", "versionSha256", "barrierSha256", "primaryWorktree",
 		"intentTreeSha256", "files", "receiptCount", "lastReceiptSha256", "headGeneration", "complete")
 	if err := r.Err(); err != nil {

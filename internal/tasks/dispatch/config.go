@@ -257,6 +257,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	if len(raw) > MaxConfig {
 		return nil, fmt.Errorf("dispatch config exceeds %d bytes", MaxConfig)
 	}
+	if err := wire.RawProfileVersion("/profile", raw, ConfigProfile); err != nil {
+		return nil, err
+	}
 	if !strictSweepConfig(raw) {
 		return nil, fmt.Errorf("dispatch config: malformed poolSweep JSON")
 	}

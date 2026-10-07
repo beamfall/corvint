@@ -88,6 +88,9 @@ func Decode(data []byte) (*Record, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, Profile); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "releaseId", "revision", "previousRecordSha256", "version", "title", "predecessorReleaseIds", "ticketIds", "acceptanceCriteria", "requiredGates", "candidate", "attestations", "promotion")
 	if err := r.Err(); err != nil {
 		return nil, err
@@ -150,6 +153,7 @@ func decodePredecessor(r *wire.Reader) PredecessorBinding {
 }
 
 func decodeAttestation(r *wire.Reader) Attestation {
+	r.Profile(AttestationProfile)
 	r.Closed("profile", "attestationId", "candidateSha256", "gateId", "provenance", "actor", "recordedAt", "result", "criteria", "evidence", "sourceIdentity")
 	if r.Field("profile").String() != AttestationProfile {
 		r.Fail(wire.CodeMalformed, "invalid attestation profile")

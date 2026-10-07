@@ -580,3 +580,38 @@ Remaining zero still permits an initial claim or an eligible clean handoff. Reas
 EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remains UNKNOWN and
 reasonHistory INCOMPLETE. Only charged readmission increments a bucket. New acceptance resets
 debt, clean handoff preserves it and policy updates change the bound without erasing history.
+
+## Upgrade the binary with live attempts
+
+Live attempts do not need a drain to replace corvint-tasks build N with build N+1 when both builds
+report the same `formats` from `corvint-tasks version` (CAL-V0-130..134, proposed). Attempts carry
+no build identity: heartbeat, renew and release are fenced by generation, phase and expiry only.
+
+1. Build N+1 somewhere other than the installed path. Compare `formats` from both `version`
+   outputs. If the sets differ, drain to zero live attempts first, as before.
+2. Stop a foreground dispatcher with SIGTERM. Its close leaves workers running and recorded in
+   the ledger.
+3. Install N+1 by writing it beside the installed path and renaming it over that path. Do not copy
+   over the running file in place: detached attempt runners and supervised program owners keep
+   running build N from their own executable image until they finish.
+4. Restart the dispatcher. It adopts the recorded workers; their exit codes are not observed. Under
+   the user service, skip step 2: the changed executable holds new launches until
+   `service install --replace`, which preserves known workers (SERVICE500-002). The maintained
+   tests exercise the foreground path only.
+5. Run `receipt audit`. Live attempts keep heartbeating, renewing and releasing with their original
+   attempt ID and generation.
+
+Rollback from N+1 to N is supported only when both builds report identical `formats`: run the same
+steps with N, and attempts claimed under N+1 continue under N. When the sets differ, rollback is
+unsupported. Draining does not help, because N refuses the newer formats N+1 persisted with
+`UNSUPPORTED_VERSION`, which is the intended fail-closed result; there is no restore or conversion
+procedure.
+
+A dispatcher ledger written by another dispatch-state version, or carrying a member this build
+does not know, refuses `UNSUPPORTED_VERSION` and the dispatcher does not open. A store `VERSION` another
+build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
+run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
+reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps
+heartbeating and finishes normally when the sets are equal. Supervised
+Codex, Claude Code and OpenCode programs pin the host runtime in policy `runtimes`, not this
+binary; upgrading that runtime still needs its own drain and policy update.

@@ -203,36 +203,63 @@ func planPoolSweepSafe(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	}
 	return c.putPool(en, true, nil)
 }
+
+// PoolSweepRow is one member row of a pool sweep result.
+type PoolSweepRow struct {
+	Member                  string
+	Allocation, Observation wire.Digest
+	Free                    bool
+}
+
+// DecodePoolSweepResult decodes the canonical sweep result aggregate. A
+// result of another taskman-pool-sweep-result version is refused as
+// UNSUPPORTED_VERSION before any other check (CAL-V0-131).
+func DecodePoolSweepResult(raw []byte) (wire.Digest, []PoolSweepRow, error) {
+	if len(raw) > 65536 {
+		return "", nil, limit("sweep result")
+	}
+	v, e := wire.Parse(raw)
+	if e != nil || !bytes.Equal(raw, wire.EncodeFile(v)) {
+		return "", nil, malformed("sweep result canonical bytes")
+	}
+	r := wire.NewReader(v, "sweep result")
+	if e := r.Profile("taskman-pool-sweep-result/0"); e != nil {
+		return "", nil, e
+	}
+	r.Closed("profile", "owner", "members")
+	r.Field("profile").Exact("taskman-pool-sweep-result/0")
+	owner := r.Field("owner").Digest()
+	rows := []PoolSweepRow{}
+	seen := map[string]bool{}
+	for _, row := range r.Field("members").Array(256, false) {
+		row.Closed("member", "allocation", "free", "observation")
+		x := PoolSweepRow{Member: row.Field("member").Label(), Allocation: row.Field("allocation").Digest(), Free: row.Field("free").Bool(), Observation: row.Field("observation").Digest()}
+		if seen[x.Member] {
+			return "", nil, malformed("duplicate sweep member")
+		}
+		seen[x.Member] = true
+		rows = append(rows, x)
+	}
+	if e := r.Err(); e != nil {
+		return "", nil, e
+	}
+	return owner, rows, nil
+}
+
 func planPoolSweepFinish(c leaseContext) leaseOutcome {
 	raw := c.in.LeaseFacts.Pool.SweepResult
 	if len(raw) == 0 {
 		return c.fail(wire.Errorf(wire.CodeMissingEvidence, "sweep", "pending original request; execution never repeated"))
 	}
-	if len(raw) > 65536 {
-		return c.fail(limit("sweep result"))
+	owner, rows, e := DecodePoolSweepResult(raw)
+	if e != nil {
+		return c.fail(e)
 	}
-	v, e := wire.Parse(raw)
-	if e != nil || !bytes.Equal(raw, wire.EncodeFile(v)) {
-		return c.fail(malformed("sweep result canonical bytes"))
-	}
-	r := wire.NewReader(v, "sweep result")
-	r.Closed("profile", "owner", "members")
-	r.Field("profile").Exact("taskman-pool-sweep-result/0")
-	owner := r.Field("owner").Digest()
 	if string(owner) != c.l.Evidence {
 		return c.fail(malformed("sweep result owner"))
 	}
-	seen := map[string]bool{}
-	for _, row := range r.Field("members").Array(256, false) {
-		row.Closed("member", "allocation", "free", "observation")
-		member := row.Field("member").Label()
-		allocation := row.Field("allocation").Digest()
-		free := row.Field("free").Bool()
-		observation := row.Field("observation").Digest()
-		if seen[member] {
-			return c.fail(malformed("duplicate sweep member"))
-		}
-		seen[member] = true
+	for _, row := range rows {
+		member, allocation, free, observation := row.Member, row.Allocation, row.Free, row.Observation
 		witness := false
 		for _, f := range c.in.Inventory.Files() {
 			if f.Path == "evidence/"+string(observation) && f.Sha256 == observation {
@@ -257,9 +284,6 @@ func planPoolSweepFinish(c leaseContext) leaseOutcome {
 				return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "original allocation remains")
 			}
 		}
-	}
-	if e := r.Err(); e != nil {
-		return c.fail(e)
 	}
 	// Phase witnesses retain exact journal bytes; the aggregate never grants physical authority.
 	return leaseOutcome{posts: map[string][]byte{"evidence/" + string(wire.Sum(raw)): raw}, effect: &leaseEffect{kind: "TRANSITION", outcome: mutation.OutcomeCompleted, codes: []string{}}}

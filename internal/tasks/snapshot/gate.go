@@ -87,6 +87,9 @@ func DecodeGateResult(data []byte) (*GateResult, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileGateResult); err != nil {
+		return nil, err
+	}
 	r.Closed(gateResultFields...)
 	if err := r.Err(); err != nil {
 		return nil, err
@@ -244,6 +247,9 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileManifest); err != nil {
+		return nil, err
+	}
 	r.Closed(wire.OptionalKeys(v, manifestFields, "supervision")...)
 	if err := r.Err(); err != nil {
 		return nil, err

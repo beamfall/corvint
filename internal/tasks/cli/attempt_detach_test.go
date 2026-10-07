@@ -462,6 +462,34 @@ func TestATRV0010_RunRecordKeysAreExact(t *testing.T) {
 	}
 }
 
+// TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion: ATR-V0-010
+// as amended by CAL-V0-131. A run record written by a newer build, with a new
+// profile version and a member this build does not know, refuses
+// UNSUPPORTED_VERSION before its keys are checked; another profile name stays
+// MALFORMED.
+func TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion(t *testing.T) {
+	root, a := attemptStore(t)
+	base, err := cli.RunDirForTest(root, a.AttemptID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := supervisor.ProcessIdentity(os.Getpid())
+	if err != nil || self == "" {
+		t.Fatalf("own identity: %q %v", self, err)
+	}
+	for runID, c := range map[string]struct{ profile, code string }{
+		"00000000000000d1": {"taskman-attempt-run-record/1", wire.CodeUnsupportedVersion},
+		"00000000000000d2": {"taskman-attempt-run-log/0", wire.CodeMalformed},
+	} {
+		rec := plantedRecord(a, runID, "RUNNING", os.Getpid(), self)
+		rec["profile"], rec["futureFact"] = c.profile, "added by a newer build"
+		writeRecord(t, base, runID, rec)
+		if r := attach(t, root, a, "--run", runID, "--wait", "0"); r.code != 1 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, c.code) {
+			t.Fatalf("%s: code %d %s", runID, r.code, r.stdout)
+		}
+	}
+}
+
 // TestATRV0010_DetachedRunsPerAttemptAreCapped: a launch with 64 run entries
 // starts nothing and leaves none behind; an attach without --run never lists
 // more than 64 entries.

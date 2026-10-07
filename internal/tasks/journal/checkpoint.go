@@ -110,6 +110,9 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileCheckpoint); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "primaryWorktree", "seq", "receiptSha256", "generation", "initSha256", "semanticCoverage", "entries")
 	if err := r.Err(); err != nil {
 		return nil, err

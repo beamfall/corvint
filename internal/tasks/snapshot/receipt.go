@@ -185,6 +185,9 @@ func DecodeInit(raw []byte) (*Init, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileInit); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "primaryWorktree", "versionSha256")
 	if err := r.Err(); err != nil {
 		return nil, err
