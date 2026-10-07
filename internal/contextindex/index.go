@@ -308,14 +308,11 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
-		before := openingObservation(ctx, root, attempt, opening)
-		if before.identityErr != nil {
-			return nil, before.identityErr
+		before, entries, skipped, err := openingObservationWithTree(ctx, root, attempt, opening)
+		if err != nil {
+			return nil, err
 		}
-		if before.statusErr != nil {
-			return nil, before.statusErr
-		}
-		candidate, err := buildEvidence(ctx, root, before.identity, before.dirty, before.statusSHA256)
+		candidate, err := buildEvidenceFrom(ctx, root, before.identity, entries, skipped, before.dirty, before.statusSHA256)
 		if err != nil {
 			return nil, err
 		}
@@ -449,6 +446,12 @@ func buildEvidence(ctx context.Context, root string, identity repositoryIdentity
 	if err != nil {
 		return nil, err
 	}
+	return buildEvidenceFrom(ctx, root, identity, entries, skipped, status, statusSHA256)
+}
+
+// buildEvidenceFrom is buildEvidence after the tree listing: the caller hands
+// in the entries and the non-blob paths readTreeEntries skipped.
+func buildEvidenceFrom(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, skipped map[string]struct{}, status []string, statusSHA256 string) (*Index, error) {
 	exclusions, candidates, unsupported := admittedEntries(entries)
 	dirty := make(map[string]struct{}, len(status))
 	for _, item := range status {
@@ -1406,6 +1409,50 @@ func openingObservation(ctx context.Context, root string, attempt int, opening *
 		return *opening
 	}
 	return observeRepository(ctx, root)
+}
+
+// openingObservationWithTree is openingObservation followed by the tree
+// listing. On a fresh read the listing runs beside the status scan: the
+// identity read pins the tree oid first, and a tree is immutable content the
+// scan cannot change, so the overlap reads nothing differently. What moves is
+// the source-count refusal inside readTreeEntries, which now returns while
+// the scan is still running and cancels it, instead of waiting behind it. At
+// 200,000 tracked files the scan is 1.5-3 s and the listing 0.2 s; no blob
+// was read in either order. A carried observation has already paid its scan,
+// so its listing simply follows it, and a retry after HEAD moved observes
+// again. When both the listing and the scan fail, the listing's error is the
+// one reported.
+func openingObservationWithTree(ctx context.Context, root string, attempt int, opening *repositoryObservation) (repositoryObservation, []treeEntry, map[string]struct{}, error) {
+	skipped := make(map[string]struct{})
+	if attempt == 0 && opening != nil {
+		entries, err := readTreeEntries(ctx, root, opening.identity, skipped)
+		return *opening, entries, skipped, err
+	}
+	scanCtx, cancelScan := context.WithCancel(ctx)
+	defer cancelScan()
+	var observation repositoryObservation
+	scanned := make(chan struct{})
+	go func() {
+		defer close(scanned)
+		observation.dirty, observation.statusSHA256, observation.statusErr = readStatusSnapshot(scanCtx, root)
+	}()
+	observation.identity, observation.identityErr = readIdentity(ctx, root)
+	if observation.identityErr != nil {
+		cancelScan()
+		<-scanned
+		return observation, nil, nil, observation.identityErr
+	}
+	entries, err := readTreeEntries(ctx, root, observation.identity, skipped)
+	if err != nil {
+		cancelScan()
+		<-scanned
+		return observation, nil, nil, err
+	}
+	<-scanned
+	if observation.statusErr != nil {
+		return observation, nil, nil, observation.statusErr
+	}
+	return observation, entries, skipped, nil
 }
 
 // residualBlobs is one committed-blob fetch's result, carried across the

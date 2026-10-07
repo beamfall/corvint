@@ -80,3 +80,19 @@ stays `corvint-analyzer/105`, no fact or encoding changed, as commit 43f3e40d di
 
 Revert the commit. The two-probe path keeps no persistent state, and no snapshot encoding,
 envelope byte or refusal code changes.
+
+## Addendum 2026-10-06: status-scan alternatives measured, not shipped (V1-0416 round 2)
+
+The coordinator asked for the gain of two ways to cut the remaining scan cost, each with the
+contract change it would need. `core.fsmonitor` stays forced off: a daemon-reported state is not
+evidence Corvint can pin. Measured on r50k and r200k (`TD/logs/ucache-probe.txt`), load 8-10.
+
+| Option | r50k scan | r200k scan | Gain | Contract change needed |
+|---|---|---|---|---|
+| Baseline `status --porcelain=v1 -z --untracked-files=all` under `gitRaw`'s forced `-c core.untrackedCache=false` (`internal/gokernel/repository.go:117-125`) | 0.21-0.27 s | 1.2-1.8 s | - | - |
+| Read an existing `core.untrackedCache` read-only (`--no-optional-locks`, cache already written by `update-index --untracked-cache`; `--test-untracked-cache` rc 0 on this host) | 0.24-0.25 s | 1.4-2.1 s | none measurable | `GPK-V0-007` pins the exact argv including `-c core.untrackedCache=false`; honouring the cache means trusting index extension state the bracket did not observe |
+| Identity-only closing observation (`rev-parse` pair, 0.04-0.05 s) when the event's reads cannot touch the worktree | saves one scan: 0.2-0.3 s | saves one scan: 1.2-2.1 s | about half of the per-event floor | weakens drift detection: a dirty-set change inside the window would no longer refuse; `GPK-V0-007`/`GPK-V0-076` would need a "reads that do not consult the worktree" class and the dogfood surface a per-event declaration |
+
+Neither is shipped. The untracked cache gives nothing on this host because `git status` still
+stats every tracked entry; only the identity-only closing would move r200k hooks, and it buys
+the saving by not observing what the bracket exists to observe.

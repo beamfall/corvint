@@ -512,6 +512,24 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   repository with one committed Latin-1 path that refuses `index` or path `impact`, or whose
   receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
   and the parse flag in `history.go`.
+- `IDX-SNAP-V0-026`: (proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
+  accepted) on a fresh opening observation of the build's stability window
+  (`buildStableFrom`: every retry, and the first attempt when no loader observation is carried)
+  the tree listing (`git ls-tree -r -l -z --full-tree <tree>`) is issued beside the status scan,
+  not after it. The listing reads immutable content named by the identity already read, so its
+  result cannot depend on the scan's outcome, and the `GPK-V0-007` proof shape is unchanged: the
+  closing observation still compares identity and dirty set against the opening one before the
+  index is accepted. The source-count refusal (`Git tree exceeds the source-count limit`,
+  `maxIndexedSources`) and the tree-byte bound therefore return while the scan is still running
+  and before any `cat-file` is spawned; the build cancels the scan and waits for it before
+  returning, so no observation outlives the build; a listing error wins when both fail. Refusal
+  codes, messages, limits, the carried loader observation on the first attempt and the
+  `IDX-SNAP-V0-016` shard path (`openingObservation`) are unchanged. Measured on a 200,000-file
+  repository (`index --if-stale`, medians of three under load 8-11): 2.39 s wall and 5.13 CPU s
+  before, 0.54 s and 0.65 CPU s after, the same refusal; `context` 2.73 s / 5.93 CPU s to
+  0.40 s / 0.60 CPU s. Falsifier: a build whose shimmed status reports completion before the
+  refusal, or any `cat-file` spawn before it. Rollback: restore `openingObservation` followed by
+  `buildEvidence` in the loop.
 
 ## Non-goals and authority
 
@@ -658,3 +676,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
+| IDX-SNAP-V0-026 (proposed) | `openingObservationWithTree`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn) |

@@ -449,7 +449,7 @@ above stands with that substitution.
   `repository.object_format` names the Git object format the document's
   `blob_hash` values were computed under, and is consumed rather than decorative: FPK-V0-021
   compares it against the object format of the index built at the current revision
-  (`Index.ObjectFormat`, `internal/contextindex/index.go:209@1e49fe84`, set at `internal/contextindex/index.go:477-479@02852e4a`) and FPK-V0-024
+  (`Index.ObjectFormat`, `internal/contextindex/index.go:209@1e49fe84`, set at `internal/contextindex/index.go:480-482@02852e4a`) and FPK-V0-024
   refuses a mismatch, because a sha256 `blob_hash` compared against a sha1 repository would
   otherwise read as a confident `blob-changed` for every handle. Schema validation MUST also check
   every `blob_hash` against that declared format's object-id shape, stated here rather than
@@ -541,10 +541,10 @@ above stands with that substitution.
   After the index is built and before any handle is judged or the checkpoint branch's own blob
   reads, `repository.object_format` MUST equal
   the object format of the index built at the current revision (`Index.ObjectFormat`,
-  `internal/contextindex/index.go:209@1e49fe84`, `internal/contextindex/index.go:477-479@02852e4a`); a mismatch is refused under FPK-V0-024 as
+  `internal/contextindex/index.go:209@1e49fe84`, `internal/contextindex/index.go:480-482@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:555-565@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1418-1420@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:555-565@875d1117`, `internal/contextindex/index.go:460-462@16cf1c1f`, `internal/contextindex/index.go:1465-1467@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -555,7 +555,7 @@ above stands with that substitution.
   (`internal/contextindex/impact.go:476-486@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
   carry it (`cmd/corvint/prove.go:1631-1635@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
   tree lists the path at a non-blob mode, or lists it as a blob for which the path has no entry in
-  `Index.Sources` (`internal/contextindex/index.go:208-214@aa5d6289`, `internal/contextindex/index.go:476-479@478ddf23`), whether because its kind
+  `Index.Sources` (`internal/contextindex/index.go:208-214@aa5d6289`, `internal/contextindex/index.go:479-482@478ddf23`), whether because its kind
   is unadmitted or because an index exclusion removed it — the named field, not
   `Index.Exclusions`, decides, so a path that is both dirty and excluded is settled here — ordered
   ahead of every absence test so an omission from
@@ -749,7 +749,7 @@ above stands with that substitution.
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
   `internal/contextindex/git.go:555-565@875d1117`,
-  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1418-1420@b9840036`), so `Build` (case
+  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:460-462@16cf1c1f`, `internal/contextindex/index.go:1465-1467@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
   bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1811-1818@a1df6715`); (13) the read bracket drifts,
@@ -794,7 +794,7 @@ above stands with that substitution.
   for this: its project-operations query profile acquires through `standaloneQueryContext`
   (`cmd/corvint/prove.go:1068-1070@d473eb95`, `cmd/corvint/main.go:1295-1306@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
   (`cmd/corvint/index_snapshot.go:72-73@5959c784`, `cmd/corvint/index_snapshot.go:58-59@123f0830`) at `cmd/corvint/main.go:1324-1325@c39315fe` and
-  `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:396-398@9faff3e7`, called at
+  `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:393-395@9faff3e7`, called at
   `cmd/corvint/main.go:1320@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and

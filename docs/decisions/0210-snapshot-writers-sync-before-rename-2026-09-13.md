@@ -60,7 +60,7 @@ the run.
    `-count=10`.
 
 5. **u32 pack source lengths: refuted.** Admission excludes any tree entry larger than
-   `maxSourceBytes` = 1,000,000 (`internal/contextindex/git.go:33@6d4d1a9b`, `internal/contextindex/index.go:505@9640ef12`).
+   `maxSourceBytes` = 1,000,000 (`internal/contextindex/git.go:33@6d4d1a9b`, `internal/contextindex/index.go:508@9640ef12`).
    A pinned body is the batch blob whose size must equal the entry size (`internal/contextindex/git.go:600@d68f134a`), or a
    worktree copy that hashes to the same blob. No body can reach 2^32 bytes, and body offsets are
    u64.
