@@ -103,6 +103,22 @@ lanes. The spec amendment carries the table.
 - A timing run on an idle host.
 - Linux.
 
+## Independent review
+
+Codex (gpt-6-astra, read-only) round 1 on 75ebd31f reported no P0 or P1 and three P2:
+
+1. Same-second archive or edit after completion named the wrong completion receipt. Fixed for the
+   archive (the receipt now needs a COMPLETED record) with a regression in
+   `TestCALV0184_QueueStatusLastCompletionAndWindows` that fails without the fix. A same-second
+   non-acceptance edit stays a recorded limit, because no cheap discriminator exists: both writes
+   are `MUTATION` receipts.
+2. A tick during a running session absorbed the session's status change. Fixed: `pruneStall` skips
+   keys with a running worker. Regression `TestCALV0185_TickDuringSessionKeepsStatusChange` fails
+   without the fix.
+3. `lastAttemptEndedAt` reads a receipt that a checkpointed audit may not re-walk. Recorded as a
+   spec failure mode. Binding it would need a forward chain walk, which is the receipt scan the
+   issue rules out.
+
 ## Dogfood use
 
 At lane start, `corvint affected --base 0b45b052` and `corvint --root . context --task ...

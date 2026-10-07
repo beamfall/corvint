@@ -78,7 +78,9 @@ func (d *Dispatcher) countStall(t *Ticket, w *Worker, detail map[string]string) 
 }
 
 // pruneStall drops the count of a ticket no longer observed or no longer
-// live, and restarts one whose status changed outside a session.
+// live, and restarts one whose status changed outside a session. A ticket
+// with a running session is left to countStall at that session's finish, so
+// a status change the session made is never absorbed by an earlier tick.
 func (d *Dispatcher) pruneStall(obs *Observation) {
 	if len(d.ledger.Stall) == 0 {
 		return
@@ -87,9 +89,14 @@ func (d *Dispatcher) pruneStall(obs *Observation) {
 	for i := range obs.Tickets {
 		byID[obs.Tickets[i].ID] = &obs.Tickets[i]
 	}
+	running := make(map[string]bool, len(d.ledger.Workers))
+	for _, w := range d.ledger.Workers {
+		running[w.Key] = true
+	}
 	for key, s := range d.ledger.Stall {
 		t := byID[key]
 		switch {
+		case running[key]:
 		case t == nil || !stallStatuses[t.Status]:
 			delete(d.ledger.Stall, key)
 		case t.Status != s.Status:

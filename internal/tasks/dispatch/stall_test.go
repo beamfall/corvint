@@ -123,6 +123,47 @@ func TestCALV0185_StallCountsSessionsWithoutStatusChange(t *testing.T) {
 	})
 }
 
+// TestCALV0185_TickDuringSessionKeepsStatusChange: a tick that observes a
+// status change while the session is still running leaves the count to the
+// session's finish, so the session reports the change (0) and no stalled
+// event fires at threshold 1. Regression for the review finding that an
+// intervening tick absorbed the change.
+func TestCALV0185_TickDuringSessionKeepsStatusChange(t *testing.T) {
+	t.Run("CAL-V0-185", func(t *testing.T) {
+		gate := filepath.Join(t.TempDir(), "go")
+		c := testConfig(t, "while [ ! -f '"+gate+"' ]; do sleep 0.05; done")
+		c.StalledAfterSessions = intp(1)
+		q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+		d, err := Open("prog", c, q, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.WriteFile(gate, nil, 0o600); _ = d.Close() })
+		ctx := context.Background()
+		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+			t.Fatalf("launch: running %d %v", d.Running(), err)
+		}
+		q.obs.Tickets[0].Status = "HELD"
+		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+			t.Fatalf("mid-session tick: running %d %v", d.Running(), err)
+		}
+		if err := os.WriteFile(gate, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		waitEnded(t, d)
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		ev := eventsOf(t, d, "finished")
+		if len(ev) != 1 || ev[0].Detail["sessionsSinceStatusChange"] != "0" {
+			t.Fatalf("finished events = %+v", ev)
+		}
+		if n := len(eventsOf(t, d, "stalled")); n != 0 {
+			t.Fatalf("%d stalled events for a session that changed the status", n)
+		}
+	})
+}
+
 // TestCALV0185_StallWithoutThresholdOrSeed: without the threshold the
 // counts are kept and no stalled event is emitted; a session the ledger has
 // no launch seed for is UNKNOWN, never a guessed count.

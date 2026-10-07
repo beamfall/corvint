@@ -4735,8 +4735,9 @@ cannot prove a value. No ticket, attempt or receipt record gains a field.
   `queue status --summary` MUST report `lastCompletion` and `completions`. `lastCompletion` is
   `{ticketId, at, receipt}` for the current record with the latest `completion.recordedAt` (ties by
   ticket ID), or null when no record carries a completion. `receipt` is the audited sequence of
-  that ticket's latest afterimage when the completion was the record's last write, `UNKNOWN` when
-  the record was written since or the audit cannot complete, and `NOT_OBSERVED` without a journal.
+  that ticket's latest afterimage when the record is COMPLETED (not ARCHIVED) and the completion
+  was its last write, `UNKNOWN` when the record was archived or written since or the audit cannot
+  complete, and `NOT_OBSERVED` without a journal.
   `completions` is `{observedAt, lastHour, last24Hours}`: counts of current-record completions in
   the half-open windows ending at the read's `observedAt` (second resolution). Both are derived
   from the inventory already loaded, with no receipt scan. This amends the `queue status` summary
@@ -4745,7 +4746,8 @@ cannot prove a value. No ticket, attempt or receipt record gains a field.
   ticket-keyed worker key, finished sessions since the ticket's native status last changed,
   seeded at launch and kept in the ledger member `stall` (`{status, sessions}`, at most 8,192
   tickets, each count saturating at 2^20). A status change during or between sessions restarts
-  the count at zero against the new status; a ticket that leaves the observation or reaches a
+  the count at zero against the new status, and a tick during a running session leaves the
+  session's status change to its finish; a ticket that leaves the observation or reaches a
   terminal status is dropped. A revision or work-state change without a status change still
   counts, so a program that never submits candidates is covered. Each `finished` event carries
   `sessionsSinceStatusChange` (a count, or `UNKNOWN` for a session the ledger has no launch seed
@@ -4794,6 +4796,12 @@ Failure modes:
   reads keep their own failures.
 - A session whose post-session observation is pending (work state unknown) is not counted; a
   ledger saved before the seed reports one `UNKNOWN` and restarts the count.
+- A non-acceptance edit of a COMPLETED record in the same second as its completion is not
+  distinguishable by timestamp; `lastCompletion.receipt` then names that edit's receipt.
+- `lastAttemptEndedAt` reads a receipt that a checkpointed audit may not have re-walked. The receipt
+  is bound to the audited attempt afterimage by sequence and post digest, not by a chain walk to
+  the head, so a rewritten `recordedAt` in retained history would go unnoticed until the next full
+  audit.
 - An older build meeting a version 3 ledger refuses `UNSUPPORTED_VERSION`; a version 2 ledger
   with workers or with a `stall` member is refused rather than adopted.
 
@@ -4802,8 +4810,8 @@ Acceptance evidence: `TestCALV0181_TicketListStatusFilter`,
 `TestCALV0184_QueueStatusLastCompletionAndWindows`, `TestCALV0167_SummaryShapes`,
 `TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`);
 `TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`,
-`TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted` and
-the ledger schema pin (`internal/tasks/dispatch`); measurements in
+`TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`,
+`TestCALV0185_TickDuringSessionKeepsStatusChange` and the ledger schema pin (`internal/tasks/dispatch`); measurements in
 `docs/build-log/2026-10-07-v1-0966-queue-throughput-visibility.md`.
 
 Rollback: revert the code and this amendment. No ticket store, journal, receipt or request shape
@@ -5200,7 +5208,7 @@ and removes the new configuration members.
 | CAL-V0-182 | `TestCALV0182_ListTransitionTimesFromTheRecord` (`internal/tasks/cli`) |
 | CAL-V0-183 | `TestCALV0183_ListLastAttemptEndedAt` (`internal/tasks/cli`) |
 | CAL-V0-184 | `TestCALV0184_QueueStatusLastCompletionAndWindows`, `TestCALV0167_SummaryShapes` (`internal/tasks/cli`); `docs/build-log/2026-10-07-v1-0966-queue-throughput-visibility.md` |
-| CAL-V0-185 | `TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`, `TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`); `TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`) |
+| CAL-V0-185 | `TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`, `TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`, `TestCALV0185_TickDuringSessionKeepsStatusChange`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`); `TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

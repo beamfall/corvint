@@ -1464,8 +1464,10 @@ func queueStatus(env Env, args []string) *wire.Result {
 // lastCompletion is the latest completion.recordedAt (ties by ticket ID),
 // null when no record carries a completion. Its receipt is the sequence of
 // the audited latest afterimage of that ticket when the completion was the
-// record's last write; a later write or an audit this read cannot complete
-// makes it UNKNOWN and an absent journal NOT_OBSERVED. The selecting audit runs first so the attempt reads below it
+// record's last write; an archived record, a later write or an audit this
+// read cannot complete makes it UNKNOWN and an absent journal NOT_OBSERVED.
+// A non-acceptance edit in the same second as the completion is
+// indistinguishable by timestamp and is a recorded limit. The selecting audit runs first so the attempt reads below it
 // reuse the same proof (CAL-V0-061). completions counts current-record
 // completions in (observedAt-window, observedAt]; a completion a later
 // REOPEN removed from its record is not counted.
@@ -1508,7 +1510,7 @@ func completionSummary(rc *readCtx, observedAt time.Time) (wire.Value, wire.Valu
 		// state reads that follow audit again and fail as they always did.
 		receipt = wire.String("UNKNOWN")
 		if proof, err := auditState(rc, "reservations.json", path); err == nil {
-			if r, ok := proof.Records[path]; ok && r.Sha256 != nil && last.UpdatedAt == last.Completion.RecordedAt {
+			if r, ok := proof.Records[path]; ok && r.Sha256 != nil && last.Status == ticket.StatusCompleted && last.UpdatedAt == last.Completion.RecordedAt {
 				receipt = wire.String(string(r.Seq))
 			}
 		}

@@ -255,6 +255,18 @@ func TestCALV0184_QueueStatusLastCompletionAndWindows(t *testing.T) {
 		}
 		sameStore(t, tie, state, intents, "queue status completions")
 
+		// Archived in the same second it completed: the archive write is the
+		// record's last write, so the completion receipt is UNKNOWN, never
+		// the archive's (regression for the same-second review finding).
+		arch := fixture.TempRepo(t)
+		archived := old("Z")
+		from := ticket.StatusCompleted
+		archived.Status, archived.ArchivedFrom = ticket.StatusArchived, &from
+		cpWrite(t, arch, true, old("A"), archived)
+		if lc := field(status(arch.Root), "lastCompletion"); field(lc, "ticketId").Str != fixture.TicketID("Z") || field(lc, "receipt").Str != "UNKNOWN" {
+			t.Fatalf("archived lastCompletion: %s", wire.Encode(lc))
+		}
+
 		// A journal the receipt audit cannot read (this fixture commits 361
 		// inline posts in one receipt) leaves the receipt UNKNOWN and the
 		// read otherwise unchanged.
