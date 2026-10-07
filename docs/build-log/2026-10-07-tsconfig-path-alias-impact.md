@@ -215,3 +215,18 @@ Self-dogfood after round 3: `impact extensions/vscode/src/configuration.ts` take
 the index rebuild after the pin change. The repository's config uses `moduleResolution` `Node16`.
 The result has the same three reverse imports and the same disclosure, "12 bare import specifiers
 in 8 sources".
+
+Round 4 reported two P2 findings. Both were accepted. Three new cases cover them, and all three
+fail on the round 3 resolver (observed).
+
+1. Under node10, a `typeRoots` declaration can supply a declaration before the JavaScript pass.
+   So a JavaScript-pass-only alias target is now unresolved whenever `typeRoots` is declared or is
+   left unknown by a package extends.
+2. `moduleSuffixes` is now first-declaration-wins like the other fields. A package-named extends
+   that comes before any `moduleSuffixes` declaration makes the whole config unknown, because the
+   unread config may declare suffixes. A leaf that declares `[""]` overrides an inherited list,
+   which round 3 still rejected.
+
+The cost of this rule: a config that extends a package now leaves every bare specifier unresolved
+unless the leaf itself declares `baseUrl`, `paths`, the mode and `moduleSuffixes`. This is an owner
+question.

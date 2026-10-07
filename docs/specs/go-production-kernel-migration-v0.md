@@ -1498,8 +1498,9 @@ arm is unchanged.
   the first config that declares it. node10 runs the whole lookup with TypeScript and declaration
   files (`.ts`, `.tsx`, `.mts`, `.cts` and their declaration forms) first and JavaScript second;
   bundler runs it once with every form. Under node10 a target that only the JavaScript pass
-  reaches is unresolved when the name is a `GPK-V0-080` declared package, because its types,
-  which are not indexed, would win. node16 and nodenext run it once, but a file's ESM or CommonJS
+  reaches is unresolved when the name is a `GPK-V0-080` declared package or a `typeRoots`
+  declaration is in force or unknown, because a declaration found there, which is not resolved
+  here, would win. node16 and nodenext run it once, but a file's ESM or CommonJS
   mode is not read and only CommonJS mode adds extensions or reads a directory index, so a target
   reached that way is unresolved. Classic resolution also searches every ancestor directory for
   a bare name, which is not modelled, so every bare specifier under a classic config is
@@ -1521,7 +1522,8 @@ arm is unchanged.
   `moduleResolution`, `module` or `target` wins (a JSON `null` declares the field unset). A relative entry names an indexed config as written
   or with `.json` added. A cycle, an unreadable or missing relative config, an absolute or
   repository-escaping entry, more than 16 links in one chain, more than 64 configs in one graph,
-  any `moduleSuffixes` other than `[""]`, or invalid `paths` (more than one `*` in a key or
+  a first-declared `moduleSuffixes` other than `[""]` (or none declared before a package-named
+  entry, which may declare one), or invalid `paths` (more than one `*` in a key or
   substitution, an empty substitution list) makes the whole config unknown, even a field the leaf
   declares, because TypeScript rejects the project as written. A package-named entry is legal but
   not indexed, so only the fields no earlier config declares become unknown; an undecided mode

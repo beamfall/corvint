@@ -229,8 +229,25 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"tsconfig.json": `{"extends": "./absent.json", "compilerOptions": {"baseUrl": "src"}}`,
 		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
 		"package extends under leaf baseUrl and paths": {map[string]string{
-			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}, "moduleResolution": "bundler"}}`,
+			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}, "moduleResolution": "bundler", "moduleSuffixes": [""]}}`,
 		}, "lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"package extends may declare moduleSuffixes": {map[string]string{
+			"tsconfig.json": `{"extends": "cfg", "compilerOptions": {"baseUrl": "src", "paths": {}, "moduleResolution": "bundler"}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
+		"leaf overrides inherited moduleSuffixes": {map[string]string{
+			"base.json":     `{"compilerOptions": {"moduleSuffixes": [".native", ""]}}`,
+			"tsconfig.json": `{"extends": "./base.json", "compilerOptions": {"baseUrl": "src", "moduleSuffixes": [""]}}`,
+		}, "lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"typeRoots may win over node10 JavaScript": {map[string]string{
+			"tsconfig.json":          `{"compilerOptions": {"moduleResolution": "node10", "typeRoots": ["./types"], "paths": {"alias": ["src/alias"]}}}`,
+			"src/alias.js":           page,
+			"types/alias/index.d.ts": page,
+		}, "alias", WebImportResolution{State: WebImportUnresolved}},
+		"bundler takes JavaScript before typeRoots": {map[string]string{
+			"tsconfig.json":          `{"compilerOptions": {"moduleResolution": "bundler", "typeRoots": ["./types"], "paths": {"alias": ["src/alias"]}}}`,
+			"src/alias.js":           page,
+			"types/alias/index.d.ts": page,
+		}, "alias", WebImportResolution{"src/alias.js", WebImportRepository}},
 		"package extends may declare the module resolution": {map[string]string{
 			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}}}`,
 		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},

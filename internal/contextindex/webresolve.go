@@ -246,9 +246,15 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 		// modelled.
 		return webAliasOutcome{unknown: true}
 	}
-	return inMode(options.mode, func(pass webPass) webAliasOutcome {
+	outcome := inMode(options.mode, func(pass webPass) webAliasOutcome {
 		return resolver.aliasIn(options, specifier, pass)
 	})
+	if outcome.untyped && options.typeRoots {
+		// node10 searches typeRoots for a declaration before its
+		// JavaScript pass, and typeRoots directories are not resolved here.
+		return webAliasOutcome{unknown: true}
+	}
+	return outcome
 }
 
 func (resolver *WebImportResolver) aliasIn(options *webOptions, specifier string, pass webPass) webAliasOutcome {
@@ -436,6 +442,9 @@ type webConfig struct {
 	paths                map[string][]string
 	pathsSet, pathsValid bool
 	moduleSuffixes       bool
+	moduleSuffixesSet    bool
+	// typeRootsSet records a typeRoots declaration, typeRoots a non-null one.
+	typeRootsSet, typeRoots bool
 	// settings holds moduleResolution, module and target, in that order.
 	settings [3]webSetting
 }
@@ -458,6 +467,9 @@ type webOptions struct {
 	baseKnown, pathsKnown             bool
 	paths                             map[string][]string
 	mode                              webMode
+	// typeRoots is true when a typeRoots declaration is in force or unknown:
+	// node10 searches those directories before any JavaScript file.
+	typeRoots bool
 }
 
 func (resolver *WebImportResolver) parse(name string) *webConfig {
@@ -488,6 +500,7 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 			BaseURL          json.RawMessage `json:"baseUrl"`
 			Paths            json.RawMessage `json:"paths"`
 			ModuleSuffixes   json.RawMessage `json:"moduleSuffixes"`
+			TypeRoots        json.RawMessage `json:"typeRoots"`
 			ModuleResolution json.RawMessage `json:"moduleResolution"`
 			Module           json.RawMessage `json:"module"`
 			Target           json.RawMessage `json:"target"`
@@ -520,6 +533,9 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 		config.pathsSet = true
 		config.pathsValid = string(options.Paths) == "null" || jsonv2.Unmarshal(options.Paths, &config.paths) == nil && validWebPaths(config.paths)
 	}
+	config.moduleSuffixesSet = len(options.ModuleSuffixes) != 0
+	config.typeRootsSet = len(options.TypeRoots) != 0
+	config.typeRoots = config.typeRootsSet && string(options.TypeRoots) != "null"
 	if moduleSuffixes := strings.TrimSpace(string(options.ModuleSuffixes)); moduleSuffixes != "" && moduleSuffixes != "null" {
 		var values []string
 		config.moduleSuffixes = jsonv2.Unmarshal(options.ModuleSuffixes, &values) != nil || len(values) != 1 || values[0] != ""
@@ -625,6 +641,7 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 		settings                          [3]webSetting
 		settingDecided                    [3]bool
 		settingKnown                      = [3]bool{true, true, true}
+		suffixDecided, typeRootsDecided   bool
 	)
 	external := func() {
 		if !baseDecided {
@@ -638,6 +655,14 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 				settingDecided[position], settingKnown[position] = true, false
 			}
 		}
+		if !typeRootsDecided {
+			typeRootsDecided, options.typeRoots = true, true
+		}
+		if !suffixDecided {
+			// An unread config may declare moduleSuffixes, which changes
+			// which file every candidate names.
+			broken = true
+		}
 	}
 	var walk func(name string, depth int, stack map[string]bool)
 	walk = func(name string, depth int, stack map[string]bool) {
@@ -647,10 +672,16 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 			broken = true
 			return
 		}
-		if config.moduleSuffixes {
-			// moduleSuffixes changes which file every candidate names.
-			broken = true
-			return
+		if config.moduleSuffixesSet && !suffixDecided {
+			suffixDecided = true
+			if config.moduleSuffixes {
+				// moduleSuffixes changes which file every candidate names.
+				broken = true
+				return
+			}
+		}
+		if config.typeRootsSet && !typeRootsDecided {
+			typeRootsDecided, options.typeRoots = true, config.typeRoots
 		}
 		if config.baseURLSet && !baseDecided {
 			baseDecided = true
