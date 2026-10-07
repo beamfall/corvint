@@ -55,7 +55,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	arguments, profile, profileOK := extractToolProfile(arguments)
 	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
-	root, versionOnly, ok := parseArguments(arguments)
+	roots, versionOnly, ok := parseArguments(arguments)
 	if !ok || !protocolOK || !profileOK || !errorProfileOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
@@ -71,12 +71,22 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
-	registry, registryErr := profileRegistries[profile](root)
-	if registryErr != nil {
-		_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
-		return 2
+	handler := &toolHandler{reasonClass: reasonClass}
+	if len(roots) == 1 && roots[0].alias == "" {
+		registry, registryErr := profileRegistries[profile](roots[0].root)
+		if registryErr != nil {
+			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
+			return 2
+		}
+		handler.registry = registry
+	} else {
+		var refusal string
+		handler.repositories, handler.aliases, refusal = openRepositories(roots, profileRegistries[profile])
+		if refusal != "" {
+			_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
+			return 2
+		}
 	}
-	handler := &toolHandler{registry: registry, reasonClass: reasonClass}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
 		Name:            serverName, Version: serverVersion,
@@ -145,19 +155,39 @@ func extractErrorProfile(arguments []string) (remaining []string, reasonClass bo
 	return remaining, reasonClass, true
 }
 
-func parseArguments(arguments []string) (root string, versionOnly bool, ok bool) {
+// parseArguments reads `--version` alone, one plain `--root ABSOLUTE_ROOT`
+// (MCPV0-001), or 1 to maxRoots `--root ALIAS=ABSOLUTE_ROOT` declarations with
+// distinct aliases (MMR-V0-001, MMR-V0-002). A plain root never shares argv
+// with another root.
+func parseArguments(arguments []string) (roots []rootDeclaration, versionOnly bool, ok bool) {
 	if len(arguments) == 1 && arguments[0] == "--version" {
-		return "", true, true
+		return nil, true, true
 	}
-	if len(arguments) != 2 || arguments[0] != "--root" || arguments[1] == "" {
-		return "", false, false
+	if len(arguments) == 0 || len(arguments)%2 != 0 || len(arguments) > 2*maxRoots {
+		return nil, false, false
 	}
-	return arguments[1], false, true
+	aliases := make(map[string]bool, len(arguments)/2)
+	for index := 0; index < len(arguments); index += 2 {
+		if arguments[index] != "--root" || arguments[index+1] == "" {
+			return nil, false, false
+		}
+		alias, root, aliased := splitAlias(arguments[index+1])
+		if (!aliased && len(arguments) != 2) || (aliased && (root == "" || aliases[alias])) {
+			return nil, false, false
+		}
+		aliases[alias] = true
+		roots = append(roots, rootDeclaration{alias: alias, root: root})
+	}
+	return roots, false, true
 }
 
 type toolHandler struct {
 	registry    *bridge.Registry
 	reasonClass bool
+	// repositories and aliases bind the declared roots in multi-root mode
+	// (MMR-V0); both are nil under the single-root contract.
+	repositories map[string]*bridge.Registry
+	aliases      []string
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -171,7 +201,12 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 				return nil, protocol.InvalidParams("Invalid params")
 			}
 		}
-		tools := handler.registry.Tools()
+		var tools []bridge.ToolDescriptor
+		if handler.repositories != nil {
+			tools = handler.multiRootTools()
+		} else {
+			tools = handler.registry.Tools()
+		}
 		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
@@ -199,11 +234,21 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if !nameOK || name == "" {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
+	registry := handler.registry
+	if handler.repositories != nil {
+		var routed bool
+		if registry, arguments, routed = handler.route(name, arguments); !routed {
+			return nil, protocol.InvalidParams("Invalid params")
+		}
+		if registry == nil {
+			return handler.statusAll(ctx)
+		}
+	}
 	raw, err := json.Marshal(arguments)
 	if err != nil {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
-	result, bridgeErr := handler.registry.Call(ctx, name, raw)
+	result, bridgeErr := registry.Call(ctx, name, raw)
 	if bridgeErr != nil {
 		if bridgeErr.Code == "invalid-arguments" || bridgeErr.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
@@ -237,14 +282,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 // toolFailure is the closed tool-error object: profile /0 by default, or /1
 // with a required reasonClass under the reason-class selector (MCPV0-028).
 func (handler *toolHandler) toolFailure(name, code, reasonClass string) (map[string]any, *protocol.RPCError) {
-	value := map[string]any{
-		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
-		"code":       code, "mutates": false, "profile": toolError, "tool": name,
-	}
-	if handler.reasonClass {
-		value["profile"] = toolErrorReasonClass
-		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
-	}
+	value := handler.toolErrorObject(name, code, reasonClass)
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
@@ -254,6 +292,18 @@ func (handler *toolHandler) toolFailure(name, code, reasonClass string) (map[str
 		"isError":           true,
 		"structuredContent": value,
 	}, nil
+}
+
+func (handler *toolHandler) toolErrorObject(name, code, reasonClass string) map[string]any {
+	value := map[string]any{
+		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
+		"code":       code, "mutates": false, "profile": toolError, "tool": name,
+	}
+	if handler.reasonClass {
+		value["profile"] = toolErrorReasonClass
+		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
+	}
+	return value
 }
 
 func structuredResult(result bridge.Result) (map[string]any, string, error) {
