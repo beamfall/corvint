@@ -74,6 +74,9 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
   Repaired: size and mtime are compared at all three observations (`unchanged`); regression
   `TestRVNV0001ReceiptRewriteDetected` covers the comparison (the window itself is not
   deterministically reproducible).
+- Codex round 3 (`e72b30ec..7057ada2`): approved, no P0-P3 findings remain (review cap of 3
+  rounds reached; nothing declined). Codex could not run tests in its read-only sandbox; its
+  approval is source review, and the tests above were run locally.
 - Out of scope, reported to the orchestrator: `appmap.LoadMap` (V1-0956) has the same
   `Lstat`-then-`os.Open` FIFO window for `--map`.
 
