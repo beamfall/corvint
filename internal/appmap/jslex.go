@@ -1,6 +1,10 @@
 package appmap
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
 
 // The application map reads JavaScript and TypeScript lexically: a token stream that tells code
 // from comment and literal, never an evaluator. Anything the compiler would need to execute to
@@ -23,6 +27,14 @@ type token struct {
 	// subst is true for a template literal with at least one ${} substitution; text then holds
 	// the literal with every substitution replaced by substMark.
 	subst bool
+	// inexact marks a string or template whose escapes could not be decoded exactly (legacy
+	// octal, a lone surrogate); its text is then not the program's value and never a literal.
+	inexact bool
+}
+
+// literal reports whether t is a string or substitution-free template whose value is exact.
+func literal(t token) bool {
+	return !t.inexact && (t.kind == tokString || (t.kind == tokTemplate && !t.subst))
 }
 
 // substMark stands for one ${} substitution inside a template literal's text.
@@ -80,13 +92,13 @@ func lexJS(text string) ([]token, string) {
 			blank(i, end)
 			i = end
 		case c == '\'' || c == '"':
-			body, end := readQuoted(text, i)
-			toks = append(toks, token{kind: tokString, text: body, line: line})
+			body, inexact, end := readQuoted(text, i)
+			toks = append(toks, token{kind: tokString, text: body, line: line, inexact: inexact})
 			blank(i+1, end-1)
 			i = end
 		case c == '`':
-			body, subst, end := readTemplate(text, i)
-			toks = append(toks, token{kind: tokTemplate, text: body, line: line, subst: subst})
+			body, subst, inexact, end := readTemplate(text, i)
+			toks = append(toks, token{kind: tokTemplate, text: body, line: line, subst: subst, inexact: inexact})
 			line += strings.Count(text[i:end], "\n")
 			blank(i+1, end-1)
 			i = end
@@ -131,14 +143,16 @@ func isIdentPart(c byte) bool { return isIdentStart(c) || (c >= '0' && c <= '9')
 
 // readQuoted reads a '...' or "..." literal starting at i; it ends at its closing quote or at the
 // line break, so an unterminated literal cannot swallow the rest of the file.
-func readQuoted(text string, i int) (string, int) {
+func readQuoted(text string, i int) (string, bool, int) {
 	q := text[i]
 	var b strings.Builder
+	inexact := false
 	j := i + 1
 	for j < len(text) && text[j] != q && text[j] != '\n' {
-		if text[j] == '\\' && j+1 < len(text) && text[j+1] != '\n' {
-			b.WriteByte(text[j+1])
-			j += 2
+		if text[j] == '\\' && j+1 < len(text) {
+			var ok bool
+			j, ok = unescape(&b, text, j+1)
+			inexact = inexact || !ok
 			continue
 		}
 		b.WriteByte(text[j])
@@ -147,19 +161,99 @@ func readQuoted(text string, i int) (string, int) {
 	if j < len(text) && text[j] == q {
 		j++
 	}
-	return b.String(), j
+	return b.String(), inexact, j
+}
+
+// unescape decodes the escape sequence whose character after the backslash is at text[j], writing
+// its value to b and returning the index after it. It reports false for a sequence whose value it
+// cannot know exactly: a legacy octal escape or a lone UTF-16 surrogate.
+func unescape(b *strings.Builder, text string, j int) (int, bool) {
+	c := text[j]
+	switch c {
+	case 'n':
+		b.WriteByte('\n')
+	case 'r':
+		b.WriteByte('\r')
+	case 't':
+		b.WriteByte('\t')
+	case 'b':
+		b.WriteByte('\b')
+	case 'f':
+		b.WriteByte('\f')
+	case 'v':
+		b.WriteByte('\v')
+	case '\n': // line continuation
+	case '\r':
+		if j+1 < len(text) && text[j+1] == '\n' {
+			return j + 2, true
+		}
+	case '0':
+		if j+1 < len(text) && text[j+1] >= '0' && text[j+1] <= '9' {
+			return j + 1, false
+		}
+		b.WriteByte(0)
+	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return j + 1, false
+	case 'x':
+		if r, ok := hexRune(text, j+1, j+3); ok {
+			b.WriteRune(r)
+			return j + 3, true
+		}
+		return j + 1, false
+	case 'u':
+		r, end, ok := unicodeEscape(text, j+1)
+		if ok && r >= 0xD800 && r <= 0xDBFF && end+1 < len(text) && text[end] == '\\' && text[end+1] == 'u' {
+			if lo, end2, ok2 := unicodeEscape(text, end+2); ok2 && lo >= 0xDC00 && lo <= 0xDFFF {
+				b.WriteRune((r-0xD800)<<10 + (lo - 0xDC00) + 0x10000)
+				return end2, true
+			}
+		}
+		if !ok || (r >= 0xD800 && r <= 0xDFFF) {
+			return max(end, j+1), false
+		}
+		b.WriteRune(r)
+		return end, true
+	default:
+		_, size := utf8.DecodeRuneInString(text[j:])
+		b.WriteString(text[j : j+size])
+		return j + size, true
+	}
+	return j + 1, true
+}
+
+// unicodeEscape reads the HHHH or {H+} after a \u at text[j].
+func unicodeEscape(text string, j int) (rune, int, bool) {
+	if j < len(text) && text[j] == '{' {
+		end := strings.IndexByte(text[j:], '}')
+		if end < 2 || end > 7 {
+			return 0, j, false
+		}
+		r, ok := hexRune(text, j+1, j+end)
+		return r, j + end + 1, ok && r <= utf8.MaxRune
+	}
+	r, ok := hexRune(text, j, j+4)
+	return r, j + 4, ok
+}
+
+func hexRune(text string, from, to int) (rune, bool) {
+	if to > len(text) {
+		return 0, false
+	}
+	v, err := strconv.ParseUint(text[from:to], 16, 32)
+	return rune(v), err == nil
 }
 
 // readTemplate reads a template literal starting at i, replacing each ${...} with substMark.
-func readTemplate(text string, i int) (string, bool, int) {
+func readTemplate(text string, i int) (string, bool, bool, int) {
 	var b strings.Builder
-	subst := false
+	subst, inexact := false, false
 	j := i + 1
 	for j < len(text) && text[j] != '`' {
 		switch {
 		case text[j] == '\\' && j+1 < len(text):
-			b.WriteByte(text[j+1])
-			j += 2
+			var ok bool
+			j, ok = unescape(&b, text, j+1)
+			inexact = inexact || !ok
 		case text[j] == '$' && j+1 < len(text) && text[j+1] == '{':
 			subst = true
 			b.WriteString(substMark)
@@ -184,7 +278,7 @@ func readTemplate(text string, i int) (string, bool, int) {
 	if j < len(text) {
 		j++
 	}
-	return b.String(), subst, j
+	return b.String(), subst, inexact, j
 }
 
 func regexEnd(text string, i int) int {
@@ -260,7 +354,7 @@ func parseValue(toks []token, i int) (jsValue, int) {
 	}
 	t := toks[i]
 	switch {
-	case t.kind == tokString || (t.kind == tokTemplate && !t.subst):
+	case literal(t):
 		if next(toks, i+1, ",", "}", "]", ")") {
 			return jsValue{kind: "string", str: t.text, line: t.line}, i + 1
 		}
@@ -325,7 +419,7 @@ func parseObject(toks []token, i int) (jsValue, int) {
 			return v, i + 1
 		}
 		t := toks[i]
-		if (t.kind != tokIdent && t.kind != tokString) || !next(toks, i+1, ":") {
+		if (t.kind != tokIdent && (t.kind != tokString || t.inexact)) || !next(toks, i+1, ":") {
 			// spread, computed key, method or shorthand: the object is not a plain literal
 			v.obj = append(v.obj, jsPair{key: "", value: jsValue{kind: "other", line: t.line}})
 			i = skipValue(toks, i)

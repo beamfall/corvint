@@ -115,8 +115,29 @@ without the fix (checked by reverting each fix in turn):
 9. A learned fact survived byte trimming of its element — `TestAMAPV0014FactsFollowTrimmedElements`
    (render drops an annotation whose element ID is no longer printed and counts it as omitted).
 
-AMAP-V0-001, 005, 007, 010, 012, 013 and 014 were amended in the same change. Later rounds are
-recorded in the lane handoff.
+AMAP-V0-001, 005, 007, 010, 012, 013 and 014 were amended in the same change.
+
+Round 2 (diff `8af2bf62..b1246f16`) confirmed the round-1 repairs and reported seven P2 findings,
+each confirmed and repaired with a regression test that fails without its fix:
+
+1. A spec reaching a screen only through an unbound or ambiguous page object kept `test_join`
+   `RESOLVED` — `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`.
+2. A screen's template, permissions and flags derive from ancestor states whose anchors were not
+   checked — `TestAMAPV0010AncestorLineageStale` (`lineage_freshness` in `screen` and `flow`).
+3. `flow` dropped the unknowns of the screens it prints (for example `screen-flags`) —
+   `TestAMAPV0011FlowReportsScreenUnknowns`.
+4. A spread or repeated key after a `getByRole` name (`{ name: 'Book', ...options }`) could
+   override it — `TestAMAPV0007EscapesAndSpreads` (the selector reads `unknown`).
+5. Two reused page objects exporting one class name produced two imports of the same binding —
+   `TestAMAPV0013GeneratedBindingCollision` (every bound name is reserved for one file).
+6. Escapes were decoded by dropping the backslash (`'\u002d'` read as `u002d`) —
+   `TestAMAPV0007EscapesAndSpreads` (exact decoding; legacy octal and lone surrogates are
+   non-literal).
+7. A map file claiming reuse for a step with no selector crashed `scaffold` —
+   `TestAMAPV0013ReuseWithoutSelector`.
+
+AMAP-V0-005, 007, 010, 011 and 013 were amended in the same change. Later rounds are recorded in
+the lane handoff.
 
 ## Analyzer schema bump
 

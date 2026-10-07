@@ -20,6 +20,32 @@ type screenRef struct {
 	Reason   string `json:"reason,omitempty"`
 }
 
+// lineage returns the anchors a screen's template, query, permissions and flags derive from: its
+// own state and every ancestor's (AMAP-V0-010).
+func (m *Map) lineage(s *Screen) []Anchor {
+	out, seen := []Anchor{}, map[string]bool{}
+	for cur := s; cur != nil && !seen[cur.ID]; cur = m.screen(cur.Parent) {
+		seen[cur.ID] = true
+		out = append(out, cur.Anchor)
+	}
+	return out
+}
+
+// worst folds the freshness of several anchors: STALE if any is stale, else UNKNOWN if any is
+// unknown, else FRESH.
+func (p *projection) worst(anchors []Anchor) string {
+	state := Fresh
+	for _, a := range anchors {
+		switch p.state(a) {
+		case Stale:
+			return Stale
+		case FreshUnknown:
+			state = FreshUnknown
+		}
+	}
+	return state
+}
+
 func (m *Map) ref(s *Screen) screenRef {
 	return screenRef{ID: s.ID, State: s.State, Template: s.Template, URL: m.url(s), Status: s.Status, Reason: s.Reason}
 }
@@ -65,11 +91,12 @@ func (m *Map) method(id string) (*TestFile, *Method) {
 	return f, nil
 }
 
-// testJoin is UNKNOWN while any spec's import closure is incomplete: such a spec may reach any
-// screen, so no screen's spec list can be called complete (AMAP-V0-005).
-// testJoin is RESOLVED only when every test file was read and every import chain resolved. A
-// file the index excluded or could not load has no TestFile at all, yet it may be the spec (or the
-// page object or workflow) that reaches a screen, so its absence keeps the join UNKNOWN.
+// testJoin is RESOLVED only when every test file was read, every import chain resolved and every
+// page object is bound to exactly one screen (AMAP-V0-005). A spec with an incomplete import
+// closure may reach any screen; a file the index excluded or could not load has no TestFile at
+// all, yet may be the spec, page object or workflow that reaches a screen; and a spec reaching a
+// screen only through an unbound or ambiguous page object is attributed to none. Each keeps the
+// join UNKNOWN, so no screen's spec list is called complete.
 func (m *Map) testJoin() string {
 	for _, f := range m.Files {
 		if f.Join != StatusResolved {
@@ -77,7 +104,7 @@ func (m *Map) testJoin() string {
 		}
 	}
 	for _, u := range m.Unknowns {
-		if u.Kind == "file" {
+		if u.Kind == "file" || u.Kind == "page-object" {
 			return StatusUnknown
 		}
 	}
@@ -118,7 +145,10 @@ func ProjectScreen(ctx context.Context, m *Map, query string, o Options) ([]byte
 		return unknownDoc(p, ScreenSchema, budget, query, reason, cands)
 	}
 	s := m.screen(id)
-	p.cite(s.Anchor)
+	lineage := m.lineage(s)
+	for _, a := range lineage {
+		p.cite(a)
+	}
 	p.element(s.ID)
 	hierarchy := []any{}
 	seen := map[string]bool{}
@@ -184,9 +214,11 @@ func ProjectScreen(ctx context.Context, m *Map, query string, o Options) ([]byte
 		Flags           []string   `json:"flags"`
 		FlagsFrom       string     `json:"flags_from,omitempty"`
 		Anchor          anchorView `json:"anchor"`
+		Lineage         string     `json:"lineage_freshness"`
 		TestJoin        string     `json:"test_join"`
-	}{m.ref(s), s.Parent, s.Abstract, s.Params, s.Query, s.Permissions, s.PermissionsFrom, s.Flags, s.FlagsFrom, p.anchorView(s.Anchor), m.testJoin()}
-	if sv.Anchor.Freshness == Stale {
+	}{m.ref(s), s.Parent, s.Abstract, s.Params, s.Query, s.Permissions, s.PermissionsFrom, s.Flags, s.FlagsFrom, p.anchorView(s.Anchor),
+		p.worst(lineage), m.testJoin()}
+	if sv.Lineage == Stale {
 		stale[s.ID] = true
 	}
 	head = append(head, field{"screen", sv})
@@ -281,7 +313,9 @@ func ProjectFlow(ctx context.Context, m *Map, query string, o Options) ([]byte, 
 		if s := m.screen(st.Screen); s != nil && !onFlow[s.ID] {
 			onFlow[s.ID] = true
 			screens = append(screens, s)
-			p.cite(s.Anchor)
+			for _, a := range m.lineage(s) {
+				p.cite(a)
+			}
 			p.element(s.ID)
 		}
 	}
@@ -337,8 +371,9 @@ func ProjectFlow(ctx context.Context, m *Map, query string, o Options) ([]byte, 
 			Permissions []string   `json:"permissions"`
 			Flags       []string   `json:"flags"`
 			Anchor      anchorView `json:"anchor"`
-		}{m.ref(s), s.Permissions, s.Flags, p.anchorView(s.Anchor)}
-		if v.Anchor.Freshness == Stale {
+			Lineage     string     `json:"lineage_freshness"`
+		}{m.ref(s), s.Permissions, s.Flags, p.anchorView(s.Anchor), p.worst(m.lineage(s))}
+		if v.Lineage == Stale {
 			stale[s.ID] = true
 		}
 		screenItems = append(screenItems, v)
@@ -359,6 +394,9 @@ func ProjectFlow(ctx context.Context, m *Map, query string, o Options) ([]byte, 
 	refs := map[string]bool{fl.ID: true}
 	for _, st := range fl.Steps {
 		refs[st.ID] = true
+	}
+	for _, s := range screens {
+		refs[s.ID] = true
 	}
 	learned, overlayUnknowns := p.learned(stale)
 	return render(head, []section{

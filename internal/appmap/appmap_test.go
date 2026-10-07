@@ -664,7 +664,7 @@ page.getByRole('tab', { nested: { name: 'Inner' } });`)
 	for _, s := range f.selectors {
 		got = append(got, s.Kind+":"+s.Value+":"+s.Name+":"+s.Strength)
 	}
-	want := "test-id:::unknown role:button:Save:medium role:link::medium role:tab::medium"
+	want := "test-id:::unknown role:button:Save:medium role:::unknown role:tab::medium"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("selectors:\n got %s\nwant %s", strings.Join(got, " "), want)
 	}
@@ -826,5 +826,156 @@ func TestAMAPV0014FactsFollowTrimmedElements(t *testing.T) {
 	}
 	if !trimmed {
 		t.Fatal("no budget trimmed any fact; the case is not exercised")
+	}
+}
+
+// AMAP-V0-007: escapes decode to the program's value, an escape whose value is not exact (legacy
+// octal, a lone surrogate) is not a literal, and a role name a spread, computed, shorthand or
+// repeated key could override is unknown rather than read as absent or first-seen.
+func TestAMAPV0007EscapesAndSpreads(t *testing.T) {
+	f := readFacts(`page.getByTestId('save\u002dbtn'); page.getByTestId("a\x41\u{42}\tz"); page.getByTestId(` + "`tab\\x41`" + `);
+page.getByTestId('x\101'); page.getByTestId('\uD800'); page.getByTestId('\uD83D\uDE00'); page.getByTestId('q\'s');
+page.getByRole('button', { name: 'Book', ...options }); page.getByRole('button', { ...o, name: 'Book' });
+page.getByRole('button', { [k]: 'x', name: 'B' }); page.getByRole('button', { name }); page.getByRole('button', { name: 'B', name: 'C' });
+page.getByRole('button', { 'name': 'Pay\u0021' }); page.goto('/h\u006fme');`)
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, s.Kind+":"+s.Value+":"+s.Name+":"+s.Strength)
+	}
+	want := []string{"test-id:save-btn::strong", "test-id:aAB\tz::strong", "test-id:tabA::strong", "test-id:::unknown", "test-id:::unknown",
+		"test-id:\U0001F600::strong", "test-id:q's::strong", "role:::unknown", "role:::unknown", "role:::unknown", "role:::unknown", "role:::unknown",
+		"role:button:Pay!:medium"}
+	for i := range want {
+		w, _ := strconv.Unquote(`"` + want[i] + `"`)
+		want[i] = w
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("selectors:\n got %q\nwant %q", got, want)
+	}
+	if len(f.gotos) != 1 || f.gotos[0].url != "/home" {
+		t.Fatalf("gotos: %+v", f.gotos)
+	}
+}
+
+// AMAP-V0-005: a spec reaching a screen only through a page object bound to no screen is
+// attributed to none, so the join stays UNKNOWN.
+func TestAMAPV0005UnboundPageObjectKeepsJoinUnknown(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	gitTest(t, root, "rm", "-q", "e2e/specs/alias.spec.ts", "e2e/specs/unresolved.spec.ts")
+	writeFile(t, root, "e2e/pages/orphan.page.ts", "export class OrphanPage {\n  async open() {\n    await this.page.getByTestId('orphan').click();\n  }\n}\n")
+	writeFile(t, root, "e2e/specs/orphan.spec.ts", "import { test } from '@playwright/test';\nimport { OrphanPage } from '../pages/orphan.page';\n\ntest('orphan', async ({ page }) => {\n  await new OrphanPage(page).open();\n});\n")
+	m := build(t, root, commitAll(t, root, "unbound page object"))
+	if !hasUnknown(m, "page-object", fileID("e2e/pages/orphan.page.ts"), "page-object-unbound") {
+		t.Fatalf("unbound page object not reported: %+v", m.Unknowns)
+	}
+	if m.testJoin() != StatusUnknown {
+		t.Fatal("join RESOLVED with a spec reaching an unbound page object")
+	}
+}
+
+// AMAP-V0-010: a screen's template, permissions and flags derive from its ancestors, so an
+// ancestor's changed state makes the screen's lineage STALE in map_screen and map_flow even though
+// its own anchor is unchanged.
+func TestAMAPV0010AncestorLineageStale(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	routes := "app/routes.js"
+	data, _ := os.ReadFile(filepath.Join(root, routes))
+	writeFile(t, root, routes, strings.Replace(string(data), "url: 'clubs/:clubId'", "url: 'club/:clubId'", 1))
+	commitAll(t, root, "rename the clubs segment")
+	sv := screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Full: true})["screen"].(map[string]any)
+	if sv["anchor"].(map[string]any)["freshness"] != Fresh || sv["lineage_freshness"] != Stale {
+		t.Fatalf("screen: own %v lineage %v", sv["anchor"], sv["lineage_freshness"])
+	}
+	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", Options{Root: root, Full: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range decode(t, raw)["screens"].([]any) {
+		v := it.(map[string]any)
+		if v["id"] == "screen:admin:app.clubs.teesheets" && v["lineage_freshness"] != Stale {
+			t.Fatalf("flow screen lineage %v", v["lineage_freshness"])
+		}
+		if v["id"] == "screen:admin:app.home" && v["lineage_freshness"] != Fresh {
+			t.Fatalf("unrelated lineage %v", v["lineage_freshness"])
+		}
+	}
+}
+
+// AMAP-V0-011: map_flow reports the unknowns of the screens it prints, such as unreadable flags.
+func TestAMAPV0011FlowReportsScreenUnknowns(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	routes := "app/routes.js"
+	data, _ := os.ReadFile(filepath.Join(root, routes))
+	writeFile(t, root, routes, strings.Replace(string(data), "flags: ['new_teesheet']", "flags: FLAGS", 1))
+	m := build(t, root, commitAll(t, root, "non-literal flags"))
+	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", Options{Root: root, Full: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, it := range decode(t, raw)["unknowns"].([]any) {
+		u := it.(map[string]any)
+		found = found || (u["kind"] == "screen-flags" && u["ref"] == "screen:admin:app.clubs.teesheets")
+	}
+	if !found {
+		t.Fatalf("flow omits the screen's flags unknown: %s", raw)
+	}
+}
+
+// AMAP-V0-013: a step with reuse but no selector, as only a hand-edited map can hold, scaffolds a
+// TODO instead of crashing.
+func TestAMAPV0013ReuseWithoutSelector(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	fl := m.flow("book-tee-time")
+	reused := false
+	for i := range fl.Steps {
+		reused = reused || len(fl.Steps[i].Reuse) > 0
+		fl.Steps[i].Selector = nil
+	}
+	if !reused {
+		t.Fatal("fixture flow has no reuse to forge")
+	}
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := string(raw); strings.Contains(body, "// reuse ") || !strings.Contains(body, "no locator declared") {
+		t.Fatalf("scaffold: %s", body)
+	}
+}
+
+// AMAP-V0-013: two reused page objects that export the same class name cannot both be imported;
+// the second is reported as a binding collision and its steps fall back to TODO lines.
+func TestAMAPV0013GeneratedBindingCollision(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "e2e/pages/a/slot.page.ts", "export class SlotPage {\n  async pick() {\n    await this.page.getByTestId('slot').click();\n  }\n}\n")
+	writeFile(t, root, "e2e/pages/b/slot.page.ts", "export class SlotPage {\n  async reserve() {\n    await this.page.getByRole('button', { name: 'Book' }).click();\n  }\n}\n")
+	m := build(t, root, commitAll(t, root, "same class twice"))
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decode(t, raw)
+	imports, lines := []string{}, []string{}
+	for _, it := range doc["imports"].([]any) {
+		imports = append(imports, it.(string))
+	}
+	for _, it := range doc["lines"].([]any) {
+		lines = append(lines, it.(string))
+	}
+	in, body := strings.Join(imports, "\n"), strings.Join(lines, "\n")
+	if strings.Count(in, "\nimport { SlotPage }") != 1 || !strings.Contains(in, "// UNRESOLVED import { SlotPage } collides") ||
+		strings.Count(body, "const slotPage") != 1 || !strings.Contains(body, "await slotPage.pick();") || strings.Contains(body, "reserve") {
+		t.Fatalf("imports:\n%s\nlines:\n%s", in, body)
+	}
+	found := false
+	for _, it := range doc["unknowns"].([]any) {
+		u := it.(map[string]any)
+		found = found || (u["reason"] == "binding-collision" && u["path"] == "e2e/pages/b/slot.page.ts")
+	}
+	if !found {
+		t.Fatalf("no collision unknown: %v", doc["unknowns"])
 	}
 }

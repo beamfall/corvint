@@ -128,6 +128,9 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	calls := map[string]call{}
 	for _, st := range fl.Steps {
 		p.element(st.ID)
+		if st.Selector == nil {
+			continue // a step with no locator has nothing to reuse, whatever the map claims
+		}
 		for _, r := range st.Reuse {
 			f, me := m.method(r)
 			if me == nil || f.Class == "" || (f.Role != rolePageObject && f.Role != roleWorkflow) {
@@ -185,35 +188,59 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	} else {
 		unknowns = append(unknowns, Unknown{Kind: "scaffold", Ref: fl.ID, Reason: "no-asserting-spec"})
 	}
-	// Page objects the steps reuse but the closest spec does not import.
+	// Page objects the steps reuse but the closest spec does not import. Every name the scaffold
+	// binds (a borrowed import, a generated import, a page-object variable, page) is reserved for
+	// one file; a file whose class or variable name is already taken is not called at all, and its
+	// steps fall back to TODO lines, rather than emitting code that rebinds a name.
 	vars := map[string]string{}
 	order := []string{}
+	blocked := map[string]bool{}
+	owner := map[string]string{"page": "", "test": "", "expect": ""}
+	for n := range locals {
+		owner[n] = ""
+	}
+	for _, f := range sortedKeys(imported) {
+		for n := range imported[f] {
+			if _, taken := owner[n]; !taken || owner[n] == "" {
+				owner[n] = f
+			}
+		}
+	}
+	collide := func(f *TestFile, name string) {
+		blocked[f.Path] = true
+		imports = append(imports, "// UNRESOLVED import { "+f.Class+" } collides with the binding "+name+";")
+		unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: f.ID, Reason: "binding-collision", Path: f.Path})
+	}
 	for _, st := range fl.Steps {
 		c, ok := calls[st.ID]
-		if !ok {
+		if !ok || blocked[c.file.Path] {
 			continue
 		}
-		if _, seen := vars[c.file.Path]; !seen {
-			vars[c.file.Path] = lowerFirst(c.file.Class)
-			order = append(order, c.file.Path)
+		if _, seen := vars[c.file.Path]; seen {
+			continue
 		}
-		if !imported[c.file.Path][c.file.Class] {
+		f := c.file
+		if o, taken := owner[f.Class]; taken && o != f.Path {
+			collide(f, f.Class)
+			continue
+		}
+		v := lowerFirst(f.Class)
+		if _, taken := owner[v]; taken || v == f.Class {
+			collide(f, v)
+			continue
+		}
+		if !imported[f.Path][f.Class] {
 			// Not bound under its own name: absent, aliased (import { X as Y }), default or namespace.
-			if imported[c.file.Path] == nil {
-				imported[c.file.Path] = map[string]bool{}
-			}
-			imported[c.file.Path][c.file.Class] = true
-			switch {
-			case dir == "":
-				imports = append(imports, "// UNRESOLVED import { "+c.file.Class+" } from <no proposed path>;")
-			case locals[c.file.Class]:
-				imports = append(imports, "// UNRESOLVED import { "+c.file.Class+" } collides with a borrowed binding;")
-				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: c.file.ID, Reason: "binding-collision", Path: c.file.Path})
-			default:
-				spec, _ := relSpecifier(dir, c.file.Path)
-				imports = append(imports, "import { "+c.file.Class+" } from "+quote(spec)+";")
+			if dir == "" {
+				imports = append(imports, "// UNRESOLVED import { "+f.Class+" } from <no proposed path>;")
+			} else {
+				spec, _ := relSpecifier(dir, f.Path)
+				imports = append(imports, "import { "+f.Class+" } from "+quote(spec)+";")
 			}
 		}
+		owner[f.Class], owner[v] = f.Path, f.Path
+		vars[f.Path] = v
+		order = append(order, f.Path)
 	}
 	lines := []any{fmt.Sprintf("test(%s, async ({ page }) => {", quote(fl.FlowID))}
 	for _, pre := range fl.Preconditions {
@@ -229,7 +256,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			where = "UNKNOWN " + st.Reason
 		}
 		lines = append(lines, fmt.Sprintf("  // step %s: %s [%s]", st.ID, st.Action, where))
-		if c, ok := calls[st.ID]; ok {
+		if c, ok := calls[st.ID]; ok && !blocked[c.file.Path] {
 			lines = append(lines, fmt.Sprintf("  await %s.%s(); // reuse %s [%s]", vars[c.file.Path], c.meth.Name, c.ref, st.Selector.Strength))
 			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength})
 			if p.state(c.meth.Anchor) == Stale {

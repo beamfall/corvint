@@ -23,8 +23,9 @@ type Fact struct {
 }
 
 // Overlay supplies learned facts for map elements. Facts receives the sorted, unique element IDs a
-// projection is about to print and returns facts for any of them; facts naming other IDs are
-// ignored. It must be read-only and bounded: a projection calls it once per invocation.
+// projection selected and returns facts for any of them; facts naming other IDs are ignored, and a
+// fact whose element the byte budget then trims is dropped and counted in `omitted.learned`. It
+// must be read-only and bounded: a projection calls it once per invocation.
 type Overlay interface {
 	Facts(ctx context.Context, elementIDs []string) ([]Fact, error)
 }

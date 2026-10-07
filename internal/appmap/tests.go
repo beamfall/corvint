@@ -79,7 +79,7 @@ func readFacts(text string) fileFacts {
 	toks, code := lexJS(text)
 	f := fileFacts{}
 	lit := func(t token) (string, bool) {
-		if t.kind == tokString || (t.kind == tokTemplate && !t.subst) {
+		if literal(t) {
 			return t.text, true
 		}
 		return "", false
@@ -122,12 +122,16 @@ func readFacts(text string) fileFacts {
 				}
 			}
 			if t.text == "getByRole" && i+4 < len(toks) && isPunct(toks[i+3], ",") && isPunct(toks[i+4], "{") {
-				name = roleName(toks, i+4, lit)
+				var named bool
+				if name, named = roleName(toks, i+4, lit); !named {
+					f.selectors = append(f.selectors, newSelector(sk.kind, "", "", strengthUnknown, t.line))
+					continue
+				}
 			}
 			f.selectors = append(f.selectors, newSelector(kind, value, name, strength, t.line))
 		case dotted && (t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL"):
 			g := rawGoto{line: t.line}
-			if i+2 < len(toks) && (toks[i+2].kind == tokString || toks[i+2].kind == tokTemplate) && whole(i+2) {
+			if i+2 < len(toks) && (toks[i+2].kind == tokString || toks[i+2].kind == tokTemplate) && !toks[i+2].inexact && whole(i+2) {
 				g.url = toks[i+2].text
 				if secretscreen.MatchString(g.url) {
 					g.url, g.reason = "", "secret-shaped"
@@ -173,28 +177,35 @@ func readFacts(text string) fileFacts {
 	return f
 }
 
-// roleName reads the literal name property of the getByRole options object opening at toks[open],
-// at depth 1 and in any position. A missing, computed or partial name reads as no name.
-func roleName(toks []token, open int, lit func(token) (string, bool)) string {
-	depth := 0
+// roleName reads the literal name property of the getByRole options object opening at toks[open].
+// It reports false when the object could set a name it cannot read: a spread, a computed or
+// shorthand key, or a name whose value is not one exact literal (AMAP-V0-007).
+func roleName(toks []token, open int, lit func(token) (string, bool)) (string, bool) {
+	depth, name, named := 0, "", false
 	for j := open; j < len(toks); j++ {
+		keyPos := j > open && (isPunct(toks[j-1], "{") || isPunct(toks[j-1], ",")) && depth == 1
 		switch {
+		case keyPos && (isPunct(toks[j], ".") || isPunct(toks[j], "[")):
+			return "", false
 		case isPunct(toks[j], "{") || isPunct(toks[j], "(") || isPunct(toks[j], "["):
 			depth++
 		case isPunct(toks[j], "}") || isPunct(toks[j], ")") || isPunct(toks[j], "]"):
 			depth--
 			if depth == 0 {
-				return ""
+				return name, true
 			}
-		case depth == 1 && toks[j].text == "name" && (isPunct(toks[j-1], "{") || isPunct(toks[j-1], ",")) &&
-			j+3 < len(toks) && isPunct(toks[j+1], ":") && (isPunct(toks[j+3], ",") || isPunct(toks[j+3], "}")):
-			if n, ok := lit(toks[j+2]); ok && !secretscreen.MatchString(n) {
-				return n
+		case keyPos && (toks[j].text == "name" && (toks[j].kind == tokIdent || literal(toks[j]))):
+			if named || j+3 >= len(toks) || !isPunct(toks[j+1], ":") || !(isPunct(toks[j+3], ",") || isPunct(toks[j+3], "}")) {
+				return "", false
 			}
-			return ""
+			n, ok := lit(toks[j+2])
+			if !ok || secretscreen.MatchString(n) {
+				return "", false
+			}
+			name, named = n, true
 		}
 	}
-	return ""
+	return "", false
 }
 
 // blockEnd returns the index of the line whose '}' closes the first '{' opened on line start.

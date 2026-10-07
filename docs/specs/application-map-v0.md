@@ -102,8 +102,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   directly (`basis: goto`). An import that is neither resolved nor an external package (including
   a TypeScript `paths` alias until V1-0958 lands) MUST leave that file's join `UNKNOWN`
   (`unresolved-import`), and every screen projection's `test_join` MUST read `UNKNOWN` while any
-  test file's join is `UNKNOWN` or any test file was excluded by the index or could not be read
-  (`excluded-by-index`, `unparsed-imports`), since such a file may be the one that reaches a
+  test file's join is `UNKNOWN`, any test file was excluded by the index or could not be read
+  (`excluded-by-index`, `unparsed-imports`), or any page object is `page-object-unbound`,
+  `page-object-ambiguous` or `unknown-state`, since such a file may be the one that reaches a
   screen; attributions found through resolved imports are kept as a lower bound.
   The map MUST NOT implement alias resolution itself. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-006`: Each screen MUST aggregate permissions and flags (inherited from the nearest
@@ -114,9 +115,13 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   attribute locator are `strong`; `getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`
   and `getByTitle` are `medium`; `getByText` and other CSS locators are `weak`; a non-literal
   argument is `unknown`. A literal counts only as a whole argument (followed by `)` or `,`), so
-  `'save-' + id` is non-literal, as is such a `goto` URL (`non-literal-url`); a `getByRole` name is
-  read from the options object's top-level `name` member in any position. A secret-shaped literal
-  is dropped and reported `secret-shaped`.
+  `'save-' + id` is non-literal, as is such a `goto` URL (`non-literal-url`). String and template
+  escapes decode to the program's value (`\n`, `\xHH`, `\uHHHH`, `\u{H}`, surrogate pairs, line
+  continuations); a legacy octal escape or lone surrogate makes the literal non-literal. A
+  `getByRole` name is read from the options object's top-level `name` member in any position, and
+  the selector is `unknown` when the object has a spread, a computed or shorthand key, a repeated
+  `name`, or a non-literal name, since any of these can set a name the map cannot read. A
+  secret-shaped literal is dropped and reported `secret-shaped`.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-008`: Edges MUST come only from evidence: `flow-step` edges between adjacent
   resolved navigation steps (a step that is not placed on one screen breaks the chain, so no edge
@@ -133,7 +138,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   absent path or a different span is `STALE`; an unresolvable revision or Git failure is
   `UNKNOWN`. A line shift without a content change therefore reads `STALE` (fail-closed). The
   check MUST run even when the evaluated revision is the map's own, because a map file's anchors
-  are claims of the file, not proof.
+  are claims of the file, not proof. A screen's template, query, permissions and flags derive from
+  its ancestors' states, so `screen` and `flow` also check every ancestor anchor and print the
+  worst of them with the screen's own as `lineage_freshness` (`STALE` over `UNKNOWN` over `FRESH`).
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-011`: `screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
   document no larger than its budget: defaults 4096, 6144, 2048 and 6144 bytes; `--budget` in
@@ -142,7 +149,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   section order, and an `omitted` object reports the dropped count of every list. A budget that
   cannot hold the document head refuses with `appmap-budget-too-small`. Each head carries
   `schema`, `app`, `map_revision`, `map_digest`, `evaluated_revision`, `budget` and `full`, so a
-  later planner (V1-0959) can compose projections without re-reading the map.
+  later planner (V1-0959) can compose projections without re-reading the map. `flow` reports the
+  unknowns of the flow, its steps and every screen it prints.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-012`: `find` MUST match a 2..128 byte query case-insensitively against element IDs and
   labels of screens, flows, steps, files, methods and selectors (every element's ID, not only its
@@ -155,9 +163,12 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   It borrows that spec's imports only when each is external or resolves to a file in the map, else
   emits it commented `// UNRESOLVED` with an unknown; it imports and calls existing page-object
   methods for steps that reuse them, adding an import under the class's own name when the borrowed
-  imports bind it only under an alias (or `// UNRESOLVED` with `binding-collision` when that name is
-  already bound), and leaves locator and outcome TODOs otherwise. A selector of strength
-  `unknown` is never offered as reuse. With no
+  imports bind it only under an alias. Every name the scaffold binds (borrowed imports, generated
+  imports, page-object variables, `page`, `test`, `expect`) is reserved for one file; a reused file
+  whose class or variable name is already taken is emitted `// UNRESOLVED` with
+  `binding-collision`, and its steps fall back to TODOs. It leaves locator and outcome TODOs
+  otherwise. A selector of strength `unknown`, and a step with no selector (whatever a map file
+  claims as its reuse), is never offered as reuse. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
@@ -236,9 +247,12 @@ steps) attaches here; this slice defines the seam only and implements no verific
   candidates), an alias or missing import (join `UNKNOWN`), a page object with no or several URLs
   (unbound), Git unavailable at projection time (`UNKNOWN` freshness), an oversized repository
   (`appmap-bound-exceeded`), an overlay failure (`overlay-unavailable`, map facts unaffected), a
-  test file the index excluded or could not read (join `UNKNOWN`), a partial literal argument
-  (`unknown` strength or `non-literal-url`), and a hand-edited map whose anchors disagree with Git
-  (`STALE`, even at the map's own revision).
+  test file the index excluded or could not read (join `UNKNOWN`), a partial literal argument or
+  inexact escape (`unknown` strength or `non-literal-url`), a role name a spread could override
+  (`unknown`), an ancestor state changed under an unchanged screen (`lineage_freshness: STALE`),
+  two reused page objects with one class name (`binding-collision`), and a hand-edited map whose
+  anchors disagree with Git (`STALE`, even at the map's own revision) or that claims reuse for a
+  step with no selector (TODO, no call).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -250,15 +264,15 @@ steps) attaches here; this slice defines the seam only and implements no verific
 | AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject` |
 | AMAP-V0-003 | `TestAMAPV0002HierarchyResolution` |
 | AMAP-V0-004 | `TestAMAPV0004FlowSteps` |
-| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0007PartialLiterals` |
+| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-006 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0004FlowSteps` |
-| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals` |
+| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads` |
 | AMAP-V0-008 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0004FlowSteps` |
 | AMAP-V0-009 | `TestAMAPV0009DeterministicArtifact`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified` |
-| AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0FlowsAppmapCLI` |
+| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale` |
+| AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 
@@ -283,6 +297,7 @@ needs migration. Map files are explicit outputs and may be discarded.
 6. Adopter-scale qualification: compile time, map size and projection latency on a large app.
 7. A precomputed find index for maps beyond fixture size.
 8. Re-test alias-imported specs once V1-0958 lands.
+9. Fall back to the next reuse candidate when the first page object's binding collides.
 
 ## Owner questions
 

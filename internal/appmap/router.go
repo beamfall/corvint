@@ -39,7 +39,7 @@ func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 		var config jsValue
 		arg := toks[j+2]
 		switch {
-		case (arg.kind == tokString || (arg.kind == tokTemplate && !arg.subst)) && next(toks, j+3, ","):
+		case literal(arg) && next(toks, j+3, ","):
 			s.name = arg.text
 			config, _ = parseValue(toks, j+4)
 		case isPunct(arg, "{"):
