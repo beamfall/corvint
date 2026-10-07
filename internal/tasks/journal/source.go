@@ -164,40 +164,11 @@ func (s *nativeRead) binding(p string, root *os.Root) (err error) {
 	return nil
 }
 func (s *nativeRead) List(p string, max int) (out Listing, err error) {
-	root, e := s.parent(p)
-	if os.IsNotExist(e) {
-		s.absent[p] = true
-		return out, e
-	}
-	if e != nil {
-		return out, e
-	}
-	if s.absent[p] {
-		return out, moved(p)
-	}
-	if e = s.binding(p, root); e != nil {
-		return out, e
-	}
-	dir, e := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
-	if e != nil {
-		return out, e
-	}
-	defer func() { err = s.closed(err, closeReadFile(dir)) }()
-	info, e := dir.Stat()
-	if e != nil {
-		return out, e
-	}
-	if old := s.listed[p]; old != nil && !os.SameFile(old, info) {
-		return out, moved(p)
+	info, names, root, err := s.names(p, max)
+	if err != nil {
+		return out, err
 	}
 	out.DirectoryInfo = info
-	names, e := intent.ReadDirNames(dir, p, p, max)
-	if e != nil {
-		return out, e
-	}
-	if afterReadNames != nil {
-		afterReadNames(p)
-	}
 	for _, name := range names {
 		info, e := root.Lstat(name)
 		if os.IsNotExist(e) {
@@ -215,6 +186,52 @@ func (s *nativeRead) List(p string, max int) (out Listing, err error) {
 	}
 	return out, nil
 }
+
+// Names is List without the per-entry lstat: the directory's own metadata
+// and its bounded child names, from the same no-follow handle. Children are
+// not recorded as listed, so a later Read of one does not compare identity.
+func (s *nativeRead) Names(p string, max int) (os.FileInfo, []string, error) {
+	info, names, _, err := s.names(p, max)
+	return info, names, err
+}
+
+func (s *nativeRead) names(p string, max int) (info os.FileInfo, names []string, root *os.Root, err error) {
+	root, e := s.parent(p)
+	if os.IsNotExist(e) {
+		s.absent[p] = true
+		return nil, nil, nil, e
+	}
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	if s.absent[p] {
+		return nil, nil, nil, moved(p)
+	}
+	if e = s.binding(p, root); e != nil {
+		return nil, nil, nil, e
+	}
+	dir, e := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	defer func() { err = s.closed(err, closeReadFile(dir)) }()
+	info, e = dir.Stat()
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	if old := s.listed[p]; old != nil && !os.SameFile(old, info) {
+		return nil, nil, nil, moved(p)
+	}
+	names, e = intent.ReadDirNames(dir, p, p, max)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	if afterReadNames != nil {
+		afterReadNames(p)
+	}
+	return info, names, root, nil
+}
+
 func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 	if _, e := s.native.path(p); e != nil {
 		return nil, e
