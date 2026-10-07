@@ -45,6 +45,13 @@ refusal on a 200,000-file tree spent seconds in a status scan it never needed, a
   deadline, is the scan's own and is returned with its old code and message, so an over-limit
   tree cannot mask a status refusal the sequential build would have reported. A carried
   observation's identity or status error is refused before the listing, as before.
+  The scan classifies its failure when it happens (`contextCancellation` in `git.go`, round 4):
+  `gitRaw` maps a command that returned after its context ended to the context refusal at the
+  return and `StatusIn`'s own early exits return the raw context error, both carried in
+  `Error.Cause`; any other failure keeps its own error even when the listing cancels the scan
+  context while `StatusIn`'s deferred cleanup (scratch release, metadata reader close) is still
+  running. Before this, the post-`StatusIn` `ctx.Err()` re-read replaced such a failure with the
+  cancellation and let the listing's error win.
 - **Only the walk's reader.** `ReadBounded`'s disk path still takes the `Lstat` pair; it is not on
   the measured hot path and is left for a follow-up rather than widened into this change.
 - **`O_NOFOLLOW` only where it exists.** Build tags mirror `internal/delta/input_unix.go`; the
@@ -104,7 +111,14 @@ in `cmd/corvint`, the negative control for `countSnapshotLoads`, which now wraps
 `loadSnapshotObserved` as well as `loadSnapshot` and `loadSnapshotDeferred` for
 `TestCheckpointReadsNoIndexSnapshotAndRetainsNothing` (it counted 2 of 3 before the wrap).
 No timing-relevant path changed: the carried-error checks and the status-error choice run only
-on failures, and the `Lstat` runs only after a failed open. `go vet` clean on darwin, linux and windows. The frozen evaluations are
+on failures, and the `Lstat` runs only after a failed open.
+
+Review round 4 (Codex r3, one P2): `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup`
+(the `statusRunFailed` test hook cancels the scan context the moment the shimmed `status` fails
+with exit 23) reported `Git repository index was cancelled` on the earlier code
+(`TD/r4-cleanup-failing-first.log`) and `Git error: status failed first` after
+`contextCancellation` replaced the post-`StatusIn` `ctx.Err()` re-read (`TD/r4-contextindex.log`).
+`cancelledByListing` now recognises the cancellation through `Error.Cause` instead of the message. `go vet` clean on darwin, linux and windows. The frozen evaluations are
 not touched (no ranking input moved); `dogfood-change` binding is left to the integrating session.
 
 Not reproduced: the `cmd/corvint` fixture-setup "git signal: bus error" seen once in

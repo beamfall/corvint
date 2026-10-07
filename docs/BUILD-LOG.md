@@ -6315,7 +6315,7 @@ Decisions:
 One committed Latin-1 path (`latin/caf\xe9.go`) refused `index`, path `impact`, `context` and
 `prove` for the whole repository: `parseStatus` returned "Git status path is not valid UTF-8" when
 the path was dirty, and `readTreeEntries` "Git tree output is malformed" when it was clean
-(`internal/contextindex/git.go:341,350,386` at `26d211e7`). With the path clean, `context` then
+(`internal/contextindex/git.go:376,385,421` at `26d211e7`). With the path clean, `context` then
 refused a third time in `parseHistory` ("native Go authority-start query requires UTF-8 Git history
 paths"). Chosen: the path is recorded in `Exclusions` under genesis's `unsafe-or-non-utf8-path`,
 named by its display form (invalid bytes as U+FFFD), which also stands in `DirtyPaths`, `Tracked`
@@ -7506,7 +7506,7 @@ Decisions:
   A failure that names none keeps its original error. A missing root or base tree is itself a tip,
   and `rev-list --missing=print` lists it with `?` (checked in a `--filter=tree:0` clone).
 - The `ls-tree` error of the tree read is now hooked too
-  (`internal/contextindex/git.go:379@16e97a09`). A missing subtree makes `ls-tree -r` fail with
+  (`internal/contextindex/git.go:414@16e97a09`). A missing subtree makes `ls-tree -r` fail with
   `error: Could not read <oid>` before any size is printed.
 - With the transport blocked, the open question of a minimum Git version no longer bears on
   fetching. `GIT_NO_LAZY_FETCH` remains, so Git 2.46 or later fails at the read, with no fetch

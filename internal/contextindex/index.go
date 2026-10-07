@@ -1471,13 +1471,15 @@ func openingObservationWithTree(ctx context.Context, root string, attempt int, o
 // cancelledByListing reports whether a status scan's error is the
 // cancellation openingObservationWithTree issued after its listing failed:
 // the scan's own context error while the build's context is still live. Any
-// other failure, a git error or the build's own deadline, is the scan's.
+// other failure, a git error or the build's own deadline, is the scan's. The
+// scan classifies its failure when it happens (contextCancellation), so a
+// failure that preceded the cancellation never carries context.Canceled.
 func cancelledByListing(ctx context.Context, statusErr error) bool {
 	if ctx.Err() != nil {
 		return false
 	}
 	var failure *Error
-	return errors.As(statusErr, &failure) && failure.Message == "Git repository index was cancelled"
+	return errors.As(statusErr, &failure) && errors.Is(failure.Cause, context.Canceled)
 }
 
 // residualBlobs is one committed-blob fetch's result, carried across the
