@@ -122,6 +122,18 @@ func TestCALV0132_RepeatedLedgerMemberRefuses(t *testing.T) {
 	}
 	body := bytes.TrimSuffix(bytes.TrimSpace(good), []byte("}"))
 	suffix := func(members string) []byte { return append(append([]byte{}, body...), []byte(","+members+"}")...) }
+	// The map control: one valid escalation entry loads, so the repeated
+	// one below is refused for the repeat alone.
+	escalation := `"ticket:a:q:t1":{"streak":1}`
+	if bytes.Contains(good, []byte(`"escalation"`)) {
+		t.Fatal("escalation control fixture not reached")
+	}
+	if err := os.WriteFile(path, suffix(`"escalation":{`+escalation+`}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if l, err := LoadLedger(ProgramDir(c, "prog"), "prog"); err != nil || l.Escalation["ticket:a:q:t1"] == nil {
+		t.Fatalf("single escalation entry: %v", err)
+	}
 	for name, bad := range map[string][]byte{
 		"a trailing empty workers":    suffix(`"workers":[]`),
 		"a repeated backoff":          suffix(`"backoff":{}`),
@@ -130,7 +142,7 @@ func TestCALV0132_RepeatedLedgerMemberRefuses(t *testing.T) {
 		"a repeated worker member":    bytes.Replace(good, []byte(`"pid":`), []byte(`"pid":1,"pid":`), 1),
 		"a folded repeat in a worker": bytes.Replace(good, []byte(`"pid":`), []byte(`"PID":1,"pid":`), 1),
 		"a trailing value":            append(append([]byte{}, good...), []byte(` {"workers":[]}`)...),
-		"a repeated map key":          suffix(`"escalation":{"k":{},"k":{}}`),
+		"a repeated map key":          suffix(`"escalation":{` + escalation + `,` + escalation + `}`),
 		"a repeated pressure sample":  suffix(`"pressure":{"sample":{},"sample":{}}`),
 	} {
 		if bytes.Equal(bad, good) {
