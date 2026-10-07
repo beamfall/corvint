@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -308,14 +309,11 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
-		before := openingObservation(ctx, root, attempt, opening)
-		if before.identityErr != nil {
-			return nil, before.identityErr
+		before, entries, skipped, err := openingObservationWithTree(ctx, root, attempt, opening)
+		if err != nil {
+			return nil, err
 		}
-		if before.statusErr != nil {
-			return nil, before.statusErr
-		}
-		candidate, err := buildEvidence(ctx, root, before.identity, before.dirty, before.statusSHA256)
+		candidate, err := buildEvidenceFrom(ctx, root, before.identity, entries, skipped, before.dirty, before.statusSHA256)
 		if err != nil {
 			return nil, err
 		}
@@ -449,6 +447,12 @@ func buildEvidence(ctx context.Context, root string, identity repositoryIdentity
 	if err != nil {
 		return nil, err
 	}
+	return buildEvidenceFrom(ctx, root, identity, entries, skipped, status, statusSHA256)
+}
+
+// buildEvidenceFrom is buildEvidence after the tree listing: the caller hands
+// in the entries and the non-blob paths readTreeEntries skipped.
+func buildEvidenceFrom(ctx context.Context, root string, identity repositoryIdentity, entries []treeEntry, skipped map[string]struct{}, status []string, statusSHA256 string) (*Index, error) {
 	exclusions, candidates, unsupported := admittedEntries(entries)
 	dirty := make(map[string]struct{}, len(status))
 	for _, item := range status {
@@ -1406,6 +1410,76 @@ func openingObservation(ctx context.Context, root string, attempt int, opening *
 		return *opening
 	}
 	return observeRepository(ctx, root)
+}
+
+// openingObservationWithTree is openingObservation followed by the tree
+// listing. On a fresh read the listing runs beside the status scan: the
+// identity read pins the tree oid first, and a tree is immutable content the
+// scan cannot change, so the overlap reads nothing differently. What moves is
+// the source-count refusal inside readTreeEntries, which now returns while
+// the scan is still running and cancels it, instead of waiting behind it. At
+// 200,000 tracked files the scan is 1.5-3 s and the listing 0.2 s; no blob
+// was read in either order. A carried observation has already paid its scan,
+// and a carried identity or status failure is refused before any listing, as
+// the sequential build refused it; a retry after HEAD moved observes again.
+// When the listing fails while the scan is still running, the scan is
+// cancelled and the listing's error is reported. A scan that failed on its
+// own, not because the listing cancelled it, keeps its own refusal: the
+// listing's error only replaces a cancellation the listing caused.
+func openingObservationWithTree(ctx context.Context, root string, attempt int, opening *repositoryObservation) (repositoryObservation, []treeEntry, map[string]struct{}, error) {
+	skipped := make(map[string]struct{})
+	if attempt == 0 && opening != nil {
+		if opening.identityErr != nil {
+			return *opening, nil, nil, opening.identityErr
+		}
+		if opening.statusErr != nil {
+			return *opening, nil, nil, opening.statusErr
+		}
+		entries, err := readTreeEntries(ctx, root, opening.identity, skipped)
+		return *opening, entries, skipped, err
+	}
+	scanCtx, cancelScan := context.WithCancel(ctx)
+	defer cancelScan()
+	var observation repositoryObservation
+	scanned := make(chan struct{})
+	go func() {
+		defer close(scanned)
+		observation.dirty, observation.statusSHA256, observation.statusErr = readStatusSnapshot(scanCtx, root)
+	}()
+	observation.identity, observation.identityErr = readIdentity(ctx, root)
+	if observation.identityErr != nil {
+		cancelScan()
+		<-scanned
+		return observation, nil, nil, observation.identityErr
+	}
+	entries, err := readTreeEntries(ctx, root, observation.identity, skipped)
+	if err != nil {
+		cancelScan()
+		<-scanned
+		if observation.statusErr != nil && !cancelledByListing(ctx, observation.statusErr) {
+			return observation, nil, nil, observation.statusErr
+		}
+		return observation, nil, nil, err
+	}
+	<-scanned
+	if observation.statusErr != nil {
+		return observation, nil, nil, observation.statusErr
+	}
+	return observation, entries, skipped, nil
+}
+
+// cancelledByListing reports whether a status scan's error is the
+// cancellation openingObservationWithTree issued after its listing failed:
+// the scan's own context error while the build's context is still live. Any
+// other failure, a git error or the build's own deadline, is the scan's. The
+// scan classifies its failure when it happens (contextCancellation), so a
+// failure that preceded the cancellation never carries context.Canceled.
+func cancelledByListing(ctx context.Context, statusErr error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var failure *Error
+	return errors.As(statusErr, &failure) && errors.Is(failure.Cause, context.Canceled)
 }
 
 // residualBlobs is one committed-blob fetch's result, carried across the

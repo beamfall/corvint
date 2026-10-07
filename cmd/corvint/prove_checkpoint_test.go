@@ -641,6 +641,50 @@ func TestCheckpointHistoryFlagsAreFactsAndDirtyDigestHashesNames(t *testing.T) {
 	}
 }
 
+// countSnapshotLoads wraps every snapshot-loading seam the prove command can
+// reach (loadSnapshot, loadSnapshotDeferred and loadSnapshotObserved) with one
+// shared counter, restored when the test ends. TestCheckpointSnapshotLoadCounterSeesEverySeam
+// is its negative control: a seam the counter misses would let a checkpoint
+// read a snapshot unnoticed.
+func countSnapshotLoads(t *testing.T) *int {
+	t.Helper()
+	calls := new(int)
+	loader := loadSnapshot
+	loadSnapshot = func(ctx context.Context, root string) (*contextindex.Index, bool, error) {
+		*calls++
+		return loader(ctx, root)
+	}
+	t.Cleanup(func() { loadSnapshot = loader })
+	deferredLoader := loadSnapshotDeferred
+	loadSnapshotDeferred = func(ctx context.Context, root string) (*contextindex.Index, bool, error) {
+		*calls++
+		return deferredLoader(ctx, root)
+	}
+	t.Cleanup(func() { loadSnapshotDeferred = deferredLoader })
+	observedLoader := loadSnapshotObserved
+	loadSnapshotObserved = func(root string, observation contextindex.Observation) (*contextindex.Index, bool, error) {
+		*calls++
+		return observedLoader(root, observation)
+	}
+	t.Cleanup(func() { loadSnapshotObserved = observedLoader })
+	return calls
+}
+
+// TestCheckpointSnapshotLoadCounterSeesEverySeam is the negative control for
+// countSnapshotLoads: one call through each seam must count, so a seam the
+// counter does not wrap fails here rather than passing the checkpoint test
+// by omission.
+func TestCheckpointSnapshotLoadCounterSeesEverySeam(t *testing.T) {
+	root := checkpointRepository(t)
+	calls := countSnapshotLoads(t)
+	loadSnapshot(context.Background(), root)
+	loadSnapshotDeferred(context.Background(), root)
+	loadSnapshotObserved(root, contextindex.Observation{})
+	if *calls != 3 {
+		t.Fatalf("counted %d of 3 snapshot loads", *calls)
+	}
+}
+
 func TestCheckpointReadsNoIndexSnapshotAndRetainsNothing(t *testing.T) {
 	root := checkpointRepository(t)
 	document := checkpointInput(t, root, "AGENTS.md")
@@ -666,22 +710,10 @@ func TestCheckpointReadsNoIndexSnapshotAndRetainsNothing(t *testing.T) {
 	for _, tree := range trees {
 		before = append(before, checkpointRetentionDigest(t, tree))
 	}
-	loader := loadSnapshot
-	calls := 0
-	loadSnapshot = func(ctx context.Context, root string) (*contextindex.Index, bool, error) {
-		calls++
-		return loader(ctx, root)
-	}
-	defer func() { loadSnapshot = loader }()
-	deferredLoader := loadSnapshotDeferred
-	loadSnapshotDeferred = func(ctx context.Context, root string) (*contextindex.Index, bool, error) {
-		calls++
-		return deferredLoader(ctx, root)
-	}
-	defer func() { loadSnapshotDeferred = deferredLoader }()
+	calls := countSnapshotLoads(t)
 	_, with, stderr, code := runProveCLI(t, root, "--checkpoint", file)
-	if code != 0 || calls != 0 {
-		t.Fatalf("calls %d code %d: %s", calls, code, stderr)
+	if code != 0 || *calls != 0 {
+		t.Fatalf("calls %d code %d: %s", *calls, code, stderr)
 	}
 	for i, tree := range trees {
 		if checkpointRetentionDigest(t, tree) != before[i] {
@@ -695,7 +727,7 @@ func TestCheckpointReadsNoIndexSnapshotAndRetainsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, without, stderr, code := runProveCLI(t, root, "--checkpoint", file)
-	if code != 0 || !bytes.Equal(with, without) || calls != 0 {
+	if code != 0 || !bytes.Equal(with, without) || *calls != 0 {
 		t.Fatalf("snapshot/ledger changed output: %d %s", code, stderr)
 	}
 	if err := os.Remove(file); err != nil {
@@ -743,7 +775,7 @@ func TestCheckpointSourceNeverReferencesSnapshotReaders(t *testing.T) {
 			if !ok || id.Name != alias {
 				return true
 			}
-			guardedVar := map[string]string{"LoadSnapshot": "loadSnapshot", "LoadSnapshotDeferred": "loadSnapshotDeferred"}[selector.Sel.Name]
+			guardedVar := map[string]string{"LoadSnapshot": "loadSnapshot", "LoadSnapshotDeferred": "loadSnapshotDeferred", "LoadSnapshotObserved": "loadSnapshotObserved"}[selector.Sel.Name]
 			forbidden := guardedVar != ""
 			if strings.HasPrefix(name, "prove") {
 				forbidden = forbidden || selector.Sel.Name == "LoadEventSnapshot" || selector.Sel.Name == "LoadEventSnapshotDeferred" || selector.Sel.Name == "ProbeSnapshot" || selector.Sel.Name == "SnapshotFreshness"

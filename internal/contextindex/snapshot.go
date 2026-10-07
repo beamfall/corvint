@@ -961,6 +961,40 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 	return index, true, nil
 }
 
+// LoadSnapshotObserved is LoadSnapshot for a caller whose own bracket holds
+// the opening observation and takes the closing one
+// (gokernel.ProbeRepositoryAround; proposed GPK-V0-076, V1-0881). It spawns no
+// Git process: the observation names the file and supplies the dirty set and
+// its digest, exactly as the loader's own pair would, and the caller's closing
+// observation is the identity re-read this loader otherwise makes. The tables
+// are LoadSnapshot's, read through the same format fallback, so a hit answers
+// the same bytes; a file that is absent or refused is the same miss. A tree
+// that moves between the observation and the decode is refused at the caller's
+// closing, where the loader's own pair would have read it as a miss and built.
+func LoadSnapshotObserved(root string, observation Observation) (*Index, bool, error) {
+	directory, present := snapshotDirectoryPresent(root)
+	if !present {
+		return nil, false, nil
+	}
+	engineID := snapshotEngineID()
+	if engineID == "" {
+		return nil, false, nil
+	}
+	identity := repositoryIdentity{objectFormat: observation.ObjectFormat, commitRevision: observation.CommitRevision, treeRevision: observation.Revision}
+	index, err := readSnapshotIndex(directory, identity, engineID, loadFull)
+	if err != nil {
+		return nil, false, nil
+	}
+	dirty := make(map[string]struct{}, len(observation.DirtyPaths))
+	for _, item := range observation.DirtyPaths {
+		dirty[item] = struct{}{}
+	}
+	index.Root, index.DirtyPaths, index.StatusSHA256 = root, keys(dirty), observation.StatusSHA256
+	// The file is keyed by tree; the hit reports the observed HEAD, as LoadSnapshot does.
+	index.CommitRevision = identity.commitRevision
+	return index, true, nil
+}
+
 // decodeSnapshotValue decodes the header and the index message into value
 // and then checks the SHA-256 trailer over every byte before it. Gob cannot
 // tell a body overwritten with the same number of bytes from the real one,

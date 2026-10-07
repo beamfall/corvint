@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -249,16 +248,5 @@ func ReadSource(root, relative string) ([]byte, error) {
 	if !ValidRelativePath(relative) {
 		return nil, fmt.Errorf("%w: path %q", ErrInvalidUnit, relative)
 	}
-	full := filepath.Join(root, filepath.FromSlash(relative))
-	info, err := os.Lstat(full)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%w: %q is not a regular file", ErrInvalidUnit, relative)
-	}
-	if info.Size() > MaxSourceBytes {
-		return nil, fmt.Errorf("%w: %q is %d bytes", ErrWalkLimit, relative, info.Size())
-	}
-	return os.ReadFile(full)
+	return readSourceFile(filepath.Join(root, filepath.FromSlash(relative)), relative)
 }

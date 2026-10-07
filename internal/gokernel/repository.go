@@ -434,6 +434,62 @@ func (observation repositoryObservation) exported() Observation {
 	}
 }
 
+// Repository is the observation in Repository's shape, without the profile:
+// an `ls-tree` read no caller of ProbeRepositoryAround emits, and a pure
+// function of TreeRevision, so an equal tree already implies an equal profile.
+func (observation Observation) Repository() (Repository, error) {
+	dirty := observation.DirtyPaths
+	if dirty == nil {
+		dirty = []string{} // a clean tree digests as `[]`, as the status parse yields it
+	}
+	return repositoryFromObservation(repositoryObservation{
+		identity: [3]string{observation.ObjectFormat, observation.CommitRevision, observation.TreeRevision},
+		dirty:    dirty,
+	}, "")
+}
+
+// ErrRepositoryDrift is ProbeRepositoryAround's refusal: the repository the
+// closing observation saw is not the one the read was issued against.
+var ErrRepositoryDrift = newError("repository-state-drift", "repository state changed while the event read it")
+
+// ProbeRepositoryAround is one GPK-V0-007 bracket held open across the
+// caller's own read (proposed GPK-V0-076; V1-0881): one complete
+// identity-and-status observation, the read issued against it, one complete
+// observation, equal or ErrRepositoryDrift. It is ProbeRepositoryContext for a
+// caller that compares the two sides itself today, around a read of its own:
+// the same two observations prove the same thing once, where that caller paid
+// two probes of two observations each and two profile reads nothing emitted.
+// There is no retry: the caller refuses drift, as the dogfood event surface
+// does, instead of re-running its read. A read error returns at once without
+// the closing observation, exactly as that caller returned before its second
+// probe, so error precedence is unchanged; the drift comparison is identity
+// plus the dirty-path set, the comparison ProbeRepositoryContext makes.
+func ProbeRepositoryAround(parent context.Context, root string, read func(context.Context, Observation) error) (Repository, error) {
+	return probeRepositoryAround(parent, root, git, read)
+}
+
+func probeRepositoryAround(parent context.Context, root string, run gitRunner, read func(context.Context, Observation) error) (Repository, error) {
+	ctx, cancel := context.WithTimeout(parent, gitDeadline)
+	defer cancel()
+	before, err := observeRepository(ctx, run, root)
+	if err != nil {
+		return Repository{}, err
+	}
+	// The read runs under the caller's own deadline, as it did beside two
+	// probes; only the bracket's Git reads take the probe's fixed bound.
+	if err := read(parent, before.exported()); err != nil {
+		return Repository{}, err
+	}
+	after, err := observeRepository(ctx, run, root)
+	if err != nil {
+		return Repository{}, err
+	}
+	if before.identity != after.identity || !slices.Equal(before.dirty, after.dirty) {
+		return Repository{}, ErrRepositoryDrift
+	}
+	return repositoryFromObservation(after, "")
+}
+
 // sharedRead is the read stage of a shared bracket: the event's own reads,
 // issued against the opening observation. It returns the computation that
 // finishes the event from what was read, or nil. That computation touches no

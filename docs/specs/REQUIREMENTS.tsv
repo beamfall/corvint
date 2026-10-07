@@ -64,6 +64,7 @@ AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10
 AFP-V0-031	docs/specs/affected-plan-v0.md	654	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
 AFP-V0-032	docs/specs/affected-plan-v0.md	692	(accepted by decision 0438; V1-0865) Only a declaration path that
 AFP-V0-033	docs/specs/affected-plan-v0.md	701	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	717	(proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1238,51 +1239,51 @@ FPK-V0-004	docs/specs/falsifiable-packet-v0.md	78	`history-consistent` MUST be j
 FPK-V0-005	docs/specs/falsifiable-packet-v0.md	89	A result answers for the rows that carry its kind and id only. It is `proven`
 FPK-V0-006	docs/specs/falsifiable-packet-v0.md	101	The whole operation MUST be bracketed: the dirty set is read before the packet i
 FPK-V0-007	docs/specs/falsifiable-packet-v0.md	104	For a fixed tree, HEAD, dirty set, task, limit, and budget the document MUST be
-FPK-V0-008	docs/specs/falsifiable-packet-v0.md	125	Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
-FPK-V0-009	docs/specs/falsifiable-packet-v0.md	145	The `query`, `impact`, `feature`, and harness wires and every parity case MUST b
-FPK-V0-010	docs/specs/falsifiable-packet-v0.md	147	`prove [--limit N] PATH...` MUST embed the packet that `impact` would emit for t
-FPK-V0-011	docs/specs/falsifiable-packet-v0.md	152	`reference-resolves` is assigned to `syntax` rows of results of kind
-FPK-V0-012	docs/specs/falsifiable-packet-v0.md	163	`prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]` MUST embed
-FPK-V0-013	docs/specs/falsifiable-packet-v0.md	190	A `reverse-import` row whose cited path ends in `.py` (`reason` `imports X`) MUS
-FPK-V0-014	docs/specs/falsifiable-packet-v0.md	228	`test-kills-mutant` is assigned to `test-convention` rows of results of kind
-FPK-V0-015	docs/specs/falsifiable-packet-v0.md	339	`prove --cem ... --attest` MUST emit, instead of the document, an in-toto
-FPK-V0-016	docs/specs/falsifiable-packet-v0.md	364	`prove` MUST report `proof.ledger`, the repository's falsification rate over the
-FPK-V0-017	docs/specs/falsifiable-packet-v0.md	298	`prove --base FULL_COMMIT_ID [--limit N] [--mutate]` is change mode, the
-FPK-V0-018	docs/specs/falsifiable-packet-v0.md	198	A `reverse-import` or `reference` row whose cited path ends in `.js`, `.mjs`,
-FPK-V0-019	docs/specs/falsifiable-packet-v0.md	384	`test-kills-mutant` is also assigned to a test row whose path names a pytest
-FPK-V0-020	docs/specs/falsifiable-packet-v0.md	426	(accepted 2026-09-04 for AT-06 by decision 0052) A checkpoint document is caller
-FPK-V0-021	docs/specs/falsifiable-packet-v0.md	473	(accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an
-FPK-V0-022	docs/specs/falsifiable-packet-v0.md	614	(accepted 2026-09-04 for AT-06 by decision 0052) Selector matching MUST be gated
-FPK-V0-023	docs/specs/falsifiable-packet-v0.md	664	(accepted 2026-09-04 for AT-06 by decision 0052) Stored `verification` rows are
-FPK-V0-024	docs/specs/falsifiable-packet-v0.md	678	(accepted 2026-09-04 for AT-06 by decision 0052) `prove --checkpoint` MUST refus
-FPK-V0-025	docs/specs/falsifiable-packet-v0.md	859	(accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSIO
-FPK-V0-026	docs/specs/falsifiable-packet-v0.md	863	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS
-FPK-V0-027	docs/specs/falsifiable-packet-v0.md	928	`proof.claims` MUST be present in every output that carries `proof`, keyed by al
-FPK-V0-028	docs/specs/falsifiable-packet-v0.md	939	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a
-FPK-V0-029	docs/specs/falsifiable-packet-v0.md	955	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
-FPK-V0-030	docs/specs/falsifiable-packet-v0.md	972	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
-FPK-V0-031	docs/specs/falsifiable-packet-v0.md	998	(experimental prototype, not advertised; help labels it experimental) The CLI
-FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1036	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1052	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
-FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1070	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
-FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1089	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
-FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1110	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
-FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1177	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1191	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1199	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
-FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1212	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
-FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1222	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
-FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1233	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
-FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1247	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
-FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1257	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
-FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1265	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
-FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1287	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
-FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1303	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
-FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1308	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
-FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1316	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
-FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1125	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
-FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1141	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
-FPK-V0-052	docs/specs/falsifiable-packet-v0.md	1161	(accepted 2026-09-25, decision 0393; pre-1.0 panel
+FPK-V0-008	docs/specs/falsifiable-packet-v0.md	128	Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
+FPK-V0-009	docs/specs/falsifiable-packet-v0.md	148	The `query`, `impact`, `feature`, and harness wires and every parity case MUST b
+FPK-V0-010	docs/specs/falsifiable-packet-v0.md	150	`prove [--limit N] PATH...` MUST embed the packet that `impact` would emit for t
+FPK-V0-011	docs/specs/falsifiable-packet-v0.md	155	`reference-resolves` is assigned to `syntax` rows of results of kind
+FPK-V0-012	docs/specs/falsifiable-packet-v0.md	166	`prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]` MUST embed
+FPK-V0-013	docs/specs/falsifiable-packet-v0.md	193	A `reverse-import` row whose cited path ends in `.py` (`reason` `imports X`) MUS
+FPK-V0-014	docs/specs/falsifiable-packet-v0.md	231	`test-kills-mutant` is assigned to `test-convention` rows of results of kind
+FPK-V0-015	docs/specs/falsifiable-packet-v0.md	342	`prove --cem ... --attest` MUST emit, instead of the document, an in-toto
+FPK-V0-016	docs/specs/falsifiable-packet-v0.md	367	`prove` MUST report `proof.ledger`, the repository's falsification rate over the
+FPK-V0-017	docs/specs/falsifiable-packet-v0.md	301	`prove --base FULL_COMMIT_ID [--limit N] [--mutate]` is change mode, the
+FPK-V0-018	docs/specs/falsifiable-packet-v0.md	201	A `reverse-import` or `reference` row whose cited path ends in `.js`, `.mjs`,
+FPK-V0-019	docs/specs/falsifiable-packet-v0.md	387	`test-kills-mutant` is also assigned to a test row whose path names a pytest
+FPK-V0-020	docs/specs/falsifiable-packet-v0.md	429	(accepted 2026-09-04 for AT-06 by decision 0052) A checkpoint document is caller
+FPK-V0-021	docs/specs/falsifiable-packet-v0.md	476	(accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an
+FPK-V0-022	docs/specs/falsifiable-packet-v0.md	617	(accepted 2026-09-04 for AT-06 by decision 0052) Selector matching MUST be gated
+FPK-V0-023	docs/specs/falsifiable-packet-v0.md	667	(accepted 2026-09-04 for AT-06 by decision 0052) Stored `verification` rows are
+FPK-V0-024	docs/specs/falsifiable-packet-v0.md	681	(accepted 2026-09-04 for AT-06 by decision 0052) `prove --checkpoint` MUST refus
+FPK-V0-025	docs/specs/falsifiable-packet-v0.md	866	(accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSIO
+FPK-V0-026	docs/specs/falsifiable-packet-v0.md	870	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS
+FPK-V0-027	docs/specs/falsifiable-packet-v0.md	935	`proof.claims` MUST be present in every output that carries `proof`, keyed by al
+FPK-V0-028	docs/specs/falsifiable-packet-v0.md	946	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a
+FPK-V0-029	docs/specs/falsifiable-packet-v0.md	962	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
+FPK-V0-030	docs/specs/falsifiable-packet-v0.md	979	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
+FPK-V0-031	docs/specs/falsifiable-packet-v0.md	1005	(experimental prototype, not advertised; help labels it experimental) The CLI
+FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1043	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1059	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
+FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1077	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1096	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1117	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
+FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1184	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1198	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1206	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1219	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1229	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1240	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
+FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1254	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1264	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
+FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1272	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1294	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1310	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1315	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1323	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1132	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
+FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1148	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
+FPK-V0-052	docs/specs/falsifiable-packet-v0.md	1168	(accepted 2026-09-25, decision 0393; pre-1.0 panel
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin
@@ -1441,36 +1442,37 @@ GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	407	A context packet 
 GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	446	A receipt's coverage counts are denominated in the universe of results the ranki
 GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	486	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	784	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	933	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	999	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	934	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	1000	The standalone `corvint query` `repository`-intent profile introduced
 GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	509	An abstaining packet MUST name the reason it abstained at every surface that emi
 GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	526	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1069	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1099	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1117	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1070	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1100	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1118	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
 GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	651	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
 GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	583	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
 GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	589	(accepted, decision 0052, 2026-09-04) when a query term
 GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	598	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
 GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	537	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1146	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1157	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1147	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1158	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	674	A target is shipped only after its native conformance, filesystem-safety,
 GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	607	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1176	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1240	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1264	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1191	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1274	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1207	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1177	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1241	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1265	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1192	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1275	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1208	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	623	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1289	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1305	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1320	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1339	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1363	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1381	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1397	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1290	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1306	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1321	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1340	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1364	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1382	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1398	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1443	(proposed 2026-10-06 (V1-0881; no GitHub issue), owner review pending; not accep
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1586,7 +1588,8 @@ IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	442	(proposed 2026-09-13, accept
 IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	470	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
 IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	484	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	506	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
-IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	524	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	551	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	521	(proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the
@@ -1665,6 +1668,7 @@ LCP-V0-012	docs/specs/local-completion-policy-v0.md	231	Private plans, observati
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	237	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	262	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	275	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-016	docs/specs/local-completion-policy-v0.md	278	(proposed 2026-10-06 (V1-0881; no GitHub issue), owner review pending; not accep
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result

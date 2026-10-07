@@ -518,6 +518,33 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   repository with one committed Latin-1 path that refuses `index` or path `impact`, or whose
   receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
   and the parse flag in `history.go`.
+- `IDX-SNAP-V0-026`: (proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
+  accepted) on a fresh opening observation of the build's stability window
+  (`buildStableFrom`: every retry, and the first attempt when no loader observation is carried)
+  the tree listing (`git ls-tree -r -l -z --full-tree <tree>`) is issued beside the status scan,
+  not after it. The listing reads immutable content named by the identity already read, so its
+  result cannot depend on the scan's outcome, and the `GPK-V0-007` proof shape is unchanged: the
+  closing observation still compares identity and dirty set against the opening one before the
+  index is accepted. The source-count refusal (`Git tree exceeds the source-count limit`,
+  `maxIndexedSources`) and the tree-byte bound therefore return while the scan is still running
+  and before any `cat-file` is spawned; the build cancels the scan and waits for it before
+  returning, so no observation outlives the build. When both fail, a scan that failed on its
+  own (a git failure or the build's deadline, not the cancellation the listing issued) keeps
+  its own refusal, code and message, as the sequential build reported it; the listing's error
+  is reported only when the scan failed because the listing cancelled it; the scan classifies
+  its failure at the moment it happens (`contextCancellation`: a Git command that returned after
+  the context ended, or `StatusIn`'s own context exit), so a failure that preceded the
+  cancellation is never re-read as one after `StatusIn`'s deferred cleanup. A carried loader
+  observation on the first attempt is refused on its carried identity or status error before
+  any listing, exactly as the sequential build refused it. Refusal codes, messages, limits and
+  the `IDX-SNAP-V0-016` shard path (`openingObservation`) are unchanged. Measured on a 200,000-file
+  repository (`index --if-stale`, medians of three under load 8-11): 2.39 s wall and 5.13 CPU s
+  before, 0.54 s and 0.65 CPU s after, the same refusal; `context` 2.73 s / 5.93 CPU s to
+  0.40 s / 0.60 CPU s. Falsifier: a build whose shimmed status reports completion before the
+  refusal, any `cat-file` spawn before it, a carried observation whose identity or status read
+  failed that still yields an index, or an independent status failure reported as the listing's
+  refusal. Rollback: restore `openingObservation` followed by
+  `buildEvidence` in the loop.
 
 ### Proposed (2026-10-06, V1-0870, pending owner review): named eviction and live worktree trees
 
@@ -713,3 +740,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
 | IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
+| IDX-SNAP-V0-026 (proposed) | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |

@@ -57,7 +57,7 @@ paths, and the Codex, Gemini CLI and OpenCode adapters are unchanged.
   `dogfood event`, which owns no observations (`LCP-V0-003`), and `prompt-over-query-bound` is
   refused before any Corvint call, so again the transcript is the only record.
 - `session-start` notice: its `frontier-authority-unavailable` and `host-version-unknown`
-  degradations remain in the framed receipt (`cmd/corvint/local_completion_event.go:335@b0ea6e77`).
+  degradations remain in the framed receipt (`cmd/corvint/local_completion_event.go:347@b0ea6e77`).
 
 Claude Code writes hook output into the local session transcript
 `~/.claude/projects/<project-slug>/<session>.jsonl` as `hook_additional_context`,

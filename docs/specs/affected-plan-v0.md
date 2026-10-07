@@ -714,6 +714,24 @@ and container qualification; full fallback remains available.
   source and a container measurement, not a proof that no narrower declaration exists; the
   measurement covers the Linux test files only. Rollback restores the optional `reasons` check;
   the reasons themselves stay as documentation.
+- **AFP-V0-034:** (proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
+  accepted) The disk source reader (`ReadSource`, `readSourceFile` in
+  `internal/liveverify/affected`) admits a unit on the descriptor it reads, not on a separate
+  look-up of the name. On darwin and linux it opens the path `O_RDONLY|O_NOFOLLOW|O_NONBLOCK`:
+  a symlink is refused at open (`ELOOP`/`EMLINK` become `ErrInvalidUnit`), a FIFO cannot block
+  the open, and the regular-file and `MaxSourceBytes` checks run on `fstat` of that descriptor;
+  a body that grows past the bound after the stat is refused (`ErrWalkLimit`) while it is read.
+  A path whose open fails for any other reason (a socket, a directory the process may not read)
+  is `Lstat`-ed only then, so a non-regular path keeps the `ErrInvalidUnit` the `Lstat` path
+  gave it and the success path stays at one open and one `fstat`.
+  Other platforms keep the `Lstat`-then-`ReadFile` pair (`read_other.go`). The refusals, error
+  values and bound are unchanged; the change removes one path resolution per source, which was
+  19% of `affected` CPU on a 200,000-file repository (3.7 of 19.7 sampled seconds; see
+  `docs/build-log/2026-10-06-v1-0416-refusal-order-and-affected-reads.md` for the before/after
+  table). `ReadBounded`'s disk path still takes the pair (follow-up). Falsifier: a symlink,
+  directory or FIFO at a unit path that is read rather than refused, or a sparse file over the
+  bound that is read. Rollback: delete `read_unix.go` and `read_other.go` and restore the
+  `Lstat` body of `ReadSource` in `walk.go`.
 
 ## Non-goals and authority
 
@@ -785,6 +803,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `agentsVerifyCommands`, `agentsCheck`, `nonTerminatingCommand`, `stripShellComment`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence`, `TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342` |
 | AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
+| AFP-V0-034 (proposed) | `readSourceFile` (`internal/liveverify/affected/read_unix.go`, `read_other.go`), `ReadSource` (`walk.go`) | `TestReadSourceRefusesNonRegularFilesOnOpenDescriptor` (regular file read; symlink, directory, FIFO, unix socket and mode-0 directory refused as `ErrInvalidUnit` without blocking; a sparse body over `MaxSourceBytes` refused as `ErrWalkLimit`; a missing path reports `fs.ErrNotExist`) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

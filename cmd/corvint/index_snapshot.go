@@ -214,3 +214,7 @@ func evictedSnapshotsPayload(evicted []contextindex.EvictedSnapshot) []any {
 	}
 	return payload
 }
+
+// loadSnapshotObserved is the dogfood event's zero-spawn hit against its own bracket's
+// opening observation (proposed LCP-V0-016, V1-0881).
+var loadSnapshotObserved = contextindex.LoadSnapshotObserved
