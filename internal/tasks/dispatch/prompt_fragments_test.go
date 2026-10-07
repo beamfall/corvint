@@ -114,6 +114,15 @@ func TestCALV0176_ConfigWithoutFragmentsUnchanged(t *testing.T) {
 			t.Errorf("%s prompt accepted", name)
 		}
 	}
+	// A repeated prompt member decodes per occurrence, as the string field
+	// did: null keeps the earlier text, and an earlier bad type still fails.
+	work := `"prompt":` + quote(c.Roles[0].Prompt)
+	if got, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(work+`,"prompt":null`), 1)); err != nil || got.Roles[0].Prompt != c.Roles[0].Prompt {
+		t.Fatalf("prompt then null: %v", err)
+	}
+	if _, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(`"prompt":123,`+work), 1)); err == nil {
+		t.Fatal("number then prompt accepted")
+	}
 	unknown := bytes.Replace(raw, []byte(`"name":"impl"`), []byte(`"name":"impl","extra":1`), 1)
 	if _, err := DecodeConfig(unknown); err == nil || !strings.Contains(err.Error(), "unknown field") {
 		t.Fatalf("unknown role member: %v", err)
@@ -135,7 +144,7 @@ func TestCALV0177_FragmentRefusals(t *testing.T) {
 		"empty name":    {ok, `[{"fragment":""},{"fragment":"rules"}]`, `role impl prompt references unknown fragment ""`},
 		"empty text":    {`{"rules":""}`, `[{"fragment":"rules"}]`, `prompt fragment rules must be 1..65536 bytes`},
 		"oversized":     {`{"rules":` + big + `}`, `[{"fragment":"rules"}]`, `prompt fragment rules must be 1..65536 bytes`},
-		"expanded size": {`{"a":` + half + `,"b":` + half + `}`, `[{"fragment":"a"},{"fragment":"b"}]`, `role impl prompt must be 1..65536 bytes after fragment expansion`},
+		"expanded size": {`{"a":` + half + `,"b":` + half + `}`, `[{"fragment":"a"},{"fragment":"b"}]`, `role impl prompt must be 1..65536 bytes after fragment expansion; fragment "b" passes the limit`},
 		"nested":        {`{"rules":{"fragment":"other"}}`, `[{"fragment":"rules"}]`, `prompt fragment "rules" must be a string (fragments do not nest)`},
 		"list value":    {`{"rules":["a"]}`, `[{"fragment":"rules"}]`, `prompt fragment "rules" must be a string`},
 		"repeated":      {`{"rules":"a","rules":"b"}`, `[{"fragment":"rules"}]`, `prompt fragment "rules" is repeated`},
@@ -155,6 +164,19 @@ func TestCALV0177_FragmentRefusals(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: got %v, want %q", name, err, tc.want)
 		}
+	}
+	roles := testConfig(t, "exit 0")
+	for i := 1; i < 33; i++ {
+		r := roles.Roles[0]
+		r.Name = fmt.Sprintf("r%d", i)
+		roles.Roles = append(roles.Roles, r)
+	}
+	refs := make([]string, 33)
+	for i := range refs {
+		refs[i] = `[{"fragment":"missing"}]` // the role bound refuses before expansion runs
+	}
+	if _, err := DecodeConfig(fragmentRaw(t, roles, ok, refs...)); err == nil || !strings.Contains(err.Error(), "roles needs 1..32 entries") {
+		t.Errorf("33 roles: %v", err)
 	}
 	many := map[string]string{}
 	for i := 0; i < 33; i++ {

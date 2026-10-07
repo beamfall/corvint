@@ -46,3 +46,11 @@ The change adds proposed CAL-V0-175 to CAL-V0-178 to
 
 - `make gate` and the full `go test ./...`: NOT_RUN (lane policy).
 - A live dispatcher run with an adopter-sized configuration: NOT_RUN.
+
+## Independent review
+
+- Codex round 1 (gpt-6-astra, read-only): three findings, all accepted and repaired with
+  regressions that fail on the round-1 source. P2: a repeated `prompt` member must decode per
+  occurrence as the string field did (`null` keeps the earlier text; an earlier bad type still
+  fails). P2: the 32-role bound now refuses before expansion allocates. P3: the expanded-size
+  refusal names the part or fragment that passes the limit.

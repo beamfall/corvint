@@ -3,6 +3,7 @@ package dispatch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -68,33 +69,53 @@ func (r *Role) UnmarshalJSON(raw []byte) error {
 	type plain Role
 	var v struct {
 		plain
-		Prompt json.RawMessage `json:"prompt"`
+		Prompt rolePrompt `json:"prompt"`
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&v); err != nil {
+		var pe promptError
+		if errors.As(err, &pe) {
+			var named struct {
+				Name string `json:"name"`
+			}
+			_ = json.Unmarshal(raw, &named)
+			return fmt.Errorf("role %s prompt: %v", named.Name, pe.error)
+		}
 		return err
 	}
 	out := Role(v.plain)
-	out.Prompt, out.promptParts = "", nil
-	p := bytes.TrimSpace(v.Prompt)
-	switch {
-	case len(p) == 0 || string(p) == "null":
-	case p[0] == '"':
-		if err := json.Unmarshal(p, &out.Prompt); err != nil {
-			return err
-		}
-	case p[0] == '[':
-		parts, err := decodePromptParts(p)
-		if err != nil {
-			return fmt.Errorf("role %s prompt: %v", out.Name, err)
-		}
-		out.promptParts = parts
-	default:
-		return fmt.Errorf("role %s prompt must be a string or an array of parts", out.Name)
-	}
+	out.Prompt, out.promptParts = v.Prompt.text, v.Prompt.parts
 	*r = out
 	return nil
+}
+
+// rolePrompt decodes each occurrence of a role prompt member in turn, as a
+// string field did: null keeps the earlier value, and the last string or
+// array wins.
+type rolePrompt struct {
+	text  string
+	parts []promptPart
+}
+
+type promptError struct{ error }
+
+func (p *rolePrompt) UnmarshalJSON(raw []byte) error {
+	switch raw[0] {
+	case 'n':
+		return nil
+	case '"':
+		p.parts = nil
+		return json.Unmarshal(raw, &p.text)
+	case '[':
+		parts, err := decodePromptParts(raw)
+		if err != nil {
+			return promptError{err}
+		}
+		p.text, p.parts = "", parts
+		return nil
+	}
+	return promptError{fmt.Errorf("must be a string or an array of parts")}
 }
 
 func decodePromptParts(raw []byte) ([]promptPart, error) {
@@ -156,6 +177,9 @@ func exactFragmentMember(raw []byte) bool {
 // equivalent. A fragment no role references is refused (CAL-V0-177).
 func (c *Config) expandPrompts() error {
 	fail := func(f string, a ...any) error { return fmt.Errorf("dispatch config: "+f, a...) }
+	if len(c.Roles) == 0 || len(c.Roles) > 32 {
+		return fail("roles needs 1..32 entries") // before expansion allocates
+	}
 	if len(c.Prompts) > maxFragments {
 		return fail("prompts holds at most %d fragments", maxFragments)
 	}
@@ -177,9 +201,10 @@ func (c *Config) expandPrompts() error {
 			continue
 		}
 		var b strings.Builder
-		for _, p := range r.promptParts {
-			text := p.text
+		for i, p := range r.promptParts {
+			text, at := p.text, fmt.Sprintf("part %d", i)
 			if p.fragment != "" || p.text == "" {
+				at = fmt.Sprintf("fragment %q", p.fragment)
 				var ok bool
 				if text, ok = c.Prompts[p.fragment]; !ok {
 					return fail("role %s prompt references unknown fragment %q", r.Name, p.fragment)
@@ -187,7 +212,7 @@ func (c *Config) expandPrompts() error {
 				used[p.fragment] = true
 			}
 			if b.Len()+len(text) > maxRolePrompt {
-				return fail("role %s prompt must be 1..%d bytes after fragment expansion", r.Name, maxRolePrompt)
+				return fail("role %s prompt must be 1..%d bytes after fragment expansion; %s passes the limit", r.Name, maxRolePrompt, at)
 			}
 			b.WriteString(text)
 		}
