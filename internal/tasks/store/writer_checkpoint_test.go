@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -623,7 +624,14 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ensure(t)
 			var planted uint64
-			run := stagedWrite(tc.write, at(tc.stage, func() {
+			// The planted receipt models a concurrent writer, so the write
+			// carries the live clock every command-line writer has, and the
+			// receipt lands in a later second than the write sampled.
+			live := func(ctx context.Context) (*Report, error) { return tc.write(WithClock(ctx, WallClock)) }
+			run := stagedWrite(live, at(tc.stage, func() {
+				for sampled := WallClock(); WallClock() == sampled; {
+					time.Sleep(10 * time.Millisecond)
+				}
 				writerPad(t, repo, 1)
 				planted = headSeqOf(t, repo)
 			}))

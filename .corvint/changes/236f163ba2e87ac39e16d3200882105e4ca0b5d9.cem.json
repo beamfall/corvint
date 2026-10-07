@@ -1,0 +1,100 @@
+{
+  "baseRevision": "fc90abe5a0a66f2b1ea5b471c17aca21c996b89f",
+  "evidence": [
+    {
+      "blobOid": "f42b3ea81e4aea800888f054dcbb4caf8fed2555",
+      "id": "evidence:sha256:358a9188470aebcbd3ba3a04501df2b59744f72dc516437daa1ba6b7d3e9a470",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 37335,
+        "start": 37101
+      },
+      "spanSha256": "06050df7ed3b639a4fb51a67cfa94e574a66ac60fe6b96f316756cd4056c4b04"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:358a9188470aebcbd3ba3a04501df2b59744f72dc516437daa1ba6b7d3e9a470",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a84dbf7b4e765b70ba9c62637ad4a22b9a2220bd61e99c5627cf49a7403acc8f",
+      "newRange": {
+        "count": 48,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-07-v1-0952-planted-receipt-clock.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:358a9188470aebcbd3ba3a04501df2b59744f72dc516437daa1ba6b7d3e9a470",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:16765579bbd3f933cce2ef0890a21f8fc7f0e0e9c5d417bff9bff32e74150c78",
+      "newRange": {
+        "count": 9,
+        "start": 103
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 103
+      },
+      "path": "internal/tasks/store/mutate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:358a9188470aebcbd3ba3a04501df2b59744f72dc516437daa1ba6b7d3e9a470",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2e33f68b48afc3ee1ae4c9a75feb0deb1bda0bb0749bfe2981c056e6c06a8087",
+      "newRange": {
+        "count": 7,
+        "start": 11
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 11
+      },
+      "path": "internal/tasks/store/writer_checkpoint_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:358a9188470aebcbd3ba3a04501df2b59744f72dc516437daa1ba6b7d3e9a470",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5b3fd8b9a22639c1f02726243eccedf7e5db73b02d87e7282a3db5c412a2d348",
+      "newRange": {
+        "count": 14,
+        "start": 624
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 623
+      },
+      "path": "internal/tasks/store/writer_checkpoint_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "9f150aa37a8c6ac67ff033230d5c6a1892ad3238e352481871664b6d27299c4c",
+  "spec": "cem/0.2"
+}
