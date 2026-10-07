@@ -22,6 +22,9 @@ type ClaimDelivery struct {
 	TicketRecordSha256 wire.Digest
 	OperatorNote       ClaimedNote
 	EscalationAnswers  ClaimedAnswers
+	// KnowHow is computed when the response is built, not pinned at
+	// admission (KHN-V0-006), because freshness is a read-time state.
+	KnowHow ClaimedKnowHow
 }
 
 // ClaimedAnswers is the admitted answer references (empty when none) and,

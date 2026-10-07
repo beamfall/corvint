@@ -16,7 +16,7 @@ var Operations = []string{
 	"HOLD", "RELEASE_HOLD", "REOPEN", "ARCHIVE", "RESTORE", "COMPLETE_MANUAL", "GRANT_APPROVAL", "REVOKE_APPROVAL",
 	"RELEASE_CREATE", "RELEASE_UPDATE", "RELEASE_CANDIDATE", "RELEASE_EXTERNAL_ATTEST", "RELEASE_MANUAL_ATTEST", "RELEASE_PROMOTE",
 	"ESCALATE", "ANSWER", "NOTE_SET", "NOTE_CLEAR", "REVIEW_RECORD", "REVIEW_RESUBMIT",
-	"ATTACH_EVIDENCE",
+	"ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT",
 }
 
 // TicketKinds mirrors ticket.Kinds for policy kind lists.
@@ -452,8 +452,9 @@ func (p *Policy) PolicySha256() wire.Digest {
 // although that role's default row omits them: an OPERATOR gets a note verb
 // (ON-V0-004) or an escalation verb (ESC-V0-001, ESC-V0-004) only through an
 // explicit policy.roles.OPERATOR row, never by default; the same holds for
-// ATTACH_EVIDENCE (TEA-V0-001). No other role may be granted them.
-var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE"}}
+// ATTACH_EVIDENCE (TEA-V0-001) and the know-how verbs (KHN-V0-003). No other
+// role may be granted them.
+var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT"}}
 
 // PolicyGrantable is the closed set a policy row for role may list: its
 // default row plus its explicit-only grants.

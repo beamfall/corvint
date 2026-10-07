@@ -15,7 +15,7 @@ var TicketRecordKeys = []string{
 // TicketRecordOptionalKeys are the taskman-ticket/0 record keys a record may
 // omit. The native codec and Core's read-only planner both admit exactly
 // these, so a new optional key cannot reach one reader and not the other.
-var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations", "operatorNote", "externalReviews", "executionPrerequisites", "attachedEvidence"}
+var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations", "operatorNote", "externalReviews", "executionPrerequisites", "attachedEvidence", "knowHow"}
 
 // EscalationMaxCurrentOpen bounds the OPEN questions of a ticket's current
 // acceptance revision (ESC-V0-002). Stale OPEN questions do not count toward
@@ -30,4 +30,19 @@ const (
 	AttachedEvidenceMaxEntries     = 32
 	AttachedEvidenceMaxDigests     = 16
 	AttachedEvidenceMaxReasonBytes = 512
+)
+
+// Know-how note bounds (KHN-V0-002): at most KnowHowMaxEntries ledger entries
+// per home ticket, nonblank text of at most KnowHowMaxTextBytes,
+// 1..KnowHowMaxAnchors file anchors, at most KnowHowMaxRoutes route tokens of
+// at most KnowHowMaxRouteBytes, and a reason of at most
+// KnowHowMaxReasonBytes. The native codec and Core's read-only planner both
+// enforce them.
+const (
+	KnowHowMaxEntries     = 32
+	KnowHowMaxTextBytes   = 1024
+	KnowHowMaxAnchors     = 4
+	KnowHowMaxRoutes      = 4
+	KnowHowMaxRouteBytes  = 64
+	KnowHowMaxReasonBytes = 512
 )
