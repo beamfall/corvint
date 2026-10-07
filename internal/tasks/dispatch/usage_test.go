@@ -44,6 +44,10 @@ func TestCALV0157_UsageVocabulariesAndStates(t *testing.T) {
 		{"opencode last step not stopped", "opencode", openCodeStart + "\n" + openCodeStep("tool-calls") + "\n", UsagePartial, 6, 2},
 		{"opencode step still open", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + openCodeStart + "\n", UsagePartial, 6, 2},
 		{"opencode malformed step", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + `{"type":"step_finish","part":{}}` + "\n", UsagePartial, 6, 2},
+		{"codex null counters", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":null,"output_tokens":null}}` + "\n", UsagePartial, 10, 3},
+		{"codex turn left open", "codex", `{"type":"turn.started"}` + "\n" + codexTurn + "\n" + `{"type":"turn.started"}` + "\n", UsagePartial, 10, 3},
+		{"codex total overflows", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":9223372036854775808,"output_tokens":9223372036854775808}}` + "\n", UsagePartial, 10, 3},
+		{"claude total overflows", "claude-code", `{"type":"result","subtype":"success","is_error":false,"result":"done","session_id":"s","usage":{"input_tokens":9223372036854775808,"output_tokens":9223372036854775808}}` + "\n", UsageUnknown, 0, 0},
 		{"no usage lines", "codex", "plain text\n{\"type\":\"item.completed\"}\n", UsageUnknown, 0, 0},
 		{"final line without newline", "codex", codexTurn + "\n" + codexTurn, UsageKnown, 20, 6},
 	}
@@ -153,5 +157,22 @@ func TestCALV0157_UsageAfterRotationIsPartial(t *testing.T) {
 	drainUsage(t.TempDir(), w)
 	if !w.Lost {
 		t.Fatal("a missing log after a read is not lost")
+	}
+}
+
+// CAL-V0-155: a scope's token sum neither wraps nor saturates while the
+// window's oldest sessions are subtracted.
+func TestCALV0155_TokenSumNeitherWrapsNorSaturates(t *testing.T) {
+	var s tokenSum
+	s.add(1 << 63)
+	s.add(1 << 63)
+	s.add(7)
+	if !s.atLeast(1<<50) || s.value() != 1<<64-1 {
+		t.Fatalf("sum wrapped: %+v", s)
+	}
+	s.sub(1 << 63)
+	s.sub(1 << 63)
+	if s.atLeast(8) || !s.atLeast(7) || s.value() != 7 {
+		t.Fatalf("sum after release: %+v", s)
 	}
 }

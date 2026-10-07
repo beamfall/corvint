@@ -3,6 +3,8 @@ package dispatch
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/bits"
 	"slices"
 	"sort"
 	"strconv"
@@ -67,6 +69,33 @@ func (s SpendSession) tokens() uint64 {
 		return 0
 	}
 	return s.Input + s.Output
+}
+
+// tokenSum is a scope's observed tokens as a 128-bit sum, so up to
+// maxSpendSessions sessions of any representable total neither wrap nor
+// saturate while the window's oldest sessions are subtracted.
+type tokenSum struct{ hi, lo uint64 }
+
+func (t *tokenSum) add(n uint64) {
+	var c uint64
+	t.lo, c = bits.Add64(t.lo, n, 0)
+	t.hi += c
+}
+
+func (t *tokenSum) sub(n uint64) {
+	var b uint64
+	t.lo, b = bits.Sub64(t.lo, n, 0)
+	t.hi -= b
+}
+
+func (t tokenSum) atLeast(n uint64) bool { return t.hi > 0 || t.lo >= n }
+
+// value is the sum for display, saturated at the largest counter.
+func (t tokenSum) value() uint64 {
+	if t.hi > 0 {
+		return math.MaxUint64
+	}
+	return t.lo
 }
 
 func (r *SpendRecord) validate() error {
@@ -239,11 +268,11 @@ func (g *spendGate) exhausted(scope [2]string) (BudgetHold, bool) {
 		return h, true
 	}
 	var in []SpendSession
-	var tokens uint64
+	var tokens tokenSum
 	for _, s := range g.r.Sessions {
 		if s.in(scope) && s.Launched.After(cutoff) {
 			in = append(in, s)
-			tokens += s.tokens()
+			tokens.add(s.tokens())
 		}
 	}
 	sort.SliceStable(in, func(i, j int) bool { return in[i].Launched.Before(in[j].Launched) })
@@ -258,12 +287,12 @@ func (g *spendGate) exhausted(scope [2]string) (BudgetHold, bool) {
 			return h, true
 		}
 	}
-	if L := b.TokensPerDay; L > 0 && tokens >= L {
+	if L := b.TokensPerDay; L > 0 && tokens.atLeast(L) {
 		h.Limit = LimitTokens
 		for _, s := range in {
-			tokens -= s.tokens()
+			tokens.sub(s.tokens())
 			h.ResetsAt = s.Launched.Add(BudgetWindow)
-			if tokens < L {
+			if !tokens.atLeast(L) {
 				break
 			}
 		}
@@ -330,16 +359,17 @@ func (d *Dispatcher) scopeSpend(scope [2]string, now time.Time) (sessions int, t
 		return 0, 0, 0
 	}
 	cutoff := now.Add(-BudgetWindow)
+	var sum tokenSum
 	for _, s := range d.ledger.Budget.Sessions {
 		if s.in(scope) && s.Launched.After(cutoff) {
 			sessions++
-			tokens += s.tokens()
+			sum.add(s.tokens())
 			if s.Usage == UsageUnknown {
 				unknown++
 			}
 		}
 	}
-	return sessions, tokens, unknown
+	return sessions, sum.value(), unknown
 }
 
 // ScopeSpend is one scope's spend in the window, for dispatch status
@@ -360,6 +390,7 @@ func SpendReport(c *Config, l *Ledger, now time.Time) []ScopeSpend {
 	var out []ScopeSpend
 	add := func(scope [2]string, b *Budget) {
 		s := ScopeSpend{Scope: scope[0], Name: scope[1], Budget: b}
+		var sum tokenSum
 		if l.Budget != nil {
 			cutoff := now.Add(-BudgetWindow)
 			for _, x := range l.Budget.Sessions {
@@ -367,7 +398,8 @@ func SpendReport(c *Config, l *Ledger, now time.Time) []ScopeSpend {
 					continue
 				}
 				s.Sessions++
-				s.Tokens += x.tokens()
+				sum.add(x.tokens())
+				s.Tokens = sum.value()
 				switch x.Usage {
 				case UsageUnknown:
 					s.Unknown++

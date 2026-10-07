@@ -233,6 +233,24 @@ func TestCALV0160_BudgetConfigIsClosed(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
+	// A present limit of 0 or null is refused, not read as absent, and the
+	// budget object stays closed.
+	c := testConfig(t, "exit 0")
+	c.Roles[0].UsageFormat, c.Roles[0].Budget = "codex", &Budget{SessionsPerDay: 3}
+	raw, _ := json.Marshal(c)
+	if _, err := DecodeConfig(raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range []string{`"tokensPerDay":0`, `"tokensPerDay":null`, `"tokensPerDay":-1`, `"sessionsPerDayX":1`} {
+		if _, err := DecodeConfig(bytes.Replace(raw, []byte(`"sessionsPerDay":3`), []byte(`"sessionsPerDay":3,`+member), 1)); err == nil {
+			t.Errorf("budget with %s accepted", member)
+		}
+	}
+	for _, member := range []string{`"sessionsPerDay":0`, `"sessionsPerDay":null`} {
+		if _, err := DecodeConfig(bytes.Replace(raw, []byte(`"sessionsPerDay":3`), []byte(member+`,"tokensPerDay":5`), 1)); err == nil {
+			t.Errorf("budget with %s accepted", member)
+		}
+	}
 }
 
 // CAL-V0-161: the /2 ledger round-trips the spend history, a worker's usage

@@ -65,6 +65,30 @@ type Budget struct {
 // well below the history's count cap (maxSpendSessions).
 const maxBudgetSessions, maxBudgetTokens = 1000, 1 << 50
 
+// UnmarshalJSON keeps the closed member set and refuses a present limit
+// that is 0 or null, which would otherwise read as absent and silently
+// disable that limit.
+func (b *Budget) UnmarshalJSON(raw []byte) error {
+	var v struct {
+		SessionsPerDay json.RawMessage `json:"sessionsPerDay"`
+		TokensPerDay   json.RawMessage `json:"tokensPerDay"`
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&v); err != nil {
+		return err
+	}
+	var out Budget
+	if v.SessionsPerDay != nil && (json.Unmarshal(v.SessionsPerDay, &out.SessionsPerDay) != nil || out.SessionsPerDay <= 0) {
+		return fmt.Errorf("budget sessionsPerDay is a positive integer when present")
+	}
+	if v.TokensPerDay != nil && (json.Unmarshal(v.TokensPerDay, &out.TokensPerDay) != nil || out.TokensPerDay == 0) {
+		return fmt.Errorf("budget tokensPerDay is a positive integer when present")
+	}
+	*b = out
+	return nil
+}
+
 func (b *Budget) validate() error {
 	if b.SessionsPerDay < 0 || b.SessionsPerDay > maxBudgetSessions || b.TokensPerDay > maxBudgetTokens || (b.SessionsPerDay == 0 && b.TokensPerDay == 0) {
 		return fmt.Errorf("budget needs sessionsPerDay 1..%d or tokensPerDay 1..%d", maxBudgetSessions, uint64(maxBudgetTokens))

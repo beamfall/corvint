@@ -54,8 +54,9 @@ type WorkerUsage struct {
 	Failed bool `json:"failed,omitempty"`
 	// Skipping is set while the scan is inside a line it does not read.
 	Skipping bool `json:"skipping,omitempty"`
-	// Open and Stopped are the OpenCode step facts: a step started and
-	// not finished, and the last finished step's reason was "stop".
+	// Open is set while a Codex turn or an OpenCode step has started and
+	// not finished; Stopped records that the last finished OpenCode step's
+	// reason was "stop".
 	Open    bool `json:"open,omitempty"`
 	Stopped bool `json:"stopped,omitempty"`
 }
@@ -64,7 +65,7 @@ func (u *WorkerUsage) validate() error {
 	if u == nil {
 		return nil
 	}
-	if !slices.Contains(UsageFormats, u.Format) || u.Offset < 0 || u.Records < 0 {
+	if !slices.Contains(UsageFormats, u.Format) || u.Offset < 0 || u.Records < 0 || u.Input+u.Output < u.Input {
 		return errors.New("malformed usage account")
 	}
 	return nil
@@ -80,6 +81,10 @@ func (u *WorkerUsage) State(final bool) string {
 		return UsagePartial
 	}
 	switch u.Format {
+	case "codex":
+		if u.Open {
+			return UsagePartial
+		}
 	case "opencode":
 		if u.Open || !u.Stopped {
 			return UsagePartial
@@ -119,6 +124,9 @@ func (u *WorkerUsage) line(b []byte) {
 	switch u.Format {
 	case "codex":
 		switch head.Type {
+		case "turn.started":
+			u.Open = true
+			return
 		case "turn.failed", "error":
 			u.Failed = true
 			return
@@ -127,10 +135,11 @@ func (u *WorkerUsage) line(b []byte) {
 			return
 		}
 		var ok bool
-		if in, out, ok = supervisor.ObservedUsage(b); !ok {
+		if in, out, ok = supervisor.ObservedUsage(b); !ok || nullCodexCounter(b) {
 			u.Malformed = true
 			return
 		}
+		u.Open = false
 	case "claude-code":
 		if head.Type != "result" {
 			return
@@ -143,8 +152,13 @@ func (u *WorkerUsage) line(b []byte) {
 		// The result object reports the session's usage, so a second one
 		// is not added; the larger counters stay a lower bound and the
 		// total is PARTIAL (State).
+		in, out = max(u.Input, in), max(u.Output, out)
+		if in+out < in {
+			u.Malformed = true
+			return
+		}
 		u.Records++
-		u.Input, u.Output = max(u.Input, in), max(u.Output, out)
+		u.Input, u.Output = in, out
 		return
 	case "opencode":
 		kind, part, reason, i, o, ok := supervisor.OpenCodeLineUsage(b)
@@ -168,13 +182,33 @@ func (u *WorkerUsage) line(b []byte) {
 	default:
 		return
 	}
-	if u.Input+in < u.Input || u.Output+out < u.Output {
+	// Each counter and their sum must stay representable, so a KNOWN
+	// total is never a wrapped one.
+	if i, o := u.Input+in, u.Output+out; i < u.Input || o < u.Output || i+o < i {
 		u.Malformed = true
 		return
 	}
 	u.Records++
 	u.Input += in
 	u.Output += out
+}
+
+// nullCodexCounter reports a turn.completed line whose input or output
+// counter is JSON null, which ObservedUsage would read as 0: a null counter
+// is not an observation.
+func nullCodexCounter(b []byte) bool {
+	var ev struct {
+		Usage map[string]json.RawMessage `json:"usage"`
+	}
+	if json.Unmarshal(b, &ev) != nil {
+		return true
+	}
+	for _, k := range []string{"input_tokens", "output_tokens"} {
+		if bytes.Equal(bytes.TrimSpace(ev.Usage[k]), []byte("null")) {
+			return true
+		}
+	}
+	return false
 }
 
 // scan reads complete lines of f from Offset up to end, at most

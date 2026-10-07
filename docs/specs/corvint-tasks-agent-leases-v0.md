@@ -4235,7 +4235,8 @@ ticket from local observations alone. They can see what was spent and why work i
 
 - `CAL-V0-155`: (proposed, pending owner acceptance; V1-0937) A role MAY declare `budget` and the
   configuration MAY declare a top-level `ticketBudget`. Each is `{"sessionsPerDay": N,
-  "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present. Both are
+  "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present. A member
+  given as 0 or null is refused, not read as absent. Both are
   optional members of `taskman-dispatch/0`, and a build without this amendment refuses them as
   unknown. Each budget applies over a rolling 24-hour window.
 
@@ -4275,8 +4276,8 @@ ticket from local observations alone. They can see what was spent and why work i
   when the worker finishes. Only complete lines are read, at most 1 MiB per line and 8 MiB per
   read. Only the declared vocabulary's usage lines count, through the same strict member readers
   the supervised hosts use:
-  - codex: each `turn.completed` adds its counters; `turn.failed` or `error` marks the total
-    failed.
+  - codex: each `turn.completed` adds its counters; `turn.started` opens a turn until the next
+    `turn.completed`; `turn.failed` or `error` marks the total failed. A null counter is malformed.
   - claude-code: the `result` object's input (with cache creation and cache read) and output
     counters.
   - opencode: each `step_finish` adds its counters; `step_start` opens a step; `error` marks the
@@ -4286,8 +4287,8 @@ ticket from local observations alone. They can see what was spent and why work i
   - KNOWN: complete.
   - PARTIAL: a lower bound. This applies when the read was cut or bounded, when a usage line was
     malformed, oversize or overflowed, when a failure was reported, when a claude-code session
-    reported more than one result, or when an opencode step was left open or the last step did
-    not finish with `stop`.
+    reported more than one result, when a codex turn was left open, or when an opencode step was
+    left open or the last step did not finish with `stop`.
   - UNKNOWN: no usage was read, or the role declares no usage format.
 
   Every CAL-V0-143 cut of `stdout.log`, and every file found shorter than the read offset, MUST
@@ -4739,7 +4740,7 @@ and removes the new configuration members.
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
 | CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish`, `TestCALV0144_RestartConfirmsLeftMarks`, `TestCALV0144_FailedConfirmingPassIsRetried` (`internal/tasks/dispatch`) |
-| CAL-V0-155 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0155_BudgetFollowsConfigReload` (`internal/tasks/dispatch`) |
+| CAL-V0-155 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0155_BudgetFollowsConfigReload`, `TestCALV0155_TokenSumNeitherWrapsNorSaturates` (`internal/tasks/dispatch`) |
 | CAL-V0-156 | `TestCALV0156_SpendHistoryIsBoundedAndHoldsWhenTruncated`, `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases` (`internal/tasks/dispatch`) |
 | CAL-V0-157 | `TestCALV0157_UsageVocabulariesAndStates`, `TestCALV0157_UsageReadIsIncrementalAndBounded`, `TestCALV0157_UsageAfterRotationIsPartial`, `TestCALV0155_TokenBudgetCountsKnownTotals` (`internal/tasks/dispatch`) |
 | CAL-V0-158 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |

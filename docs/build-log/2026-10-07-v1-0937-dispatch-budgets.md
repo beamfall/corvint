@@ -83,3 +83,19 @@ proposed, pending owner acceptance.
   line without a newline until the final read, which would mark the total lost. Production uses
   8 MiB against 1 MiB.
 - Live dispatcher qualification with real Codex, Claude Code and OpenCode hosts is NOT_RUN.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) reviewed the diff. Round 1 found four defects, each verified
+against the code and fixed with a focused test:
+
+- A codex `turn.completed` with null counters read as KNOWN 0, because `ObservedUsage` decodes
+  null into `uint64` as zero. The dispatch reader now treats a null counter as malformed. The
+  supervised Codex host's own use of `ObservedUsage` is unchanged and is outside this change.
+- Input plus output, and a scope's sum across sessions, could wrap. A session whose total would
+  overflow is now malformed (PARTIAL), the ledger refuses an overflowing account, and the gate sums
+  tokens in 128 bits, so releasing the oldest sessions never wraps. Status saturates the display.
+- A codex turn started and never completed left the total KNOWN. `turn.started` now opens a turn
+  and an open turn leaves the total PARTIAL.
+- An explicit `0` or `null` limit read as absent and silently disabled that limit. A present
+  member must now be positive; the budget object stays closed.
