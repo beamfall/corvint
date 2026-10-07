@@ -32,9 +32,9 @@ these commands writes to the repository.
 
 Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
 external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
-printed step then carries a verification: VERIFIED at the receipt's application revision,
-UNVERIFIED_AT_HEAD when its source changed since, CONTRADICTED by a failing outcome, or
-unverified with a reason. Verification is learned evidence; it never changes a node, edge,
+printed step then gets a learned fact (source run-verification) whose kind is VERIFIED at the
+receipt's application revision, UNVERIFIED_AT_HEAD when its source changed since, CONTRADICTED
+by a failing outcome, or unverified with a reason. Verification is learned evidence; it never changes a node, edge,
 selector strength or freshness. A --bind test key absent from every receipt refuses.
 `
 
@@ -93,7 +93,11 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if err != nil {
 		return err
 	}
-	data, err := project(ctx, m, *query, appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full, Verification: verification})
+	o := appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full}
+	if verification != nil {
+		o.Overlays = []appmap.Overlay{verification.Overlay(m, o)}
+	}
+	data, err := project(ctx, m, *query, o)
 	if err != nil {
 		return err
 	}

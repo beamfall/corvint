@@ -8,7 +8,7 @@ ran against, stale when the step's source changes, contradicted when a run fails
 verified on an unknown revision. This entry records the proposed contract
 `docs/specs/run-verified-navigation-v0.md` (RVN-V0-001..008, each pending owner acceptance) and its
 implementation in `internal/appmap/verify.go`, built on the AMAP-V0 map of V1-0956 (gh657 lane head
-`43c65094`), which is not yet on `origin/main`.
+`43c65094`, later merged with its final head `6a1dab87`), which is not yet on `origin/main`.
 
 Already delivered before this change: AMAP-V0 freshness (FRESH/STALE/UNKNOWN per call) and the
 overlay seam `internal/appmap/overlay.go`, which names issue 658 but implements no verification;
@@ -30,10 +30,17 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
   to itself under `--root`; anything else (including short OIDs, tree OIDs and non-OID labels)
   reads `app-revision-unresolved`. An unplaced failure blocks `VERIFIED`. A placed failure outranks
   any pass; there is no recency rule.
-- **Typed field, not overlay fact.** `stepView.verification` (`appmap.StepVerification`) so the
-  V1-0959 scenario planner can read status without parsing text; `appmap.VerifySteps` returns the
-  same statuses keyed by step ID. Authority is always `learned`; selector strength is untouched and
-  run evidence is a separate `selector_evidence` label.
+- **Overlay fact, plus a typed Go entry point.** The first draft printed a typed
+  `stepView.verification` field. After gh657 finalised the overlay seam (head `6a1dab87`), the
+  orchestrator directed delivery through it, so `Verification.Overlay(map, options)` now supplies
+  one AMAP-V0-014 fact per bound step (`source` `run-verification`, `kind` the status, `revision`
+  the cited app revision, `text` the compact `StepVerification` JSON) and `project.go` is back to
+  the gh657 code apart from one comment. Unbound steps print no fact (they read `unverified` by
+  absence), which keeps the bound steps' facts inside the screen budget; a fact text over the
+  1024-byte bound degrades to `unverified`/`evidence-too-large` rather than being dropped.
+  `appmap.VerifySteps(ctx, map, flow, verification, options)` stays the typed in-process entry for
+  the V1-0959 planner, including `no-binding`. Authority is always `learned`; selector strength is
+  untouched and run evidence is a separate `selector_evidence` label.
 - **Stateless and opt-in.** Nothing is stored; without `--receipt` output is byte-identical to
   AMAP-V0. Freshness at each distinct app revision is computed once per call.
 
@@ -52,9 +59,12 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
   `VERIFIED`, disabling `CONTRADICTED`, accepting a resolved-but-different revision, and binding
   inferred links each fail a named RVN-V0 test. Removing only the OID-shape guard is caught by the
   resolve-to-itself check (defence in depth, no separate failing test).
+- `TestRVNV0007AuthorityLimit` compares each projection with and without receipts after removing
+  only the `learned` section.
 - Doc gates (`spec-requirements-check` through `unbounded-readers-check`) and
   `use-case-receipts-check`/`-test` pass; `internal/specindex` ok. `cmd/corvint/main.go` unchanged,
   so no receipt repin.
+- NOT_RUN: independent review of the overlay rework (review cap reached).
 
 ## Independent review
 
@@ -75,7 +85,9 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
   `TestRVNV0001ReceiptRewriteDetected` covers the comparison (the window itself is not
   deterministically reproducible).
 - Codex round 3 (`e72b30ec..7057ada2`): approved, no P0-P3 findings remain (review cap of 3
-  rounds reached; nothing declined). Codex could not run tests in its read-only sandbox; its
+  rounds reached; nothing declined). The later overlay rework (after the `6a1dab87` merge) was not
+  independently reviewed because the cap was reached; it moves delivery, not the status logic, and
+  is covered by the same RVN-V0 tests plus `TestRVNV0006OversizedFactFailsClosed`. Codex could not run tests in its read-only sandbox; its
   approval is source review, and the tests above were run locally.
 - Out of scope, reported to the orchestrator: `appmap.LoadMap` (V1-0956) has the same
   `Lstat`-then-`os.Open` FIFO window for `--map`.

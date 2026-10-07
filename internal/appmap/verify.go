@@ -2,6 +2,7 @@ package appmap
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -66,7 +67,7 @@ type receiptInput struct {
 }
 
 // Verification is the decoded run evidence for one projection call: PWP receipts and agent-declared
-// step bindings. Build it with LoadVerification and pass it in Options.Verification.
+// step bindings. Build it with LoadVerification; read it through Overlay or VerifySteps.
 type Verification struct {
 	receipts []receiptInput
 	binds    map[string][]string
@@ -187,22 +188,34 @@ func (m *Map) stepAnchors(st Step) []Anchor {
 // revState is the freshness of one step's app-source anchors at one revision.
 type revState struct{ evaluated, state string }
 
+// verifier evaluates step verifications for one call. head is the evaluated revision (Options
+// Revision, default HEAD) resolved once, or FreshUnknown.
+type verifier struct {
+	ctx  context.Context
+	m    *Map
+	o    Options
+	v    *Verification
+	head string
+	revs map[string]revState
+}
+
+func newVerifier(ctx context.Context, m *Map, v *Verification, o Options) *verifier {
+	return &verifier{ctx: ctx, m: m, o: o, v: v, head: newFreshness(ctx, o, nil).evaluated, revs: map[string]revState{}}
+}
+
 // anchorsAt returns the resolved revision and folded freshness of one step's app-source anchors
 // at rev. It reads only those anchors, so an unrelated anchor of the projection cannot change a
 // step's status (RVN-V0-006), and caches per revision and anchor set: steps of one screen share a
 // lineage, so a call reads each distinct (revision, lineage) once (RVN-V0-008).
-func (p *projection) anchorsAt(rev string, anchors []Anchor) revState {
+func (e *verifier) anchorsAt(rev string, anchors []Anchor) revState {
 	key := rev
 	for _, a := range anchors {
 		key += fmt.Sprintf("\x00%s\x00%d\x00%d\x00%s\x00%s", a.Path, a.Start, a.End, a.Blob, a.SpanSHA256)
 	}
-	if p.revs == nil {
-		p.revs = map[string]revState{}
-	}
-	if r, ok := p.revs[key]; ok {
+	if r, ok := e.revs[key]; ok {
 		return r
 	}
-	f := newFreshness(p.ctx, Options{Root: p.o.Root, Revision: rev}, anchors)
+	f := newFreshness(e.ctx, Options{Root: e.o.Root, Revision: rev}, anchors)
 	r := revState{evaluated: f.evaluated, state: Fresh}
 	for _, a := range anchors {
 		switch f.of(a) {
@@ -214,7 +227,7 @@ func (p *projection) anchorsAt(rev string, anchors []Anchor) revState {
 			}
 		}
 	}
-	p.revs[key] = r
+	e.revs[key] = r
 	return r
 }
 
@@ -240,15 +253,11 @@ func (e evidence) less(o evidence) bool {
 // Unverified reasons, in the order the first applicable one is reported (RVN-V0-005).
 var unverifiedOrder = []string{"freshness-unknown", "unplaced-failure", "app-revision-unresolved", "anchor-differs-at-app-revision", "inconclusive-outcome"}
 
-// verify evaluates one step against the projection's receipts (RVN-V0-003..RVN-V0-005). Head
-// freshness comes from the projection's own check, so every step anchor must have been cited.
-func (p *projection) verify(st Step) *StepVerification {
-	v := p.o.Verification
-	if v == nil {
-		return nil
-	}
+// verify evaluates one step against the call's receipts (RVN-V0-003..RVN-V0-005).
+func (e *verifier) verify(st Step) *StepVerification {
+	v := e.v
 	out := &StepVerification{Status: Unverified, Authority: AuthorityLearned}
-	if st.Status != StatusResolved || p.m.screen(st.Screen) == nil {
+	if st.Status != StatusResolved || e.m.screen(st.Screen) == nil {
 		out.Reason = "step-unresolved"
 		return out
 	}
@@ -263,18 +272,18 @@ func (p *projection) verify(st Step) *StepVerification {
 		out.Reason = "no-binding"
 		return out
 	}
-	anchors := p.m.stepAnchors(st)
-	// The evaluated revision is resolved once per projection; the step's anchors are then read
-	// at that exact commit.
+	anchors := e.m.stepAnchors(st)
+	// The evaluated revision is resolved once per call; the step's anchors are then read at that
+	// exact commit.
 	head := FreshUnknown
-	if p.fresh != nil && p.fresh.evaluated != FreshUnknown {
-		head = p.anchorsAt(p.fresh.evaluated, anchors).state
+	if e.head != FreshUnknown {
+		head = e.anchorsAt(e.head, anchors).state
 	}
 	reasons := map[string]bool{}
 	var pass, fail, placed *evidence
-	pick := func(cur *evidence, e evidence) *evidence {
-		if cur == nil || e.less(*cur) {
-			return &e
+	pick := func(cur *evidence, ev evidence) *evidence {
+		if cur == nil || ev.less(*cur) {
+			return &ev
 		}
 		return cur
 	}
@@ -302,11 +311,11 @@ func (p *projection) verify(st Step) *StepVerification {
 			if in.r.Profile == jstestprovider.AttestedExternalProfile || (in.r.Profile == jstestprovider.SensitiveExternalProfile && in.r.ApplicationAttestation != nil) {
 				identity = "attested"
 			}
-			e := evidence{ref: ReceiptRef{SHA256: in.sha, TestKey: t.ID, Project: project, Profile: in.r.Profile}, revision: rev, identity: identity}
+			ev := evidence{ref: ReceiptRef{SHA256: in.sha, TestKey: t.ID, Project: project, Profile: in.r.Profile}, revision: rev, identity: identity}
 			resolved := false
 			at := FreshUnknown
 			if commitOID.MatchString(rev) {
-				r := p.anchorsAt(rev, anchors)
+				r := e.anchorsAt(rev, anchors)
 				resolved = r.evaluated == rev
 				if resolved {
 					at = r.state
@@ -317,11 +326,11 @@ func (p *projection) verify(st Step) *StepVerification {
 			}
 			switch at {
 			case Fresh:
-				placed = pick(placed, e)
+				placed = pick(placed, ev)
 				if passed {
-					pass = pick(pass, e)
+					pass = pick(pass, ev)
 				} else {
-					fail = pick(fail, e)
+					fail = pick(fail, ev)
 				}
 			case Stale:
 				reasons["anchor-differs-at-app-revision"] = true
@@ -335,9 +344,9 @@ func (p *projection) verify(st Step) *StepVerification {
 			}
 		}
 	}
-	cite := func(status string, e *evidence) *StepVerification {
-		out.Status, out.Revision, out.AppIdentity = status, e.revision, e.identity
-		ref := e.ref
+	cite := func(status string, ev *evidence) *StepVerification {
+		out.Status, out.Revision, out.AppIdentity = status, ev.revision, ev.identity
+		ref := ev.ref
 		out.Receipt = &ref
 		return out
 	}
@@ -375,17 +384,69 @@ func (p *projection) verify(st Step) *StepVerification {
 
 // VerifySteps returns the verification of every step of one flow, keyed by step ID, for a caller
 // such as the V1-0959 planner that needs statuses without a rendered projection. It returns nil
-// when o.Verification is nil; a step absent from the result reads Unverified.
-func VerifySteps(ctx context.Context, m *Map, flow string, o Options) map[string]StepVerification {
+// when v is nil; a step absent from the result reads Unverified.
+func VerifySteps(ctx context.Context, m *Map, flow string, v *Verification, o Options) map[string]StepVerification {
 	fl := m.flow(strings.TrimSpace(flow))
-	if fl == nil || o.Verification == nil {
+	if fl == nil || v == nil {
 		return nil
 	}
-	p := newProjection(ctx, m, o)
-	p.check() // resolves the evaluated revision; each step reads only its own anchors
+	e := newVerifier(ctx, m, v, o)
 	out := map[string]StepVerification{}
 	for _, st := range fl.Steps {
-		out[st.ID] = *p.verify(st)
+		out[st.ID] = *e.verify(st)
 	}
 	return out
+}
+
+// VerificationSource is the overlay source of run-verification facts (RVN-V0-006).
+const VerificationSource = "run-verification"
+
+// Overlay returns v as an AMAP-V0-014 overlay: one fact per selected `step:` element that has a
+// binding, Kind the status, Revision the cited application revision and Text the compact
+// StepVerification JSON. o must carry the projection's Root and Revision. A nil v yields no facts.
+func (v *Verification) Overlay(m *Map, o Options) Overlay {
+	return verificationOverlay{v: v, m: m, o: o}
+}
+
+type verificationOverlay struct {
+	v *Verification
+	m *Map
+	o Options
+}
+
+func (vo verificationOverlay) Facts(ctx context.Context, ids []string) ([]Fact, error) {
+	if vo.v == nil {
+		return nil, nil
+	}
+	var e *verifier
+	facts := []Fact{}
+	for _, id := range ids {
+		if !strings.HasPrefix(id, "step:") {
+			continue
+		}
+		_, st := vo.m.step(id)
+		if st == nil {
+			continue
+		}
+		if e == nil {
+			e = newVerifier(ctx, vo.m, vo.v, vo.o)
+		}
+		// A step with no binding has no run evidence; it reads Unverified by absence, which keeps
+		// the learned section within the projection budget for the steps that do.
+		if sv := e.verify(*st); sv.Reason != "no-binding" {
+			facts = append(facts, verificationFact(id, *sv))
+		}
+	}
+	return facts, nil
+}
+
+// verificationFact renders one status as a fact. A text over the overlay fact bound degrades to
+// an unverified fact rather than being dropped silently (fail closed).
+func verificationFact(id string, sv StepVerification) Fact {
+	raw, err := json.Marshal(sv)
+	if err != nil || len(raw) > maxFactBytes {
+		sv = StepVerification{Status: Unverified, Reason: "evidence-too-large", Outcomes: sv.Outcomes, Authority: AuthorityLearned}
+		raw, _ = json.Marshal(sv)
+	}
+	return Fact{ElementID: id, Source: VerificationSource, Kind: sv.Status, Revision: sv.Revision, Text: string(raw), Authority: AuthorityLearned}
 }

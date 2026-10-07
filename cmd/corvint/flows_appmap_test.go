@@ -137,8 +137,8 @@ func rvnReceipt(t *testing.T, rev string) (string, string) {
 	return name, o.ID
 }
 
-// RVN-V0-002 RVN-V0-006: `flows appmap screen|flow` print per-step verification from --receipt and
-// --bind within their caps, and refuse malformed or unbindable inputs with exit 2.
+// RVN-V0-002 RVN-V0-006: `flows appmap screen|flow` print a per-step run-verification learned fact
+// from --receipt and --bind within their caps, and refuse malformed or unbindable inputs with exit 2.
 func TestRVNV0FlowsAppmapVerificationCLI(t *testing.T) {
 	root := appmapCLIRepo(t)
 	code, out, diagnostic := runFlowsCLI(root, "appmap", "build", "--manifest", "appmap.json")
@@ -164,7 +164,7 @@ func TestRVNV0FlowsAppmapVerificationCLI(t *testing.T) {
 	} {
 		args := append([]string{"appmap", c.args[0], "--map", mapFile}, c.args[1:]...)
 		code, out, diagnostic := runFlowsCLI(root, append(args, "--receipt", receipt, "--bind", bind)...)
-		if code != 0 || len(out) > c.cap || !strings.Contains(out, `"verification":{"status":"VERIFIED"`) {
+		if code != 0 || len(out) > c.cap || !strings.Contains(out, `"source":"run-verification","kind":"VERIFIED"`) {
 			t.Fatalf("%v: %d %d bytes %s %s", c.args, code, len(out), diagnostic, out)
 		}
 	}

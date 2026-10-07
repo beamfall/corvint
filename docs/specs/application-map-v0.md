@@ -260,8 +260,8 @@ overlays in `Options.Overlays`. Element IDs are the stable IDs of Definitions, s
 against `step:book-tee-time/select-slot` or `method:e2e/pages/teesheet.page.ts#selectSlot` finds
 its element in any later map where that element still exists. Issue 658 (V1-0957, run-verified
 steps) is specified separately in `docs/specs/run-verified-navigation-v0.md` (RVN-V0): it adds an
-optional `tests` array to map steps (declared AFU-V1 `test` links) and a typed per-step
-`verification` field rather than an overlay fact.
+optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies step status as a
+`run-verification` overlay through this seam.
 
 ## Non-goals and simpler baseline
 

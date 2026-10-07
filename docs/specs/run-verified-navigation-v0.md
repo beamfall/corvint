@@ -16,7 +16,7 @@ orchestrator note of 2026-10-07 on [issue 660](https://github.com/beamfall/corvi
 ## Agent digest
 - Claim: Playwright receipts bound to map steps read VERIFIED at their app revision, UNVERIFIED_AT_HEAD after a source change, CONTRADICTED on failure.
 - Status: proposed (pending owner acceptance; V1-0957); experimental. RVN-V0-001..008 are implemented in `internal/appmap/verify.go` and `corvint flows appmap screen|flow --receipt --bind` over the committed AMAP fixture with synthetic PWP receipts; no live Playwright run or adopter qualification.
-- Exists: `Step.tests` from declared AFU-V1 `test` links, per-step `verification` on the `screen` and `flow` projections, `appmap.VerifySteps` for in-process callers (V1-0959), three owned refusal codes.
+- Exists: `Step.tests` from declared AFU-V1 `test` links, a `run-verification` AMAP-V0-014 overlay fact per bound step on `screen` and `flow`, `appmap.VerifySteps` for in-process callers (V1-0959), three owned refusal codes.
 - Blocked on: owner acceptance; AMAP-V0 (V1-0956) acceptance; live receipt qualification.
 - Read next: Requirements; Status lattice; Failure modes; Owner questions.
 
@@ -103,16 +103,21 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   AMAP status is not resolved reads `unverified` with `step-unresolved`. The cited evidence is the
   least by (revision, receipt SHA-256, test key, project). (proposed, pending owner acceptance;
   V1-0957)
-- `RVN-V0-006`: When receipts are supplied, every step item of the `screen` and `flow` projections
-  MUST carry `verification{status, revision?, receipt{sha256, test_key, project, profile}?,
-  app_identity?, selector_evidence?, reason?, outcomes, authority}` inside the existing AMAP-V0
-  budgets, refusing only with `appmap-budget-too-small`; trimmed steps drop their verification with
-  them. A step's status MUST depend only on its own app-source anchors, never on another anchor of
+- `RVN-V0-006`: When receipts are supplied, the `screen` and `flow` projections MUST print the
+  status of every selected step that has a binding as one AMAP-V0-014 learned fact
+  `{element_id: STEP_ID, source: "run-verification", kind: STATUS, revision?, text, authority}`,
+  supplied through `Options.Overlays` without changing the projection code; `text` is the compact
+  JSON `{status, revision?, receipt{sha256, test_key, project, profile}?, app_identity?,
+  selector_evidence?, reason?, outcomes, authority}`. A step with no binding prints no fact and
+  reads `unverified`. A text over the 1024-byte fact bound MUST degrade to `unverified` with
+  `evidence-too-large`. Facts stay inside the existing AMAP-V0 budgets, refusing only with
+  `appmap-budget-too-small`; a trimmed fact is counted in `omitted.learned` and reads `unverified`. A step's status MUST depend only on its own app-source anchors, never on another anchor of
   the projection. Verification MUST be computed per call, persist nothing, and leave the repository and
   worktree unchanged. In-process callers MUST obtain the same statuses from
-  `appmap.VerifySteps(ctx, map, flow, Options)` keyed by step ID. (proposed, pending owner
+  `appmap.VerifySteps(ctx, map, flow, verification, Options)` keyed by step ID, including unbound
+  steps (`no-binding`). (proposed, pending owner
   acceptance; V1-0957)
-- `RVN-V0-007`: `verification.authority` MUST always be `learned`. A run status MUST NOT change any
+- `RVN-V0-007`: The fact and its text MUST always carry authority `learned`. A run status MUST NOT change any
   other projection field, the selector's static strength (`selector_evidence` is a separate
   `run-verified` or `run-contradicted` label), freshness, candidate-research or intent status, and
   MUST NOT feed ranking, evidence admission or authority: no ranking or authority package imports
@@ -131,9 +136,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
 | `VERIFIED` | A placed, qualified passing outcome; no placed or unplaced failure; app-source anchors FRESH at the evaluated revision. | yes, with `revision` |
 | `UNVERIFIED_AT_HEAD` | Placed evidence exists, but an app-source anchor changed between the map revision and the evaluated revision. | yes |
 | `CONTRADICTED` | A placed, qualified failing outcome; anchors FRESH at the evaluated revision. | yes |
-| `unverified` | Anything else; `reason` names why. Also the consumer default when no `verification` is printed. | no |
+| `unverified` | Anything else; `reason` names why. Also the consumer default when no `run-verification` fact is printed. | no |
 
-Reasons: `step-unresolved`, `no-binding`, `no-receipt-outcome`, `freshness-unknown`,
+Reasons: `step-unresolved`, `no-binding` (`VerifySteps` only), `evidence-too-large`, `no-receipt-outcome`, `freshness-unknown`,
 `unplaced-failure`, `app-revision-unresolved`, `anchor-differs-at-app-revision`,
 `inconclusive-outcome`. Selector evidence labels: `run-verified`, `run-contradicted`.
 
@@ -144,8 +149,9 @@ Reasons: `step-unresolved`, `no-binding`, `no-receipt-outcome`, `freshness-unkno
 working directory, like `--map`. `find`, `scaffold` and `build` are unchanged. The map artifact
 `application-map/0` gains an optional `tests` array on steps (omitted when empty), so maps without
 declared test links are byte-identical. Go callers: `appmap.LoadVerification(map, receipts, binds)`
-then `Options.Verification`; statuses are `appmap.Verified`, `UnverifiedAtHead`, `Contradicted`
-and `Unverified` on `appmap.StepVerification.Status`.
+then `Options.Overlays = []Overlay{verification.Overlay(map, options)}`, or
+`appmap.VerifySteps(ctx, map, flow, verification, options)`; statuses are `appmap.Verified`,
+`UnverifiedAtHead`, `Contradicted` and `Unverified` on `appmap.StepVerification.Status`.
 
 ### Owned error codes
 
@@ -192,7 +198,7 @@ or too many inputs.
 | RVN-V0-003 | `TestRVNV0003UnresolvedRevisionNeverVerifies`, `TestRVNV0003FailingReceiptContradicts` |
 | RVN-V0-004 | `TestRVNV0004SourceChangeUnverifiesAtHead` |
 | RVN-V0-005 | `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0003FailingReceiptContradicts`, `TestRVNV0004SourceChangeUnverifiesAtHead` |
-| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
+| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0006OversizedFactFailsClosed`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
 | RVN-V0-007 | `TestRVNV0007AuthorityLimit`, `TestRVNV0002PassingReceiptVerifiesStep` |
 | RVN-V0-008 | `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly` |
 
@@ -202,7 +208,7 @@ qualification.
 ## Rollout, rollback and compatibility
 
 Experimental and opt-in: nothing changes without `--receipt`. Rollback is reverting
-`internal/appmap/verify.go`, the `verification` field, the `--receipt`/`--bind` flags and the
+`internal/appmap/verify.go` (with its overlay), the `--receipt`/`--bind` flags and the
 `Step.tests` derivation; maps that carry `tests` still decode only if the field is kept, so a
 rollback also rebuilds maps. No stored state needs migration.
 
@@ -213,6 +219,7 @@ rollback also rebuilds maps. No stored state needs migration.
 2. Should a newer placed pass supersede an older placed failure? V0 keeps `CONTRADICTED`.
 3. Should component templates, page objects or the flow intent count as app-source anchors? V0
    uses router-state lineage only, to avoid demoting every receipt when an intent gains a link.
-4. Should verification also attach as an overlay `Fact` (AMAP-V0-014) rather than a typed field?
-   V0 uses a typed field so V1-0959 can read it without parsing text.
+4. Should verification be a typed projection field instead of an overlay `Fact` (AMAP-V0-014)?
+   V0 uses the overlay seam (orchestrator direction) and leaves the projection code unchanged;
+   text consumers parse the fact's JSON `text`, and V1-0959 reads the typed `VerifySteps`.
 5. Should `flows navigate` and MCP tools expose the same status?

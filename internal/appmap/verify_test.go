@@ -104,22 +104,43 @@ func verification(t *testing.T, m *Map, receipts []string, binds ...string) *Ver
 // stepVerification returns the printed verification of one step in a flow projection.
 func stepVerification(t *testing.T, m *Map, root, step string, v *Verification) map[string]any {
 	t.Helper()
-	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", Options{Root: root, Verification: v})
+	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", vopts(m, v, Options{Root: root}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(raw) > DefaultFlowBudget {
 		t.Fatalf("flow projection %d bytes exceeds its cap", len(raw))
 	}
-	for _, it := range decode(t, raw)["steps"].([]any) {
-		s := it.(map[string]any)
-		if s["id"] == step {
-			got, _ := s["verification"].(map[string]any)
-			return got
+	return learnedVerification(t, decode(t, raw), step)
+}
+
+// vopts returns o with v as its only overlay, as the CLI passes it.
+func vopts(m *Map, v *Verification, o Options) Options {
+	o.Overlays = []Overlay{v.Overlay(m, o)}
+	return o
+}
+
+// learnedVerification returns the run-verification fact printed for one step, decoded from its
+// text, after checking the fact's kind, revision and authority agree with it; nil when absent.
+func learnedVerification(t *testing.T, doc map[string]any, step string) map[string]any {
+	t.Helper()
+	var got map[string]any
+	for _, it := range doc["learned"].([]any) {
+		f := it.(map[string]any)
+		if f["element_id"] != step || f["source"] != VerificationSource {
+			continue
+		}
+		if got != nil {
+			t.Fatalf("two verification facts for %s", step)
+		}
+		if err := json.Unmarshal([]byte(f["text"].(string)), &got); err != nil {
+			t.Fatal(err)
+		}
+		if f["kind"] != got["status"] || f["authority"] != AuthorityLearned || (f["revision"] != nil && f["revision"] != got["revision"]) {
+			t.Fatalf("fact %v disagrees with its text", f)
 		}
 	}
-	t.Fatalf("step %s not printed", step)
-	return nil
+	return got
 }
 
 // RVN-V0-002, RVN-V0-005, RVN-V0-006: a passing qualified outcome bound by a declared intent link
@@ -142,22 +163,19 @@ func TestRVNV0002PassingReceiptVerifiesStep(t *testing.T) {
 	if ref["sha256"] != sum(raw) || ref["test_key"] != r.Tests[0].ID || ref["profile"] != js.AttemptExternalProfile {
 		t.Fatalf("receipt reference %v", ref)
 	}
-	if other := stepVerification(t, m, root, "step:book-tee-time/book", verification(t, m, []string{name})); other["status"] != Unverified || other["reason"] != "no-binding" {
+	// An unbound step prints no fact (it reads Unverified by absence); VerifySteps names why.
+	if other := stepVerification(t, m, root, "step:book-tee-time/book", verification(t, m, []string{name})); other != nil {
 		t.Fatalf("unbound step %v", other)
 	}
+	if vs := VerifySteps(context.Background(), m, "book-tee-time", verification(t, m, []string{name}), Options{Root: root}); vs["step:book-tee-time/book"].Reason != "no-binding" {
+		t.Fatalf("unbound step %+v", vs)
+	}
 	// The screen projection carries the same status on the same step.
-	doc := screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Verification: verification(t, m, []string{name})})
-	found := false
-	for _, it := range doc["steps"].([]any) {
-		s := it.(map[string]any)
-		if s["id"] == slotStep {
-			found = s["verification"].(map[string]any)["status"] == Verified
-		}
+	doc := screenDoc(t, m, "app.clubs.teesheets", vopts(m, verification(t, m, []string{name}), Options{Root: root}))
+	if got := learnedVerification(t, doc, slotStep); got["status"] != Verified {
+		t.Fatalf("screen projection lost the step verification: %v", doc["learned"])
 	}
-	if !found {
-		t.Fatal("screen projection lost the step verification")
-	}
-	if vs := VerifySteps(context.Background(), m, "book-tee-time", Options{Root: root, Verification: verification(t, m, []string{name})}); vs[slotStep].Status != Verified {
+	if vs := VerifySteps(context.Background(), m, "book-tee-time", verification(t, m, []string{name}), Options{Root: root}); vs[slotStep].Status != Verified {
 		t.Fatalf("VerifySteps %v", vs)
 	}
 }
@@ -212,8 +230,12 @@ func TestRVNV0002InferredLinkDoesNotBind(t *testing.T) {
 	r := pwpReceipt(t, rev, js.StatePassed)
 	name := writeReceipt(t, r)
 	m := build(t, root, linkStep(t, root, "select-slot", "inferred", r.Tests[0].ID))
-	if got := stepVerification(t, m, root, slotStep, verification(t, m, []string{name})); got["status"] != Unverified || got["reason"] != "no-binding" {
+	v := verification(t, m, []string{name})
+	if got := stepVerification(t, m, root, slotStep, v); got != nil {
 		t.Fatalf("inferred link %v", got)
+	}
+	if vs := VerifySteps(context.Background(), m, "book-tee-time", v, Options{Root: root}); vs[slotStep].Status != Unverified || vs[slotStep].Reason != "no-binding" {
+		t.Fatalf("inferred link %+v", vs[slotStep])
 	}
 }
 
@@ -231,8 +253,8 @@ func TestRVNV0004SourceChangeUnverifiesAtHead(t *testing.T) {
 	if got["status"] != UnverifiedAtHead || got["revision"] != rev || got["receipt"] == nil {
 		t.Fatalf("changed source %v", got)
 	}
-	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", Options{Root: root, Revision: rev, Verification: v})
-	if err != nil || !bytes.Contains(raw, []byte(`"status":"VERIFIED"`)) {
+	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", vopts(m, v, Options{Root: root, Revision: rev}))
+	if err != nil || learnedVerification(t, decode(t, raw), slotStep)["status"] != Verified {
 		t.Fatalf("at the receipt revision: %v %s", err, raw)
 	}
 	// A map rebuilt at HEAD pins the new source, which the receipt never ran against.
@@ -292,8 +314,8 @@ func TestRVNV0003UnresolvedRevisionNeverVerifies(t *testing.T) {
 		t.Fatalf("unplaced failure %v", got)
 	}
 	r := pwpReceipt(t, rev, js.StatePassed)
-	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", Options{Root: root, Revision: "no-such-rev", Verification: verification(t, m, []string{writeReceipt(t, r)}, slotStep+"="+r.Tests[0].ID)})
-	if err != nil || bytes.Contains(raw, []byte(`"VERIFIED"`)) || !bytes.Contains(raw, []byte(`"freshness-unknown"`)) {
+	raw, err := ProjectFlow(context.Background(), m, "book-tee-time", vopts(m, verification(t, m, []string{writeReceipt(t, r)}, slotStep+"="+r.Tests[0].ID), Options{Root: root, Revision: "no-such-rev"}))
+	if got := learnedVerification(t, decode(t, raw), slotStep); err != nil || bytes.Contains(raw, []byte(`VERIFIED`)) || got["reason"] != "freshness-unknown" {
 		t.Fatalf("unknown evaluated revision: %v %s", err, raw)
 	}
 }
@@ -312,7 +334,7 @@ func TestRVNV0006BudgetsAndReadOnly(t *testing.T) {
 			project func(context.Context, *Map, string, Options) ([]byte, error)
 			query   string
 		}{{ProjectFlow, "book-tee-time"}, {ProjectScreen, "app.clubs.teesheets"}} {
-			raw, err := c.project(ctx, m, c.query, Options{Root: root, Budget: budget, Verification: v})
+			raw, err := c.project(ctx, m, c.query, vopts(m, v, Options{Root: root, Budget: budget}))
 			if err != nil && codeOf(err) != "appmap-budget-too-small" {
 				t.Fatalf("%s budget %d: %v", c.query, budget, err)
 			}
@@ -325,12 +347,12 @@ func TestRVNV0006BudgetsAndReadOnly(t *testing.T) {
 		project func(context.Context, *Map, string, Options) ([]byte, error)
 		query   string
 	}{{ProjectFlow, "book-tee-time"}, {ProjectScreen, "app.clubs.teesheets"}} {
-		if raw, err := c.project(ctx, m, c.query, Options{Root: root, Verification: v}); err != nil || !bytes.Contains(raw, []byte(`"VERIFIED"`)) {
+		if raw, err := c.project(ctx, m, c.query, vopts(m, v, Options{Root: root})); err != nil || !bytes.Contains(raw, []byte(`"VERIFIED"`)) {
 			t.Fatalf("%s at its default budget: %v %s", c.query, err, raw)
 		}
 	}
 	plain, err := ProjectFlow(ctx, m, "book-tee-time", Options{Root: root})
-	if err != nil || bytes.Contains(plain, []byte(`"verification"`)) {
+	if err != nil || bytes.Contains(plain, []byte(VerificationSource)) {
 		t.Fatalf("verification printed without receipts: %v", err)
 	}
 	if after := gitTest(t, root, "status", "--porcelain", "--ignored"); after != before {
@@ -354,15 +376,17 @@ func TestRVNV0007AuthorityLimit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		verified, err := c.project(ctx, m, c.query, Options{Root: root, Full: true, Verification: v})
+		verified, err := c.project(ctx, m, c.query, vopts(m, v, Options{Root: root, Full: true}))
 		if err != nil || !bytes.Contains(verified, []byte(`"VERIFIED"`)) {
 			t.Fatalf("%s: %v", c.query, err)
 		}
-		doc := decode(t, verified)
-		for _, it := range doc["steps"].([]any) {
-			delete(it.(map[string]any), "verification")
+		doc, base := decode(t, verified), decode(t, plain)
+		if len(doc["learned"].([]any)) == 0 {
+			t.Fatalf("%s: no learned fact", c.query)
 		}
-		if fmtJSON(doc) != fmtJSON(decode(t, plain)) {
+		delete(doc, "learned")
+		delete(base, "learned")
+		if fmtJSON(doc) != fmtJSON(base) {
 			t.Fatalf("%s: verification changed other fields", c.query)
 		}
 	}
@@ -398,12 +422,12 @@ func TestRVNV0006StatusIgnoresUnrelatedAnchors(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	raw, err := ProjectFlow(ctx, m, "book-tee-time", Options{Root: root, Verification: v})
+	raw, err := ProjectFlow(ctx, m, "book-tee-time", vopts(m, v, Options{Root: root}))
 	if err != nil || !bytes.Contains(raw, []byte(`"freshness":"UNKNOWN"`)) {
 		t.Fatalf("unrelated anchor did not read UNKNOWN: %v %s", err, raw)
 	}
 	got := stepVerification(t, m, root, slotStep, v)
-	direct := VerifySteps(ctx, m, "book-tee-time", Options{Root: root, Verification: v})[slotStep]
+	direct := VerifySteps(ctx, m, "book-tee-time", v, Options{Root: root})[slotStep]
 	if got["status"] != Verified || direct.Status != Verified {
 		t.Fatalf("projection %v, VerifySteps %+v", got, direct)
 	}
@@ -430,5 +454,18 @@ func TestRVNV0001ReceiptRewriteDetected(t *testing.T) {
 	after, err := os.Lstat(name)
 	if err != nil || !os.SameFile(before, after) || unchanged(before, after) {
 		t.Fatalf("in-place rewrite not detected: %v", err)
+	}
+}
+
+// RVN-V0-006: a verification whose fact text would exceed the overlay fact bound degrades to an
+// unverified fact instead of being dropped or printed as VERIFIED.
+func TestRVNV0006OversizedFactFailsClosed(t *testing.T) {
+	sv := StepVerification{Status: Verified, Revision: strings.Repeat("a", 40), Receipt: &ReceiptRef{Project: strings.Repeat("p", maxFactBytes)}, Outcomes: 1, Authority: AuthorityLearned}
+	f := verificationFact(slotStep, sv)
+	if f.Kind != Unverified || f.Revision != "" || len(f.Text) > maxFactBytes || !strings.Contains(f.Text, "evidence-too-large") {
+		t.Fatalf("oversized fact %+v", f)
+	}
+	if f := verificationFact(slotStep, StepVerification{Status: Verified, Revision: sv.Revision, Outcomes: 1, Authority: AuthorityLearned}); f.Kind != Verified || f.Revision != sv.Revision {
+		t.Fatalf("fact %+v", f)
 	}
 }
