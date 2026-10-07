@@ -21,9 +21,12 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/0"
-	EventProfile  = "taskman-dispatch-event/0"
-	MaxConfig     = 256 << 10
+	StateProfile  = "taskman-dispatch-state/1"
+	// drainedStateProfile is the previous ledger version, adopted only when
+	// it records no worker (CAL-V0-132, proposed amendment).
+	drainedStateProfile = "taskman-dispatch-state/0"
+	EventProfile        = "taskman-dispatch-event/0"
+	MaxConfig           = 256 << 10
 )
 
 // Config is the closed taskman-dispatch/0 operator configuration.
@@ -164,11 +167,12 @@ func (c *Config) Escalates() bool {
 
 // TicketPools is the sorted set of pools the ticket roles' workers claim:
 // the only pools whose tickets the dispatcher's plan may select (CAL-V0-097).
-// It is empty, never nil, when no role names a pool.
+// It is empty, never nil, when no role names a pool. A disabled (cap 0)
+// role claims nothing, so its pool is not planned (CAL-V0-128).
 func (c *Config) TicketPools() []string {
 	out := []string{}
 	for _, r := range c.Roles {
-		if r.Match != nil && r.Match.Pool != "" && !slices.Contains(out, r.Match.Pool) {
+		if r.Cap > 0 && r.Match != nil && r.Match.Pool != "" && !slices.Contains(out, r.Match.Pool) {
 			out = append(out, r.Match.Pool)
 		}
 	}
@@ -205,9 +209,13 @@ type GateMatch struct {
 }
 
 // Lane selects pool members in one native pool state (QUARANTINED by default).
+// MinAgeSeconds, when positive, admits a member only after the dispatcher has
+// observed it continuously in the same matching state episode that long
+// (CAL-V0-129).
 type Lane struct {
-	Pool   string   `json:"pool"`
-	States []string `json:"states,omitempty"`
+	Pool          string   `json:"pool"`
+	States        []string `json:"states,omitempty"`
+	MinAgeSeconds int      `json:"minAgeSeconds,omitempty"`
 }
 
 type Backoff struct {
@@ -251,6 +259,9 @@ func ValidName(s string) bool { return namePattern.MatchString(s) }
 func DecodeConfig(raw []byte) (*Config, error) {
 	if len(raw) > MaxConfig {
 		return nil, fmt.Errorf("dispatch config exceeds %d bytes", MaxConfig)
+	}
+	if err := wire.RawProfileVersion("/profile", raw, ConfigProfile); err != nil {
+		return nil, err
 	}
 	if !strictSweepConfig(raw) {
 		return nil, fmt.Errorf("dispatch config: malformed poolSweep JSON")
@@ -350,8 +361,9 @@ func (c *Config) validate() error {
 		if _, ok := c.Hosts[r.Host]; !ok {
 			return fail("role %s names unknown host %q", r.Name, r.Host)
 		}
-		if r.Cap < 1 || r.Cap > 64 || r.Priority < 0 || r.Priority > 1000 || r.IdleSeconds < 30 || r.IdleSeconds > 86400 || r.WallSeconds < 60 || r.WallSeconds > 7*86400 {
-			return fail("role %s needs cap 1..64, priority 0..1000, idleSeconds 30..86400 and wallSeconds 60..604800", r.Name)
+		// CAL-V0-128: cap 0 keeps a configured role but launches nothing.
+		if r.Cap < 0 || r.Cap > 64 || r.Priority < 0 || r.Priority > 1000 || r.IdleSeconds < 30 || r.IdleSeconds > 86400 || r.WallSeconds < 60 || r.WallSeconds > 7*86400 {
+			return fail("role %s needs cap 0..64, priority 0..1000, idleSeconds 30..86400 and wallSeconds 60..604800", r.Name)
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)
@@ -385,6 +397,9 @@ func (c *Config) validate() error {
 		}
 		if l := r.Lane; l != nil && (l.Pool == "" || len(l.Pool) > 64) {
 			return fail("role %s lane needs a pool", r.Name)
+		}
+		if l := r.Lane; l != nil && (l.MinAgeSeconds < 0 || l.MinAgeSeconds > 7*86400) {
+			return fail("role %s lane minAgeSeconds must be 0..604800", r.Name)
 		}
 		if err := c.validateLadder(r); err != nil {
 			return fail("role %s %v", r.Name, err)
@@ -467,6 +482,46 @@ func (c *Config) validateLadder(r Role) error {
 }
 
 func clean(p string) bool { return filepath.IsAbs(p) && filepath.Clean(p) == p }
+
+// ConfigStateDir recovers the state directory from configuration bytes that
+// DecodeConfig refused, so `dispatch status` can still read the ledger and
+// show a recorded reload refusal (CAL-V0-127). It reads the top-level object
+// up to the first syntax error and reports only a single, exactly spelled,
+// clean absolute stateDir string; anything ambiguous recovers nothing.
+func ConfigStateDir(raw []byte) (string, bool) {
+	if len(raw) > MaxConfig {
+		return "", false
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return "", false
+	}
+	dir, seen := "", 0
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			break
+		}
+		if key, _ := t.(string); strings.EqualFold(key, "stateDir") {
+			seen++
+			v, err := dec.Token()
+			s, ok := v.(string)
+			if err != nil || !ok || key != "stateDir" {
+				return "", false
+			}
+			dir = s
+			continue
+		}
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			break
+		}
+	}
+	if seen != 1 || !clean(dir) {
+		return "", false
+	}
+	return dir, true
+}
 
 func placeholdersKnown(s string) error {
 	for _, p := range placeholder.FindAllString(s, -1) {

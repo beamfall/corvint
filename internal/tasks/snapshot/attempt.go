@@ -462,6 +462,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileAttempt); err != nil {
+		return nil, err
+	}
 	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers")...)
 	if err := r.Err(); err != nil {
 		return nil, err
@@ -475,6 +478,11 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "laneUntouchedAttestation") {
 		a.LaneUntouchedAttestation = readLaneUntouched(r.Field("laneUntouchedAttestation"))
+	}
+	// A nested refusal recorded above stands: return it before an
+	// independent decoder could replace it (CAL-V0-131).
+	if err := r.Err(); err != nil {
+		return nil, err
 	}
 	if wire.Has(v, "operatorNote") {
 		note, err := ticket.OperatorNoteReferenceFromValue(r.Field("operatorNote").Value())
@@ -509,6 +517,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "retryAccounting") {
 		x := r.Field("retryAccounting")
+		if e := x.Profile(ProfileRetryAccounting); e != nil {
+			return nil, e
+		}
 		x.Closed("profile", "failedOrUnknown", "disposition")
 		x.Field("profile").Exact(ProfileRetryAccounting)
 		a.RetryAccounting = &RetryAccounting{FailedOrUnknown: x.Field("failedOrUnknown").Bool(), Disposition: x.Field("disposition").Enum("NONE", "HANDOFF", "REVIEW_RETURNED")}
@@ -841,6 +852,9 @@ func DecodeReservations(data []byte) (*ReservationSet, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileReservations); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "entries")
 	if err := r.Err(); err != nil {
 		return nil, err

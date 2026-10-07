@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -50,7 +51,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 		}
 		ticks = n
 	}
-	c, res := dispatchConfig(cmd, values)
+	c, raw, res := dispatchConfig(cmd, values)
 	if res != nil {
 		return res
 	}
@@ -65,10 +66,18 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools()}, env.Stderr)
+	// The queue plans with the applied configuration's pools, which a
+	// reload may change (CAL-V0-127).
+	var d *dispatch.Dispatcher
+	q := newDispatchQueue(env, c)
+	q.pools = func() []string { return d.Config.TicketPools() }
+	d, e = dispatch.Open(values["--program"], c, q, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) {
+		return intent.ReadFileWithInfo(values["--config"], dispatch.MaxConfig)
+	}, func() (fs.FileInfo, error) { return os.Lstat(values["--config"]) }, raw)
 	runErr := d.Run(ctx, ticks)
 	closeErr := d.Close()
 	o := wire.NewObject()
@@ -128,16 +137,42 @@ func dispatchFlags(args []string, valued, bare map[string]bool) (map[string]stri
 	return values, ""
 }
 
-func dispatchConfig(cmd []string, values map[string]string) (*dispatch.Config, *wire.Result) {
+func dispatchConfig(cmd []string, values map[string]string) (*dispatch.Config, []byte, *wire.Result) {
 	raw, e := intent.ReadFile(values["--config"], dispatch.MaxConfig)
 	if e != nil {
-		return nil, errorResult(cmd, e)
+		return nil, nil, errorResult(cmd, e)
 	}
 	c, e := dispatch.DecodeConfig(raw)
 	if e != nil {
-		return nil, usage(cmd, e.Error())
+		return nil, nil, usage(cmd, e.Error())
 	}
-	return c, nil
+	return c, raw, nil
+}
+
+// dispatchAuxConfig reads the configuration for status and unpark. Status
+// alone tolerates a file DecodeConfig refuses (CAL-V0-127): it recovers the
+// state directory, reads the ledger, and reports the file as INVALID, so a
+// reload refusal the running dispatcher recorded stays visible. The returned
+// configuration then carries only the state directory.
+func dispatchAuxConfig(cmd []string, verb string, values map[string]string) (*dispatch.Config, *wire.Result, *wire.Object) {
+	raw, e := intent.ReadFile(values["--config"], dispatch.MaxConfig)
+	if e != nil {
+		return nil, errorResult(cmd, e), nil
+	}
+	c, e := dispatch.DecodeConfig(raw)
+	if e == nil {
+		return c, nil, nil
+	}
+	dir, ok := dispatch.ConfigStateDir(raw)
+	if verb != "status" || !ok {
+		return nil, usage(cmd, e.Error()), nil
+	}
+	sum := sha256.Sum256(raw)
+	o := wire.NewObject()
+	o.Set("state", wire.String("INVALID"))
+	o.Set("sha256", wire.String(hex.EncodeToString(sum[:])))
+	o.Set("reason", wire.String(prose(e.Error())))
+	return &dispatch.Config{StateDir: dir}, nil, o
 }
 
 // dispatchAux is `dispatch status` (a pure read of the dispatcher's own
@@ -153,7 +188,7 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if err != "" {
 		return usage(cmd, err)
 	}
-	c, res := dispatchConfig(cmd, values)
+	c, res, invalid := dispatchAuxConfig(cmd, verb, values)
 	if res != nil {
 		return res
 	}
@@ -198,6 +233,14 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 		return errorResult(cmd, e)
 	}
 	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	if invalid != nil {
+		// Escalation, pressure caps and the retry policy come from a file
+		// that does not decode: the views are kept, the policy is UNKNOWN.
+		status.Obj.Set("configFile", wire.ObjectValue(invalid))
+		if ir, ok := status.Obj.Get("infrastructureRetry"); ok {
+			ir.Obj.Set("policy", wire.String(dispatch.StateUnknown))
+		}
+	}
 	// SERVICE500-008: additive and present only when this program's
 	// installed user service binds this dispatcher state root.
 	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
@@ -298,8 +341,33 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if l.Pressure != nil {
 		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
 	}
+	if l.Config != nil {
+		o.Set("config", dispatchConfigRecordValue(l.Config))
+	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchConfigRecordValue is the CAL-V0-127 view of this run's reload
+// outcome: the applied file's digest and the newest refused change, if any.
+func dispatchConfigRecordValue(r *dispatch.ConfigRecord) wire.Value {
+	o := wire.NewObject()
+	o.Set("appliedSha256", wire.String(r.AppliedSha256))
+	o.Set("appliedAt", wire.String(r.AppliedAt.UTC().Format(time.RFC3339)))
+	if f := r.Refused; f != nil {
+		x := wire.NewObject()
+		sum := f.Sha256
+		if sum == "" {
+			sum = dispatch.StateUnknown
+		}
+		x.Set("sha256", wire.String(sum))
+		x.Set("at", wire.String(f.At.UTC().Format(time.RFC3339)))
+		x.Set("reason", wire.String(prose(f.Reason)))
+		o.Set("refused", wire.Value{Kind: wire.KindObject, Obj: x})
+	} else {
+		o.Set("refused", wire.String("NONE"))
+	}
 	return wire.Value{Kind: wire.KindObject, Obj: o}
 }
 
@@ -425,6 +493,7 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 		memory = strconv.Itoa(x)
 	}
 	o.Set("memoryPressureLevel", str(memory))
+	o.Set("cpuUtilization", num(s.CPUUtilizationFraction()))
 	problems := make([]string, 0, len(s.Problems))
 	for _, p := range s.Problems {
 		problems = append(problems, prose(p))
@@ -451,11 +520,21 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 
 // dispatchQueue is the native store boundary of the dispatcher: one pure
 // read per observation and the existing fenced release/reap transactions.
-// dispatchQueue observes and heals the store for one dispatcher. pools is
-// its config's TicketPools; nil plans as plan preview does.
+// dispatchQueue observes and heals the store for one dispatcher. pools
+// returns the applied config's TicketPools at each observation; nil plans as
+// plan preview does.
 type dispatchQueue struct {
 	env   Env
-	pools []string
+	pools func() []string
+	// reviews carries the review binding fold across this dispatcher's
+	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
+	reviews *store.ReviewFold
+}
+
+// newDispatchQueue is the queue of a dispatcher running config c, with its
+// ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
+func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
+	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}}
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
@@ -465,7 +544,9 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		if err != nil {
 			return err
 		}
-		in.ClaimablePools = q.pools // pool tickets no role can claim never use the window (CAL-V0-097)
+		if q.pools != nil {
+			in.ClaimablePools = q.pools() // pool tickets no role can claim never use the window (CAL-V0-097)
+		}
 		obs.Tickets = dispatchTickets(in)
 		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
 		// the tickets its work state holds; no store read or write happens.
@@ -494,7 +575,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			// (every gate UNKNOWN) instead of failing the whole observation.
 			if len(r.ExternalReviews) > 0 && !folded {
 				folded = true
-				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				if q.reviews != nil {
+					fold, _ = q.reviews.Fold(rc.repo, rc.snap.Head.LastSeq.Uint64())
+				} else {
+					fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				}
 			}
 			if len(r.ExternalReviews) == 0 || fold != nil {
 				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, fold); err == nil {
@@ -525,7 +610,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 				if pool := in.Policy.Pool(m.PoolID); pool != nil {
 					configured = pool.MemberConfig[m.MemberID].SafeReuse != nil
 				}
-				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID, Queue: in.Queue.QueueID.Raw, Allocation: string(m.AllocationID), Definition: string(m.DefinitionSha256), SafeReuse: configured, Owned: m.Sweep != nil})
+				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID, Queue: in.Queue.QueueID.Raw, Allocation: string(m.AllocationID), Definition: string(m.DefinitionSha256), SafeReuse: configured, Owned: m.Sweep != nil, Changed: string(m.ChangedSeq)})
 			}
 		}
 		return nil

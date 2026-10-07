@@ -60,6 +60,31 @@ func TestStandaloneStatusPreservesCancellationError(t *testing.T) {
 	}
 }
 
+// TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup pins
+// that a status scan's own failure is classified when it happens, not after
+// StatusIn's deferred cleanup: a scan context cancelled between the Git
+// command's failure and the caller's error check (as the build does after
+// its listing fails, IDX-SNAP-V0-026) must not turn the independent failure
+// into a cancellation.
+func TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup(t *testing.T) {
+	root := authorityRepository(t)
+	executable := filepath.Join(t.TempDir(), "git")
+	script := "#!/bin/sh\nfor arg do\nif [ \"$arg\" = status ]; then\nprintf 'status failed first\\n' >&2; exit 23\nfi\ndone\nexit 99\n"
+	if err := os.WriteFile(executable, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = context.WithValue(ctx, gitExecutionKey{}, gitExecution{executable: executable, environment: sanitizedGitEnvironment()})
+	statusRunFailed = func(error) { cancel() }
+	defer func() { statusRunFailed = nil }()
+	raw, err := git(ctx, root, maxStatusBytes, nil, "status", "--porcelain=v1", "-z")
+	var failure *Error
+	if raw != nil || !errors.As(err, &failure) || failure.Code != "" || failure.Message != "Git error: status failed first" {
+		t.Fatalf("independent status failure cancelled during cleanup: output=%q error=%#v", raw, err)
+	}
+}
+
 func TestStandaloneStatusPreservesOrdinaryGitErrors(t *testing.T) {
 	root := authorityRepository(t)
 	for _, test := range []struct {

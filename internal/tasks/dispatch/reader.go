@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 const readerMarkerProfile = "taskman-dispatch-reader-lifecycle/0"
@@ -84,6 +85,9 @@ func readReaderMarker(dir, program string) (*readerEvidence, error) {
 	var marker readerMarker
 	if len(raw) > 4096 || !validScalarJSON(raw) {
 		return nil, errors.New("malformed reader marker")
+	}
+	if err := wire.RawProfileVersion("/profile", raw, readerMarkerProfile); err != nil {
+		return nil, err
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()

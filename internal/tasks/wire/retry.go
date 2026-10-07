@@ -1,5 +1,7 @@
 package wire
 
+import "errors"
+
 // Retry is the Tasks-owned retryability of one §11 code (CAL-V0-078). A
 // retryable code names the condition under which reissuing the same command,
 // with the same --request-id, after a bounded backoff can succeed. A code that
@@ -135,11 +137,12 @@ func ResultRetryable(outcome string, codes []string) (retryable, present bool) {
 
 // WithoutRetry returns err marked so that its result is never retryable
 // (CAL-V0-078), for a caller that carries the fact only through an error. A
-// *Error is copied with NotRetryable set; any other error already reports
-// MALFORMED, which is never retryable, and is returned unchanged.
+// *Error, or the *Error an error wraps, is copied with NotRetryable set; any
+// other error already reports MALFORMED, which is never retryable, and is
+// returned unchanged.
 func WithoutRetry(err error) error {
-	e, ok := err.(*Error)
-	if !ok {
+	var e *Error
+	if !errors.As(err, &e) {
 		return err
 	}
 	marked := *e
@@ -149,6 +152,6 @@ func WithoutRetry(err error) error {
 
 // RetryForbidden reports whether err carries the WithoutRetry mark.
 func RetryForbidden(err error) bool {
-	e, ok := err.(*Error)
-	return ok && e.NotRetryable
+	var e *Error
+	return errors.As(err, &e) && e.NotRetryable
 }

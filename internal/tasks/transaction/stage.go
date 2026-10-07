@@ -289,6 +289,10 @@ func stageBase(o StageObservation, p *Plan) error {
 	if o.Inventory == nil {
 		return malformed("complete stage inventory required")
 	}
+	if o.Inventory.Summarized() {
+		o.Inventory.markMiss()
+		return malformed("complete stage inventory required")
+	}
 	if o.ReceiptInventory != "COMPLETE_NO_NEXT" {
 		if p == nil {
 			return malformed("pending/completed stage requires frozen plan")

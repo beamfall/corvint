@@ -16,9 +16,13 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
+	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -67,7 +71,7 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
@@ -176,6 +180,9 @@ func Run(env Env) int {
 	case "pool":
 		if len(args) > 1 && args[1] == "sweep" {
 			return emit(env.Stdout, poolSweepCommand(env, args[2:]))
+		}
+		if len(args) > 1 && args[1] == "status" {
+			return emit(env.Stdout, poolStatus(env, args[2:]))
 		}
 		if len(args) == 2 && args[1] == "--help" {
 			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
@@ -355,6 +362,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
+		"corvint-tasks pool status [--pool ID] [--member ID]",
 		"corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role ROLE]",
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
@@ -379,12 +387,44 @@ func helpResult() *wire.Result {
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
+// LiveFormats is the CAL-V0-131 sorted set of every format this build
+// persists and decodes again: the store VERSION and each profile of the
+// journal, intent, lease, run, release, review, pool, dispatcher and user
+// service records, plus the command-result envelope a supervisor reads back.
+// Output-only profiles are left out (TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+// keeps the two sets apart). Two builds whose sets are equal may replace each
+// other in place (CAL-V0-130); any other pair needs a drain.
+func LiveFormats() []string {
+	f := []string{
+		strings.TrimSpace(snapshot.VersionBytes), wire.ProfileCommandResult,
+		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
+		archive.Profile, journal.ProfileCheckpoint, journal.ProfileWriterCheckpoint, mutation.Profile, mutation.OutcomeProfile,
+		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
+		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileInit,
+		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
+		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
+		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
+		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
+		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0",
+		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
+		release.Profile, release.AttestationProfile, release.MutationProfile,
+		transaction.RunOutcomeProfile, runRecordProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/0",
+		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
+		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
+	}
+	sort.Strings(f)
+	return f
+}
+
 func versionResult() *wire.Result {
 	o := wire.NewObject()
 	o.Set("version", wire.String(Version+"+build."+Build))
 	o.Set("goVersion", wire.String(runtime.Version()))
 	o.Set("slice", wire.String("TCP-01"))
 	o.Set("verification", wire.String("NOT_RUN"))
+	o.Set("formats", wire.Strings(LiveFormats()))
 	return &wire.Result{Command: []string{"version"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -409,10 +449,15 @@ type readCtx struct {
 	// proof is the one journal audit a read command shares (CAL-V0-061). It
 	// is bound to snap and dropped whenever the snapshot is re-read.
 	proof *journal.Result
+	// tree is the intent tree the snapshot's first probe hashed, set only
+	// while body runs: the second probe hashes the tree again after body, so
+	// a journal audit inside body shares both hashes instead of reading the
+	// tree twice more (CAL-V0-140).
+	tree *intent.Tree
 }
 
 // reuseProbedTree exists so the parity test can compare decoding the probed
-// tree with the third LoadExpecting pass it replaces.
+// tree, and sharing it with the journal audit, with the reads they replace.
 var reuseProbedTree = true
 
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
@@ -457,7 +502,12 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		rc.snap = s
 		rc.store = st
 		rc.proof = nil
+		rc.tree = nil
+		if probed != nil && probed.Sha256 == s.IntentTree && reuseProbedTree {
+			rc.tree = probed
+		}
 		err = body(rc)
+		rc.tree = nil
 		if env.afterRead != nil {
 			env.afterRead()
 		}

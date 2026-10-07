@@ -299,7 +299,7 @@ func TestDogfoodEventFailedPolicyReReadIsNotDrift(t *testing.T) {
 	t.Run("LCP-V0-008 failed policy re-read", func(t *testing.T) {
 		root := queryCLIRepository(t)
 		key := localcompletion.HashSession("reread-session")
-		corrupt := func(_ context.Context, _ options, _ map[string]any, _ localcompletion.Evaluation, _ map[string]any, _ gokernel.Repository) (map[string]any, error) {
+		corrupt := func(_ context.Context, _ options, _ map[string]any, _ localcompletion.Evaluation, _ map[string]any, _ gokernel.Repository, _ gokernel.Observation) (map[string]any, error) {
 			directory := filepath.Join(root, ".git", "corvint", "local-completion", key)
 			if err := os.MkdirAll(directory, 0700); err != nil {
 				t.Fatal(err)

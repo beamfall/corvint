@@ -75,3 +75,10 @@ func ObserveTickets(cwd string) ([]dispatch.Ticket, error) {
 	}
 	return o.Tickets, nil
 }
+
+// DecodeRunRecord exposes the run-record decoder to the CAL-V0-131 format
+// table.
+func DecodeRunRecord(raw []byte) error {
+	_, err := decodeRunRecord(raw)
+	return err
+}

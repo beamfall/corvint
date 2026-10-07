@@ -241,8 +241,8 @@ func qualifiedStop(result map[string]any, input map[string]any, resolution autho
 	return nil
 }
 
-func qualifiedLifecycleContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository) (map[string]any, error) {
-	return localEventContext(ctx, options, input, evaluation, envelope, repo, true, qualifiedLifecycleBytes, func(encoded []byte) (int, error) {
+func qualifiedLifecycleContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository, observation gokernel.Observation) (map[string]any, error) {
+	return localEventContext(ctx, options, input, evaluation, envelope, repo, observation, true, qualifiedLifecycleBytes, func(encoded []byte) (int, error) {
 		value, err := qualifiedNativeBytes(encoded)
 		size := len(value)
 		// A candidate carries no completed qualification digest/surfaces. Keep

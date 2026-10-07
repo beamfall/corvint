@@ -152,7 +152,17 @@ func (h Host) readHelperRecord(root, program, id string) (helperRecord, error) {
 	if err != nil {
 		return helperRecord{}, err
 	}
+	return DecodeHelperRecord(name, raw, program, id)
+}
+
+// DecodeHelperRecord decodes the helper record file name for program and
+// helper id; another taskman-user-service-helper version is
+// UNSUPPORTED_VERSION (CAL-V0-131).
+func DecodeHelperRecord(name string, raw []byte, program, id string) (helperRecord, error) {
 	var r helperRecord
+	if err := wire.RawProfileVersion("/"+name+"/profile", raw, HelperRecordName); err != nil {
+		return helperRecord{}, err
+	}
 	if err := decodeStrict(raw, &r); err != nil || r.Profile != HelperRecordName || r.Program != program || r.Helper != id || !helperRecordStates[r.State] {
 		return helperRecord{}, wire.Errorf(wire.CodeUncertainEffect, "/"+name, "helper record is unreadable")
 	}
@@ -923,11 +933,25 @@ func (h Host) readResumeOperation(root, program string) (*resumeOperation, []byt
 	if err != nil {
 		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is UNKNOWN: %v", err)
 	}
-	var op resumeOperation
-	if err := decodeStrict(raw, &op); err != nil || op.Profile != ResumeOperationName || op.Program != program || op.RequestID == "" || op.RequestSha256 == "" || op.BeforeControl == "" {
-		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is unreadable")
+	op, err := DecodeResumeOperation(raw, program)
+	if err != nil {
+		return nil, nil, err
 	}
-	return &op, raw, nil
+	return op, raw, nil
+}
+
+// DecodeResumeOperation decodes program's resume operation journal; another
+// taskman-user-service-resume-operation version is UNSUPPORTED_VERSION
+// (CAL-V0-131).
+func DecodeResumeOperation(raw []byte, program string) (*resumeOperation, error) {
+	var op resumeOperation
+	if err := wire.RawProfileVersion("/"+resumeOperationFile+"/profile", raw, ResumeOperationName); err != nil {
+		return nil, err
+	}
+	if err := decodeStrict(raw, &op); err != nil || op.Profile != ResumeOperationName || op.Program != program || op.RequestID == "" || op.RequestSha256 == "" || op.BeforeControl == "" {
+		return nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is unreadable")
+	}
+	return &op, nil
 }
 
 // pendingResumeConflict reserves the request id of an unfinished resume

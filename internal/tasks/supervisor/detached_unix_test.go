@@ -354,3 +354,30 @@ func waitFile(t *testing.T, path string) {
 	}
 	t.Errorf("%s never appeared", path)
 }
+
+// CAL-V0-137: the host exit capsule poll starts at hostExitPollMin, doubles
+// while the host runs, and never exceeds the escape scan cadence.
+func TestCALV0137_HostExitPollBackoff(t *testing.T) {
+	poll, wakes, elapsed := hostExitPollMin, 0, time.Duration(0)
+	for elapsed < time.Minute {
+		elapsed += poll
+		wakes++
+		next := nextHostExitPoll(poll)
+		if next < poll && poll <= escapeScanEvery || next > escapeScanEvery {
+			t.Fatalf("poll %v -> %v", poll, next)
+		}
+		poll = next
+	}
+	if poll != escapeScanEvery {
+		t.Fatalf("steady poll %v, want %v", poll, escapeScanEvery)
+	}
+	// Ten-millisecond polling woke 6000 times a minute.
+	if wakes > 310 {
+		t.Fatalf("%d wakeups in a minute", wakes)
+	}
+	defer func(saved time.Duration) { escapeScanEvery = saved }(escapeScanEvery)
+	escapeScanEvery = time.Millisecond
+	if got := nextHostExitPoll(hostExitPollMin); got != hostExitPollMin {
+		t.Fatalf("a shortened scan cadence polled at %v", got)
+	}
+}

@@ -78,6 +78,7 @@ func (p *SupervisionPolicy) StageContinuations() int {
 }
 
 func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
+	r.Profile("taskman-codex-supervisor/0")
 	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories", "host", "continuations")...)
 	if r.Field("profile").String() != "taskman-codex-supervisor/0" || !r.Field("contextRequired").Bool() {
 		r.Fail(wire.CodeUnsupported, "supervision profile/context")

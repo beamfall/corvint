@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -68,6 +69,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	fences, fenceErr := handoffFencePreview(env, raw)
 	report, err := store.PolicyUpdate(writerContext(), repo, actor, store.PolicyRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, ExpectedPolicyVersion: version, Policy: raw}, now)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -76,7 +78,58 @@ func policyCommand(env Env, args []string) *wire.Result {
 	o := res.Items[0].Obj
 	o.Set("oldPolicySha256", digestOrNull(report.OldPolicySha256))
 	o.Set("newPolicySha256", digestOrNull(report.NewPolicySha256))
+	if report.Outcome.Outcome == mutation.OutcomeCompleted {
+		if fenceErr != nil {
+			o.Set("handoffFences", wire.Null())
+			res.Warnings = append(res.Warnings, "handoff fence preview NOT_OBSERVED ("+wire.CodeOf(fenceErr)+"); the policy update is committed")
+		} else {
+			o.Set("handoffFences", fences)
+			if n := len(fences.Arr); n > 0 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("this policy change fences or may fence the clean HANDOFF/REVIEW_RETURNED release of %d live attempt(s) listed in handoffFences (CAL-V0-124); the preview was read before the commit, outside the writer lock", n))
+			}
+		}
+	}
 	return res
+}
+
+// handoffFencePreview is the CAL-V0-124 advisory read taken before the
+// writer runs: one pinned snapshot of the current policy and live attempts.
+// It lists each live unsupervised external-agent attempt whose clean handoff
+// the new policy would refuse STALE_POLICY (FENCED), or whose interval began
+// under an earlier policy whose history this read does not audit
+// (NOT_OBSERVED). It is outside the writer lock and never writes.
+func handoffFencePreview(env Env, next []byte) (wire.Value, error) {
+	var out []wire.Value
+	_, err := withStore(env, func(rc *readCtx) error {
+		out = []wire.Value{}
+		live, err := liveAttempts(rc)
+		if err != nil {
+			return err
+		}
+		current := rc.store.Policy.Raw
+		for _, a := range live {
+			if a.RuntimeID != snapshot.RuntimeExternalAgent || a.Supervision != nil || a.ConfigSha256 != a.PolicySha256 {
+				continue // never eligible for the CAL-V0-044 policy-compatible handoff
+			}
+			pool, member := wire.Null(), wire.Null()
+			poolID, memberID := "", ""
+			if a.PoolAllocation != nil {
+				poolID, memberID = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
+				pool, member = wire.String(poolID), wire.String(memberID)
+			}
+			status := "NOT_OBSERVED"
+			if a.PolicySha256 == wire.Sum(current) {
+				if ok, err := intent.HandoffPolicyCompatible(current, next, poolID, memberID); err == nil && ok {
+					continue
+				}
+				status = "FENCED"
+			}
+			o := wire.NewObject().Set("attemptId", wire.String(a.AttemptID)).Set("ticketId", wire.String(a.TicketID.Raw)).Set("generation", wire.String(string(a.Generation))).Set("stage", wire.String(a.Stage)).Set("holder", wire.String(a.Lease.Holder)).Set("poolId", pool).Set("memberId", member).Set("handoff", wire.String(status))
+			out = append(out, wire.ObjectValue(o))
+		}
+		return nil
+	})
+	return wire.Array(out...), err
 }
 
 func digestOrNull(d wire.Digest) wire.Value {

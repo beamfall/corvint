@@ -144,6 +144,11 @@ func sanitizedGitEnvironment() []string {
 	)
 }
 
+// statusRunFailed is a test hook invoked with a status-scan Git command's
+// error at the moment it fails, before gitstatus.StatusIn's deferred cleanup
+// runs; nil in production.
+var statusRunFailed func(error)
+
 func git(ctx context.Context, root string, outputLimit int, stdin []byte, arguments ...string) ([]byte, error) {
 	return gitExpecting(ctx, root, outputLimit, 0, stdin, arguments...)
 }
@@ -154,7 +159,11 @@ func git(ctx context.Context, root string, outputLimit int, stdin []byte, argume
 func gitExpecting(ctx context.Context, root string, outputLimit, expected int, stdin []byte, arguments ...string) ([]byte, error) {
 	if len(arguments) > 0 && arguments[0] == "status" {
 		run := func(ctx context.Context, root string, limit int, args ...string) ([]byte, error) {
-			return gitRaw(ctx, root, limit, 0, nil, args...)
+			out, err := gitRaw(ctx, root, limit, 0, nil, args...)
+			if err != nil && statusRunFailed != nil {
+				statusRunFailed(err)
+			}
+			return out, err
 		}
 		temporaryParent := os.TempDir()
 		if execution, qualified := ctx.Value(gitExecutionKey{}).(gitExecution); qualified {
@@ -170,8 +179,8 @@ func gitExpecting(ctx context.Context, root string, outputLimit, expected int, s
 		}
 		result, err := gitstatus.StatusIn(ctx, root, temporaryParent, outputLimit, run, arguments...)
 		if err != nil {
-			if ctx.Err() != nil {
-				return nil, contextError(ctx)
+			if cancelled := contextCancellation(err); cancelled != nil {
+				return nil, cancelled
 			}
 			var failure *Error
 			if errors.As(err, &failure) {
@@ -296,10 +305,36 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 }
 
 func contextError(ctx context.Context) error {
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return &Error{Message: "Git repository index exceeded its deadline"}
+	return contextFailure(ctx.Err())
+}
+
+// contextFailure is the refusal for a context error; Cause carries the
+// context error so a later classification can recognise it without reading
+// the context again.
+func contextFailure(cause error) error {
+	if errors.Is(cause, context.DeadlineExceeded) {
+		return &Error{Message: "Git repository index exceeded its deadline", Cause: cause}
 	}
-	return &Error{Message: "Git repository index was cancelled"}
+	return &Error{Message: "Git repository index was cancelled", Cause: context.Canceled}
+}
+
+// contextCancellation classifies a status-scan failure by what happened when
+// it happened, not by the context's state afterwards. gitRaw maps a command
+// that returned after its context ended to contextError at the return, and
+// gitstatus.StatusIn's own early exits return the raw context error; both
+// are recognised here through Cause. Any other failure happened first and
+// stays its own, even when the context is cancelled while StatusIn's
+// deferred cleanup runs (IDX-SNAP-V0-026: an independent status refusal is
+// never replaced by the cancellation the listing issued).
+func contextCancellation(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return contextFailure(err)
+	}
+	var failure *Error
+	if errors.As(err, &failure) && failure.Cause != nil && (errors.Is(failure.Cause, context.DeadlineExceeded) || errors.Is(failure.Cause, context.Canceled)) {
+		return contextFailure(failure.Cause)
+	}
+	return nil
 }
 
 // repositoryIdentity is the object format, HEAD and its tree. historyCut

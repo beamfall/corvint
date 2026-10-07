@@ -7,6 +7,6 @@ import (
 	"time"
 )
 
-func samplePressure(_ context.Context, now time.Time) PressureSample {
+func samplePressure(_ context.Context, now time.Time, _ pressureWant) PressureSample {
 	return PressureSample{SampledAt: now, Source: "unsupported", Problems: []string{"host pressure sampling is unsupported on this OS"}}
 }

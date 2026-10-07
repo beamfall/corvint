@@ -57,7 +57,7 @@ func commandHelp(args []string) *wire.Result {
 			"The generation and unexpired lease must match, acceptance must be unchanged, policy must be unchanged or proven compatible, and prospective retry accounting must have no recorded failure or unknown gate.",
 			"Without --evidence: submit a candidate first; phase BUILT or CHECKING, scope WITHIN and no pending effects are required.",
 			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons unless --lane-untouched is supplied, and is forbidden for candidate handoffs.",
-			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
+			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion, holderLiveness, other members' reservations in the allocated pool, and pool members added with their own settings may differ across a fully audited interval; `policy update` lists the live handoffs it fences in handoffFences. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
 			"holderStatus STALE_HOLDER (attempt show, queue status) is advisory input for a coordinator choosing an evidence HANDOFF release; it is not release authority. The release keeps every fence above, and no read, heartbeat, renew or reap releases, frees or fences an attempt because its holder is stale.",
 			"--handoff-to implement|review|integrate (optional --handoff-reason) records advisory next-stage intent on a clean HANDOFF or REVIEW_RETURNED generation only; REVIEW_RETURNED accepts only implement and defaults to it. Other combinations refuse MALFORMED. Claims for another stage are not refused.",
@@ -79,6 +79,9 @@ func commandHelp(args []string) *wire.Result {
 	if name == "pool sweep" {
 		o.Set("note", wire.String("Requires explicit timeoutSeconds 1..1800 and OWNER or an explicit OPERATOR policy grant. Replays return the original receipt or PENDING without repeating commands. Private logs can contain command-emitted secrets; explicit archive export includes evidence. FREE records operator-declared reset and verification, not proof of external physical safety."))
 	}
+	if name == "pool status" {
+		o.Set("note", wire.String("Pure read, no lock, no probe and no writes: each configured member's state, current allocation, holder/attempt/generation, quarantine reason with its journal changedSeq, and the last health or cleanup outcome retained with the allocation. The journal records no wall-clock time, so since and observedAt are NOT_OBSERVED, as is any outcome pool state no longer retains. An unknown --pool or --member refuses MALFORMED."))
+	}
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
@@ -96,6 +99,9 @@ func commandHelp(args []string) *wire.Result {
 	}
 	if name == "critical-path" {
 		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
+	}
+	if name == "receipt audit" {
+		o.Set("note", wire.String("Always the complete audit from receipt 1, never resumed from a checkpoint; it never reads, creates, replaces or removes the derived checkpoints <state directory>.checkpoint.json (reads) and <state directory>.writer-checkpoint (writers), where the state directory is <git common dir>/taskman. Removing <state directory>.writer-checkpoint forces the next write through the complete audit, which refuses a tampered prefix that a checkpointed writer does not re-read; removing <state directory>.checkpoint.json costs the next read one complete audit. Neither removal changes any journal, intent or archive bytes."))
 	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
@@ -157,6 +163,7 @@ var commandUsage = map[string]string{
 	"gate run":           "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR] [--role ROLE]",
 	"complete":           "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
 	"health":             "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]",
+	"pool status":        "corvint-tasks pool status [--pool ID] [--member ID]",
 	"pool sweep":         "corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role OWNER|OPERATOR]",
 	"pool cleanup":       "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
 	"pool recover":       "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",

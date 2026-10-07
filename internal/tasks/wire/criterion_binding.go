@@ -31,6 +31,9 @@ func (c CriterionCapture) Value() Value {
 }
 func ReadCriterionCapture(v Value) (CriterionCapture, error) {
 	r := NewReader(v, "/")
+	if e := r.Profile(CriterionCaptureProfile); e != nil {
+		return CriterionCapture{}, e
+	}
 	r.Closed("profile", "producer", "claimedTicket", "policy", "ticket", "queue", "attempt")
 	r.Field("profile").Exact(CriterionCaptureProfile)
 	c := CriterionCapture{Producer: readCriterionIdentity(r.Field("producer")), ClaimedTicket: r.Field("claimedTicket").String(), Policy: r.Field("policy").String(), Ticket: r.Field("ticket").String(), Queue: r.Field("queue").String(), Attempt: r.Field("attempt").String()}
@@ -100,6 +103,9 @@ func (v CriterionVerification) Value() Value {
 }
 func ReadCriterionVerification(v Value) (CriterionVerification, error) {
 	r := NewReader(v, "/")
+	if e := r.Profile(CriterionVerificationProfile); e != nil {
+		return CriterionVerification{}, e
+	}
 	r.Closed("profile", "producer", "verifier", "captureSha256", "binding")
 	r.Field("profile").Exact(CriterionVerificationProfile)
 	out := CriterionVerification{readCriterionIdentity(r.Field("producer")), readCriterionIdentity(r.Field("verifier")), r.Field("captureSha256").Digest(), readCriterionBinding(r.Field("binding"))}
@@ -110,8 +116,14 @@ func CriterionCaptureResult(c CriterionCapture, v CriterionVerification) Value {
 }
 func ReadCriterionCaptureResult(v Value) (CriterionCapture, CriterionVerification, error) {
 	r := NewReader(v, "/")
+	if e := r.Profile(CriterionCaptureResultProfile); e != nil {
+		return CriterionCapture{}, CriterionVerification{}, e
+	}
 	r.Closed("profile", "capture", "verification")
 	r.Field("profile").Exact(CriterionCaptureResultProfile)
+	if e := r.Err(); e != nil {
+		return CriterionCapture{}, CriterionVerification{}, e
+	}
 	c, e := ReadCriterionCapture(r.Field("capture").Value())
 	if e != nil {
 		return c, CriterionVerification{}, e

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // Leader may run the runtime only after the exact immutable acknowledgment.
@@ -30,6 +32,9 @@ func Leader(ctx context.Context, dir, hash string) error {
 		return fmt.Errorf("capsule identity differs")
 	}
 	var c Capsule
+	if e = wire.RawProfileVersion("/profile", raw, "taskman-codex-supervisor/0"); e != nil {
+		return e
+	}
 	if e = decode(raw, &c); e != nil {
 		return e
 	}
@@ -304,11 +309,16 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		_ = journal("STOPPING", out.Boot, &out)
 		return
 	}
-	tick := time.NewTicker(10 * time.Millisecond)
+	// The exit capsule poll starts at hostExitPollMin and doubles while the
+	// host keeps running, up to escapeScanEvery (CAL-V0-137), so a long host
+	// costs a few wakeups per second instead of one hundred.
+	poll := hostExitPollMin
+	tick := time.NewTimer(poll)
 	defer tick.Stop()
 	lastScan := time.Time{}
 waitHost:
 	for {
+		poll = nextHostExitPoll(poll)
 		select {
 		case e = <-stopped:
 			waited = true
@@ -326,6 +336,7 @@ waitHost:
 			}
 			raw, re := ReadBounded(filepath.Join(dir, "exit"), MaxCapsule)
 			if os.IsNotExist(re) {
+				tick.Reset(poll)
 				continue
 			}
 			var result hostExit

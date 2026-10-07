@@ -521,7 +521,7 @@ func TestQualifiedLifecycleSharedTargetProbesAndGitParity(t *testing.T) {
 			if phase == "before" {
 				expected = strings.Repeat("f", 40)
 			}
-			packet := func(_ context.Context, _ options, _ map[string]any, _ localcompletion.Evaluation, _ map[string]any, _ gokernel.Repository) (map[string]any, error) {
+			packet := func(_ context.Context, _ options, _ map[string]any, _ localcompletion.Evaluation, _ map[string]any, _ gokernel.Repository, _ gokernel.Observation) (map[string]any, error) {
 				called = true
 				if phase == "after" {
 					command := exec.Command("git", "-C", root, "commit", "--allow-empty", "-qm", "test-only-target-drift")

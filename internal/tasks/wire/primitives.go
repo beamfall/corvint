@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -316,4 +317,37 @@ func CheckProfile(where, got, want string) error {
 		return Errorf(CodeUnsupportedVersion, where, "profile %q is not supported; want %q", got, want)
 	}
 	return Errorf(CodeMalformed, where, "profile %q; want %q", got, want)
+}
+
+// ProfileVersion returns UNSUPPORTED_VERSION when document v names want's
+// profile at another version, and nil otherwise. Decoders call it before
+// closed-key and field checks, so a record written by another build is
+// refused as UNSUPPORTED_VERSION rather than MALFORMED (CAL-V0-131).
+func ProfileVersion(where string, v Value, want string) error {
+	if v.Kind != KindObject || v.Obj == nil {
+		return nil
+	}
+	p, ok := v.Obj.Get("profile")
+	if !ok || p.Kind != KindString {
+		return nil
+	}
+	return otherVersion(where, p.Str, want)
+}
+
+// RawProfileVersion is ProfileVersion for a decoder that reads raw JSON
+// straight into a struct.
+func RawProfileVersion(where string, raw []byte, want string) error {
+	var members map[string]json.RawMessage
+	var got string
+	if json.Unmarshal(raw, &members) != nil || json.Unmarshal(members["profile"], &got) != nil {
+		return nil
+	}
+	return otherVersion(where, got, want)
+}
+
+func otherVersion(where, got, want string) error {
+	if err := CheckProfile(where, got, want); CodeOf(err) == CodeUnsupportedVersion {
+		return err
+	}
+	return nil
 }

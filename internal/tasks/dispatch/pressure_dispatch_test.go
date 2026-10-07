@@ -145,7 +145,9 @@ func TestCALV0068_ConfigValidation(t *testing.T) {
 
 type pressureFeed struct{ sample PressureSample }
 
-func (f *pressureFeed) read(context.Context, time.Time) PressureSample { return f.sample }
+func (f *pressureFeed) read(context.Context, time.Time, pressureWant) PressureSample {
+	return f.sample
+}
 
 func throttled(t *testing.T, d *Dispatcher) []Event {
 	t.Helper()
@@ -310,7 +312,7 @@ func TestCALV0068_RestartKeepsLevelAndDisableClears(t *testing.T) {
 func TestCALV0068_LedgerPressureRecordValidated(t *testing.T) {
 	dir := t.TempDir()
 	write := func(pressure string) error {
-		raw := `{"profile":"taskman-dispatch-state/0","program":"prog","launchSeq":0,"eventSeq":0,"workers":[],"backoff":{},"progress":{},"pressure":` + pressure + `}`
+		raw := `{"profile":"taskman-dispatch-state/1","program":"prog","launchSeq":0,"eventSeq":0,"workers":[],"backoff":{},"progress":{},"pressure":` + pressure + `}`
 		if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(raw), 0o600); err != nil {
 			t.Fatal(err)
 		}

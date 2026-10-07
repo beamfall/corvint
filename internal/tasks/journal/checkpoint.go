@@ -1,7 +1,6 @@
 package journal
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -53,22 +52,25 @@ func maxCheckpointEntries() int {
 	return wire.MaxArchiveScanEntries + intent.MaxIntentRootEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue
 }
 
-// Checkpoint derives the checkpoint a complete settled audit supports. It
-// returns nil for every other observation: a checkpoint is never extended
-// from another checkpoint and never taken over a pending receipt.
+// Checkpoint derives the checkpoint a complete settled audit supports, or
+// one a settled writer audit resumed from a writer checkpoint supports
+// (CAL-V0-119, proposed): that audit's chain is the writer checkpoint's
+// entries plus every receipt after it, walked with the complete audit's
+// per-receipt validators, so the body is the same one a complete audit at the
+// same head derives. It returns nil for every other observation: a read
+// checkpoint is never extended from a read checkpoint and never taken over a
+// pending receipt.
 func (res *Result) Checkpoint() *Checkpoint {
-	if res == nil || res.chain == nil || res.Mode != ModeFull || res.Pending || res.StagingPresent || res.Head == nil || res.StructuralConsistency != "CONSISTENT" || res.LastSeq != res.Head.LastSeq {
+	if res == nil || res.chain == nil || res.Pending || res.StagingPresent || res.Head == nil || res.LastSeq != res.Head.LastSeq {
 		return nil
 	}
-	cp := &Checkpoint{QueueID: res.Head.QueueID, PrimaryWorktree: res.Head.PrimaryWorktree, Seq: res.LastSeq, ReceiptSha256: res.LastReceiptSha256, Generation: res.Head.Generation, InitSha256: res.Head.InitSha256, SemanticCoverage: res.SemanticCoverage}
-	for p, l := range res.chain.canonical {
-		if strings.HasPrefix(p, "requests/") {
-			continue
-		}
-		cp.Entries = append(cp.Entries, CheckpointEntry{Path: p, Seq: l.seq, Sha256: l.digest})
+	full := res.Mode == ModeFull && res.StructuralConsistency == "CONSISTENT"
+	writer := res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil && res.ProjectionAgreement == "AGREES"
+	if !full && !writer {
+		return nil
 	}
-	sort.Slice(cp.Entries, func(i, j int) bool { return cp.Entries[i].Path < cp.Entries[j].Path })
-	return cp
+	cp := res.chainCheckpoint()
+	return &cp
 }
 
 // Encode renders the canonical file bytes.
@@ -110,6 +112,9 @@ func DecodeCheckpoint(raw []byte) (*Checkpoint, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileCheckpoint); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "primaryWorktree", "seq", "receiptSha256", "generation", "initSha256", "semanticCoverage", "entries")
 	if err := r.Err(); err != nil {
 		return nil, err

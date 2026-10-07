@@ -355,7 +355,7 @@ func readModelWait(t *testing.T, c *Config, d *Dispatcher) string {
 // legacyLedger is the state file the pre-ladder encoder (4b10a021) wrote for
 // a ledger exercising every legacy member.
 const legacyLedger = `{
-  "profile": "taskman-dispatch-state/0",
+  "profile": "taskman-dispatch-state/1",
   "program": "prog",
   "launchSeq": 3,
   "eventSeq": 9,

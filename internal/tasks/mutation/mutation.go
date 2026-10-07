@@ -315,6 +315,9 @@ func Decode(data []byte) (*Envelope, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, Profile); err != nil {
+		return nil, err
+	}
 	r.Closed(envelopeKeys...)
 	if err := r.Err(); err != nil {
 		return nil, err

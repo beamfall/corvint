@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -101,5 +103,48 @@ func TestTMV0008_ProbedTreeMovedSnapshotParity(t *testing.T) {
 				t.Fatalf("probed=%v calls=%d result=%+v", on, calls, res)
 			}
 		})
+	}
+}
+
+// CAL-V0-140: the journal audit shares the first probe's tree, so a ticket
+// rewritten in place at the same size and time after the audit must still
+// be caught by the second probe and re-read, never reported from the
+// shared bytes.
+func TestCALV0140_SharedAuditTreeSameSizeRewriteRereads(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteState(t, r)
+	fixture.WriteIntent(t, r)
+	fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
+	path := filepath.Join(r.IntentDir, intent.TicketsDir, "A.json")
+	calls := 0
+	res := queueStatus(Env{Cwd: r.Root, afterRead: func() {
+		calls++
+		if calls != 1 {
+			return
+		}
+		fi, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := fixture.Ticket("A")
+		a.Title = strings.Repeat("x", len(a.Title))
+		raw := a.Encode()
+		if int64(len(raw)) != fi.Size() {
+			t.Fatalf("rewrite is %d bytes, want %d", len(raw), fi.Size())
+		}
+		fixture.Write(t, path, raw)
+		if err := os.Chtimes(path, fi.ModTime(), fi.ModTime()); err != nil {
+			t.Fatal(err)
+		}
+	}}, nil)
+	if calls != 2 {
+		t.Fatalf("read ran %d times, want a re-read after the rewrite", calls)
+	}
+	tree, err := intent.TreeDigest(r.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Snapshot == nil || res.Snapshot.IntentTreeSha256 == nil || *res.Snapshot.IntentTreeSha256 != tree.Sha256 {
+		t.Fatalf("result %+v is not bound to the rewritten tree %s", res, tree.Sha256)
 	}
 }

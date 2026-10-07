@@ -272,34 +272,46 @@ func dogfoodEvent(ctx context.Context, options options, input map[string]any) (m
 
 func localEventRead(ctx context.Context, options options, input map[string]any,
 	envelope func(options, map[string]any, gokernel.Repository, localcompletion.Evaluation) map[string]any,
-	contextPacket func(context.Context, options, map[string]any, localcompletion.Evaluation, map[string]any, gokernel.Repository) (map[string]any, error),
+	contextPacket func(context.Context, options, map[string]any, localcompletion.Evaluation, map[string]any, gokernel.Repository, gokernel.Observation) (map[string]any, error),
 	expectedTarget string,
 ) (map[string]any, error) {
-	before, err := gokernel.ProbeRepositoryContext(ctx, options.root)
-	if err != nil {
-		return nil, err
-	}
-	// Only the held protected campaign scope supplies this guard. Reuse these
-	// common probes: no candidate-only Git work can prewarm the context path.
-	if expectedTarget != "" && before.CommitRevision != expectedTarget {
-		return nil, dogfoodEventError("qualified-lifecycle-target-drift")
-	}
-	evaluation := localcompletion.Evaluation{Lifecycle: "inactive", Unmet: []string{}}
-	if session, ok := input["sessionIdSha256"].(string); ok {
-		evaluation, err = localcompletion.Evaluate(ctx, options.root, session)
-		if err != nil {
-			return nil, err
+	// One GPK-V0-007 bracket spans the whole read (proposed LCP-V0-016, V1-0881): the
+	// opening observation is the repository every block reports and the index loader
+	// hits against, and the closing observation is the drift check. Before this the
+	// event probed twice, each probe its own two observations and a profile read nothing
+	// emitted, and the loader read the pair a third time.
+	var before gokernel.Repository
+	var evaluation localcompletion.Evaluation
+	var result map[string]any
+	after, err := gokernel.ProbeRepositoryAround(ctx, options.root, func(ctx context.Context, observation gokernel.Observation) error {
+		var err error
+		if before, err = observation.Repository(); err != nil {
+			return err
 		}
-	}
-	result := envelope(options, input, before, evaluation)
-	if options.event == "user-prompt" || options.event == "session-start" {
-		packet, err := contextPacket(ctx, options, input, evaluation, result, before)
-		if err != nil {
-			return nil, err
+		// Only the held protected campaign scope supplies this guard. Reuse these
+		// common probes: no candidate-only Git work can prewarm the context path.
+		if expectedTarget != "" && before.CommitRevision != expectedTarget {
+			return dogfoodEventError("qualified-lifecycle-target-drift")
 		}
-		result["context"] = packet
+		evaluation = localcompletion.Evaluation{Lifecycle: "inactive", Unmet: []string{}}
+		if session, ok := input["sessionIdSha256"].(string); ok {
+			if evaluation, err = localcompletion.Evaluate(ctx, options.root, session); err != nil {
+				return err
+			}
+		}
+		result = envelope(options, input, before, evaluation)
+		if options.event == "user-prompt" || options.event == "session-start" {
+			packet, err := contextPacket(ctx, options, input, evaluation, result, before, observation)
+			if err != nil {
+				return err
+			}
+			result["context"] = packet
+		}
+		return nil
+	})
+	if errors.Is(err, gokernel.ErrRepositoryDrift) {
+		return nil, dogfoodEventError("dogfood-event-repository-drift")
 	}
-	after, err := gokernel.ProbeRepositoryContext(ctx, options.root)
 	if err != nil {
 		return nil, err
 	}
@@ -374,8 +386,8 @@ func dogfoodCompletion(event string, input map[string]any, evaluation localcompl
 	return withOtherSessionOwner(map[string]any{"decision": decision, "reason": reason}, event, evaluation)
 }
 
-func dogfoodEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository) (map[string]any, error) {
-	return localEventContext(ctx, options, input, evaluation, envelope, repo, true, dogfoodEventBytes, func(encoded []byte) (int, error) {
+func dogfoodEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository, observation gokernel.Observation) (map[string]any, error) {
+	return localEventContext(ctx, options, input, evaluation, envelope, repo, observation, true, dogfoodEventBytes, func(encoded []byte) (int, error) {
 		quoted, err := gokernel.CanonicalJSON(string(bytes.TrimSuffix(encoded, []byte{'\n'})))
 		return len(quoted) + 512, err
 	})
@@ -384,11 +396,16 @@ func dogfoodEventContext(ctx context.Context, options options, input map[string]
 // localEventContext compiles the prompt packet. With rehydrate, a compact
 // session start over a dirty worktree also carries the compaction block
 // (AHI-003) from the same index, under the packet's "compaction" key.
-func localEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository,
+func localEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository, observation gokernel.Observation,
 	rehydrate bool, encode func(map[string]any, int) ([]byte, error), nativeSize func([]byte) (int, error),
 ) (map[string]any, error) {
 	compact := rehydrate && options.event == "session-start" && input["startSource"] == "compact" && repo.DirtyPathCount > 0
-	index, hit, err := loadSnapshot(ctx, options.root)
+	// The hit is read against the event's own opening observation, so it spawns
+	// nothing; a miss still builds under the build's own bracket.
+	index, hit, err := loadSnapshotObserved(options.root, contextindex.Observation{
+		ObjectFormat: observation.ObjectFormat, CommitRevision: observation.CommitRevision,
+		Revision: observation.TreeRevision, DirtyPaths: observation.DirtyPaths, StatusSHA256: observation.StatusSHA256,
+	})
 	if missed, ok := ctx.Value(dogfoodEventMissKey{}).(*atomic.Bool); ok && err == nil && !hit {
 		missed.Store(true)
 	}

@@ -8,6 +8,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -266,8 +269,21 @@ func TestStableLifecycleRetirePostReapBoundIsInsideOuterBound(t *testing.T) {
 	}
 }
 
-func TestStableLifecycleKeeperProtocolError(t *testing.T) {
+// lifecycleSocketpair mirrors the owner: both ends close on exec, created
+// under ForkLock so no concurrently started child inherits either.
+func lifecycleSocketpair() ([2]int, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err == nil {
+		syscall.CloseOnExec(fds[0])
+		syscall.CloseOnExec(fds[1])
+	}
+	return fds, err
+}
+
+func TestStableLifecycleKeeperProtocolError(t *testing.T) {
+	fds, err := lifecycleSocketpair()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,4 +312,155 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	if n != 12 || string(st[:4]) != "CEMS" || st[5] != stableStatusProtocolError {
 		t.Fatalf("keeper status %q", st[:n])
 	}
+}
+
+const lifecycleOrphanEnv = "CEM01_TEST_ORPHAN_OWNER"
+
+func init() {
+	if git := os.Getenv(lifecycleOrphanEnv); git != "" && len(os.Args) == 1 {
+		lifecycleOrphanOwner(git)
+	}
+}
+
+// lifecycleOrphanOwner is a re-executed owner that starts a keeper for git,
+// leaks its own control end into a long-lived holder and exits without
+// closing anything, as an owner killed mid-transaction would. The holder
+// keeps the keeper's fd 3 open, so only the owner's exit can retire it.
+// It prints the keeper and holder pids first, so the caller can clean them up
+// on any later failure, then the reported status kind and value. With git
+// "partial" it sends only part of a frame and reports kind 0.
+func lifecycleOrphanOwner(git string) {
+	fds, err := lifecycleSocketpair()
+	if err != nil || syscall.SetNonblock(fds[0], true) != nil {
+		os.Exit(3)
+	}
+	owner, keeper := os.NewFile(uintptr(fds[0]), "owner"), os.NewFile(uintptr(fds[1]), "keeper")
+	exe, err := os.Executable()
+	if err != nil {
+		os.Exit(3)
+	}
+	k := exec.Command(exe, stableKeeperProtocol)
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, lifecycleOrphanEnv+"=") {
+			k.Env = append(k.Env, e)
+		}
+	}
+	k.ExtraFiles = []*os.File{keeper}
+	k.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	h := exec.Command("/bin/sleep", "300")
+	h.ExtraFiles = []*os.File{owner}
+	h.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if k.Start() != nil {
+		os.Exit(3)
+	}
+	fmt.Println(k.Process.Pid)
+	keeper.Close()
+	if h.Start() != nil {
+		_ = k.Process.Kill()
+		os.Exit(3)
+	}
+	fmt.Println(h.Process.Pid)
+	frame := stableEncodeFrame(stableOpFormat, 40, []string{git, filepath.Dir(git)})
+	if git == "partial" {
+		frame = frame[:6]
+	}
+	if _, err := owner.Write(frame); err != nil {
+		os.Exit(3)
+	}
+	if git == "partial" {
+		// Outlive the keeper's start so it is blocked in the frame read,
+		// not retiring because its parent was already gone at start.
+		time.Sleep(500 * time.Millisecond)
+		fmt.Println("0 0")
+		os.Exit(0)
+	}
+	st := make([]byte, 12)
+	if owner.SetReadDeadline(time.Now().Add(10*time.Second)) != nil {
+		os.Exit(3)
+	}
+	if n, _ := io.ReadFull(owner, st); n != 12 || string(st[:4]) != "CEMS" {
+		os.Exit(3)
+	}
+	fmt.Printf("%d %d\n", st[5], binary.BigEndian.Uint32(st[8:]))
+	os.Exit(0)
+}
+
+// lifecycleOrphan runs the orphan owner and returns the keeper pid, the
+// reported status kind and its value. Keeper and holder each lead their own
+// process group; cleanup kills both whole groups, Git included, whatever the
+// outcome and without relying on the keeper under test.
+func lifecycleOrphan(t *testing.T, git string) (int, byte, int) {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe)
+	cmd.Env = append(os.Environ(), lifecycleOrphanEnv+"="+git)
+	out, err := cmd.Output()
+	var keeper, holder, kind, value int
+	n, _ := fmt.Sscan(string(out), &keeper, &holder, &kind, &value)
+	t.Cleanup(func() {
+		for _, pid := range []int{keeper, holder} {
+			if pid > 1 {
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
+			}
+		}
+	})
+	if err != nil || n != 4 {
+		t.Fatalf("orphan owner: %v %q", err, out)
+	}
+	if syscall.Kill(holder, 0) != nil {
+		t.Fatal("holder of the leaked control end is not running")
+	}
+	return keeper, byte(kind), value
+}
+
+// lifecycleGoneWithin waits for each pid to be absent, test-side only.
+func lifecycleGoneWithin(t *testing.T, d time.Duration, pids ...int) {
+	t.Helper()
+	deadline := time.Now().Add(d)
+	for _, pid := range pids {
+		for syscall.Kill(pid, 0) != syscall.ESRCH {
+			if time.Now().After(deadline) {
+				for _, p := range pids {
+					_ = syscall.Kill(p, syscall.SIGKILL)
+				}
+				t.Fatalf("pid %d outlived its owner", pid)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+}
+
+// A keeper still receiving its control frame retires when its owner exits
+// even though a leaked copy of the owner's control end keeps fd 3 open.
+func TestStableLifecycleKeeperOwnerExitMidFrame(t *testing.T) {
+	keeper, _, _ := lifecycleOrphan(t, "partial")
+	lifecycleGoneWithin(t, 10*time.Second, keeper)
+}
+
+// A keeper parked after a failed launch retires when its owner exits.
+func TestStableLifecycleKeeperOwnerExitWhileHolding(t *testing.T) {
+	keeper, kind, _ := lifecycleOrphan(t, filepath.Join(s0eTemp(t), "missing-git"))
+	if kind != stableStatusLaunchFailed {
+		t.Fatalf("status %d, want launch failure", kind)
+	}
+	lifecycleGoneWithin(t, 10*time.Second, keeper)
+}
+
+// A keeper waiting on a running Git child retires its whole group, child
+// included, when its owner exits.
+func TestStableLifecycleKeeperOwnerExitWhileRunning(t *testing.T) {
+	git := filepath.Join(s0eTemp(t), "git")
+	if err := os.WriteFile(git, []byte("#!/bin/sh\nexec /bin/sleep 300\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keeper, kind, child := lifecycleOrphan(t, git)
+	if kind != stableStatusStarted || child <= 1 {
+		t.Fatalf("status %d child %d, want started", kind, child)
+	}
+	lifecycleGoneWithin(t, 10*time.Second, keeper, child)
 }

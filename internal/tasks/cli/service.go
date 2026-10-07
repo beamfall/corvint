@@ -132,6 +132,21 @@ func serviceResult(cmd []string, o *wire.Object, err error) *wire.Result {
 	return res
 }
 
+// serviceOpen opens the service's controlled dispatcher with the queue
+// `dispatch` builds: its config's ticket pools (CAL-V0-097) and a review
+// fold carried across ticks (CAL-V0-138).
+func serviceOpen(env Env) func(string, *dispatch.Config, dispatch.LaunchControl, io.Writer) (service.Controller, error) {
+	return func(p string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (service.Controller, error) {
+		queueEnv := env
+		queueEnv.Cwd = c.WorkRoot
+		d, err := dispatch.OpenControlled(p, c, newDispatchQueue(queueEnv, c), out, control)
+		if err != nil {
+			return nil, err
+		}
+		return d, nil
+	}
+}
+
 // serviceRun is the manager-started foreground main (SERVICE500-003/004/005). It
 // runs the existing dispatcher in-process against the installed manifest.
 func serviceRun(env Env, cmd []string, h service.Host, program, manifest string) *wire.Result {
@@ -144,16 +159,7 @@ func serviceRun(env Env, cmd []string, h service.Host, program, manifest string)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	open := func(p string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (service.Controller, error) {
-		queueEnv := env
-		queueEnv.Cwd = c.WorkRoot
-		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv}, out, control)
-		if err != nil {
-			return nil, err
-		}
-		return d, nil
-	}
-	if err := service.Run(ctx, service.RunOptions{Host: h, Program: program, Manifest: manifest, Executable: exe, Open: open, Out: env.Stderr}); err != nil {
+	if err := service.Run(ctx, service.RunOptions{Host: h, Program: program, Manifest: manifest, Executable: exe, Open: serviceOpen(env), Out: env.Stderr}); err != nil {
 		return errorResult(cmd, err)
 	}
 	o := wire.NewObject().Set("profile", wire.String("taskman-user-service-run/0")).Set("program", wire.String(program)).Set("interrupted", wire.Bool(ctx.Err() != nil))

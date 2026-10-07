@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -147,8 +150,9 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
-// never an input to the native store.
+// Ledger is the dispatcher's private taskman-dispatch-state/1 file. It is
+// never an input to the native store. Version 1 adds the CAL-V0-127 config
+// record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131).
 type Ledger struct {
 	PoolSweeps map[string]*PoolSweepRecord `json:"poolSweeps,omitempty"`
 	Profile    string                      `json:"profile"`
@@ -164,6 +168,12 @@ type Ledger struct {
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
 	// InfraRetry is present only once an ESC-V0-007 episode exists.
 	InfraRetry map[string]*InfraEpisode `json:"infraRetry,omitempty"`
+	// Config is present only after this run's configuration file changed
+	// (CAL-V0-127).
+	Config *ConfigRecord `json:"config,omitempty"`
+	// durable is the digest of the bytes this ledger last saved with every
+	// step durable, zero when unknown (CAL-V0-139). It is never encoded.
+	durable [sha256.Size]byte
 }
 
 const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
@@ -191,6 +201,9 @@ func (r *PressureRecord) validate() error {
 	}
 	if m := r.Sample.MemoryPressureLevel; (r.Sample.MemoryPressureKnown && !validMemoryPressureLevel(m)) || (!r.Sample.MemoryPressureKnown && m != 0) {
 		return errors.New("invalid pressure memory level")
+	}
+	if _, ok := r.Sample.CPUUtilizationFraction(); ok != r.Sample.CPUUtilizationKnown || (!ok && r.Sample.CPUUtilization != 0) {
+		return errors.New("invalid pressure cpu utilization")
 	}
 	if len(r.Held) > maxPressureHeld || len(r.Sample.Problems) > maxPressureProblems || len(r.Sample.Source) > 256 {
 		return errors.New("pressure record exceeds bounds")
@@ -223,6 +236,9 @@ func boundPressureSample(s PressureSample) PressureSample {
 			s.SwapKnown = false
 		}
 		s.MemoryPressureLevel, s.MemoryPressureKnown = 0, false
+	}
+	if _, ok := s.CPUUtilizationFraction(); !ok {
+		s.CPUUtilization, s.CPUUtilizationKnown = 0, false
 	}
 	s.Source = boundUTF8(s.Source, 256)
 	var problems []string
@@ -261,6 +277,212 @@ type ProgressHistory struct {
 // ProgramDir is the dispatcher's state directory for one program.
 func ProgramDir(c *Config, program string) string { return filepath.Join(c.StateDir, program) }
 
+// ledgerFormat is the CAL-V0-132 adjacent-build refusal: a ledger whose
+// profile is another taskman-dispatch-state version, or which carries a
+// top-level member that no spelling of a known member matches, was written
+// by a build with another format. It is refused as UNSUPPORTED_VERSION and
+// never read or migrated. A member that repeats, or that aliases a known
+// member by case folding, at any depth refuses MALFORMED (exactLedger).
+// The one exception (proposed amendment) is a drained version 0 ledger:
+// drained reports it, and the caller adopts it as this version.
+func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained bool, err error) {
+	// The profile is found under any spelling the struct decoder would
+	// read, so an aliased version 0 profile meets version 0's rules.
+	for name, value := range members {
+		var profile string
+		if !strings.EqualFold(name, "profile") || json.Unmarshal(value, &profile) != nil || profile == StateProfile {
+			continue
+		}
+		if profile == drainedStateProfile {
+			drained = true
+		} else if err := wire.CheckProfile("/"+name, profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
+			return false, err
+		}
+	}
+	if err := exactLedger(raw, drained); err != nil {
+		return false, err
+	}
+	if drained {
+		// The walk refused duplicates and aliases, so this is the only
+		// workers member the decoder will read.
+		var workers []json.RawMessage
+		if json.Unmarshal(members["workers"], &workers) != nil || len(workers) > 0 {
+			return false, wire.Errorf(wire.CodeUnsupportedVersion, "/workers", "a %s ledger that records workers must be drained by the build that wrote it", drainedStateProfile)
+		}
+		return true, nil
+	}
+	known := reflect.TypeFor[Ledger]()
+	for name := range members {
+		found := false
+		for i := 0; i < known.NumField() && !found; i++ {
+			if !known.Field(i).IsExported() {
+				continue // never encoded, such as the CAL-V0-139 durable digest
+			}
+			tag, _, _ := strings.Cut(known.Field(i).Tag.Get("json"), ",")
+			found = strings.EqualFold(name, tag)
+		}
+		if !found {
+			return false, wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to this build")
+		}
+	}
+	return false, nil
+}
+
+// state1Members are what taskman-dispatch-state/1 added to version 0, by
+// the type that holds them: the CAL-V0-127 config record and the CAL-V0-125
+// CPU sample fields.
+var state1Members = map[reflect.Type][]string{
+	reflect.TypeFor[Ledger]():         {"config"},
+	reflect.TypeFor[PressureSample](): {"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "cpuUtilizationKnown"},
+}
+
+// exactLedger walks the ledger's JSON tokens against the Ledger type, because
+// encoding/json keeps the last of a repeated member and matches struct
+// fields by case folding: a later "workers":[] or "WORKERS":[] could
+// otherwise hide a recorded worker. In any object it refuses a repeated
+// member and, in a struct's object, two members that fold to one field
+// (MALFORMED); dynamic map keys stay case-sensitive (CAL-V0-064). It also
+// refuses any data after the ledger value. A lone case-folded spelling stays the strict decoder's
+// concern, as CAL-V0-064 keeps a legacy ledger's "Profile" loading. Unknown
+// members are left to ledgerFormat and the strict decoder. For a drained
+// version 0 ledger every refusal is UNSUPPORTED_VERSION, a lone alias is
+// refused too, and so is any member, at any depth, outside version 0's
+// closed member set (the Ledger type less state1Members).
+func exactLedger(raw []byte, drained bool) error {
+	code := wire.CodeMalformed
+	if drained {
+		code = wire.CodeUnsupportedVersion
+	}
+	escape := strings.NewReplacer("~", "~0", "/", "~1")
+	unmarshaler := reflect.TypeFor[json.Unmarshaler]()
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var value func(t reflect.Type, path string, depth int) error
+	value = func(t reflect.Type, path string, depth int) error {
+		if depth > 64 {
+			return wire.Errorf(code, path, "dispatch state nests too deeply")
+		}
+		token, err := d.Token()
+		if err != nil {
+			return wire.Errorf(code, path, "dispatch state: %v", err)
+		}
+		for t != nil && t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		if t != nil && (t.Implements(unmarshaler) || reflect.PointerTo(t).Implements(unmarshaler)) {
+			t = nil // its own decoder owns the shape; repeats are still refused
+		}
+		switch token {
+		case json.Delim('{'):
+			var fields map[string]reflect.Type
+			var elem reflect.Type
+			if t != nil && t.Kind() == reflect.Struct {
+				fields = map[string]reflect.Type{}
+				addFields(t, fields, drained)
+			} else if t != nil && t.Kind() == reflect.Map {
+				elem = t.Elem()
+			}
+			seen := map[string]bool{}
+			for d.More() {
+				k, err := d.Token()
+				key, _ := k.(string)
+				if err != nil {
+					return wire.Errorf(code, path, "dispatch state: %v", err)
+				}
+				where := path + "/" + escape.Replace(key)
+				name := key
+				if fields != nil {
+					name = folded(fields, key)
+				}
+				if seen[name] {
+					return wire.Errorf(code, where, "dispatch state repeats a member")
+				}
+				seen[name] = true
+				child := elem
+				if fields != nil {
+					ft, ok := fields[key]
+					switch {
+					case ok:
+						child = ft
+					case drained && name != key:
+						return wire.Errorf(code, where, "dispatch state member aliases a known member by case")
+					case drained:
+						return wire.Errorf(code, where, "dispatch state member is not known to %s", drainedStateProfile)
+					default:
+						child = fields[name] // the strict decoder decides
+					}
+				}
+				if err := value(child, where, depth+1); err != nil {
+					return err
+				}
+			}
+			_, err := d.Token()
+			return err
+		case json.Delim('['):
+			var elem reflect.Type
+			if t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) {
+				elem = t.Elem()
+			}
+			for i := 0; d.More(); i++ {
+				if err := value(elem, path+"/"+strconv.Itoa(i), depth+1); err != nil {
+					return err
+				}
+			}
+			_, err := d.Token()
+			return err
+		}
+		return nil
+	}
+	if err := value(reflect.TypeFor[Ledger](), "", 0); err != nil {
+		return err
+	}
+	// Only whitespace may follow the ledger: the decoders read the first
+	// value, so a trailing one would be dropped by the next save.
+	if _, err := d.Token(); err != io.EOF {
+		return wire.Errorf(code, "", "dispatch state carries data after the ledger")
+	}
+	return nil
+}
+
+// folded is the field key names under encoding/json's case folding, or key
+// itself when it names no field.
+func folded(fields map[string]reflect.Type, key string) string {
+	if _, ok := fields[key]; ok {
+		return key
+	}
+	for name := range fields {
+		if strings.EqualFold(name, key) {
+			return name
+		}
+	}
+	return key
+}
+
+// addFields records t's encoded member names and types, flattening embedded
+// structs as encoding/json does; a drained version 0 ledger omits the
+// members version 1 added.
+func addFields(t reflect.Type, fields map[string]reflect.Type, drained bool) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tag, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if tag == "-" || (!f.IsExported() && !f.Anonymous) {
+			continue
+		}
+		if f.Anonymous && tag == "" {
+			if ft := f.Type; ft.Kind() == reflect.Struct {
+				addFields(ft, fields, drained)
+				continue
+			}
+		}
+		if tag == "" {
+			tag = f.Name
+		}
+		if drained && slices.Contains(state1Members[t], tag) {
+			continue
+		}
+		fields[tag] = f.Type
+	}
+}
+
 // LoadLedger reads the ledger; a missing ledger is a fresh one.
 func LoadLedger(dir, program string) (*Ledger, error) {
 	raw, err := readBounded(filepath.Join(dir, "state.json"), maxLedger)
@@ -273,6 +495,10 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	var members map[string]json.RawMessage
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	drained, err := ledgerFormat(raw, members)
+	if err != nil {
+		return nil, err
 	}
 	// Detect aliases before struct decoding: encoding/json folds field names,
 	// so an uppercase-only member must not fall back to legacy loading.
@@ -306,6 +532,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := d.Decode(&l); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if drained && l.Profile == drainedStateProfile {
+		l.Profile = StateProfile // the next save writes this version
+	}
 	if l.Profile != StateProfile || l.Program != program {
 		return nil, fmt.Errorf("dispatch state belongs to profile %q program %q", l.Profile, l.Program)
 	}
@@ -332,6 +561,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	}
 	if l.Pressure != nil {
 		if err := l.Pressure.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: %w", err)
+		}
+	}
+	if l.Config != nil {
+		if err := l.Config.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
 		}
 	}
@@ -375,7 +609,7 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -398,6 +632,10 @@ func strictProgressJSON(raw []byte) bool {
 				fields = []string{"streak", "tiers"}
 			case "infra-episode":
 				fields = []string{"acceptanceRevision", "state", "sessions", "charged", "limit", "cooldownUntil", "launch"}
+			case "config":
+				fields = []string{"appliedSha256", "appliedAt", "refused"}
+			case "config-refusal":
+				fields = []string{"sha256", "at", "reason"}
 			}
 			seen := map[string]bool{}
 			for d.More() {
@@ -410,8 +648,12 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" || key == "config" {
 						child = key
+					}
+				case "config":
+					if key == "refused" {
+						child = "config-refusal"
 					}
 				case "worker":
 					if key == "members" {
@@ -666,9 +908,26 @@ func ledgerBytes(l *Ledger) ([]byte, error) {
 func (l *Ledger) save(dir string) error {
 	raw, err := ledgerBytes(l)
 	if err != nil {
+		l.durable = [sha256.Size]byte{}
 		return err
 	}
-	return writeAtomic(filepath.Join(dir, "state.json"), raw)
+	// CAL-V0-139: bytes this ledger last saved durably (file fsync, rename
+	// and directory fsync all succeeded) and still in place are not
+	// rewritten or synced again. Any failed save forgets that, so the next
+	// identical save retries the whole write and reports its own result.
+	sum := sha256.Sum256(raw)
+	path := filepath.Join(dir, "state.json")
+	if sum == l.durable {
+		if old, err := readBounded(path, maxLedger); err == nil && bytes.Equal(old, raw) {
+			return nil
+		}
+	}
+	l.durable = [sha256.Size]byte{}
+	if err := writeAtomic(path, raw); err != nil {
+		return err
+	}
+	l.durable = sum
+	return nil
 }
 
 func writeAtomic(path string, raw []byte) error {
@@ -722,7 +981,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.

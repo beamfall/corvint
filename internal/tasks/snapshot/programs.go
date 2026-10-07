@@ -88,8 +88,20 @@ func DecodePrograms(raw []byte) (*Programs, error) {
 	if len(raw) > MaxProgramsBytes {
 		return nil, fmt.Errorf("program inventory byte limit")
 	}
-	if _, e := wire.Parse(raw); e != nil {
+	v, e := wire.Parse(raw)
+	if e != nil {
 		return nil, e
+	}
+	if e := wire.ProfileVersion("/profile", v, "taskman-programs/0"); e != nil {
+		return nil, e
+	}
+	if wire.Has(v, "entries") {
+		entries, _ := v.Obj.Get("entries")
+		for _, x := range entries.Arr {
+			if e := wire.ProfileVersion("/entries/profile", x, SupervisedProfile); e != nil {
+				return nil, e
+			}
+		}
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()

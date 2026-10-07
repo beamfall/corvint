@@ -53,7 +53,13 @@ func DecodeEnvelope(data []byte) (*Envelope, error) {
 		return nil, wire.Errorf(wire.CodeMalformed, "/", "release mutation envelope is not canonical")
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, MutationProfile); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "requestId", "actor", "queueId", "releaseId", "expectedRevision", "operation", "payload", "issuedAt")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), MutationProfile); err != nil {
 		return nil, err
 	}

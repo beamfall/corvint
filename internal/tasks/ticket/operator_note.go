@@ -71,6 +71,9 @@ func DecodeOperatorNoteRequest(raw []byte) (*OperatorNoteRequest, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/request")
+	if err := wire.ProfileVersion("/request/profile", v, "taskman-mutation/0"); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "requestId", "actor", "queueId", "targetId", "expectedRevision", "operation", "payload", "issuedAt")
 	if err = r.Err(); err != nil {
 		return nil, err
@@ -156,6 +159,9 @@ func DecodeOperatorNoteEvent(raw []byte) (*OperatorNoteEvent, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, OperatorNoteProfile); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "ticketId", "noteRevision", "ticketRevision", "acceptanceRevision", "operation", "previous", "actor", "recordedAt", "requestSha256", "request")
 	if err = r.Err(); err != nil {
 		return nil, err

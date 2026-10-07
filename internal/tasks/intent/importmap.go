@@ -33,6 +33,9 @@ func DecodeImportMap(data []byte) (*ImportMap, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, ProfileImportMap); err != nil {
+		return nil, err
+	}
 	r.Closed("profile", "queueId", "entries")
 	if err := r.Err(); err != nil {
 		return nil, err
