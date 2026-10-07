@@ -44,8 +44,10 @@ type preparedLease struct {
 	observationFailure error
 	fatalCleanup       []inventoryCleanup
 	// writer is the writer checkpoint the complete audit derived, retained
-	// with the read checkpoint at commit (CAL-V0-116, proposed).
-	writer *journal.WriterCheckpoint
+	// with the read checkpoint at commit (CAL-V0-116, proposed), and
+	// writerToken the invalidation token read before that audit.
+	writer      *journal.WriterCheckpoint
+	writerToken writerToken
 }
 
 func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (leaseAuditKey, error) {
@@ -153,6 +155,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		if decodeErr != nil {
 			return nil, decodeErr
 		}
+		// The writer checkpoint this audit derives is bound to the
+		// invalidation token read before it (CAL-V0-117, proposed).
+		p.writerToken = writerInvalidation(repo)
 		proof, observation, auditErr := hooks.audit(journalReader(repo, decoded))
 		if observation.Cleanup != nil {
 			p.recordCleanup("journal audit close", observation.Cleanup)
@@ -464,7 +469,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
 	retainCheckpoint(repo, p.proof)
-	retainWriterCheckpoint(repo, p.writer)
+	retainWriterCheckpoint(repo, p.writer, p.writerToken)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"io/fs"
 	"os"
@@ -46,14 +47,35 @@ func readWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
 	return wc
 }
 
-// retainWriterCheckpoint replaces the derived writer checkpoint with wc. Like
-// retainCheckpoint it is best effort and runs under the writer lock, so the
-// fixed temporary name cannot collide; a lost write costs the next writer
-// one complete audit. A checkpoint below minWriterCheckpointSeq is not kept.
-func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint) {
-	if wc == nil || wc.Seq.Uint64() < minWriterCheckpointSeq {
+// boundWriterCheckpoint returns the retained writer checkpoint and the token
+// read with it, or nil unless the checkpoint was published under that token
+// (CAL-V0-117, proposed). A refusing refresh replaces the token before it
+// removes the checkpoint, so a stop between the two still leaves the
+// checkpoint unused; the removal is cleanup.
+func boundWriterCheckpoint(repo *intent.Repository) (*journal.WriterCheckpoint, writerToken) {
+	wc := readWriterCheckpoint(repo)
+	if wc == nil {
+		return nil, writerToken{}
+	}
+	token := writerInvalidation(repo)
+	if !token.ok || wc.Invalidation != token.digest() {
+		return nil, writerToken{}
+	}
+	return wc, token
+}
+
+// retainWriterCheckpoint replaces the derived writer checkpoint with wc,
+// bound to since: the token read before the audit wc was derived from. It
+// retains nothing when that token was unobserved or has changed since, so a
+// refusal recorded meanwhile is never undone. Like retainCheckpoint it is
+// best effort and runs under the writer lock, so the fixed temporary name
+// cannot collide; a lost write costs the next writer one complete audit. A
+// checkpoint below minWriterCheckpointSeq is not kept.
+func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint, since writerToken) {
+	if wc == nil || wc.Seq.Uint64() < minWriterCheckpointSeq || !since.ok || writerInvalidation(repo) != since {
 		return
 	}
+	wc.Invalidation = since.digest()
 	replaceDerived(journal.WriterCheckpointPath(repo.StateDir), wc.Encode())
 }
 
@@ -86,27 +108,38 @@ func writerInvalidationPath(repo *intent.Repository) string {
 	return journal.WriterCheckpointPath(repo.StateDir) + ".invalidated"
 }
 
-// writerInvalidation reads the invalidation token: empty when absent, and
-// observed false when it can be neither read nor shown absent.
-func writerInvalidation(repo *intent.Repository) (token string, observed bool) {
+// writerToken is one read of the invalidation token: empty when absent, and
+// ok false when it could be neither read nor shown absent.
+type writerToken struct {
+	value string
+	ok    bool
+}
+
+// digest is what a writer checkpoint published under this token carries.
+func (t writerToken) digest() [sha256.Size]byte { return sha256.Sum256([]byte(t.value)) }
+
+// writerInvalidation reads the invalidation token.
+func writerInvalidation(repo *intent.Repository) writerToken {
 	path := writerInvalidationPath(repo)
 	if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
-		return "", true
+		return writerToken{ok: true}
 	}
 	raw, err := intent.ReadFile(path, 64)
 	if err != nil || len(raw) == 0 {
-		return "", false
+		return writerToken{}
 	}
-	return string(raw), true
+	return writerToken{value: string(raw), ok: true}
 }
 
 // invalidateWriterCheckpoint runs under the writer lock. It replaces the
-// invalidation token first, so a refresh whose audit began before this one
-// cannot reinstall a checkpoint, then removes the checkpoint. A token that
-// cannot be written still removes the checkpoint; an older refresh may then
-// reinstall one, and the next scheduled refresh removes it again.
-func invalidateWriterCheckpoint(repo *intent.Repository) {
+// invalidation token first, which at once unbinds the retained checkpoint
+// and stops a refresh whose audit began before this one from reinstalling
+// one, then removes the checkpoint. A token that cannot be written still
+// removes the checkpoint; an older refresh may then reinstall one, and the
+// next scheduled refresh removes it again.
+func invalidateWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	replaceDerived(writerInvalidationPath(repo), []byte(rand.Text()+"\n"))
+	mutationStage(ctx, "refresh.invalidated")
 	os.Remove(journal.WriterCheckpointPath(repo.StateDir))
 }
 
@@ -115,6 +148,7 @@ func invalidateWriterCheckpoint(repo *intent.Repository) {
 // summarized inventory and the §5.2 state the model takes.
 type writerObservation struct {
 	wc                          *journal.WriterCheckpoint
+	token                       writerToken
 	proof                       *journal.Result
 	phys                        map[string]journal.PhysicalFile
 	inv                         *transaction.Inventory
@@ -137,9 +171,9 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	if headState == nil || headState.LastSeq.Uint64() < minWriterCheckpointSeq {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
-	wc := readWriterCheckpoint(repo)
+	wc, token := boundWriterCheckpoint(repo)
 	if wc == nil {
-		return nil, errWriterRoute("checkpoint", "absent or unusable"), nil
+		return nil, errWriterRoute("checkpoint", "absent, unusable or invalidated"), nil
 	}
 	proof, obs, err := journalReader(repo, headState).AuditForWriter(wc, requestID, forMutation)
 	if obs.Cleanup != nil {
@@ -151,7 +185,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	if proof == nil || proof.Mode != journal.ModeWriter || proof.Pending || proof.StagingPresent || proof.IntentError != nil || obs.Files == nil || proof.Head == nil {
 		return nil, errWriterRoute("audit", "not a settled writer observation"), nil
 	}
-	w = &writerObservation{wc: wc, proof: proof, phys: obs.Files}
+	w = &writerObservation{wc: wc, token: token, proof: proof, phys: obs.Files}
 	if w.head, w.barrier, w.reservations, err = journalBytes(repo); err != nil {
 		return nil, err, nil
 	}
@@ -296,7 +330,7 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
 		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
-			retainWriterCheckpoint(repo, next)
+			retainWriterCheckpoint(repo, next, w.token)
 		}
 	}
 	return w.proof.Head.LastSeq.Uint64()+1-w.wc.FullSeq >= journal.WriterRefreshInterval
@@ -313,7 +347,7 @@ func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (ref
 // A refresh publishes nothing if another refresh invalidated the checkpoint
 // after its audit began: an older audit cannot undo a newer refusal.
 func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
-	token, observed := writerInvalidation(repo)
+	token := writerInvalidation(repo)
 	head, err := readHead(repo)
 	if err != nil {
 		return
@@ -337,18 +371,18 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	defer lock.Close()
 	if err != nil {
 		if proof == nil || !proof.Pending {
-			invalidateWriterCheckpoint(repo)
+			invalidateWriterCheckpoint(ctx, repo)
 		}
 		return
 	}
-	if now, ok := writerInvalidation(repo); !observed || !ok || now != token {
+	if now := writerInvalidation(repo); !token.ok || now != token {
 		mutationStage(ctx, "refresh.superseded")
 		return
 	}
-	if current := readWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {
+	if current, _ := boundWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {
 		return
 	}
-	retainWriterCheckpoint(repo, next)
+	retainWriterCheckpoint(repo, next, token)
 	if raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes); err == nil && wire.Sum(raw) == proof.Identity.HeadSha256 {
 		retainCheckpoint(repo, proof)
 	}

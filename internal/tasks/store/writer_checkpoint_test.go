@@ -969,3 +969,41 @@ func TestCALV0117_WriterAdvanceAndScheduledRefresh(t *testing.T) {
 		t.Fatalf("read checkpoint at %d, want %d", got, head)
 	}
 }
+
+// CAL-V0-117 (proposed): a refusing refresh that stops after it replaced the
+// invalidation token and before it removed the writer checkpoint leaves a
+// checkpoint no writer uses. The checkpoint is bound to the token it was
+// published under, so the next write declines the fast route and the
+// complete route refuses the corruption the refresh found.
+func TestCALV0117_InvalidationSurvivesStopBeforeRemoval(t *testing.T) {
+	repo := writerStore(t, 70)
+	if run := writerMutate(t, repo, "before-stop", nil); !run.completed() || !run.fast() {
+		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	requestFile, _ := mutationBoundaryFiles(t, repo)
+	rewriteFile(t, requestFile, func([]byte) []byte { return []byte("{}\n") })
+	type stopped struct{}
+	ctx := context.WithValue(context.Background(), mutationStageKey{}, at("refresh.invalidated", func() { panic(stopped{}) }))
+	func() {
+		defer func() {
+			if r := recover(); r != (stopped{}) {
+				t.Fatalf("refresh did not stop at the invalidation boundary: %v", r)
+			}
+		}()
+		refreshWriterCheckpoint(ctx, repo)
+	}()
+	if _, err := os.Lstat(journal.WriterCheckpointPath(repo.StateDir)); err != nil {
+		t.Fatalf("the stop removed the writer checkpoint: %v", err)
+	}
+	if token := writerInvalidation(repo); !token.ok || token.value == "" {
+		t.Fatalf("the stop left no invalidation token: %+v", token)
+	}
+	before := mutationPublished(t, repo)
+	run := writerMutate(t, repo, "after-stop", nil)
+	if run.fast() || !strings.Contains(run.declined(), "invalidated") || wire.CodeOf(run.err) != wire.CodeJournalForked {
+		t.Fatalf("write after the stop: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	if after := mutationPublished(t, repo); after != before {
+		t.Fatalf("published %s, before %s", after, before)
+	}
+}

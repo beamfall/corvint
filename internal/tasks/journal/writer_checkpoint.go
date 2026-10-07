@@ -42,7 +42,7 @@ const (
 const writerMagic = ProfileWriterCheckpoint + "\n"
 
 // MaxWriterCheckpointBytes bounds the file a writer is willing to consume.
-const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + 32*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + sha256.Size
+const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + 32*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
 
 // writerNoteBytes is one encoded note: a uint32 entry index and a digest.
 const writerNoteBytes = 4 + sha256.Size
@@ -59,7 +59,8 @@ func WriterCheckpointPath(stateDir string) string { return stateDir + ".writer-c
 // receipt and every entry before use; the aggregates are trusted derived
 // state, re-derived from receipt 1 by every complete audit (CAL-V0-117).
 // It also carries the operator-note reference of every live ticket that has
-// one at Seq, which the tail binds as the complete audit does (ON-V0-006).
+// one at Seq, which the tail binds as the complete audit does (ON-V0-006),
+// and the digest of the invalidation token it was published under.
 type WriterCheckpoint struct {
 	Checkpoint
 	// FullSeq is the head of the complete audit this checkpoint descends from.
@@ -68,9 +69,14 @@ type WriterCheckpoint struct {
 	ReceiptBytes uint64
 	// Cost is the archive cost of receipts 1..Seq and of every request
 	// afterimage they posted.
-	Cost     archive.FileSetCost
-	requests []byte // sorted 32-byte request path digests
-	notes    []writerNote
+	Cost archive.FileSetCost
+	// Invalidation is the SHA-256 of the store's invalidation token when
+	// this checkpoint's audit began. The journal only carries it: the writer
+	// uses the checkpoint only while the token still has this digest
+	// (CAL-V0-117, proposed).
+	Invalidation [sha256.Size]byte
+	requests     []byte // sorted 32-byte request path digests
+	notes        []writerNote
 }
 
 // writerNote is the SHA-256 of the encoded operator-note reference of the
@@ -136,11 +142,11 @@ func requestDigest(p string) ([]byte, bool) {
 }
 
 // Encode renders the file bytes: a magic line, the read checkpoint encoding,
-// the aggregates, the request digests, the note count and notes, and a
-// SHA-256 trailer over all of it.
+// the aggregates, the request digests, the note count and notes, the
+// invalidation digest, and a SHA-256 trailer over all of it.
 func (w *WriterCheckpoint) Encode() []byte {
 	cp := w.Checkpoint.Encode()
-	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+len(w.requests)+8+writerNoteBytes*len(w.notes)+sha256.Size)
+	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+len(w.requests)+8+writerNoteBytes*len(w.notes)+2*sha256.Size)
 	buf = append(buf, writerMagic...)
 	buf = binary.BigEndian.AppendUint64(buf, uint64(len(cp)))
 	buf = append(buf, cp...)
@@ -153,6 +159,7 @@ func (w *WriterCheckpoint) Encode() []byte {
 		buf = binary.BigEndian.AppendUint32(buf, n.entry)
 		buf = append(buf, n.digest[:]...)
 	}
+	buf = append(buf, w.Invalidation[:]...)
 	sum := sha256.Sum256(buf)
 	return append(buf, sum[:]...)
 }
@@ -164,7 +171,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if len(raw) > MaxWriterCheckpointBytes {
 		return nil, bad("larger than its bound")
 	}
-	if len(raw) < len(writerMagic)+8+7*8+8+sha256.Size {
+	if len(raw) < len(writerMagic)+8+7*8+8+2*sha256.Size {
 		return nil, bad("truncated")
 	}
 	body, trailer := raw[:len(raw)-sha256.Size], raw[len(raw)-sha256.Size:]
@@ -195,7 +202,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	rest = rest[7*8:]
 	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}}
 	requests, seq := v[6], cp.Seq.Uint64()
-	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*sha256.Size+8 {
+	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*sha256.Size+8+sha256.Size {
 		return nil, bad("request digest count")
 	}
 	w.Cost.Files = int(v[2])
@@ -214,9 +221,12 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	w.requests = append([]byte(nil), digests...)
 	notes := binary.BigEndian.Uint64(rest)
 	rest = rest[8:]
-	if notes > uint64(wire.MaxTicketsPerQueue) || uint64(len(rest)) != notes*writerNoteBytes {
+	// The invalidation digest closes the body; a file written before it
+	// existed fails here and the writer falls back.
+	if notes > uint64(wire.MaxTicketsPerQueue) || uint64(len(rest)) != notes*writerNoteBytes+sha256.Size {
 		return nil, bad("note count")
 	}
+	copy(w.Invalidation[:], rest[notes*writerNoteBytes:])
 	w.notes = make([]writerNote, notes)
 	for i := range w.notes {
 		n := &w.notes[i]

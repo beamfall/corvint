@@ -111,6 +111,9 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	// Audit may reuse it; without a watch, or after a refusal, the inventory
 	// and Audit run fresh, as before.
 	reader := journalReader(repo, headState)
+	// The writer checkpoint this audit derives is bound to the invalidation
+	// token read before it (CAL-V0-117, proposed).
+	token := writerInvalidation(repo)
 	if watch, err = authority.WatchChanges(repo); err != nil {
 		watch = nil
 	} else {
@@ -142,7 +145,7 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	}
 	retainCheckpoint(repo, canonical)
 	if wc, err := audit.WriterCheckpoint(); err == nil {
-		retainWriterCheckpoint(repo, wc)
+		retainWriterCheckpoint(repo, wc, token)
 	}
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")

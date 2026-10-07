@@ -31,9 +31,9 @@ func requestPathOf(d []byte) string {
 // TestCALV0115_WriterCheckpointCodecIsClosed covers the closed, bounded
 // writer checkpoint codec (CAL-V0-115, proposed): a round trip is exact, and
 // every truncation, flipped byte, foreign profile, inconsistent aggregate,
-// unordered or repeated request digest, and note that is not one strictly
-// ordered live ticket entry is refused, so the writer falls back to the
-// complete audit.
+// unordered or repeated request digest, note that is not one strictly
+// ordered live ticket entry, and file without the invalidation digest is
+// refused, so the writer falls back to the complete audit.
 func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	repo, r := setup(t)
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
@@ -57,12 +57,13 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		t.Fatalf("checkpoint entries %+v", cp.Entries)
 	}
 	wc.notes = []writerNote{{entry: uint32(noted), digest: noteDigest(ref)}}
+	wc.Invalidation = sha256.Sum256([]byte("token\n"))
 	raw := wc.Encode()
 	got, err := DecodeWriterCheckpoint(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(got.Encode(), raw) || got.Requests() != 2 || got.FullSeq != 2 || got.Cost != wc.Cost || got.ReceiptBytes != 900 {
+	if !bytes.Equal(got.Encode(), raw) || got.Requests() != 2 || got.FullSeq != 2 || got.Cost != wc.Cost || got.ReceiptBytes != 900 || got.Invalidation != wc.Invalidation {
 		t.Fatalf("writer checkpoint codec is not a round trip: %+v", got)
 	}
 	if !got.HasRequest(requestPathOf(a[:])) || !got.HasRequest(requestPathOf(b[:])) {
@@ -140,9 +141,11 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		"note entry not a ticket": entry(uint32(other)),
 		"repeated note entry": note(func(out []byte) []byte {
 			binary.BigEndian.PutUint64(out[notesAt:], 2)
-			return append(out, out[notesAt+8:]...)
+			end := notesAt + 8 + writerNoteBytes
+			return append(append(append([]byte(nil), out[:end]...), out[notesAt+8:end]...), out[end:]...)
 		}),
-		"over the bound": make([]byte, MaxWriterCheckpointBytes+1),
+		"layout without invalidation": sealWriter(body[:len(body)-sha256.Size]),
+		"over the bound":              make([]byte, MaxWriterCheckpointBytes+1),
 	} {
 		if _, err := DecodeWriterCheckpoint(bad); err == nil {
 			t.Errorf("%s: accepted", name)
