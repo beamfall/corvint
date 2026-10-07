@@ -136,3 +136,5 @@ repaired:
     because the matrix runs once at the terminal boundary.
   - In that run the control was observed as `unqualified`, and discovery reported
     `runtime-tuple-unqualified`.
+
+Codex round 2 on `0b45b052..9b57f2c9`: approved, with no remaining P0-P3 findings.
