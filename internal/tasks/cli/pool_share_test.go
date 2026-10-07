@@ -151,7 +151,8 @@ func TestPSRV0017_ShareRefusals(t *testing.T) {
 		tickets = append(tickets, planTicket(t, r.Root, name, "P1", `["`+name+`"]`))
 	}
 	a := okClaim(t, shareClaim(t, r.Root, tickets[0], "claim-a", "--exclude-member", "b", "--exclude-member", "review"))
-	// Malformed requests refuse before any state is read.
+	// Malformed requests refuse at request validation, before any ticket,
+	// attempt or pool state is evaluated.
 	for i, args := range [][]string{
 		{"claim", tickets[1], "--holder", "builder", "--request-id", "m0", "--share-allocation", a.allocation},
 		{"claim", tickets[1], "--holder", "builder", "--request-id", "m1", "--pool", "db", "--share-allocation", a.allocation, "--exclude-member", "b"},
