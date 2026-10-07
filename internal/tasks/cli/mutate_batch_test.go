@@ -244,7 +244,7 @@ func TestCALV0106_BatchRefineReplayIsIdempotent(t *testing.T) {
 // and flags of the single form are refused with --batch.
 func TestCALV0106_BatchRefineHelpAndFlags(t *testing.T) {
 	r, ids := batchRepo(t, 1)
-	help := atm(t, r.Root, nil, "ticket", "refine", "--help")
+	help := atm(t, r.Root, nil, "ticket", "refine", "--help", "--verbose")
 	if !strings.Contains(field(help.res.Items[0], "usage").Str, "--batch") || field(help.res.Items[0], "batch").Str == "" {
 		t.Errorf("refine --help does not document --batch: %+v", help.res.Items[0])
 	}

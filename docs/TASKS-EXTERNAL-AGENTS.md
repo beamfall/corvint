@@ -509,10 +509,23 @@ the existing safe OWNER `ticket reopen` flow for fresh acceptance; help and hand
 
 Every command and command family supports exact `--help` and `-h`, including `plan preview`,
 `submit`, lease `release`, and release-artifact subcommands. Help returns OK with usage and flags
-without a queue, stdin reads, locks or writes. Lease release help includes accepted reason codes
-and handoff preconditions. Omitted commands explain that execution remains NOT_RUN. Existing
-mutation `operation` and `payloadKeys` help is preserved. A flag value spelled `--help` remains a
-value; unknown command paths still refuse.
+without a queue, stdin reads, locks or writes. `<command> --help` is terse: usage, flags and the
+mutation `operation` and `payloadKeys`, plus a `verboseHelp` pointer when more exists (CAL-V0-170).
+`<command> --help --verbose` returns the full text, including lease release reason codes and
+handoff preconditions. Omitted commands explain that execution remains NOT_RUN. A flag value
+spelled `--help` remains a value; unknown command paths still refuse.
+
+## Keep read output compact
+
+Agents should request `--summary` or `--fields KEY[.SUB],...` on `queue status`, `ticket show`,
+`ticket list`, `ticket search`, `roadmap`, `attempt show` and `plan preview`, and never print a full
+JSON result into a transcript. `--summary` returns a fixed small shape per item; `--fields` keeps
+only the named item keys (one dotted level). Both keep the result envelope and run after the read,
+so they change nothing it observes. An unknown or malformed field refuses `MALFORMED` without
+partial output (CAL-V0-165 to CAL-V0-168). `queue status` omits the per-ticket `retries` array
+unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETED or ARCHIVED items
+omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
+warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
 
 ## Read beside concurrent writers
 
@@ -574,7 +587,7 @@ attempt (CAL-V0-121). The release keeps every ordinary fence and HANDOFF precond
 releases, reaps or hands off a stale holder automatically. A TTL change is a policy change and
 fences live evidence handoffs `STALE_POLICY`, so set it before claims.
 
-`ticket show`, full `plan preview` and `queue status.retries` expose current acceptance-revision
+`ticket show`, full `plan preview` and `queue status --retries` expose current acceptance-revision
 charged debt, the current policy limit, remaining retry capacity and admission exhaustion.
 Remaining zero still permits an initial claim or an eligible clean handoff. Reason buckets are
 EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remains UNKNOWN and

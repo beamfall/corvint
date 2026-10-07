@@ -28,7 +28,7 @@ func TestCALV0050_PolicyShowPureAndUpdateHelp(t *testing.T) {
 			t.Fatalf("effective policy: %s", x.stdout)
 		}
 		sameStore(t, r, state, intents, "policy show")
-		h := handoffCLI(t, r.Root, "policy", "update", "--help")
+		h := handoffCLI(t, r.Root, "policy", "update", "--help", "--verbose")
 		if h.code != 0 || field(h.res.Items[0], "fileFormat").Str == "" || field(h.res.Items[0], "versionRule").Str == "" {
 			t.Fatalf("update help: %s", h.stdout)
 		}
@@ -43,7 +43,7 @@ func TestCALV0049_RetryReadProjections(t *testing.T) {
 		t.Fatal(e)
 	}
 	before := fixture.TreeSnapshot(t, repo.StateDir)
-	for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status"}} {
+	for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status", "--retries"}} {
 		x := handoffCLI(t, root, args...)
 		if x.code != 0 {
 			t.Fatalf("%v: %s", args, x.stdout)
@@ -135,7 +135,7 @@ func TestCALV0049_ChargedReasonsAndCleanHandoffReadback(t *testing.T) {
 			}
 			runOK(args...)
 		}
-		for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status"}} {
+		for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status", "--retries"}} {
 			x := runOK(args...)
 			v := x.res.Items[0]
 			if args[0] == "plan" {
