@@ -255,3 +255,34 @@ test('PWP-V3-002 retains ordered detail and the flaky first attempt', () => {
     assert.throws(()=>new Reporter({output,retainAttemptDetails:true,sensitiveInputPolicy:{}}),/composition-unsupported/);
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
+
+test('PWP-V0-011 keep mode reports kept entries with order-independent option digests', () => {
+  const Reporter = loadReporter();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-kept-'));
+  const output = path.join(dir, 'report.json');
+  const digest = text => require('node:crypto').createHash('sha256').update(text).digest('hex');
+  const run = (reporter, keepReporters) => {
+    const instance = new Reporter({output, keepReporters});
+    instance.onBegin({workers: 1, version: '1.60.0', reporter}, {allTests: () => []});
+    instance.onEnd({status: 'passed'});
+    return JSON.parse(fs.readFileSync(output, 'utf8'));
+  };
+  const provider = [path.join(dir, 'reporter.cjs'), {output, keepReporters: true}];
+  const kept = run([['list'], ['/repo/project.cjs', {b: [1, {d: true, c: null}], a: 'x'}], ['/repo/fn.cjs', {f: () => 1}], ['json', {outputFile: '/repo/r.json'}], provider], true);
+  assert.deepEqual(kept.projectReporters, [
+    {name: 'list', options: 'absent'},
+    {name: '/repo/project.cjs', options: 'bound', optionsDigest: digest('{"a":"x","b":[1,{"c":null,"d":true}]}')},
+    {name: '/repo/fn.cjs', options: 'unknown'},
+    {name: 'json', options: 'bound', optionsDigest: digest('{"outputFile":"/repo/r.json"}')},
+  ]);
+  const reordered = run([['/repo/project.cjs', {a: 'x', b: [1, {c: null, d: true}]}], provider], true);
+  assert.equal(reordered.projectReporters[0].optionsDigest, kept.projectReporters[1].optionsDigest);
+  const cyclic = {}; cyclic.self = cyclic;
+  for (const options of [cyclic, {n: Infinity}, {date: new Date(0)}, [1, , 3]]) {
+    assert.equal(run([['/repo/x.cjs', options], provider], true).projectReporters[0].options, 'unknown');
+  }
+  assert.equal(run([['list'], provider], false).projectReporters, undefined);
+  assert.equal(run([provider, ['list']], true).projectReporters, undefined);
+  assert.equal(run([['list'], [provider[0], {output: path.join(dir, 'other.json')}]], true).projectReporters, undefined);
+  assert.equal(run(undefined, true).projectReporters, undefined);
+});

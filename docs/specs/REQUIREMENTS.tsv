@@ -2370,27 +2370,31 @@ PWP-V0-006	docs/specs/playwright-external-provider-v0.md	29	Cancellation joins o
 PWP-V0-007	docs/specs/playwright-external-provider-v0.md	30	Qualification runs checked-in real Playwright browser fixtures covering pass, as
 PWP-V0-008	docs/specs/playwright-external-provider-v0.md	31	Playwright 1.63 qualification is consuming-path specific. A passing projection r
 PWP-V0-009	docs/specs/playwright-external-provider-v0.md	32	(accepted by decision 0448; V1-0976) exactly one more tuple is admitted under `P
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	36	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	37	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	38	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	39	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	40	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	41	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	42	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	43	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	47	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	48	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	49	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	50	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	51	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	52	The conformance fixture contains a deliberately leaking payload that is rejected
-PWP-V3-001	docs/specs/playwright-external-provider-v0.md	59	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
-PWP-V3-002	docs/specs/playwright-external-provider-v0.md	60	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
-PWP-V3-003	docs/specs/playwright-external-provider-v0.md	61	The existing per-attempt classification is unchanged: browser or fixture failure
-PWP-V3-004	docs/specs/playwright-external-provider-v0.md	62	Every `/3` attempt failure message and artifact is subject to the same report-wi
-PWP-V3-005	docs/specs/playwright-external-provider-v0.md	63	The reporter emits `attemptDetails` only under `/3`; the provider validates the
-PWP-V3-006	docs/specs/playwright-external-provider-v0.md	64	`/3` is non-promotable until the changed reporter completes the live matrix of `
-PWP-V3-007	docs/specs/playwright-external-provider-v0.md	273	The `/3` exact project identity permits an explicitly observed empty project nam
+PWP-V0-010	docs/specs/playwright-external-provider-v0.md	36	(proposed (V1-0986; GitHub #670)) The opt-in `--keep-reporters` option, availabl
+PWP-V0-011	docs/specs/playwright-external-provider-v0.md	37	(proposed (V1-0986; GitHub #670)) A keep-reporters receipt binds `receipt.extern
+PWP-V0-012	docs/specs/playwright-external-provider-v0.md	42	(proposed (V1-0986; GitHub #670)) The provider never observes what a kept report
+PWP-V0-013	docs/specs/playwright-external-provider-v0.md	43	(proposed (V1-0986; GitHub #670)) Test-validity decoding and MCP discovery accep
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	60	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	61	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	62	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	63	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	64	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	65	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	66	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	67	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	71	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	72	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	73	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	74	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	75	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	76	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	83	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	84	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	85	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	86	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	87	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	88	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	305	The `/3` exact project identity permits an explicitly observed empty project nam
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process
