@@ -199,7 +199,8 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		}
 	}
 	var digests [][]byte
-	for p, l := range res.chain.canonical {
+	for _, p := range sortedPaths(res.chain.canonical) {
+		l := res.chain.canonical[p]
 		if !strings.HasPrefix(p, "requests/") {
 			continue
 		}
@@ -406,7 +407,8 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 		return result, errCheckpoint("requests", "request is retained in the tail")
 	}
 	result.StructuralConsistency = ModeWriter
-	for p, record := range st.canonical {
+	for _, p := range sortedPaths(st.canonical) {
+		record := st.canonical[p]
 		if strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/") {
 			// Content-addressed: the listed name is the digest.
 			info, present := o.files[p]
