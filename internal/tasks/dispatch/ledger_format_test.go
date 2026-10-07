@@ -92,3 +92,65 @@ func TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts(t *testing.T)
 		t.Fatalf("not adopted: running %d events %v", d.Running(), kinds(t, d))
 	}
 }
+
+// CAL-V0-132: encoding/json keeps the last of a repeated member and matches
+// struct fields by case folding, so a ledger in this build's format that
+// repeats a member, exactly or by case folding, at any depth is refused as
+// MALFORMED before any worker action: a trailing "workers":[] or
+// "WORKERS":[] cannot hide the recorded worker. A lone folded spelling keeps
+// its CAL-V0-064 treatment.
+func TestCALV0132_RepeatedLedgerMemberRefuses(t *testing.T) {
+	c := testConfig(t, `sleep 300`)
+	c.GlobalCap = 1
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	pid := d.ledger.Workers[0].PID
+	t.Cleanup(func() { syscall.Kill(pid, syscall.SIGKILL) })
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(ProgramDir(c, "prog"), "state.json")
+	good, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := bytes.TrimSuffix(bytes.TrimSpace(good), []byte("}"))
+	suffix := func(members string) []byte { return append(append([]byte{}, body...), []byte(","+members+"}")...) }
+	for name, bad := range map[string][]byte{
+		"a trailing empty workers":    suffix(`"workers":[]`),
+		"a repeated backoff":          suffix(`"backoff":{}`),
+		"a WORKERS alias":             suffix(`"WORKERS":[]`),
+		"a PROGRAM alias":             suffix(`"PROGRAM":"prog"`),
+		"a repeated worker member":    bytes.Replace(good, []byte(`"pid":`), []byte(`"pid":1,"pid":`), 1),
+		"a folded repeat in a worker": bytes.Replace(good, []byte(`"pid":`), []byte(`"PID":1,"pid":`), 1),
+		"a repeated pressure sample":  suffix(`"pressure":{"sample":{},"sample":{}}`),
+	} {
+		if bytes.Equal(bad, good) {
+			t.Fatalf("%s: fixture not reached", name)
+		}
+		if err := os.WriteFile(path, bad, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadLedger(ProgramDir(c, "prog"), "prog"); err == nil || wire.CodeOf(err) != wire.CodeMalformed {
+			t.Errorf("%s: LoadLedger %v", name, err)
+		}
+		if d, err := Open("prog", c, q, io.Discard); err == nil || wire.CodeOf(err) != wire.CodeMalformed {
+			t.Errorf("%s: Open %v", name, err)
+			if err == nil {
+				d.Close()
+			}
+		}
+		if after, _ := os.ReadFile(path); !bytes.Equal(after, bad) {
+			t.Errorf("%s: refused ledger rewritten", name)
+		}
+		if syscall.Kill(pid, 0) != nil {
+			t.Fatalf("%s: refusal touched the worker", name)
+		}
+	}
+}

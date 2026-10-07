@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -280,20 +281,30 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // profile is another taskman-dispatch-state version, or which carries a
 // top-level member that no spelling of a known member matches, was written
 // by a build with another format. It is refused as UNSUPPORTED_VERSION and
-// never read or migrated; case-folded aliases keep their malformed refusal.
+// never read or migrated. A member that repeats, or that aliases a known
+// member by case folding, at any depth refuses MALFORMED (exactLedger).
 // The one exception (proposed amendment) is a drained version 0 ledger:
 // drained reports it, and the caller adopts it as this version.
-func ledgerFormat(members map[string]json.RawMessage) (drained bool, err error) {
+func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained bool, err error) {
 	var profile string
 	if raw, ok := members["profile"]; ok && json.Unmarshal(raw, &profile) == nil && profile != StateProfile {
 		if profile == drainedStateProfile {
-			if err := drainedFormat(members); err != nil {
-				return false, err
-			}
 			drained = true
 		} else if err := wire.CheckProfile("/profile", profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
 			return false, err
 		}
+	}
+	if err := exactLedger(raw, drained); err != nil {
+		return false, err
+	}
+	if drained {
+		// The walk refused duplicates and aliases, so this is the only
+		// workers member the decoder will read.
+		var workers []json.RawMessage
+		if json.Unmarshal(members["workers"], &workers) != nil || len(workers) > 0 {
+			return false, wire.Errorf(wire.CodeUnsupportedVersion, "/workers", "a %s ledger that records workers must be drained by the build that wrote it", drainedStateProfile)
+		}
+		return true, nil
 	}
 	known := reflect.TypeFor[Ledger]()
 	for name := range members {
@@ -309,53 +320,153 @@ func ledgerFormat(members map[string]json.RawMessage) (drained bool, err error) 
 			return false, wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to this build")
 		}
 	}
-	return drained, nil
+	return false, nil
 }
 
-// state1Members and state1SampleMembers are what taskman-dispatch-state/1
-// added to version 0: the CAL-V0-127 config record and the CAL-V0-125 CPU
-// sample fields.
-var (
-	state1Members       = []string{"config"}
-	state1SampleMembers = []string{"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "cpuUtilizationKnown"}
-)
+// state1Members are what taskman-dispatch-state/1 added to version 0, by
+// the type that holds them: the CAL-V0-127 config record and the CAL-V0-125
+// CPU sample fields.
+var state1Members = map[reflect.Type][]string{
+	reflect.TypeFor[Ledger]():         {"config"},
+	reflect.TypeFor[PressureSample](): {"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "cpuUtilizationKnown"},
+}
 
-// drainedFormat admits a version 0 ledger only when it records no worker
-// and carries no member, under any spelling, that version 0 never had; it
-// is then read under version 0's closed member set, so the added members
-// keep their zero values. Anything else refuses UNSUPPORTED_VERSION.
-func drainedFormat(members map[string]json.RawMessage) error {
-	foldedIn := func(name string, set []string) bool {
-		return slices.ContainsFunc(set, func(s string) bool { return strings.EqualFold(name, s) })
+// exactLedger walks the ledger's JSON tokens against the Ledger type, because
+// encoding/json keeps the last of a repeated member and matches struct
+// fields by case folding: a later "workers":[] or "WORKERS":[] could
+// otherwise hide a recorded worker. In any object it refuses a repeated
+// member and, in a struct's object, two members that fold to one field
+// (MALFORMED). A lone case-folded spelling stays the strict decoder's
+// concern, as CAL-V0-064 keeps a legacy ledger's "Profile" loading. Unknown
+// members are left to ledgerFormat and the strict decoder. For a drained
+// version 0 ledger every refusal is UNSUPPORTED_VERSION, a lone alias is
+// refused too, and so is any member, at any depth, outside version 0's
+// closed member set (the Ledger type less state1Members).
+func exactLedger(raw []byte, drained bool) error {
+	code := wire.CodeMalformed
+	if drained {
+		code = wire.CodeUnsupportedVersion
 	}
-	for name, raw := range members {
-		switch {
-		case strings.EqualFold(name, "workers"):
-			var workers []json.RawMessage
-			if json.Unmarshal(raw, &workers) != nil || len(workers) > 0 {
-				return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "a %s ledger that records workers must be drained by the build that wrote it", drainedStateProfile)
+	escape := strings.NewReplacer("~", "~0", "/", "~1")
+	unmarshaler := reflect.TypeFor[json.Unmarshaler]()
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var value func(t reflect.Type, path string, depth int) error
+	value = func(t reflect.Type, path string, depth int) error {
+		if depth > 64 {
+			return wire.Errorf(code, path, "dispatch state nests too deeply")
+		}
+		token, err := d.Token()
+		if err != nil {
+			return wire.Errorf(code, path, "dispatch state: %v", err)
+		}
+		for t != nil && t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		if t != nil && (t.Implements(unmarshaler) || reflect.PointerTo(t).Implements(unmarshaler)) {
+			t = nil // its own decoder owns the shape; repeats are still refused
+		}
+		switch token {
+		case json.Delim('{'):
+			var fields map[string]reflect.Type
+			var elem reflect.Type
+			if t != nil && t.Kind() == reflect.Struct {
+				fields = map[string]reflect.Type{}
+				addFields(t, fields, drained)
+			} else if t != nil && t.Kind() == reflect.Map {
+				elem = t.Elem()
 			}
-		case foldedIn(name, state1Members):
-			return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to %s", drainedStateProfile)
-		case strings.EqualFold(name, "pressure"):
-			var pressure map[string]json.RawMessage
-			if json.Unmarshal(raw, &pressure) != nil {
-				continue // the strict decoder refuses it
-			}
-			for key, sampleRaw := range pressure {
-				var sample map[string]json.RawMessage
-				if !strings.EqualFold(key, "sample") || json.Unmarshal(sampleRaw, &sample) != nil {
-					continue
+			seen := map[string]bool{}
+			for d.More() {
+				k, err := d.Token()
+				key, _ := k.(string)
+				if err != nil {
+					return wire.Errorf(code, path, "dispatch state: %v", err)
 				}
-				for field := range sample {
-					if foldedIn(field, state1SampleMembers) {
-						return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name+"/"+key+"/"+field, "dispatch state member is not known to %s", drainedStateProfile)
+				where := path + "/" + escape.Replace(key)
+				name := key
+				if fields != nil {
+					name = folded(fields, key)
+				}
+				if seen[name] {
+					return wire.Errorf(code, where, "dispatch state repeats a member")
+				}
+				seen[name] = true
+				child := elem
+				if fields != nil {
+					ft, ok := fields[key]
+					switch {
+					case ok:
+						child = ft
+					case drained && name != key:
+						return wire.Errorf(code, where, "dispatch state member aliases a known member by case")
+					case drained:
+						return wire.Errorf(code, where, "dispatch state member is not known to %s", drainedStateProfile)
+					default:
+						child = fields[name] // the strict decoder decides
 					}
 				}
+				if err := value(child, where, depth+1); err != nil {
+					return err
+				}
 			}
+			_, err := d.Token()
+			return err
+		case json.Delim('['):
+			var elem reflect.Type
+			if t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) {
+				elem = t.Elem()
+			}
+			for i := 0; d.More(); i++ {
+				if err := value(elem, path+"/"+strconv.Itoa(i), depth+1); err != nil {
+					return err
+				}
+			}
+			_, err := d.Token()
+			return err
+		}
+		return nil
+	}
+	return value(reflect.TypeFor[Ledger](), "", 0)
+}
+
+// folded is the field key names under encoding/json's case folding, or key
+// itself when it names no field.
+func folded(fields map[string]reflect.Type, key string) string {
+	if _, ok := fields[key]; ok {
+		return key
+	}
+	for name := range fields {
+		if strings.EqualFold(name, key) {
+			return name
 		}
 	}
-	return nil
+	return key
+}
+
+// addFields records t's encoded member names and types, flattening embedded
+// structs as encoding/json does; a drained version 0 ledger omits the
+// members version 1 added.
+func addFields(t reflect.Type, fields map[string]reflect.Type, drained bool) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tag, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if tag == "-" || (!f.IsExported() && !f.Anonymous) {
+			continue
+		}
+		if f.Anonymous && tag == "" {
+			if ft := f.Type; ft.Kind() == reflect.Struct {
+				addFields(ft, fields, drained)
+				continue
+			}
+		}
+		if tag == "" {
+			tag = f.Name
+		}
+		if drained && slices.Contains(state1Members[t], tag) {
+			continue
+		}
+		fields[tag] = f.Type
+	}
 }
 
 // LoadLedger reads the ledger; a missing ledger is a fresh one.
@@ -371,7 +482,7 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
-	drained, err := ledgerFormat(members)
+	drained, err := ledgerFormat(raw, members)
 	if err != nil {
 		return nil, err
 	}

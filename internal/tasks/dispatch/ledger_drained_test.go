@@ -65,7 +65,9 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		t.Fatal("version 0 fixture not reached")
 	}
 
-	// Refusals first: none of these rewrites the file.
+	// Refusals first: none of these rewrites the file. A repeated or
+	// case-aliased member, at any depth, could otherwise hide a worker or a
+	// member version 0 never had from the drained-only check.
 	with := func(name, value string) []byte {
 		t.Helper()
 		var members map[string]json.RawMessage
@@ -79,12 +81,25 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		}
 		return raw
 	}
+	// prefix puts members before the fixture's own, so that a duplicate
+	// precedes the member the struct decoder would keep.
+	prefix := func(members string) []byte {
+		return append([]byte("{"+members+","), drained[1:]...)
+	}
 	for name, bad := range map[string][]byte{
-		"a recorded worker":   with("workers", `[{"id":"w1"}]`),
-		"the config record":   with("config", `{"appliedSha256":"`+strings.Repeat("a", 64)+`","appliedAt":"2026-10-07T12:00:00Z"}`),
-		"a CPU sample field":  with("pressure", `{"sample":{"cpuBusyTicks":1}}`),
-		"a case-folded alias": with("CONFIG", `{}`),
-		"an unknown member":   with("workerLimits", `{}`),
+		"a recorded worker":                      with("workers", `[{"id":"w1"}]`),
+		"the config record":                      with("config", `{"appliedSha256":"`+strings.Repeat("a", 64)+`","appliedAt":"2026-10-07T12:00:00Z"}`),
+		"a CPU sample field":                     with("pressure", `{"sample":{"cpuBusyTicks":1}}`),
+		"a case-folded alias":                    with("CONFIG", `{}`),
+		"an unknown member":                      with("workerLimits", `{}`),
+		"a worker hidden by a duplicate workers": prefix(`"workers":[{"id":"w1"}]`),
+		"a duplicate pressure":                   prefix(`"pressure":{"sample":{"cpuBusyTicks":1}},"pressure":{"sample":{}}`),
+		"a duplicate pressure.sample":            prefix(`"pressure":{"sample":{"cpuBusyTicks":1},"sample":{}}`),
+		"a WORKERS alias":                        prefix(`"WORKERS":[{"id":"w1"}]`),
+		"a PROGRAM alias":                        prefix(`"PROGRAM":"prog"`),
+		"a nested alias":                         prefix(`"pressure":{"SAMPLE":{}}`),
+		"a nested unknown member":                prefix(`"pressure":{"sample":{"futureField":1}}`),
+		"an unknown backoff member":              with("backoff", `{"k":{"futureField":1}}`),
 	} {
 		if bytes.Equal(bad, drained) {
 			t.Fatalf("%s: fixture not reached", name)
@@ -93,13 +108,16 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := LoadLedger(ProgramDir(c, "prog"), "prog"); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
-			t.Fatalf("%s: LoadLedger %v", name, err)
+			t.Errorf("%s: LoadLedger %v", name, err)
 		}
-		if _, err := Open("prog", c, q, io.Discard); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
-			t.Fatalf("%s: Open %v", name, err)
+		if d, err := Open("prog", c, q, io.Discard); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
+			t.Errorf("%s: Open %v", name, err)
+			if err == nil {
+				d.Close()
+			}
 		}
 		if after, _ := os.ReadFile(path); !bytes.Equal(after, bad) {
-			t.Fatalf("%s: refused ledger rewritten", name)
+			t.Errorf("%s: refused ledger rewritten", name)
 		}
 	}
 
