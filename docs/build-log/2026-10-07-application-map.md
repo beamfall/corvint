@@ -210,7 +210,17 @@ regression test that a mutation of its fix makes fail:
 
 Each round finds further edge cases in the token- and line-level JavaScript reader; owner question
 14 asks whether adopter-scale qualification should decide on a full parser before promotion.
-Later rounds are recorded in the lane handoff.
+
+Round 7 (diff `8af2bf62..5280ee31`) reported three P2 findings. The lane stopped review rounds on
+the coordinator's instruction (no P0 or P1 remained); they are recorded as follow-ups, not
+repaired, and the slice stays experimental:
+
+1. A field initializer's object-literal method (`helpers = { async book() {} }`) inside the class
+   body still reads callable (`tests.go`, class-body depth is not tracked).
+2. Two import statements on one line each carry the whole line as their statement, so a scaffold
+   borrowing both duplicates bindings (`statementAt` returns whole lines).
+3. A loaded map whose selector reads `strength: "unknown"` with a populated `reuse` list still
+   yields a call; `LoadMap` does not validate that relation (`scaffold.go`).
 
 ## Analyzer schema bump
 
