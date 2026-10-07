@@ -82,6 +82,11 @@ commit that had not been reviewed before).
 - Round 1, P2: `VerifySteps` skipped the overlay's 1024-byte `evidence-too-large` degradation,
   so the two RVN-V0-006 surfaces could disagree. Fixed: both share `boundedVerification`.
   Regression: `TestRVNV0006OversizedEvidenceParity`, which fails without the fix.
+- Round 2 confirmed both fixes. It found no P0 to P2 issues, so no round 3 ran. One P3 was
+  retained for filing rather than fixed: an unbound step that does not resolve still emits an
+  `unverified`/`step-unresolved` fact, because `verify` checks resolution before binding. That
+  spends learned-fact budget, contrary to RVN-V0-006's rule that unbound steps emit no fact. The
+  behaviour already exists at the issue-658 lane tip and was not introduced by this integration.
 
 ## Analyzer schema
 
