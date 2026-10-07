@@ -2192,6 +2192,9 @@ PSR-V0-009	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	39	Canonical caller re
 PSR-V0-010	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	41	Foreground CLI handler installs INT/TERM cancellation using signal.NotifyContext
 PSR-V0-011	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	43	`memberConfig` health and cleanup `timeoutSeconds` accepts 1..3600 (amends CAL-V
 PSR-V0-012	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	44	A health, cleanup or safeReuse command `cwd` is `"REPOSITORY"` (default; queue c
+PSR-V0-013	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	45	`corvint-tasks pool status [--pool ID] [--member ID]` returns one `taskman-pool-
+PSR-V0-014	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	46	`--pool` and `--member` each appear at most once with a nonempty label and filte
+PSR-V0-015	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	47	`pool status` is a pure TM-V0-008 read like `queue status` and `attempt show`: i
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use

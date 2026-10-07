@@ -261,6 +261,20 @@ authors. `plan preview` reports the same per ticket, and with this flag adds `de
 `excludedAuthors` to each entry. A recorded member label is not an authenticated identity and
 proves nothing about who did the work or whether two environments are physically distinct.
 
+To see which member an attempt holds, or why a member is quarantined, read one view without
+parsing `queue status` or a ledger:
+
+```sh
+corvint-tasks pool status [--pool test-env] [--member env-0]
+```
+
+It is a pure read: no lock, no probe, no write. Each member reports `state`, `allocationId`,
+`holder`, `attemptId` and `generation` (null while FREE), `quarantine` with its `reason` and the
+journal `changedSeq`, and `lastHealth`/`lastCleanup` as retained with the current allocation. The
+journal keeps sequence numbers, not wall-clock time, so `since` and `observedAt` are `NOT_OBSERVED`,
+as is any outcome pool state no longer retains (for example a FREE member's history). An unknown
+`--pool` or `--member` refuses `MALFORMED` (PSR-V0-013..015).
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
