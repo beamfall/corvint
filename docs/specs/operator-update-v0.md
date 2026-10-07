@@ -56,7 +56,7 @@ The baseline is manual archive verification and copying binaries, with external 
 - `UPD-V0-006`: Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ordinary
   descendants on timeout or interruption. Unobserved cleanup MUST fail the probe. Operators MUST see
   qualification limits, partial failures and known durability exclusions in command output/docs.
-- `UPD-V0-007`: (proposed 2026-10-07, V1-0929, pending owner acceptance) The state directory MUST
+- `UPD-V0-007`: (accepted by decision 0440; V1-0929) The state directory MUST
   stay bounded to what rollback needs. `apply` and `rollback` MUST hold an exclusive lock on the
   state directory for the whole run; under it they first remove every updater transaction
   directory (named `transaction-<digits>`, as `os.MkdirTemp` creates it) that has no `receipt.json`
@@ -126,7 +126,7 @@ and callers restart them when the applicable host integration requires it.
 | UPD-V0-003 | bounded transport, paths and destination lock | `TestUPDV0003ArchivePathsAndLocks`: caps, aliases, traversal, concurrent state roots |
 | UPD-V0-004 | candidate preparation and activation | `TestUPDV0004ActivationDowngradeCancelRace`, `TestUPDV0004UnchangedCleanupAndDestinationDrift`, `TestUPDV0004PartialArchiveCancellation`: no-op, downgrade, race and partial-download cancellation |
 | UPD-V0-005 | bound prepared receipts and rollback | `TestUPDV0005ApplyRollbackAndPreparedReceipt` and `TestUPDV0005PreparedReceiptInterruptionRecovery`: exact restored digest, interrupted prepared state and drift |
-| UPD-V0-007 (proposed) | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, a fresh receipt-less transaction and a `transaction-notes` operator directory kept, a stale interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |
+| UPD-V0-007 | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, a fresh receipt-less transaction and a `transaction-notes` operator directory kept, a stale interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the

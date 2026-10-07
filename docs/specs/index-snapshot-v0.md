@@ -58,8 +58,7 @@ what any packet says.
   message), so a body overwritten with the same number of bytes, or a zeroed range the gob decoder
   would accept, is detectable on read. Amendment (proposed 2026-10-06, V1-0870, pending owner
   review): the receipt also carries `store`, `store_shared`, `live_heads`, `live_trees` and
-  `evicted_snapshots` (`IDX-SNAP-V0-025`). Amendment (proposed 2026-10-07, V1-0928, pending
-  owner acceptance): when the writing worktree still has a superseded `.corvint/index`, it also
+  `evicted_snapshots` (`IDX-SNAP-V0-025`). Amendment (accepted by decision 0440, V1-0928): when the writing worktree still has a superseded `.corvint/index`, it also
   carries `legacy_store`, `legacy_removed` and `legacy_left` (`IDX-SNAP-V0-027`).
 - `IDX-SNAP-V0-002`: `context` reads the repository's identity and status as a build's opening
   observation does, and when a file named by the current object format, tree OID, and engine
@@ -580,9 +579,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `WriteSnapshot`, `evictSnapshots` and `evictAnalyzerPacks`, and the new receipt keys from
   `runIndex`; the count-only `evicted` remains.
 
-### Proposed (2026-10-07, V1-0928, pending owner acceptance): superseded per-worktree store
+### Accepted (decision 0440, V1-0928): superseded per-worktree store
 
-- `IDX-SNAP-V0-027`: (proposed 2026-10-07, V1-0928, pending owner acceptance) after an `index`
+- `IDX-SNAP-V0-027`: (accepted by decision 0440; V1-0928) after an `index`
   write publishes to the shared store (`store_shared:true`, `DIRTY-CACHE-013`) and runs its
   `IDX-SNAP-V0-025` eviction, it MUST sweep the writing worktree's own `.corvint/index/`, the
   per-worktree store the shared one superseded (`IDX-SNAP-V0-001` location amendment). Only the
@@ -745,7 +744,7 @@ not satisfied by explicit warmup; this change claims no packet-5 promotion.
 
 `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`
 (`internal/contextindex/legacy_store_test.go`) and `TestIndexReceiptNamesTheSweptLegacyStore`
-(`cmd/corvint/index_snapshot_test.go`) for the proposed `IDX-SNAP-V0-027`: a seeded 1 MiB legacy
+(`cmd/corvint/index_snapshot_test.go`) for `IDX-SNAP-V0-027`: a seeded 1 MiB legacy
 store is reclaimed in full and named, the shared snapshot still loads, links, a fresh temporary and
 unrecognised entries are left with their reason, and the receipt keeps the frozen key set when no
 legacy store exists (`docs/build-log/2026-10-07-legacy-index-store-sweep.md`).
@@ -791,5 +790,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
 | IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
-| IDX-SNAP-V0-027 (proposed) | `sweepLegacyStore`, `WriteSnapshot`, `runIndex`, `legacyLeftPayload` | `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`, `TestIndexReceiptNamesTheSweptLegacyStore` |
+| IDX-SNAP-V0-027 | `sweepLegacyStore`, `WriteSnapshot`, `runIndex`, `legacyLeftPayload` | `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`, `TestIndexReceiptNamesTheSweptLegacyStore` |
 | IDX-SNAP-V0-026 | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |

@@ -275,7 +275,7 @@ ATR-V0-011	docs/specs/corvint-tasks-attempt-runner-v0.md	61	`run --attach --atte
 ATR-V0-012	docs/specs/corvint-tasks-attempt-runner-v0.md	62	A detached run's process MUST be judged live only when its recorded PID currentl
 ATR-V0-013	docs/specs/corvint-tasks-attempt-runner-v0.md	63	A detached run MUST stay fenced by its lease as an attached run is: the supervis
 ATR-V0-014	docs/specs/corvint-tasks-attempt-runner-v0.md	64	A platform without new-session support (any other than Darwin and Linux) MUST re
-ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	65	(proposed, pending owner acceptance; V1-0931) After a detached supervisor has wr
+ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	65	(accepted by decision 0440; V1-0931) After a detached supervisor has written
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,
@@ -459,8 +459,8 @@ CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4025	accepted by decision
 CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4042	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea
 CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4048	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result
 CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4056	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d
-CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4114	(proposed; V1-0930) On every supervising tick, right after it compares log sizes
-CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4129	(proposed; V1-0930) When a tick finishes at least one worker, after those worker
+CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4114	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c
+CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4129	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -1573,32 +1573,32 @@ HNE-V0-003	docs/specs/heading-navigation-experiment-v0.md	40	Every packet, inclu
 HNE-V0-004	docs/specs/heading-navigation-experiment-v0.md	44	Reports retain per-arm/per-case evidence-hit numerators and gold denominators,
 HNE-V0-005	docs/specs/heading-navigation-experiment-v0.md	49	The harness remains explicitly invoked and experimental. Only the chosen output
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
-IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	64	`context` reads the repository's identity and status as a build's opening
-IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	72	any mismatch (no file, a different tree, a different engine, a different
-IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	82	a dirty worktree reads the same snapshot; only `DirtyPaths` and
-IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	88	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
-IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	106	a hit and a miss produce byte-identical `context` output for the same
-IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	108	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	124	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	145	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	148	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	149	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	159	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	188	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	215	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	256	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	330	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	368	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	193	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	399	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	417	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	444	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	472	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	486	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	508	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
-IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	552	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
-IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	523	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
-IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	585	(proposed 2026-10-07, V1-0928, pending owner acceptance) after an `index`
+IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	63	`context` reads the repository's identity and status as a build's opening
+IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	71	any mismatch (no file, a different tree, a different engine, a different
+IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	81	a dirty worktree reads the same snapshot; only `DirtyPaths` and
+IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	87	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
+IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	105	a hit and a miss produce byte-identical `context` output for the same
+IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	107	`index` keeps the newest eight snapshot files in the directory and removes
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	123	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	144	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	147	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	148	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	158	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	187	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	214	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	255	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	329	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	367	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	192	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	398	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	416	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	443	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	471	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	485	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	507	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	551	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	522	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
+IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	584	(accepted by decision 0440; V1-0928) after an `index`
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the
@@ -2813,7 +2813,7 @@ UPD-V0-003	docs/specs/operator-update-v0.md	43	Downloads, release discovery, ext
 UPD-V0-004	docs/specs/operator-update-v0.md	47	Apply MUST mutate only one selected component, refuse downgrades/unknown builds,
 UPD-V0-005	docs/specs/operator-update-v0.md	52	Offline `rollback` MUST use a locally retained transaction bound to component,
 UPD-V0-006	docs/specs/operator-update-v0.md	56	Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ord
-UPD-V0-007	docs/specs/operator-update-v0.md	59	(proposed 2026-10-07, V1-0929, pending owner acceptance) The state directory MUS
+UPD-V0-007	docs/specs/operator-update-v0.md	59	(accepted by decision 0440; V1-0929) The state directory MUST
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker
