@@ -4285,7 +4285,8 @@ read read-only.
   notes and templates are required under `--help --verbose`. Every other CAL-V0-047 rule holds for
   both forms, including no store, stdin, lock or write, and `<verb> --help` for every verb.
   Mutation help given beside other flags (`ticket create --payload-stdin --help`) stays full and
-  also accepts `--verbose`; `--verbose` without `--help` is refused.
+  also accepts `--verbose`; `--verbose` without `--help` is refused. Release mutations, which have
+  no in-parser help, refuse `--verbose`.
 - `CAL-V0-171`: (proposed, pending owner acceptance; V1-0935 and V1-0941) The byte effect MUST be
   measured on a fixture of at least 300 tickets and recorded with this amendment and the build log.
 - `CAL-V0-172`: (proposed, pending owner acceptance; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`

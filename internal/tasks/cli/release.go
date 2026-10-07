@@ -29,6 +29,11 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if f.batch {
 		return usage(cmd, "unknown flag --batch")
 	}
+	if f.verbose {
+		// The ticket mutation parser takes --verbose beside --help
+		// (CAL-V0-170); release mutations have no in-parser help.
+		return usage(cmd, "unknown flag --verbose")
+	}
 	if f.requestID == "" || f.target == "" {
 		return usage(cmd, "--request-id and --target are required")
 	}

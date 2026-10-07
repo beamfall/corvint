@@ -383,6 +383,12 @@ func TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict(t *testi
 	args := func(payload string) []string {
 		return []string{"release", "create", "--request-id", "release-canonical", "--target", "v0-9", "--issued-at", "2026-09-20T12:01:00Z", "--payload", payload}
 	}
+	// CAL-V0-170: --verbose is not a release mutation flag, so a full
+	// release argv with --help --verbose refuses instead of writing; the
+	// create below is then not a replay.
+	if x := atm(t, r.Root, nil, append(args(loose), "--help", "--verbose")...); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("release create with --help --verbose: %+v", x.res)
+	}
 	if x := atm(t, r.Root, nil, args(loose)...); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "replayed").Bool {
 		t.Fatalf("release payload with unsorted keys and escapes: %+v", x.res)
 	}
