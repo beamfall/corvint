@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -139,11 +140,11 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, ticketList(env, args[2:]))
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: pageValueFlags}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
-			return emit(env.Stdout, ticketSearch(env, args[2:]))
+			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
-			return emit(env.Stdout, ticketShow(env, args[2:], true))
+			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "export":
@@ -192,6 +193,9 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
 	case "attempt":
+		if len(args) > 1 && args[1] == "show" {
+			return emit(env.Stdout, compactRead([]string{"attempt", "show"}, args[2:], compactSpec{summary: attemptSummary}, func(a []string) *wire.Result { return attemptCommand(env, append([]string{"show"}, a...)) }))
+		}
 		return emit(env.Stdout, attemptCommand(env, args[1:]))
 	case "pause", "unpause":
 		return emit(env.Stdout, barrierCommand(env, args[0], args[1:]))
@@ -205,14 +209,17 @@ func Run(env Env) int {
 		return emit(env.Stdout, initCommand(env, args[1:]))
 	case "queue":
 		if len(args) >= 2 && args[1] == "status" {
-			return emit(env.Stdout, queueStatus(env, args[2:]))
+			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
 	case "roadmap":
-		return emit(env.Stdout, roadmap(env, args[1:]))
+		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: pageValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
 		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
+		if len(args) > 1 && args[1] == "preview" {
+			return emit(env.Stdout, compactRead([]string{"plan", "preview"}, args[2:], compactSpec{summary: planSummary, exclusive: "--selected-only", values: []string{"--pool", "--stage", "--exclude-member"}}, func(a []string) *wire.Result { return planPreview(env, a) }))
+		}
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
@@ -342,13 +349,13 @@ func helpResult() *wire.Result {
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
 		"corvint-tasks pending; corvint-tasks program show",
-		"corvint-tasks ticket list [--offset N] [--limit N]",
-		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
-		"corvint-tasks ticket show <ticketId|local>",
+		"corvint-tasks ticket list [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks ticket blockers <ticketId|local>",
 		"corvint-tasks ticket export [--offset N] [--limit N]",
-		"corvint-tasks queue status",
-		"corvint-tasks roadmap [--offset N] [--limit N]",
+		"corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks gate list",
 		"corvint-tasks gate show <gateId>",
 		"corvint-tasks archive export [--staging DIR]   (stream on stdout, envelope on stderr)",
@@ -357,6 +364,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks ticket <mutation> --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
+		"corvint-tasks <command> --help   (usage and flags; add --verbose for notes, reason codes and preconditions)",
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
@@ -371,8 +379,8 @@ func helpResult() *wire.Result {
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
-		"corvint-tasks attempt show <attemptId>",
-		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only]",
+		"corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
@@ -572,6 +580,13 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 	return out, pos, nil
 }
 
+// pageValueFlags and searchValueFlags are the value-taking flags of the paged
+// reads, so `--fields` and `--summary` extraction leaves their values alone.
+var (
+	pageValueFlags   = []string{"--offset", "--limit"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
+)
+
 // page is the parsed `--offset` / `--limit` pair (§3.3): offset ≥ 0, limit
 // 1..PageMax, default PageDefault. Both are checked before any read.
 type page struct {
@@ -634,15 +649,37 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 
 // listViews renders one page of compact ticket views over ids (already in
 // §4.3 order) and returns the page result.
-func listViews(rc *readCtx, ids []string, p page) ([]wire.Value, *wire.Page) {
+// listViews renders one page of list items (CAL-V0-173): no record member,
+// no blockers or unknowns on a terminal (COMPLETED or ARCHIVED) ticket, and
+// the reader-wide attempt-liveness unknown reported once as a returned
+// warning instead of on every item.
+func listViews(rc *readCtx, ids []string, p page) ([]wire.Value, *wire.Page, []string) {
 	ctx := rc.store.Context()
 	start, end := p.window(len(ids))
 	items := make([]wire.Value, 0, end-start)
+	var hoisted []string
 	for _, id := range ids[start:end] {
 		v, _ := rc.store.Inventory.View(id, ctx)
-		items = append(items, v.Value(false))
+		terminal := v.Record.Status == ticket.StatusCompleted || v.Record.Status == ticket.StatusArchived
+		kept := v.Unknowns[:0:0]
+		for _, u := range v.Unknowns {
+			if u.Code == wire.CodeAttemptLive && u.TicketID == "" {
+				if hoisted == nil {
+					hoisted = []string{"store-wide unknown " + u.Code + " for every listed ticket: " + u.Detail + "; list items do not repeat it"}
+				}
+				continue
+			}
+			kept = append(kept, u)
+		}
+		v.Unknowns = kept
+		item := v.Value(false)
+		drop := []string{"record"}
+		if terminal {
+			drop = append(drop, "blockers", "unknowns")
+		}
+		items = append(items, withoutKeys(item, drop...))
 	}
-	return items, p.result(len(ids), len(items))
+	return items, p.result(len(ids), len(items)), hoisted
 }
 
 func ticketList(env Env, args []string) *wire.Result {
@@ -653,8 +690,9 @@ func ticketList(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
+	var hoisted []string
 	rc, err := withStore(env, func(rc *readCtx) error {
-		items, pg = listViews(rc, rc.store.Inventory.Sorted(), p)
+		items, pg, hoisted = listViews(rc, rc.store.Inventory.Sorted(), p)
 		return nil
 	})
 	if err != nil {
@@ -664,6 +702,7 @@ func ticketList(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	res.Warnings = append(res.Warnings, hoisted...)
 	return res
 }
 
@@ -792,6 +831,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
+	var hoisted []string
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		for _, id := range rc.store.Inventory.Sorted() {
@@ -800,7 +840,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 				ids = append(ids, id)
 			}
 		}
-		items, pg = listViews(rc, ids, p)
+		items, pg, hoisted = listViews(rc, ids, p)
 		return nil
 	})
 	if err != nil {
@@ -810,6 +850,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	res.Warnings = append(res.Warnings, hoisted...)
 	return res
 }
 
@@ -1140,8 +1181,9 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 
 func queueStatus(env Env, args []string) *wire.Result {
 	cmd := []string{"queue", "status"}
-	if len(args) != 0 {
-		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes no argument"))
+	withRetries := len(args) == 1 && args[0] == "--retries"
+	if len(args) != 0 && !withRetries {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes only --retries, --fields or --summary"))
 	}
 	var item wire.Value
 	observedAt := time.Now().UTC()
@@ -1218,15 +1260,19 @@ func queueStatus(env Env, args []string) *wire.Result {
 			}
 			attempts = in.Attempts
 		}
-		retries := []wire.Value{}
-		for _, id := range st.Inventory.IDs() {
-			rec, _ := st.Inventory.Get(id)
-			if rec.Status != "OPEN" && rec.Status != "HELD" {
-				continue
+		// The per-ticket retry map dominates the bytes on a large queue, so
+		// it is opt-in (CAL-V0-169); the attempt audit above still runs.
+		if withRetries {
+			retries := []wire.Value{}
+			for _, id := range st.Inventory.IDs() {
+				rec, _ := st.Inventory.Get(id)
+				if rec.Status != "OPEN" && rec.Status != "HELD" {
+					continue
+				}
+				retries = append(retries, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("ticketRevision", wire.String(string(rec.AcceptanceRevision))).Set("retries", retryObservation(rc, attempts, rec))))
 			}
-			retries = append(retries, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("ticketRevision", wire.String(string(rec.AcceptanceRevision))).Set("retries", retryObservation(rc, attempts, rec))))
+			o.Set("retries", wire.Array(retries...))
 		}
-		o.Set("retries", wire.Array(retries...))
 		o.Set("journalAudit", wire.String(auditMode(rc)))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
@@ -1300,4 +1346,15 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	o.Set("files", wire.String(string(wire.CountOf(int64(vr.Files)))))
 	o.Set("bytes", wire.String(string(wire.SizeOf(vr.Bytes))))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+// withoutKeys copies an object item without the named keys.
+func withoutKeys(v wire.Value, keys ...string) wire.Value {
+	out := wire.NewObject()
+	for _, k := range v.Obj.Keys {
+		if !slices.Contains(keys, k) {
+			out.Set(k, v.Obj.Vals[k])
+		}
+	}
+	return wire.ObjectValue(out)
 }

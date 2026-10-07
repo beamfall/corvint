@@ -172,7 +172,7 @@ func TestCALV0073_TemplateRefusesOtherVerbsAndFlags(t *testing.T) {
 			t.Errorf("--template accepted %v", extra)
 		}
 	}
-	help := atm(t, r.Root, nil, "ticket", "create", "--help")
+	help := atm(t, r.Root, nil, "ticket", "create", "--help", "--verbose")
 	if !slices.Contains(strs(field(help.res.Items[0], "flags")), "--template") || field(help.res.Items[0], "template").Str == "" {
 		t.Errorf("create help does not name --template: %s", help.stdout)
 	}

@@ -383,6 +383,15 @@ func TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict(t *testi
 	args := func(payload string) []string {
 		return []string{"release", "create", "--request-id", "release-canonical", "--target", "v0-9", "--issued-at", "2026-09-20T12:01:00Z", "--payload", payload}
 	}
+	// CAL-V0-170: --help anywhere in a full release argv answers help and
+	// never writes, with or without --verbose; the create below is then
+	// not a replay.
+	for _, extra := range [][]string{{"--help"}, {"--help", "--verbose"}} {
+		x := atm(t, r.Root, nil, append(append([]string{"release", "create"}, extra...), args(loose)[2:]...)...)
+		if len(x.res.Items) != 1 || field(x.res.Items[0], "usage").Str == "" {
+			t.Fatalf("release create with %v before other flags: %+v", extra, x.res)
+		}
+	}
 	if x := atm(t, r.Root, nil, args(loose)...); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "replayed").Bool {
 		t.Fatalf("release payload with unsorted keys and escapes: %+v", x.res)
 	}

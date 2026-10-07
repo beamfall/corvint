@@ -155,7 +155,7 @@ func TestCALV0121_StaleHolderCoordinatorHandoff(t *testing.T) {
 	if field(field(show.res.Items[0], "retries"), "charged").Str != "0" {
 		t.Fatalf("handoff charged a retry: %s", show.stdout)
 	}
-	help := handoffCLI(t, root, "release", "--help")
+	help := handoffCLI(t, root, "release", "--help", "--verbose")
 	found := false
 	for _, line := range field(help.res.Items[0], "handoffPreconditions").Arr {
 		if strings.Contains(line.Str, "STALE_HOLDER") && strings.Contains(line.Str, "not release authority") {

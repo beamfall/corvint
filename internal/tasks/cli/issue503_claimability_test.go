@@ -36,7 +36,7 @@ func TestIssue503_ZeroRemainingHandoffAdmission(t *testing.T) {
 			}
 			runOK(args...)
 		}
-		for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status"}} {
+		for _, args := range [][]string{{"ticket", "show", id}, {"plan", "preview"}, {"queue", "status", "--retries"}} {
 			x := runOK(args...)
 			v := x.res.Items[0]
 			if args[0] == "plan" {

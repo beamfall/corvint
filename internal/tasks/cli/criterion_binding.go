@@ -99,7 +99,7 @@ func criterionBindingCommand(env Env, args []string) *wire.Result {
 func criterionCapture(env Env, ticketID, attemptID string, identity wire.CriterionIdentity) (wire.CriterionCapture, wire.CriterionVerification, error) {
 	var last error
 	for tries := 0; tries < 3; tries++ {
-		results := []*wire.Result{ticketShow(env, []string{ticketID}, true), queueStatus(env, nil), readAttempt(env, []string{"show", attemptID}, false)}
+		results := []*wire.Result{ticketShow(env, []string{ticketID}, true), queueStatus(env, []string{"--retries"}), readAttempt(env, []string{"show", attemptID}, false)}
 		encoded := make([]string, 3)
 		ok := true
 		for i, result := range results {

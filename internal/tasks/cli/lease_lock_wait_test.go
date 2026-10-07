@@ -102,7 +102,7 @@ func TestCALV0111_LockWaitFlag(t *testing.T) {
 	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
 		t.Fatal("a refused --lock-wait wrote state")
 	}
-	for _, verb := range [][]string{{"release", "--help"}, {"attempt", "heartbeat", "--help"}} {
+	for _, verb := range [][]string{{"release", "--help", "--verbose"}, {"attempt", "heartbeat", "--help", "--verbose"}} {
 		x := atm(t, root, nil, verb...)
 		usage, note := field(x.res.Items[0], "usage").Str, field(x.res.Items[0], "lockWait").Str
 		if x.code != 0 || !strings.Contains(usage, "[--lock-wait SECONDS]") || !strings.Contains(note, fmt.Sprintf("1..%d", limit)) || !strings.Contains(note, "same request ID") {

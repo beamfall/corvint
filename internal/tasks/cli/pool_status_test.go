@@ -143,7 +143,7 @@ func TestPSRV0014_PoolStatusFilters(t *testing.T) {
 	if x := atm(t, r.Root, nil, "pool", "--help"); !strings.Contains(field(x.res.Items[0], "usage").Str, "status") {
 		t.Fatalf("pool --help %s", x.stdout)
 	}
-	if x := atm(t, r.Root, nil, "pool", "status", "--help"); !strings.Contains(field(x.res.Items[0], "usage").Str, "[--member ID]") || !strings.Contains(field(x.res.Items[0], "note").Str, "no lock") {
+	if x := atm(t, r.Root, nil, "pool", "status", "--help", "--verbose"); !strings.Contains(field(x.res.Items[0], "usage").Str, "[--member ID]") || !strings.Contains(field(x.res.Items[0], "note").Str, "no lock") {
 		t.Fatalf("pool status --help %s", x.stdout)
 	}
 }

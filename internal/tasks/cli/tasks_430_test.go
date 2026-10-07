@@ -10,7 +10,7 @@ import (
 func TestCALV0051_CreateHelpAndMeaningfulIDs(t *testing.T) {
 	t.Run("CAL-V0-051 meaningful IDs create help", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
-		h := handoffCLI(t, root, "ticket", "create", "--help")
+		h := handoffCLI(t, root, "ticket", "create", "--help", "--verbose")
 		if h.code != 0 || strings.Contains(field(h.res.Items[0], "usage").Str, "--target") || strings.Contains(field(h.res.Items[0], "usage").Str, "--expected-revision") || field(h.res.Items[0], "localToken").Str == "" {
 			t.Fatalf("create help: %s", h.stdout)
 		}
