@@ -1103,11 +1103,25 @@ func readTail(path string, n int64) ([]byte, error) {
 	return raw, nil
 }
 
-// Summary is the sanitized last part of a worker's stdout.
+// Summary is the sanitized last part of a worker's stdout. A live log shorter
+// than the window continues the rotated segment of CAL-V0-143, whose leading
+// marker line is not output.
 func Summary(logDir string) string {
-	raw, err := readTail(filepath.Join(logDir, "stdout.log"), 64<<10)
+	const window = 64 << 10
+	path := filepath.Join(logDir, "stdout.log")
+	raw, err := readTail(path, window)
 	if err != nil {
 		return ""
+	}
+	if n := len(raw); n < window {
+		if prev, err := readTail(path+".1", int64(window-n)); err == nil {
+			if strings.HasPrefix(string(prev), "corvint-tasks dispatch: ") {
+				if i := bytes.IndexByte(prev, '\n'); i >= 0 {
+					prev = prev[i+1:]
+				}
+			}
+			raw = append(prev, raw...)
+		}
 	}
 	text := extractText(raw)
 	text = strings.Map(func(r rune) rune {
