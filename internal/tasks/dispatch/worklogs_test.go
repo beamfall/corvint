@@ -666,6 +666,73 @@ func TestCALV0144_TicksConfirmMarksWithoutAnotherFinish(t *testing.T) {
 	}
 }
 
+// TestCALV0144_FailedConfirmingPassIsRetried makes workers/ unreadable on
+// the confirming tick. Once it is readable again, a later tick, with no
+// worker finishing, removes the marked directory.
+func TestCALV0144_FailedConfirmingPassIsRetried(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a directory without permission")
+	}
+	defer func(d time.Duration) { idleFullEvery = d }(idleFullEvery)
+	idleFullEvery = time.Hour
+	c := testConfig(t, `printf '{"type":"text","part":{"text":"done"}}\n'`)
+	q := &witnessQueue{witness: "w1"}
+	q.obs.Tickets = []Ticket{ticket("t1", "P1", 1)}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	ctx := context.Background()
+	if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+		t.Fatalf("tick: %v running %d", err, d.Running())
+	}
+	q.obs.Tickets = nil
+	waitEnded(t, d)
+	if err := d.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !marked(d, "target") || d.retireConfirm.IsZero() {
+		t.Fatalf("the finishing pass: marked=%v confirm=%v", marked(d, "target"), d.retireConfirm)
+	}
+	base := time.Now()
+	tickAt := func(at time.Duration) {
+		t.Helper()
+		d.Now = func() time.Time { return base.Add(at) }
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	workers := filepath.Join(d.dir, "workers")
+	if err := os.Chmod(workers, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(workers, 0o700)
+	tickAt(70 * time.Second)
+	if err := os.Chmod(workers, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if !marked(d, "target") || d.retireConfirm.IsZero() {
+		t.Fatalf("the failed pass: marked=%v confirm=%v", marked(d, "target"), d.retireConfirm)
+	}
+	tickAt(100 * time.Second)
+	if _, err := os.Stat(d.workerDir("target")); err != nil {
+		t.Fatalf("a tick before the retry removed the directory: %v", err)
+	}
+	tickAt(140 * time.Second)
+	if _, err := os.Stat(d.workerDir("target")); !os.IsNotExist(err) || marked(d, "target") {
+		t.Fatalf("the retried pass kept the directory: %v, marked=%v", err, marked(d, "target"))
+	}
+	if !d.retireConfirm.IsZero() {
+		t.Fatalf("a confirmation is still scheduled at %v", d.retireConfirm)
+	}
+}
+
 // TestCALV0144_RestartConfirmsLeftMarks marks a directory and closes the
 // dispatcher. The next dispatcher's first tick, with no worker finishing,
 // confirms the mark.
