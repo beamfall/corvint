@@ -123,6 +123,16 @@ func TestCALV0176_ConfigWithoutFragmentsUnchanged(t *testing.T) {
 	if _, err := DecodeConfig(bytes.Replace(raw, []byte(work), []byte(`"prompt":123,`+work), 1)); err == nil {
 		t.Fatal("number then prompt accepted")
 	}
+	// A repeated roles member decodes into the same elements, as before: a
+	// second role object that omits budget keeps the first one's.
+	c.Roles[0].Budget = &Budget{SessionsPerDay: 3}
+	withBudget, _ := json.Marshal(c)
+	second := `,"roles":[{"name":"impl","host":"sh","cap":2,"match":{},"idleSeconds":30,"wallSeconds":60}]}`
+	twice := append(bytes.TrimSuffix(withBudget, []byte("}")), second...)
+	if got, err := DecodeConfig(twice); err != nil || got.Roles[0].Budget == nil || got.Roles[0].Prompt != c.Roles[0].Prompt {
+		t.Fatalf("repeated roles member: %v %+v", err, got)
+	}
+	c.Roles[0].Budget = nil
 	unknown := bytes.Replace(raw, []byte(`"name":"impl"`), []byte(`"name":"impl","extra":1`), 1)
 	if _, err := DecodeConfig(unknown); err == nil || !strings.Contains(err.Error(), "unknown field") {
 		t.Fatalf("unknown role member: %v", err)

@@ -54,3 +54,7 @@ The change adds proposed CAL-V0-175 to CAL-V0-178 to
   occurrence as the string field did (`null` keeps the earlier text; an earlier bad type still
   fails). P2: the 32-role bound now refuses before expansion allocates. P3: the expanded-size
   refusal names the part or fragment that passes the limit.
+- Codex round 2: round-1 repairs confirmed; one P2 accepted: `Role.UnmarshalJSON` now starts from
+  the existing element, as the default decoder does, so a repeated top-level `roles` member keeps
+  earlier fields (regression in `TestCALV0176_ConfigWithoutFragmentsUnchanged`, fails without it).
+  Repeated top-level members are themselves an older looseness of the closed decoder, left as is.

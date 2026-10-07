@@ -71,6 +71,9 @@ func (r *Role) UnmarshalJSON(raw []byte) error {
 		plain
 		Prompt rolePrompt `json:"prompt"`
 	}
+	// Start from *r, as the default decoder does: a repeated top-level
+	// roles member decodes into the same slice elements.
+	v.plain, v.Prompt = plain(*r), rolePrompt{text: r.Prompt, parts: r.promptParts}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&v); err != nil {
