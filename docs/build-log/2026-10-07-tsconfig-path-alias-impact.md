@@ -178,3 +178,40 @@ tens of milliseconds and impact stays sub-second.
 Out of scope: `TestSourceViewNativeSourceDigestsAreFrozen` in `cmd/corvint` fails on the base commit
 8af2bf62 as well (the `cmd/corvint/source_handoff.go` digest is not re-frozen). This change does not
 touch it.
+
+Round 3 reported six P2 findings. Four were accepted, after checking them against TypeScript
+5.9.3 (`createComputedCompilerOptions`, `nodeLoadModuleByRelativeName`, `loadModuleFromFile`,
+`classicNameResolver`). Round 2's agreement rule is replaced by reading the mode. Twelve
+`TestWebImportResolverFailsClosed` cases cover the accepted findings, and all twelve fail on the
+round 2 resolver (observed). Two cases from round 2 changed their expectation, because the
+default config is now known to be node10.
+
+1. `.mts` and `.cts` files and their declaration forms are typed files, so node10 picks them in
+   its first pass.
+2. A trailing slash on a substitution, a relative specifier or a `baseUrl` lookup names a
+   directory only.
+3. Under node10, a target that only the JavaScript pass reaches is unresolved when the name is a
+   declared package. node10 tries `node_modules` types before JavaScript, and `node_modules` is not
+   indexed.
+4. The mode is now read. It comes from `moduleResolution`, else `module`, else `target`, each
+   inherited through extends. With a known mode, its own pass order replaces the agreement check.
+   - node16 and nodenext treat a target reached by an added extension or a directory index as
+     unresolved.
+   - Classic leaves every bare specifier unresolved, because its ancestor-directory search is not
+     modelled.
+   - An unknown mode leaves everything unresolved. This includes a package extends that leaves the
+     mode undecided.
+
+Two findings were declined. Both are recorded in `GPK-V0-077`.
+
+5. A substitution naming a stylesheet resolves to that file, although `tsc` leaves it unresolved.
+6. A `.json` target resolves whether or not `resolveJsonModule` is set.
+
+The reason for both: impact asks which files depend on the changed file, and a bundler or Node
+imports the asset at run time. Dropping the edge would hide a real dependent. Keeping it at most
+adds an importer to the selection.
+
+Self-dogfood after round 3: `impact extensions/vscode/src/configuration.ts` takes 3.97 s, including
+the index rebuild after the pin change. The repository's config uses `moduleResolution` `Node16`.
+The result has the same three reverse imports and the same disclosure, "12 bare import specifiers
+in 8 sources".

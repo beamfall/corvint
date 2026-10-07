@@ -89,15 +89,39 @@ func NewWebImportResolver(index *Index) *WebImportResolver {
 
 // Resolve classifies specifier as named by importer. Relative specifiers
 // resolve against the importer's directory with the same file, extension and
-// index rules as aliases; a missing relative target is unresolved.
+// index rules as aliases, under the governing config's module resolution; a
+// missing relative target is unresolved.
 func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImportResolution {
 	if strings.HasPrefix(specifier, ".") {
-		return resolvedOrUnknown(resolver.loadBoth(path.Join(path.Dir(importer), specifier)).target)
+		return resolvedOrUnknown(resolver.loadFrom(importer, webJoin(path.Dir(importer), specifier)).target)
 	}
 	if prefix := resolver.profile.WebAliasPrefix; prefix != "" && strings.HasPrefix(specifier, prefix) {
-		return resolvedOrUnknown(resolver.loadBoth(resolver.profile.WebAliasRoot + specifier[len(prefix):]).target)
+		return resolvedOrUnknown(resolver.loadFrom(importer, webJoin(resolver.profile.WebAliasRoot, specifier[len(prefix):])).target)
 	}
 	return resolver.resolveBare(importer, specifier)
+}
+
+// loadFrom loads one candidate path under the module resolution of the
+// config governing importer, or TypeScript's default (node10) without one.
+func (resolver *WebImportResolver) loadFrom(importer, candidate string) webAliasOutcome {
+	mode := webModeNode10
+	if config := resolver.governing(path.Dir(importer)); config != "" {
+		mode = resolver.effective(config).mode
+	}
+	return inMode(mode, func(pass webPass) webAliasOutcome {
+		target, inferred, stop := resolver.load(candidate, pass, mode != webModeClassic)
+		return webAliasOutcome{target: target, inferred: inferred, unknown: stop}
+	})
+}
+
+// webJoin joins a relative path onto a directory and keeps a trailing slash,
+// which TypeScript reads as naming a directory only.
+func webJoin(directory, relative string) string {
+	joined := path.Join(directory, relative)
+	if strings.HasSuffix(relative, "/") && !strings.HasSuffix(joined, "/") {
+		joined += "/"
+	}
+	return joined
 }
 
 func resolvedOrUnknown(target string) WebImportResolution {
@@ -124,6 +148,12 @@ func (resolver *WebImportResolver) resolveBare(importer, specifier string) WebIm
 			outcome = resolver.alias(config, specifier)
 			resolver.aliases[config+"\x00"+specifier] = outcome
 		}
+		if outcome.target != "" && outcome.untyped && resolver.declaredPackage(importer, specifier) {
+			// node10 tries node_modules with TypeScript and declaration
+			// files before it tries JavaScript anywhere, so a declared
+			// package's types (not indexed) may win over this file.
+			return WebImportResolution{State: WebImportUnresolved}
+		}
 		if outcome.target != "" {
 			return WebImportResolution{Target: outcome.target, State: WebImportRepository}
 		}
@@ -144,13 +174,29 @@ func (resolver *WebImportResolver) resolveBare(importer, specifier string) WebIm
 type webAliasOutcome struct {
 	target  string
 	unknown bool
+	// inferred marks a target reached by an added extension or a directory
+	// index, which TypeScript's ESM mode does not do.
+	inferred bool
+	// untyped marks a target only node10's JavaScript pass reached.
+	untyped bool
 }
 
-// webPass selects the file forms one resolution pass may pick. Under
-// moduleResolution node10 TypeScript runs the whole lookup with TypeScript
-// and declaration files first and then again with JavaScript; bundler, node16
-// and nodenext run it once with every form. The mode is not read, so a name
-// resolves only when both orders agree (bothModes).
+// webMode is the effective moduleResolution, read or derived from `module`
+// and `target` as TypeScript does.
+type webMode uint8
+
+const (
+	webModeUnknown webMode = iota
+	webModeNode10
+	webModeBundler
+	webModeNode16
+	webModeClassic
+)
+
+// webPass selects the file forms one resolution pass may pick. node10 and
+// classic run the whole lookup with TypeScript and declaration files first
+// and then again with JavaScript; bundler, node16 and nodenext run it once
+// with every form.
 type webPass uint8
 
 const (
@@ -160,38 +206,47 @@ const (
 )
 
 func (pass webPass) admits(name string) bool {
-	typed := strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".tsx")
+	typed := false
+	for _, extension := range []string{".ts", ".tsx", ".mts", ".cts"} {
+		typed = typed || strings.HasSuffix(name, extension)
+	}
 	return typed && pass&webPassTyped != 0 || !typed && pass&webPassUntyped != 0
 }
 
-// bothModes keeps a resolution only when the node10 order and the
-// single-pass order give the same answer; otherwise the name is unknown.
-func bothModes(resolve func(webPass) webAliasOutcome) webAliasOutcome {
-	node10 := resolve(webPassTyped)
-	if node10.target == "" && !node10.unknown {
-		node10 = resolve(webPassUntyped)
+// inMode runs one lookup in mode's pass order. Under node16 and nodenext a
+// file is in ESM or CommonJS mode by its own extension and package.json,
+// which are not read here, and only CommonJS mode adds extensions or reads a
+// directory index, so a target reached that way is unknown. An unknown mode
+// is unknown.
+func inMode(mode webMode, resolve func(webPass) webAliasOutcome) webAliasOutcome {
+	switch mode {
+	case webModeNode10, webModeClassic:
+		if outcome := resolve(webPassTyped); outcome.target != "" || outcome.unknown {
+			return outcome
+		}
+		outcome := resolve(webPassUntyped)
+		outcome.untyped = outcome.target != ""
+		return outcome
+	case webModeBundler:
+		return resolve(webPassAll)
+	case webModeNode16:
+		if outcome := resolve(webPassAll); !outcome.inferred {
+			return outcome
+		}
 	}
-	if resolve(webPassAll) != node10 {
-		return webAliasOutcome{unknown: true}
-	}
-	return node10
-}
-
-func (resolver *WebImportResolver) loadBoth(candidate string) webAliasOutcome {
-	return bothModes(func(pass webPass) webAliasOutcome {
-		target, stop := resolver.load(candidate, pass)
-		return webAliasOutcome{target: target, unknown: stop}
-	})
+	return webAliasOutcome{unknown: true}
 }
 
 func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutcome {
 	options := resolver.effective(config)
-	if !options.pathsKnown || !options.baseKnown {
+	if !options.pathsKnown || !options.baseKnown || options.mode == webModeClassic {
 		// An unknown inherited baseUrl or paths may claim any name, even a
-		// declared package's, so no answer is safe.
+		// declared package's, so no answer is safe. Classic resolution also
+		// looks for the name in every ancestor directory, which is not
+		// modelled.
 		return webAliasOutcome{unknown: true}
 	}
-	return bothModes(func(pass webPass) webAliasOutcome {
+	return inMode(options.mode, func(pass webPass) webAliasOutcome {
 		return resolver.aliasIn(options, specifier, pass)
 	})
 }
@@ -224,9 +279,9 @@ func (resolver *WebImportResolver) aliasIn(options *webOptions, specifier string
 				if webExtension(substitution) != "" && resolver.exists(candidate) {
 					return webAliasOutcome{target: candidate}
 				}
-				target, stop := resolver.load(candidate, pass)
+				target, inferred, stop := resolver.load(candidate, pass, true)
 				if target != "" {
-					return webAliasOutcome{target: target}
+					return webAliasOutcome{target: target, inferred: inferred}
 				}
 				if stop {
 					return webAliasOutcome{unknown: true}
@@ -236,9 +291,9 @@ func (resolver *WebImportResolver) aliasIn(options *webOptions, specifier string
 		}
 	}
 	if options.baseURL != "" {
-		target, stop := resolver.load(path.Join(options.baseURL, specifier), pass)
+		target, inferred, stop := resolver.load(webJoin(options.baseURL, specifier), pass, true)
 		if target != "" {
-			return webAliasOutcome{target: target}
+			return webAliasOutcome{target: target, inferred: inferred}
 		}
 		if stop {
 			return webAliasOutcome{unknown: true}
@@ -277,49 +332,56 @@ var webImplicitExtensions = []string{".ts", ".tsx", ".d.ts", ".js", ".jsx"}
 // load resolves one candidate path to a tracked file: the file itself with an
 // extension replaced or added, then the directory's index. Another named
 // extension (a stylesheet, say) resolves exactly or through its `.d<ext>.ts`
-// declaration, because a bundler resolves it. stop reports a directory holding
-// a package.json, whose entry point is not resolved here, so the caller
-// reports unknown instead of trying a later candidate.
-func (resolver *WebImportResolver) load(candidate string, pass webPass) (target string, stop bool) {
+// declaration, because a bundler resolves it. A candidate with a trailing
+// slash names a directory only. index is false under classic resolution,
+// which reads no directory. inferred reports an added extension or a
+// directory index. stop reports a directory holding a package.json, whose
+// entry point is not resolved here, so the caller reports unknown instead of
+// trying a later candidate.
+func (resolver *WebImportResolver) load(candidate string, pass webPass, index bool) (target string, inferred, stop bool) {
+	directoryOnly := strings.HasSuffix(candidate, "/")
 	candidate = path.Clean(candidate)
 	if candidate == ".." || strings.HasPrefix(candidate, "../") || strings.HasPrefix(candidate, "/") {
-		return "", false
+		return "", false, false
 	}
 	directory := candidate + "/"
 	if candidate == "." {
 		// The repository root has no file form, only a directory index.
 		directory = ""
-	} else {
+	} else if !directoryOnly {
 		if extension := webExtension(candidate); extension != "" {
 			stem := strings.TrimSuffix(candidate, extension)
 			for _, replacement := range webReplacements[extension] {
 				if resolver.has(stem+replacement, pass) {
-					return stem + replacement, false
+					return stem + replacement, false, false
 				}
 			}
 		} else if extension := path.Ext(candidate); extension != "" {
 			stem := strings.TrimSuffix(candidate, extension)
 			for _, name := range []string{candidate, stem + ".d" + extension + ".ts"} {
 				if resolver.has(name, pass) {
-					return name, false
+					return name, false, false
 				}
 			}
 		}
 		for _, added := range webImplicitExtensions {
 			if resolver.has(candidate+added, pass) {
-				return candidate + added, false
+				return candidate + added, true, false
 			}
 		}
 	}
+	if !index {
+		return "", false, false
+	}
 	if resolver.exists(directory + "package.json") {
-		return "", true
+		return "", false, true
 	}
 	for _, added := range webImplicitExtensions {
 		if resolver.has(directory+"index"+added, pass) {
-			return directory + "index" + added, false
+			return directory + "index" + added, true, false
 		}
 	}
-	return "", false
+	return "", false, false
 }
 
 // has reports a tracked file the pass may pick.
@@ -374,7 +436,18 @@ type webConfig struct {
 	paths                map[string][]string
 	pathsSet, pathsValid bool
 	moduleSuffixes       bool
+	// settings holds moduleResolution, module and target, in that order.
+	settings [3]webSetting
 }
+
+// webSetting is one string compiler option a config declares: set, with its
+// lower-cased value ("" for JSON null), valid when the value is a string.
+type webSetting struct {
+	set, valid bool
+	value      string
+}
+
+var webSettingNames = [3]string{"moduleResolution", "module", "target"}
 
 // webOptions is a leaf config's effective resolution input after extends.
 // A field is known only when a readable config declares it before any
@@ -384,6 +457,7 @@ type webOptions struct {
 	baseURL, pathsBase, leafDirectory string
 	baseKnown, pathsKnown             bool
 	paths                             map[string][]string
+	mode                              webMode
 }
 
 func (resolver *WebImportResolver) parse(name string) *webConfig {
@@ -411,9 +485,12 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 	var raw struct {
 		Extends         json.RawMessage `json:"extends"`
 		CompilerOptions *struct {
-			BaseURL        json.RawMessage `json:"baseUrl"`
-			Paths          json.RawMessage `json:"paths"`
-			ModuleSuffixes json.RawMessage `json:"moduleSuffixes"`
+			BaseURL          json.RawMessage `json:"baseUrl"`
+			Paths            json.RawMessage `json:"paths"`
+			ModuleSuffixes   json.RawMessage `json:"moduleSuffixes"`
+			ModuleResolution json.RawMessage `json:"moduleResolution"`
+			Module           json.RawMessage `json:"module"`
+			Target           json.RawMessage `json:"target"`
 		} `json:"compilerOptions"`
 	}
 	if jsonv2.Unmarshal([]byte(clean), &raw) != nil {
@@ -447,7 +524,67 @@ func parseWebConfig(sources map[string]Source, name string) *webConfig {
 		var values []string
 		config.moduleSuffixes = jsonv2.Unmarshal(options.ModuleSuffixes, &values) != nil || len(values) != 1 || values[0] != ""
 	}
+	for position, raw := range [3]json.RawMessage{options.ModuleResolution, options.Module, options.Target} {
+		if len(raw) == 0 {
+			continue
+		}
+		setting := webSetting{set: true, valid: true}
+		if string(raw) != "null" {
+			setting.valid = jsonv2.Unmarshal(raw, &setting.value) == nil && setting.value != ""
+			setting.value = strings.ToLower(setting.value)
+		}
+		config.settings[position] = setting
+	}
 	return config
+}
+
+// webModeOf applies TypeScript 5.9's computed moduleResolution: the declared
+// value, else one derived from `module`, else from `target` (CommonJS below
+// ES2015, else ES2015, which resolves classically). An unknown or invalid
+// input is an unknown mode.
+func webModeOf(settings [3]webSetting, known [3]bool) webMode {
+	for position := range settings {
+		if !known[position] || settings[position].set && !settings[position].valid {
+			return webModeUnknown
+		}
+		value := settings[position].value
+		if value == "" {
+			continue
+		}
+		switch position {
+		case 0:
+			switch value {
+			case "node", "node10":
+				return webModeNode10
+			case "bundler":
+				return webModeBundler
+			case "node16", "nodenext":
+				return webModeNode16
+			case "classic":
+				return webModeClassic
+			}
+		case 1:
+			switch value {
+			case "commonjs":
+				return webModeNode10
+			case "node16", "node18", "node20", "nodenext":
+				return webModeNode16
+			case "preserve":
+				return webModeBundler
+			case "none", "amd", "umd", "system", "es6", "es2015", "es2020", "es2022", "esnext":
+				return webModeClassic
+			}
+		default:
+			switch value {
+			case "es3", "es5":
+				return webModeNode10
+			case "es6", "es2015", "es2016", "es2017", "es2018", "es2019", "es2020", "es2021", "es2022", "es2023", "es2024", "esnext":
+				return webModeClassic
+			}
+		}
+		return webModeUnknown
+	}
+	return webModeNode10
 }
 
 // validWebPaths applies TypeScript's own validity rule: at most one `*` in a
@@ -485,6 +622,9 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 		baseDecided, pathsDecided, broken bool
 		pathsDirectory                    string
 		visits                            int
+		settings                          [3]webSetting
+		settingDecided                    [3]bool
+		settingKnown                      = [3]bool{true, true, true}
 	)
 	external := func() {
 		if !baseDecided {
@@ -492,6 +632,11 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 		}
 		if !pathsDecided {
 			pathsDecided, options.pathsKnown = true, false
+		}
+		for position := range settingDecided {
+			if !settingDecided[position] {
+				settingDecided[position], settingKnown[position] = true, false
+			}
 		}
 	}
 	var walk func(name string, depth int, stack map[string]bool)
@@ -521,6 +666,11 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 			options.pathsKnown = config.pathsValid
 			options.paths, pathsDirectory = config.paths, config.directory
 		}
+		for position, setting := range config.settings {
+			if setting.set && !settingDecided[position] {
+				settingDecided[position], settings[position] = true, setting
+			}
+		}
 		stack[name] = true
 		for position := len(config.extends) - 1; position >= 0 && !broken; position-- {
 			parent, state := resolver.extendsPath(config.extends[position], config.directory)
@@ -536,8 +686,9 @@ func (resolver *WebImportResolver) effective(leaf string) *webOptions {
 		delete(stack, name)
 	}
 	walk(leaf, 0, map[string]bool{})
+	options.mode = webModeOf(settings, settingKnown)
 	if broken {
-		options.baseKnown, options.pathsKnown, options.paths = false, false, nil
+		options.baseKnown, options.pathsKnown, options.paths, options.mode = false, false, nil, webModeUnknown
 	}
 	options.pathsBase = options.baseURL
 	if options.pathsBase == "" {
@@ -574,11 +725,11 @@ func webConfigPath(value, directory, leafDirectory string) string {
 func (options *webOptions) webSubstitutionPath(substitution string) (candidate string, inside bool) {
 	substitution = strings.ReplaceAll(substitution, "\\", "/")
 	if rest, ok := strings.CutPrefix(substitution, "${configDir}"); ok {
-		candidate = path.Join(options.leafDirectory, rest)
+		candidate = webJoin(options.leafDirectory, rest)
 	} else if webRooted(substitution) {
 		return "", false
 	} else {
-		candidate = path.Join(options.pathsBase, substitution)
+		candidate = webJoin(options.pathsBase, substitution)
 	}
 	return candidate, candidate != ".." && !strings.HasPrefix(candidate, "../")
 }

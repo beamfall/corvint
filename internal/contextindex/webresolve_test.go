@@ -229,8 +229,11 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"tsconfig.json": `{"extends": "./absent.json", "compilerOptions": {"baseUrl": "src"}}`,
 		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
 		"package extends under leaf baseUrl and paths": {map[string]string{
-			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}}}`,
+			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}, "moduleResolution": "bundler"}}`,
 		}, "lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"package extends may declare the module resolution": {map[string]string{
+			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src", "paths": {}}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
 		"package extends may declare paths": {map[string]string{
 			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src"}}`,
 		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
@@ -287,15 +290,60 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"tsconfig.json": `{"compilerOptions": {"paths": {"root": ["."]}}}`,
 			"index.ts":      page,
 		}, "root", WebImportResolution{"index.ts", WebImportRepository}},
-		"node10 and bundler orders disagree": {map[string]string{
+		"node10 tries typed files first": {map[string]string{
 			"tsconfig.json": `{"compilerOptions": {"paths": {"alias": ["first/foo", "second/foo"]}}}`,
 			"first/foo.js":  page,
 			"second/foo.ts": page,
-		}, "alias", WebImportResolution{State: WebImportUnresolved}},
-		"relative orders disagree": {map[string]string{
+		}, "alias", WebImportResolution{"second/foo.ts", WebImportRepository}},
+		"bundler tries every form at once": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"moduleResolution": "Bundler", "paths": {"alias": ["first/foo", "second/foo"]}}}`,
+			"first/foo.js":  page,
+			"second/foo.ts": page,
+		}, "alias", WebImportResolution{"first/foo.js", WebImportRepository}},
+		"relative node10 takes a typed index": {map[string]string{
 			"app/foo.js":       page,
 			"app/foo/index.ts": page,
-		}, "./foo", WebImportResolution{State: WebImportUnresolved}},
+		}, "./foo", WebImportResolution{"app/foo/index.ts", WebImportRepository}},
+		"relative bundler takes the file": {map[string]string{
+			"tsconfig.json":    `{"compilerOptions": {"module": "preserve"}}`,
+			"app/foo.js":       page,
+			"app/foo/index.ts": page,
+		}, "./foo", WebImportResolution{"app/foo.js", WebImportRepository}},
+		"mts is a typed form": {map[string]string{
+			"tsconfig.json":  `{"compilerOptions": {"paths": {"alias": ["first/foo", "second/foo.mjs"]}}}`,
+			"first/foo.js":   page,
+			"second/foo.mts": page,
+		}, "alias", WebImportResolution{"second/foo.mts", WebImportRepository}},
+		"trailing slash names a directory": {map[string]string{
+			"tsconfig.json":    `{"compilerOptions": {"paths": {"lib": ["src/lib/"]}}}`,
+			"src/lib.ts":       page,
+			"src/lib/index.ts": page,
+		}, "lib", WebImportResolution{"src/lib/index.ts", WebImportRepository}},
+		"declared types may win over node10 JavaScript": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias": ["src/alias"]}}}`,
+			"package.json":  `{"devDependencies": {"@types/alias": "1.0.0"}}`,
+			"src/alias.js":  page,
+		}, "alias", WebImportResolution{State: WebImportUnresolved}},
+		"bundler takes JavaScript over declared types": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"moduleResolution": "bundler", "paths": {"alias": ["src/alias"]}}}`,
+			"package.json":  `{"devDependencies": {"@types/alias": "1.0.0"}}`,
+			"src/alias.js":  page,
+		}, "alias", WebImportResolution{"src/alias.js", WebImportRepository}},
+		"nodenext needs an explicit extension": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"module": "NodeNext", "paths": {"alias": ["src/lib/page"]}}}`,
+		}, "alias", WebImportResolution{State: WebImportUnresolved}},
+		"nodenext explicit extension": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"moduleResolution": "node16", "paths": {"alias": ["src/lib/page.js"]}}}`,
+		}, "alias", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"classic module is not modelled": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"module": "esnext", "baseUrl": "src"}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
+		"modern target without module is classic": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"target": "ES2020", "baseUrl": "src"}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
+		"invalid module resolution": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"moduleResolution": 2, "baseUrl": "src"}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
 		"empty baseUrl is the config directory": {map[string]string{
 			"tsconfig.json": `{"compilerOptions": {"baseUrl": ""}}`,
 		}, "src/lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},

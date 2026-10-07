@@ -1488,28 +1488,44 @@ arm is unchanged.
   resolves exactly or through its `.d<ext>.ts` declaration, as a bundler would; an
   extension-bearing candidate that fails still tries the five extensions appended; and a
   directory, including the repository root, resolves through its `index` file with the same
-  extensions. `moduleResolution` is not read: `node10` runs the whole lookup with TypeScript and
-  declaration files first and JavaScript second, while `bundler`, `node16` and `nodenext` run it
-  once with every form, so a specifier resolves only when both orders pick the same file and is
-  unresolved otherwise. An empty `*` capture leaves the substitution as written, and an empty
-  `baseUrl` is the declaring config's directory, as in TypeScript. A resolved
+  extensions. A candidate with a trailing slash names a directory only. JSON and other non-module
+  files resolve whatever `resolveJsonModule` and `allowArbitraryExtensions` say, because impact
+  asks which files depend on the changed one and the importer depends on that file at run time
+  even where the type checker would not resolve it. The mode is TypeScript 5.9's computed
+  `moduleResolution`: the declared value, else one derived from `module` (`commonjs` is node10,
+  `node16` to `nodenext` are node16, `preserve` is bundler, any other value is classic), else from
+  `target` (none, `es3` or `es5` is node10, any later target is classic), each field taken from
+  the first config that declares it. node10 runs the whole lookup with TypeScript and declaration
+  files (`.ts`, `.tsx`, `.mts`, `.cts` and their declaration forms) first and JavaScript second;
+  bundler runs it once with every form. Under node10 a target that only the JavaScript pass
+  reaches is unresolved when the name is a `GPK-V0-080` declared package, because its types,
+  which are not indexed, would win. node16 and nodenext run it once, but a file's ESM or CommonJS
+  mode is not read and only CommonJS mode adds extensions or reads a directory index, so a target
+  reached that way is unresolved. Classic resolution also searches every ancestor directory for
+  a bare name, which is not modelled, so every bare specifier under a classic config is
+  unresolved; its relative specifiers resolve without a directory index. An unknown or invalid
+  mode makes every specifier under that config unresolved. An empty `*` capture leaves the
+  substitution as written, and an empty `baseUrl` is the declaring config's directory, as in
+  TypeScript. A resolved
   importer other than the changed path itself is a `reverse-import` row of the same shape,
   scores, evidence reason (`imports <specifier>`) and `syntax` authority as an oracle row, in
   addition to the oracle arm's rows. `NewWebImportResolver(index).Resolve(importer, specifier)`
   is the exported form of the same rule, returning `repository` with a target, `package`, or
-  `unresolved`; it also resolves relative and profile-alias specifiers with the loader above.
+  `unresolved`; it also resolves relative and profile-alias specifiers with the loader above,
+  under the governing config's mode, or node10 when no config governs.
 - `GPK-V0-078`: (proposed, pending owner acceptance; V1-0958) Config reading never guesses.
   A config is read as JSONC (line and block comments and trailing commas removed outside strings)
   and decoded strictly: invalid UTF-8, duplicate keys, an unterminated string or comment, or more
   than 1 MiB makes it unreadable. `extends` (a string or an array) is walked child first, the
-  last array entry before earlier ones, and the first declaration of `baseUrl` or `paths` wins
-  (a JSON `null` declares the field unset). A relative entry names an indexed config as written
+  last array entry before earlier ones, and the first declaration of `baseUrl`, `paths`,
+  `moduleResolution`, `module` or `target` wins (a JSON `null` declares the field unset). A relative entry names an indexed config as written
   or with `.json` added. A cycle, an unreadable or missing relative config, an absolute or
   repository-escaping entry, more than 16 links in one chain, more than 64 configs in one graph,
   any `moduleSuffixes` other than `[""]`, or invalid `paths` (more than one `*` in a key or
   substitution, an empty substitution list) makes the whole config unknown, even a field the leaf
   declares, because TypeScript rejects the project as written. A package-named entry is legal but
-  not indexed, so only the fields no earlier config declares become unknown. An unknown `baseUrl`
+  not indexed, so only the fields no earlier config declares become unknown; an undecided mode
+  field therefore makes the mode unknown unless a known field before it decides it. An unknown `baseUrl`
   or `paths` may claim any name, even a declared package's, so every bare specifier under that
   config is unresolved. Two matching wildcard keys with the same prefix length, a rooted
   (leading slash, drive letter or URL) or repository-escaping substitution (TypeScript could pick
