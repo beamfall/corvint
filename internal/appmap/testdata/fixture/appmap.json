@@ -1,0 +1,15 @@
+{
+  "schema": "application-map-manifest/0",
+  "app": "admin",
+  "hash_prefix": "#!",
+  "routers": [{"path": "app/routes.js", "dialect": "ui-router-states/0"}],
+  "flows": "flows",
+  "tests": {
+    "root": "e2e",
+    "specs": ["e2e/specs"],
+    "page_objects": ["e2e/pages"],
+    "workflows": ["e2e/workflows"],
+    "scenarios": ["e2e/scenarios"]
+  },
+  "page_object_screens": [{"path": "e2e/pages/teesheet.page.ts", "state": "app.clubs.teesheets"}]
+}

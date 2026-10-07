@@ -156,6 +156,13 @@
       "go.mod"
     ],
     "internal/appflows": [],
+    "internal/appmap": [
+      "internal/authorityevent/",
+      "internal/authoritystore/",
+      "internal/contextindex/",
+      "internal/localauthority/",
+      "internal/slotlearn/"
+    ],
     "internal/attest": [
       "interop/cem-0.1/"
     ],

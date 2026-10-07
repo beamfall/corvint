@@ -196,6 +196,43 @@
     ]
   },
   {
+    "path": "docs/specs/application-map-scenario-planner-v0.md",
+    "title": "Application Map Scenario Planner V0",
+    "reqPrefix": "AMSP-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "A plain-language multi-step request becomes one capped, deterministic E2E plan over application maps that fails closed on unmapped or stale steps.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint",
+      "cmd/corvint-corpus-mcp"
+    ]
+  },
+  {
+    "path": "docs/specs/application-map-v0.md",
+    "title": "Application Map V0",
+    "reqPrefix": "AMAP-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/applied-intelligence-breakthroughs-v0.md",
     "title": "Applied Intelligence Breakthroughs V0",
     "reqPrefix": "",
@@ -2703,6 +2740,25 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/ruby"
+    ]
+  },
+  {
+    "path": "docs/specs/run-verified-navigation-v0.md",
+    "title": "Run-Verified Navigation V0",
+    "reqPrefix": "RVN-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Playwright receipts bound to map steps read VERIFIED at their app revision, UNVERIFIED_AT_HEAD after a source change, CONTRADICTED on failure.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/observation-corpus-authority-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint"
     ]
   },
   {

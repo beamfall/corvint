@@ -206,6 +206,31 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
+AMAP-V0-001	docs/specs/application-map-v0.md	68	The map MUST be compiled from a closed `application-map-manifest/0` document
+AMAP-V0-002	docs/specs/application-map-v0.md	77	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
+AMAP-V0-003	docs/specs/application-map-v0.md	89	Screens MUST be keyed by app plus template. Two resolved screens with the same
+AMAP-V0-004	docs/specs/application-map-v0.md	97	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
+AMAP-V0-005	docs/specs/application-map-v0.md	104	Test files MUST be joined to screens through the contextindex import graph:
+AMAP-V0-006	docs/specs/application-map-v0.md	119	Each screen MUST aggregate permissions and flags (inherited from the nearest
+AMAP-V0-007	docs/specs/application-map-v0.md	123	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
+AMAP-V0-008	docs/specs/application-map-v0.md	142	Edges MUST come only from evidence: `flow-step` edges between adjacent
+AMAP-V0-009	docs/specs/application-map-v0.md	147	The map MUST be deterministic for one revision: sorted nodes, edges, files and
+AMAP-V0-010	docs/specs/application-map-v0.md	151	Every element MUST be pinned to the anchor it was read from. A projection MUST
+AMAP-V0-011	docs/specs/application-map-v0.md	166	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
+AMAP-V0-012	docs/specs/application-map-v0.md	176	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
+AMAP-V0-013	docs/specs/application-map-v0.md	181	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
+AMAP-V0-014	docs/specs/application-map-v0.md	207	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
+AMAP-V0-015	docs/specs/application-map-v0.md	216	Building and projecting MUST NOT write to the repository, the index, or any
+AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
+AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
+AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
+AMSP-V0-004	docs/specs/application-map-scenario-planner-v0.md	91	The plan MUST open one session per application that has at least one resolved
+AMSP-V0-005	docs/specs/application-map-scenario-planner-v0.md	98	A step MUST read, in this order of precedence:
+AMSP-V0-006	docs/specs/application-map-scenario-planner-v0.md	114	Navigation MUST be composed over MAPPED steps only:
+AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	126	Verification MUST be read from the AMAP-V0-014 overlays in
+AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	149	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
+AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	171	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
+AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	177	The planner MUST be served by two surfaces:
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -2483,6 +2508,14 @@ RUST-AFFECTED-V0-007	docs/specs/rust-affected-test-understanding-v0.md	88	`thirt
 RUST-AFFECTED-V0-008	docs/specs/rust-affected-test-understanding-v0.md	90	A `cucumber` dependency or `.feature` input MUST report unresolved
 RUST-AFFECTED-V0-009	docs/specs/rust-affected-test-understanding-v0.md	92	Unreadable source, unresolved manifest structure, source outside a Cargo
 RUST-AFFECTED-V0-010	docs/specs/rust-affected-test-understanding-v0.md	96	The adapter MUST satisfy the common language-seam witness, exclusion,
+RVN-V0-001	docs/specs/run-verified-navigation-v0.md	65	`corvint flows appmap screen` and `flow` MUST accept repeatable
+RVN-V0-002	docs/specs/run-verified-navigation-v0.md	75	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro
+RVN-V0-003	docs/specs/run-verified-navigation-v0.md	83	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a
+RVN-V0-004	docs/specs/run-verified-navigation-v0.md	92	Placed evidence MUST be compared with the projection's evaluated revision
+RVN-V0-005	docs/specs/run-verified-navigation-v0.md	97	The status MUST be exactly one of `VERIFIED`, `UNVERIFIED_AT_HEAD`,
+RVN-V0-006	docs/specs/run-verified-navigation-v0.md	105	When receipts are supplied, the `screen` and `flow` projections MUST print the
+RVN-V0-007	docs/specs/run-verified-navigation-v0.md	120	The fact and its text MUST always carry authority `learned`. A run status MUST N
+RVN-V0-008	docs/specs/run-verified-navigation-v0.md	126	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
 SAC-001	docs/specs/swift-apple-analyzer-candidate-v0.md	32	`internal/analyzerswift` and `cmd/corvint-analyzer-swift` remain isolated native
 SAC-002	docs/specs/swift-apple-analyzer-candidate-v0.md	35	The request is the frozen experimental envelope with family `swift-apple`, exact
 SAC-003	docs/specs/swift-apple-analyzer-candidate-v0.md	45	The closed coordinate descriptor binds Swift language `6.3`, SwiftPM tools `6.0`
