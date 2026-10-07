@@ -409,10 +409,15 @@ type readCtx struct {
 	// proof is the one journal audit a read command shares (CAL-V0-061). It
 	// is bound to snap and dropped whenever the snapshot is re-read.
 	proof *journal.Result
+	// tree is the intent tree the snapshot's first probe hashed, set only
+	// while body runs: the second probe hashes the tree again after body, so
+	// a journal audit inside body shares both hashes instead of reading the
+	// tree twice more (V1-0893).
+	tree *intent.Tree
 }
 
 // reuseProbedTree exists so the parity test can compare decoding the probed
-// tree with the third LoadExpecting pass it replaces.
+// tree, and sharing it with the journal audit, with the reads they replace.
 var reuseProbedTree = true
 
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
@@ -457,7 +462,12 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		rc.snap = s
 		rc.store = st
 		rc.proof = nil
+		rc.tree = nil
+		if probed != nil && probed.Sha256 == s.IntentTree && reuseProbedTree {
+			rc.tree = probed
+		}
 		err = body(rc)
+		rc.tree = nil
 		if env.afterRead != nil {
 			env.afterRead()
 		}

@@ -76,7 +76,9 @@ func planPreview(env Env, args []string) *wire.Result {
 		}
 	}
 	var item wire.Value
+	entries := 0
 	rc, err := withStore(env, func(rc *readCtx) error {
+		entries = 0
 		in, digest, err := planInput(rc)
 		if err != nil {
 			return err
@@ -94,6 +96,7 @@ func planPreview(env Env, args []string) *wire.Result {
 			return nil
 		}
 		item, err = planValue(rc, digest, plan, authors != "", planOffers(rc, in, plan))
+		entries = len(plan.Entries)
 		return err
 	})
 	if err != nil {
@@ -101,7 +104,22 @@ func planPreview(env Env, args []string) *wire.Result {
 	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
+	res.MaxNodes = planNodeBound(entries)
 	return res
+}
+
+// planEntryNodes is the decoded-node budget of one plan entry. A typical
+// entry decodes to 27 nodes (the retry summary, one resource and one
+// blocker); 64 leaves room for several blockers and resources. The budget
+// is aggregate: a plan whose entries average more refuses LIMIT_EXCEEDED,
+// as before (V1-0893).
+const planEntryNodes = 64
+
+// planNodeBound is the full plan's decoded-node bound: the ordinary
+// envelope bound plus planEntryNodes per entry. A queue holds at most
+// wire.MaxTicketsPerQueue tickets, so it never exceeds 890,000 nodes.
+func planNodeBound(entries int) int {
+	return wire.MaxJSONNodes + planEntryNodes*entries
 }
 
 // selectedPlanValue renders the complete selected roster without the detailed

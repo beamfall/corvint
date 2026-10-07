@@ -54,6 +54,11 @@ type Result struct {
 	// NotRetryable forces retryable false on a coded non-OK result whose
 	// command already ran an effect that a retry would repeat (CAL-V0-078).
 	NotRetryable bool
+	// MaxNodes, when positive, replaces MaxJSONNodes as the decoded-node
+	// bound Encode validates the envelope under. Only a verb whose one item
+	// grows with the store sets it, from its own documented per-entry bound,
+	// so the bound stays linear in the store's bounded size (V1-0893).
+	MaxNodes int
 }
 
 func sizeOrNull(p *Size) Value {
@@ -155,7 +160,7 @@ func (r *Result) Value() Value {
 // bounds and returns the on-disk/transport bytes (canonical body plus LF).
 func (r *Result) Encode() ([]byte, error) {
 	v := r.Value()
-	if _, err := DecodeResult(EncodeFile(v)); err != nil {
+	if _, err := decodeResult(EncodeFile(v), ParseOptions{MaxNodes: r.MaxNodes}); err != nil {
 		return nil, err
 	}
 	itemBytes := 0
@@ -177,7 +182,11 @@ func (r *Result) Encode() ([]byte, error) {
 // earlier bytes still decode; when present it may be true only when every code
 // is retryable, and false there sets NotRetryable (CAL-V0-078).
 func DecodeResult(data []byte) (*Result, error) {
-	v, err := Parse(data)
+	return decodeResult(data, ParseOptions{})
+}
+
+func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
+	v, err := ParseWith(data, opts)
 	if err != nil {
 		return nil, err
 	}

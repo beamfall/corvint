@@ -10,7 +10,7 @@ writer path, writer audit and journal checkpoint belong to V1-0645 and are not c
 
 ## Change
 
-- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-135..138, each marked proposed,
+- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-135..139, each marked proposed,
   in a V1-0893/V1-0894 subsection with non-goals, failure modes, acceptance evidence and rollback,
   plus a slices row, traceability rows, the input and the delivery status (mirrored in
   `docs/specs/README.md` and `INDEX.json`).
@@ -89,8 +89,10 @@ all pass.
 - One-shot reads that need the review fold (`ticket show` and `plan preview` when a gate is
   declared, the gate views) fold every receipt. They need the fold state in the V1-0645
   checkpoint, bound to its sequence and receipt digest.
-- An idle dispatcher repeats the full observation and a fsynced ledger save every tick.
-- Full `plan preview` at 10,000 tickets refuses LIMIT_EXCEEDED (more than 250,000 decoded nodes).
+- An idle dispatcher repeats the full observation and a fsynced ledger save every tick (fixed in
+  the follow-up below by CAL-V0-139).
+- Full `plan preview` at 10,000 tickets refuses LIMIT_EXCEEDED (more than 250,000 decoded nodes;
+  fixed in the follow-up below).
 - A writer renew over a 100,000-receipt tail with no checkpoint near head failed ENFILE on Darwin
   twice (the vnode table was saturated); a 20,000 descriptor process limit did not change it.
 
@@ -100,6 +102,49 @@ Live fleet qualification; Linux idle measurement; the 100,000-receipt stores cou
 with a checkpoint at head (the final real renew failed ENFILE, above), so their reads were not
 measured.
 
+## Follow-up: idle dispatch, shared captures, full plan preview, Linux `/proc`
+
+Coordinator follow-up of 2026-10-06 on the same branch. Three further requirements are written in
+the spec as pending-ID text; the coordinator numbers them at integration.
+
+- CAL-V0-139 (idle dispatch tick, `dispatch/idle.go`): `Tick` wraps the old tick. After a full
+  tick that left `state.json` byte-identical (so no event and no launch), the dispatcher arms a
+  gate keyed on the queue's store witness (`cli/dispatch_witness.go`: head, barrier and
+  `VERSION` bytes, the state and receipt directories and every top-level intent entry's
+  name/mode/size/mtime) and the identity of its ledger and configuration. While armed, a tick
+  costs one witness and a `requests/` directory read. It reads in full on a witness change or
+  error, a pending request, the 60 s safety net, the earliest observed lease expiry, recorded
+  cooldown or pool sweep, or a clock behind the armed tick. Dispatchers with live workers,
+  recoveries, uncertain launches, a work-state reader or pressure signal never arm. The ledger
+  save now skips the write (and its fsyncs) when the encoded bytes are unchanged.
+- Service pools: `service run` built its dispatcher queue without `c.TicketPools()` (9114dc99,
+  `cli/service.go`), so the service dispatcher ran without the configured ticket pools. Both
+  verbs now share `newDispatchQueue`.
+- Shared captures (pending ID): the journal audit's before and after captures reuse the bytes
+  `snapshot.Reader`'s first probe hashed (`journal.Reader.IntentTree`, passed from `withStore` only
+  when that tree is the one the snapshot pinned and probed-tree reuse is on). Every intent file is
+  still `lstat`ed; a file whose size changed is read fresh; a same-size rewrite is caught by the
+  second probe, which re-hashes every file after the body, so the read moves and retries. This
+  removes the two audit content passes; the two probe passes remain.
+- Full plan preview (pending ID): the result self-validation now allows 250,000 + 64 nodes per
+  plan entry (`cli/plan.go`, `wire.Result.MaxNodes`); a typical entry is 27 nodes, so 10,000
+  tickets (about 270,000 nodes) preview instead of refusing LIMIT_EXCEEDED, and an entry with 64
+  blockers still refuses. Output bytes are unchanged.
+- CAL-V0-136 amendment: Linux reads `/proc/<pid>/stat` (`supervisor/detached_rows_proc.go`)
+  instead of forking `ps`; tested against a fake `/proc` root on Darwin. Other Darwin
+  architectures keep `ps`.
+
+Not built: a stat-keyed digest cache for the two probes. At D a profile of `queue status` after
+the shared captures puts most CPU in the two `intent.TreeDigest` passes (a `safeopen` `openat`
+plus `lstat` and a SHA-256 per file, 10,000 files each). A cache keyed on device, inode, size,
+mtime and ctime would leave one `lstat` walk per probe and drop the two content passes, an
+expected saving of roughly half the remaining read CPU at 10,000 tickets. It needs its own
+consistency argument (mtime granularity, same-size rewrites within one tick) and is left for the
+owner.
+
+FOLLOWUP_MEASUREMENTS
+
 ## Rollback
 
-Revert the code and the spec subsection. No stored state, request, receipt or wire shape changes.
+Revert the code and the spec subsection. No stored state, request, receipt or wire shape changes;
+the dispatcher ledger encoding is unchanged.
