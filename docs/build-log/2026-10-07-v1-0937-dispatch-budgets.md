@@ -115,3 +115,15 @@ Round 2 found three defects, each verified and fixed with a focused test:
   line is now malformed (PARTIAL), using the supervisor's existing `uniqueMembers` reader through
   a new exported wrapper. The supervised Codex host's `ObservedUsage` still reads null counters as
   0 and does not refuse repeated members; that is outside this change.
+
+Round 3 found three defects, each verified and fixed with a focused test:
+
+- A budget-held ticket deferred by the replan never reached the roster, so its exhausted scope was
+  not recorded as a hold: no `budget` event, status `held: NONE`, and no idle-gate deadline. The
+  launch tick now records the holds of each `BUDGET_HELD` ticket before the roster runs.
+- An escaped event type (`"turn.completed"`) bypassed the substring guard on the repeated
+  member check. Every codex line is now checked, and a top-level member that case-folds to `type`
+  or `usage` is refused too, through the supervisor's existing `exactMembers` (exported as
+  `ExactMembers`; the supervised hosts' behaviour is unchanged).
+- `encoding/json` matches struct fields case-insensitively, so `"SessionsPerDay"` could alias the
+  budget limit past the repeat check. A budget now accepts only the two exact member names.

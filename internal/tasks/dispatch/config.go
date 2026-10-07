@@ -69,7 +69,7 @@ const maxBudgetSessions, maxBudgetTokens = 1000, 1 << 50
 // and a present limit that is 0 or null, which would otherwise read as
 // absent and silently disable that limit.
 func (b *Budget) UnmarshalJSON(raw []byte) error {
-	if err := uniqueTopMembers(raw); err != nil {
+	if err := exactBudgetMembers(raw); err != nil {
 		return err
 	}
 	var v struct {
@@ -92,8 +92,10 @@ func (b *Budget) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
-// uniqueTopMembers refuses a JSON object that repeats a member name.
-func uniqueTopMembers(raw []byte) error {
+// exactBudgetMembers refuses a budget object that repeats a member or
+// carries any member but the exact two names: encoding/json would otherwise
+// take the last repeat and match "SessionsPerDay" case-insensitively.
+func exactBudgetMembers(raw []byte) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	if t, err := d.Token(); err != nil || t != json.Delim('{') {
 		return fmt.Errorf("budget is a JSON object")
@@ -105,6 +107,9 @@ func uniqueTopMembers(raw []byte) error {
 			return err
 		}
 		k, _ := t.(string)
+		if k != "sessionsPerDay" && k != "tokensPerDay" {
+			return fmt.Errorf("budget has unknown member %q", k)
+		}
 		if seen[k] {
 			return fmt.Errorf("budget repeats member %q", k)
 		}

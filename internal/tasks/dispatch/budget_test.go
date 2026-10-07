@@ -241,7 +241,7 @@ func TestCALV0160_BudgetConfigIsClosed(t *testing.T) {
 	if _, err := DecodeConfig(raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, member := range []string{`"tokensPerDay":0`, `"tokensPerDay":null`, `"tokensPerDay":-1`, `"sessionsPerDayX":1`, `"sessionsPerDay":3`} {
+	for _, member := range []string{`"tokensPerDay":0`, `"tokensPerDay":null`, `"tokensPerDay":-1`, `"sessionsPerDayX":1`, `"sessionsPerDay":3`, `"SessionsPerDay":1000`} {
 		if _, err := DecodeConfig(bytes.Replace(raw, []byte(`"sessionsPerDay":3`), []byte(`"sessionsPerDay":3,`+member), 1)); err == nil {
 			t.Errorf("budget with %s accepted", member)
 		}
@@ -376,6 +376,17 @@ func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
 	}
 	if roster := Roster(c, obs, nil, nil); len(roster) != 1 || roster[0].Local != "r1" {
 		t.Fatalf("roster %+v", roster)
+	}
+	// The roster never meets a deferred ticket, so the launch tick records
+	// its hold from the deferral (CAL-V0-158).
+	spend := d.spendGate(clock)
+	spend.holdDeferred(obs.Tickets)
+	d.recordBudget(spend)
+	if h := d.ledger.Budget.Held; len(h) != 2 || h[0].Name != ts[0].ID || h[1].Name != ts[1].ID || h[0].Limit != LimitSessions {
+		t.Fatalf("deferred holds %+v", h)
+	}
+	if n := len(eventsOf(t, d, "budget")); n != 2 {
+		t.Fatalf("budget events %d", n)
 	}
 
 	// A role budget holds a ticket only when every role that would serve it

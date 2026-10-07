@@ -230,11 +230,13 @@ func (s SpendSession) in(scope [2]string) bool {
 	return s.Role == scope[1]
 }
 
+// PlanReasonBudgetHeld is the derived plan reason of a ticket the budgets
+// hold outside the selection window (CAL-V0-155). It is never on a wire.
+const PlanReasonBudgetHeld = "BUDGET_HELD"
+
 // budgetHeld names the tickets a budget holds outside the selection window
-// (CAL-V0-155): a ticket whose ticket scope is exhausted, or for which every
-// enabled ticket role that would match it, were it selected, has an
-// exhausted role scope. A held ticket left SELECTED would otherwise keep an
-// unspent ticket out of a planSelected role's window until the hold ends.
+// (CAL-V0-155). A held ticket left SELECTED would otherwise keep an unspent
+// ticket out of a planSelected role's window until the hold ends.
 func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 	c := d.Config
 	budgeted := c.TicketBudget != nil
@@ -245,28 +247,9 @@ func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 		return nil
 	}
 	g := d.spendGate(now)
-	exhausted := func(scope [2]string) bool { _, ok := g.exhausted(scope); return ok }
 	var held map[string]bool
 	for _, t := range ts {
-		hold := c.TicketBudget != nil && exhausted([2]string{ScopeTicket, t.ID})
-		if !hold {
-			selected := t
-			selected.Plan = "SELECTED"
-			roles := 0
-			hold = true
-			for _, r := range c.Roles {
-				if r.Match == nil || r.Cap == 0 || !matches(r.Match, selected) {
-					continue
-				}
-				roles++
-				if r.Budget == nil || !exhausted([2]string{ScopeRole, r.Name}) {
-					hold = false
-					break
-				}
-			}
-			hold = hold && roles > 0
-		}
-		if hold {
+		if len(g.ticketHolds(t)) > 0 {
 			if held == nil {
 				held = map[string]bool{}
 			}
@@ -275,6 +258,53 @@ func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 	}
 	return held
 }
+
+// ticketHolds returns the exhausted scopes that hold t outside the
+// selection window: its ticket scope, or else every enabled ticket role that
+// would match it, were it selected, when each has an exhausted role scope.
+// It returns nil when t is not held.
+func (g *spendGate) ticketHolds(t Ticket) []BudgetHold {
+	if g.c.TicketBudget != nil {
+		if h, ok := g.exhausted([2]string{ScopeTicket, t.ID}); ok {
+			return []BudgetHold{h}
+		}
+	}
+	selected := t
+	selected.Plan = "SELECTED"
+	var out []BudgetHold
+	for _, r := range g.c.Roles {
+		if r.Match == nil || r.Cap == 0 || !matches(r.Match, selected) {
+			continue
+		}
+		h, ok := BudgetHold{}, false
+		if r.Budget != nil {
+			h, ok = g.exhausted([2]string{ScopeRole, r.Name})
+		}
+		if !ok {
+			return nil
+		}
+		out = append(out, h)
+	}
+	return out
+}
+
+// holdDeferred records the holds of the tickets the observation deferred as
+// budget-held: the roster never meets them, so their holds would otherwise
+// go unreported (CAL-V0-158).
+func (g *spendGate) holdDeferred(ts []Ticket) {
+	for _, t := range ts {
+		if t.PlanReason != PlanReasonBudgetHeld {
+			continue
+		}
+		for _, h := range g.ticketHolds(t) {
+			if k := [2]string{h.Scope, h.Name}; !g.has(k) {
+				g.holds[k] = h
+			}
+		}
+	}
+}
+
+func (g *spendGate) has(k [2]string) bool { _, ok := g.holds[k]; return ok }
 
 // admits reports whether a may launch, recording the first exhausted
 // scope's hold when it may not.

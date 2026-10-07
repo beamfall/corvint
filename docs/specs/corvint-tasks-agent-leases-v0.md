@@ -4236,7 +4236,8 @@ ticket from local observations alone. They can see what was spent and why work i
 - `CAL-V0-155`: (proposed, pending owner acceptance; V1-0937) A role MAY declare `budget` and the
   configuration MAY declare a top-level `ticketBudget`. Each is `{"sessionsPerDay": N,
   "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present. A member
-  given as 0 or null, or repeated, is refused, not read as absent or as its last value. Both are
+  given as 0 or null, repeated, or spelled with other letter case is refused, not read as absent,
+  as its last value or as an alias. Both are
   optional members of `taskman-dispatch/0`, and a build without this amendment refuses them as
   unknown. Each budget applies over a rolling 24-hour window.
 
@@ -4262,8 +4263,10 @@ ticket from local observations alone. They can see what was spent and why work i
   deferred with the derived reason `BUDGET_HELD`, so a role that selects only `SELECTED` tickets
   reaches the next eligible ticket. A ticket is budget-held when its ticket scope is exhausted, or
   when every enabled ticket role that would serve it has an exhausted role scope. A
-  `WORK_STATE_HELD` deferral takes precedence. `BUDGET_HELD` exists only in the dispatcher's
-  in-process preview; it is never written or shown on a wire.
+  `WORK_STATE_HELD` deferral takes precedence. Because the roster never meets a deferred ticket,
+  the launch tick records the holds of each `BUDGET_HELD` ticket's exhausted scopes as CAL-V0-158
+  holds. `BUDGET_HELD` exists only in the dispatcher's in-process preview; it is never written or
+  shown on a wire.
 - `CAL-V0-156`: (proposed, pending owner acceptance; V1-0937) The dispatcher MUST record every
   launch that may have started in the ledger's `budget.sessions` history. This applies whether or
   not any budget is configured, and includes a launch whose identity was not proved. Each record
@@ -4285,8 +4288,9 @@ ticket from local observations alone. They can see what was spent and why work i
   read. Only the declared vocabulary's usage lines count, through the same strict member readers
   the supervised hosts use:
   - codex: each `turn.completed` adds its counters; `turn.started` opens a turn until the next
-    `turn.completed`; `turn.failed` or `error` marks the total failed. A null counter, or a
-    `turn.completed` line that repeats a member at any depth, is malformed.
+    `turn.completed`; `turn.failed` or `error` marks the total failed. A null counter is malformed,
+    as is any line that repeats a member at any depth or carries a top-level member that differs
+    from `type` or `usage` only by letter case.
   - claude-code: the `result` object's input (with cache creation and cache read) and output
     counters.
   - opencode: each `step_finish` adds its counters; `step_start` opens a step; `error` marks the
@@ -4333,7 +4337,8 @@ ticket from local observations alone. They can see what was spent and why work i
   reports only what the configuration declared. It never infers a host's default model or effort.
 - `CAL-V0-160`: (proposed, pending owner acceptance; V1-0937) Configuration validation MUST refuse
   the following before any launch:
-  - a budget with neither limit, a limit out of range, 0 or null, or a repeated member;
+  - a budget with neither limit, a limit out of range, 0 or null, or a repeated, case-folded or
+    unknown member;
   - `tokensPerDay` whose charged roles do not declare a usage format;
   - an unknown usage format;
   - an effort out of format, or one its host does not render.

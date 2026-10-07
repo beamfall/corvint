@@ -1169,6 +1169,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	spend := d.spendGate(now)
+	spend.holdDeferred(obs.Tickets)
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, spend)
 	d.recordHeld(obs, held)
 	// Holds are recorded after the launches, so a budget event counts them.

@@ -123,9 +123,10 @@ func (u *WorkerUsage) line(b []byte) {
 	var in, out uint64
 	switch u.Format {
 	case "codex":
-		// A repeated member on a usage line would let a later null, zero
-		// or smaller counter (or type) replace an observed one.
-		if bytes.Contains(b, usageMarker["codex"]) && supervisor.UniqueMembers(b) != nil {
+		// A repeated or case-folded member would let a later null, zero or
+		// smaller counter, or another type, replace an observed one. Every
+		// line is checked: an escaped type hides from a substring test.
+		if supervisor.ExactMembers(b, []string{"type", "usage"}) != nil {
 			u.Malformed = true
 			return
 		}
