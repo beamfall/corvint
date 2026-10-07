@@ -404,3 +404,26 @@ func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
 		t.Fatalf("no budget holds %v", h)
 	}
 }
+
+// CAL-V0-158: with both limits exhausted, the hold is the limit the window
+// releases last, and resetsAt is when the scope itself is released.
+func TestCALV0158_CombinedLimitsResetWhenTheScopeReleases(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].UsageFormat = "codex"
+	c.Roles[0].Budget = &Budget{SessionsPerDay: 2, TokensPerDay: 100}
+	now := time.Date(2026, 10, 7, 9, 0, 0, 0, time.UTC)
+	first, second := now.Add(-23*time.Hour), now.Add(-22*time.Hour)
+	g := &spendGate{c: c, now: now, charged: map[[2]string]int{}, holds: map[[2]string]BudgetHold{}, r: &SpendRecord{Sessions: []SpendSession{
+		{Worker: "w1", Role: c.Roles[0].Name, Launched: first, Usage: UsageKnown, Input: 1},
+		{Worker: "w2", Role: c.Roles[0].Name, Launched: second, Usage: UsageKnown, Input: 100},
+	}}}
+	h, held := g.exhausted([2]string{ScopeRole, c.Roles[0].Name})
+	if !held || h.Limit != LimitTokens || !h.ResetsAt.Equal(second.Add(BudgetWindow)) {
+		t.Fatalf("combined hold %+v %v", h, held)
+	}
+	g.r.Sessions[1].Input = 1
+	h, held = g.exhausted([2]string{ScopeRole, c.Roles[0].Name})
+	if !held || h.Limit != LimitSessions || !h.ResetsAt.Equal(first.Add(BudgetWindow)) {
+		t.Fatalf("sessions hold %+v %v", h, held)
+	}
+}

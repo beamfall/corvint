@@ -128,6 +128,14 @@ func DecodeClaudeResult(raw []byte) (string, HostResult, error) {
 	return r.SessionID, result, nil
 }
 
+// ClaudeResultFailed reports whether a Claude Code result object reports a
+// failure under DecodeClaudeResult's success rule, so the dispatcher's usage
+// reader (CAL-V0-157) leaves a failed session's total PARTIAL.
+func ClaudeResultFailed(raw []byte) bool {
+	r, e := readClaudeResult(raw)
+	return e != nil || r.Subtype != "success" || r.IsError == nil || *r.IsError
+}
+
 // ObservedClaudeSession is the bounded session of a Claude Code result
 // object, or "" when the output is not one.
 func ObservedClaudeSession(raw []byte) string {

@@ -4292,7 +4292,10 @@ ticket from local observations alone. They can see what was spent and why work i
     as is any line that repeats a member at any depth or carries a top-level member that differs
     from `type` or `usage` only by letter case.
   - claude-code: the `result` object's input (with cache creation and cache read) and output
-    counters.
+    counters. A result whose `subtype` is not `success` or whose `is_error` is not `false` marks
+    the total failed.
+
+  A JSON object line whose `type` cannot be read is malformed, since it may be a usage line.
   - opencode: each `step_finish` adds its counters; `step_start` opens a step; `error` marks the
     total failed.
 
@@ -4312,7 +4315,8 @@ ticket from local observations alone. They can see what was spent and why work i
   exhausted scope it met as a hold in `budget.held`, with the scope, its name, the limit and
   `resetsAt`. `resetsAt` is the earliest time at which the window alone releases the hold. For
   tokens, that is when dropping the oldest sessions brings the observed total under the limit; a
-  running session can move it later. A hold MUST be reported as one `budget` event when it first
+  running session can move it later. When both limits are exhausted, the hold names the limit the
+  window releases last, and `resetsAt` is that later time. A hold MUST be reported as one `budget` event when it first
   appears or its limit changes. The event's detail carries scope, name, limit, resetsAt, sessions,
   observedTokens and unknownSessions. A hold that persists across ticks is not reported again, and
   a hold whose scope is no longer exhausted is dropped. The CAL-V0-139 idle gate MUST treat each
@@ -4757,7 +4761,7 @@ and removes the new configuration members.
 | CAL-V0-155 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0155_BudgetFollowsConfigReload`, `TestCALV0155_TokenSumNeitherWrapsNorSaturates`, `TestCALV0155_BudgetHeldTicketLeavesSelectionWindow` (`internal/tasks/dispatch`), `TestCALV0155_BudgetHeldTicketsLeaveWindow` (`internal/tasks/transaction`) |
 | CAL-V0-156 | `TestCALV0156_SpendHistoryIsBoundedAndHoldsWhenTruncated`, `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases` (`internal/tasks/dispatch`) |
 | CAL-V0-157 | `TestCALV0157_UsageVocabulariesAndStates`, `TestCALV0157_UsageReadIsIncrementalAndBounded`, `TestCALV0157_UsageAfterRotationIsPartial`, `TestCALV0155_TokenBudgetCountsKnownTotals` (`internal/tasks/dispatch`) |
-| CAL-V0-158 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |
+| CAL-V0-158 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0158_CombinedLimitsResetWhenTheScopeReleases` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |
 | CAL-V0-159 | `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0160_BudgetConfigIsClosed` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |
 | CAL-V0-160 | `TestCALV0160_BudgetConfigIsClosed` (`internal/tasks/dispatch`) |
 | CAL-V0-161 | `TestCALV0161_LedgerCarriesSpendAndUsage`, `TestCALV0132_DrainedPreviousVersionLedgerIsAdopted`, `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |

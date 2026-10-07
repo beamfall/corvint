@@ -127,3 +127,14 @@ Round 3 found three defects, each verified and fixed with a focused test:
   `ExactMembers`; the supervised hosts' behaviour is unchanged).
 - `encoding/json` matches struct fields case-insensitively, so `"SessionsPerDay"` could alias the
   budget limit past the repeat check. A budget now accepts only the two exact member names.
+
+Round 4, the last review round allowed, found three defects. Each was verified and fixed with a
+focused test; the fixes were not reviewed again:
+
+- A JSON object whose `type` could not be decoded (an escaped `turn.completed` plus `"type":0`)
+  returned before the member check and was ignored. Such a line is now malformed.
+- A claude-code result reporting failure (`is_error` true, or a subtype other than `success`)
+  with valid counters read as KNOWN. It now marks the total failed (PARTIAL), using the
+  supervised host's own success rule through a new exported `ClaudeResultFailed`.
+- With both limits exhausted, `resetsAt` came from the sessions limit even when the token limit
+  released later. The hold now names the limit the window releases last.

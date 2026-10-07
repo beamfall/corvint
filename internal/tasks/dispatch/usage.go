@@ -115,7 +115,9 @@ func (u *WorkerUsage) line(b []byte) {
 		Type string `json:"type"`
 	}
 	if json.Unmarshal(b, &head) != nil {
-		if bytes.Contains(b, usageMarker[u.Format]) {
+		// A JSON object whose type cannot be read may be a usage line
+		// (an escaped type hides from the marker test), so it is malformed.
+		if t := bytes.TrimSpace(b); bytes.Contains(b, usageMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
 			u.Malformed = true
 		}
 		return
@@ -166,6 +168,9 @@ func (u *WorkerUsage) line(b []byte) {
 		}
 		u.Records++
 		u.Input, u.Output = in, out
+		if supervisor.ClaudeResultFailed(b) {
+			u.Failed = true
+		}
 		return
 	case "opencode":
 		kind, part, reason, i, o, ok := supervisor.OpenCodeLineUsage(b)

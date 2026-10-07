@@ -352,6 +352,8 @@ func (g *spendGate) exhausted(scope [2]string) (BudgetHold, bool) {
 		}
 	}
 	sort.SliceStable(in, func(i, j int) bool { return in[i].Launched.Before(in[j].Launched) })
+	// When both limits are exhausted, the hold is the one the window
+	// releases last, so resetsAt is when the scope itself is released.
 	if L := b.SessionsPerDay; L > 0 {
 		if n := len(in) + g.charged[scope]; n >= L {
 			// n-L+1 sessions must leave the window; this roster's own
@@ -360,21 +362,25 @@ func (g *spendGate) exhausted(scope [2]string) (BudgetHold, bool) {
 			if e := n - L + 1; e <= len(in) {
 				h.ResetsAt = in[e-1].Launched.Add(BudgetWindow)
 			}
-			return h, true
 		}
 	}
 	if L := b.TokensPerDay; L > 0 && tokens.atLeast(L) {
-		h.Limit = LimitTokens
+		var reset time.Time
 		for _, s := range in {
 			tokens.sub(s.tokens())
-			h.ResetsAt = s.Launched.Add(BudgetWindow)
+			reset = s.Launched.Add(BudgetWindow)
 			if !tokens.atLeast(L) {
 				break
 			}
 		}
-		return h, true
+		if h.Limit == "" || reset.After(h.ResetsAt) {
+			h.Limit, h.ResetsAt = LimitTokens, reset
+		}
 	}
-	return BudgetHold{}, false
+	if h.Limit == "" {
+		return BudgetHold{}, false
+	}
+	return h, true
 }
 
 // recordBudget keeps the holds this roster found, and earlier holds whose
