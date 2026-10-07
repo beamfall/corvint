@@ -107,7 +107,9 @@ type Plan struct {
 // Select computes the plan for one dirty path set.
 //
 // The traversal is a breadth-first sweep over reverse dependency edges from
-// every unit that directly contains a dirty path. Breadth-first order plus
+// every unit that directly contains a dirty path, except a Go unit whose dirty
+// paths are all its own test files, which is selected alone (AFP-V0-035).
+// Breadth-first order plus
 // sorted expansion makes the witness for each reached unit the shortest chain,
 // broken by the lexicographically smallest dirty path, so the plan is
 // deterministic for fixed inputs (LPCV-V0-019).
@@ -171,12 +173,19 @@ func Select(graph *Graph, dirty []string) Plan {
 func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witness, unknown []Unknown) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
+	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
 	mergeWitnesses(seeds, changed)
 	start := make(map[string]Witness, len(seeds)+len(traversed))
 	mergeWitnesses(start, seeds)
 	mergeWitnesses(start, traversed)
+	for id := range contained {
+		delete(start, id)
+	}
 	reached = graph.traverse(start)
 	graph.testUsersOf(reached)
+	for id := range contained {
+		reached[id] = seeds[id]
+	}
 	mergeWitnesses(reached, enclosing)
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, normalized)
@@ -248,7 +257,9 @@ func sharedPrefix(left, right []string) int {
 }
 
 // seed maps every dirty path to the unit that declares it, and reports the
-// paths that could not be mapped.
+// paths that could not be mapped. A unit's witness is its smallest dirty
+// source path, else its smallest dirty test path, so a unit that propagates to
+// its dependents names a path that can reach them (AFP-V0-035).
 func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	seeds := make(map[string]Witness)
 	unknown := make([]Unknown, 0)
@@ -258,12 +269,43 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 			unknown = append(unknown, Unknown{Reason: graph.unownedReason(path), Detail: path})
 			continue
 		}
-		if _, already := seeds[id]; already {
+		kind := graph.witnessKind(id, path)
+		if existing, already := seeds[id]; already && (existing.Kind != WitnessDirectTest || kind != WitnessDirectSource) {
 			continue
 		}
-		seeds[id] = Witness{Kind: graph.witnessKind(id, path), DirtyPath: path, Via: []string{id}}
+		seeds[id] = Witness{Kind: kind, DirtyPath: path, Via: []string{id}}
 	}
 	return seeds, unknown
+}
+
+// testOnlyGoUnits names the Go units every dirty path of which is one of the
+// unit's own declared `_test.go` files, and which no structural rule also
+// changes (AFP-V0-035). Go compiles a test file only into its own package's
+// test binary, and no other package can import it, so such a unit is selected
+// for its own tests and is not a traversal root: neither its importers nor the
+// units whose tests import it are reached through it. Every other plugin, an
+// unindexed test path (rule (a)) and a data path (rule (b)) keep the
+// conservative traversal; path readers are attributed per dirty path as before.
+func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, changed, traversed map[string]Witness) map[string]bool {
+	contained := make(map[string]bool)
+	for id, witness := range seeds {
+		if strings.HasPrefix(id, "go:") && witness.Kind == WitnessDirectTest {
+			contained[id] = true
+		}
+	}
+	for _, path := range dirty {
+		id, owned := graph.owner[path]
+		if owned && (!strings.HasSuffix(path, "_test.go") || graph.witnessKind(id, path) != WitnessDirectTest) {
+			delete(contained, id)
+		}
+	}
+	for id := range changed {
+		delete(contained, id)
+	}
+	for id := range traversed {
+		delete(contained, id)
+	}
+	return contained
 }
 
 // frontierUnknowns names, in reason order, the frontier of every plugin that

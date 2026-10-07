@@ -65,6 +65,7 @@ AFP-V0-031	docs/specs/affected-plan-v0.md	654	(accepted by decision 0438; V1-086
 AFP-V0-032	docs/specs/affected-plan-v0.md	692	(accepted by decision 0438; V1-0865) Only a declaration path that
 AFP-V0-033	docs/specs/affected-plan-v0.md	701	(accepted by decision 0438; V1-0868) Every `units` directory of
 AFP-V0-034	docs/specs/affected-plan-v0.md	717	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	734	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
