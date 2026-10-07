@@ -631,9 +631,10 @@ or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected
-  corvint [--root PATH] affected --snapshot RECEIPT [--playwright-config PATH]
-  corvint [--root PATH] affected --base FULL_COMMIT_ID
+  corvint [--root PATH] affected [--full]
+  corvint [--root PATH] affected [--full] --snapshot RECEIPT
+  corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
+  corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -643,10 +644,14 @@ Usage:
           --selection-profile e2e-safe [--playwright-discovery FILE]
 
 The command reads the Git worktree status, builds the multi-language unit graph
-from source text, and writes one affected-plan/0 document to stdout: the
-selector's plan (selected units with witnesses, exclusions, unknowns, scope) and
-provider.go.packages, the exact import paths an operator may copy into a Go
-live-test provider bundle. It runs no test, writes no repository state, and never claims
+from source text, and writes one affected-plan/1 document to stdout: the
+selector's plan (selected units with witnesses and test counts, an exclusion
+summary, unknowns, scope) and provider.go.packages, the exact import paths an
+operator may copy into a Go live-test provider bundle. plan.excluded is
+{count, digest, groups}: groups state each reason, universe and invalidation
+once with its count, and digest is the SHA-256 of the full exclusion list.
+--full writes the affected-plan/0 document instead: every exclusion and every
+selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
 NO_AFFECTED_SELECTION_PROOF unknown.
 

@@ -37,34 +37,35 @@ ACP-012	docs/specs/analyzer-candidate-profiles.md	142	A candidate CLI that reads
 AFP-V0-001	docs/specs/affected-plan-v0.md	31	The command MUST be read-only: one bounded `git status`, one HEAD identity read,
 AFP-V0-002	docs/specs/affected-plan-v0.md	36	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
 AFP-V0-003	docs/specs/affected-plan-v0.md	47	Stdout MUST be one canonical JSON line with exactly the members `advice`
-AFP-V0-004	docs/specs/affected-plan-v0.md	57	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
-AFP-V0-005	docs/specs/affected-plan-v0.md	86	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
-AFP-V0-006	docs/specs/affected-plan-v0.md	101	Failures MUST exit 2 with a typed code on stderr and no partial document:
-AFP-V0-007	docs/specs/affected-plan-v0.md	107	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
-AFP-V0-008	docs/specs/affected-plan-v0.md	116	The Go plugin's unit universe is the root module, or, when the root holds a
-AFP-V0-009	docs/specs/affected-plan-v0.md	143	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
-AFP-V0-010	docs/specs/affected-plan-v0.md	182	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
-AFP-V0-011	docs/specs/affected-plan-v0.md	195	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
-AFP-V0-012	docs/specs/affected-plan-v0.md	228	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	288	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	301	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	318	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	356	(accepted by decision 0320; ruleset and consent amended by decision 0390)
-AFP-V0-017	docs/specs/affected-plan-v0.md	371	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	379	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	394	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	420	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	431	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
-AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
-AFP-V0-023	docs/specs/affected-plan-v0.md	517	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
-AFP-V0-024	docs/specs/affected-plan-v0.md	555	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
-AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
-AFP-V0-026	docs/specs/affected-plan-v0.md	616	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
-AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-031	docs/specs/affected-plan-v0.md	654	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-AFP-V0-032	docs/specs/affected-plan-v0.md	692	(accepted by decision 0438; V1-0865) Only a declaration path that
-AFP-V0-033	docs/specs/affected-plan-v0.md	701	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	717	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-004	docs/specs/affected-plan-v0.md	58	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
+AFP-V0-005	docs/specs/affected-plan-v0.md	87	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
+AFP-V0-006	docs/specs/affected-plan-v0.md	102	Failures MUST exit 2 with a typed code on stderr and no partial document:
+AFP-V0-007	docs/specs/affected-plan-v0.md	108	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
+AFP-V0-008	docs/specs/affected-plan-v0.md	117	The Go plugin's unit universe is the root module, or, when the root holds a
+AFP-V0-009	docs/specs/affected-plan-v0.md	144	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
+AFP-V0-010	docs/specs/affected-plan-v0.md	183	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
+AFP-V0-011	docs/specs/affected-plan-v0.md	196	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
+AFP-V0-012	docs/specs/affected-plan-v0.md	229	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
+AFP-V0-013	docs/specs/affected-plan-v0.md	289	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	302	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	319	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	357	(accepted by decision 0320; ruleset and consent amended by decision 0390)
+AFP-V0-017	docs/specs/affected-plan-v0.md	372	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	380	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	395	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	421	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	432	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-022	docs/specs/affected-plan-v0.md	481	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
+AFP-V0-023	docs/specs/affected-plan-v0.md	518	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	556	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	582	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	617	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
+AFP-V0-027	docs/specs/affected-plan-v0.md	642	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+AFP-V0-031	docs/specs/affected-plan-v0.md	655	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+AFP-V0-032	docs/specs/affected-plan-v0.md	693	(accepted by decision 0438; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	702	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	718	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	735	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -542,12 +543,12 @@ CATN-V0-014	docs/specs/cross-audience-truth-nondivergence-v0.md	137	A `CONFLICTE
 CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-digest input and the canonical bundle bytes MUST be exactly the
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
-CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	85	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	152	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	169	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	179	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	312	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	86	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	99	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	153	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	172	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	182	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	318	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa

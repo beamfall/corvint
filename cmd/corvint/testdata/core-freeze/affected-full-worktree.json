@@ -12,24 +12,20 @@
   "ok": true,
   "plan": {
     "dirty": [],
-    "excluded": {
-      "count": 1,
-      "digest": "affected-excluded:sha256:8ec4ebc27ed2ac8cffe3d761a6284c6359ab35a4ec589cec50deca9fb8010a6b",
-      "groups": [
-        {
-          "count": 1,
-          "invalidation": "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
-          "reason": "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT",
-          "universe": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca"
-        }
-      ]
-    },
+    "excluded": [
+      {
+        "invalidation": "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
+        "reason": "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT",
+        "unitId": "go:example.test/cli/pkg",
+        "universe": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca"
+      }
+    ],
     "graphDigest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
     "scope": "BOUNDED",
     "selected": [],
     "unknown": []
   },
-  "profile": "affected-plan/1",
+  "profile": "affected-plan/0",
   "provider": {
     "go": {
       "packages": [],
