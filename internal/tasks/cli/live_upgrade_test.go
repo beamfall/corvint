@@ -25,8 +25,9 @@ import (
 // heartbeating, renewing and releasing after build N+1 is installed in place
 // by atomic rename. A build N attempt runner started from the installed path
 // before the swap stays alive across it, heartbeats into the store build N+1
-// has written, records its outcome and exits cleanly. The stamped build
-// number is the seam.
+// has written, records its outcome and exits cleanly. Rolling back to build N
+// the same way keeps an attempt claimed under build N+1 working. The stamped
+// build number is the seam.
 func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	if !groupreap.OwnerAvailable() {
 		t.Skip("the build N attempt runner needs the owned process group API")
@@ -99,7 +100,7 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	// path, whose command waits until the test lets it finish.
 	started, finish := filepath.Join(dir, "started"), filepath.Join(dir, "finish")
 	survivor := exec.Command(installed, "run", "--attempt", attempt, "--generation", generation, "--timeout", "300", "--",
-		"/bin/sh", "-c", `: > "$1"; while [ ! -f "$2" ]; do sleep 0.05; done`, "survivor", started, finish)
+		"/bin/sh", "-c", `echo $$ > "$1"; while [ ! -f "$2" ]; do sleep 0.05; done`, "survivor", started, finish)
 	survivor.Dir = r.Root
 	var survivorOut, survivorErr bytes.Buffer
 	survivor.Stdout, survivor.Stderr = &survivorOut, &survivorErr
@@ -108,9 +109,31 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	}
 	survivorDone := make(chan error, 1)
 	go func() { survivorDone <- survivor.Wait() }()
+	// Cleanup never hangs the package: the runner puts its command in a
+	// process group of its own, so killing the runner alone leaves the shell
+	// holding the stderr pipe and Wait blocked. Letting the shell finish ends
+	// it; killing it by the pid it recorded is the fallback; the wait is
+	// bounded either way.
 	t.Cleanup(func() {
+		_ = os.WriteFile(finish, nil, 0o600)
 		_ = survivor.Process.Kill()
-		<-survivorDone
+		select {
+		case <-survivorDone:
+			return
+		case <-time.After(5 * time.Second):
+		}
+		if raw, err := os.ReadFile(started); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil {
+				if shell, err := os.FindProcess(pid); err == nil {
+					_ = shell.Kill()
+				}
+			}
+		}
+		select {
+		case <-survivorDone:
+		case <-time.After(5 * time.Second):
+			t.Error("build N runner still not reaped after cleanup")
+		}
 	})
 	for deadline := time.Now().Add(time.Minute); ; time.Sleep(20 * time.Millisecond) {
 		if _, err := os.Stat(started); err == nil {
@@ -174,6 +197,26 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	if x := handoffCLIWithBinary(t, r.Root, installed, "attempt", "heartbeat", "--attempt", attempt, "--generation", generation, "--request-id", "beat-after-release"); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("released attempt still heartbeats: %s", x.stdout)
 	}
+
+	// Rollback is the same procedure run the other way (CAL-V0-130): with
+	// equal formats, an attempt claimed under build N+1 heartbeats, renews
+	// and releases under build N reinstalled by rename.
+	backID := field(ok(installed, "ticket", "create", "--request-id", "rollback-create", "--payload", createPayloadJSON), "ticketId").Str
+	backClaim := ok(installed, "claim", backID, "--holder", "agent", "--request-id", "rollback-claim")
+	backAttempt, backGeneration := field(backClaim, "attemptId").Str, field(backClaim, "generation").Str
+	ok(installed, "attempt", "heartbeat", "--attempt", backAttempt, "--generation", backGeneration, "--request-id", "rollback-beat-next")
+	install(buildN)
+	rolledBack := ok(installed, "version")
+	if !strings.HasSuffix(field(rolledBack, "version").Str, "+build.41") || !slices.Equal(formats(rolledBack), formats(after)) {
+		t.Fatalf("rolled-back build N version: %s", wire.Encode(rolledBack))
+	}
+	ok(installed, "attempt", "heartbeat", "--attempt", backAttempt, "--generation", backGeneration, "--request-id", "rollback-beat-n")
+	if renewed := ok(installed, "renew", "--attempt", backAttempt, "--generation", backGeneration, "--request-id", "rollback-renew-n"); field(renewed, "generation").Str != backGeneration {
+		t.Fatalf("rollback renew moved the generation: %s", wire.Encode(renewed))
+	}
+	ok(installed, "release", "--attempt", backAttempt, "--generation", backGeneration, "--request-id", "rollback-release-n")
+	ok(installed, "receipt", "audit")
+	ok(buildNext, "receipt", "audit")
 }
 
 // CAL-V0-131: a store whose format is not one this build knows is refused

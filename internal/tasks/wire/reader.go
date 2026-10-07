@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"errors"
 	"sort"
 	"strings"
 )
@@ -168,16 +169,19 @@ func (r *Reader) Enum(allowed ...string) string {
 	return ""
 }
 
-// Profile records UNSUPPORTED_VERSION when this object names want's profile
-// at another version. Decoders call it before Closed so a record written by
-// another build is not reported as MALFORMED (CAL-V0-131).
-func (r *Reader) Profile(want string) *Reader {
+// Profile records and returns UNSUPPORTED_VERSION when this object names
+// want's profile at another version. Decoders call it before Closed and
+// return its error at once, so no later read can replace the refusal of a
+// record written by another build (CAL-V0-131). A nested reader that cannot
+// return relies on the first recorded error sticking.
+func (r *Reader) Profile(want string) error {
 	w := r.where
 	if w == "/" {
 		w = ""
 	}
-	r.adopt(ProfileVersion(w+"/profile", r.v, want))
-	return r
+	err := ProfileVersion(w+"/profile", r.v, want)
+	r.adopt(err)
+	return err
 }
 
 // Exact requires the string to equal one literal.
@@ -187,7 +191,8 @@ func (r *Reader) Exact(want string) string {
 
 func (r *Reader) adopt(err error) {
 	if err != nil && r.st.err == nil {
-		if e, ok := err.(*Error); ok {
+		var e *Error
+		if errors.As(err, &e) {
 			r.st.err = e
 		} else {
 			r.st.err = Errorf(CodeMalformed, r.where, "%v", err)

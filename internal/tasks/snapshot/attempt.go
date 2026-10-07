@@ -512,7 +512,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "retryAccounting") {
 		x := r.Field("retryAccounting")
-		x.Profile(ProfileRetryAccounting)
+		if e := x.Profile(ProfileRetryAccounting); e != nil {
+			return nil, e
+		}
 		x.Closed("profile", "failedOrUnknown", "disposition")
 		x.Field("profile").Exact(ProfileRetryAccounting)
 		a.RetryAccounting = &RetryAccounting{FailedOrUnknown: x.Field("failedOrUnknown").Bool(), Disposition: x.Field("disposition").Enum("NONE", "HANDOFF", "REVIEW_RETURNED")}

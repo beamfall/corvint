@@ -182,7 +182,9 @@ func DecodeResult(data []byte) (*Result, error) {
 		return nil, err
 	}
 	rd := NewReader(v, "/")
-	rd.Profile(ProfileCommandResult)
+	if err := rd.Profile(ProfileCommandResult); err != nil {
+		return nil, err
+	}
 	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable")...)
 	if err := rd.Err(); err != nil {
 		return nil, err

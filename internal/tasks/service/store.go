@@ -709,7 +709,9 @@ func encodeRequests(rs []controlRequest) ([]byte, error) {
 	return raw, nil
 }
 
-func decodeRequests(raw []byte) ([]controlRequest, error) {
+// DecodeRequests decodes the control request ledger; another
+// taskman-user-service-requests version is UNSUPPORTED_VERSION (CAL-V0-131).
+func DecodeRequests(raw []byte) ([]controlRequest, error) {
 	if len(raw) > maxRequests {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, "/requests", "control request ledger exceeds %d bytes", maxRequests)
 	}
@@ -758,7 +760,7 @@ func (h Host) controlRequests(root string, c *Control) ([]controlRequest, error)
 	case err != nil:
 		return nil, err
 	default:
-		if rs, err = decodeRequests(raw); err != nil {
+		if rs, err = DecodeRequests(raw); err != nil {
 			return nil, err
 		}
 	}

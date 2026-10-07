@@ -1,6 +1,9 @@
 package wire
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Closed detail codes (SPEC §11). Only these strings may appear in a
 // taskman-command-result/0 or taskman-outcome/0 codes array.
@@ -147,13 +150,15 @@ func Errorf(detailCode, where, format string, args ...interface{}) *Error {
 	return &Error{Code: detailCode, Where: where, Msg: fmt.Sprintf(format, args...)}
 }
 
-// CodeOf returns the §11 code carried by err, or MALFORMED for any other
-// error, or "" for nil.
+// CodeOf returns the §11 code carried by err or by any error it wraps, or
+// MALFORMED for any other error, or "" for nil. Wrapping with %w keeps the
+// code (CAL-V0-131).
 func CodeOf(err error) string {
 	if err == nil {
 		return ""
 	}
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Code
 	}
 	return CodeMalformed
