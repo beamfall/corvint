@@ -325,7 +325,7 @@ Two sub-questions are already closed: a separate local process is not a root (`H
    service; a verifier that checks bytes handed to it makes no network call, so the clause is arguably
    satisfied unamended. CI already appears in Corvint's vocabulary as an independent reference, though in
    a different role — an oracle to shadow against, not an authority
-   (`docs/specs/live-proof-carrying-verification-v0.md:442-448@d51660e9`, `:484@50bde519`). Build cost is real and large: an
+   (`docs/specs/live-proof-carrying-verification-v0.md:459-465@d51660e9`, `:501@50bde519`). Build cost is real and large: an
    attestation wire and canonical encoding (explicitly deferred at
    `harness-authority-relation-v0.md:212-213`), key distribution, rotation, and revocation.
 4. **Tier it:** closure exists where a repository already has an accepted root; local-only deployments

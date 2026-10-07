@@ -591,3 +591,67 @@ func TestProfileAttemptEmptyProject(t *testing.T) {
 		t.Fatal("legacy empty-project boundary changed")
 	}
 }
+
+// PWP-V0-009: one exact Node release is admitted for the base profile's bundled
+// headless-shell tuple only; neighbouring releases, the system-browser tuple
+// and the other external profiles keep abstaining.
+func TestPlaywright163Node24TupleAdmissionIsExact(t *testing.T) {
+	bundled := `{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`
+	system := `{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`
+	receipt := func(use, identityNode, browserNode string) Receipt {
+		r := qualifiedFixture(t)
+		r.Identity.RunnerVersion = "1.63.0"
+		r.Identity.NodeVersion = identityNode
+		r.Tests[0].Project.Use = json.RawMessage(strings.Replace(use, "NODE", browserNode, 1))
+		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+		return r
+	}
+	admitted := receipt(bundled, "v24.11.1", "v24.11.1")
+	if admitted.Profile != ExternalProfile || ReceiptRuntimeTuple(admitted) != RuntimeTupleCandidate || ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("admitted bundled Node v24.11.1 tuple abstained")
+	}
+	for name, r := range map[string]Receipt{
+		"neighbouring-patch": receipt(bundled, "v24.11.0", "v24.11.0"),
+		"later-minor":        receipt(bundled, "v24.21.0", "v24.21.0"),
+		"prefix-only":        receipt(bundled, "v24.11", "v24.11"),
+		"identity-drift":     receipt(bundled, "v24.11.1", "v22.23.2"),
+		"system-browser":     receipt(system, "v24.11.1", "v24.11.1"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("unadmitted Node tuple projected green")
+			}
+		})
+	}
+	for _, profile := range []string{AttestedExternalProfile, SensitiveExternalProfile, AttemptExternalProfile} {
+		r := admitted
+		r.Profile = profile
+		if ReceiptRuntimeTuple(r) != RuntimeTupleUnqualified {
+			t.Fatalf("%s admitted Node v24.11.1 without its own live evidence", profile)
+		}
+	}
+}
+
+// PWP-V0-009 / LPCV-V0-056: the receipt-level classification is closed and
+// fails closed when the Node version was not observed.
+func TestReceiptRuntimeTupleClassification(t *testing.T) {
+	for _, test := range []struct {
+		profile, runner, node, want string
+	}{
+		{"", "1.63.0", "v24.11.1", RuntimeTupleNotApplicable},
+		{ExternalProfile, "1.63.0", "v22.23.2", RuntimeTupleCandidate},
+		{AttemptExternalProfile, "1.63.0", "v22.23.2", RuntimeTupleCandidate},
+		{ExternalProfile, "1.63.0", "v24.11.1", RuntimeTupleCandidate},
+		{ExternalProfile, "1.63.0", "v22.23.3", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.63.0", "", RuntimeTupleUnobserved},
+		{ExternalProfile, "1.60.0", "", RuntimeTupleUnobserved},
+		{ExternalProfile, "1.60.0", "v24.11.1", RuntimeTupleCandidate},
+		{AttemptExternalProfile, "1.60.0", "v22.23.2", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
+	} {
+		r := Receipt{Profile: test.profile, Identity: Identity{RunnerVersion: test.runner, NodeVersion: test.node}}
+		if got := ReceiptRuntimeTuple(r); got != test.want {
+			t.Fatalf("%+v: got %q want %q", test, got, test.want)
+		}
+	}
+}

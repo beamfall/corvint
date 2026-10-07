@@ -394,6 +394,23 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   neither provider writes into `.corvint/test-evidence`. The one-shot Go authority run does not accept
   the flag, because its transcript is not a document discovery decodes. Retention is local derived state, never
   authority, and runs no additional test.
+- `LPCV-V0-056`: (accepted by decision 0448; V1-0976) discovery MUST say why it yields no
+  evidence that could pass, as `discovery.abstention: {reason, requires, observed?}` with closed
+  values, so a caller can tell that rediscovering or retrying the same run will not help (issue
+  #665). With no usable entry the reason is `no-retained-evidence` (missing location or no `*.json`
+  entry) or `retained-evidence-unusable` (every considered entry was skipped), each with `requires:
+  "retained-producer-run"`; an unretained producer run is indistinguishable from none, so no reason
+  claims the producer did not run. When the selected document is an external Playwright receipt
+  whose runner/Node tuple the provider classifies as unqualified (`PWP-V0-009`), the reason is
+  `runtime-tuple-unqualified` with `requires: "qualified-runtime-tuple"`; when its Node version was
+  not observed, reason and requires are `UNKNOWN`. Any other selected document carries no
+  abstention member; its per-axis reasons already explain it. `observed` echoes only the retained
+  runner and Node versions, each at most 64 characters of `[0-9A-Za-z.+-]`, and is omitted
+  otherwise. The member reuses the retained document and the provider's own tuple predicate; it
+  adds no store, no field to any `--receipt` or no-input document, and appears byte-identically on
+  the `MTV-V0-009` MCP surface. A provider refusal before a run (such as
+  `external-playwright-version-unqualified`) retains nothing and therefore still reads
+  `no-retained-evidence`.
 
 #### Projector axis reasons
 
@@ -544,3 +561,4 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-053` bounded read-only discovery of retained evidence | delivered at experimental tier for the CLI and the descendant MCP profile (decision 0202); the opt-in producer retention of `LPCV-V0-055` writes into the location | `internal/testvaliditydoc`'s `TestDiscoverSelectsNewestRetainedEvidence`, `TestDiscoverRefusesSymlinkedEvidence`, and `TestDiscoverWithoutEvidenceIsUnsupported`; `cmd/corvint`'s `TestTestValidityDiscoveryMatchesMCPDocument` (CLI and MCP documents canonically byte-equal, `--discover --receipt` refused); vectors `discover-retained-evidence` and `discover-with-receipt-refused` in `TestVectorsAndReadOnly`. |
 | `LPCV-V0-054` discovered freshness is bound to current digests | delivered at experimental tier; Go events stay preview and never `CURRENT` | `TestDiscoverUnmatchedIdentityIsNeverCurrent` (changed and removed test file `STALE`, outside-worktree path and Go session `UNKNOWN`, stale Go session `STALE`, each with its reason) and `TestDiscoverSelectsNewestRetainedEvidence` (matched digest `CURRENT`); package and app-build digests are not recomputed, so they are `UNKNOWN` by construction, not measured. |
 | `LPCV-V0-055` opt-in bounded atomic producer retention | delivered at experimental tier (decision 0218); no real-provider Electron run and no qualified Go session matrix has retained evidence (`NOT_RUN`) | `cmd/corvint-js-test-provider`'s `TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink` and `cmd/corvint-go-test-provider`'s `TestSessionRetainsCompletedEventBytesPrunesAndRefusesSymlink` (retained bytes equal stdout, 32 kept, a foreign entry untouched, a symlinked `.corvint` refused with stdout still emitted); `internal/testevidence`'s `TestRetainReportsDocumentItsPruneRemoved` (a document named behind 32 own names is pruned and reported as a failure) and `TestRetainPrunesCrashLeftoverTemporaries` (225 own temporaries named below the oldest kept document are removed, a newer and a foreign temporary kept); `cmd/corvint`'s `TestTestValidityDiscoverSelectsProducerRetainedDocument` (a retained document is the one `test-validity --discover` selects, `CURRENT`).; the VS Code extension passes the flag only behind `corvint.liveTests.retainEvidence` (decision 0230, `VSC-V0-070`), unit-tested, with no Electron run. |
+| `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |

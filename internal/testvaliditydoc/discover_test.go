@@ -8,9 +8,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -201,5 +203,82 @@ func TestDiscoverWithoutEvidenceIsUnsupported(t *testing.T) {
 				t.Fatalf("document=%+v discovery=%+v", document, document.Discovery)
 			}
 		})
+	}
+}
+
+// externalReceipt is the canonical retained document an external Playwright
+// run on the given Node version retains when the reporter drops every
+// unqualified test identity (the issue #665 consumer shape).
+func externalReceipt(t *testing.T, node string) string {
+	t.Helper()
+	r := jstestprovider.Receipt{
+		Profile:        jstestprovider.ExternalProfile,
+		Kind:           "e2e",
+		Identity:       jstestprovider.Identity{RunnerName: "playwright", RunnerVersion: "1.63.0", NodeVersion: node},
+		External:       &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown"},
+		Infrastructure: &jstestprovider.InfrastructureFailure{Reason: "project-location-unknown"},
+		Tests:          []jstestprovider.TestOutcome{{Name: "flow", State: jstestprovider.StatePassed}},
+	}
+	data, err := jstestprovider.EncodeQualified(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// LPCV-V0-056: discovery states a closed, typed reason whenever it yields no
+// evidence that could pass, so callers can tell rediscovery will not help.
+func TestDiscoverAbstentionReasons(t *testing.T) {
+	for _, test := range []struct {
+		name, body, reason, requires, node string
+		directoryOnly                      bool
+	}{
+		{name: "missing location", reason: AbstentionNoRetainedEvidence, requires: RequiresRetainedProducerRun},
+		{name: "no json entries", directoryOnly: true, reason: AbstentionNoRetainedEvidence, requires: RequiresRetainedProducerRun},
+		{name: "only undecodable entries", body: `{"unknown":true}`, reason: AbstentionRetainedEvidenceUnusable, requires: RequiresRetainedProducerRun},
+		{name: "unqualified node tuple", body: externalReceipt(t, "v24.11.0"), reason: AbstentionRuntimeTupleUnqualified, requires: RequiresQualifiedRuntimeTuple, node: "v24.11.0"},
+		{name: "unobserved node tuple", body: externalReceipt(t, ""), reason: AbstentionUnknown, requires: AbstentionUnknown, node: ""},
+		{name: "qualified candidate tuple", body: externalReceipt(t, "v22.23.2")},
+		{name: "plain unit receipt", body: `{"receipt":{"kind":"unit","tests":[{"name":"adds","state":"passed"}]}}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := discoveryRoot(t)
+			if test.directoryOnly {
+				writeAt(t, evidencePath(root, "notes.txt"), "not evidence", time.Unix(1_800_000_000, 0))
+			}
+			if test.body != "" {
+				writeAt(t, evidencePath(root, "run.json"), test.body, time.Unix(1_800_000_000, 0))
+			}
+			document := discover(t, root)
+			got := document.Discovery.Abstention
+			if test.reason == "" {
+				if got != nil {
+					t.Fatalf("unexpected abstention %+v", got)
+				}
+				return
+			}
+			if got == nil || got.Reason != test.reason || got.Requires != test.requires {
+				t.Fatalf("abstention=%+v source=%s", got, document.Source)
+			}
+			if (test.reason == AbstentionRuntimeTupleUnqualified || test.reason == AbstentionUnknown) && (got.Observed == nil || got.Observed.NodeVersion != test.node || got.Observed.RunnerVersion != "1.63.0" || document.Source != "corvint-js-test-provider") {
+				t.Fatalf("observed tuple not retained: %+v source=%s", got.Observed, document.Source)
+			}
+			if test.requires == RequiresRetainedProducerRun && (document.Source != "none" || len(document.Tests) != 0) {
+				t.Fatalf("no-evidence reason on a projected document: %+v", document)
+			}
+		})
+	}
+}
+
+// LPCV-V0-056: an observed version that is not a short release token is
+// withheld; the closed reason still states the tuple is unqualified.
+func TestDiscoverAbstentionWithholdsUnboundedObservedVersion(t *testing.T) {
+	for _, node := range []string{"v" + strings.Repeat("9", 70), "v24.11.0\nsecret"} {
+		root := discoveryRoot(t)
+		writeAt(t, evidencePath(root, "run.json"), externalReceipt(t, node), time.Unix(1_800_000_000, 0))
+		got := discover(t, root).Discovery.Abstention
+		if got == nil || got.Reason != AbstentionRuntimeTupleUnqualified || got.Observed != nil {
+			t.Fatalf("observed version not withheld: %+v", got)
+		}
 	}
 }

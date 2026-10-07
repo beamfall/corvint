@@ -316,9 +316,11 @@ function bundledBrowserIdentity(headless) {
   return browser;
 }
 
+// PWP-V0-009: v24.11.1 is admitted only for the bundled headless shell; the Go
+// predicate stays the authority for which profile may project it as passing.
 function qualifiedBundledIdentity(browser, freshnessProfile = false) {
   const qualified = qualifiedBundledBrowser;
-  return browser && browser.platform === 'darwin' && browser.arch === 'arm64' && browser.nodeVersion === (freshnessProfile ? 'v22.23.3' : 'v22.23.2') &&
+  return browser && browser.platform === 'darwin' && browser.arch === 'arm64' && (freshnessProfile ? browser.nodeVersion === 'v22.23.3' : ['v22.23.2', 'v24.11.1'].includes(browser.nodeVersion)) &&
     browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
     browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
     browser.executablePath.endsWith(qualified.pathSuffix) && browser.executableSha256 === qualified.executableSha256 &&

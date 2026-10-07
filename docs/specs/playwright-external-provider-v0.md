@@ -5,7 +5,7 @@ Date: 2026-09-20
 Intent status: accepted
 Delivery status: `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175
 Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`, `corvint-playwright-external/2`, `corvint-playwright-external/3`.
-Inputs: GitHub issues #19, #39, #43, #49, #50, #56; AGENTS.md invariants 1–8; decision 0179.
+Inputs: GitHub issues #19, #39, #43, #49, #50, #56, #665; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
 and shipping this PWP-V0 profile while retaining the default offline boundary and rollback gates.
 The owner subsequently requested issue #43's typed application-attestation revision with the same
@@ -17,7 +17,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
 - Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
+- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
 ## Requirements
 
@@ -29,6 +29,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 - `PWP-V0-006`: Cancellation joins only owned Playwright descendants and observes external server survival. Unknown runner cleanup or lifecycle/project identity prevents passing projections.
 - `PWP-V0-007`: Qualification runs checked-in real Playwright browser fixtures covering pass, assertion failure, timeout, browser infrastructure, two projects, a standard `devices['Desktop Chrome']` spread, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
 - `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser tuple; another tuple remains diagnostic-only. A configured executable binds its exact version, channel/path and headless-shell availability. A Playwright-bundled executable additionally binds the registry executable name, package-pinned browser revision and manifest version, absolute executable path and executable SHA-256. Any missing or changed field abstains. Additional Node or browser tuples require an explicit qualification record and the complete live matrix below; matching only the package version never admits them. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
+- `PWP-V0-009`: (accepted by decision 0448; V1-0976) exactly one more tuple is admitted under `PWP-V0-008`: Darwin arm64 / Node `v24.11.1` / `@playwright/test@1.63.0` with the bundled headless shell named below, for the base `/0` profile only, on the retained live run recorded for issue #665. Node `v24.11.0` and every other `v24.x` release, the system-Chrome tuple on Node 24, and `/1`, `/2` and `/3` on Node 24 stay unqualified until their own live run. Every retained external receipt classifies its runner/Node pair as `candidate`, `unqualified` or `unobserved` through `ReceiptRuntimeTuple`, the same closed values the passing predicate applies first; discovery reports an `unqualified` or `unobserved` pair as `LPCV-V0-056` states. The live matrix MAY run against an explicitly provided Node binary (`CORVINT_PLAYWRIGHT_NODE`, an absolute path whose directory also holds `npx`), placed first on that test's `PATH` only, and MUST then observe that exact version; an optional `CORVINT_PLAYWRIGHT_CONTROL_NODE` names an unqualified Node whose run MUST abstain and be reported as `runtime-tuple-unqualified`.
 
 ### Application-attested revision
 
@@ -169,7 +170,7 @@ unless declared in project metadata; effective device parameters are retained in
 A separate live regression reproduces the consumer's standard
 `projects: [{name: 'chromium', use: {...devices['Desktop Chrome']}}]` configuration and requires the
 resolved browser, nonempty user agent, 1280×720 viewport, config digest, stable test ID and qualified
-bundled executable tuple to survive together. The exact Golf checkout and its hosted CI remain
+bundled executable tuple to survive together. The reporting consumer's checkout and hosted CI remain
 `NOT_OBSERVED`; the checked-in minimal fixture proves the reported configuration shape locally.
 The qualified configured tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
 system Google Chrome 153.0.8010.48 at
@@ -180,9 +181,12 @@ Node and Playwright package with its default headless executable: registry name
 `Google Chrome for Testing 153.0.8010.12`, path suffix
 `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`, and executable
 SHA-256 `a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282`. The cache root may move;
-the registry identity, suffix and digest may not. Bundled headed Chromium, Linux amd64 and every
-other Node tuple are `NOT_RUN` and remain diagnostic-only. No local `golf-e2e` checkout exists, so its
-consumer fixture and CI observation are `NOT_OBSERVED`; neither absence is qualification evidence.
+the registry identity, suffix and digest may not. `PWP-V0-009` admits the same bundled tuple on Node
+`v24.11.1` for `/0` only. Bundled headed Chromium, Linux amd64 and every other Node tuple are
+`NOT_RUN` and remain diagnostic-only. Issue #665 reported a consumer pinning Node v24.11.x, whose
+discovery therefore read `source: "none"` with no tests; no consumer checkout, fixture or CI run was
+observed for this spec (`NOT_OBSERVED`), and that absence is not qualification evidence. The
+consumer-side fixture is a separate `NOT_OBSERVED` input, not a precondition of the tuple predicate.
 
 To qualify another Node or bundled-browser tuple, pin `@playwright/test` and `playwright-core` in the
 consumer lockfile, install the package-selected browsers without a system executable override, and
@@ -193,7 +197,15 @@ browser-infrastructure, two-project identity, external-server survival, retained
 and stability consumption, plus negative controls that change the Node version, revision, digest,
 headed mode, configured executable and local-versus-remote browser source.
 Only a reviewed spec amendment and a passing retained run admit the tuple; environment similarity,
-semver compatibility or a successful ad hoc run does not.
+semver compatibility or a successful ad hoc run does not. To run the matrix on a Node that is not the
+host default, set `CORVINT_PLAYWRIGHT_NODE` to its absolute `bin/node` (`PWP-V0-009`); nothing is
+installed or added to a global `PATH`. The Node v24.11.1 qualification command is:
+
+`CORVINT_PLAYWRIGHT_MODULES=<node_modules with @playwright/test 1.63.0> CORVINT_PLAYWRIGHT_NODE=<node-v24.11.1-darwin-arm64>/bin/node CORVINT_PLAYWRIGHT_CONTROL_NODE=<an unqualified node, e.g. v22.23.3> GOTOOLCHAIN=local go test -count=1 -timeout 10m ./internal/jstestprovider -run 'TestQualifiedPlaywrightLive$|TestQualifiedPlaywrightLiveDevicesSpread$' -v`
+
+Owner answer (decision 0448, V1-0976): further Node patch releases are admitted one exact release
+at a time, through this predicate and a Corvint change backed by a live run; a consumer-side
+qualification record is not adopted. `/1`, `/2` and `/3` on Node 24 need their own live runs first.
 
 Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
 source inputs are hashed at collection and compared again before publication. Configuration loaded
@@ -227,6 +239,7 @@ browser-path override. With the bundled path, the exact command is:
 | Requirements | Implementation | Evidence |
 |---|---|---|
 | PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightLiveDevicesSpread`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains`, `TestPlaywright163BundledBrowserTupleAbstainsOnDrift` |
+| PWP-V0-009 (accepted, decision 0448) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/testvaliditydoc/discover.go` | `TestPlaywright163Node24TupleAdmissionIsExact`, `TestReceiptRuntimeTupleClassification`, `TestDiscoverAbstentionReasons`; live `TestQualifiedPlaywrightLive` and `TestQualifiedPlaywrightLiveDevicesSpread` on Node v24.11.1 with the v22.23.3 control (`docs/build-log/2026-10-07-gh665-playwright-node-tuple-abstention.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |

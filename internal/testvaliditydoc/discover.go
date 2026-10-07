@@ -33,11 +33,42 @@ var emptyPackageDigest = digestHex([]byte("=\n=\n"))
 // Discovery records which retained document was selected and whether its
 // bound identity still matches the worktree. It is emitted only by discovery.
 type Discovery struct {
-	Location  string             `json:"location"`
-	Evidence  string             `json:"evidence,omitempty"`
-	Freshness *testvalidity.Axis `json:"freshness,omitempty"`
-	Skipped   int                `json:"skipped"`
+	Location   string             `json:"location"`
+	Evidence   string             `json:"evidence,omitempty"`
+	Freshness  *testvalidity.Axis `json:"freshness,omitempty"`
+	Skipped    int                `json:"skipped"`
+	Abstention *Abstention        `json:"abstention,omitempty"`
 }
+
+// Abstention explains why discovery yields no evidence that could project a
+// passing test (LPCV-V0-056). Reason and Requires are closed; an unattributable
+// cause is UNKNOWN, never a guess. Rediscovery alone cannot change any reason:
+// Requires names the change that can.
+type Abstention struct {
+	Reason   string           `json:"reason"`
+	Requires string           `json:"requires"`
+	Observed *ObservedRuntime `json:"observed,omitempty"`
+}
+
+// ObservedRuntime is the retained receipt's own runtime tuple. Platform and
+// architecture are not retained by an unqualified receipt, so they are absent.
+type ObservedRuntime struct {
+	RunnerVersion string `json:"runnerVersion"`
+	NodeVersion   string `json:"nodeVersion"`
+}
+
+// Closed abstention vocabulary (LPCV-V0-056).
+const (
+	AbstentionNoRetainedEvidence       = "no-retained-evidence"
+	AbstentionRetainedEvidenceUnusable = "retained-evidence-unusable"
+	AbstentionRuntimeTupleUnqualified  = "runtime-tuple-unqualified"
+	AbstentionUnknown                  = "UNKNOWN"
+	RequiresRetainedProducerRun        = "retained-producer-run"
+	RequiresQualifiedRuntimeTuple      = "qualified-runtime-tuple"
+	// maxObservedVersion bounds each echoed version; a longer retained value
+	// is withheld rather than truncated.
+	maxObservedVersion = 64
+)
 
 // DiscoveryError is a coded discovery refusal shared by the CLI and MCP tool.
 type DiscoveryError struct{ Code, Message string }
@@ -65,6 +96,7 @@ func Discover(root string) (Document, error) {
 	}
 	discovery := &Discovery{Location: EvidenceDirectory}
 	if !found {
+		discovery.Abstention = &Abstention{Reason: AbstentionNoRetainedEvidence, Requires: RequiresRetainedProducerRun}
 		return withDiscovery(Unsupported(), discovery), nil
 	}
 	defer evidence.Close()
@@ -87,9 +119,49 @@ func Discover(root string) (Document, error) {
 		binding := bindFreshness(worktree, root, input)
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
 		discovery.Freshness = &binding
+		discovery.Abstention = runtimeAbstention(input)
 		return withDiscovery(applyFreshness(Project(input), binding), discovery), nil
 	}
+	reason := AbstentionNoRetainedEvidence
+	if discovery.Skipped != 0 {
+		reason = AbstentionRetainedEvidenceUnusable
+	}
+	discovery.Abstention = &Abstention{Reason: reason, Requires: RequiresRetainedProducerRun}
 	return withDiscovery(Unsupported(), discovery), nil
+}
+
+// runtimeAbstention reuses the provider's own tuple classification of the
+// selected Playwright receipt. A qualified-candidate or non-Playwright input
+// carries no abstention: its projections already explain themselves.
+func runtimeAbstention(input Input) *Abstention {
+	if input.js == nil {
+		return nil
+	}
+	var observed *ObservedRuntime
+	if identity := input.js.Identity; observableVersion(identity.RunnerVersion) && observableVersion(identity.NodeVersion) {
+		observed = &ObservedRuntime{RunnerVersion: identity.RunnerVersion, NodeVersion: identity.NodeVersion}
+	}
+	switch jstestprovider.ReceiptRuntimeTuple(*input.js) {
+	case jstestprovider.RuntimeTupleUnqualified:
+		return &Abstention{Reason: AbstentionRuntimeTupleUnqualified, Requires: RequiresQualifiedRuntimeTuple, Observed: observed}
+	case jstestprovider.RuntimeTupleUnobserved:
+		return &Abstention{Reason: AbstentionUnknown, Requires: AbstentionUnknown, Observed: observed}
+	}
+	return nil
+}
+
+// observableVersion bounds an echoed version to a short release token; anything
+// else is withheld rather than reflected into the document.
+func observableVersion(value string) bool {
+	if len(value) > maxObservedVersion {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '.' || c == '-' || c == '+') {
+			return false
+		}
+	}
+	return true
 }
 
 func openEvidenceDirectory(worktree *os.Root) (*os.Root, bool, error) {

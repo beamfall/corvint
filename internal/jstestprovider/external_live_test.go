@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	if modules == "" {
 		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for live qualification")
 	}
+	node := scopeLiveNode(t, "CORVINT_PLAYWRIGHT_NODE")
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -143,6 +145,19 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	if len(r.Tests) != 6 {
 		t.Fatalf("want six real outcomes, got %+v", r.Tests)
 	}
+	t.Run("PWP-V0-009 explicit-node-tuple", func(t *testing.T) {
+		if node != "" && r.Identity.NodeVersion != node {
+			t.Fatalf("run observed Node %q, want explicitly provided %q", r.Identity.NodeVersion, node)
+		}
+		if jstestprovider.ReceiptRuntimeTuple(r) != jstestprovider.RuntimeTupleCandidate {
+			t.Fatalf("qualified run tuple not a candidate: %s", r.Identity.NodeVersion)
+		}
+		for _, test := range r.Tests {
+			if test.State == jstestprovider.StatePassed && jstestprovider.ReceiptTestProjection(r, test).Execution.State != testvalidity.ExecutionPassed {
+				t.Fatalf("passing outcome did not project passing on Node %s: %+v", r.Identity.NodeVersion, test)
+			}
+		}
+	})
 	if retainAttempts {
 		t.Run("PWP-V3-006 every live result retains its attempt detail", func(t *testing.T) {
 			if r.Profile != jstestprovider.AttemptExternalProfile || jstestprovider.ValidateAttemptDetails(r.Tests) != nil {
@@ -383,7 +398,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 		t.Fatalf("system-browser version missing: %v", version.Err)
 	}
 	systemVersion := strings.TrimSpace(string(version.Stdout))
-	if !retainAttempts && systemVersion == "Google Chrome 153.0.8010.48" {
+	if !retainAttempts && systemVersion == "Google Chrome 153.0.8010.48" && system.Identity.NodeVersion == "v22.23.2" {
 		if system.Infrastructure != nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 			t.Fatal("previously qualified system-browser tuple regressed")
 		}
@@ -393,7 +408,72 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 		}
 		t.Logf("PWP-V0-008 system browser %s remains unqualified; previous system tuple NOT_OBSERVED", systemVersion)
 	}
-	t.Logf("qualified real Playwright %s bundled headless-shell: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival", pkg.Version)
+	if control := os.Getenv("CORVINT_PLAYWRIGHT_CONTROL_NODE"); control != "" && !retainAttempts {
+		t.Run("PWP-V0-009 unqualified-node-control-abstains", func(t *testing.T) {
+			controlVersion := scopeLiveNode(t, "CORVINT_PLAYWRIGHT_CONTROL_NODE")
+			t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "")
+			cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=passing page"}
+			unqualified, runErr := jstestprovider.RunE2E(context.Background(), cfg)
+			if runErr != nil || unqualified.Identity.NodeVersion != controlVersion || jstestprovider.ReceiptRuntimeTuple(unqualified) != jstestprovider.RuntimeTupleUnqualified {
+				t.Fatalf("control Node %s was not observed as unqualified: %v %+v", controlVersion, runErr, unqualified.Identity)
+			}
+			// The control is not vacuous: either the provider recorded the
+			// unqualified run as infrastructure, or it retained the one passing
+			// outcome that must still not project passing.
+			if unqualified.Infrastructure == nil && (len(unqualified.Tests) != 1 || unqualified.Tests[0].State != jstestprovider.StatePassed) {
+				t.Fatalf("control run neither abstained as infrastructure nor retained the passing outcome: %+v", unqualified.Tests)
+			}
+			for _, test := range unqualified.Tests {
+				if jstestprovider.ReceiptTestProjection(unqualified, test).Execution.State == testvalidity.ExecutionPassed {
+					t.Fatal("unqualified Node tuple projected passing execution")
+				}
+			}
+			encoded, encodeErr := jstestprovider.EncodeQualified(unqualified)
+			if encodeErr != nil {
+				t.Fatal(encodeErr)
+			}
+			evidenceRoot, rootErr := filepath.EvalSymlinks(t.TempDir())
+			if rootErr != nil {
+				t.Fatal(rootErr)
+			}
+			if _, retainErr := testevidence.Retain(evidenceRoot, "corvint-js-test-provider", encoded); retainErr != nil {
+				t.Fatal(retainErr)
+			}
+			doc, discoverErr := testvaliditydoc.Discover(evidenceRoot)
+			if discoverErr != nil || doc.Discovery == nil || doc.Discovery.Abstention == nil || doc.Discovery.Abstention.Reason != testvaliditydoc.AbstentionRuntimeTupleUnqualified || doc.Discovery.Abstention.Observed == nil || doc.Discovery.Abstention.Observed.NodeVersion != controlVersion {
+				t.Fatalf("discovery did not name the unqualified tuple: %v %+v", discoverErr, doc.Discovery)
+			}
+			t.Logf("PWP-V0-009 control Node %s abstained with %s", controlVersion, doc.Discovery.Abstention.Reason)
+		})
+	}
+	t.Logf("qualified real Playwright %s bundled headless-shell on Node %s: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival", pkg.Version, r.Identity.NodeVersion)
+}
+
+// scopeLiveNode puts an explicitly provided Node binary first on this test's
+// PATH only (PWP-V0-009), so `node --version` and `npx` resolve to it for the
+// provider's children. It returns the observed version, or "" when unset.
+func scopeLiveNode(t *testing.T, key string) string {
+	t.Helper()
+	node := os.Getenv(key)
+	if node == "" {
+		return ""
+	}
+	dir := filepath.Dir(node)
+	if !filepath.IsAbs(node) || filepath.Base(node) != "node" {
+		t.Fatalf("%s must be an absolute path to a node binary, got %q", key, node)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "npx")); err != nil {
+		t.Fatalf("%s has no sibling npx: %v", key, err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if resolved, err := exec.LookPath("node"); err != nil || resolved != node {
+		t.Fatalf("PATH resolves node to %q, want %q: %v", resolved, node, err)
+	}
+	out, err := exec.Command(node, "--version").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func TestQualifiedPlaywrightLiveDevicesSpread(t *testing.T) {
@@ -422,6 +502,7 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 	if pkg.Version != "1.63.0" {
 		t.Skipf("NOT_RUN: devices spread qualification requires Playwright 1.63.0, got %s", pkg.Version)
 	}
+	node := scopeLiveNode(t, "CORVINT_PLAYWRIGHT_NODE")
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -489,6 +570,9 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 		}
 	})
 	t.Run("PWP-V0-008 bundled-headless-qualified-tuple", func(t *testing.T) {
+		if node != "" && receipt.Identity.NodeVersion != node {
+			t.Fatalf("devices spread observed Node %q, want %q", receipt.Identity.NodeVersion, node)
+		}
 		if projection := jstestprovider.ReceiptTestProjection(receipt, outcome); projection.Execution.State != testvalidity.ExecutionPassed {
 			t.Fatalf("devices spread projection did not pass: %+v", projection)
 		}
