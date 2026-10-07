@@ -101,6 +101,10 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	if len(anchors) == 0 {
 		return usage(cmd, "at least one --anchor PATH is required")
 	}
+	screened := append([]string{text, commit, supersedes, reason, attempt, generation, evidencePath}, anchors...)
+	if err := mutation.ScreenKnowHowArgs(append(screened, routes...)); err != nil {
+		return errorResult(cmd, err)
+	}
 	sort.Strings(anchors)
 	for _, a := range anchors {
 		if _, err := wire.ParsePath("/payload/anchors", a); err != nil {
@@ -156,6 +160,9 @@ func knowHowRetract(env Env, cmd []string, args []string) *wire.Result {
 	}
 	if note == "" || reason == "" {
 		return usage(cmd, "--note N and --reason TEXT are required")
+	}
+	if err := mutation.ScreenKnowHowArgs([]string{note, reason}); err != nil {
+		return errorResult(cmd, err)
 	}
 	actor, err := initActor(f.role)
 	if err != nil {
@@ -247,11 +254,21 @@ func claimedKnowHowValue(k store.ClaimedKnowHow) wire.Value {
 		o := wire.NewObject().Set("trust", wire.String(knowHowTrust)).Set("state", wire.String("UNAVAILABLE"))
 		return wire.ObjectValue(o.Set("code", wire.String(wire.CodeOf(k.Err))).Set("notes", wire.Null()))
 	}
-	items, omitted := store.ProjectKnowHow(k.Notes, true, store.KnowHowDeliveryMaxBytes)
-	v := knowHowProjectionValue(k.Head, len(k.Notes), omitted, items)
+	// The cap covers the whole member: the notes array gets what the
+	// envelope leaves at its widest, with omitted = matched and the hint.
+	envelope := deliveredKnowHow(k.Head, len(k.Notes), len(k.Notes), nil)
+	budget := store.KnowHowDeliveryMaxBytes - (len(wire.Encode(envelope)) - len("[]"))
+	items, omitted := store.ProjectKnowHow(k.Notes, true, budget)
+	return deliveredKnowHow(k.Head, len(k.Notes), omitted, items)
+}
+
+func deliveredKnowHow(head string, matched, omitted int, items []wire.Value) wire.Value {
+	v := knowHowProjectionValue(head, matched, omitted, items)
 	v.Obj.Set("state", wire.String("DELIVERED"))
 	if omitted > 0 {
-		v.Obj.Set("hint", wire.String("corvint-tasks ticket know-how list --path PATH shows every intersecting note"))
+		v.Obj.Set("hint", wire.String(knowHowListHint))
 	}
 	return v
 }
+
+const knowHowListHint = "corvint-tasks ticket know-how list --path PATH shows every intersecting note"

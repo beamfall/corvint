@@ -47,6 +47,7 @@ func TestKHNV0002_ReaderKnowHow(t *testing.T) {
 		{"worker actor", func(v wire.Value) { setMember(value(entry(v, 0), "actor"), "role", str502("WORKER")) }},
 		{"bad time", func(v wire.Value) { setMember(entry(v, 3), "recordedAt", str502("yesterday")) }},
 		{"retract text", func(v wire.Value) { setMember(entry(v, 3), "text", str502("x")) }},
+		{"retract without reason", func(v wire.Value) { setMember(entry(v, 3), "reason", wire.Value{Kind: wire.KindNull}) }},
 	}
 	if _, e := decodeTicket(issue502Record(t)); e != nil {
 		t.Fatalf("fixture: %v", e)

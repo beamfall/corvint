@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -65,10 +66,13 @@ func TestKHNV0006_KnowHowThroughTheCLI(t *testing.T) {
 		"dotdot":       addArgs("kh-x3", "3", "t", "--anchor", "../x.go"),
 		"no anchor":    addArgs("kh-x4", "3", "t"),
 		"secret":       addArgs("kh-x5", "3", "token AKIAABCDEFGHIJKLMNOP", "--anchor", "src/a.go"),
+		// Screened before the pin, whose missing-file error names the path.
+		"secret path":  addArgs("kh-x6", "3", "t", "--anchor", "src/AKIAABCDEFGHIJKLMNOP.go"),
+		"secret route": addArgs("kh-x7", "3", "t", "--anchor", "src/a.go", "--route", "AKIAABCDEFGHIJKLMNOP"),
 	} {
 		if x := atm(t, r.Root, nil, args...); x.res.Outcome == wire.OutcomeOK {
 			t.Fatalf("%s accepted: %s", name, x.stdout)
-		} else if name == "secret" && (!strings.Contains(string(x.stdout), mutation.KnowHowSecretDetail) || strings.Contains(string(x.stdout), "AKIAABCDEFGHIJKLMNOP")) {
+		} else if strings.HasPrefix(name, "secret") && (!strings.Contains(string(x.stdout), mutation.KnowHowSecretDetail) || strings.Contains(string(x.stdout), "AKIAABCDEFGHIJKLMNOP")) {
 			t.Fatalf("secret refusal: %s", x.stdout)
 		}
 	}
@@ -187,7 +191,7 @@ func TestKHNV0006_ClaimDeliveryIsCapped(t *testing.T) {
 	kh := field(c.res.Items[0], "knowHow")
 	notes := knowHowNotes(t, kh)
 	if len(notes) == 0 || len(notes) >= 6 || field(kh, "matched").Str != "6" || field(kh, "omitted").Str != string(rune('0'+6-len(notes))) ||
-		field(kh, "hint").Str == "" || len(wire.Encode(field(kh, "notes"))) > 2048 {
+		field(kh, "hint").Str == "" || len(wire.Encode(kh)) > store.KnowHowDeliveryMaxBytes {
 		t.Fatalf("capped delivery: %s", wire.Encode(kh))
 	}
 	if field(notes[0], "note").Str != "6" {

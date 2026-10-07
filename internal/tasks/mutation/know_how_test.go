@@ -278,6 +278,8 @@ func TestKHNV0002_RecordCodecRefusals(t *testing.T) {
 	ret3.Seq = "3"
 	worker := add("1")
 	worker.ActorRole = "WORKER"
+	retNoReason := ret
+	retNoReason.Reason = nil
 	cases := map[string][]ticket.KnowHowEntry{
 		"seq gap":             {add("2")},
 		"supersede no reason": {add("1"), noReason},
@@ -285,6 +287,7 @@ func TestKHNV0002_RecordCodecRefusals(t *testing.T) {
 		"retract twice":       {add("1"), ret, ret3},
 		"forward target":      {ret},
 		"worker actor":        {worker},
+		"retract no reason":   {add("1"), retNoReason},
 	}
 	for name, entries := range cases {
 		t.Run(name, func(t *testing.T) {

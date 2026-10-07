@@ -45,6 +45,9 @@ func knowHow(v wire.Value, _, _ uint64) error {
 			if e = object(x, "actor note operation reason recordedAt seq"); e != nil {
 				return errors.New("know-how RETRACT entry")
 			}
+			if value(x, "reason").Kind == wire.KindNull {
+				return errors.New("know-how RETRACT reason is required")
+			}
 			n, e := number(value(x, "note"), 2147483647)
 			if e != nil {
 				return errors.New("know-how note")

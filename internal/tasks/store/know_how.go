@@ -1,7 +1,9 @@
 package store
 
 import (
-	"bytes"
+	"bufio"
+	"errors"
+	"io"
 	"os/exec"
 	"sort"
 	"strings"
@@ -34,29 +36,25 @@ type KnowHowNote struct {
 }
 
 // KnowHowPins resolves rev's commit and the blob each path names in that
-// commit with one batched `git cat-file --batch-check` in root (KHN-V0-002).
+// commit with one `git cat-file --batch-check` in root (KHN-V0-001).
 // A path that is missing or is not a regular blob is refused: a note is never
 // pinned to something the writer's commit does not hold.
 func KnowHowPins(root, rev string, paths []string) (string, []string, error) {
-	lines := []string{rev + "^{commit}"}
-	for _, p := range paths {
-		lines = append(lines, rev+":"+p)
-	}
-	objs, err := catFileBatchCheck(root, lines)
+	commit, objs, err := catFileAtCommit(root, rev, paths)
 	if err != nil {
 		return "", nil, err
 	}
-	if objs[0].kind != "commit" {
+	if commit == "" {
 		return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/commit", "%s does not name a commit in this checkout", rev)
 	}
 	blobs := make([]string, len(paths))
 	for i, p := range paths {
-		if objs[i+1].kind != "blob" {
-			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "anchor %q is not a file in commit %s", p, objs[0].oid)
+		if objs[i].kind != "blob" {
+			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "anchor %q is not a file in commit %s", p, commit)
 		}
-		blobs[i] = objs[i+1].oid
+		blobs[i] = objs[i].oid
 	}
-	return objs[0].oid, blobs, nil
+	return commit, blobs, nil
 }
 
 // SelectKnowHow returns the active notes of every ticket in inv, or of home
@@ -102,19 +100,18 @@ func knowHowIntersects(anchors []ticket.KnowHowAnchor, paths []string) bool {
 // nothing: the Git environment disables optional locks.
 func ResolveKnowHowFreshness(root string, notes []KnowHowNote) string {
 	index := map[string]int{}
-	lines := []string{"HEAD^{commit}"}
+	var paths []string
 	for _, n := range notes {
 		for _, a := range n.Entry.Anchors {
 			if _, ok := index[a.Path]; !ok {
-				index[a.Path] = len(lines)
-				lines = append(lines, "HEAD:"+a.Path)
+				index[a.Path] = len(paths)
+				paths = append(paths, a.Path)
 			}
 		}
 	}
-	objs, err := catFileBatchCheck(root, lines)
-	head := ""
-	if err == nil && objs[0].kind == "commit" {
-		head = objs[0].oid
+	head, objs, err := catFileAtCommit(root, "HEAD", paths)
+	if err != nil {
+		head = ""
 	}
 	for i := range notes {
 		n := &notes[i]
@@ -208,16 +205,19 @@ func strOrNull(s *string) wire.Value {
 	return wire.String(*s)
 }
 
-// ProjectKnowHow keeps the longest prefix of the ordered notes whose items
-// fit maxBytes of canonical encoding and returns them with the number left
+// ProjectKnowHow keeps the longest prefix of the ordered notes whose array
+// fits maxBytes of canonical encoding and returns them with the number left
 // out (KHN-V0-006). It stops at the first item that does not fit, so the
 // order the reader sees is never reshuffled to fill the cap.
 func ProjectKnowHow(notes []KnowHowNote, compact bool, maxBytes int) ([]wire.Value, int) {
 	items := []wire.Value{}
-	used := 2
+	used := len("[]")
 	for i, n := range notes {
 		v := KnowHowNoteValue(n, compact)
-		size := len(wire.Encode(v)) + 1
+		size := len(wire.Encode(v))
+		if i > 0 {
+			size++ // the separating comma
+		}
 		if used+size > maxBytes {
 			return items, len(notes) - i
 		}
@@ -262,34 +262,94 @@ func claimKnowHow(repo *intent.Repository, root, ticketID string) ClaimedKnowHow
 
 type catFileObject struct{ oid, kind string }
 
-// catFileBatchCheck answers every line with one `git cat-file
-// --batch-check` in root. A line Git cannot resolve has kind "", so callers
-// read it as absent; a Git failure or a short answer is an error.
-func catFileBatchCheck(root string, lines []string) ([]catFileObject, error) {
+// catFileAtCommit answers rev's commit and the object each path names in
+// that commit with one `git cat-file --batch-check` in root. It resolves
+// rev^{commit} first and asks every path as <commit oid>:<path>, so a
+// concurrent commit cannot mix two commits into one answer (KHN-V0-001,
+// KHN-V0-005). The commit is "" when rev names no commit; a path Git cannot
+// resolve has kind "", so callers read it as absent; a Git failure or a
+// short answer is an error.
+func catFileAtCommit(root, rev string, paths []string) (string, []catFileObject, error) {
 	if root == "" {
-		return nil, wire.Errorf(wire.CodeUnsupported, "git", "no checkout to observe")
+		return "", nil, wire.Errorf(wire.CodeUnsupported, "git", "no checkout to observe")
 	}
 	c := exec.Command("git", "-c", "credential.helper=", "cat-file", "--batch-check=%(objectname) %(objecttype)")
 	c.Dir = root
 	c.Env = gitEnvironment()
-	c.Stdin = strings.NewReader(strings.Join(lines, "\n") + "\n")
-	out, err := c.Output()
+	stdin, err := c.StdinPipe()
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
+		return "", nil, gitObservationFailed(err)
 	}
-	got := bytes.Split(bytes.TrimSuffix(out, []byte("\n")), []byte("\n"))
-	if len(got) != len(lines) {
-		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git answered %d of %d object lookups", len(got), len(lines))
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		return "", nil, gitObservationFailed(err)
 	}
-	objs := make([]catFileObject, len(lines))
-	for i, g := range got {
-		oid, kind, ok := strings.Cut(string(g), " ")
-		if !ok || strings.Contains(kind, " ") {
-			continue
+	if err := c.Start(); err != nil {
+		return "", nil, gitObservationFailed(err)
+	}
+	out := bufio.NewReader(stdout)
+	commit, objs, err := askAtCommit(stdin, out, rev, paths)
+	_ = stdin.Close()
+	_, _ = io.Copy(io.Discard, out)
+	if werr := c.Wait(); err == nil && werr != nil {
+		err = gitObservationFailed(werr)
+	}
+	if err != nil {
+		return "", nil, err
+	}
+	return commit, objs, nil
+}
+
+func askAtCommit(stdin io.WriteCloser, out *bufio.Reader, rev string, paths []string) (string, []catFileObject, error) {
+	if _, err := io.WriteString(stdin, rev+"^{commit}\n"); err != nil {
+		return "", nil, gitObservationFailed(err)
+	}
+	first, err := readCatFileObject(out)
+	if err != nil || first.kind != "commit" {
+		return "", nil, err
+	}
+	// Git flushes each answer, so the paths are written from a goroutine
+	// while the answers are read: neither pipe can fill and block the other.
+	written := make(chan error, 1)
+	go func() {
+		var b strings.Builder
+		for _, p := range paths {
+			b.WriteString(first.oid + ":" + p + "\n")
 		}
-		if _, err := wire.ParseOID("oid", oid); err == nil {
-			objs[i] = catFileObject{oid: oid, kind: kind}
+		_, err := io.WriteString(stdin, b.String())
+		written <- errors.Join(err, stdin.Close())
+	}()
+	objs := make([]catFileObject, len(paths))
+	for i := range paths {
+		if objs[i], err = readCatFileObject(out); err != nil {
+			_ = stdin.Close()
+			<-written
+			return "", nil, err
 		}
 	}
-	return objs, nil
+	if err := <-written; err != nil {
+		return "", nil, gitObservationFailed(err)
+	}
+	return first.oid, objs, nil
+}
+
+// readCatFileObject reads one answer line. A line that is not "<oid> <type>"
+// (for example "<name> missing") is an absent object, never an error.
+func readCatFileObject(out *bufio.Reader) (catFileObject, error) {
+	line, err := out.ReadString('\n')
+	if err != nil {
+		return catFileObject{}, wire.Errorf(wire.CodeUnsupported, "git", "git answered short: %v", err)
+	}
+	oid, kind, ok := strings.Cut(strings.TrimSuffix(line, "\n"), " ")
+	if !ok || strings.Contains(kind, " ") {
+		return catFileObject{}, nil
+	}
+	if _, err := wire.ParseOID("oid", oid); err != nil {
+		return catFileObject{}, nil
+	}
+	return catFileObject{oid: oid, kind: kind}, nil
+}
+
+func gitObservationFailed(err error) error {
+	return wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
 }

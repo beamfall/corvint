@@ -12,6 +12,19 @@ import (
 // never the matched text.
 const KnowHowSecretDetail = "KNOWHOW_SECRET_DETECTED"
 
+// ScreenKnowHowArgs refuses a know-how command whose raw arguments match the
+// secret screen before any parse or pin error can echo them (KHN-V0-004).
+// The error is MALFORMED with the KnowHowSecretDetail prefix and never
+// repeats the argument; the mutation step screens the payload again.
+func ScreenKnowHowArgs(args []string) error {
+	for _, s := range args {
+		if secretscreen.MatchString(s) {
+			return wire.Errorf(wire.CodeMalformed, "/payload", "%s: an argument matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail)
+		}
+	}
+	return nil
+}
+
 // knowHowStep appends one KNOWHOW_ADD or KNOWHOW_RETRACT entry (KHN-V0-003)
 // to a live native home ticket. Actor, role, time and seq come from the
 // trusted context; nothing acceptance-relevant changes, so finalize bumps

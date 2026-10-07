@@ -47,8 +47,10 @@ screen and no audited history, and it does not reach a claim.
   names in the writer's commit, and MUST record that commit in the entry. The commit is `HEAD` of
   the working directory, or `--commit OID` so that a retry can reproduce the payload. Each anchor
   path is a repository-relative file. The shared Path grammar refuses absolute paths and paths
-  that contain `..`, and a trailing-`/` directory prefix is also refused. The commit and every
-  blob are resolved with one batched `git cat-file --batch-check` call. A missing path, a
+  that contain `..`, and a trailing-`/` directory prefix is also refused. The command screens its
+  arguments (KHN-V0-004) before any parse or pin error can echo them. One `git cat-file
+  --batch-check` process resolves the commit first and then every blob as `<commit oid>:<path>`,
+  so a concurrent commit cannot mix two commits into one pin set. A missing path, a
   non-blob object or an unresolvable revision is refused (MALFORMED), and nothing is written. A
   note is never pinned to an object the writer's commit does not hold.
 - `KHN-V0-002`: A ticket record MAY carry the optional member `knowHow`. When present it is a
@@ -87,8 +89,9 @@ screen and no audited history, and it does not reach a claim.
   is refused as VALIDATION_FAILED/MALFORMED, and the detail starts with the stable prefix
   `KNOWHOW_SECRET_DETECTED:`. The detail names the field and never the matched text.
 - `KHN-V0-005`: Freshness MUST be computed at read time against the reader's committed `HEAD`,
-  and it is never stored. The reader's commit and every distinct anchor path are resolved in one
-  batched Git call, and uncommitted edits are ignored.
+  and it is never stored. One Git process resolves the reader's `HEAD` commit first and then
+  every distinct anchor path as `<commit oid>:<path>`, so every state is relative to the reported
+  `head`; uncommitted edits are ignored.
   - For each anchor: a blob equal to the pin is CURRENT and a different blob is STALE. A missing
     path, a non-blob object, an unborn `HEAD`, no checkout or any Git failure is UNKNOWN, never
     CURRENT.
@@ -102,8 +105,9 @@ screen and no audited history, and it does not reach a claim.
     ticket id and note seq.
   - The member is a compact projection: ticket, note, freshness, text, anchor paths with their
     states, routes and time.
-  - It keeps the longest ordered prefix whose canonical encoding fits 2048 bytes and carries
-    `matched`, `omitted` and a read hint when notes were left out.
+  - It keeps the longest ordered prefix of notes such that the canonical encoding of the whole
+    member, including `trust`, `head`, `matched`, `omitted`, `state` and the read hint given when
+    notes were left out, fits 2048 bytes.
   - The member is computed when the response is built, so a replay shows current freshness. An
     unreadable inventory makes it `UNAVAILABLE` with a code and a warning, and never fails the
     committed claim.
@@ -157,9 +161,9 @@ screen and no audited history, and it does not reach a claim.
 | KHN-V0-001 | V1-0955 criteria 1-2 | `internal/tasks/store` (pins); `internal/tasks/cli` (verb) | `TestKHNV0001_PinsResolveTheWritersCommit` (HEAD and explicit commit; missing file, directory, unknown revision and no checkout refused); `TestKHNV0006_KnowHowThroughTheCLI` (pinned blobs listed; missing, absolute and `..` anchors refused end to end) | durable qualification |
 | KHN-V0-002 | V1-0955 criteria 1-2 | `internal/tasks/ticket` (codec, view); `internal/tasks/wire` (bounds); `internal/taskman` (Core reader) | `TestKHNV0002_PayloadRefusals`; `TestKHNV0002_RecordCodecRefusals`; `TestKHNV0002_ReaderKnowHow`; `TestIssue502_ReaderAdmitsSharedOptionalKeys` (shared fixture with ADD, supersede, OPERATOR provenance and RETRACT) | native archive round trip of a note-bearing store |
 | KHN-V0-003 | V1-0955 criterion 2 | `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/intent` (policy grant); `internal/tasks/transaction` (import guard) | `TestKHNV0003_AddSupersedeRetractKeepHistory`; `TestKHNV0003_WriteRefusals`; `TestKHNV0003_AdoptFileRefusesKnowHow`; `TestKHNV0003_ImportApplyNeverCarriesKnowHow`; `TestKHNV0006_KnowHowThroughTheCLI` (replay, supersede, retract, `ticket show`, receipt audit CONSISTENT) | concurrent two-process CAS; interrupted-commit redo of a know-how receipt |
-| KHN-V0-004 | V1-0955 criterion 5 | `internal/tasks/mutation` (screen); decision 0397 V1-0955 addendum | `TestKHNV0004_SecretScreenRefusesTheWrite`; `TestImportDirection` and the boundary controls (the exact two-file `internal/secretscreen` edge); `TestKHNV0006_KnowHowThroughTheCLI` (secret refused, never echoed) | none |
+| KHN-V0-004 | V1-0955 criterion 5 | `internal/tasks/mutation` (screen); decision 0397 V1-0955 addendum | `TestKHNV0004_SecretScreenRefusesTheWrite`; `TestImportDirection` and the boundary controls (the exact two-file `internal/secretscreen` edge); `TestKHNV0006_KnowHowThroughTheCLI` (secret text, path and route refused before pinning, never echoed) | none |
 | KHN-V0-005 | V1-0955 criterion 3 | `internal/tasks/store` (freshness) | `TestKHNV0005_FreshnessIsComputedAtReadTime` (CURRENT, STALE, UNKNOWN for a deleted file; note precedence; dirty tree ignored; no checkout, non-repository and unborn HEAD all UNKNOWN; ordering); `TestKHNV0006_KnowHowThroughTheCLI` (STALE and UNKNOWN after a commit) | none |
-| KHN-V0-006 | V1-0955 criterion 4 | `internal/tasks/store` (selection, projection, claim delivery); `internal/tasks/cli` (list, claim result, help) | `TestKHNV0006_SelectionAndProjection`; `TestKHNV0006_KnowHowThroughTheCLI` (list writes no state or intent bytes; prefix, exact and ticket filters; claim delivers the intersecting compact note); `TestKHNV0006_ClaimDeliveryIsCapped` (claim --next; 2 KiB cap, matched, omitted and hint; newest first) | an UNAVAILABLE delivery witness from an unreadable inventory |
+| KHN-V0-006 | V1-0955 criterion 4 | `internal/tasks/store` (selection, projection, claim delivery); `internal/tasks/cli` (list, claim result, help) | `TestKHNV0006_SelectionAndProjection`; `TestKHNV0006_KnowHowThroughTheCLI` (list writes no state or intent bytes; prefix, exact and ticket filters; claim delivers the intersecting compact note); `TestKHNV0006_DeliveredMemberFitsTheCap` (the whole member within 2 KiB across note sizes); `TestKHNV0006_ClaimDeliveryIsCapped` (claim --next; the whole member within 2 KiB, matched, omitted and hint; newest first) | an UNAVAILABLE delivery witness from an unreadable inventory |
 | KHN-V0-007 | V1-0955 criterion 5 | `internal/tasks/cli` (labels); every reader file | `TestKHNV0007_KnowHowNeverReachesRankingEvidenceOrAuthority` (fixed reader set); the trust label asserted in `TestKHNV0006_KnowHowThroughTheCLI` and `TestKHNV0006_ClaimDeliveryIsCapped` | none |
 
 ## Resolved decisions

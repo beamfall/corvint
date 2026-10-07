@@ -217,6 +217,15 @@ func TestKHNV0006_SelectionAndProjection(t *testing.T) {
 	if strings.Contains(compact, `"blob"`) || strings.Contains(compact, `"actor"`) || !strings.Contains(compact, `"freshness":"CURRENT"`) {
 		t.Fatalf("compact item %s", compact)
 	}
+	// An array that encodes to exactly the cap fits: no separator is charged
+	// before the first item.
+	exact := len(wire.Encode(wire.Array(items...)))
+	if again, left := store.ProjectKnowHow(notes, true, exact); len(again) != len(items) || left != omitted {
+		t.Fatalf("an exactly fitting prefix of %d bytes kept %d of %d items", exact, len(again), len(items))
+	}
+	if again, _ := store.ProjectKnowHow(notes, true, exact-1); len(again) != len(items)-1 {
+		t.Fatalf("one byte under the prefix kept %d of %d items", len(again), len(items))
+	}
 	if items, omitted := store.ProjectKnowHow(notes[:1], false, store.KnowHowDeliveryMaxBytes); len(items) != 1 || omitted != 0 || !strings.Contains(string(wire.Encode(items[0])), `"blob"`) {
 		t.Fatal("full item lacks its pins")
 	}
