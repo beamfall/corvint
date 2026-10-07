@@ -22,8 +22,11 @@ import (
 const (
 	ConfigProfile = "taskman-dispatch/0"
 	StateProfile  = "taskman-dispatch-state/1"
-	EventProfile  = "taskman-dispatch-event/0"
-	MaxConfig     = 256 << 10
+	// drainedStateProfile is the previous ledger version, adopted only when
+	// it records no worker (CAL-V0-132, proposed amendment).
+	drainedStateProfile = "taskman-dispatch-state/0"
+	EventProfile        = "taskman-dispatch-event/0"
+	MaxConfig           = 256 << 10
 )
 
 // Config is the closed taskman-dispatch/0 operator configuration.

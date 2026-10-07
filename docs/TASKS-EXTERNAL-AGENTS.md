@@ -609,8 +609,11 @@ procedure.
 
 A dispatcher ledger written by another dispatch-state version, or carrying a member this build
 does not know, refuses `UNSUPPORTED_VERSION` and the dispatcher does not open. The ledger moved
-from `taskman-dispatch-state/0` to `/1` when it gained the configuration-reload record, so a ledger
-written by an earlier build refuses under a build that writes `/1`. A store `VERSION` another
+from `taskman-dispatch-state/0` to `/1` when it gained the configuration-reload record. A build
+that writes `/1` adopts a `/0` ledger only once it is drained: let every worker finish under the
+earlier build until its ledger records none, then restart under the new build,
+which keeps the backoff and cooldown history and rewrites the ledger as `/1` on its next save
+(proposed). A `/0` ledger that still records a worker refuses, and an earlier build refuses `/1`. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

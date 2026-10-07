@@ -43,7 +43,7 @@ func TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts(t *testing.T)
 		"next profile version": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/2"`), 1)
 		},
-		"version 0, written before the config record": func(b []byte) []byte {
+		"version 0 still recording a worker": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/0"`), 1)
 		},
 		"unknown member": func(b []byte) []byte {

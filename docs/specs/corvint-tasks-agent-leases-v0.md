@@ -3615,8 +3615,16 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   name and case-folded aliases keep their existing malformed refusals. The ledger is
   `taskman-dispatch-state/1` from the build that added the CAL-V0-127 `config` record and the
   CAL-V0-125 CPU sample fields; a maintained test pins each version's encoded shape, so a changed
-  shape needs a new version. A version 0 ledger refuses under it, so the upgrade from an earlier
-  build is the differing-formats procedure.
+  shape needs a new version. Proposed amendment to the accepted rule (batch 4): a drained
+  `taskman-dispatch-state/0` ledger, one that records no worker and carries no member under any
+  spelling that version 0 lacked (the `config` record or a CPU sample field), MUST be adopted:
+  it is decoded under version 0's closed member set with the added members at their zero
+  values, keeps its backoff, cooldown and other history, and is rewritten as version 1 by the
+  next save. A version 0 ledger that still records a worker or carries such a member MUST
+  refuse UNSUPPORTED_VERSION before any worker action, every other version still refuses, and a
+  version 0 build still refuses a version 1 ledger. The upgrade from an earlier build is
+  therefore the differing-formats procedure: drain to zero workers under that build, then
+  restart under this one.
 - `CAL-V0-133`: proposed (V1-0889; GitHub #644). Build N processes that outlive the swap, such as
   detached attempt-runner supervisors (which re-execute their own executable) and supervised program
   owners, keep running build N against the shared store. The procedure MUST install by writing a new
@@ -3648,7 +3656,8 @@ behavior unrelated to formats, such as admission policy or dispatcher scheduling
 Acceptance evidence: `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`,
 `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`,
 `TestCALV0131_LiveFormatsCoverEveryLiveRecord` (`internal/tasks/cli`);
-`TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`); see
+`TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`,
+`TestCALV0132_DrainedPreviousVersionLedgerIsAdopted` (`internal/tasks/dispatch`); see
 `docs/build-log/2026-10-06-v1-0889-live-upgrade.md` and the operator procedure in
 `docs/TASKS-EXTERNAL-AGENTS.md`. A live fleet upgrade with real workers is NOT_RUN.
 
@@ -3963,7 +3972,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, report a wall timeout, nonzero exit or invalid result as `MALFORMED`, or (over an existing candidate it changed) refuse `read-only stage changed candidate` with the attempt left `STOPPING` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
 | Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
 | Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
-| Dispatcher ledger written by another build (another dispatch-state version, or a member this build does not know) | A rollback or skipped build would drop or misread recorded workers and backoff | The dispatcher refuses UNSUPPORTED_VERSION before any decode, rewrite or worker action (CAL-V0-132) |
+| Dispatcher ledger written by another build (another dispatch-state version, or a member this build does not know) | A rollback or skipped build would drop or misread recorded workers and backoff | The dispatcher refuses UNSUPPORTED_VERSION before any decode, rewrite or worker action (CAL-V0-132); proposed amendment: a drained version 0 ledger (no worker, no member version 0 lacked) is adopted with its history and rewritten as version 1 by the next save, and one that still records a worker refuses |
 | Record written by another build (another version of its own profile, possibly with members this build does not know) | A newer record would be reported MALFORMED, read as damage, or partly decoded | Each decoder refuses UNSUPPORTED_VERSION before its closed-key checks and reads nothing more; the first refusal sticks and survives wrapping (CAL-V0-131) |
 | New corvint-tasks build installed while attempts are live | A drain would be the only safe upgrade, or a build N process would meet records it cannot read | Equal `version` `formats` permit replacement by rename and adoption, and rollback by the same procedure; differing sets require a drain to upgrade, and rollback across them is unsupported: N refuses UNSUPPORTED_VERSION with the store unchanged (CAL-V0-130, CAL-V0-131, CAL-V0-133) |
 
@@ -4097,7 +4106,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-129 | `TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`) |
 | CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner`, `TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
-| CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
+| CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0132_DrainedPreviousVersionLedgerIsAdopted`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
 | CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |
 | CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`); no code change to the supervised-host pin |
 | CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |

@@ -281,11 +281,18 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // top-level member that no spelling of a known member matches, was written
 // by a build with another format. It is refused as UNSUPPORTED_VERSION and
 // never read or migrated; case-folded aliases keep their malformed refusal.
-func ledgerFormat(members map[string]json.RawMessage) error {
+// The one exception (proposed amendment) is a drained version 0 ledger:
+// drained reports it, and the caller adopts it as this version.
+func ledgerFormat(members map[string]json.RawMessage) (drained bool, err error) {
 	var profile string
 	if raw, ok := members["profile"]; ok && json.Unmarshal(raw, &profile) == nil && profile != StateProfile {
-		if err := wire.CheckProfile("/profile", profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
-			return err
+		if profile == drainedStateProfile {
+			if err := drainedFormat(members); err != nil {
+				return false, err
+			}
+			drained = true
+		} else if err := wire.CheckProfile("/profile", profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
+			return false, err
 		}
 	}
 	known := reflect.TypeFor[Ledger]()
@@ -299,7 +306,53 @@ func ledgerFormat(members map[string]json.RawMessage) error {
 			found = strings.EqualFold(name, tag)
 		}
 		if !found {
-			return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to this build")
+			return false, wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to this build")
+		}
+	}
+	return drained, nil
+}
+
+// state1Members and state1SampleMembers are what taskman-dispatch-state/1
+// added to version 0: the CAL-V0-127 config record and the CAL-V0-125 CPU
+// sample fields.
+var (
+	state1Members       = []string{"config"}
+	state1SampleMembers = []string{"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "cpuUtilizationKnown"}
+)
+
+// drainedFormat admits a version 0 ledger only when it records no worker
+// and carries no member, under any spelling, that version 0 never had; it
+// is then read under version 0's closed member set, so the added members
+// keep their zero values. Anything else refuses UNSUPPORTED_VERSION.
+func drainedFormat(members map[string]json.RawMessage) error {
+	foldedIn := func(name string, set []string) bool {
+		return slices.ContainsFunc(set, func(s string) bool { return strings.EqualFold(name, s) })
+	}
+	for name, raw := range members {
+		switch {
+		case strings.EqualFold(name, "workers"):
+			var workers []json.RawMessage
+			if json.Unmarshal(raw, &workers) != nil || len(workers) > 0 {
+				return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "a %s ledger that records workers must be drained by the build that wrote it", drainedStateProfile)
+			}
+		case foldedIn(name, state1Members):
+			return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name, "dispatch state member is not known to %s", drainedStateProfile)
+		case strings.EqualFold(name, "pressure"):
+			var pressure map[string]json.RawMessage
+			if json.Unmarshal(raw, &pressure) != nil {
+				continue // the strict decoder refuses it
+			}
+			for key, sampleRaw := range pressure {
+				var sample map[string]json.RawMessage
+				if !strings.EqualFold(key, "sample") || json.Unmarshal(sampleRaw, &sample) != nil {
+					continue
+				}
+				for field := range sample {
+					if foldedIn(field, state1SampleMembers) {
+						return wire.Errorf(wire.CodeUnsupportedVersion, "/"+name+"/"+key+"/"+field, "dispatch state member is not known to %s", drainedStateProfile)
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -318,7 +371,8 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
-	if err := ledgerFormat(members); err != nil {
+	drained, err := ledgerFormat(members)
+	if err != nil {
 		return nil, err
 	}
 	// Detect aliases before struct decoding: encoding/json folds field names,
@@ -352,6 +406,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	var l Ledger
 	if err := d.Decode(&l); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	if drained && l.Profile == drainedStateProfile {
+		l.Profile = StateProfile // the next save writes this version
 	}
 	if l.Profile != StateProfile || l.Program != program {
 		return nil, fmt.Errorf("dispatch state belongs to profile %q program %q", l.Profile, l.Program)
