@@ -146,3 +146,51 @@ func TestTestValidityDiscoverSelectsProducerRetainedDocument(t *testing.T) {
 		t.Fatalf("retained=%s document=%s", name, stdout.String())
 	}
 }
+
+// LPCV-V0-056 / MTV-V0-009: the typed no-evidence reason is the same bytes on
+// the CLI and the MCP discovery surface.
+func TestTestValidityDiscoveryAbstentionMatchesMCPDocument(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]string{
+		"":                 `"abstention":{"reason":"no-retained-evidence","requires":"retained-producer-run"}`,
+		`{"unknown":true}`: `"abstention":{"reason":"retained-evidence-unusable","requires":"retained-producer-run"}`,
+	} {
+		root, err := filepath.EvalSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		files := map[string]string{filepath.Join(root, ".git", "HEAD"): "ref: refs/heads/main\n"}
+		if name != "" {
+			files[filepath.Join(root, ".corvint", "test-evidence", "run.json")] = name
+		}
+		for path, body := range files {
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"--root", root, "test-validity", "--discover"}, strings.NewReader(""), &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+			t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+		}
+		registry, registryErr := testvaliditybridge.New(root)
+		if registryErr != nil {
+			t.Fatal(registryErr)
+		}
+		structured, _, toolFailure, callErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
+		if toolFailure != nil || callErr != nil {
+			t.Fatalf("failure=%+v err=%v", toolFailure, callErr)
+		}
+		var cliDocument any
+		if err := json.Unmarshal(stdout.Bytes(), &cliDocument); err != nil {
+			t.Fatal(err)
+		}
+		cli, cliErr := gokernel.CanonicalJSON(cliDocument)
+		mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
+		if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) || !bytes.Contains(mcp, []byte(want)) {
+			t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
+		}
+	}
+}

@@ -619,11 +619,11 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 }
 
 func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
-	if r.Identity.RunnerVersion == "1.60.0" {
-		return r.Profile != AttemptExternalProfile
-	}
-	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
+	if ReceiptRuntimeTuple(r) != RuntimeTupleCandidate {
 		return false
+	}
+	if r.Identity.RunnerVersion == "1.60.0" {
+		return true
 	}
 	var use playwrightUseIdentity
 	if json.Unmarshal(t.Project.Use, &use) != nil {
@@ -640,7 +640,7 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 		return false
 	}
 	if browser.ExecutableSource == nil {
-		if r.Profile == AttemptExternalProfile {
+		if r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion {
 			return false
 		}
 		return qualifiedSystemPlaywrightBrowser(use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)

@@ -1,0 +1,35 @@
+=== RUN   TestQualifiedPlaywrightLive
+=== RUN   TestQualifiedPlaywrightLive/interruption-wait-releases-on-request-cancel
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-009_explicit-node-tuple
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-003_distinct-project-identities
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-004_preserve-real-attempt-states
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-001_external-server-survives
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-002_original-config-inputs-and-hooks
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-005_retained-MCP-discovery
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-007_live-browser-matrix
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-006_cancellation-preserves-external-server
+=== NAME  TestQualifiedPlaywrightLive
+    external_live_test.go:409: PWP-V0-008 system browser Google Chrome 154.0.8037.98 remains unqualified; previous system tuple NOT_OBSERVED
+=== RUN   TestQualifiedPlaywrightLive/PWP-V0-009_unqualified-node-control-abstains
+    external_live_test.go:440: PWP-V0-009 control Node v22.23.3 abstained with runtime-tuple-unqualified
+=== NAME  TestQualifiedPlaywrightLive
+    external_live_test.go:443: qualified real Playwright 1.63.0 bundled headless-shell on Node v24.11.1: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival
+--- PASS: TestQualifiedPlaywrightLive (30.30s)
+    --- PASS: TestQualifiedPlaywrightLive/interruption-wait-releases-on-request-cancel (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-009_explicit-node-tuple (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-003_distinct-project-identities (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-004_preserve-real-attempt-states (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-001_external-server-survives (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-002_original-config-inputs-and-hooks (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-005_retained-MCP-discovery (0.01s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-007_live-browser-matrix (0.00s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-006_cancellation-preserves-external-server (1.12s)
+    --- PASS: TestQualifiedPlaywrightLive/PWP-V0-009_unqualified-node-control-abstains (1.82s)
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-003_standard-devices-spread-identity
+=== RUN   TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-008_bundled-headless-qualified-tuple
+--- PASS: TestQualifiedPlaywrightLiveDevicesSpread (1.29s)
+    --- PASS: TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-003_standard-devices-spread-identity (0.00s)
+    --- PASS: TestQualifiedPlaywrightLiveDevicesSpread/PWP-V0-008_bundled-headless-qualified-tuple (0.00s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/jstestprovider	31.841s
