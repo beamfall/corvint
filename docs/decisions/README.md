@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0445-gh659-tsconfig-alias-impact-accepted-2026-10-07.md`](0445-gh659-tsconfig-alias-impact-accepted-2026-10-07.md) | accepted (owner answer 2026-10-07) | Accepts the issue-659 tsconfig alias impact requirements GPK-V0-077..081 and the lane's eight defaults; intent only, delivery stays experimental |
 | [`0444-gh655-know-how-open-questions-answered-2026-10-07.md`](0444-gh655-know-how-open-questions-answered-2026-10-07.md) | accepted (owner answer 2026-10-07) | Answers issue-655 know-how owner questions 5, 6 and 8 with yes: dedicated secret code, ledger-verified attempt/generation (V1-0964), untrusted capped Core delivery (V1-0962); direction only |
 | [`0443-gh655-know-how-notes-accepted-2026-10-07.md`](0443-gh655-know-how-notes-accepted-2026-10-07.md) | accepted (owner answer 2026-10-07) | Accepts the issue-655 know-how note requirements KHN-V0-001..007, the lane's resolved decisions, the decision 0397 secretscreen addendum and the fail-closed policy defaults; intent only, delivery stays experimental |
 | [`0442-gh656-prompt-fragments-accepted-2026-10-07.md`](0442-gh656-prompt-fragments-accepted-2026-10-07.md) | accepted (owner answer 2026-10-07) | Accepts the issue-656 shared dispatch prompt fragment requirements CAL-V0-175..178; intent only, delivery and qualification status unchanged |

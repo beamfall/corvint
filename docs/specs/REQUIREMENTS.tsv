@@ -1516,11 +1516,11 @@ GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1369	(proposed 2026-0
 GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1387	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
 GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1403	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
 GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1448	(accepted by decision 0439; V1-0881; no GitHub issue)
-GPK-V0-077	docs/specs/go-production-kernel-migration-v0.md	1473	(proposed, pending owner acceptance; V1-0958) Rule (c) gains an alias arm. For
-GPK-V0-078	docs/specs/go-production-kernel-migration-v0.md	1522	(proposed, pending owner acceptance; V1-0958) Config reading never guesses.
-GPK-V0-079	docs/specs/go-production-kernel-migration-v0.md	1542	(proposed, pending owner acceptance; V1-0958) A web reverse-import row whose
-GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	1550	(proposed, pending owner acceptance; V1-0958) A bare specifier that resolves to
-GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	1568	(proposed, pending owner acceptance; V1-0958) The alias arm reads only the
+GPK-V0-077	docs/specs/go-production-kernel-migration-v0.md	1473	(accepted by decision 0445; V1-0958) Rule (c) gains an alias arm. For
+GPK-V0-078	docs/specs/go-production-kernel-migration-v0.md	1522	(accepted by decision 0445; V1-0958) Config reading never guesses.
+GPK-V0-079	docs/specs/go-production-kernel-migration-v0.md	1542	(accepted by decision 0445; V1-0958) A web reverse-import row whose
+GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	1550	(accepted by decision 0445; V1-0958) A bare specifier that resolves to
+GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	1568	(accepted by decision 0445; V1-0958) The alias arm reads only the
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
