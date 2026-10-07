@@ -12,6 +12,10 @@ func validateRedoInventory(p *Plan, i *Inventory) error {
 	if p == nil || i == nil {
 		return malformed("redo requires frozen plan and complete inventory")
 	}
+	if i.Summarized() || (p.base != nil && p.base.Summarized()) {
+		i.markMiss()
+		return malformed("redo requires frozen plan and complete inventory")
+	}
 	rc, e := snapshot.DecodeReceipt(p.receipt)
 	if e != nil {
 		return e

@@ -19,9 +19,130 @@ const MaxJournalBytes uint64 = 4 * wire.GiB
 // Inventory privately owns complete supplied metadata, including actual state
 // directories (without the state root). It cannot verify physical existence or
 // authentication. Only regular retained files belong here; staging is separate.
+//
+// A summarized inventory (NewSummarizedInventory) additionally carries an
+// elided prefix: receipts and request index files a writer checkpoint already
+// audited, charged by count and cost without per-file metadata. Any question
+// that needs an elided file's metadata marks the inventory Incomplete; the
+// caller must then discard every result computed from it and use a complete
+// inventory instead (CAL-V0-117).
 type Inventory struct {
-	files map[string]archive.FileEntry
-	dirs  map[string]bool
+	files  map[string]archive.FileEntry
+	dirs   map[string]bool
+	elided *Elided
+	miss   *bool
+}
+
+// Elided summarizes the retained receipts 1..Receipts and the Requests request
+// index files that a writer checkpoint audited. FirstReceiptSha256 and
+// LastReceiptSha256 are receipts 1 and Receipts; ReceiptBytes is the receipts'
+// payload; Cost is the archive encoding cost of all elided files. HasRequest
+// reports whether a request path is one of the elided request files. The
+// caller owns the summary's truth; the inventory only checks its shape.
+type Elided struct {
+	Receipts           uint64
+	FirstReceiptSha256 wire.Digest
+	LastReceiptSha256  wire.Digest
+	ReceiptBytes       uint64
+	Requests           uint64
+	HasRequest         func(string) bool
+	Cost               archive.FileSetCost
+}
+
+// NewSummarizedInventory is NewInventory with an elided prefix. files must not
+// list an elided path, and every bound is charged with the elided counts.
+func NewSummarizedInventory(files []archive.FileEntry, stateDirectories []string, elided Elided) (*Inventory, error) {
+	if elided.Receipts < 1 || elided.Receipts > MaxReceipts || elided.HasRequest == nil || elided.Cost.Files < 0 {
+		return nil, malformed("elided inventory summary")
+	}
+	n, e := add(elided.Receipts, elided.Requests)
+	if e != nil {
+		return nil, e
+	}
+	if uint64(elided.Cost.Files) != n || elided.ReceiptBytes > elided.Cost.PayloadBytes {
+		return nil, malformed("elided inventory cost")
+	}
+	if n > wire.MaxArchiveFiles || uint64(len(files)) > wire.MaxArchiveFiles-n {
+		return nil, limit("inventory entries")
+	}
+	inv, e := NewInventory(files, stateDirectories)
+	if e != nil {
+		return nil, e
+	}
+	if !inv.dirs["receipts"] || (elided.Requests > 0 && !inv.dirs["requests"]) {
+		return nil, malformed("elided inventory directory")
+	}
+	scanned := uint64(len(inv.dirs)) + n
+	for p := range inv.files {
+		if seq, ok := receiptNumber(p); ok && seq <= elided.Receipts {
+			return nil, malformed("explicit receipt inside the elided prefix")
+		}
+		if strings.HasPrefix(p, "requests/") && elided.HasRequest(p) {
+			return nil, malformed("explicit request inside the elided prefix")
+		}
+		if !strings.HasPrefix(p, "intent/") {
+			scanned++
+		}
+	}
+	if scanned > wire.MaxArchiveScanEntries {
+		return nil, limit("inventory scan/intent bounds")
+	}
+	summary := elided
+	inv.elided = &summary
+	inv.miss = new(bool)
+	return inv, nil
+}
+
+// Incomplete reports whether a question needed an elided file's metadata.
+// Every result computed from the inventory, or from a clone, is then void.
+func (i *Inventory) Incomplete() bool { return i.miss != nil && *i.miss }
+
+// Summarized reports whether the inventory carries an elided prefix.
+func (i *Inventory) Summarized() bool { return i.elided != nil }
+
+func (i *Inventory) markMiss() {
+	if i.miss != nil {
+		*i.miss = true
+	}
+}
+
+// isElided reports whether p is a file in the elided prefix.
+func (i *Inventory) isElided(p string) bool {
+	if i.elided == nil {
+		return false
+	}
+	if seq, ok := receiptNumber(p); ok {
+		return seq <= i.elided.Receipts
+	}
+	return strings.HasPrefix(p, "requests/") && i.elided.HasRequest(p)
+}
+
+// lookup returns p's metadata. An elided p is present without metadata: it
+// marks the inventory incomplete and returns a zero entry.
+func (i *Inventory) lookup(p string) (archive.FileEntry, bool) {
+	if f, ok := i.files[p]; ok {
+		return f, true
+	}
+	if i.isElided(p) {
+		i.markMiss()
+		return archive.FileEntry{}, true
+	}
+	return archive.FileEntry{}, false
+}
+
+func receiptNumber(p string) (uint64, bool) {
+	name, ok := strings.CutPrefix(p, "receipts/")
+	if !ok || len(name) != 17 || !strings.HasSuffix(name, ".json") {
+		return 0, false
+	}
+	var n uint64
+	for _, c := range name[:12] {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, true
 }
 
 func NewInventory(files []archive.FileEntry, stateDirectories []string) (*Inventory, error) {
@@ -132,7 +253,33 @@ func retainedBound(p string) (uint64, error) {
 	n, e := snapshot.PostBound(p)
 	return uint64(n), e
 }
+
+// Files returns every listed file. A summarized inventory cannot list its
+// elided prefix, so the call marks it incomplete; use FilesUnder instead.
 func (i *Inventory) Files() []archive.FileEntry {
+	if i.elided != nil {
+		i.markMiss()
+	}
+	return i.explicitFiles()
+}
+
+// FilesUnder returns the listed files under prefix, sorted. It marks a
+// summarized inventory incomplete when prefix could cover an elided file.
+func (i *Inventory) FilesUnder(prefix string) []archive.FileEntry {
+	if i.elided != nil && (strings.HasPrefix(prefix, "receipts/") || strings.HasPrefix(prefix, "requests/") || strings.HasPrefix("receipts/", prefix) || strings.HasPrefix("requests/", prefix)) {
+		i.markMiss()
+	}
+	out := []archive.FileEntry{}
+	for p, f := range i.files {
+		if strings.HasPrefix(p, prefix) {
+			out = append(out, f)
+		}
+	}
+	archive.SortFiles(out)
+	return out
+}
+
+func (i *Inventory) explicitFiles() []archive.FileEntry {
 	out := make([]archive.FileEntry, 0, len(i.files))
 	for _, f := range i.files {
 		out = append(out, f)
@@ -141,10 +288,11 @@ func (i *Inventory) Files() []archive.FileEntry {
 	return out
 }
 
-// Has reports whether the inventory holds a file at p.
+// Has reports whether the inventory holds a file at p, including an elided
+// file, whose presence the summary proves without its metadata.
 func (i *Inventory) Has(p string) bool {
 	_, ok := i.files[p]
-	return ok
+	return ok || i.isElided(p)
 }
 func (i *Inventory) Directories() []string {
 	out := make([]string, 0, len(i.dirs))
@@ -155,11 +303,11 @@ func (i *Inventory) Directories() []string {
 	return out
 }
 func (i *Inventory) matches(p string, raw []byte) bool {
-	f, ok := i.files[p]
+	f, ok := i.lookup(p)
 	return ok && f.Sha256 == wire.Sum(raw) && f.Bytes.Uint64() == uint64(len(raw))
 }
 func (i *Inventory) clone() *Inventory {
-	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}}
+	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}, elided: i.elided, miss: i.miss}
 	for p, f := range i.files {
 		out.files[p] = f
 	}
@@ -175,30 +323,46 @@ func (i *Inventory) chain(h *snapshot.Head) error {
 			count++
 		}
 	}
+	elided := uint64(0)
+	if i.elided != nil {
+		elided = i.elided.Receipts
+	}
+	count, e := add(count, elided)
+	if e != nil {
+		return e
+	}
 	if count != h.LastSeq.Uint64() {
 		return malformed("complete receipt inventory differs from head")
 	}
-	for n := uint64(1); n <= count; n++ {
+	for n := elided + 1; n <= count; n++ {
 		name, _ := snapshot.ReceiptName(n)
 		if _, ok := i.files["receipts/"+name]; !ok {
 			return malformed("receipt gap/extra")
 		}
 	}
 	name, _ := snapshot.ReceiptName(count)
-	if i.files["receipts/"+name].Sha256 != *h.LastReceiptSha256 {
+	last := i.files["receipts/"+name].Sha256
+	if count == elided {
+		last = i.elided.LastReceiptSha256
+	}
+	if last != *h.LastReceiptSha256 {
 		return malformed("head receipt digest")
 	}
 	if h.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || !i.matches("VERSION", []byte(snapshot.VersionBytes)) {
 		return malformed("VERSION binding")
 	}
 	first, _ := snapshot.ReceiptName(1)
-	if i.files["receipts/"+first].Sha256 != h.InitSha256 {
+	genesis := i.files["receipts/"+first].Sha256
+	if elided > 0 {
+		genesis = i.elided.FirstReceiptSha256
+	}
+	if genesis != h.InitSha256 {
 		return malformed("genesis head binding")
 	}
 	return nil
 }
 func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
-	old, exists := i.files[f.Path]
+	old, exists := i.lookup(f.Path)
 	if exists && exclusive {
 		if old == f {
 			return nil
@@ -267,8 +431,17 @@ func journalReserve(c Cost, barrier bool, l limits) error {
 func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uint64) (Cost, error) {
 	c := Cost{TemporaryBytes: temporary, PromisedBytes: promised, ScannedEntries: uint64(len(i.dirs))}
 	var e error
+	var prefix archive.FileSetCost
+	if i.elided != nil {
+		// The elided receipts and request files are scanned, retained,
+		// archived entries charged from the summary (CAL-V0-117).
+		prefix = i.elided.Cost
+		c.ScannedEntries += uint64(prefix.Files)
+		c.JournalCount = i.elided.Receipts
+		c.JournalBytes = i.elided.ReceiptBytes
+	}
 	intentHash := sha256.New()
-	files := i.Files()
+	files := i.explicitFiles()
 	for _, f := range files {
 		n := f.Bytes.Uint64()
 		if strings.HasPrefix(f.Path, "intent/") {
@@ -311,7 +484,7 @@ func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uin
 		barrier = &d
 	}
 	m := archive.Manifest{QueueID: h.QueueID, ExportedAtSeq: wire.SizeOf(c.JournalCount), HeadSha256: wire.Sum(wire.EncodeFile(h.Value())), VersionSha256: h.VersionSha256, BarrierSha256: barrier, PrimaryWorktree: h.PrimaryWorktree, IntentTreeSha256: wire.Digest(fmt.Sprintf("%x", intentHash.Sum(nil))), Files: files, ReceiptCount: wire.SizeOf(c.JournalCount), LastReceiptSha256: last, HeadGeneration: h.Generation, Complete: true}
-	enc, e := archive.MeasureManifestEncoding(&m)
+	enc, e := archive.MeasureManifestEncodingWith(&m, prefix)
 	if e != nil {
 		return c, e
 	}
@@ -411,7 +584,7 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 	}
 	for _, a := range p.artifacts {
 		if a.Role == "RECEIPT" {
-			if _, ok := working.files[a.Target]; ok {
+			if working.Has(a.Target) {
 				return out, malformed("receipt already linked")
 			}
 			if e = working.put(entry(a), true); e != nil {
@@ -431,8 +604,10 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 		}
 	}
 	sort.Slice(ordered, func(i, j int) bool {
-		oldI := working.files[ordered[i].Target].Bytes.Uint64()
-		oldJ := working.files[ordered[j].Target].Bytes.Uint64()
+		fileI, _ := working.lookup(ordered[i].Target)
+		fileJ, _ := working.lookup(ordered[j].Target)
+		oldI := fileI.Bytes.Uint64()
+		oldJ := fileJ.Bytes.Uint64()
 		growI := ordered[i].Bytes.Uint64() >= oldI
 		growJ := ordered[j].Bytes.Uint64() >= oldJ
 		if growI != growJ {
@@ -502,7 +677,7 @@ func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 	}
 	name, _ := snapshot.ReceiptName(n)
 	hash := wire.Sum([]byte("hypothetical reserved bytes; not authentication"))
-	if _, ok := i.files["receipts/"+name]; ok {
+	if i.Has("receipts/" + name) {
 		return c, malformed("reserve receipt occupied")
 	}
 	if e = i.put(archive.FileEntry{Path: "receipts/" + name, Sha256: hash, Bytes: wire.SizeOf(UnpauseReceiptBytes)}, true); e != nil {
@@ -517,9 +692,13 @@ func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 		}
 	}
 	requestPath := ""
-	for x := 0; x <= len(i.files); x++ {
+	candidates := uint64(len(i.files))
+	if i.elided != nil {
+		candidates += i.elided.Requests
+	}
+	for x := uint64(0); x <= candidates; x++ {
 		candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
-		if _, ok := i.files[candidate]; !ok {
+		if !i.Has(candidate) {
 			requestPath = candidate
 			break
 		}

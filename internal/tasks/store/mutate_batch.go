@@ -137,6 +137,13 @@ func mutateChunk(ctx context.Context, repo *intent.Repository, envs []*mutation.
 			_ = w.Close()
 		}
 	}()
+	// The scheduled complete audit runs after the lock is released (CAL-V0-117).
+	refresh := false
+	defer func() {
+		if refresh {
+			refreshWriterCheckpoint(ctx, repo)
+		}
+	}()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return opened(err)
@@ -163,7 +170,7 @@ func mutateChunk(ctx context.Context, repo *intent.Repository, envs []*mutation.
 		report := &Report{Redone: redone}
 		redone = false
 		var watch *authority.ChangeGuard
-		report, err := mutateLocked(ctx, repo, session, headState, requests[i], envs[i], recordedAt(ctx, now), report, &watch)
+		report, err := mutateLocked(ctx, repo, session, headState, requests[i], envs[i], recordedAt(ctx, now), report, &watch, &refresh)
 		if watch != nil {
 			watches = append(watches, watch)
 		}

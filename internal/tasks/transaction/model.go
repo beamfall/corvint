@@ -560,6 +560,10 @@ func Model(r Request, in Input) Result {
 	var authors *AuthorExclusion
 	switch r.Operation {
 	case Init:
+		if in.Inventory.Summarized() {
+			in.Inventory.markMiss()
+			return failed(r.RequestID, malformed("genesis targets not empty"))
+		}
 		for path := range in.Inventory.files {
 			if !strings.HasPrefix(path, "evidence/") {
 				return failed(r.RequestID, malformed("genesis targets not empty"))
@@ -1124,7 +1128,7 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 		return nil, out, e
 	}
 	rp, _ := snapshot.RequestPath(r.RequestID)
-	if _, ok := inv.files[rp]; ok {
+	if inv.Has(rp) {
 		return nil, out, malformed("absent replay conflicts with request path")
 	}
 	posts[rp] = req
@@ -1139,7 +1143,7 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 	for _, path := range paths {
 		raw := posts[path]
 		var before *wire.Digest
-		if old, ok := inv.files[path]; ok {
+		if old, ok := inv.lookup(path); ok {
 			b := old.Sha256
 			before = &b
 		}
@@ -1206,7 +1210,7 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 	name, _ := snapshot.ReceiptName(seq)
 	arts = append(arts, newArtifact("RECEIPT", "receipts/"+name, raw), newArtifact("HEAD", "head.json", head))
 	for path, b := range blobs {
-		if old, ok := inv.files[path]; ok {
+		if old, ok := inv.lookup(path); ok {
 			if old.Sha256 != wire.Sum(b) || old.Bytes.Uint64() != uint64(len(b)) {
 				return nil, out, malformed("existing blob conflicts")
 			}

@@ -260,12 +260,8 @@ func planPoolSweepFinish(c leaseContext) leaseOutcome {
 	}
 	for _, row := range rows {
 		member, allocation, free, observation := row.Member, row.Allocation, row.Free, row.Observation
-		witness := false
-		for _, f := range c.in.Inventory.Files() {
-			if f.Path == "evidence/"+string(observation) && f.Sha256 == observation {
-				witness = true
-			}
-		}
+		f, witness := c.in.Inventory.lookup("evidence/" + string(observation))
+		witness = witness && f.Sha256 == observation
 		if !witness && !free && observation == owner {
 			// No phase committed: the owner digest is a placeholder, admitted only
 			// after explicit recovery released that owner. It is never a witness.

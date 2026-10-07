@@ -83,6 +83,10 @@ type Result struct {
 	// refusals a separate Audit of it would raise after the lookup succeeded.
 	selection            map[string]bool
 	selectErr, intentErr error
+	// writerBase is the writer checkpoint a ModeWriter audit resumed from.
+	writerBase *WriterCheckpoint
+	// listing is what a ModeWriter audit listed but did not read.
+	listing map[string]ListedFile
 }
 
 // Reader always streams receipt bytes, retaining only bounded path/digest
@@ -114,7 +118,8 @@ type Reader struct {
 	writerCache     bool
 	intentOnly      bool
 	handoffPolicy   *HandoffPolicySelector
-	observedIntent  bool // AuditForMutation: select queue, policy and observed tickets/releases
+	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
+	writer          *WriterCheckpoint // AuditForWriter only
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -155,7 +160,11 @@ type observation struct {
 	files   map[string]os.FileInfo
 	// lite leaves receipts/, requests/ and evidence/ unlisted. Their directory
 	// identities stay in the inventory, so a new receipt still moves it.
-	lite          bool
+	lite bool
+	// writer lists receipts/ by name only and leaves request shards unlisted
+	// (AuditForWriter). Receipt names are still validated and digested into
+	// the inventory, so an added, removed or renamed receipt moves it.
+	writer        bool
 	intentDigests map[string]wire.Digest
 	receipts      []string
 	identity      Identity
@@ -293,11 +302,14 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 			}
 			if r.physical != nil {
 				r.physical.Cleanup = cleanup
-				if err == nil && result != nil && result.Mode == ModeFull && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
+				if err == nil && result != nil && (result.Mode == ModeFull || result.Mode == ModeWriter) && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
 					r.physical.Files = native.physical.files
 				}
 			}
 		}()
+	}
+	if r.writer != nil && native == nil {
+		return nil, errCheckpoint("source", "writer checkpoint needs a native source")
 	}
 	before, e := r.capture(lim, cp != nil)
 	if e != nil {
@@ -310,7 +322,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 		selected = observedSelection(before)
 	}
 	var bodyErr error
-	if cp != nil {
+	if r.writer != nil {
+		result, bodyErr = r.walkWriter(before, r.writer, selected, request, lim)
+	} else if cp != nil {
 		result, bodyErr = r.walkTail(before, cp, selected, lim)
 	} else {
 		result, bodyErr = r.walk(before, selected, request, lim, checkIntent)
@@ -370,11 +384,12 @@ func requiredRead(s Source, p string, max int) ([]byte, error) {
 }
 
 func (r Reader) capture(lim limits, lite bool) (*observation, error) {
-	o := &observation{files: map[string]os.FileInfo{}, lite: lite, intentDigests: map[string]wire.Digest{}}
+	o := &observation{files: map[string]os.FileInfo{}, lite: lite, writer: r.writer != nil, intentDigests: map[string]wire.Digest{}}
 	remaining := lim.scan
 	if err := r.scan(o, ".", &remaining, true); err != nil {
 		return nil, err
 	}
+	sort.Strings(o.receipts)
 	intentRemaining := intent.MaxIntentRootEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue
 	if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
 		return nil, err
@@ -399,6 +414,11 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	}
 	sort.Strings(paths)
 	inventory := sha256.New()
+	if o.writer {
+		for _, name := range o.receipts {
+			fmt.Fprintf(inventory, "receipt-name\x00%s\n", name)
+		}
+	}
 	var intents []intent.File
 	total := 0
 	for _, p := range paths {
@@ -524,7 +544,13 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 			if !allowedDir(p) {
 				return wire.Errorf(wire.CodeMalformed, p, "unexpected store directory")
 			}
-			if p == "worktrees" || (o.lite && (p == "receipts" || p == "requests" || p == "evidence")) {
+			if p == "worktrees" || (o.lite && (p == "receipts" || p == "requests" || p == "evidence")) || (o.writer && strings.HasPrefix(p, "requests/")) {
+				continue
+			}
+			if o.writer && p == "receipts" {
+				if err := r.scanReceiptNames(o, remaining); err != nil {
+					return err
+				}
 				continue
 			}
 			if err := r.scan(o, p, remaining, false); err != nil {
@@ -561,6 +587,44 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 		if _, err := snapshot.PostBound(p); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// scanReceiptNames lists receipts/ without a per-entry lstat (AuditForWriter).
+// Every name is validated as scan validates it; a temporary name marks the
+// observation unsettled. Receipt files are opened only when walked.
+func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
+	native, ok := r.Source.(*nativeRead)
+	if !ok {
+		return errCheckpoint("receipts", "writer checkpoint needs a native source")
+	}
+	info, names, err := native.Names("receipts", *remaining)
+	if err != nil {
+		return err
+	}
+	if info == nil || !info.IsDir() {
+		return wire.Errorf(wire.CodeMalformed, "receipts", "missing listed directory metadata")
+	}
+	if len(names) > *remaining {
+		return wire.Errorf(wire.CodeLimitExceeded, "receipts", "directory scan bound")
+	}
+	*remaining -= len(names)
+	o.files["receipts"] = info
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || seen[name] {
+			return wire.Errorf(wire.CodeJournalForked, "receipts", "duplicate or aliased inventory name")
+		}
+		seen[name] = true
+		if isTemp("receipts/" + name) {
+			o.staging = true
+			continue
+		}
+		if _, err := receiptSeq(name); err != nil {
+			return err
+		}
+		o.receipts = append(o.receipts, name)
 	}
 	return nil
 }

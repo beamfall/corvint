@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -166,5 +167,57 @@ func TestTMV0008_AS07_ReceiptAuditUsageAndUninitialized(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(r.CommonDir, "taskman.lock")); !os.IsNotExist(err) {
 		t.Fatalf("read created lock: %v", err)
+	}
+}
+
+// CAL-V0-115 (proposed): receipt audit is unchanged by the derived
+// checkpoints. Help names both files and says removing the writer
+// checkpoint forces the complete audit; the audit itself is FULL with or
+// without them, reports the same verdict over unusable ones, and neither
+// reads nor changes their bytes.
+func TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints(t *testing.T) {
+	r := receiptFixture(t)
+	help := atm(t, r.Root, nil, "receipt", "audit", "--help")
+	note := field(help.res.Items[0], "note").Str
+	for _, want := range []string{"<state directory>.writer-checkpoint", "<state directory>.checkpoint.json", "Removing <state directory>.writer-checkpoint forces the next write through the complete audit", "never resumed from a checkpoint"} {
+		if help.res.Outcome != wire.OutcomeOK || !strings.Contains(note, want) {
+			t.Fatalf("receipt audit help lacks %q: %s", want, note)
+		}
+	}
+	audit := func(label string) wire.Value {
+		x := atm(t, r.Root, nil, "receipt", "audit")
+		if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 || field(x.res.Items[0], "structuralConsistency").Str != "CONSISTENT" {
+			t.Fatalf("%s: %+v", label, x.res)
+		}
+		return x.res.Items[0]
+	}
+	want := string(wire.EncodeFile(audit("without checkpoints")))
+	files := map[string][]byte{
+		journal.WriterCheckpointPath(r.StateDir): []byte(journal.ProfileWriterCheckpoint + "\nnot a checkpoint"),
+		journal.CheckpointPath(r.StateDir):       []byte("{\"profile\":\"taskman-audit-checkpoint/0\"}\n"),
+	}
+	for path, raw := range files {
+		fixture.Write(t, path, raw)
+	}
+	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
+	if got := string(wire.EncodeFile(audit("over unusable checkpoints"))); got != want {
+		t.Fatalf("audit changed with checkpoints present:\n%s\nwant\n%s", got, want)
+	}
+	fixture.AssertUntouched(t, r, state, intents, "receipt audit")
+	for path, raw := range files {
+		if got, err := os.ReadFile(path); err != nil || string(got) != string(raw) {
+			t.Fatalf("%s changed: %q %v", path, got, err)
+		}
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := string(wire.EncodeFile(audit("after removal"))); got != want {
+		t.Fatalf("audit changed after removal:\n%s\nwant\n%s", got, want)
+	}
+	for path := range files {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("receipt audit recreated %s: %v", path, err)
+		}
 	}
 }

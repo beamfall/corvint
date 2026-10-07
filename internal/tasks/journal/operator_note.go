@@ -119,7 +119,12 @@ func (n *noteAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 			pre, known := n.st.notes.refs[t.path]
 			if !known && t.prior.seq != "" {
 				// A checkpoint-resumed read cannot see a reference posted
-				// before its checkpoint; the complete audit binds it.
+				// before its checkpoint; the complete audit binds it. A
+				// writer resume binds it to the reference its checkpoint
+				// carries, and otherwise declines (CAL-V0-116, proposed).
+				if w := n.st.elided; w != nil && t.raw != nil && t.prior.seq.Uint64() <= w.Seq.Uint64() && !w.sameNote(t.path, posts[i]) {
+					return errCheckpoint(t.path, "note reference differs from the writer checkpoint")
+				}
 				continue
 			}
 			if t.raw != nil && !sameReference(pre, posts[i]) {

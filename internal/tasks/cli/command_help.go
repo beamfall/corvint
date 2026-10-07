@@ -100,6 +100,9 @@ func commandHelp(args []string) *wire.Result {
 	if name == "critical-path" {
 		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
 	}
+	if name == "receipt audit" {
+		o.Set("note", wire.String("Always the complete audit from receipt 1, never resumed from a checkpoint; it never reads, creates, replaces or removes the derived checkpoints <state directory>.checkpoint.json (reads) and <state directory>.writer-checkpoint (writers), where the state directory is <git common dir>/taskman. Removing <state directory>.writer-checkpoint forces the next write through the complete audit, which refuses a tampered prefix that a checkpointed writer does not re-read; removing <state directory>.checkpoint.json costs the next read one complete audit. Neither removal changes any journal, intent or archive bytes."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}

@@ -28,6 +28,9 @@ type chain struct {
 	genesisQueue  []byte
 	selectedBytes int
 	notes         *noteState
+	// elided is the writer checkpoint a ModeWriter walk resumed from: its
+	// request paths are retained history the tail must not repeat.
+	elided *WriterCheckpoint
 }
 
 // statePath names the private mutable state SelectState retains.
@@ -194,6 +197,9 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		prior := canonical[p.Path]
 		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
 			return wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
+		}
+		if strings.HasPrefix(p.Path, "requests/") && st.elided != nil && st.elided.HasRequest(p.Path) {
+			return errCheckpoint(p.Path, "request ID repeats one retained before the checkpoint")
 		}
 		if _, ok := canonical[p.Path]; !ok && len(canonical) >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
