@@ -1657,18 +1657,18 @@ IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	158	the Claude Code plugin's lif
 IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	187	During committed-source pinning, a blob whose bytes begin with
 IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	214	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
 IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	255	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	340	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	378	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	347	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	385	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
 IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	192	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	409	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	427	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	454	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	482	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	496	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	518	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
-IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	562	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
-IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	533	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
-IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	595	(accepted by decision 0440; V1-0928) after an `index`
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	416	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	434	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	461	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	489	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	503	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	525	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	569	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	540	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
+IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	602	(accepted by decision 0440; V1-0928) after an `index`
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the

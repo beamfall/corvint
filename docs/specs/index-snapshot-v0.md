@@ -298,16 +298,23 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   (bug hunt): dropping the registration also clears its ring slot, so the index the loser never
   handed out is not kept reachable until a later registration reuses that slot.
 - Amended 2026-10-07 (proposed, V1-0947; no GitHub issue), `IDX-SNAP-V0-014` and `IDX-SNAP-V0-015`
-  unchanged in scope: the four-slot bound limits retained mappings, not live ones. Values copied
+  unchanged in scope: the four-slot bound limits retained files, not live mappings. Values copied
   out of an Index (string-table views such as `Symbol.Path`, `Source.Data`, the `Source.Text`
   view) alias the mapping without keeping the Index or any owner object reachable, so neither
-  eviction nor the Index becoming unreachable proves the bytes unused. An evicted mapping is
-  therefore never unmapped. A process keeps every mapping it made until it exits: one per read
-  that missed the four retained mappings, so a reader cycling through five unchanged files maps
-  on every read, and a file the store has since deleted keeps its blocks allocated while mapped. Unmapping on eviction, or from a runtime cleanup of the Index or of the
-  mapping owner, faults on those escaped values; `TestEvictedMappingsStayValidForEscapedAliases`
-  guards that. Bounding live mappings needs either an explicit lifetime for every value that aliases
-  a mapping or heap-backed bytes, which this clause's 8 MB heap row excludes; that choice is open.
+  eviction nor the Index becoming unreachable proves the bytes unused. A mapping a successful read
+  retained is therefore never unmapped; the process keeps it in a per-format table, keyed like the
+  retention (path, size, modification time and header digest), until it exits. A later read of an
+  evicted file with the same key adopts that mapping and releases its own fresh one, which only
+  the header read touched, so live mappings are bounded by the distinct keys a process reads, not
+  by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`). The key is sound without inode or
+  change time: the header digest commits to every section digest, and every snapshot writer
+  replaces the file by rename, never in place. A file the store has since deleted or replaced keeps
+  its blocks allocated while its old mapping lives. Unmapping on eviction, or from a runtime cleanup
+  of the Index or of the mapping owner, faults on those escaped values;
+  `TestEvictedMappingsStayValidForEscapedAliases` guards that. Bounding live mappings by lifetime is
+  deferred to a follow-up: it needs either an explicit lease or `Close` for every value that
+  aliases a mapping, with copy-out at each boundary that can outlive it, or heap-backed bytes,
+  which this clause's 8 MB heap row excludes.
 - Amended 2026-09-12, `IDX-SNAP-V0-015` narrowed for one verb: the task-packet `context` verb's
   read (`LoadContextSnapshotDeferred`) verifies every section except `bodies` before decoding, as
   above, and verifies a body's blocks when the packet first reads that body, before any byte of it

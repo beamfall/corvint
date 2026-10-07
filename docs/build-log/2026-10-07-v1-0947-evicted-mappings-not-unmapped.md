@@ -8,7 +8,7 @@ evicted mapping from the four-slot ring without unmapping it, so a long-lived pr
 once no in-flight Index uses the bytes, a bounded live-mapping count, and the contract in
 `docs/specs/index-snapshot-v0.md`.
 
-## Finding: confirmed, and the requested fix is unsafe
+## Finding: confirmed, and unmapping is unsafe
 
 - **Confirmed.** A scratch probe read twelve distinct copies of a fixture pack and of a fixture
   sectioned file, dropped every Index, deleted each file, and ran the collector. `lsof` on the test
@@ -29,9 +29,18 @@ once no in-flight Index uses the bytes, a bounded live-mapping count, and the co
 
 ## Decision
 
-No production change. The lane added the guard test and a spec amendment that states the real
-contract: the bound applies to retained mappings, not live ones, and an evicted mapping is never
-unmapped. Bounding live mappings safely needs an owner choice between:
+Never unmap a mapping a successful read retained; stop the per-miss growth instead. Each format's
+cache keeps a process-wide table from retention key (path, size, modification time, header digest)
+to mapping that is never evicted. A read that misses the four-slot ring but finds its key in the
+table adopts that mapping and releases its fresh one, which only the header read touched, before
+anything can alias it. Live mappings are then bounded by the distinct keys a process reads.
+
+The coordinator suggested keying on dev, inode, size, mtime and ctime. The existing key was kept:
+its header digest commits to every section digest, which proves the content where an inode does
+not, and every writer in `snapshot.go` publishes by `os.CreateTemp` and `os.Rename`, so a mapped
+inode is never rewritten in place. No key could protect a kept mapping from an in-place writer.
+
+Lifetime-bounded unmapping is deferred to a follow-up, which needs an owner choice between:
 
 - an explicit lifetime (lease or `Close`) for every value that aliases a mapping, with copy-out at
   every boundary that can outlive it; or
@@ -40,8 +49,12 @@ unmapped. Bounding live mappings safely needs an owner choice between:
 ## Evidence
 
 - `TestEvictedMappingsStayValidForEscapedAliases` (pack and sectioned) keeps whole `Source` values
-  and bare `Source.Text` and symbol strings after dropping the Index. It passes under `-race` on the
-  unchanged readers and fails with SIGSEGV under both mutants. It skips where no mapping was made.
-  Its catch of a cleanup-driven unmap is best effort, because cleanups run asynchronously after a
-  collection. Deferred-body loads are not covered.
+  and bare `Source.Text` and symbol strings after dropping the Index. It passes under `-race` and
+  failed with SIGSEGV under both unmapping mutants. It skips where no mapping was made. Its catch of
+  a cleanup-driven unmap is best effort, because cleanups run asynchronously after a collection.
+  Deferred-body loads are not covered.
+- `TestEvictedReadsAdoptOneMappingPerFile` reads five files twenty times through the four-slot
+  ring and asserts five kept mappings per format, each aliased by every index read from that file.
+  Before the change the probe left twenty mapped regions per format (`vmmap`). It passes under
+  `-race` and fails when pack adoption is disabled.
 - Logs are in the lane's private evidence directory, not committed.

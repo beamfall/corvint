@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -172,4 +173,106 @@ func retainedSectionedFor(path string) (*sectionedFile, bool) {
 		}
 	}
 	return nil, false
+}
+
+// TestEvictedReadsAdoptOneMappingPerFile bounds live mappings by distinct
+// files, not cache misses (V1-0947). Before adoption, twenty reads cycling
+// five unchanged files through the four-slot ring missed every time and left
+// twenty mappings; now a read of an evicted file adopts the mapping its
+// first read retained, and the index it returns aliases that mapping.
+func TestEvictedReadsAdoptOneMappingPerFile(t *testing.T) {
+	const files, reads = sectionedCacheCapacity + 1, 4 * (sectionedCacheCapacity + 1)
+	check := func(t *testing.T, mappings map[packKey][]byte, loaded map[string][]*Index) {
+		t.Helper()
+		if len(mappings) != files {
+			t.Fatalf("%d reads of %d files kept %d mappings, want %d", reads, files, len(mappings), files)
+		}
+		for key, mapping := range mappings {
+			for at, index := range loaded[key.path] {
+				if !aliasesMapping(index, mapping) {
+					t.Fatalf("%s read %d does not alias the mapping its first read kept", key.path, at)
+				}
+			}
+		}
+	}
+	t.Run("pack", func(t *testing.T) {
+		index, _ := packFixture(t)
+		identity := fixtureIdentity(index)
+		resetPackRetention()
+		defer resetPackRetention()
+		resetPackMappings()
+		defer resetPackMappings()
+		paths := make([]string, files)
+		for at := range paths {
+			paths[at] = packWithVocabulary(t, index, func(*TermTable) {})
+		}
+		loaded := map[string][]*Index{}
+		for read := 0; read < reads; read++ {
+			path := paths[read%files]
+			packed, err := readPackSnapshot(path, identity, analyzerEngine(), loadFull)
+			if err != nil {
+				t.Fatal(err)
+			}
+			forgetPackHistory(packed)
+			loaded[path] = append(loaded[path], packed)
+		}
+		packCache.Lock()
+		mappings := maps.Clone(packCache.mappings)
+		packCache.Unlock()
+		if len(mappings) == 0 {
+			t.Skip("no mapping: the reads copied the packs")
+		}
+		check(t, mappings, loaded)
+	})
+	t.Run("sectioned", func(t *testing.T) {
+		index, receipt := sectionedFixture(t)
+		identity := fixtureIdentity(index)
+		resetSectionedRetention()
+		defer resetSectionedRetention()
+		content, err := os.ReadFile(receipt.SectionedPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		directory := t.TempDir()
+		paths := make([]string, files)
+		for at := range paths {
+			paths[at] = filepath.Join(directory, fmt.Sprintf("copy-%d%s", at, sectionedExtension))
+			if err := os.WriteFile(paths[at], content, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		loaded := map[string][]*Index{}
+		for read := 0; read < reads; read++ {
+			path := paths[read%files]
+			sectioned, err := readSectionedSnapshot(path, identity, receipt.Engine, loadFull)
+			if err != nil {
+				t.Fatal(err)
+			}
+			loaded[path] = append(loaded[path], sectioned)
+		}
+		sectionedCache.Lock()
+		mappings := maps.Clone(sectionedCache.mappings)
+		sectionedCache.Unlock()
+		if len(mappings) == 0 {
+			t.Skip("no mapping: the reads copied the files")
+		}
+		check(t, mappings, loaded)
+	})
+}
+
+// resetPackMappings forgets the kept pack mappings without unmapping them,
+// so a count belongs to one test; indexes from earlier tests still alias them.
+func resetPackMappings() {
+	packCache.Lock()
+	packCache.mappings = map[packKey][]byte{}
+	packCache.Unlock()
+}
+
+// resetSectionedRetention forgets the retained sectioned files and kept
+// mappings without unmapping them.
+func resetSectionedRetention() {
+	sectionedCache.Lock()
+	sectionedCache.mapped, sectionedCache.ring, sectionedCache.next = map[packKey]*sectionedFile{}, [sectionedCacheCapacity]packKey{}, 0
+	sectionedCache.mappings = map[packKey][]byte{}
+	sectionedCache.Unlock()
 }
