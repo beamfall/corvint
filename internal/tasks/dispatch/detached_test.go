@@ -3,6 +3,7 @@
 package dispatch
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -529,5 +530,29 @@ func TestCALV0149_DetachedRunPlaceholderIsPromptOnly(t *testing.T) {
 	raw, _ := json.Marshal(c)
 	if _, err := DecodeConfig(raw); err != nil {
 		t.Fatalf("{detachedRun} in a role prompt refused: %v", err)
+	}
+}
+
+// CAL-V0-149: a due infrastructure retry of the relaunch's role is the one
+// session that receives the finished run's outcome.
+func TestCALV0149_InfraRetryCarriesTheOutcome(t *testing.T) {
+	d, q, now := retryDispatcher(t, &InfraRetryConfig{MaxRetries: intp(2), CooldownSeconds: intp(10), MaxCooldownSeconds: intp(15)})
+	first := infraSession(t, d, q)
+	exit := 0
+	m := &detachedMarker{Profile: detachedProfile, RunID: testRunID, AttemptID: "claim", Generation: "1", Ticket: retryKey, Role: "impl", Worker: first, SupervisorPID: 2, SupervisorIdentity: "gone", Phase: DetachedRelaunch, DeferredAt: now.UTC(), DeferUntil: now.Add(time.Minute).UTC(), ExitStatus: &exit, Result: "/r", Output: "/o", ReadyAt: now.UTC()}
+	if err := d.saveDetached(m); err != nil {
+		t.Fatal(err)
+	}
+	d.detached = map[string]*detachedMarker{m.RunID: m}
+	*now = now.Add(10 * time.Second)
+	if err := d.Tick(context.Background()); err != nil || d.Running() != 1 {
+		t.Fatalf("retry: %v running %d", err, d.Running())
+	}
+	id := d.ledger.Workers[0].ID
+	if e := d.ledger.InfraRetry[retryKey]; e == nil || e.State != InfraRunning || e.Launch != id {
+		t.Fatalf("episode %+v", e)
+	}
+	if m.Phase != DetachedLaunched || m.Successor != id || lastDetail(t, d, "launched")["detachedRun"] != testRunID {
+		t.Fatalf("marker %+v launched %v", m, lastDetail(t, d, "launched"))
 	}
 }

@@ -1257,10 +1257,14 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		// CAL-V0-149: the successor is named before anything can spawn, so a
 		// crash can lose the relaunch but never repeat it.
 		var run *detachedMarker
-		if m := relaunch[a.Ticket]; m != nil && ep == nil && a.Ticket != "" && m.Role == a.Role {
+		// An infrastructure retry of the same role is that session too.
+		if m := relaunch[a.Ticket]; m != nil && a.Ticket != "" && m.Role == a.Role {
 			m.Phase, m.Successor = DetachedLaunched, id
 			if err := d.saveDetached(m); err != nil {
 				m.Phase, m.Successor = DetachedRelaunch, ""
+				if ep != nil {
+					ep.State = InfraWaiting // nothing spawned; the identity is kept
+				}
 				release(true)
 				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("relaunch for detached run %s not started: its marker could not be saved: %v", m.RunID, err)})
 				continue

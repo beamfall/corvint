@@ -4295,7 +4295,8 @@ by the orchestrator on 2026-10-07. They are recorded in
   no ledger worker runs on its ticket, the dispatcher MUST launch at most one session for that ticket
   with the ended worker's role, through the normal roster, caps, admission, budgets and pressure.
   While that role is enabled, is a ticket role and matches the ticket, no other role is a candidate
-  for the ticket. The marker MUST name the successor before the spawn, so that a crash can lose a
+  for the ticket. A due infrastructure retry (ESC-V0-007) of that role on the ticket is that session.
+  The marker MUST name the successor before the spawn, so that a crash can lose a
   relaunch but can never repeat one. A launch proved to have failed before the spawn makes the
   relaunch due again. The successor receives the outcome in two ways:
   - the `{detachedRun}` placeholder, which is one line naming the run, attempt, exit status, result
@@ -4374,8 +4375,8 @@ Failure modes:
 Acceptance evidence: `TestCALV0145_WorkerExitsWhileDetachedRunContinues`,
 `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0146_DeferralIsBounded`,
 `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved`,
-`TestCALV0148_SupervisorLostHandsOffWithoutRelaunch`,
-`TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`,
+`TestCALV0148_SupervisorLostHandsOffWithoutRelaunch`, `TestCALV0149_InfraRetryCarriesTheOutcome`,
+`TestCALV0149_DetachedRunPlaceholderIsPromptOnly`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`,
 `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`, Darwin and Linux); `TestCALV0150_StatusShowsDetachedRunStateReadOnly` and
 `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); `GOOS=windows go vet`. The following are NOT_RUN: Linux execution, live dispatcher qualification
 with a real host session, and owner acceptance.
@@ -4738,7 +4739,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-146 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0146_DeferralIsBounded` (`internal/tasks/dispatch`) |
 | CAL-V0-147 | `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
 | CAL-V0-148 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch` (`internal/tasks/dispatch`) |
-| CAL-V0-149 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0147_DeferralAndRelaunchSurviveRestart` (`internal/tasks/dispatch`) |
+| CAL-V0-149 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0149_InfraRetryCarriesTheOutcome`, `TestCALV0149_DetachedRunPlaceholderIsPromptOnly` (`internal/tasks/dispatch`) |
 | CAL-V0-150 | `TestCALV0150_StatusShowsDetachedRunStateReadOnly` (`internal/tasks/cli`) |
 | CAL-V0-151 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
 | CAL-V0-152 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues` (`internal/tasks/dispatch`) |

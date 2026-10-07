@@ -85,6 +85,12 @@ Round 1 reported three P1 findings. Each was checked against the code before any
   `RUNNING` during a stop within that tick is stopped like a `STARTING` run. Re-reading run records
   every 100 ms of a kill loop is not worth that window.
 
+Round 2 reported one P2 finding, which was fixed. An infrastructure retry of the same role did
+not carry a finished run's outcome, and its session then made the relaunch moot, which lost the
+outcome. Reproduced: `TestCALV0149_InfraRetryCarriesTheOutcome` fails on the round-2 code. The
+retry is now the relaunch session. If its marker cannot be saved, the retry returns to `WAITING`
+and keeps its identity.
+
 ## Out-of-scope finding
 
 `TestCALV0127_ReloadRemovedRoleKeepsWorkers` and `TestCALV0127_ReloadKeepsLaunchDeadlines`
