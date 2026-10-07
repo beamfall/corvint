@@ -164,6 +164,9 @@ func ProjectScreen(ctx context.Context, m *Map, query string, o Options) ([]byte
 	for _, po := range s.PageObjects {
 		if f := m.file(po); f != nil {
 			p.cite(f.Anchor)
+			if f.ScreenBasis == "declared" {
+				p.cite(m.Manifest)
+			}
 			p.element(f.ID)
 			for i := range f.Methods {
 				p.cite(f.Methods[i].Anchor)

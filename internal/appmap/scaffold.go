@@ -146,14 +146,24 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	}
 	p.check()
 	stale := map[string]bool{}
-	// A method whose anchor changed may no longer exist or do what the step needs, so it is not
-	// called; the step falls back to a TODO and the stale reuse is reported.
-	staleCalls := map[string]call{}
+	// A method whose anchor changed may no longer exist or do what the step needs, and a method
+	// that takes parameters needs arguments the flow does not supply, so neither is called; the
+	// step falls back to a TODO and the skipped reuse is reported.
+	type skippedCall struct {
+		call
+		reason, note string
+	}
+	skipped := map[string]skippedCall{}
 	for id, c := range calls {
-		if p.state(c.meth.Anchor) == Stale {
-			staleCalls[id] = c
-			delete(calls, id)
+		switch {
+		case p.state(c.meth.Anchor) == Stale:
+			skipped[id] = skippedCall{c, "stale-reuse", "is STALE at the evaluated revision"}
+		case !c.meth.NoArgs:
+			skipped[id] = skippedCall{c, "reuse-takes-arguments", "takes arguments the flow does not supply"}
+		default:
+			continue
 		}
+		delete(calls, id)
 	}
 	cv := closestView{Status: StatusUnknown, Reason: "no-asserting-spec"}
 	proposed, dir := "", ""
@@ -272,11 +282,14 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: p.state(c.meth.Anchor)})
 			continue
 		}
-		if c, ok := staleCalls[st.ID]; ok {
-			lines = append(lines, fmt.Sprintf("  // reuse %s is STALE at the evaluated revision; not called", c.ref))
-			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: Stale})
-			unknowns = append(unknowns, Unknown{Kind: "scaffold-reuse", Ref: c.meth.ID, Reason: "stale-reuse", Path: c.file.Path, Line: c.meth.Anchor.Start})
-			stale[c.meth.ID] = true
+		if c, ok := skipped[st.ID]; ok {
+			fresh := p.state(c.meth.Anchor)
+			lines = append(lines, fmt.Sprintf("  // reuse %s %s; not called", c.ref, c.note))
+			reuse = append(reuse, reuseView{Step: st.ID, Method: c.meth.ID, Ref: c.ref, Strength: st.Selector.Strength, Freshness: fresh})
+			unknowns = append(unknowns, Unknown{Kind: "scaffold-reuse", Ref: c.meth.ID, Reason: c.reason, Path: c.file.Path, Line: c.meth.Anchor.Start})
+			if fresh == Stale {
+				stale[c.meth.ID] = true
+			}
 		}
 		switch {
 		case st.Selector == nil:

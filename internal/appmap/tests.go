@@ -59,6 +59,7 @@ type rawGoto struct {
 type rawMethod struct {
 	name       string
 	start, end int
+	noArgs     bool
 }
 
 type rawNew struct {
@@ -176,10 +177,22 @@ func readFacts(text string) fileFacts {
 			continue
 		}
 		if end := blockEnd(lines, n); end > n {
-			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1})
+			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1, noArgs: emptyParams(l, name)})
 		}
 	}
 	return f
+}
+
+// emptyParams reports whether the first parameter list after name on a method header line is
+// literally empty. A multi-line or defaulted list reads false.
+func emptyParams(line, name string) bool {
+	rest := line[strings.Index(line, name)+len(name):]
+	lp := strings.IndexByte(rest, '(')
+	if lp < 0 {
+		return false
+	}
+	rp := strings.IndexByte(rest[lp:], ')')
+	return rp > 0 && strings.TrimSpace(rest[lp+1:lp+rp]) == ""
 }
 
 // roleName reads the literal name property of the getByRole options object opening at toks[open].

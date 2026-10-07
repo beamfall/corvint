@@ -161,6 +161,22 @@ regression test that a mutation of its fix makes fail:
 
 Findings 4, 5, 7 and 1 resolve design forks fail-closed; they are owner questions 8 to 11 in the
 spec. AMAP-V0-002, 005, 007, 010 and 013 and the unknown reasons were amended in the same change.
+
+Round 4 (diff `8af2bf62..f263921f`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. A short `\u` escape at the end of a template (``String.raw`\u` ``) consumed past the source and
+   panicked the lexer — `TestAMAPV0007ShortUnicodeEscape`.
+2. `://` anywhere in a URL started an authority, so `/login?returnTo=https://h/#!/x` resolved to
+   `/x` — `TestAMAPV0003QueryURLIsNotAuthority` (only a leading scheme).
+3. A literal object that was only a prefix of the `.state` argument (`{...} && config`) was read
+   as the configuration — `TestAMAPV0002ConfigMustBeWholeArgument`.
+4. A manifest rebinding a page object left chains through it `FRESH` —
+   `TestAMAPV0010ManifestBindingFreshness` (the whole-file manifest anchor joins a declared chain).
+5. `scaffold` called a reused method that takes parameters with none —
+   `TestAMAPV0013MethodWithArgumentsNotCalled` (`no_args`; `reuse-takes-arguments`).
+
+Finding 5 and the whole-file manifest anchor resolve forks fail-closed (owner question 12).
 Later rounds are recorded in the lane handoff.
 
 ## Analyzer schema bump

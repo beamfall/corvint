@@ -82,12 +82,15 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   duplicate name, a missing, unresolved or cyclic parent MUST make that state and every descendant
   `UNKNOWN` with its reason, never guessed. A repeated key in one object literal makes that object
   non-literal, since the map cannot prove which value the program sees; a regular-expression
-  literal is a non-literal value. (proposed, pending owner acceptance; V1-0956)
+  literal is a non-literal value. A literal object counts only as the whole argument, so
+  `.state('home', {url: '/x'} && config)` reads `non-literal-value` (and `.state({...} || x)`
+  `non-literal-name`). (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-003`: Screens MUST be keyed by app plus template. Two resolved screens with the same
   collision key MUST be reported `ambiguous-template`, and a lookup (by element ID, state name,
   template or URL) that matches several screens MUST return status `UNKNOWN` with the candidates,
   never pick one; a lookup that matches none returns `no-matching-screen`. URL lookup strips the
-  manifest's hash prefix and refuses a `${...}` substitution inside a segment
+  manifest's hash prefix, removes the authority only after a leading scheme (`https://host`), so a
+  `://` inside a query or fragment is data, and refuses a `${...}` substitution inside a segment
   (`partial-segment-substitution`). (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-004`: Each AFU-V1 navigation step MUST become a map step on the unique screen whose
   template matches its state template, with its selector and strength and the page-object methods
@@ -121,7 +124,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   argument is `unknown`. A literal counts only as a whole argument (followed by `)` or `,`), so
   `'save-' + id` is non-literal, as is such a `goto` URL (`non-literal-url`). String and template
   escapes decode to the program's value (`\n`, `\xHH`, `\uHHHH`, `\u{H}`, surrogate pairs, line
-  continuations); a legacy octal escape or lone surrogate makes the literal non-literal. A
+  continuations); a legacy octal escape, lone surrogate, or short or non-hex `\u` escape makes the
+  literal non-literal, and a failed escape never consumes past the end of the source. A
   `getByRole` name is read from the options object's top-level `name` member in any position, and
   the selector is `unknown` when the object has a spread, a computed or shorthand key, a repeated
   `name`, or a non-literal name, and when the options are passed by reference
@@ -150,6 +154,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   A spec attributed through imports derives from every file on its chain, so each spec item also
   prints `chain_freshness`, the worst of the spec's and every `via` file's anchor (`UNKNOWN` when a
   chain file is absent from the map), and a screen with a `STALE` chain is not cited as `FRESH`.
+  A page object placed by a manifest `page_object_screens` entry rests on the manifest, so the
+  manifest anchor joins its chain and the screen's citations.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-011`: `screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
   document no larger than its budget: defaults 4096, 6144, 2048 and 6144 bytes; `--budget` in
@@ -179,7 +185,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   otherwise. A selector of strength `unknown`, and a step with no selector (whatever a map file
   claims as its reuse), is never offered as reuse. A reused method whose anchor is `STALE` at the
   evaluated revision is not called: the step keeps a commented note and a TODO, its reuse item
-  reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. With no
+  reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. A reused
+  method is called only when its header literally declares no parameters (`no_args`); otherwise
+  the step keeps a note and a TODO and reports `scaffold-reuse` / `reuse-takes-arguments`. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
@@ -224,7 +232,8 @@ with one coded JSON error on stderr and nothing on stdout.
 `no-matching-flow`, `partial-segment-substitution`, `no-navigation-step`, `unresolved-import`,
 `import-depth-exceeded`, `unparsed-imports`, `excluded-by-index`, `page-object-unbound`,
 `page-object-ambiguous`, `page-object-unresolved-target`, `import-outside-tests`, `unknown-state`,
-`secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
+`secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `reuse-takes-arguments`,
+`overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse` and `overlay`.
 
@@ -266,7 +275,11 @@ steps) attaches here; this slice defines the seam only and implements no verific
   step with no selector (TODO, no call), a repeated object key (non-literal), a role name passed by
   reference (`unknown`), a page object with a non-literal target (unbound), an import outside
   `tests.root` (join `UNKNOWN`), a changed workflow under an unchanged spec (`chain_freshness:
-  STALE`), and a reused method changed since the map was built (`stale-reuse`, no call).
+  STALE`), a reused method changed since the map was built (`stale-reuse`, no call), a short
+  `\u` escape at the end of a file (inexact, no read past the end), a URL in a query parameter
+  (data, not an authority), a literal router object that is only part of its argument
+  (`non-literal-value`), a manifest rebinding a page object (`chain_freshness: STALE`), and a
+  reused method that takes parameters (`reuse-takes-arguments`, no call).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -275,18 +288,18 @@ steps) attaches here; this slice defines the seam only and implements no verific
 | Requirement | Evidence |
 | --- | --- |
 | AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0001DeclaredDirectoriesExist` |
-| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys` |
-| AMAP-V0-003 | `TestAMAPV0002HierarchyResolution` |
+| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys`, `TestAMAPV0002ConfigMustBeWholeArgument` |
+| AMAP-V0-003 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0003QueryURLIsNotAuthority` |
 | AMAP-V0-004 | `TestAMAPV0004FlowSteps` |
 | AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0005UnresolvedTargetBlocksBinding`, `TestAMAPV0005ImportOutsideTests`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-006 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0004FlowSteps` |
-| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads`, `TestAMAPV0007RegexReferencedOptionsAndContinuations` |
+| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads`, `TestAMAPV0007RegexReferencedOptionsAndContinuations`, `TestAMAPV0007ShortUnicodeEscape` |
 | AMAP-V0-008 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0004FlowSteps` |
 | AMAP-V0-009 | `TestAMAPV0009DeterministicArtifact`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness` |
+| AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 
@@ -331,3 +344,6 @@ needs migration. Map files are explicit outputs and may be discarded.
 10. Should a repeated object key take the last value (JavaScript semantics) instead of making the
     router object non-literal?
 11. Should the scaffold still call a `STALE` reused method with a warning instead of leaving a TODO?
+12. Should a reused method that takes parameters be called with argument TODOs (invalid until
+    edited) instead of the fail-closed TODO, and should the manifest anchor be narrowed from the
+    whole file to the `page_object_screens` entry?

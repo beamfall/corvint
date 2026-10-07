@@ -234,7 +234,10 @@ func unicodeEscape(text string, j int) (rune, int, bool) {
 		return r, j + end + 1, ok && r <= utf8.MaxRune
 	}
 	r, ok := hexRune(text, j, j+4)
-	return r, j + 4, ok
+	if !ok {
+		return 0, j, false // never consume past a short or non-hex escape
+	}
+	return r, j + 4, true
 }
 
 func hexRune(text string, from, to int) (rune, bool) {

@@ -1097,3 +1097,104 @@ func TestAMAPV0013StaleReuseNotCalled(t *testing.T) {
 		}
 	}
 }
+
+// AMAP-V0-007: a short or non-hex \u escape at the end of the source never reads past it, and its
+// literal is inexact.
+func TestAMAPV0007ShortUnicodeEscape(t *testing.T) {
+	for _, src := range []string{"String.raw`\\u`", "x = '\\u", "x = '\\u12'", "x = `\\u{12`", "x = '\\u12x4'"} {
+		toks, _ := lexJS(src)
+		last := toks[len(toks)-1]
+		if (last.kind != tokString && last.kind != tokTemplate) || literal(last) {
+			t.Errorf("%q: last token %+v reads literal", src, last)
+		}
+		readFacts(src)
+	}
+}
+
+// AMAP-V0-003: "://" inside a query or fragment is data, not the start of an authority.
+func TestAMAPV0003QueryURLIsNotAuthority(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	x := newScreenIndex(m.HashPrefix, m.Screens)
+	for url, want := range map[string]string{
+		"/#!/home?returnTo=https://host/#!/clubs/7/teesheets":    "screen:admin:app.home",
+		"https://host/#!/home?next=ftp://x/#!/clubs/7/teesheets": "screen:admin:app.home",
+	} {
+		if got, _ := x.byURL(url); got != want {
+			t.Errorf("byURL(%s) = %q, want %q", url, got, want)
+		}
+	}
+}
+
+// AMAP-V0-002: a literal object that is only a prefix of the argument ({...} && config) is not the
+// configuration the program passes, so the state is UNKNOWN.
+func TestAMAPV0002ConfigMustBeWholeArgument(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	routes := "app/routes.js"
+	data, _ := os.ReadFile(filepath.Join(root, routes))
+	text := strings.Replace(string(data), "      url: 'home'\n    })", "      url: 'home'\n    } && config)", 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, routes, text)
+	m := build(t, root, commitAll(t, root, "prefix config"))
+	if s := screenByID(t, m, "app.home"); s.Status != StatusUnknown || s.Reason != "non-literal-value" || s.Template != "" {
+		t.Fatalf("app.home %s %s %q", s.Status, s.Reason, s.Template)
+	}
+}
+
+// AMAP-V0-010: an attribution through a page object the manifest places on a screen rests on the
+// manifest too, so rebinding it reads the old chain STALE.
+func TestAMAPV0010ManifestBindingFreshness(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	check := func(want string) {
+		t.Helper()
+		doc := screenDoc(t, m, "app.clubs.teesheets", Options{Root: root, Full: true})
+		n := 0
+		for _, it := range doc["specs"].([]any) {
+			v := it.(map[string]any)
+			if strings.Contains(fmt.Sprint(v["via"]), "e2e/pages/teesheet.page.ts") {
+				n++
+				if v["chain_freshness"] != want {
+					t.Fatalf("spec %v chain %v, want %s", v["file"], v["chain_freshness"], want)
+				}
+			}
+		}
+		if n == 0 {
+			t.Fatalf("no spec reaches the declared page object: %v", doc["specs"])
+		}
+	}
+	check(Fresh)
+	manifest := "appmap.json"
+	data, _ := os.ReadFile(filepath.Join(root, manifest))
+	writeFile(t, root, manifest, strings.Replace(string(data), `"state": "app.clubs.teesheets"`, `"state": "app.clubs.settings"`, 1))
+	commitAll(t, root, "rebind the tee sheet page")
+	check(Stale)
+}
+
+// AMAP-V0-013: a reused method that takes parameters is not called without arguments.
+func TestAMAPV0013MethodWithArgumentsNotCalled(t *testing.T) {
+	for line, want := range map[string]bool{
+		"  async book() {": true, "  book = async () => {": true, "  async book(slot: string) {": false,
+		"  async book(n = 1) {": false, "export async function book(": false,
+	} {
+		if got := emptyParams(line, "book"); got != want {
+			t.Errorf("emptyParams(%q) = %v", line, got)
+		}
+	}
+	root, _ := fixtureRepo(t)
+	page := "e2e/pages/teesheet.page.ts"
+	data, _ := os.ReadFile(filepath.Join(root, page))
+	writeFile(t, root, page, strings.Replace(string(data), "async book() {", "async book(slot: string) {", 1))
+	m := build(t, root, commitAll(t, root, "book takes a slot"))
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if strings.Contains(body, "await teeSheetPage.book(") || !strings.Contains(body, "await teeSheetPage.selectSlot();") ||
+		!strings.Contains(body, "takes arguments the flow does not supply") || !strings.Contains(body, `"reason":"reuse-takes-arguments"`) {
+		t.Fatalf("scaffold: %s", body)
+	}
+}

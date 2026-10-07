@@ -215,9 +215,12 @@ type Import struct {
 
 // Method is one page-object or workflow method with the selectors it uses.
 type Method struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Anchor    Anchor     `json:"anchor"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Anchor Anchor `json:"anchor"`
+	// NoArgs is true only when the method header literally declares no parameters; the scaffold
+	// calls nothing else, since it cannot supply arguments (AMAP-V0-013).
+	NoArgs    bool       `json:"no_args"`
 	Selectors []Selector `json:"selectors"`
 }
 

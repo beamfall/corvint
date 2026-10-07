@@ -598,12 +598,18 @@ func (m *Map) chain(a Attribution) (anchors []Anchor, complete bool) {
 		files = append(files, a.Via...)
 	}
 	complete = true
+	declared := false
 	for _, p := range files {
 		if f := m.file(p); f != nil {
 			anchors = append(anchors, f.Anchor)
+			declared = declared || f.ScreenBasis == "declared"
 		} else {
 			complete = false
 		}
+	}
+	if declared {
+		// A manifest page_object_screens entry, not the page object, places it on the screen.
+		anchors = append(anchors, m.Manifest)
 	}
 	return anchors, complete
 }

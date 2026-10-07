@@ -41,9 +41,9 @@ func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 		switch {
 		case literal(arg) && next(toks, j+3, ","):
 			s.name = arg.text
-			config, _ = parseValue(toks, j+4)
+			config = wholeArg(toks, j+4, end)
 		case isPunct(arg, "{"):
-			config, _ = parseValue(toks, j+2)
+			config = wholeArg(toks, j+2, end)
 			if n, ok := config.get("name"); ok && n.kind == "string" {
 				s.name = n.str
 			}
@@ -56,6 +56,16 @@ func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 		states = append(states, s)
 	}
 	return states, unknowns
+}
+
+// wholeArg parses the last argument of the call closing at toks[end]. A literal that is only a
+// prefix of the argument ({...} && config) is not what the program passes, so it reads "other".
+func wholeArg(toks []token, i, end int) jsValue {
+	v, after := parseValue(toks, i)
+	if after == end || (after+1 == end && isPunct(toks[after], ",")) {
+		return v
+	}
+	return jsValue{kind: "other", line: toks[i].line}
 }
 
 func isPunct(t token, p string) bool { return t.kind == tokPunct && t.text == p }
@@ -383,10 +393,13 @@ func (x *screenIndex) byURL(raw string) (string, string) {
 	return pick(x.urlMatches(raw))
 }
 
+var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
+
 func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 	u := raw
-	if i := strings.Index(u, "://"); i >= 0 {
-		rest := u[i+3:]
+	if loc := urlScheme.FindStringIndex(u); loc != nil {
+		// Only a leading scheme starts an authority; "://" inside a query or fragment is data.
+		rest := u[loc[1]:]
 		if j := strings.IndexByte(rest, '/'); j >= 0 {
 			u = rest[j:]
 		} else {
