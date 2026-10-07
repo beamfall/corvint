@@ -210,6 +210,10 @@ func aliasFree(raw []byte, names []string) error {
 // name. encoding/json keeps the last duplicate and merges a repeated object,
 // so without this an is_error true could be overridden, or two partial usage
 // objects could combine into an apparently complete observation (CAL-V0-075).
+// UniqueMembers is uniqueMembers for the dispatcher's usage reader
+// (CAL-V0-157), so a repeated counter cannot replace an observed one.
+func UniqueMembers(raw []byte) error { return uniqueMembers(raw) }
+
 func uniqueMembers(raw []byte) error {
 	type frame struct {
 		keys      map[string]bool

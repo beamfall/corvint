@@ -112,9 +112,10 @@ type Observation struct {
 	Attempts []Attempt
 	Members  []Member
 	// Replan, when set, replans the same snapshot with the tickets the
-	// work state holds outside the selection window (CAL-V0-105) and
-	// returns each planned ticket's plan state and reason by ticket ID.
-	Replan func(held map[string]bool) map[string]PlanView
+	// work state holds (CAL-V0-105) and those a budget holds (CAL-V0-155)
+	// outside the selection window, and returns each planned ticket's plan
+	// state and reason by ticket ID.
+	Replan func(held, budgetHeld map[string]bool) map[string]PlanView
 }
 
 // PlanView is one ticket's plan state and reason.

@@ -65,10 +65,13 @@ type Budget struct {
 // well below the history's count cap (maxSpendSessions).
 const maxBudgetSessions, maxBudgetTokens = 1000, 1 << 50
 
-// UnmarshalJSON keeps the closed member set and refuses a present limit
-// that is 0 or null, which would otherwise read as absent and silently
-// disable that limit.
+// UnmarshalJSON keeps the closed member set and refuses a repeated member
+// and a present limit that is 0 or null, which would otherwise read as
+// absent and silently disable that limit.
 func (b *Budget) UnmarshalJSON(raw []byte) error {
+	if err := uniqueTopMembers(raw); err != nil {
+		return err
+	}
 	var v struct {
 		SessionsPerDay json.RawMessage `json:"sessionsPerDay"`
 		TokensPerDay   json.RawMessage `json:"tokensPerDay"`
@@ -86,6 +89,31 @@ func (b *Budget) UnmarshalJSON(raw []byte) error {
 		return fmt.Errorf("budget tokensPerDay is a positive integer when present")
 	}
 	*b = out
+	return nil
+}
+
+// uniqueTopMembers refuses a JSON object that repeats a member name.
+func uniqueTopMembers(raw []byte) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	if t, err := d.Token(); err != nil || t != json.Delim('{') {
+		return fmt.Errorf("budget is a JSON object")
+	}
+	seen := map[string]bool{}
+	for d.More() {
+		t, err := d.Token()
+		if err != nil {
+			return err
+		}
+		k, _ := t.(string)
+		if seen[k] {
+			return fmt.Errorf("budget repeats member %q", k)
+		}
+		seen[k] = true
+		var skip json.RawMessage
+		if err := d.Decode(&skip); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

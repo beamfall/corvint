@@ -45,6 +45,7 @@ func TestCALV0157_UsageVocabulariesAndStates(t *testing.T) {
 		{"opencode step still open", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + openCodeStart + "\n", UsagePartial, 6, 2},
 		{"opencode malformed step", "opencode", openCodeStart + "\n" + openCodeStep("stop") + "\n" + `{"type":"step_finish","part":{}}` + "\n", UsagePartial, 6, 2},
 		{"codex null counters", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":null,"output_tokens":null}}` + "\n", UsagePartial, 10, 3},
+		{"codex repeated counter", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":null,"input_tokens":0,"output_tokens":0}}` + "\n", UsagePartial, 10, 3},
 		{"codex turn left open", "codex", `{"type":"turn.started"}` + "\n" + codexTurn + "\n" + `{"type":"turn.started"}` + "\n", UsagePartial, 10, 3},
 		{"codex total overflows", "codex", codexTurn + "\n" + `{"type":"turn.completed","usage":{"input_tokens":9223372036854775808,"output_tokens":9223372036854775808}}` + "\n", UsagePartial, 10, 3},
 		{"claude total overflows", "claude-code", `{"type":"result","subtype":"success","is_error":false,"result":"done","session_id":"s","usage":{"input_tokens":9223372036854775808,"output_tokens":9223372036854775808}}` + "\n", UsageUnknown, 0, 0},

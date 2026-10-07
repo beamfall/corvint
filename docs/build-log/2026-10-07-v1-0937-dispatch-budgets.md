@@ -99,3 +99,19 @@ against the code and fixed with a focused test:
   and an open turn leaves the total PARTIAL.
 - An explicit `0` or `null` limit read as absent and silently disabled that limit. A present
   member must now be positive; the budget object stays closed.
+
+Round 2 found three defects, each verified and fixed with a focused test:
+
+- A budget-held ticket still occupied the plan preview's selection window, so a role that serves
+  only `SELECTED` tickets could starve behind it. The dispatcher now replans with budget-held
+  tickets deferred as `BUDGET_HELD`, mirroring the CAL-V0-105 `WORK_STATE_HELD` replan. The
+  reason is derived in process only; the `Observation.Replan` signature change is internal.
+- A repeated member inside a budget object (`{"tokensPerDay":0,"tokensPerDay":5}`) took its last
+  value. `Budget` now refuses a repeated member. A repeated outer member such as two `budget`
+  members on one role is still decoded last-wins by the configuration-wide decoder; that
+  pre-existing property of `taskman-dispatch/0` is outside this change and is left for a
+  configuration-wide fix.
+- A codex `turn.completed` line that repeated a counter could replace an observed value. Such a
+  line is now malformed (PARTIAL), using the supervisor's existing `uniqueMembers` reader through
+  a new exported wrapper. The supervised Codex host's `ObservedUsage` still reads null counters as
+  0 and does not refuse repeated members; that is outside this change.

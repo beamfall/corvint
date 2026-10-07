@@ -241,7 +241,7 @@ func TestCALV0160_BudgetConfigIsClosed(t *testing.T) {
 	if _, err := DecodeConfig(raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, member := range []string{`"tokensPerDay":0`, `"tokensPerDay":null`, `"tokensPerDay":-1`, `"sessionsPerDayX":1`} {
+	for _, member := range []string{`"tokensPerDay":0`, `"tokensPerDay":null`, `"tokensPerDay":-1`, `"sessionsPerDayX":1`, `"sessionsPerDay":3`} {
 		if _, err := DecodeConfig(bytes.Replace(raw, []byte(`"sessionsPerDay":3`), []byte(`"sessionsPerDay":3,`+member), 1)); err == nil {
 			t.Errorf("budget with %s accepted", member)
 		}
@@ -315,4 +315,81 @@ func TestCALV0161_LedgerCarriesSpendAndUsage(t *testing.T) {
 		}
 	}
 	os.WriteFile(path, good, 0o600)
+}
+
+// CAL-V0-155: with planSelected, a budget-held ticket leaves the selection
+// window like a CAL-V0-105 work-state hold, so an unspent ticket behind it
+// is selected and launches instead of starving until the hold ends.
+func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match = &Match{PlanSelected: true}
+	c.TicketBudget = &Budget{SessionsPerDay: 1}
+	ts := []Ticket{ticket("h1", "P0", 1), ticket("h2", "P0", 2), ticket("r1", "P1", 3)}
+	plan := func(held map[string]bool) map[string]PlanView {
+		out, used := map[string]PlanView{}, 0
+		for _, t := range ts {
+			switch {
+			case held[t.ID]:
+				out[t.ID] = PlanView{"DEFERRED", "BUDGET_HELD"}
+			case used < 2:
+				used++
+				out[t.ID] = PlanView{"SELECTED", "DEVELOPMENT_MODE"}
+			default:
+				out[t.ID] = PlanView{"DEFERRED", "LIMIT_EXCEEDED"}
+			}
+		}
+		return out
+	}
+	base := plan(nil)
+	for i := range ts {
+		ts[i].Plan, ts[i].PlanReason = base[ts[i].ID].State, base[ts[i].ID].Reason
+	}
+	q := &fakeQueue{obs: Observation{Tickets: ts}}
+	var got []map[string]bool
+	q.obs.Replan = func(held, budgetHeld map[string]bool) map[string]PlanView {
+		if len(held) != 0 {
+			t.Errorf("work-state held %v", held)
+		}
+		got = append(got, budgetHeld)
+		return plan(budgetHeld)
+	}
+	d, err := Open("budget-window", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	clock := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	d.Now = func() time.Time { return clock }
+	d.ledger.Budget = &SpendRecord{Sessions: []SpendSession{
+		{Worker: "w1", Role: c.Roles[0].Name, Ticket: ts[0].ID, Launched: clock.Add(-time.Hour), Usage: UsageKnown},
+		{Worker: "w2", Role: c.Roles[0].Name, Ticket: ts[1].ID, Launched: clock.Add(-time.Hour), Usage: UsageUnknown},
+	}}
+	obs, err := d.observe(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || len(got[0]) != 2 || !got[0][ts[0].ID] || !got[0][ts[1].ID] {
+		t.Fatalf("budget-held replans %v", got)
+	}
+	if p := planOf(obs); p["r1"] != (PlanView{"SELECTED", "DEVELOPMENT_MODE"}) || p["h1"].Reason != "BUDGET_HELD" {
+		t.Fatalf("plan %v", p)
+	}
+	if roster := Roster(c, obs, nil, nil); len(roster) != 1 || roster[0].Local != "r1" {
+		t.Fatalf("roster %+v", roster)
+	}
+
+	// A role budget holds a ticket only when every role that would serve it
+	// is exhausted; no budget holds nothing.
+	c.TicketBudget, c.Roles[0].Budget = nil, &Budget{SessionsPerDay: 2}
+	if h := d.budgetHeld(ts, clock); len(h) != 3 {
+		t.Fatalf("role-exhausted holds %v", h)
+	}
+	c.Roles = append(c.Roles, Role{Name: "spare", Host: "sh", Cap: 1, Match: &Match{}, Prompt: "p", IdleSeconds: 30, WallSeconds: 60})
+	if h := d.budgetHeld(ts, clock); len(h) != 0 {
+		t.Fatalf("a ticket another role can serve is held: %v", h)
+	}
+	c.Roles, c.Roles[0].Budget = c.Roles[:1], nil
+	if h := d.budgetHeld(ts, clock); h != nil {
+		t.Fatalf("no budget holds %v", h)
+	}
 }

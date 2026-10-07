@@ -123,6 +123,12 @@ func (u *WorkerUsage) line(b []byte) {
 	var in, out uint64
 	switch u.Format {
 	case "codex":
+		// A repeated member on a usage line would let a later null, zero
+		// or smaller counter (or type) replace an observed one.
+		if bytes.Contains(b, usageMarker["codex"]) && supervisor.UniqueMembers(b) != nil {
+			u.Malformed = true
+			return
+		}
 		switch head.Type {
 		case "turn.started":
 			u.Open = true

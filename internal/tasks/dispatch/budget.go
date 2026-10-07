@@ -230,6 +230,52 @@ func (s SpendSession) in(scope [2]string) bool {
 	return s.Role == scope[1]
 }
 
+// budgetHeld names the tickets a budget holds outside the selection window
+// (CAL-V0-155): a ticket whose ticket scope is exhausted, or for which every
+// enabled ticket role that would match it, were it selected, has an
+// exhausted role scope. A held ticket left SELECTED would otherwise keep an
+// unspent ticket out of a planSelected role's window until the hold ends.
+func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
+	c := d.Config
+	budgeted := c.TicketBudget != nil
+	for _, r := range c.Roles {
+		budgeted = budgeted || r.Budget != nil
+	}
+	if !budgeted {
+		return nil
+	}
+	g := d.spendGate(now)
+	exhausted := func(scope [2]string) bool { _, ok := g.exhausted(scope); return ok }
+	var held map[string]bool
+	for _, t := range ts {
+		hold := c.TicketBudget != nil && exhausted([2]string{ScopeTicket, t.ID})
+		if !hold {
+			selected := t
+			selected.Plan = "SELECTED"
+			roles := 0
+			hold = true
+			for _, r := range c.Roles {
+				if r.Match == nil || r.Cap == 0 || !matches(r.Match, selected) {
+					continue
+				}
+				roles++
+				if r.Budget == nil || !exhausted([2]string{ScopeRole, r.Name}) {
+					hold = false
+					break
+				}
+			}
+			hold = hold && roles > 0
+		}
+		if hold {
+			if held == nil {
+				held = map[string]bool{}
+			}
+			held[t.ID] = true
+		}
+	}
+	return held
+}
+
 // admits reports whether a may launch, recording the first exhausted
 // scope's hold when it may not.
 func (g *spendGate) admits(a Assignment) bool {
