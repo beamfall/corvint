@@ -55,7 +55,7 @@ var leaseValueFlags = map[string]bool{
 	"--pool": true, "--stage": true, "--member": true, "--allocation": true, "--evidence": true,
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
-	"--handoff-to": true, "--handoff-reason": true,
+	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 	"--lock-wait": true,
 }
@@ -175,7 +175,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -314,6 +314,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 		// allocation.
 		o.Set("poolAllocation", wire.Null())
 	}
+	if report.SharedAllocation != nil {
+		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))
+	}
 	if report.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
 	}
@@ -385,7 +388,11 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 			return err
 		}
 		path := "attempts/" + args[1] + ".json"
-		proof, err := auditState(rc, path)
+		paths := []string{path}
+		if observations {
+			paths = append(paths, "pools.json")
+		}
+		proof, err := auditState(rc, paths...)
 		if err != nil {
 			return err
 		}
@@ -401,6 +408,13 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 		if err == nil && observations {
 			addHolderObservation(item.Obj, a, observedAt, rc.store.Policy.HeartbeatTTLSeconds())
 			addHistoryObservation(item.Obj)
+			if a.PoolAllocation != nil {
+				binding, e := poolBindingValue(proof.Records["pools.json"].Raw, a)
+				if e != nil {
+					return e
+				}
+				item.Obj.Set("poolBinding", binding)
+			}
 		}
 		return err
 	})

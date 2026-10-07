@@ -42,9 +42,10 @@ func loadPools(r Request, in Input, st inputState) (*snapshot.PoolState, error) 
 			return nil, malformed("occupied member removed")
 		}
 		if r.Operation == Lease && entry.State == "ALLOCATED" {
-			a := st.attempts[entry.AttemptID]
-			if a == nil || !a.Live() || a.Generation != entry.Generation || a.PoolAllocation == nil || !sameAllocation(a.PoolAllocation, &entry.PoolAllocation) || a.Lease.Holder != entry.Holder || a.Stage != entry.Stage {
-				return nil, malformed("pool allocation differs from live attempt")
+			for i, x := range boundAttempts(&entry) {
+				if !checkBound(st, &entry, x, i > 0) {
+					return nil, malformed("pool allocation differs from live attempt")
+				}
 			}
 		}
 	}
@@ -53,7 +54,9 @@ func loadPools(r Request, in Input, st inputState) (*snapshot.PoolState, error) 
 			if a.Live() && a.PoolAllocation != nil {
 				found := false
 				for _, en := range p.Entries {
-					found = found || en.State == "ALLOCATED" && en.AttemptID == a.AttemptID && en.Generation == a.Generation && sameAllocation(a.PoolAllocation, &en.PoolAllocation) && a.Lease.Holder == en.Holder && a.Stage == en.Stage
+					for _, x := range boundAttempts(&en) {
+						found = found || en.State == "ALLOCATED" && x.AttemptID == a.AttemptID && x.Generation == a.Generation && sameAllocation(a.PoolAllocation, &en.PoolAllocation) && a.Lease.Holder == en.Holder && a.Stage == en.Stage
+					}
 				}
 				if !found {
 					return nil, malformed("live attempt missing pool occupancy")
@@ -73,6 +76,14 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 	pool := c.st.policy.Pool(c.l.Pool)
 	if pool == nil {
 		return nil, malformed("unknown pool")
+	}
+	// PSR-V0-016: admit already checked the shared entry in this input.
+	if c.l.ShareAllocation != "" {
+		if en := c.sharedEntry(); en != nil && en.State == "ALLOCATED" {
+			a := en.PoolAllocation
+			return &a, nil
+		}
+		return nil, wire.Errorf(wire.CodeFenced, "pool", "shared allocation is not current")
 	}
 	if id := c.in.LeaseFacts.Pool.AllocationID; id != "" {
 		for _, en := range c.st.pools.Entries {
@@ -148,6 +159,10 @@ func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) er
 			continue
 		}
 		found = true
+		if en.State == "ALLOCATED" && (len(en.Shared) != 0 || a.SharedAllocation != nil && (en.AttemptID != a.AttemptID || en.Generation != a.Generation)) {
+			c.sharedPost(&state.Entries[i], a)
+			break
+		}
 		if a.Live() && en.State == "PREPARING" {
 			state.Entries[i].State = "ALLOCATED"
 			state.Entries[i].AttemptID = a.AttemptID
