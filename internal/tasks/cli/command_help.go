@@ -168,7 +168,7 @@ var commandUsage = map[string]string{
 	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
 
 	"version":            "corvint-tasks version (alias --version)",
-	"ticket list":        "corvint-tasks ticket list [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+	"ticket list":        "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 	"ticket search":      "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 	"ticket show":        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 	"ticket blockers":    "corvint-tasks ticket blockers <ticketId|local>",
