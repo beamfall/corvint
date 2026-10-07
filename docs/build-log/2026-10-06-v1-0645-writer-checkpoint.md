@@ -181,6 +181,38 @@ acceptance beyond the guarantee change:
 The branch merges origin/main 0c27e35f (batch 3) at ce4efeb5. A diff against base 76f7f2ac
 therefore includes batch 3, and `corvint affected --base 76f7f2ac...` selects a superset.
 
+## Codex review round 1 (2026-10-07)
+
+Codex reviewed 0c27e35f..e676fb42 and raised three P2 findings. Each was confirmed against the code and
+fixed behind a test that failed first.
+
+1. The fast lease route did not recheck the intent worktree branch before effects; the complete route
+   does in `commitLease`. A switch to another branch with identical `.taskman` contents passed
+   `bindObservation`. `leaseWriter` now compares `primaryBranch` with the observed branch after
+   `bindObservation` and declines on a mismatch. The fast `Mutate` path already declined through
+   `requireBranch`. Test: `TestCALV0116_FastWriteRechecksIntentBranch` (lease and mutate subtests,
+   branch switched at the model stage).
+2. A writer resume had no note-reference state for tickets last posted before the checkpoint, so the
+   first tail post of such a ticket skipped the note check. A tail receipt that removed a note
+   reference without its note event was served; the complete audit refuses it as `JOURNAL_FORKED`.
+   The writer checkpoint now carries, per live ticket entry with a reference, the SHA-256 of the
+   reference's canonical encoding, derived from the walk (or carried from the base checkpoint for
+   tickets the tail did not post). The writer audit binds such a post to it and declines on a
+   mismatch. A plain decline was rejected because it would decline the first tail post of almost
+   every ticket. The profile stays `taskman-writer-checkpoint/0` because the format is unreleased; a
+   checkpoint in the earlier layout fails decode and the writer falls back. Tests:
+   `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (after two checkpoint advances, one walked and
+   one carried) and the note cases of `TestCALV0115_WriterCheckpointCodecIsClosed`.
+3. An older refresh whose audit succeeded could reinstall a checkpoint after a newer refresh refused
+   and removed it, because the freshness check only compared against a retained checkpoint. Refresh
+   now reads an invalidation token (`<state directory>.writer-checkpoint.invalidated`) before its
+   audit and again under the lock, and publishes nothing when it changed or could not be read. A
+   refusing refresh replaces the token before removing the checkpoint. Only refresh needs it: the
+   complete mutate route audits and retains under one lock, and the complete lease route is
+   change-guarded before it retains. Test: `TestCALV0117_OlderRefreshCannotUndoInvalidation`.
+
+CAL-V0-115..117 wording and the failure-mode table were updated; the requirements stay PROPOSED.
+
 ## Follow-ups (not built here)
 
 Already filed in the native queue:
@@ -200,7 +232,8 @@ Not filed here (the coordinator owns the queue for this lane):
 
 - The ticket-proportional cost at 10,000 tickets (model decode and tree reads, beyond V1-0915).
 - The O(n) receipts name listing.
-- Note state: a tail note receipt whose pre-state precedes the checkpoint declines.
+- Note state: a tail note receipt whose pre-state precedes the checkpoint declines. (Ordinary tail ticket posts are now bound to the checkpoint's note references; see Codex review
+  round 1.)
 - The first write without a checkpoint pays the complete route.
 - ENFILE and WatchChanges at 100,000 receipts.
 - Review-fold state (`internal/tasks/cli/external_review.go`).
@@ -215,5 +248,7 @@ Not filed here (the coordinator owns the queue for this lane):
 ## Rollback
 
 Revert the change. Per store, deleting `<git common dir>/taskman.writer-checkpoint` forces the next
-write through the complete audit. Older runtimes ignore both checkpoint files. No journal, intent,
+write through the complete audit. The `taskman.writer-checkpoint.invalidated` token beside it can
+be deleted when no refresh is running; during one, deleting it could let an older refresh reinstall a
+checkpoint a newer refresh removed. Older runtimes ignore both checkpoint files. No journal, intent,
 request, receipt or archive bytes change.

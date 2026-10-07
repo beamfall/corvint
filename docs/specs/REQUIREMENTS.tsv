@@ -393,7 +393,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	551	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1413	`store.Mutate` MUST take its request lookup and its canonical intent records fro
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1812	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1830	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	4016	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	4050	`corvint-tasks ticket create --template` MUST return, in one
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1992	The optional policy `supervision` object MAY carry `host`, whose admitted
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2068	A `claude-code` stage MUST invoke the pinned executable with the prompt on
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2202	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
@@ -420,7 +420,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2887	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2921	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3045	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3101	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	4199	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	4233	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3142	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3188	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1313	On macOS the memory signal MUST be the kernel memory-pressure level
@@ -430,10 +430,10 @@ CAL-V0-112	docs/specs/corvint-tasks-agent-leases-v0.md	3250	An evidence HANDOFF 
 CAL-V0-113	docs/specs/corvint-tasks-agent-leases-v0.md	3256	No release path MAY convert a plain release into a HANDOFF. A plain release afte
 CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	3290	When the journal audit (complete or checkpoint-resumed) finds more than one faul
 CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3388	(proposed) Writer checkpoint file. The writer checkpoint is derived state.
-CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3425	(proposed) Writer audit and fast route.
-CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3479	(proposed) Counts, advance and scheduled refresh.
-CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3499	(proposed) Writer cost measurement. The opt-in profile
-CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3515	(proposed) Read checkpoint from a writer audit.
+CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3434	(proposed) Writer audit and fast route.
+CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3496	(proposed) Counts, advance and scheduled refresh.
+CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3524	(proposed) Writer cost measurement. The opt-in profile
+CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3540	(proposed) Read checkpoint from a writer audit.
 CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	3326	A policy MAY carry the optional top-level key `holderLiveness`, a closed object
 CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	3338	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha

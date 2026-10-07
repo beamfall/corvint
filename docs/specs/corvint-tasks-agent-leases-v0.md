@@ -3397,6 +3397,9 @@ subsection of S20. That subsection governs nothing and differs from this one: it
       of receipts 1..Seq, the archive cost (files, payload, entry and tar bytes) of those receipts
       and the request afterimages they posted, and the number of those requests;
     - those requests' path digests, sorted, 32 bytes each;
+    - a note count and, for each live ticket entry whose afterimage at Seq carries an operator-note
+      reference, the entry's index and the SHA-256 of the reference's canonical encoding, 36 bytes
+      each, in entry order;
     - a SHA-256 trailer over everything before it.
   - Decoding. A decoder MUST refuse each of these:
     - a file over the bound;
@@ -3406,12 +3409,18 @@ subsection of S20. That subsection governs nothing and differs from this one: it
       requests;
     - `FullSeq` outside 1..Seq;
     - receipt bytes above payload bytes;
-    - request digests that are not strictly ascending.
+    - request digests that are not strictly ascending;
+    - a note count above the ticket bound or disagreeing with the remaining bytes, or note entries
+      that are not strictly ascending indexes of live `intent/tickets/` entries.
   - Derivation. It MUST be derived only from bytes a settled audit physically read, and only when
     that audit's last receipt is the head. Two kinds of audit qualify:
     - a complete audit from receipt 1, which sets `FullSeq` to its head;
     - a `CAL-V0-116` writer audit, which extends the checkpoint it resumed from and keeps its
       `FullSeq`.
+
+    The note references are those the audit walked; a writer audit carries its base checkpoint's
+    reference for each ticket its tail did not post. A reference that was neither walked nor carried
+    fails the derivation, and nothing is retained.
   - Writing. A writer retains it under the writer lock, best effort: it writes a fixed temporary file
     opened exclusively, then renames it, with no fsync. It is never kept below an audited head of
     128 receipts. A failure to retain it MUST NOT fail or change the transaction. Read commands,
@@ -3439,6 +3448,10 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - decline when the caller's own request ID is retained anywhere or its request file exists;
     - compare every latest afterimage with its projection: intent and private state by digest,
       evidence and pinned blobs by their content-addressed names;
+    - bind each tail post of a ticket last posted at or before the checkpoint, in a receipt with no
+      note event, to the note reference the checkpoint carries for that ticket (none when it carries
+      none); a mismatch declines, and the complete audit refuses it as a reference changed without
+      its note event;
     - check stage slots, strays in the directories it lists, and the intent tree, as the complete
       audit does and in CAL-V0-114 order.
   - It MUST decline in each of these cases:
@@ -3448,7 +3461,10 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - the journal is not plainly settled.
   - Serving the write. The writer models the request against an inventory that summarizes receipts
     1..Seq and their requests from the checkpoint counts. Before effects it rechecks the head and
-    the intent tree. It then commits exactly as the complete route does. Claim facts and the scope
+    the intent tree, and that the intent worktree is still on the branch it modeled: `Mutate`
+    checks the queue's intent branch, and a lease verb compares the primary branch with the
+    observed one, as `commitLease` does under the lock. It then commits exactly as the complete
+    route does. Claim facts and the scope
     deriver run under the lock.
   - Hand-off to the complete route. In each of these cases nothing is written on this route, and
     the complete route serves the write and derives the outcome itself:
@@ -3457,7 +3473,8 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - a possible replay;
     - a model that needed an elided path;
     - a model that did not plan a transaction, including every model refusal;
-    - a failed branch check or pre-effect recheck.
+    - a failed branch check or pre-effect recheck, including an intent worktree switched to another
+      branch with identical intent contents.
 
     Refused and replayed writes therefore keep the complete route's cost. A failed native close, a
     lock timeout and an error from the commit itself are returned as the complete route returns
@@ -3485,14 +3502,22 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - Scheduling. A write whose new head is 512 or more receipts past `FullSeq` schedules a complete
     audit. That audit runs after the write has released the lock and the preparation gate.
   - Refresh.
-    1. Audit from receipt 1 without the lock.
-    2. Under the lock, retain the derived writer checkpoint, bound to the receipt head it audited,
-       unless the retained checkpoint descends from a later complete audit.
-    3. Retain the read checkpoint only if `head.json` is unchanged.
+    1. Read the invalidation token `<state directory>.writer-checkpoint.invalidated`; an absent file
+       is an observed empty token.
+    2. Audit from receipt 1 without the lock.
+    3. Under the lock, read the token again. If either read failed, or the token changed, another
+       refresh refused after this audit began: publish nothing (stage `refresh.superseded`).
+    4. Otherwise retain the derived writer checkpoint, bound to the receipt head it audited, unless
+       the retained checkpoint descends from a later complete audit.
+    5. Retain the read checkpoint only if `head.json` is unchanged.
   - Racing writers. The next writer walks any writer that committed in between as its tail. A
     receipt changed in between fails that writer's rebinding, and the complete route then decides.
-  - Refusal. A refusal other than SNAPSHOT_MOVED or a pending receipt removes the writer checkpoint,
-    so every later write takes the complete route and refuses as it would without one. An
+  - Refusal. A refusal other than SNAPSHOT_MOVED or a pending receipt, under the lock, replaces the
+    invalidation token with a fresh random value and then removes the writer checkpoint, so every
+    later write takes the complete route and refuses as it would without one. An older refresh that
+    succeeds afterwards sees the new token and cannot reinstall the checkpoint. If the token cannot
+    be written, the checkpoint is still removed; an older refresh may then reinstall it, and the next
+    scheduled refresh refuses and removes it again. An
     intent-only divergence keeps the checkpoint for the intent repair.
   - Effect on the triggering write. The refresh never fails or changes that write, but its caller's
     wall time includes the refresh. This is a known latency spike.
@@ -3562,7 +3587,8 @@ Failure modes, also in the table below:
   checkpoint they left behind.
 
 Acceptance evidence:
-- `internal/tasks/journal`: `TestCALV0115_WriterCheckpointCodecIsClosed`.
+- `internal/tasks/journal`: `TestCALV0115_WriterCheckpointCodecIsClosed` (including the note
+  references).
 - `internal/tasks/store`:
   - `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (removed, corrupt, torn, foreign,
     forged and outrun checkpoints);
@@ -3572,8 +3598,12 @@ Acceptance evidence:
     request, forks at the checkpoint receipt and in the tail, a torn tail receipt);
   - `TestCALV0116_WriterRouteTamperAtFastStages`;
   - `TestCALV0116_PrefixTamperIsLeftToCompleteAudits`;
+  - `TestCALV0116_FastWriteRechecksIntentBranch` (a branch switch with identical intent contents at
+    the lease and mutate model stages);
+  - `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (after two checkpoint advances);
   - `TestCALV0117_RefreshWriteInterleave`;
-  - `TestCALV0117_WriterAdvanceAndScheduledRefresh`.
+  - `TestCALV0117_WriterAdvanceAndScheduledRefresh`;
+  - `TestCALV0117_OlderRefreshCannotUndoInvalidation`.
 - `internal/tasks/archive`: `TestCALV0117_FileSetCostParity`.
 - `internal/tasks/transaction`:
   - `TestCALV0117_SummarizedInventoryCostParity`;
@@ -3773,6 +3803,10 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Crash after the unsynced writer checkpoint write | The file is torn or older | A torn file falls back to the complete route; an older one still names a receipt of the append-only chain, so its tail is walked or declined (CAL-V0-115, proposed) |
 | Prefix receipt, request, evidence or pinned content altered, a stray request planted, or an internally consistent writer checkpoint forged | A fast writer commits over it | `receipt audit`, every complete-route write and the scheduled refresh refuse; a refusing refresh removes the writer checkpoint so every later write refuses (CAL-V0-116, CAL-V0-117, proposed) |
 | A writer commits between the scheduled refresh's audit and its lock | The refresh observed an older head | It retains the writer checkpoint bound to the head it audited unless the retained one descends from a later complete audit, and the read checkpoint only when `head.json` is unchanged; the next writer walks the rest as tail (CAL-V0-117, proposed) |
+| The intent worktree switches to another branch with identical intent contents after a fast writer observed it | A fast lease would commit on the wrong branch | The fast route rechecks the branch before effects and declines; the complete route decides (CAL-V0-116, proposed) |
+| A tail receipt changes or removes the note reference of a ticket last posted before the writer checkpoint, without its note event | A fast writer would accept a note change the complete audit refuses | The writer audit binds the post to the checkpoint's note reference and declines; the complete route refuses `JOURNAL_FORKED` (CAL-V0-116, proposed) |
+| An older refresh's audit succeeds after a newer refresh refused and removed the writer checkpoint | The older refresh would reinstall it | The newer refusal replaced the invalidation token, so the older refresh publishes nothing (`refresh.superseded`) (CAL-V0-117, proposed) |
+| The invalidation token cannot be written | A refusal is not recorded for older refreshes | The checkpoint is still removed; an older refresh may reinstall it until the next scheduled refresh refuses and removes it again (CAL-V0-117, proposed) |
 | Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
 | Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
 | Extra repository sibling worktree dirty or retargeted when a gate runs | A gate result would certify a tree other than the composite candidate | The gate refuses `DIRTY_WORKTREE` or `STALE_TREE` and records no result; the attempt does not reach `READY_FOR_INTEGRATION` (CAL-V0-087) |
@@ -3930,8 +3964,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-120 | `TestCALV0120_PolicyHolderLivenessOptIn` (`internal/tasks/intent`); `TestCALV0120_HolderObservationUsesPolicyTTL`, `TestCALV0120_PolicyTTLDrivesHolderReads` (`internal/tasks/cli`) |
 | CAL-V0-121 | `TestCALV0121_StaleHolderCoordinatorHandoff`, `TestCALV0120_PolicyTTLDrivesHolderReads` (`internal/tasks/cli`) |
 | CAL-V0-115 | `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`); `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (`internal/tasks/store`); `TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints` (`internal/tasks/cli`) |
-| CAL-V0-116 | `TestCALV0116_WriterFullBoundDeclines`, `TestCALV0116_WriterRouteParity`, `TestCALV0116_WriterRouteCounterexamples`, `TestCALV0116_WriterRouteTamperAtFastStages`, `TestCALV0116_PrefixTamperIsLeftToCompleteAudits` (`internal/tasks/store`) |
-| CAL-V0-117 | `TestCALV0117_RefreshWriteInterleave`, `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`); `TestCALV0117_FileSetCostParity` (`internal/tasks/archive`); `TestCALV0117_SummarizedInventoryCostParity`, `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`, `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary` (`internal/tasks/transaction`) |
+| CAL-V0-116 | `TestCALV0116_WriterFullBoundDeclines`, `TestCALV0116_WriterRouteParity`, `TestCALV0116_WriterRouteCounterexamples`, `TestCALV0116_WriterRouteTamperAtFastStages`, `TestCALV0116_PrefixTamperIsLeftToCompleteAudits`, `TestCALV0116_FastWriteRechecksIntentBranch`, `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (`internal/tasks/store`) |
+| CAL-V0-117 | `TestCALV0117_RefreshWriteInterleave`, `TestCALV0117_WriterAdvanceAndScheduledRefresh`, `TestCALV0117_OlderRefreshCannotUndoInvalidation` (`internal/tasks/store`); `TestCALV0117_FileSetCostParity` (`internal/tasks/archive`); `TestCALV0117_SummarizedInventoryCostParity`, `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`, `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary` (`internal/tasks/transaction`) |
 | CAL-V0-118 | `TestCALV0118_WriterHoldProfile` (`internal/tasks/store`, opt-in); measured, see `docs/build-log/2026-10-06-v1-0645-writer-checkpoint.md` |
 | CAL-V0-119 | `TestCALV0116_WriterRouteParity`, `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit`, `TestCALV0117_RefreshWriteInterleave` (`internal/tasks/store`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
