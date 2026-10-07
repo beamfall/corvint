@@ -206,7 +206,9 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 			group := runnerCmd.Process.Pid
 			t.Cleanup(func() {
 				defer exitRead.Close()
-				if err := syscall.Kill(-group, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+				// Darwin answers EPERM when G holds only zombies or exiting
+				// members; like ESRCH that leaves the EOF wait as the proof.
+				if err := syscall.Kill(-group, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) && !errors.Is(err, syscall.EPERM) {
 					t.Errorf("kill fixture group %d: %v", group, err)
 				}
 				select {
