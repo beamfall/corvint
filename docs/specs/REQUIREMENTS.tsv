@@ -491,11 +491,11 @@ CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4643	(accepted by decisio
 CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4645	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
 CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4648	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
 CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4654	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
-CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4715	(proposed, pending owner acceptance; V1-0966) `ticket list` MUST accept
-CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4722	(proposed, pending owner acceptance; V1-0966) `ticket list` and `ticket search`
-CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4728	(proposed, pending owner acceptance; V1-0966) `ticket list` items MUST carry
-CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4734	(proposed, pending owner acceptance; V1-0966) `queue status` and
-CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4745	(proposed, pending owner acceptance; V1-0966) The dispatcher MUST count, per
+CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4715	(accepted by decision 0447; V1-0966) `ticket list` MUST accept
+CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4722	(accepted by decision 0447; V1-0966) `ticket list` and `ticket search`
+CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4728	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry
+CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4734	(accepted by decision 0447; V1-0966) `queue status` and
+CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4745	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
