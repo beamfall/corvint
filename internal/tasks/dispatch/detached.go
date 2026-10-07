@@ -357,8 +357,10 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 			if !a.Live || a.Holder != w.ID || done[a.ID] || d.recoveries[a.ID] != nil {
 				continue
 			}
-			// A restarted dispatcher re-reporting the same ended worker
-			// finds its marker and keeps the deferral.
+			// A worker re-reported as ended (after a restart, or kept in
+			// the ledger by finish) finds its marker and records no second
+			// one; advanceDetached still advances that marker and decides
+			// whether the hand-off waits.
 			var kept *detachedMarker
 			for _, m := range d.detached {
 				if m.Worker == w.ID && m.AttemptID == a.ID {
@@ -366,7 +368,6 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 				}
 			}
 			if kept != nil {
-				done[a.ID] = true
 				d.deferredNow[w.ID] = kept.RunID
 				continue
 			}

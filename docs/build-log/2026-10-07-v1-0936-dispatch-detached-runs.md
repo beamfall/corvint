@@ -91,6 +91,12 @@ outcome. Reproduced: `TestCALV0149_InfraRetryCarriesTheOutcome` fails on the rou
 retry is now the relaunch session. If its marker cannot be saved, the retry returns to `WAITING`
 and keeps its identity.
 
+Round 3 reported one P2 finding, which was fixed. When an ended worker stayed in the ledger (for
+example, held by an `UNKNOWN` work-state read), it was re-reported every tick. Its existing marker
+then marked the attempt done before `advanceDetached` ran, so the deferral never ended. Reproduced:
+`TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral` fails on the round-3 code. An existing marker
+now only prevents a second marker; `advanceDetached` decides whether the hand-off still waits.
+
 ## Out-of-scope finding
 
 `TestCALV0127_ReloadRemovedRoleKeepsWorkers` and `TestCALV0127_ReloadKeepsLaunchDeadlines`

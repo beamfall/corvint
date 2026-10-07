@@ -458,6 +458,24 @@ func TestCALV0148_SupervisorLostHandsOffWithoutRelaunch(t *testing.T) {
 	}
 }
 
+// CAL-V0-146: an ended worker that stays in the ledger and is re-reported
+// every tick does not hold its recorded deferral open once the run ends.
+func TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral(t *testing.T) {
+	r := newDetachedRig(t)
+	r.q.set(r.attemptID, r.run(RunRunning, nil))
+	r.endWorker(t)
+	exit := 7
+	r.q.set(r.attemptID, r.run(RunFinished, &exit))
+	obs := r.q.obs
+	done := map[string]bool{}
+	r.d.deferredNow = map[string]string{}
+	fresh := r.d.deferHandoffs(&obs, []*Worker{&r.w}, done)
+	r.d.advanceDetached(context.Background(), &obs, done, fresh)
+	if len(r.q.released) != 1 || len(markerFiles(t, r.d)) != 1 || r.d.detached[testRunID].Phase != DetachedRelaunch {
+		t.Fatalf("released %v marker %+v", r.q.released, r.d.detached[testRunID])
+	}
+}
+
 // CAL-V0-146: the deferral is bounded by the run's own timeout plus the
 // settle bound; past it the hand-off proceeds although the record still
 // says RUNNING.

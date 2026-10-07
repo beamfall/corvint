@@ -4282,8 +4282,9 @@ by the orchestrator on 2026-10-07. They are recorded in
   decode, so that such a marker can neither defer nor launch, and it MUST remove leftover temporary
   files. A marker of another `taskman-dispatch-detached-run` version is the exception: it MUST be
   reported as `UNSUPPORTED_VERSION` and kept unread for the build that wrote it, and its run is then
-  handed off without a deferral (CAL-V0-131). A restarted dispatcher that sees the same ended worker again keeps the recorded deferral
-  and does not record a second one.
+  handed off without a deferral (CAL-V0-131). A dispatcher that sees the same ended worker again,
+  after a restart or while the worker stays in the ledger, keeps the recorded deferral and does not
+  record a second one; that deferral still ends as CAL-V0-146 states.
 - `CAL-V0-148`: (proposed, pending owner acceptance; V1-0936) The `finished` event of a worker whose
   hand-off was deferred MUST carry detail `detachedRun` and say that the run continues. If that
   session recorded no progress, it MUST NOT count toward no-progress cooldown or parking: the run's
@@ -4374,6 +4375,7 @@ Failure modes:
 
 Acceptance evidence: `TestCALV0145_WorkerExitsWhileDetachedRunContinues`,
 `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0146_DeferralIsBounded`,
+`TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral`,
 `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved`,
 `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch`, `TestCALV0149_InfraRetryCarriesTheOutcome`,
 `TestCALV0149_DetachedRunPlaceholderIsPromptOnly`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`,
@@ -4736,7 +4738,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
 | CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish`, `TestCALV0144_RestartConfirmsLeftMarks`, `TestCALV0144_FailedConfirmingPassIsRetried` (`internal/tasks/dispatch`) |
 | CAL-V0-145 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
-| CAL-V0-146 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0146_DeferralIsBounded` (`internal/tasks/dispatch`) |
+| CAL-V0-146 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0146_DeferralIsBounded`, `TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral` (`internal/tasks/dispatch`) |
 | CAL-V0-147 | `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
 | CAL-V0-148 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch` (`internal/tasks/dispatch`) |
 | CAL-V0-149 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0149_InfraRetryCarriesTheOutcome`, `TestCALV0149_DetachedRunPlaceholderIsPromptOnly` (`internal/tasks/dispatch`) |
