@@ -298,6 +298,9 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 2. Step-level matching, so one request step can name part of a flow.
 3. Generate outcome assertion code from the declared matcher, locator and value.
 4. Adopter-scale qualification of resolution precision against a labelled request set.
+5. Emit a reused method call only when its name is a JavaScript identifier (review round 3).
+6. After a step that resolves to no app, forget every session's position, so the next step
+   navigates instead of staying (review round 3).
 
 ## Owner questions
 

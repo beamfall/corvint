@@ -151,6 +151,27 @@ The same default-export assumption exists in the issue-657 `ProjectScaffold`
 (`internal/appmap/scaffold.go`). It is outside this slice and is reported to the orchestrator,
 not changed here.
 
+Round 3 (diff `43c65094..e4eb30bd`) was the last round allowed by the lane's three-round review
+cap. It confirmed that the round-2 fixes hold and raised two new P2 findings. Under the cap,
+P2 findings are recorded as follow-ups and are not repaired in this slice:
+
+1. **Method names can inject draft code.** A reused page-object method's `Name` is
+   interpolated unquoted into `await <session>.<name>();`. A crafted name could close the
+   `test.fixme` callbacks and produce module-level code. In practice `Name` comes from the
+   issue-657 `methodLine` identifier capture, so a scan of real source cannot yield such a
+   name. A hand-edited or foreign map can. Proposed fix: emit the call only when `Name` matches
+   the planner's JavaScript identifier pattern, and otherwise comment it out as not callable.
+   Add a regression with a crafted map.
+2. **A fully unresolved step keeps the previous session position.** Reproduced on the
+   fixture with `book a tee time; delete the club; check the slot status`. Step 2 is
+   `UNMAPPED` and has no app, yet step 3 is planned `stay` rather than `goto`. In the real run
+   the unresolved step may navigate anywhere. The existing regression covers only a step that
+   resolves to an app but is not placed. Proposed fix: when a step resolves to no app, forget
+   every session's position so that the next step navigates. Add a regression with that
+   request.
+
+Both are listed under the spec's follow-ups.
+
 ## Dogfood friction
 
 - `corvint --version` reported 1.0.0-rc.2. At lane start, `corvint affected --base 43c65094`
