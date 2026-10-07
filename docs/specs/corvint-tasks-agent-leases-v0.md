@@ -109,7 +109,7 @@ one.
 | V1-0862 | CAL-V0-109..110 | Darwin pressure memory signal is the kernel memory-pressure level instead of sticky swap; the level records the signals that set it, reported in `dispatch status` and `throttled`; focused tests and a live Darwin sample |
 | V1-0855 | CAL-V0-108 | Priority admission orders competitors across stages: at equal priority a ticket handed off to review or integrate ranks first, earlier handoff first; derived, no stored state; focused and property tests |
 | V1-0863 | CAL-V0-111..113 | Caller-bounded `--lock-wait` (1..300 s) for release and attempt heartbeat; same-request HANDOFF replay after LOCK_TIMEOUT proven, no code change; no plain-release-to-HANDOFF conversion; focused tests |
-| V1-0889 | CAL-V0-130..134 | Proposed in-place binary upgrade with live attempts: `version` reports `formats`; equal sets need no drain and roll back by the same procedure; another dispatcher-ledger version or unknown member refuses UNSUPPORTED_VERSION; install by rename; supervised host pins unchanged; focused tests |
+| V1-0889 | CAL-V0-130..134 | Proposed in-place binary upgrade with live attempts: `version` reports `formats`; equal sets need no drain and roll back by the same procedure, differing sets cannot roll back; another dispatcher-ledger version or unknown member refuses UNSUPPORTED_VERSION; install by rename; supervised host pins unchanged; focused tests |
 | V1-0791 | CAL-V0-102..103 | Opt-in derived `LOOP_DETECTED` hold over audited no-progress and alternating-return generations; owner reopen clears it; dispatcher raises one blocked event per episode; focused tests |
 | V1-0851 | CAL-V0-104 | Dispatcher worker-exit recovery: bounded hand-off release retries with backoff, reap once the lease expires, `needs-owner` only when both fail; `heal.exitRecovery` default on; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
@@ -3290,8 +3290,10 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   `receipt audit` MUST pass under both builds. Rollback is the same procedure run the other way:
   with equal `formats`, going back from N+1 to N (stop the dispatcher, rename-install N, restart
   and adopt) MUST be supported, and an attempt claimed under N+1 MUST heartbeat, renew and release
-  under N. When the sets differ, N refuses N+1's records with UNSUPPORTED_VERSION (CAL-V0-131), so
-  the operator drains on N+1 before reinstalling N; this adds no downgrade reader.
+  under N. Rollback is supported only when the N and N+1 `formats` sets are identical. When the
+  sets differ, rollback is UNSUPPORTED: draining does not help, because N refuses the newer formats
+  N+1 persisted with UNSUPPORTED_VERSION (CAL-V0-131), which is the correct fail-closed result and
+  leaves the store bytes unchanged. No restore, conversion or downgrade reader is provided.
 - `CAL-V0-131`: proposed (V1-0889; GitHub #644). `version` MUST report `formats`, the sorted set of
   the store `VERSION` and every profile the tasks packages persist and decode again (journal, intent,
   lease, run, release, review, pool, dispatcher and user-service records, and the command-result
@@ -3303,7 +3305,9 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   before its closed-key and field checks, and MUST NOT read, accept or migrate the record; the
   store `VERSION` refusal does this before any lease verb writes. That first refusal MUST stand: no
   later field read, nested decoder or semantic check may replace it, and wrapping the error keeps
-  its code (`wire.CodeOf` unwraps). A maintained table test feeds every listed format, from a later
+  its code (`wire.CodeOf` unwraps). A decoder MUST return the stored refusal before it invokes any
+  independent decoder or profile check, and a later `Profile` call on that reader MUST return the
+  first stored error. A maintained table test feeds every listed format, from a later
   build with an unknown member, to the decoder that reads it and fails on any other code. This
   amends ATR-V0-010: a run record of another `taskman-attempt-run-record` version is
   UNSUPPORTED_VERSION, while another profile name stays MALFORMED. The append-only dispatcher event log is the one exception: its
@@ -3532,7 +3536,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
 | Dispatcher ledger written by another build (another dispatch-state version, or a member this build does not know) | A rollback or skipped build would drop or misread recorded workers and backoff | The dispatcher refuses UNSUPPORTED_VERSION before any decode, rewrite or worker action (CAL-V0-132) |
 | Record written by another build (another version of its own profile, possibly with members this build does not know) | A newer record would be reported MALFORMED, read as damage, or partly decoded | Each decoder refuses UNSUPPORTED_VERSION before its closed-key checks and reads nothing more; the first refusal sticks and survives wrapping (CAL-V0-131) |
-| New corvint-tasks build installed while attempts are live | A drain would be the only safe upgrade, or a build N process would meet records it cannot read | Equal `version` `formats` permit replacement by rename and adoption; differing sets require a drain (CAL-V0-130, CAL-V0-131, CAL-V0-133) |
+| New corvint-tasks build installed while attempts are live | A drain would be the only safe upgrade, or a build N process would meet records it cannot read | Equal `version` `formats` permit replacement by rename and adoption, and rollback by the same procedure; differing sets require a drain to upgrade, and rollback across them is unsupported: N refuses UNSUPPORTED_VERSION with the store unchanged (CAL-V0-130, CAL-V0-131, CAL-V0-133) |
 
 ## Acceptance and rollback
 
@@ -3651,8 +3655,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-111 | `TestCALV0111_CallerWaitBound`, `TestCALV0111_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0111_OrphanCleanupSpendsCallerWait` (`internal/tasks/store`); `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
 | CAL-V0-112 | `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
 | CAL-V0-113 | `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
-| CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
-| CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
+| CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupRetiresTheCommandGroup` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
+| CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
 | CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |
 | CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`); no code change to the supervised-host pin |

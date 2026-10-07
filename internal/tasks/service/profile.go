@@ -164,6 +164,9 @@ func DecodeProfile(raw []byte) (*Profile, error) {
 		return nil, err
 	}
 	r.Closed("profile", "executable", "dispatchConfig", "workRoot", "legacyStopFile", "helpers")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err = wire.CheckProfile("/profile", r.Field("profile").String(), ProfileName); err != nil {
 		return nil, err
 	}

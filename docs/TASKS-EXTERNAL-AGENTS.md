@@ -581,9 +581,14 @@ no build identity: heartbeat, renew and release are fenced by generation, phase 
 5. Run `receipt audit`. Live attempts keep heartbeating, renewing and releasing with their original
    attempt ID and generation.
 
+Rollback from N+1 to N is supported only when both builds report identical `formats`: run the same
+steps with N, and attempts claimed under N+1 continue under N. When the sets differ, rollback is
+unsupported. Draining does not help, because N refuses the newer formats N+1 persisted with
+`UNSUPPORTED_VERSION`, which is the intended fail-closed result; there is no restore or conversion
+procedure.
+
 A dispatcher ledger written by another dispatch-state version, or carrying a member this build
-does not know (for example after rolling back to N), refuses `UNSUPPORTED_VERSION` and the
-dispatcher does not open; restore the ledger that build wrote, or drain. A store `VERSION` another
+does not know, refuses `UNSUPPORTED_VERSION` and the dispatcher does not open. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

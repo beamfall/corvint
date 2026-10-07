@@ -110,33 +110,25 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	survivorDone := make(chan error, 1)
 	go func() { survivorDone <- survivor.Wait() }()
 	// Cleanup never hangs the package: the runner puts its command in a
-	// process group of its own, so killing the runner alone leaves the shell
-	// holding the stderr pipe and Wait blocked. Letting the shell finish ends
-	// it; killing it by the pid it recorded is the fallback; the wait is
-	// bounded either way.
+	// process group of its own, so killing the runner alone can leave the
+	// shell, or a descendant of it, holding the stderr pipe with Wait
+	// blocked. Cleanup retires that whole group, recorded once the command
+	// starts, then the runner, and bounds the wait.
+	shellGroup := 0
 	t.Cleanup(func() {
-		_ = os.WriteFile(finish, nil, 0o600)
-		_ = survivor.Process.Kill()
-		select {
-		case <-survivorDone:
-			return
-		case <-time.After(5 * time.Second):
-		}
-		if raw, err := os.ReadFile(started); err == nil {
-			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil {
-				if shell, err := os.FindProcess(pid); err == nil {
-					_ = shell.Kill()
-				}
-			}
-		}
-		select {
-		case <-survivorDone:
-		case <-time.After(5 * time.Second):
-			t.Error("build N runner still not reaped after cleanup")
+		if err := retireSurvivor(survivor.Process, shellGroup, survivorDone, 10*time.Second); err != nil {
+			t.Error(err)
 		}
 	})
 	for deadline := time.Now().Add(time.Minute); ; time.Sleep(20 * time.Millisecond) {
-		if _, err := os.Stat(started); err == nil {
+		if raw, err := os.ReadFile(started); err == nil && bytes.HasSuffix(raw, []byte("\n")) {
+			pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+			if err != nil {
+				t.Fatalf("build N command pid: %q", raw)
+			}
+			if shellGroup, err = commandGroup(pid); err != nil {
+				t.Fatalf("build N command process group: %v", err)
+			}
 			break
 		}
 		select {
@@ -243,6 +235,39 @@ func TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion(t *testing.T) {
 	}
 	if after := fixture.TreeSnapshot(t, stateDir); !reflect.DeepEqual(after, journal) {
 		t.Fatal("refused verbs wrote state")
+	}
+}
+
+// CAL-V0-130 and CAL-V0-131: rollback across different format sets is
+// unsupported. Build N+1 here changed the store format, so its store carries
+// a newer VERSION; build N refuses its lease verbs and its receipt audit with
+// UNSUPPORTED_VERSION and leaves the store bytes unchanged. No drain, restore
+// or conversion makes the store readable to build N. (A single record at a
+// newer version is refused by its decoder, as the CAL-V0-131 format table
+// shows; a hand-edited record cannot stand in for one here, because the
+// journal afterimage check reports it as JOURNAL_FORKED first.)
+func TestCALV0130_RollbackAcrossDifferentFormatsRefuses(t *testing.T) {
+	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-12*time.Minute).Truncate(time.Second))
+	a := claimed[0]
+	stateDir := filepath.Join(root, ".git", "taskman")
+	if err := os.Chmod(filepath.Join(stateDir, "VERSION"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fixture.Write(t, filepath.Join(stateDir, "VERSION"), []byte(strings.Replace(snapshot.VersionBytes, "/0", "/1", 1)))
+	written := fixture.TreeSnapshot(t, stateDir)
+	for _, args := range [][]string{
+		{"attempt", "heartbeat", "--attempt", a.AttemptID, "--generation", string(a.Generation), "--request-id", "beat-rollback"},
+		{"renew", "--attempt", a.AttemptID, "--generation", string(a.Generation), "--request-id", "renew-rollback"},
+		{"release", "--attempt", a.AttemptID, "--generation", string(a.Generation), "--request-id", "release-rollback"},
+		{"receipt", "audit"},
+	} {
+		x := atm(t, root, nil, args...)
+		if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedVersion) {
+			t.Fatalf("%v: %+v", args, x.res)
+		}
+	}
+	if after := fixture.TreeSnapshot(t, stateDir); !reflect.DeepEqual(after, written) {
+		t.Fatal("refused rollback wrote state")
 	}
 }
 

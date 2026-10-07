@@ -169,19 +169,19 @@ func (r *Reader) Enum(allowed ...string) string {
 	return ""
 }
 
-// Profile records and returns UNSUPPORTED_VERSION when this object names
-// want's profile at another version. Decoders call it before Closed and
-// return its error at once, so no later read can replace the refusal of a
-// record written by another build (CAL-V0-131). A nested reader that cannot
-// return relies on the first recorded error sticking.
+// Profile records UNSUPPORTED_VERSION when this object names want's profile
+// at another version, and returns the reader's first recorded error, so a
+// refusal recorded earlier is returned too. Decoders call it before Closed
+// and return its error at once, so no later read can replace the refusal of
+// a record written by another build (CAL-V0-131). A nested reader that
+// cannot return relies on the first recorded error sticking.
 func (r *Reader) Profile(want string) error {
 	w := r.where
 	if w == "/" {
 		w = ""
 	}
-	err := ProfileVersion(w+"/profile", r.v, want)
-	r.adopt(err)
-	return err
+	r.adopt(ProfileVersion(w+"/profile", r.v, want))
+	return r.Err()
 }
 
 // Exact requires the string to equal one literal.

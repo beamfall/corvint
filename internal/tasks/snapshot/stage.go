@@ -143,6 +143,9 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 		return nil, err
 	}
 	r.Closed("profile", "queueId", "operation", "requestId", "requestSha256", "recordedAt", "base", "artifacts")
+	if e := r.Err(); e != nil {
+		return nil, e
+	}
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}

@@ -286,6 +286,9 @@ func DecodeControl(raw []byte) (Control, error) {
 		return Control{}, err
 	}
 	r.Closed("profile", "program", "manifestSha256", "revision", "desired", "lastRequest", "lastRequestSha256")
+	if err := r.Err(); err != nil {
+		return Control{}, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ControlName); err != nil {
 		return Control{}, err
 	}
@@ -341,6 +344,9 @@ func DecodePulse(raw []byte) (Pulse, error) {
 		return Pulse{}, err
 	}
 	r.Closed("profile", "program", "manifestSha256", "pid", "processIdentity", "state", "hold", "at")
+	if err := r.Err(); err != nil {
+		return Pulse{}, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), PulseName); err != nil {
 		return Pulse{}, err
 	}
@@ -378,6 +384,9 @@ func DecodeManifest(raw []byte) (*Manifest, error) {
 		return nil, err
 	}
 	r.Closed("helperExecutables", "config", "profile", "program", "manager", "domain", "uid", "generation", "queueId", "store", "configRoot", "stateRoot", "unitRoot", "manifestPath", "dispatchStateRoot", "executable", "namespace", "profileSha256", "executableSha256", "dispatchConfigSha256", "units", "previous")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ManifestName); err != nil {
 		return nil, err
 	}
@@ -502,6 +511,9 @@ func DecodeOperation(raw []byte) (*Operation, error) {
 		return nil, err
 	}
 	r.Closed("profile", "kind", "requestId", "requestSha256", "program", "phase", "priorDesired", "previous", "next", "actions", "completed", "published")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), OperationName); err != nil {
 		return nil, err
 	}
@@ -724,6 +736,9 @@ func DecodeRequests(raw []byte) ([]controlRequest, error) {
 		return nil, err
 	}
 	r.Closed("profile", "requests")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), RequestsName); err != nil {
 		return nil, err
 	}

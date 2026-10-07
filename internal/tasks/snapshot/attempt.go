@@ -479,6 +479,11 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	if wire.Has(v, "laneUntouchedAttestation") {
 		a.LaneUntouchedAttestation = readLaneUntouched(r.Field("laneUntouchedAttestation"))
 	}
+	// A nested refusal recorded above stands: return it before an
+	// independent decoder could replace it (CAL-V0-131).
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if wire.Has(v, "operatorNote") {
 		note, err := ticket.OperatorNoteReferenceFromValue(r.Field("operatorNote").Value())
 		if err != nil {

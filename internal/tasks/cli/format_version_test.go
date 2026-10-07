@@ -51,6 +51,8 @@ func withMember(t *testing.T, raw []byte, member string, x wire.Value) []byte {
 	return wire.EncodeFile(v)
 }
 
+// formatAttempt is a valid current attempt that also carries an operator note
+// and retry accounting.
 func formatAttempt(t *testing.T) []byte {
 	id, _ := wire.ParseTicketID("ticket", "ticket:acme:main:AT-0001")
 	d := wire.Sum(nil)
@@ -58,7 +60,10 @@ func formatAttempt(t *testing.T) []byte {
 	for _, name := range intent.LaneBudgetNames {
 		budget[name] = snapshot.BudgetField{State: "NOT_OBSERVED"}
 	}
-	a := &snapshot.Attempt{AttemptID: "attempt:acme:main:57ddbdeca215924fd0ea543f91045dad", TicketID: id, TicketRevision: "1", TicketRecordSha256: d, Generation: "1", Phase: "RUNNING", PhaseSinceSeq: "1", Mode: "DEVELOPMENT", PolicySha256: d, ConfigSha256: d, RuntimeID: snapshot.RuntimeExternalAgent, CapabilityProfileSha256: d, BaseCommit: strings.Repeat("a", 40), Branch: "test", Quiescence: "UNPROVED", SpawnNoExecCount: "0", RetryCount: "0", RepairRound: "0", Budget: budget, ScopeCheck: "UNKNOWN", Lease: &snapshot.Lease{Holder: "agent", GrantedSeq: "1", ExpiresAt: "2026-10-01T00:00:00Z"}, Scope: &snapshot.Scope{Source: "REQUESTED"}}
+	a := &snapshot.Attempt{AttemptID: "attempt:acme:main:57ddbdeca215924fd0ea543f91045dad", TicketID: id, TicketRevision: "1", TicketRecordSha256: d, Generation: "1", Phase: "RUNNING", PhaseSinceSeq: "1", Mode: "DEVELOPMENT", PolicySha256: d, ConfigSha256: d, RuntimeID: snapshot.RuntimeExternalAgent, CapabilityProfileSha256: d, BaseCommit: strings.Repeat("a", 40), Branch: "test", Quiescence: "UNPROVED", SpawnNoExecCount: "0", RetryCount: "0", RepairRound: "0", Budget: budget, ScopeCheck: "UNKNOWN", Lease: &snapshot.Lease{Holder: "agent", GrantedSeq: "1", ExpiresAt: "2026-10-01T00:00:00Z"}, Scope: &snapshot.Scope{Source: "REQUESTED"},
+		// Independent and nested decoders that run after the nested formats
+		// under test, so a refusal recorded first must survive them.
+		OperatorNote: &ticket.OperatorNoteReference{Revision: "1", Current: &d, Head: d}, RetryAccounting: &snapshot.RetryAccounting{Disposition: "NONE"}}
 	raw, err := a.Encode()
 	if err != nil {
 		t.Fatal(err)

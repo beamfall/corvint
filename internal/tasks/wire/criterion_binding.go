@@ -121,6 +121,9 @@ func ReadCriterionCaptureResult(v Value) (CriterionCapture, CriterionVerificatio
 	}
 	r.Closed("profile", "capture", "verification")
 	r.Field("profile").Exact(CriterionCaptureResultProfile)
+	if e := r.Err(); e != nil {
+		return CriterionCapture{}, CriterionVerification{}, e
+	}
 	c, e := ReadCriterionCapture(r.Field("capture").Value())
 	if e != nil {
 		return c, CriterionVerification{}, e

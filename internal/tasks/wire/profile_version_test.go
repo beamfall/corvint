@@ -78,4 +78,8 @@ func TestCALV0131_FirstRefusalSticks(t *testing.T) {
 	if got := CodeOf(r.Err()); got != CodeUnsupportedVersion {
 		t.Fatalf("first refusal replaced by %q", got)
 	}
+	// A later Profile call that matches returns the first refusal, not nil.
+	if got := CodeOf(r.Profile("taskman-attempt/1")); got != CodeUnsupportedVersion {
+		t.Fatalf("later Profile returned %q after a refusal", got)
+	}
 }

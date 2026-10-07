@@ -171,6 +171,9 @@ func DecodeExternalReviewRequest(raw []byte) (*ExternalReviewRequest, error) {
 		return nil, err
 	}
 	r.Closed("profile", "requestId", "action", "ticketId", "gateId", "expectedGeneration", "expectedRevision", "acceptanceRevision", "definitionSha256", "policySha256", "subject", "candidate", "reasons", "evidence", "reviewerLease", "authorLease", "priorReturn", "verdict")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err = wire.CheckProfile("/profile", r.Field("profile").String(), ProfileExternalReviewRequest); err != nil {
 		return nil, err
 	}
@@ -227,6 +230,9 @@ func DecodeExternalReviewEvent(raw []byte) (*ExternalReviewEvent, error) {
 		return nil, err
 	}
 	r.Closed("profile", "ticketId", "acceptanceRevision", "gateId", "definitionSha256", "policySha256", "reviewGeneration", "eventRevision", "action", "subject", "candidate", "actor", "reviewerLease", "trust", "verdict", "reasons", "evidence", "previous", "recordedAt", "receiptSeq", "requestSha256", "request")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err = wire.CheckProfile("/profile", r.Field("profile").String(), ProfileExternalReviewEvent); err != nil {
 		return nil, err
 	}

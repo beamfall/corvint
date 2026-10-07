@@ -57,6 +57,9 @@ func DecodeEnvelope(data []byte) (*Envelope, error) {
 		return nil, err
 	}
 	r.Closed("profile", "requestId", "actor", "queueId", "releaseId", "expectedRevision", "operation", "payload", "issuedAt")
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
 	if err := wire.CheckProfile("/profile", r.Field("profile").String(), MutationProfile); err != nil {
 		return nil, err
 	}
