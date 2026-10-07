@@ -103,6 +103,9 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if handled, out, err := mutateWriter(ctx, repo, session, headState, request, env, now, report, refresh); handled {
 		return out, err
 	}
+	// The complete route plans against the head it reads below, so a live
+	// clock samples again, as the writer route did for its own head.
+	now = recordedAt(ctx, now)
 
 	// CAL-V0-070: one audit answers the request lookup and supplies the
 	// canonical intent records, with the same refusals as Lookup and Audit made
