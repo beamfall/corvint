@@ -105,6 +105,10 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return declined(err.Error())
 	}
 	at = writerStage(ctx, "bind", at)
+	// The lock is held and the head is the audited one: the read checkpoint
+	// advances with the writer's chain (CAL-V0-060, CAL-V0-119 proposed).
+	retainCheckpoint(repo, w.proof)
+	at = writerStage(ctx, "readCheckpoint", at)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	report.Receipt, err = apply(repo, session, result.Plan)
 	if err != nil {
@@ -186,7 +190,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if decline != nil {
 		return false, false, nil, nil
 	}
-	validate := time.Now()
+	validate := writerStage(ctx, "lease.observe", read)
 	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: w.inv, Head: w.head, HeadReceipt: w.headReceipt, Queue: w.proof.Records["intent/queue.json"].Raw, Policy: w.proof.Records["intent/policy.json"].Raw, Barrier: w.barrier, Reservations: w.reservations, Pools: w.proof.Records["pools.json"].Raw, Programs: w.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: w.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	for path, record := range w.proof.Records {
@@ -210,12 +214,16 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	result := transaction.Model(request, input)
 	timing.Validation += time.Since(validate)
+	modeled := writerStage(ctx, "lease.model", validate)
 	if w.inv.Incomplete() || result.Kind != "Transaction" || result.Plan == nil {
 		return false, false, nil, nil
 	}
 	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
 		return false, false, nil, nil
 	}
+	// As in commitLease: the lock is held and the head is the audited one
+	// (CAL-V0-060, CAL-V0-119 proposed).
+	retainCheckpoint(repo, w.proof)
 	write := time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
@@ -233,5 +241,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit); err != nil {
 		return true, false, nil, err
 	}
-	return true, advanceWriterCheckpoint(repo, w), w.proof, nil
+	refresh = advanceWriterCheckpoint(repo, w)
+	writerStage(ctx, "lease.commit", modeled)
+	return true, refresh, w.proof, nil
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -200,9 +201,13 @@ func leaseInput(proof *journal.Result, attempts [][]byte, facts claimObserver, i
 	return err
 }
 
+// attemptEntropy is the source of fresh attempt IDs. Tests that compare two
+// routes byte for byte replace it with a fixed source.
+var attemptEntropy io.Reader = rand.Reader
+
 func mintAttemptID(queueID string) (string, error) {
 	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	if _, err := io.ReadFull(attemptEntropy, b[:]); err != nil {
 		return "", err
 	}
 	return "attempt:" + strings.TrimPrefix(queueID, "queue:") + ":" + hex.EncodeToString(b[:]), nil

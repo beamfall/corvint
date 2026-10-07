@@ -288,6 +288,7 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if err == nil {
 		next, err = proof.WriterCheckpoint(obs.Files)
 	}
+	mutationStage(ctx, "refresh.audited")
 	lock, lockErr := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if lockErr != nil {
 		return
