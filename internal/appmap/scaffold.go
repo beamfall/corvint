@@ -158,8 +158,8 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		switch {
 		case p.state(c.meth.Anchor) == Stale:
 			skipped[id] = skippedCall{c, "stale-reuse", "is STALE at the evaluated revision"}
-		case !c.meth.NoArgs:
-			skipped[id] = skippedCall{c, "reuse-takes-arguments", "takes arguments the flow does not supply"}
+		case !c.meth.Callable:
+			skipped[id] = skippedCall{c, "reuse-not-callable", "is not a public method callable without arguments"}
 		default:
 			continue
 		}
@@ -170,7 +170,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	imports, unknowns := []any{}, []any{}
 	// imported holds, per resolved file, the local names the borrowed imports bind from it; locals
 	// holds every name they bind. A class is usable only under a name actually bound to it.
-	imported, locals := map[string]map[string]bool{}, map[string]bool{}
+	imported, locals, bound := map[string]map[string]bool{}, map[string]bool{}, map[string]bool{}
 	if closest != nil {
 		cv = closestView{File: closest.Path, Status: StatusResolved, Assertions: closest.Assertions, ScreensShared: screensShared,
 			ReuseShared: reuseShared, Anchor: p.anchorView(closest.Anchor)}
@@ -195,6 +195,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			}
 			for _, n := range imp.Names {
 				locals[n] = true
+				bound[n] = bound[n] || ok
 			}
 			stmt := imp.Statement
 			if stmt == "" {
@@ -262,6 +263,12 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		owner[f.Class], owner[v] = f.Path, f.Path
 		vars[f.Path] = v
 		order = append(order, f.Path)
+	}
+	if !bound["test"] {
+		// Neither borrowed nor generated imports bind test (the closest spec may call it under
+		// another name, or there is no closest spec), so the draft says so rather than guess.
+		imports = append(imports, "// UNRESOLVED import { test }: no borrowed import binds test;")
+		unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: fl.ID, Reason: "test-unbound"})
 	}
 	lines := []any{fmt.Sprintf("test(%s, async ({ page }) => {", quote(fl.FlowID))}
 	for _, pre := range fl.Preconditions {

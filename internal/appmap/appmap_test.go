@@ -1173,28 +1173,112 @@ func TestAMAPV0010ManifestBindingFreshness(t *testing.T) {
 	check(Stale)
 }
 
-// AMAP-V0-013: a reused method that takes parameters is not called without arguments.
+// AMAP-V0-013: a reused method that takes parameters, or a getter, static, private or protected
+// member, is not called.
 func TestAMAPV0013MethodWithArgumentsNotCalled(t *testing.T) {
 	for line, want := range map[string]bool{
 		"  async book() {": true, "  book = async () => {": true, "  async book(slot: string) {": false,
-		"  async book(n = 1) {": false, "export async function book(": false,
+		"  async book(n = 1) {": false, "  get book() {": false, "  private async book() {": false,
+		"  static book() {": false, "  protected book = async () => {": false, "  readonly book = () => {": true,
 	} {
-		if got := emptyParams(line, "book"); got != want {
-			t.Errorf("emptyParams(%q) = %v", line, got)
+		if got := callable(line, "book"); got != want {
+			t.Errorf("callable(%q) = %v", line, got)
 		}
+	}
+	if f := readFacts("export async function go() {\n  await x();\n}\n"); len(f.methods) != 1 || f.methods[0].callable {
+		t.Fatalf("a module function is not an instance method: %+v", f.methods)
 	}
 	root, _ := fixtureRepo(t)
 	page := "e2e/pages/teesheet.page.ts"
 	data, _ := os.ReadFile(filepath.Join(root, page))
 	writeFile(t, root, page, strings.Replace(string(data), "async book() {", "async book(slot: string) {", 1))
 	m := build(t, root, commitAll(t, root, "book takes a slot"))
+
 	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := string(raw)
 	if strings.Contains(body, "await teeSheetPage.book(") || !strings.Contains(body, "await teeSheetPage.selectSlot();") ||
-		!strings.Contains(body, "takes arguments the flow does not supply") || !strings.Contains(body, `"reason":"reuse-takes-arguments"`) {
+		!strings.Contains(body, "is not a public method callable without arguments") || !strings.Contains(body, `"reason":"reuse-not-callable"`) {
+		t.Fatalf("scaffold: %s", body)
+	}
+}
+
+// AMAP-V0-007: only data-testid is the getByTestId attribute; data-test and data-test-id stay CSS
+// and never share the test-id selector's identity.
+func TestAMAPV0007TestIDAttributeIsExact(t *testing.T) {
+	f := readFacts("page.locator('[data-test=\"save\"]');\npage.locator('[data-test-id=save]');\npage.locator('[data-testid=\"save\"]');\npage.getByTestId('save');")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, s.Kind+":"+s.Strength)
+	}
+	if want := "css:weak|css:weak|test-id:strong|test-id:strong"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+	if f.selectors[0].ID == f.selectors[3].ID || f.selectors[2].ID != f.selectors[3].ID {
+		t.Fatalf("selector identities %v", f.selectors)
+	}
+}
+
+// AMAP-V0-007: a getByRole options literal counts only as the whole argument.
+func TestAMAPV0007RoleOptionsWholeArgument(t *testing.T) {
+	f := readFacts("page.getByRole('button', { name: 'Book' } && options);\npage.getByRole('button', { name: 'Book' },);\npage.getByRole('button', { name: 'Book' });")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, fmt.Sprintf("%s:%s:%s@%d", s.Value, s.Name, s.Strength, s.Line))
+	}
+	if want := "::unknown@1|button:Book:medium@2|button:Book:medium@3"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+}
+
+// AMAP-V0-005: separate import statements from one module stay separate, each with exactly the
+// names it binds, so a borrowed statement never claims a name another statement binds.
+func TestAMAPV0005SeparateImportsFromOneModule(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	writeFile(t, root, spec, strings.Replace(string(data), "import { TeeSheetPage }", "import { helper } from '../pages/home.page';\nimport { TeeSheetPage }", 1))
+	m := build(t, root, commitAll(t, root, "two imports from one module"))
+	n := 0
+	for _, imp := range m.file(spec).Imports {
+		if imp.Specifier != "../pages/home.page" {
+			continue
+		}
+		n++
+		for _, name := range imp.Names {
+			if !strings.Contains(imp.Statement, name) {
+				t.Fatalf("statement %q does not bind %s", imp.Statement, name)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatalf("%d imports from ../pages/home.page: %+v", n, m.file(spec).Imports)
+	}
+}
+
+// AMAP-V0-013: a scaffold whose borrowed imports bind no test reports it instead of calling an
+// unbound name silently.
+func TestAMAPV0013TestUnbound(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	raw, err := ProjectScaffold(context.Background(), build(t, root, rev), "book-tee-time", Options{Root: root})
+	if err != nil || strings.Contains(string(raw), "test-unbound") {
+		t.Fatalf("baseline scaffold: %v %s", err, raw)
+	}
+	specs, _ := filepath.Glob(filepath.Join(root, "e2e/specs/*.spec.ts"))
+	for _, p := range specs {
+		data, _ := os.ReadFile(p)
+		rel, _ := filepath.Rel(root, p)
+		text := strings.Replace(string(data), "import { test, expect }", "import { test as it, expect }", 1)
+		writeFile(t, root, rel, strings.ReplaceAll(text, "\ntest(", "\nit("))
+	}
+	m := build(t, root, commitAll(t, root, "test as it"))
+	raw, err = ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := string(raw); !strings.Contains(body, "// UNRESOLVED import { test }") || !strings.Contains(body, `"reason":"test-unbound"`) {
 		t.Fatalf("scaffold: %s", body)
 	}
 }

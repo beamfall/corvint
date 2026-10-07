@@ -177,6 +177,22 @@ regression test that a mutation of its fix makes fail:
    `TestAMAPV0013MethodWithArgumentsNotCalled` (`no_args`; `reuse-takes-arguments`).
 
 Finding 5 and the whole-file manifest anchor resolve forks fail-closed (owner question 12).
+
+Round 5 (diff `8af2bf62..aad51492`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. `[data-test=...]` and `[data-test-id=...]` were normalised to the `data-testid` test-ID
+   selector — `TestAMAPV0007TestIDAttributeIsExact` (they stay CSS).
+2. A role options literal that was only part of its argument (`{ name } && options`) named the
+   selector — `TestAMAPV0007RoleOptionsWholeArgument`.
+3. Getters, static, private and protected members and module functions were callable reuse —
+   `TestAMAPV0013MethodWithArgumentsNotCalled` (`callable` replaces round 4's `no_args`;
+   `reuse-not-callable` replaces `reuse-takes-arguments`).
+4. Two import statements from one module merged into one `Import` whose statement bound only some
+   of its names — `TestAMAPV0005SeparateImportsFromOneModule` (one `Import` per statement).
+5. The scaffold called `test` when the closest spec bound it only as an alias —
+   `TestAMAPV0013TestUnbound` (`test-unbound`, fail-closed; owner question 13).
+
 Later rounds are recorded in the lane handoff.
 
 ## Analyzer schema bump
