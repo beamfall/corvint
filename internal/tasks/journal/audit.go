@@ -98,7 +98,15 @@ type Reader struct {
 	// complete audit (CAL-V0-059). It is rebound to the journal before use and
 	// every refusal on that path is re-derived by the complete audit, so it
 	// can only make an agreeing read cheaper. Result.Mode names what ran.
-	Checkpoint      *Checkpoint
+	Checkpoint *Checkpoint
+	// IntentTree, when set, is the intent tree the caller's outer snapshot
+	// hashed before this audit began and hashes again after it ends
+	// (CAL-V0-140). Both captures take an intent file's bytes from it
+	// instead of reading and hashing the file again; each capture still
+	// stats every intent file into its inventory, and a file whose size
+	// differs is read afresh, so a changed tree still moves the audit or
+	// fails the outer snapshot's comparison.
+	IntentTree      *intent.Tree
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
@@ -410,9 +418,13 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			if info.Size() > int64(max) || info.Size() > int64(wire.MaxIntentTreeBytes-total) {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, p, "intent byte bound")
 			}
-			raw, err := requiredRead(r.Source, p, max)
-			if err != nil {
-				return nil, err
+			raw, sum, shared := r.sharedIntent(p, info.Size())
+			if !shared {
+				raw, err = requiredRead(r.Source, p, max)
+				if err != nil {
+					return nil, err
+				}
+				sum = wire.Sum(raw)
 			}
 			if len(raw) == 0 && !strings.HasPrefix(p, "intent/tickets/") {
 				return nil, wire.Errorf(wire.CodeMalformed, p, "empty intent file")
@@ -421,7 +433,6 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, p, "intent tree grew beyond bound")
 			}
 			total += len(raw)
-			sum := wire.Sum(raw)
 			o.intentDigests[p] = sum
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
 		}
@@ -441,6 +452,21 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	}
 	o.identity = Identity{HeadSha256: wire.Sum(raw), InventorySha256: wire.Digest(hex.EncodeToString(inventory.Sum(nil))), IntentTreeSha256: intent.DigestOfFiles(intents)}
 	return o, nil
+}
+
+// sharedIntent returns the bytes and digest the outer snapshot hashed for
+// intent path p, when it holds that file at the observed size.
+func (r Reader) sharedIntent(p string, size int64) ([]byte, wire.Digest, bool) {
+	if r.IntentTree == nil {
+		return nil, "", false
+	}
+	files := r.IntentTree.Files
+	rel := strings.TrimPrefix(p, "intent/")
+	i := sort.Search(len(files), func(i int) bool { return files[i].Path >= rel })
+	if i == len(files) || files[i].Path != rel || files[i].Raw == nil || int64(len(files[i].Raw)) != size {
+		return nil, "", false
+	}
+	return files[i].Raw, files[i].Sha256, true
 }
 
 func isTemp(p string) bool {

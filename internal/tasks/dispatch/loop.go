@@ -89,6 +89,11 @@ type Dispatcher struct {
 	// run state, not ledger state: after a restart heal.reap still reaps
 	// the expired lease of a holder that is not a running worker.
 	recoveries map[string]*exitRecovery
+	// idle is armed by a full tick that changed nothing, and idleLease is
+	// the earliest future lease expiry the current tick observed
+	// (CAL-V0-139).
+	idle      *idleGate
+	idleLease time.Time
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -274,7 +279,19 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 // account for finished workers, launch the roster, and emit changes. Idle,
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
+// A tick after a full tick that changed nothing is skipped while the
+// store's witness is unchanged and no deadline is due (CAL-V0-139).
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	if d.idleSkip(ctx) {
+		return nil
+	}
+	m := d.idleBegin()
+	err := d.tick(ctx)
+	d.idleSettle(m, err)
+	return err
+}
+
+func (d *Dispatcher) tick(ctx context.Context) error {
 	d.tickSaved = false
 	if d.readerErr != nil {
 		return d.readerErr
@@ -352,6 +369,7 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	if err != nil {
 		return nil, err
 	}
+	d.noteLeases(obs)
 	alerts := readStates(ctx, d.Config, obs.Tickets, d.stateCommand)
 	if d.readerErr != nil {
 		return nil, d.readerErr

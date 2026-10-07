@@ -309,11 +309,16 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		_ = journal("STOPPING", out.Boot, &out)
 		return
 	}
-	tick := time.NewTicker(10 * time.Millisecond)
+	// The exit capsule poll starts at hostExitPollMin and doubles while the
+	// host keeps running, up to escapeScanEvery (CAL-V0-137), so a long host
+	// costs a few wakeups per second instead of one hundred.
+	poll := hostExitPollMin
+	tick := time.NewTimer(poll)
 	defer tick.Stop()
 	lastScan := time.Time{}
 waitHost:
 	for {
+		poll = nextHostExitPoll(poll)
 		select {
 		case e = <-stopped:
 			waited = true
@@ -331,6 +336,7 @@ waitHost:
 			}
 			raw, re := ReadBounded(filepath.Join(dir, "exit"), MaxCapsule)
 			if os.IsNotExist(re) {
+				tick.Reset(poll)
 				continue
 			}
 			var result hostExit

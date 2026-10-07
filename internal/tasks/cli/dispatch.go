@@ -68,7 +68,9 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	// The queue plans with the applied configuration's pools, which a
 	// reload may change (CAL-V0-127).
 	var d *dispatch.Dispatcher
-	d, e = dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: func() []string { return d.Config.TicketPools() }}, env.Stderr)
+	q := newDispatchQueue(env, c)
+	q.pools = func() []string { return d.Config.TicketPools() }
+	d, e = dispatch.Open(values["--program"], c, q, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
@@ -521,6 +523,15 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 type dispatchQueue struct {
 	env   Env
 	pools func() []string
+	// reviews carries the review binding fold across this dispatcher's
+	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
+	reviews *store.ReviewFold
+}
+
+// newDispatchQueue is the queue of a dispatcher running config c, with its
+// ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
+func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
+	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}}
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
@@ -561,7 +572,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			// (every gate UNKNOWN) instead of failing the whole observation.
 			if len(r.ExternalReviews) > 0 && !folded {
 				folded = true
-				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				if q.reviews != nil {
+					fold, _ = q.reviews.Fold(rc.repo, rc.snap.Head.LastSeq.Uint64())
+				} else {
+					fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				}
 			}
 			if len(r.ExternalReviews) == 0 || fold != nil {
 				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, fold); err == nil {

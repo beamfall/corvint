@@ -54,6 +54,11 @@ type Result struct {
 	// NotRetryable forces retryable false on a coded non-OK result whose
 	// command already ran an effect that a retry would repeat (CAL-V0-078).
 	NotRetryable bool
+	// MaxNodes, when positive, replaces MaxJSONNodes as the decoded-node
+	// bound Encode validates the envelope under. Only a verb whose one item
+	// grows with the store sets it, from its own documented per-entry bound,
+	// so the bound stays linear in the store's bounded size (CAL-V0-141).
+	MaxNodes int
 }
 
 func sizeOrNull(p *Size) Value {
@@ -154,8 +159,11 @@ func (r *Result) Value() Value {
 // Encode validates the envelope against its closed schema and the §1 size
 // bounds and returns the on-disk/transport bytes (canonical body plus LF).
 func (r *Result) Encode() ([]byte, error) {
+	if r.MaxNodes > MaxResultNodes {
+		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d above %d", r.MaxNodes, MaxResultNodes)
+	}
 	v := r.Value()
-	if _, err := DecodeResult(EncodeFile(v)); err != nil {
+	if _, err := decodeResult(EncodeFile(v), ParseOptions{MaxNodes: r.MaxNodes}); err != nil {
 		return nil, err
 	}
 	itemBytes := 0
@@ -177,7 +185,26 @@ func (r *Result) Encode() ([]byte, error) {
 // earlier bytes still decode; when present it may be true only when every code
 // is retryable, and false there sets NotRetryable (CAL-V0-078).
 func DecodeResult(data []byte) (*Result, error) {
-	v, err := Parse(data)
+	return decodeResult(data, ParseOptions{})
+}
+
+// MaxResultNodes caps every decoded-node bound an envelope is encoded or
+// decoded under: the plan preview bound of a full queue, MaxJSONNodes plus
+// 64 nodes per ticket (CAL-V0-141).
+const MaxResultNodes = MaxJSONNodes + 64*MaxTicketsPerQueue
+
+// DecodeResultLimit is DecodeResult under a caller's decoded-node bound, for
+// a consumer of a verb whose one item grows with the store (CAL-V0-141). It
+// refuses a bound outside 1..MaxResultNodes; DecodeResult keeps MaxJSONNodes.
+func DecodeResultLimit(data []byte, maxNodes int) (*Result, error) {
+	if maxNodes < 1 || maxNodes > MaxResultNodes {
+		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d outside 1..%d", maxNodes, MaxResultNodes)
+	}
+	return decodeResult(data, ParseOptions{MaxNodes: maxNodes})
+}
+
+func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
+	v, err := ParseWith(data, opts)
 	if err != nil {
 		return nil, err
 	}
