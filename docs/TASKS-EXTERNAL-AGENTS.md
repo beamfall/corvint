@@ -380,6 +380,15 @@ that passes `{prompt}` as one whole argv element, has no other placeholder in ar
 `env`, `python`, `node` and similar) and takes no code-string option such as `-c`, `+c`, `-e`,
 `--eval` or `--command`; use a wrapper executable when a shell is needed.
 
+Detached runs under the dispatcher (proposed, CAL-V0-145..154): on Darwin and Linux a worker may
+start `corvint-tasks run --detach` and end. The dispatcher spares the run's identity-verified
+supervisor, defers the attempt's hand-off while the run is `RUNNING` (at most its timeout plus 3
+minutes), and when it finishes hands off and launches one session for the same ticket and role. That
+session's role prompt may include `{detachedRun}`, a one-line outcome with the `run --attach` replay
+command that is empty for every other launch. Its environment also carries `CORVINT_DISPATCH_RUN_ID`,
+`_ATTEMPT`, `_EXIT`, `_RESULT` and `_OUTPUT`. The placeholder is refused in host argv, env and activity paths.
+`dispatch status` lists tracked runs under `detachedRuns`.
+
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry
 report `nextAction: complete-manual` with the review heads as `suggestedEvidence` (ERG-V0-011). The

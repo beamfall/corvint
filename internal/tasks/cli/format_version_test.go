@@ -192,6 +192,20 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 			code, _, _ := strings.Cut(why, ":")
 			return wire.Errorf(code, "", "%s", why)
 		},
+		"taskman-dispatch-detached-run/0": func(t *testing.T, p string) error {
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "detached"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "detached", "0123456789abcdef.json"), enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, bad, err := dispatch.DetachedMarkers(dir)
+			if err != nil {
+				return err
+			}
+			return bad["0123456789abcdef.json"]
+		},
 		service.ProfileName:         plain(func(b []byte) error { _, e := service.DecodeProfile(b); return e }),
 		service.ManifestName:        plain(func(b []byte) error { _, e := service.DecodeManifest(b); return e }),
 		service.ControlName:         plain(func(b []byte) error { _, e := service.DecodeControl(b); return e }),

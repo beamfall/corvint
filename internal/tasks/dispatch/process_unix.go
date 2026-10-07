@@ -124,11 +124,19 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 // session. Session expansion is disabled once the session ID names a
 // different process, so PID reuse cannot pull in an unrelated session. An
 // unreadable identity leaves the recorded tree unchanged and returns the
-// error: an unobservable member is never taken for a gone one.
-func refreshTree(w *Worker, procs map[int]proc) error {
+// error: an unobservable member is never taken for a gone one. Processes of
+// the verified detached run supervisors in exempt are left out (CAL-V0-145).
+func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
+	ex, err := newExemption(procs, exempt)
+	if err != nil {
+		return err
+	}
 	members := map[int]string{}
 	for _, m := range w.Members {
 		if _, ok := procs[m.PID]; ok {
+			if ex.has(m.PID) {
+				continue
+			}
 			id, err := processIdentity(m.PID)
 			if err != nil {
 				return err
@@ -170,7 +178,7 @@ func refreshTree(w *Worker, procs map[int]proc) error {
 				sid, err := getsid(pid)
 				in = err == nil && sid == w.PID
 			}
-			if !in {
+			if !in || ex.has(pid) {
 				continue
 			}
 			id, err := processIdentity(pid)
@@ -189,6 +197,81 @@ func refreshTree(w *Worker, procs map[int]proc) error {
 	}
 	sort.Slice(w.Members, func(i, j int) bool { return w.Members[i].PID < w.Members[j].PID })
 	return nil
+}
+
+// exemption decides membership of the detached run supervisors that
+// survive their worker (CAL-V0-145): a supervisor whose start identity is
+// re-verified against this table, every process in its session, and the
+// descendants of either, by parent chain.
+type exemption struct {
+	procs map[int]proc
+	sups  map[int]bool
+	memo  map[int]bool
+}
+
+func newExemption(procs map[int]proc, exempt map[int]string) (*exemption, error) {
+	e := &exemption{procs: procs, sups: map[int]bool{}, memo: map[int]bool{}}
+	for pid, want := range exempt {
+		if _, ok := procs[pid]; !ok || want == "" {
+			continue
+		}
+		id, err := processIdentity(pid)
+		if err != nil {
+			return nil, err
+		}
+		if id == want {
+			e.sups[pid] = true
+		}
+	}
+	return e, nil
+}
+
+func (e *exemption) has(pid int) bool {
+	if len(e.sups) == 0 {
+		return false
+	}
+	var chain []int
+	seen := map[int]bool{}
+	out := false
+	for pid > 1 && !seen[pid] {
+		if v, ok := e.memo[pid]; ok {
+			out = v
+			break
+		}
+		seen[pid] = true
+		chain = append(chain, pid)
+		if e.sups[pid] {
+			out = true
+			break
+		}
+		if sid, err := getsid(pid); err == nil && e.sups[sid] {
+			out = true
+			break
+		}
+		p, ok := e.procs[pid]
+		if !ok {
+			break
+		}
+		pid = p.ppid
+	}
+	for _, p := range chain {
+		e.memo[p] = out
+	}
+	return out
+}
+
+// detachedSupervisor reports whether pid is a live detached run supervisor
+// with the recorded start identity: a session leader (ATR-V0-008) that is
+// neither the worker leader nor this dispatcher.
+func detachedSupervisor(pid int, identity string, leader int) bool {
+	if pid <= 1 || pid == leader || pid == os.Getpid() || identity == "" {
+		return false
+	}
+	if id, err := processIdentity(pid); err != nil || id != identity {
+		return false
+	}
+	sid, err := getsid(pid)
+	return err == nil && sid == pid
 }
 
 // leaderAlive reports whether the recorded leader still runs.
@@ -213,7 +296,7 @@ func signal(m Proc, s syscall.Signal) {
 // passes. The deadline is kept on the worker, so a later tick or a restarted
 // dispatcher continues rather than restarts it. It reports whether the tree
 // is empty, or the error that made the tree unobservable.
-func killTree(w *Worker, grace time.Duration) (bool, error) {
+func killTree(w *Worker, grace time.Duration, exempt map[int]string) (bool, error) {
 	if w.KillDeadline.IsZero() {
 		w.KillDeadline = time.Now().Add(grace)
 	}
@@ -228,7 +311,7 @@ func killTree(w *Worker, grace time.Duration) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if err := refreshTree(w, procs); err != nil {
+		if err := refreshTree(w, procs, exempt); err != nil {
 			return false, err
 		}
 		if len(w.Members) == 0 {

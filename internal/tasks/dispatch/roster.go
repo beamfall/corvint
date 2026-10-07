@@ -212,7 +212,7 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
-	out, _ := roster(c, obs, busy, skip, nil, nil)
+	out, _ := roster(c, obs, busy, skip, nil, nil, nil)
 	return out
 }
 
@@ -220,7 +220,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 // tierOf (nil means every tier is 0). A candidate whose tier is at its tier
 // cap waits; it never falls back to a lower tier.
 func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
-	out, _ := roster(c, obs, busy, skip, tierOf, nil)
+	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil)
 	return out
 }
 
@@ -232,13 +232,17 @@ func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool,
 // earlier holds) would have admitted it, unless a later exempt candidate launched the
 // same key.
 func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
-	return roster(c, obs, busy, skip, nil, budget)
+	return roster(c, obs, busy, skip, nil, budget, nil)
 }
 
 // roster is the shared pure roster behind Roster, RosterTiers and
 // RosterWithPressure. The CAL-V0-057 tier cap is a static fence, so it is
 // checked before the CAL-V0-068 pressure budget is charged.
-func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget) (out, held []Assignment) {
+//
+// prefer names, by ticket, the role a CAL-V0-149 relaunch must use: while
+// that role is enabled, a ticket role and matches the ticket, no other role
+// is a candidate for it.
+func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -249,6 +253,13 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		pinned[p] = i
 	}
 	live := liveAttempts(obs)
+	preferred := map[string]bool{}
+	for _, t := range obs.Tickets {
+		if name, ok := prefer[t.ID]; ok {
+			r := c.roleNamed(name)
+			preferred[t.ID] = r != nil && r.Cap > 0 && r.Lane == nil && matches(r.Match, t)
+		}
+	}
 	var cands []candidate
 	for ri, r := range c.Roles {
 		if r.Cap == 0 {
@@ -276,7 +287,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if t.Loop != nil {
 				continue // CAL-V0-102: a session cannot claim it until the owner reopens it
 			}
-			if !matches(r.Match, t) {
+			if !matches(r.Match, t) || preferred[t.ID] && prefer[t.ID] != r.Name {
 				continue
 			}
 			pin, ok := pinned[t.ID]

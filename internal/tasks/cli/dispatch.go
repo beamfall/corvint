@@ -241,6 +241,11 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 			ir.Obj.Set("policy", wire.String(dispatch.StateUnknown))
 		}
 	}
+	// CAL-V0-150: additive and present only while the dispatcher tracks a
+	// detached run; each run's state is read, never written.
+	if runs, ok := dispatchDetachedRuns(env, dir); ok {
+		status.Obj.Set("detachedRuns", runs)
+	}
 	// SERVICE500-008: additive and present only when this program's
 	// installed user service binds this dispatcher state root.
 	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
