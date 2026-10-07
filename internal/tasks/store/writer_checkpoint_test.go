@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -689,6 +690,115 @@ func TestCALV0116_FastWriteRechecksIntentBranch(t *testing.T) {
 			sameDecision(t, run, writerOracle(t, repo, tc.write))
 		})
 	}
+}
+
+// CAL-V0-116 (proposed): a writer resume binds a tail post of a ticket last
+// posted before its checkpoint to the note reference the checkpoint carries,
+// as the complete audit binds it to the walked reference (ON-V0-006). The
+// reference survives a complete re-base and both writer advances (walked in
+// the tail, and carried from the base). An unchanged reference stays on the
+// route; a reference changed without its note event declines it, publishes
+// nothing, and the complete route refuses.
+func TestCALV0116_TailNoteReferenceChangeWithoutEvent(t *testing.T) {
+	repo := writerStore(t, 70)
+	created := writerMutate(t, repo, "note-target", nil)
+	if !created.completed() {
+		t.Fatalf("create: %+v %v", created.rep, created.err)
+	}
+	s := wire.String
+	note := wire.EncodeFile(historyObject(
+		"profile", s(mutation.Profile),
+		"requestId", s("note-set"),
+		"actor", historyObject("id", s(historyActor.ID), "role", s(historyActor.Role)),
+		"queueId", s(fixture.QueueID),
+		"targetId", s(created.rep.Ticket),
+		"expectedRevision", wire.Null(),
+		"operation", s(mutation.OpNoteSet),
+		"payload", historyObject("supersedes", s("0"), "text", s("Kept.")),
+		"issuedAt", s("2026-09-07T12:00:00Z"),
+	))
+	if run := stagedWrite(writerEnvelope(repo, note, WallClock()), nil); !run.completed() {
+		t.Fatalf("note: %+v %v", run.rep, run.err)
+	}
+	// The complete route re-bases the checkpoint at the head it audited,
+	// past the note.
+	if err := os.Remove(journal.WriterCheckpointPath(repo.StateDir)); err != nil {
+		t.Fatal(err)
+	}
+	if run := writerMutate(t, repo, "note-rebase", nil); !run.completed() || run.fast() {
+		t.Fatalf("rebase: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	full := readWriterCheckpoint(repo)
+	if full == nil || full.Seq.Uint64() != headSeqOf(t, repo)-1 {
+		t.Fatalf("rebase retained %+v", full)
+	}
+	dir := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets")
+	local := created.rep.Ticket[strings.LastIndex(created.rep.Ticket, ":")+1:]
+	rel := "intent/tickets/" + local + ".json"
+	raw, err := os.ReadFile(filepath.Join(dir, local+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := ticket.Decode(raw)
+	if err != nil || rec.OperatorNote == nil {
+		t.Fatalf("note target %s: %v", rel, err)
+	}
+	post := func(id, path string, body []byte) {
+		t.Helper()
+		rp, err := snapshot.RequestPath(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		historyAppend(t, repo, map[string][]byte{path: body, rp: historyRequest(id, headSeqOf(t, repo)+1)}, id)
+	}
+	post("note-same", rel, raw)
+	if run := writerMutate(t, repo, "after-same", nil); !run.completed() || !run.fast() {
+		t.Fatalf("write after an unchanged reference: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) < 2 {
+		t.Fatalf("tickets: %v", err)
+	}
+	other := entries[0].Name()
+	if other == local+".json" {
+		other = entries[1].Name()
+	}
+	// Each advance pads the tail with another ticket's posts, then re-bases
+	// on the writer audit: first with the noted ticket walked in the tail,
+	// then with its reference carried from the base.
+	for _, id := range []string{"advance-walked", "advance-carried"} {
+		prev := readWriterCheckpoint(repo)
+		for i := 0; i < journal.WriterAdvanceTail; i++ {
+			body, err := os.ReadFile(filepath.Join(dir, other))
+			if err != nil {
+				t.Fatal(err)
+			}
+			v, err := wire.Parse(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			v.Obj.Set("body", wire.String(fmt.Sprintf("%s %d", id, i)))
+			post(fmt.Sprintf("%s-pad-%d", id, i), "intent/tickets/"+other, wire.EncodeFile(v))
+		}
+		if run := writerMutate(t, repo, id, nil); !run.completed() || !run.fast() {
+			t.Fatalf("%s: %+v %v %v", id, run.rep, run.err, run.stages)
+		}
+		if wc := readWriterCheckpoint(repo); wc == nil || wc.Seq.Uint64() <= prev.Seq.Uint64() || wc.FullSeq != full.FullSeq {
+			t.Fatalf("%s retained %+v after %+v", id, wc, prev)
+		}
+	}
+	rec.OperatorNote = nil
+	post("note-dropped", rel, rec.Encode())
+	before := mutationPublished(t, repo)
+	write := writerCreate(repo, "after-dropped", WallClock())
+	run := stagedWrite(write, nil)
+	if run.fast() || !strings.Contains(run.declined(), "note reference differs from the writer checkpoint") || run.completed() || wire.CodeOf(run.err) != wire.CodeJournalForked {
+		t.Fatalf("write after a dropped reference: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	if after := mutationPublished(t, repo); after != before {
+		t.Fatalf("published %s, before %s", after, before)
+	}
+	sameDecision(t, run, writerOracle(t, repo, write))
 }
 
 // CAL-V0-116 (proposed), the accepted scope: a fast writer does not re-read

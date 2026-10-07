@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -41,7 +42,10 @@ const (
 const writerMagic = ProfileWriterCheckpoint + "\n"
 
 // MaxWriterCheckpointBytes bounds the file a writer is willing to consume.
-const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + 32*wire.MaxArchiveFiles + sha256.Size
+const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + 32*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + sha256.Size
+
+// writerNoteBytes is one encoded note: a uint32 entry index and a digest.
+const writerNoteBytes = 4 + sha256.Size
 
 // WriterCheckpointPath is a sibling of the state directory, like
 // CheckpointPath, so state scans, archive export and older runtimes never see
@@ -54,6 +58,8 @@ func WriterCheckpointPath(stateDir string) string { return stateDir + ".writer-c
 // path digests a new request must not repeat. A writer rebinds the named
 // receipt and every entry before use; the aggregates are trusted derived
 // state, re-derived from receipt 1 by every complete audit (CAL-V0-117).
+// It also carries the operator-note reference of every live ticket that has
+// one at Seq, which the tail binds as the complete audit does (ON-V0-006).
 type WriterCheckpoint struct {
 	Checkpoint
 	// FullSeq is the head of the complete audit this checkpoint descends from.
@@ -64,6 +70,42 @@ type WriterCheckpoint struct {
 	// afterimage they posted.
 	Cost     archive.FileSetCost
 	requests []byte // sorted 32-byte request path digests
+	notes    []writerNote
+}
+
+// writerNote is the SHA-256 of the encoded operator-note reference of the
+// ticket at Entries[entry]; notes are strictly ordered by entry.
+type writerNote struct {
+	entry  uint32
+	digest [sha256.Size]byte
+}
+
+func noteDigest(ref *ticket.OperatorNoteReference) [sha256.Size]byte {
+	return sha256.Sum256(wire.Encode(ref.Value()))
+}
+
+// note returns the digest of the note reference the ticket at p carried at
+// Seq, if it carried one.
+func (w *WriterCheckpoint) note(p string) ([sha256.Size]byte, bool) {
+	e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
+	if e == len(w.Entries) || w.Entries[e].Path != p {
+		return [sha256.Size]byte{}, false
+	}
+	i := sort.Search(len(w.notes), func(i int) bool { return w.notes[i].entry >= uint32(e) })
+	if i == len(w.notes) || w.notes[i].entry != uint32(e) {
+		return [sha256.Size]byte{}, false
+	}
+	return w.notes[i].digest, true
+}
+
+// sameNote reports whether ref is the note reference the ticket at p carried
+// at Seq; nil matches a ticket that carried none.
+func (w *WriterCheckpoint) sameNote(p string, ref *ticket.OperatorNoteReference) bool {
+	d, ok := w.note(p)
+	if ref == nil {
+		return !ok
+	}
+	return ok && d == noteDigest(ref)
 }
 
 // Requests is the number of request afterimages receipts 1..Seq posted.
@@ -94,10 +136,11 @@ func requestDigest(p string) ([]byte, bool) {
 }
 
 // Encode renders the file bytes: a magic line, the read checkpoint encoding,
-// the aggregates, the request digests and a SHA-256 trailer over all of it.
+// the aggregates, the request digests, the note count and notes, and a
+// SHA-256 trailer over all of it.
 func (w *WriterCheckpoint) Encode() []byte {
 	cp := w.Checkpoint.Encode()
-	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+len(w.requests)+sha256.Size)
+	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+len(w.requests)+8+writerNoteBytes*len(w.notes)+sha256.Size)
 	buf = append(buf, writerMagic...)
 	buf = binary.BigEndian.AppendUint64(buf, uint64(len(cp)))
 	buf = append(buf, cp...)
@@ -105,6 +148,11 @@ func (w *WriterCheckpoint) Encode() []byte {
 		buf = binary.BigEndian.AppendUint64(buf, v)
 	}
 	buf = append(buf, w.requests...)
+	buf = binary.BigEndian.AppendUint64(buf, uint64(len(w.notes)))
+	for _, n := range w.notes {
+		buf = binary.BigEndian.AppendUint32(buf, n.entry)
+		buf = append(buf, n.digest[:]...)
+	}
 	sum := sha256.Sum256(buf)
 	return append(buf, sum[:]...)
 }
@@ -116,7 +164,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if len(raw) > MaxWriterCheckpointBytes {
 		return nil, bad("larger than its bound")
 	}
-	if len(raw) < len(writerMagic)+8+7*8+sha256.Size {
+	if len(raw) < len(writerMagic)+8+7*8+8+sha256.Size {
 		return nil, bad("truncated")
 	}
 	body, trailer := raw[:len(raw)-sha256.Size], raw[len(raw)-sha256.Size:]
@@ -147,7 +195,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	rest = rest[7*8:]
 	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}}
 	requests, seq := v[6], cp.Seq.Uint64()
-	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) != requests*sha256.Size {
+	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*sha256.Size+8 {
 		return nil, bad("request digest count")
 	}
 	w.Cost.Files = int(v[2])
@@ -157,12 +205,30 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if w.FullSeq < 1 || w.FullSeq > seq || w.ReceiptBytes > w.Cost.PayloadBytes {
 		return nil, bad("aggregate bounds")
 	}
-	for i := sha256.Size; i < len(rest); i += sha256.Size {
-		if bytes.Compare(rest[i-sha256.Size:i], rest[i:i+sha256.Size]) >= 0 {
+	digests, rest := rest[:requests*sha256.Size], rest[requests*sha256.Size:]
+	for i := sha256.Size; i < len(digests); i += sha256.Size {
+		if bytes.Compare(digests[i-sha256.Size:i], digests[i:i+sha256.Size]) >= 0 {
 			return nil, bad("request digests are not strictly ordered")
 		}
 	}
-	w.requests = append([]byte(nil), rest...)
+	w.requests = append([]byte(nil), digests...)
+	notes := binary.BigEndian.Uint64(rest)
+	rest = rest[8:]
+	if notes > uint64(wire.MaxTicketsPerQueue) || uint64(len(rest)) != notes*writerNoteBytes {
+		return nil, bad("note count")
+	}
+	w.notes = make([]writerNote, notes)
+	for i := range w.notes {
+		n := &w.notes[i]
+		n.entry = binary.BigEndian.Uint32(rest[i*writerNoteBytes:])
+		copy(n.digest[:], rest[i*writerNoteBytes+4:(i+1)*writerNoteBytes])
+		if (i > 0 && n.entry <= w.notes[i-1].entry) || n.entry >= uint32(len(cp.Entries)) {
+			return nil, bad("note entries are not strictly ordered checkpoint entries")
+		}
+		if e := cp.Entries[n.entry]; !strings.HasPrefix(e.Path, "intent/tickets/") || e.Sha256 == nil {
+			return nil, bad("note entry is not a live ticket")
+		}
+	}
 	return w, nil
 }
 
@@ -189,6 +255,9 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		return nil, errCheckpoint("writer checkpoint", "observation is not a complete or writer audit")
 	}
 	w.Checkpoint = res.chainCheckpoint()
+	if err := w.deriveNotes(res); err != nil {
+		return nil, err
+	}
 	for seq := from; seq <= res.LastSeq.Uint64(); seq++ {
 		name, err := snapshot.ReceiptName(seq)
 		if err != nil {
@@ -227,6 +296,70 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		w.requests = append(w.requests, d...)
 	}
 	return w, nil
+}
+
+// deriveNotes records the note reference of every live ticket that carries
+// one at Seq: the reference the audit walked, or, for a ticket a writer
+// audit's tail did not post, the one its base checkpoint carries. A ticket
+// the tail posted must have been walked; anything else is not derived.
+func (w *WriterCheckpoint) deriveNotes(res *Result) error {
+	var refs map[string]*ticket.OperatorNoteReference
+	if res.chain.notes != nil {
+		refs = res.chain.notes.refs
+	}
+	base := res.writerBase
+	if res.Mode != ModeWriter {
+		base = nil
+	}
+	candidates := make([]string, 0, len(refs))
+	for p, ref := range refs {
+		if ref != nil {
+			candidates = append(candidates, p)
+		}
+	}
+	if base != nil {
+		for _, n := range base.notes {
+			candidates = append(candidates, base.Entries[n.entry].Path)
+		}
+	}
+	var notes []writerNote
+	for _, p := range candidates {
+		e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
+		if e == len(w.Entries) || w.Entries[e].Path != p || w.Entries[e].Sha256 == nil || !strings.HasPrefix(p, "intent/tickets/") {
+			continue
+		}
+		var digest [sha256.Size]byte
+		if base != nil && w.Entries[e].Seq.Uint64() <= base.Seq.Uint64() {
+			d, ok := base.note(p)
+			if !ok {
+				return errCheckpoint(p, "note reference was neither walked nor carried")
+			}
+			digest = d
+		} else {
+			ref, walked := refs[p]
+			if !walked {
+				return errCheckpoint(p, "note reference was not walked by this audit")
+			}
+			if ref == nil {
+				continue
+			}
+			digest = noteDigest(ref)
+		}
+		notes = append(notes, writerNote{entry: uint32(e), digest: digest})
+	}
+	// A ticket both carried and walked is derived once from the walk.
+	sort.Slice(notes, func(i, j int) bool { return notes[i].entry < notes[j].entry })
+	w.notes = make([]writerNote, 0, len(notes))
+	for _, n := range notes {
+		if k := len(w.notes); k > 0 && w.notes[k-1].entry == n.entry {
+			if w.notes[k-1].digest != n.digest {
+				return errCheckpoint(w.Entries[n.entry].Path, "note reference derived twice")
+			}
+			continue
+		}
+		w.notes = append(w.notes, n)
+	}
+	return nil
 }
 
 // charge adds one physically read retained file to the aggregates. A request
