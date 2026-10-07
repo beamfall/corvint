@@ -382,3 +382,29 @@ func TestRVNV0007AuthorityLimit(t *testing.T) {
 		}
 	}
 }
+
+// RVN-V0-006: a step's status depends only on its own app-source anchors, so a projection whose
+// unrelated anchor cannot be read (here a missing changed blob of the flow intent, as in a partial
+// clone) prints the same status as VerifySteps.
+func TestRVNV0006StatusIgnoresUnrelatedAnchors(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	r := pwpReceipt(t, rev, js.StatePassed)
+	v := verification(t, m, []string{writeReceipt(t, r)}, slotStep+"="+r.Tests[0].ID)
+	writeFile(t, root, "flows/book-tee-time.json", readText(t, root, "flows/book-tee-time.json")+"\n")
+	commitAll(t, root, "touch intent")
+	blob := gitTest(t, root, "rev-parse", "HEAD:flows/book-tee-time.json")
+	if err := os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	raw, err := ProjectFlow(ctx, m, "book-tee-time", Options{Root: root, Verification: v})
+	if err != nil || !bytes.Contains(raw, []byte(`"freshness":"UNKNOWN"`)) {
+		t.Fatalf("unrelated anchor did not read UNKNOWN: %v %s", err, raw)
+	}
+	got := stepVerification(t, m, root, slotStep, v)
+	direct := VerifySteps(ctx, m, "book-tee-time", Options{Root: root, Verification: v})[slotStep]
+	if got["status"] != Verified || direct.Status != Verified {
+		t.Fatalf("projection %v, VerifySteps %+v", got, direct)
+	}
+}

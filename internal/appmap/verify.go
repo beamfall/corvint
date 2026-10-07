@@ -76,24 +76,30 @@ func verifyError(code, format string, args ...any) error {
 	return &gokernel.Error{Code: code, Message: fmt.Sprintf(format, args...)}
 }
 
-// readReceipt reads one receipt file: a regular file, unchanged while read, within the PWP bound.
+// readReceipt reads one receipt file: a regular file, opened without following a symlink or
+// blocking on a FIFO, unchanged in identity, size and modification time while read, within the
+// PWP bound.
 func readReceipt(filename string) ([]byte, error) {
-	bad := verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes", testvaliditydoc.MaxInputBytes)
+	bad := verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditydoc.MaxInputBytes)
 	before, err := os.Lstat(filename)
 	if err != nil || !before.Mode().IsRegular() {
 		return nil, bad
 	}
-	f, err := os.Open(filename)
+	f, err := openInput(filename)
 	if err != nil {
 		return nil, bad
 	}
 	defer f.Close()
 	opened, err := f.Stat()
-	if err != nil || !os.SameFile(before, opened) {
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
 		return nil, bad
 	}
 	raw, err := io.ReadAll(io.LimitReader(f, testvaliditydoc.MaxInputBytes+1))
 	if err != nil || len(raw) > testvaliditydoc.MaxInputBytes {
+		return nil, bad
+	}
+	after, err := f.Stat()
+	if err != nil || after.Size() != opened.Size() || !after.ModTime().Equal(opened.ModTime()) || int64(len(raw)) != after.Size() {
 		return nil, bad
 	}
 	return raw, nil
@@ -173,31 +179,38 @@ func (m *Map) stepAnchors(st Step) []Anchor {
 	return m.lineage(m.screen(st.Screen))
 }
 
-// atRevision returns the freshness of the projection's anchors at one application revision, read
-// once per distinct revision (RVN-V0-008).
-func (p *projection) atRevision(rev string) *freshness {
-	if p.revs == nil {
-		p.revs = map[string]*freshness{}
-	}
-	if f, ok := p.revs[rev]; ok {
-		return f
-	}
-	f := newFreshness(p.ctx, Options{Root: p.o.Root, Revision: rev}, p.anchors)
-	p.revs[rev] = f
-	return f
-}
+// revState is the freshness of one step's app-source anchors at one revision.
+type revState struct{ evaluated, state string }
 
-func foldFreshness(f *freshness, anchors []Anchor) string {
-	state := Fresh
+// anchorsAt returns the resolved revision and folded freshness of one step's app-source anchors
+// at rev. It reads only those anchors, so an unrelated anchor of the projection cannot change a
+// step's status (RVN-V0-006), and caches per revision and anchor set: steps of one screen share a
+// lineage, so a call reads each distinct (revision, lineage) once (RVN-V0-008).
+func (p *projection) anchorsAt(rev string, anchors []Anchor) revState {
+	key := rev
+	for _, a := range anchors {
+		key += fmt.Sprintf("\x00%s\x00%d\x00%d\x00%s\x00%s", a.Path, a.Start, a.End, a.Blob, a.SpanSHA256)
+	}
+	if p.revs == nil {
+		p.revs = map[string]revState{}
+	}
+	if r, ok := p.revs[key]; ok {
+		return r
+	}
+	f := newFreshness(p.ctx, Options{Root: p.o.Root, Revision: rev}, anchors)
+	r := revState{evaluated: f.evaluated, state: Fresh}
 	for _, a := range anchors {
 		switch f.of(a) {
 		case Stale:
-			return Stale
+			r.state = Stale
 		case FreshUnknown:
-			state = FreshUnknown
+			if r.state != Stale {
+				r.state = FreshUnknown
+			}
 		}
 	}
-	return state
+	p.revs[key] = r
+	return r
 }
 
 type evidence struct {
@@ -246,7 +259,12 @@ func (p *projection) verify(st Step) *StepVerification {
 		return out
 	}
 	anchors := p.m.stepAnchors(st)
-	head := p.worst(anchors)
+	// The evaluated revision is resolved once per projection; the step's anchors are then read
+	// at that exact commit.
+	head := FreshUnknown
+	if p.fresh != nil && p.fresh.evaluated != FreshUnknown {
+		head = p.anchorsAt(p.fresh.evaluated, anchors).state
+	}
 	reasons := map[string]bool{}
 	var pass, fail, placed *evidence
 	pick := func(cur *evidence, e evidence) *evidence {
@@ -280,15 +298,17 @@ func (p *projection) verify(st Step) *StepVerification {
 				identity = "attested"
 			}
 			e := evidence{ref: ReceiptRef{SHA256: in.sha, TestKey: t.ID, Project: project, Profile: in.r.Profile}, revision: rev, identity: identity}
-			var f *freshness
-			if commitOID.MatchString(rev) {
-				f = p.atRevision(rev)
-			}
+			resolved := false
 			at := FreshUnknown
-			if f == nil || f.evaluated != rev {
+			if commitOID.MatchString(rev) {
+				r := p.anchorsAt(rev, anchors)
+				resolved = r.evaluated == rev
+				if resolved {
+					at = r.state
+				}
+			}
+			if !resolved {
 				reasons["app-revision-unresolved"] = true
-			} else {
-				at = foldFreshness(f, anchors)
 			}
 			switch at {
 			case Fresh:
@@ -301,7 +321,7 @@ func (p *projection) verify(st Step) *StepVerification {
 			case Stale:
 				reasons["anchor-differs-at-app-revision"] = true
 			default:
-				if f != nil && f.evaluated == rev {
+				if resolved {
 					reasons["freshness-unknown"] = true
 				}
 			}
@@ -357,12 +377,7 @@ func VerifySteps(ctx context.Context, m *Map, flow string, o Options) map[string
 		return nil
 	}
 	p := newProjection(ctx, m, o)
-	for _, st := range fl.Steps {
-		for _, a := range m.stepAnchors(st) {
-			p.cite(a)
-		}
-	}
-	p.check()
+	p.check() // resolves the evaluated revision; each step reads only its own anchors
 	out := map[string]StepVerification{}
 	for _, st := range fl.Steps {
 		out[st.ID] = *p.verify(st)

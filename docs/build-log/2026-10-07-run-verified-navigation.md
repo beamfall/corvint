@@ -56,6 +56,22 @@ PWP qualified receipts with content-derived test IDs, `QualifiedReceiptBindingRe
   `use-case-receipts-check`/`-test` pass; `internal/specindex` ok. `cmd/corvint/main.go` unchanged,
   so no receipt repin.
 
+## Independent review
+
+- Codex round 1 (`e72b30ec..21ab9950`): two P2, no P0/P1.
+  - Receipt read could block on a FIFO swapped in after `Lstat`, and did not check content
+    stability. Repaired: no-follow, non-blocking open (`internal/appmap/open_unix.go`), regular-file
+    check on the descriptor, and identity, size and mtime compared before and after the read. The
+    swap race itself has no deterministic regression test; the static symlink and missing-file
+    refusals are covered.
+  - Verification freshness used every projection anchor, so an unreadable unrelated anchor (partial
+    clone) made the CLI print `freshness-unknown` while `VerifySteps` printed `VERIFIED`.
+    Repaired: each step reads only its own router lineage at the app and evaluated revisions,
+    cached per (revision, lineage). Regression `TestRVNV0006StatusIgnoresUnrelatedAnchors` fails on
+    the round-1 code and passes after.
+- Out of scope, reported to the orchestrator: `appmap.LoadMap` (V1-0956) has the same
+  `Lstat`-then-`os.Open` FIFO window for `--map`.
+
 ## Dogfood
 
 - Pre-change: `corvint affected --base 43c65094e3b7d29405f065b41937d9f215702f3f` (scope UNKNOWN, clean tree) and

@@ -353,7 +353,7 @@ type projection struct {
 	anchors  []Anchor
 	elements map[string]bool
 	fresh    *freshness
-	revs     map[string]*freshness
+	revs     map[string]revState
 }
 
 func newProjection(ctx context.Context, m *Map, o Options) *projection {

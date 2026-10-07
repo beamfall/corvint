@@ -64,7 +64,9 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
 
 - `RVN-V0-001`: `corvint flows appmap screen` and `flow` MUST accept repeatable
   `--receipt FILE` (at most 16) and `--bind STEP_ID=TEST_KEY` (at most 64) and nothing else new.
-  Each receipt MUST be a regular file of at most 4 MiB, unchanged between stat and open, that
+  Each receipt MUST be a regular file of at most 4 MiB, opened without following a final symlink
+  or blocking on a FIFO, with the same identity, size and modification time before, at open and
+  after the read, that
   decodes through `testvaliditydoc.Decode` as canonical bytes and projects to a Playwright external
   provider document (any PWP profile); otherwise refuse with `appmap-verify-invalid-receipt`.
   `--bind` without `--receipt`, or too many inputs, MUST refuse with `appmap-invalid-query`. With no
@@ -105,7 +107,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   MUST carry `verification{status, revision?, receipt{sha256, test_key, project, profile}?,
   app_identity?, selector_evidence?, reason?, outcomes, authority}` inside the existing AMAP-V0
   budgets, refusing only with `appmap-budget-too-small`; trimmed steps drop their verification with
-  them. Verification MUST be computed per call, persist nothing, and leave the repository and
+  them. A step's status MUST depend only on its own app-source anchors, never on another anchor of
+  the projection. Verification MUST be computed per call, persist nothing, and leave the repository and
   worktree unchanged. In-process callers MUST obtain the same statuses from
   `appmap.VerifySteps(ctx, map, flow, Options)` keyed by step ID. (proposed, pending owner
   acceptance; V1-0957)
@@ -117,8 +120,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0957).
   test passed against one app revision, not a truth claim about unobserved behavior. (proposed,
   pending owner acceptance; V1-0957)
 - `RVN-V0-008`: Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate
-  freshness once per distinct app revision per call (one tree read plus the bounded AMAP-V0 blob
-  reads), with no background work, network, browser execution or cache file. (proposed, pending
+  freshness once per distinct (revision, router lineage) per call (one tree read plus the bounded
+  AMAP-V0 blob reads each), with no background work, network, browser execution or cache file. (proposed, pending
   owner acceptance; V1-0957)
 
 ## Status lattice
@@ -148,7 +151,7 @@ and `Unverified` on `appmap.StepVerification.Status`.
 
 | Code | Meaning |
 | --- | --- |
-| `appmap-verify-invalid-receipt` | A `--receipt` is not a regular file within 4 MiB, changed while opened, is not canonical, or is not a PWP Playwright external receipt. |
+| `appmap-verify-invalid-receipt` | A `--receipt` is not a regular file within 4 MiB, is a symlink or FIFO, changed while opened or read, is not canonical, or is not a PWP Playwright external receipt. |
 | `appmap-verify-unknown-step` | A `--bind` names a step ID absent from the map. |
 | `appmap-verify-test-absent` | A `--bind` key equals no outcome ID in any supplied receipt. |
 
@@ -189,7 +192,7 @@ or too many inputs.
 | RVN-V0-003 | `TestRVNV0003UnresolvedRevisionNeverVerifies`, `TestRVNV0003FailingReceiptContradicts` |
 | RVN-V0-004 | `TestRVNV0004SourceChangeUnverifiesAtHead` |
 | RVN-V0-005 | `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0003FailingReceiptContradicts`, `TestRVNV0004SourceChangeUnverifiesAtHead` |
-| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
+| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
 | RVN-V0-007 | `TestRVNV0007AuthorityLimit`, `TestRVNV0002PassingReceiptVerifiesStep` |
 | RVN-V0-008 | `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly` |
 
