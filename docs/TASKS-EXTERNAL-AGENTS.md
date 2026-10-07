@@ -555,6 +555,15 @@ unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETE
 omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
 warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
 
+To see whether the queue is moving, read `queue status --summary`: `lastCompletion` names the
+latest completed ticket, its time and its receipt (null when nothing is completed), and
+`completions` counts completions in the last hour and day. `ticket list --status COMPLETED,OPEN`
+lists only those statuses with stable paging; list items carry `completedAt`, `statusChangedAt`
+and `lastAttemptEndedAt`, `UNKNOWN` where the records cannot prove the time. A dispatcher reports
+`sessionsSinceStatusChange` on each finished session and in `dispatch status`, and with
+`stalledAfterSessions` N emits one advisory `stalled` event that holds nothing (CAL-V0-181 to
+CAL-V0-185, proposed).
+
 ## Read beside concurrent writers
 
 A read that probes a writer between its receipt link-in and its head rename waits it out for up
@@ -660,7 +669,9 @@ build refuses `/1`. The ledger then moved from `/1` to `/2` when it gained the b
 the worker usage account and the declared effort (CAL-V0-161, proposed). The same rule applies one
 version on: a build that writes `/2` adopts only a drained `/1` ledger, starts its budget history
 at the adoption time (`historyFrom` in `dispatch status`), and refuses a `/0` ledger. An earlier
-build refuses `/2`, so drain before rolling back. A store `VERSION` another
+build refuses `/2`, so drain before rolling back. The ledger moved from `/2` to `/3` when it
+gained the per-ticket stall counts (CAL-V0-185, proposed): a build that writes `/3` adopts a
+drained `/1` or `/2` ledger and an earlier build refuses `/3`. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

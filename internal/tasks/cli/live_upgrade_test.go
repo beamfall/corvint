@@ -284,9 +284,10 @@ var outputOnlyProfiles = []string{
 }
 
 // adoptOnlyProfiles are older versions this build only adopts once and never
-// writes, such as a drained taskman-dispatch-state/1 ledger (CAL-V0-132,
-// proposed amendment); they are not part of the CAL-V0-131 format set.
-var adoptOnlyProfiles = []string{"taskman-dispatch-state/1"}
+// writes, such as a drained taskman-dispatch-state/1 or /2 ledger
+// (CAL-V0-132, proposed amendment); they are not part of the CAL-V0-131
+// format set.
+var adoptOnlyProfiles = []string{"taskman-dispatch-state/1", "taskman-dispatch-state/2"}
 
 // CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, holds the
 // store version, and holds every profile the tasks packages name except the

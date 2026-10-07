@@ -17,9 +17,9 @@ import (
 
 // CAL-V0-132 (proposed amendment) and CAL-V0-160: a dispatcher drained under
 // the build that wrote taskman-dispatch-state/1 restarts under a build that
-// writes /2. The drained ledger is adopted under /1's closed member set,
-// keeps its backoff history, starts its budget history at the adoption and
-// is rewritten as /2 by the next save; a /1 ledger that still records a
+// writes a later version. The drained ledger is adopted under /1's closed
+// member set, keeps its backoff history, starts its budget history at the
+// adoption and is rewritten as the current version by the next save; a /1 ledger that still records a
 // worker or carries a member /1 never had refuses UNSUPPORTED_VERSION
 // without being rewritten.
 func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
@@ -61,8 +61,8 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		t.Fatal(err)
 	}
 	drained := bytes.Replace(current, []byte(`"`+StateProfile+`"`), []byte(`"`+drainedStateProfile+`"`), 1)
-	// Version 1 had no budget history: the fixture drops what version 2
-	// recorded for the launch.
+	// Version 1 had no budget history or stall counts: the fixture drops
+	// what versions 2 and 3 recorded for the launch.
 	var current1 map[string]json.RawMessage
 	if err := json.Unmarshal(drained, &current1); err != nil {
 		t.Fatal(err)
@@ -71,6 +71,7 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		t.Fatal("the launch recorded no budget history")
 	}
 	delete(current1, "budget")
+	delete(current1, "stall")
 	if drained, err = json.Marshal(current1); err != nil {
 		t.Fatal(err)
 	}
@@ -102,6 +103,7 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 	for name, bad := range map[string][]byte{
 		"a recorded worker":                      with("workers", `[{"id":"w1"}]`),
 		"the budget history":                     with("budget", `{"sessions":[],"truncated":"0001-01-01T00:00:00Z","historyFrom":"0001-01-01T00:00:00Z","held":[]}`),
+		"the stall counts":                       with("stall", `{"ticket:a:q:t1":{"status":"OPEN","sessions":1}}`),
 		"a case-folded alias":                    with("BUDGET", `{}`),
 		"an unknown member":                      with("workerLimits", `{}`),
 		"a worker hidden by a duplicate workers": prefix(`"workers":[{"id":"w1"}]`),
