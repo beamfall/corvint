@@ -42,7 +42,7 @@ func TestCALV0127_ConfigChangeEndsAnIdleSkip(t *testing.T) {
 	defer d.Close()
 	d.Now = func() time.Time { return clock }
 	reads := 0
-	d.WatchConfig(func() ([]byte, error) { reads++; return os.ReadFile(path) }, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) { reads++; return readWithInfo(path) }, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
 	observed := 0
 	tick := func(want int, why string) {
 		t.Helper()
@@ -89,5 +89,79 @@ func TestCALV0127_ConfigChangeEndsAnIdleSkip(t *testing.T) {
 	tick(7, "restoring the applied file reads in full")
 	if d.ledger.Config.Refused != nil {
 		t.Fatalf("restored file kept the refusal: %+v", d.ledger.Config)
+	}
+}
+
+// readWithInfo reads path with the stat of the descriptor it read, as the
+// CLI's configuration reader does.
+func readWithInfo(path string) ([]byte, fs.FileInfo, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	return raw, st, nil
+}
+
+// CAL-V0-127 with CAL-V0-139: a file replaced between the named file's stat
+// and the read keeps the read bytes paired with their own file's stat, so a
+// later swap back to the other file is still seen as a change.
+func TestCALV0139_ConfigReadPairsItsBytesWithTheirOwnStat(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	d, err := Open("prog", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	dir := t.TempDir()
+	path, asideA, asideB := filepath.Join(dir, "dispatch.json"), filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	applied := []byte(`{"version":"A"}`)
+	move := func(from, to string) {
+		t.Helper()
+		if err := os.Rename(from, to); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(path, applied, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var between func()
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) {
+		if between != nil {
+			between()
+		}
+		return readWithInfo(path)
+	}, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
+
+	// File B replaces the applied file A; A is restored between the stat
+	// and the read.
+	move(path, asideA)
+	if err := os.WriteFile(path, []byte(`{"version":"B, changed"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	between = func() { move(path, asideB); move(asideA, path) }
+	if d.configPending() {
+		t.Fatal("the applied bytes read back are pending")
+	}
+	between = nil
+	// Swapping B back must be seen even though its stat is the one the
+	// named file had before that read.
+	move(path, asideA)
+	move(asideB, path)
+	if !d.configPending() {
+		t.Fatal("a swapped-in changed file was paired with the applied bytes' digest")
+	}
+	move(path, asideB)
+	move(asideA, path)
+	if d.configPending() {
+		t.Fatal("the restored applied file is pending")
 	}
 }

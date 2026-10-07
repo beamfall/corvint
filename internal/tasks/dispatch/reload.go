@@ -52,30 +52,30 @@ func (r *ConfigRecord) validate() error {
 
 // WatchConfig makes each tick re-read the configuration with read before it
 // observes the store (CAL-V0-127); initial are the bytes d.Config was decoded
-// from. stat, when not nil, describes the same file without reading it, so
-// an idle skip (CAL-V0-139) re-reads only after the file's stat changed.
-func (d *Dispatcher) WatchConfig(read func() ([]byte, error), stat func() (fs.FileInfo, error), initial []byte) {
+// from. read returns the bytes with the stat of the descriptor it read them
+// from, taken before reading. stat, when not nil, describes the named file
+// without reading it, so an idle skip (CAL-V0-139) re-reads only after the
+// file's stat changed.
+func (d *Dispatcher) WatchConfig(read func() ([]byte, fs.FileInfo, error), stat func() (fs.FileInfo, error), initial []byte) {
 	sum := sha256.Sum256(initial)
 	d.configRead, d.configStat, d.configSha256, d.configAt = read, stat, hex.EncodeToString(sum[:]), d.Now().UTC()
 	d.configSeen, d.configSeenSha256 = nil, ""
 }
 
-// readConfig reads the configuration file. The stat taken before the read
-// is kept with the bytes' digest, so a later identical stat can stand for
-// them; a change after the stat only makes the next stat differ.
+// readConfig reads the configuration file and keeps the bytes' digest with
+// the stat of the descriptor they were read from, so a later identical
+// stat of the named file can stand for them. A file replaced around the
+// read pairs its own stat with its own bytes; a change after the stat only
+// makes the next stat differ.
 func (d *Dispatcher) readConfig() ([]byte, string, error) {
-	var seen fs.FileInfo
-	if d.configStat != nil {
-		seen, _ = d.configStat()
-	}
 	d.configSeen, d.configSeenSha256 = nil, ""
-	raw, err := d.configRead()
+	raw, seen, err := d.configRead()
 	if err != nil {
 		return nil, "", err
 	}
 	digest := sha256.Sum256(raw)
 	sum := hex.EncodeToString(digest[:])
-	if seen != nil {
+	if seen != nil && d.configStat != nil {
 		d.configSeen, d.configSeenSha256 = seen, sum
 	}
 	return raw, sum, nil

@@ -58,15 +58,16 @@ type Dispatcher struct {
 	// is runtime.GOOS.
 	pressureSampler func(context.Context, time.Time, pressureWant) PressureSample
 	goos            string
-	// configRead re-reads the configuration file at each tick (CAL-V0-127);
-	// nil disables reload. configSha256 and configAt identify the applied
-	// bytes and when they were applied.
-	configRead   func() ([]byte, error)
+	// configRead re-reads the configuration file at each tick (CAL-V0-127)
+	// with the stat of the descriptor it read; nil disables reload.
+	// configSha256 and configAt identify the applied bytes and when they
+	// were applied.
+	configRead   func() ([]byte, fs.FileInfo, error)
 	configSha256 string
 	configAt     time.Time
 	// configStat describes the configuration file without reading it;
-	// configSeen is its stat before the last successful read and
-	// configSeenSha256 those bytes' digest (CAL-V0-139).
+	// configSeen is the stat of the descriptor the last successful read
+	// used and configSeenSha256 those bytes' digest (CAL-V0-139).
 	configStat       func() (fs.FileInfo, error)
 	configSeen       fs.FileInfo
 	configSeenSha256 string

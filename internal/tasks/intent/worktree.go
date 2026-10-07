@@ -204,38 +204,49 @@ func readBounded(path string, max int) ([]byte, error) {
 }
 
 func readBoundedUsing(path string, max int, stat func() (os.FileInfo, error), open func() (*os.File, error)) ([]byte, error) {
+	raw, _, err := readBoundedInfo(path, max, stat, open)
+	return raw, err
+}
+
+// readBoundedInfo is readBoundedUsing that also returns the opened file's
+// stat, taken from the same descriptor before its bytes are read.
+func readBoundedInfo(path string, max int, stat func() (os.FileInfo, error), open func() (*os.File, error)) ([]byte, os.FileInfo, error) {
 	fi, err := stat()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, err
+			return nil, nil, err
 		}
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot stat: %v", err)
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot stat: %v", err)
 	}
 	if fi.Mode()&os.ModeSymlink != 0 {
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "symlink")
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "symlink")
 	}
 	if !fi.Mode().IsRegular() {
-		return nil, wire.Errorf(wire.CodeMalformed, path, "not a regular file")
+		return nil, nil, wire.Errorf(wire.CodeMalformed, path, "not a regular file")
 	}
 	if fi.Size() > int64(max) {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, path, "file larger than %d bytes (%d)", max, fi.Size())
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, path, "file larger than %d bytes (%d)", max, fi.Size())
 	}
 	f, err := open()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, err
+			return nil, nil, err
 		}
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot open: %v", err)
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot open: %v", err)
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot stat the opened file: %v", err)
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot stat the opened file: %v", err)
 	}
 	if !st.Mode().IsRegular() || !os.SameFile(fi, st) {
-		return nil, wire.Errorf(wire.CodeSnapshotMoved, path, "file replaced between stat and open")
+		return nil, nil, wire.Errorf(wire.CodeSnapshotMoved, path, "file replaced between stat and open")
 	}
-	return readAll(f, path, max, int(fi.Size()))
+	raw, err := readAll(f, path, max, int(fi.Size()))
+	if err != nil {
+		return nil, nil, err
+	}
+	return raw, st, nil
 }
 
 // readAll drains r into memory with a hard byte bound. Any error other than
@@ -267,6 +278,13 @@ func readAll(r io.Reader, path string, max int, hint int) ([]byte, error) {
 // verb: it never creates, truncates or locks.
 func ReadFile(path string, max int) ([]byte, error) {
 	return readBounded(path, max)
+}
+
+// ReadFileWithInfo is ReadFile that also returns the opened file's stat,
+// taken from the same descriptor before its bytes are read, so a caller can
+// pair the bytes with the identity and timestamps they were read from.
+func ReadFileWithInfo(path string, max int) ([]byte, os.FileInfo, error) {
+	return readBoundedInfo(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openReadFile(path) })
 }
 
 // Replaced only by deterministic stat/open race tests.
