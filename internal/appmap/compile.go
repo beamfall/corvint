@@ -49,11 +49,11 @@ func Build(ctx context.Context, root, manifestPath, revision string) (*Map, erro
 	}
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}
-	if err = b.routers(r); err != nil {
-		return nil, err
-	}
 	ix, err := contextindex.BuildRevisionContext(ctx, root, rev)
 	if err != nil {
+		return nil, err
+	}
+	if err = b.routers(r, ix); err != nil {
 		return nil, err
 	}
 	if err = b.tests(ix); err != nil {
@@ -83,7 +83,7 @@ type builder struct {
 
 func (b *builder) unknown(u Unknown) { b.out.Unknowns = append(b.out.Unknowns, u) }
 
-func (b *builder) routers(r repo) error {
+func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	paths := []string{}
 	for _, rf := range b.m.Routers {
 		paths = append(paths, rf.Path)
@@ -108,9 +108,9 @@ func (b *builder) routers(r repo) error {
 	if err != nil {
 		return err
 	}
-	raws := []rawState{}
+	raws, consts := []rawState{}, newConstTable(ix)
 	for _, e := range ordered {
-		states, unknowns := parseRouter(e, data[e.oid])
+		states, unknowns := parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
 		raws = append(raws, states...)
 		b.out.Unknowns = append(b.out.Unknowns, unknowns...)
 		if len(raws) > maxStates {

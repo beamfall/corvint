@@ -1364,6 +1364,6 @@ func TestAMAPV0007RegexAfterControlCondition(t *testing.T) {
 // AMAP-V0-002: a router file truncated inside a state call reads, never panics.
 func TestAMAPV0002TruncatedStateCall(t *testing.T) {
 	for _, src := range []string{"app.state('home',", "app.state('home', ", "app.state({"} {
-		parseRouter(blobEntry{path: "r.js"}, []byte(src))
+		parseRouter(blobEntry{path: "r.js"}, []byte(src), nil)
 	}
 }

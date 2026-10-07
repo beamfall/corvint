@@ -21,12 +21,18 @@ type screenRef struct {
 }
 
 // lineage returns the anchors a screen's template, query, permissions and flags derive from: its
-// own state and every ancestor's (AMAP-V0-010).
+// own state and every ancestor's (AMAP-V0-010), with the constant declarations their names and
+// parents were read from (AMAP-V0-016).
 func (m *Map) lineage(s *Screen) []Anchor {
 	out, seen := []Anchor{}, map[string]bool{}
 	for cur := s; cur != nil && !seen[cur.ID]; cur = m.screen(cur.Parent) {
 		seen[cur.ID] = true
 		out = append(out, cur.Anchor)
+		for _, a := range []*Anchor{cur.NameFrom, cur.ParentFrom} {
+			if a != nil {
+				out = append(out, *a)
+			}
+		}
 	}
 	return out
 }
