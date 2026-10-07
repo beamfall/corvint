@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"io/fs"
 	"os"
@@ -53,14 +54,19 @@ func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoin
 	if wc == nil || wc.Seq.Uint64() < minWriterCheckpointSeq {
 		return
 	}
-	path := journal.WriterCheckpointPath(repo.StateDir)
+	replaceDerived(journal.WriterCheckpointPath(repo.StateDir), wc.Encode())
+}
+
+// replaceDerived replaces one derived file through a fixed temporary name,
+// which the writer lock keeps from colliding.
+func replaceDerived(path string, raw []byte) error {
 	tmp := path + ".tmp"
 	os.Remove(tmp)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return
+		return err
 	}
-	_, err = f.Write(wc.Encode())
+	_, err = f.Write(raw)
 	if closeErr := f.Close(); err == nil {
 		err = closeErr
 	}
@@ -70,6 +76,38 @@ func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoin
 	if err != nil {
 		os.Remove(tmp)
 	}
+	return err
+}
+
+// writerInvalidationPath names the token a refresh replaces, under the writer
+// lock, before it removes the writer checkpoint (CAL-V0-117, proposed). Like
+// the checkpoint it is a sibling of the state directory and derived state.
+func writerInvalidationPath(repo *intent.Repository) string {
+	return journal.WriterCheckpointPath(repo.StateDir) + ".invalidated"
+}
+
+// writerInvalidation reads the invalidation token: empty when absent, and
+// observed false when it can be neither read nor shown absent.
+func writerInvalidation(repo *intent.Repository) (token string, observed bool) {
+	path := writerInvalidationPath(repo)
+	if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
+		return "", true
+	}
+	raw, err := intent.ReadFile(path, 64)
+	if err != nil || len(raw) == 0 {
+		return "", false
+	}
+	return string(raw), true
+}
+
+// invalidateWriterCheckpoint runs under the writer lock. It replaces the
+// invalidation token first, so a refresh whose audit began before this one
+// cannot reinstall a checkpoint, then removes the checkpoint. A token that
+// cannot be written still removes the checkpoint; an older refresh may then
+// reinstall one, and the next scheduled refresh removes it again.
+func invalidateWriterCheckpoint(repo *intent.Repository) {
+	replaceDerived(writerInvalidationPath(repo), []byte(rand.Text()+"\n"))
+	os.Remove(journal.WriterCheckpointPath(repo.StateDir))
 }
 
 // writerObservation is what the writer-checkpoint route observed under the
@@ -272,7 +310,10 @@ func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (ref
 // when that writer rebinds it. A refusal other than a moved snapshot removes
 // the checkpoint, so the next writer runs the complete audit and refuses
 // too. An intent-only divergence keeps the checkpoint for the intent repair.
+// A refresh publishes nothing if another refresh invalidated the checkpoint
+// after its audit began: an older audit cannot undo a newer refusal.
 func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
+	token, observed := writerInvalidation(repo)
 	head, err := readHead(repo)
 	if err != nil {
 		return
@@ -296,8 +337,12 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	defer lock.Close()
 	if err != nil {
 		if proof == nil || !proof.Pending {
-			os.Remove(journal.WriterCheckpointPath(repo.StateDir))
+			invalidateWriterCheckpoint(repo)
 		}
+		return
+	}
+	if now, ok := writerInvalidation(repo); !observed || !ok || now != token {
+		mutationStage(ctx, "refresh.superseded")
 		return
 	}
 	if current := readWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {

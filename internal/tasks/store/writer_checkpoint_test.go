@@ -835,6 +835,47 @@ func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
 	}
 }
 
+// CAL-V0-117 (proposed): a refresh publishes only if no newer refresh
+// invalidated the checkpoint after its audit began. An older refresh whose
+// audit passed before a prefix tamper cannot reinstall the checkpoint a
+// newer refresh removed on finding the tamper, so the next writer still
+// takes the complete route and refuses the fork.
+func TestCALV0117_OlderRefreshCannotUndoInvalidation(t *testing.T) {
+	repo := writerStore(t, 70)
+	if run := writerMutate(t, repo, "before-refreshes", nil); !run.completed() || !run.fast() {
+		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	requestFile, _ := mutationBoundaryFiles(t, repo)
+	wcPath := journal.WriterCheckpointPath(repo.StateDir)
+	var stages []string
+	hook := at("refresh.audited", func() {
+		rewriteFile(t, requestFile, func([]byte) []byte { return []byte("{}\n") })
+		refreshWriterCheckpoint(context.Background(), repo)
+		if _, err := os.Lstat(wcPath); !os.IsNotExist(err) {
+			t.Errorf("newer refresh kept the writer checkpoint: %v", err)
+		}
+	})
+	ctx := context.WithValue(context.Background(), mutationStageKey{}, func(stage string) {
+		stages = append(stages, stage)
+		hook(stage)
+	})
+	refreshWriterCheckpoint(ctx, repo)
+	if _, err := os.Lstat(wcPath); !os.IsNotExist(err) {
+		t.Fatalf("older refresh reinstalled the writer checkpoint: %v %v", err, stages)
+	}
+	if !strings.Contains(strings.Join(stages, "\n"), "refresh.superseded") {
+		t.Fatalf("older refresh stages %v", stages)
+	}
+	before := mutationPublished(t, repo)
+	run := writerMutate(t, repo, "after-refreshes", nil)
+	if run.fast() || wire.CodeOf(run.err) != wire.CodeJournalForked {
+		t.Fatalf("write after both refreshes: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	if after := mutationPublished(t, repo); after != before {
+		t.Fatalf("published %s, before %s", after, before)
+	}
+}
+
 // CAL-V0-117 (proposed): the scheduled complete audit runs outside the lock
 // and binds what it retains to the receipt head it audited. Writers that
 // commit between its audit and its lock leave the read checkpoint they
