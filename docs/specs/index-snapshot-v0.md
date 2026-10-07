@@ -297,6 +297,17 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   registration, releases its own mapping, and decodes from the retained one. Amended 2026-09-13
   (bug hunt): dropping the registration also clears its ring slot, so the index the loser never
   handed out is not kept reachable until a later registration reuses that slot.
+- Amended 2026-10-07 (proposed, V1-0947; no GitHub issue), `IDX-SNAP-V0-014` and `IDX-SNAP-V0-015`
+  unchanged in scope: the four-slot bound limits retained mappings, not live ones. Values copied
+  out of an Index (string-table views such as `Symbol.Path`, `Source.Data`, the `Source.Text`
+  view) alias the mapping without keeping the Index or any owner object reachable, so neither
+  eviction nor the Index becoming unreachable proves the bytes unused. An evicted mapping is
+  therefore never unmapped, and a process keeps one live mapping per distinct pack or sectioned
+  file it has read until it exits, including a file the store has since deleted, whose blocks stay
+  allocated while mapped. Unmapping on eviction, or from a runtime cleanup of the Index or of the
+  mapping owner, faults on those escaped values; `TestEvictedMappingsStayValidForEscapedAliases`
+  guards that. Bounding live mappings needs either an explicit lifetime for every value that aliases
+  a mapping or heap-backed bytes, which this clause's 8 MB heap row excludes; that choice is open.
 - Amended 2026-09-12, `IDX-SNAP-V0-015` narrowed for one verb: the task-packet `context` verb's
   read (`LoadContextSnapshotDeferred`) verifies every section except `bodies` before decoding, as
   above, and verifies a body's blocks when the packet first reads that body, before any byte of it
