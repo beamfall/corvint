@@ -128,6 +128,10 @@ unreleased `/3` schema pin was recomputed (the version stays `/3`, which is new 
 `TestCALV0185_TickDuringSessionKeepsStatusChange` now also runs the OPEN to HELD to OPEN sequence,
 which fails without the fix, and the ledger format test covers the `changed` member forms.
 
+Round 3 on 83cf15a2 reported no P0 to P3 findings. It noted one coverage limit: no test restarts
+the dispatcher while a `changed: true` marker is pending. The ledger format test does load that
+form.
+
 ## Dogfood use
 
 At lane start, `corvint affected --base 0b45b052` and `corvint --root . context --task ...
