@@ -49,8 +49,9 @@ const (
 	// read, which makes every import into that module unresolvable.
 	FrontierModulePath = "go:module-path-unresolved"
 	// FrontierNestedModule reports a go.mod below the root that no go.work use
-	// directive lists. Its packages belong to a module path this plugin did not
-	// observe, so they are absent from the graph.
+	// directive lists and whose manifest does not rule out an import of an
+	// observed module. Its packages belong to a module path this plugin did not
+	// observe, so they are absent from the graph (V1-0867).
 	FrontierNestedModule = "go:nested-module-frontier"
 	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
 	// whose independent entry bound was exhausted.
@@ -139,7 +140,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			return affected.Result{}, statErr
 		}
 	}
-	modules, err := observeModules(root, manifests, frontier)
+	modules, _, err := observeModules(root, manifests, frontier)
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -458,13 +459,15 @@ func relativeTo(directory, moduleDir string) string {
 }
 
 // observeModules maps every go.mod directory to its module. The observed set is
-// the root module, or the go.work use set when the root declares one; a go.mod
-// outside that set is a frontier, and its packages are dropped from the graph
-// rather than attributed to the module above them.
-func observeModules(root *affected.Source, manifests []string, frontier map[string]bool) (map[string]module, error) {
+// the root module, or the go.work use set when the root declares one; the
+// packages of a go.mod outside that set are dropped from the graph rather than
+// attributed to the module above them, and that module is a frontier unless
+// its manifest shows it cannot import an observed module (V1-0867). The
+// per-module evidence names every nested manifest read and why it stays open.
+func observeModules(root *affected.Source, manifests []string, frontier map[string]bool) (map[string]module, []nestedModule, error) {
 	listed, err := workspaceDirectories(root, frontier)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	modules := make(map[string]module, len(listed)+len(manifests))
 	for _, directory := range listed {
@@ -474,6 +477,7 @@ func observeModules(root *affected.Source, manifests []string, frontier map[stri
 		}
 		modules[directory] = module{dir: directory, path: modulePath, listed: true}
 	}
+	nested := make([]string, 0, len(manifests))
 	for _, manifest := range manifests {
 		directory := path.Dir(manifest)
 		if _, known := modules[directory]; known {
@@ -482,10 +486,16 @@ func observeModules(root *affected.Source, manifests []string, frontier map[stri
 		if fixtureOfObservedModule(directory, modules) {
 			continue
 		}
-		frontier[FrontierNestedModule] = true
+		nested = append(nested, directory)
 		modules[directory] = module{dir: directory}
 	}
-	return modules, nil
+	evidence := nestedModules(root, nested, modules)
+	for _, judged := range evidence {
+		if judged.Open != "" {
+			frontier[FrontierNestedModule] = true
+		}
+	}
+	return modules, evidence, nil
 }
 
 // workspaceDirectories lists the module directories the root's go.work uses,

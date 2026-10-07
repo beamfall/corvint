@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 // analyzerSchemaID versions the facts and encoding in an opt-in Corvint pack.
 // Bump it after reviewing any change to the inputs pinned by
 // TestAnalyzerSchemaInputs. The audit digest is a maintenance guard, not the
 // runtime key: an unrelated executable rebuild must keep using the same pack.
-const analyzerSchemaID = "corvint-analyzer/105"
+const analyzerSchemaID = "corvint-analyzer/106"
 
 // AnalyzerSchemaID is shared by experimental immutable stores of analyzer facts.
 func AnalyzerSchemaID() string { return analyzerSchemaID }
@@ -42,15 +43,17 @@ func probeAnalyzerPack(directory string, identity repositoryIdentity) (SnapshotP
 // Analyzer-key packs have a different stem from the executable-key gob.
 // Bound their own inventory, including packs from older schema versions, and
 // reserve one of the store's bound slots for the current pack even if its
-// clock is old.
-func evictAnalyzerPacks(directory, keep string, bound int) int {
+// clock is old. Each removed pack is named; one whose tree is live is
+// flagged but ranks as before (IDX-SNAP-V0-025).
+func evictAnalyzerPacks(directory, keep string, bound int, live map[string]bool) []EvictedSnapshot {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		return 0
+		return nil
 	}
 	type agedPack struct {
-		path string
-		when int64
+		path  string
+		when  int64
+		bytes int64
 	}
 	packs := make([]agedPack, 0, len(entries))
 	remaining := bound
@@ -67,7 +70,7 @@ func evictAnalyzerPacks(directory, keep string, bound int) int {
 			remaining--
 			continue
 		}
-		packs = append(packs, agedPack{path, info.ModTime().UnixNano()})
+		packs = append(packs, agedPack{path, info.ModTime().UnixNano(), info.Size()})
 	}
 	sort.Slice(packs, func(i, j int) bool {
 		if packs[i].when != packs[j].when {
@@ -75,10 +78,15 @@ func evictAnalyzerPacks(directory, keep string, bound int) int {
 		}
 		return packs[i].path < packs[j].path
 	})
-	evicted := 0
+	var evicted []EvictedSnapshot
 	for _, pack := range packs[min(remaining, len(packs)):] {
 		if os.Remove(pack.path) == nil {
-			evicted++
+			tree := snapshotTreeOf(pack.path)
+			name := strings.TrimSuffix(filepath.Base(pack.path), packExtension)
+			evicted = append(evicted, EvictedSnapshot{
+				Kind: "pack", Path: pack.path, Bytes: pack.bytes,
+				Tree: tree, Engine: name[strings.LastIndexByte(name, '-')+1:], LiveHead: live[tree],
+			})
 		}
 	}
 	return evicted

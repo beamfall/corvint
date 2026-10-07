@@ -399,7 +399,7 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 		}
 		item, err = wire.Parse(record.Raw)
 		if err == nil && observations {
-			addHolderObservation(item.Obj, a, observedAt)
+			addHolderObservation(item.Obj, a, observedAt, rc.store.Policy.HeartbeatTTLSeconds())
 			addHistoryObservation(item.Obj)
 		}
 		return err

@@ -97,12 +97,12 @@ var closeReadFile = (*os.File).Close
 
 func (s *nativeRead) close() error {
 	err := s.closeErr
-	for p, d := range s.dirs {
-		err = errors.Join(err, closeReadFile(d))
+	for _, p := range sortedPaths(s.dirs) {
+		err = errors.Join(err, closeReadFile(s.dirs[p]))
 		delete(s.dirs, p)
 	}
-	for p, r := range s.roots {
-		err = errors.Join(err, closeReadRoot(r))
+	for _, p := range sortedPaths(s.roots) {
+		err = errors.Join(err, closeReadRoot(s.roots[p]))
 		delete(s.roots, p)
 	}
 	return err

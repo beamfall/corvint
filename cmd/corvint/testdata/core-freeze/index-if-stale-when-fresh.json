@@ -4,5 +4,6 @@
   "mutates": false,
   "path": "<varies:string>",
   "state": "fresh",
+  "store": "<varies:string>",
   "tree": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7"
 }

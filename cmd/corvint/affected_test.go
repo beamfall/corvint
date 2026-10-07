@@ -628,7 +628,7 @@ func TestAffectedAdviceBoundsTheDeclarationRead(t *testing.T) {
 		if len(checks) == 0 || checks[0]["command"] != "make gate" {
 			t.Fatalf("a gate target inside the read bound must still be found: %v", checks)
 		}
-		if body, truncated := readAdviceSource(filepath.Join(root, "Makefile"), adviceMaxSourceBytes); len(body) != adviceMaxSourceBytes || !truncated {
+		if body, truncated, _ := readAdviceSource(filepath.Join(root, "Makefile"), adviceMaxSourceBytes); len(body) != adviceMaxSourceBytes || !truncated {
 			t.Fatalf("the read is not bounded at %d bytes: %d (truncated=%v)", adviceMaxSourceBytes, len(body), truncated)
 		}
 	})

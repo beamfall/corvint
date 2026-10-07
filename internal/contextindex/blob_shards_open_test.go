@@ -144,7 +144,7 @@ func TestEvictSnapshotsRemovesStaleShardAndIgnoreTemporaries(t *testing.T) {
 			plant(filepath.Join(shard, "published.afs"), old),
 		}
 
-		evictSnapshotsAt(directory, "", snapshotKeep, now)
+		evictSnapshotsAt(directory, "", snapshotKeep, nil, now)
 		for _, path := range stale {
 			if _, err := os.Lstat(path); !os.IsNotExist(err) {
 				t.Errorf("stale temporary %s survived: %v", path, err)
