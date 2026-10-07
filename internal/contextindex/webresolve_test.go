@@ -248,6 +248,11 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"package.json":         `{"dependencies": {"lib": "1.0.0"}}`,
 			"types/lib/index.d.ts": page,
 		}, "lib", WebImportResolution{State: WebImportUnresolved}},
+		"typeRoots keep a scoped name as written": {map[string]string{
+			"tsconfig.json":              `{"compilerOptions": {"typeRoots": ["./types"]}}`,
+			"package.json":               `{"dependencies": {"@acme/lib": "1.0.0"}}`,
+			"types/@acme/lib/index.d.ts": page,
+		}, "@acme/lib", WebImportResolution{State: WebImportUnresolved}},
 		"typeRoots without the declaration keep the package": {map[string]string{
 			"tsconfig.json": `{"compilerOptions": {"typeRoots": ["./types", "./node_modules/@types"]}}`,
 			"package.json":  `{"dependencies": {"lib": "1.0.0"}}`,

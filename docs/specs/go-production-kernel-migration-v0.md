@@ -1502,7 +1502,8 @@ arm is unchanged.
   reaches is unresolved when the name is a `GPK-V0-080` declared package, because its types,
   which are not indexed, would win. In every mode, a name that resolves to no alias target, or
   only through node10's JavaScript pass, is unresolved when a `typeRoots` directory in force
-  holds a tracked declaration for it (scoped names mangled as `scope__name`), or when the
+  holds a tracked declaration for it (scoped names as written, since TypeScript mangles them
+  only under `node_modules/@types`), or when the
   `typeRoots` are unknown or leave the repository, because TypeScript searches them after
   `node_modules`; a `node_modules` root is left to the package test. node16 and nodenext run it once, but a file's ESM or CommonJS
   mode is not read and only CommonJS mode adds extensions or reads a directory index, so a target

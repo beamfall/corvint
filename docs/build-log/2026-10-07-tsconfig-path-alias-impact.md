@@ -241,3 +241,8 @@ resolver (observed).
    declaration keeps the package reading. A guard case covers that.
 2. A relative specifier whose last segment is `.` or `..` names a directory, as in TypeScript's
    `normalizePathForCJSResolution`.
+
+Round 6 reported one P2 finding, and it was accepted. TypeScript mangles a scoped name (`@acme/lib`
+to `acme__lib`) only for a root ending in `node_modules/@types` (`getCandidateFromTypeRoot`). That
+root is left to the package test, so a custom root now looks the name up as written. The new case
+fails on the round 5 resolver (observed).

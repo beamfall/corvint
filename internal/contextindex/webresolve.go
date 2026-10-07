@@ -270,15 +270,13 @@ func (resolver *WebImportResolver) typeRootDeclares(options *webOptions, specifi
 	if options.typeRootsUnknown {
 		return true
 	}
-	name := specifier
-	if scope, rest, scoped := strings.Cut(strings.TrimPrefix(name, "@"), "/"); scoped && strings.HasPrefix(name, "@") {
-		name = scope + "__" + rest
-	}
+	// TypeScript mangles a scoped name only under node_modules/@types,
+	// which is skipped here, so the name is looked up as written.
 	for _, root := range options.typeRoots {
 		if root == "node_modules" || strings.HasPrefix(root, "node_modules/") || strings.Contains(root, "/node_modules") {
 			continue
 		}
-		if target, _, stop := resolver.load(path.Join(root, name), webPassTyped, true); target != "" || stop {
+		if target, _, stop := resolver.load(path.Join(root, specifier), webPassTyped, true); target != "" || stop {
 			return true
 		}
 	}
