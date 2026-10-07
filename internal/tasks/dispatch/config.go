@@ -21,12 +21,14 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/2"
-	// drainedStateProfile is the previous ledger version, adopted only when
-	// it records no worker (CAL-V0-132, proposed amendment).
-	drainedStateProfile = "taskman-dispatch-state/1"
-	EventProfile        = "taskman-dispatch-event/0"
-	MaxConfig           = 256 << 10
+	StateProfile  = "taskman-dispatch-state/3"
+	// drainedStateProfile and drainedState2Profile are the previous ledger
+	// versions, each adopted only when it records no worker (CAL-V0-132,
+	// proposed amendment; CAL-V0-185 added version 3).
+	drainedStateProfile  = "taskman-dispatch-state/1"
+	drainedState2Profile = "taskman-dispatch-state/2"
+	EventProfile         = "taskman-dispatch-event/0"
+	MaxConfig            = 256 << 10
 )
 
 // Config is the closed taskman-dispatch/0 operator configuration.
@@ -52,6 +54,11 @@ type Config struct {
 	// TicketBudget is the optional CAL-V0-155 rolling 24-hour budget each
 	// ticket key has across every role; lane keys are not tickets.
 	TicketBudget *Budget `json:"ticketBudget,omitempty"`
+	// StalledAfterSessions is the optional CAL-V0-185 advisory threshold:
+	// a ticket whose count of finished sessions since its native status
+	// last changed reaches it gets one typed `stalled` event. It never
+	// holds, parks or blocks anything.
+	StalledAfterSessions *int `json:"stalledAfterSessions,omitempty"`
 }
 
 // Budget is a CAL-V0-155 rolling 24-hour launch budget. An absent (zero)
@@ -371,14 +378,39 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	if d.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("dispatch config: trailing input")
 	}
+	if c.StalledAfterSessions == nil && presentNull(raw, "stalledAfterSessions") {
+		return nil, fmt.Errorf("dispatch config: stalledAfterSessions is null; omit it to disable the advisory")
+	}
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
 	return &c, nil
 }
 
+// maxStalledAfter bounds the CAL-V0-185 advisory threshold.
+const maxStalledAfter = 1000
+
+// presentNull reports whether a top-level member named like name, folding
+// case as the decoder does, is a JSON null, which would otherwise decode as
+// absent.
+func presentNull(raw []byte, name string) bool {
+	var members map[string]json.RawMessage
+	if json.Unmarshal(raw, &members) != nil {
+		return false
+	}
+	for k, v := range members {
+		if strings.EqualFold(k, name) && bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Config) validate() error {
 	fail := func(f string, a ...any) error { return fmt.Errorf("dispatch config: "+f, a...) }
+	if n := c.StalledAfterSessions; n != nil && (*n < 1 || *n > maxStalledAfter) {
+		return fail("stalledAfterSessions must be 1..%d", maxStalledAfter)
+	}
 	if c.PoolSweep != nil && (c.PoolSweep.TimeoutSeconds < 1 || c.PoolSweep.TimeoutSeconds > 1800 || c.PoolSweep.IntervalSeconds < 1 || c.PoolSweep.IntervalSeconds > 3600) {
 		return fail("poolSweep requires timeoutSeconds 1..1800 and intervalSeconds 1..3600")
 	}
