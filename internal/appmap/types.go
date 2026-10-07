@@ -218,9 +218,9 @@ type Method struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Anchor Anchor `json:"anchor"`
-	// NoArgs is true only when the method header literally declares no parameters; the scaffold
-	// calls nothing else, since it cannot supply arguments (AMAP-V0-013).
-	NoArgs    bool       `json:"no_args"`
+	// Callable is true only for a public instance method whose header literally declares no
+	// parameters; the scaffold calls nothing else (AMAP-V0-013).
+	Callable  bool       `json:"callable"`
 	Selectors []Selector `json:"selectors"`
 }
 

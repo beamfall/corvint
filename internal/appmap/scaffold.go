@@ -158,8 +158,8 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		switch {
 		case p.state(c.meth.Anchor) == Stale:
 			skipped[id] = skippedCall{c, "stale-reuse", "is STALE at the evaluated revision"}
-		case !c.meth.NoArgs:
-			skipped[id] = skippedCall{c, "reuse-takes-arguments", "takes arguments the flow does not supply"}
+		case !c.meth.Callable:
+			skipped[id] = skippedCall{c, "reuse-not-callable", "is not a public method callable without arguments"}
 		default:
 			continue
 		}
@@ -170,7 +170,7 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	imports, unknowns := []any{}, []any{}
 	// imported holds, per resolved file, the local names the borrowed imports bind from it; locals
 	// holds every name they bind. A class is usable only under a name actually bound to it.
-	imported, locals := map[string]map[string]bool{}, map[string]bool{}
+	imported, locals, bound := map[string]map[string]bool{}, map[string]bool{}, map[string]bool{}
 	if closest != nil {
 		cv = closestView{File: closest.Path, Status: StatusResolved, Assertions: closest.Assertions, ScreensShared: screensShared,
 			ReuseShared: reuseShared, Anchor: p.anchorView(closest.Anchor)}
@@ -185,6 +185,10 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			// The proposed file sits beside the closest spec, so a specifier the index resolved
 			// there resolves identically from the proposed path.
 			ok := imp.Status == importExternal || (imp.Status == importResolved && m.file(imp.Resolved) != nil)
+			// A statement the map could not read in full (over 8 lines or 512 bytes, or not an
+			// import statement) is never copied or guessed as a side-effect import.
+			unread := imp.Statement == ""
+			ok = ok && !unread
 			if ok && imp.Status == importResolved {
 				if imported[imp.Resolved] == nil {
 					imported[imp.Resolved] = map[string]bool{}
@@ -195,14 +199,22 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 			}
 			for _, n := range imp.Names {
 				locals[n] = true
+				bound[n] = bound[n] || ok
 			}
 			stmt := imp.Statement
-			if stmt == "" {
-				stmt = "import " + quote(imp.Specifier) + ";"
+			switch {
+			case unread && len(imp.Names) > 0:
+				stmt = "import { " + strings.Join(imp.Names, ", ") + " } from " + quote(imp.Specifier) + "; (statement not read in full)"
+			case unread:
+				stmt = "import ... from " + quote(imp.Specifier) + "; (statement not read in full)"
 			}
 			if !ok {
+				reason := "unresolved-import"
+				if unread {
+					reason = "unread-statement"
+				}
 				stmt = "// UNRESOLVED " + strings.ReplaceAll(stmt, "\n", "\n// ")
-				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: closest.ID, Reason: "unresolved-import", Path: closest.Path, Line: imp.Line})
+				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: closest.ID, Reason: reason, Path: closest.Path, Line: imp.Line})
 			}
 			imports = append(imports, stmt)
 		}
@@ -262,6 +274,12 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		owner[f.Class], owner[v] = f.Path, f.Path
 		vars[f.Path] = v
 		order = append(order, f.Path)
+	}
+	if !bound["test"] {
+		// Neither borrowed nor generated imports bind test (the closest spec may call it under
+		// another name, or there is no closest spec), so the draft says so rather than guess.
+		imports = append(imports, "// UNRESOLVED import { test }: no borrowed import binds test;")
+		unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: fl.ID, Reason: "test-unbound"})
 	}
 	lines := []any{fmt.Sprintf("test(%s, async ({ page }) => {", quote(fl.FlowID))}
 	for _, pre := range fl.Preconditions {

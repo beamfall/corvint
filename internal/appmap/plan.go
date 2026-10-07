@@ -940,7 +940,7 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 			continue
 		}
 		for j := range ps.Actions {
-			f := callable(ps, j)
+			f := reuseTarget(ps, j)
 			if f == nil {
 				continue
 			}
@@ -1043,13 +1043,13 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 				}
 			}
 			L("    // %s: %s [%s]", av.Step, commentSafe.Replace(av.Action), av.Screen)
-			if f := callable(ps, j); f != nil && !blocked[ps.App+"\x00"+f.Path] {
+			if f := reuseTarget(ps, j); f != nil && !blocked[ps.App+"\x00"+f.Path] {
 				me := ps.methods[j][0]
 				L("    await %s.%s(); // reuse %s [%s; %s]", vars[ps.App+"\x00"+f.Path], me.Name, av.Methods[0].Ref, av.Selector.Strength, av.Methods[0].Verification)
 				continue
 			}
-			if len(av.Methods) > 0 && ps.methods[j][0] != nil && !ps.methods[j][0].NoArgs {
-				L("    // reuse %s takes arguments the flow does not supply; not called", av.Methods[0].Ref)
+			if len(av.Methods) > 0 && ps.methods[j][0] != nil && !ps.methods[j][0].Callable {
+				L("    // reuse %s is not a public method callable without arguments; not called", av.Methods[0].Ref)
 			}
 			switch {
 			case av.Selector == nil:
@@ -1080,15 +1080,15 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 
 var jsName = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
 
-// callable is the page-object or workflow class file whose first shown method performs action j,
-// when that method is FRESH and declares no parameters; nil otherwise.
-func callable(ps *planStep, j int) *TestFile {
+// reuseTarget is the page-object or workflow class file whose first shown method performs action j,
+// when that method is FRESH and Callable; nil otherwise.
+func reuseTarget(ps *planStep, j int) *TestFile {
 	if j >= len(ps.methods) || len(ps.methods[j]) == 0 || ps.methods[j][0] == nil || len(ps.Actions[j].Methods) == 0 || ps.Actions[j].Selector == nil {
 		return nil
 	}
 	f := ps.files[j][0]
 	if f == nil || f.Class == "" || (f.Role != rolePageObject && f.Role != roleWorkflow) || ps.Actions[j].Methods[0].Freshness != Fresh ||
-		!ps.methods[j][0].NoArgs {
+		!ps.methods[j][0].Callable {
 		return nil
 	}
 	return f

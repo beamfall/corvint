@@ -43,10 +43,11 @@ are deliberately kept out of the repository.
   step records `satisfied_by_step`. Precondition flows reach the map only as screen
   requirements, so the planner reads them from there.
 - **Reuse calls are conservative.** The draft calls a page-object method only when it is FRESH,
-  is a `method:` reuse entry, declares no parameters, and has a unique class binding.
-  Otherwise the step keeps a TODO on its locator. Two counting rules follow from this: a
-  `path:line` spec selector is not counted as reuse, and a method that takes arguments is not
-  called. The second rule followed the issue-657 round-4 `NoArgs` field, merged mid-lane.
+  is a `method:` reuse entry, is `Callable` (public, no declared parameters), and has a unique
+  class binding. Otherwise the step keeps a TODO on its locator. Two counting rules follow
+  from this: a `path:line` spec selector is not counted as reuse, and a method that is not
+  `Callable` is not called. The second rule followed the issue-657 `Callable` field (`NoArgs`
+  in round 4, renamed in round 6), which was merged mid-lane.
 - **No new error codes.** Refusals reuse `appmap-invalid-query`, `appmap-budget-too-small` and
   `appmap-invalid-map`. In the MCP, a failure with no error code maps to an internal RPC error,
   not to a new tool code.
@@ -83,7 +84,7 @@ fake verifier.
   `stay` on step 2, a `clubId` handoff 1→4 and precondition `satisfied_by_step: 1`. The output
   is byte-identical across map order.
 - Regressions:
-  - `TestAMSPV0008MethodWithArgumentsNotCalled` failed before the `NoArgs` guard.
+  - `TestAMSPV0008MethodWithArgumentsNotCalled` failed before the `Callable` guard.
   - The `methods_total` and strict-threshold cases are pinned in
     `TestAMSPV0002MultiStepPlanOnFixture` and `TestAMSPV0005UnmappedStepsFailClosed`.
 

@@ -428,7 +428,7 @@ func TestAMSPV0008MethodWithArgumentsNotCalled(t *testing.T) {
 	doc := planOf(t, []*Map{build(t, root, rev)}, []string{"book a tee time"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
 	src := stringOf(doc["draft"].(map[string]any)["lines"])
 	if strings.Contains(src, "adminTeeSheetPage.book(") || !strings.Contains(src, "adminTeeSheetPage.selectSlot();") ||
-		!strings.Contains(src, "takes arguments the flow does not supply; not called") {
+		!strings.Contains(src, "is not a public method callable without arguments; not called") {
 		t.Fatalf("draft: %s", src)
 	}
 }

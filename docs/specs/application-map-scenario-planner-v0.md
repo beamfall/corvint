@@ -140,8 +140,8 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   - its navigation, written as `goto`, as a `toHaveURL` guard for `stay`, or as `waitForURL`
     for `follow`;
   - a `routeParam` capture for each handoff the step produces;
-  - a call to the reused page-object method only when that method is FRESH, declares no
-    parameters, its class binding is unique and some file in the map imports that class by
+  - a call to the reused page-object method only when that method is FRESH and `Callable`
+    (public, no declared parameters), its class binding is unique and some file in the map imports that class by
     name (`import { Class }`, not `import type`); otherwise a TODO on the step's locator, and
     a class with no named-import evidence is printed as an `UNRESOLVED import` comment, never
     as an import;
@@ -231,7 +231,8 @@ by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or 
     `unverified`;
   - a budget too small for the head: refused;
   - a map path outside `--root`: the MCP refuses to start;
-  - a reused method that takes arguments: not called, with a TODO;
+  - a reused method that is not `Callable` (takes arguments or is not public): not called,
+    with a TODO;
   - a page-object class with no named import in the suite (for example a default export):
     `UNRESOLVED import` comment, not called;
   - an unverified selector on an otherwise verified step: the step stays `candidate`;

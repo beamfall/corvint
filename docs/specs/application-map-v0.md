@@ -84,13 +84,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   non-literal, since the map cannot prove which value the program sees; a regular-expression
   literal is a non-literal value. A literal object counts only as the whole argument, so
   `.state('home', {url: '/x'} && config)` reads `non-literal-value` (and `.state({...} || x)`
-  `non-literal-name`). (proposed, pending owner acceptance; V1-0956)
+  `non-literal-name`). A file that ends inside a state call (`app.state('home',`) reads that
+  state's configuration as non-literal and never fails the build. (proposed, pending owner
+  acceptance; V1-0956)
 - `AMAP-V0-003`: Screens MUST be keyed by app plus template. Two resolved screens with the same
   collision key MUST be reported `ambiguous-template`, and a lookup (by element ID, state name,
   template or URL) that matches several screens MUST return status `UNKNOWN` with the candidates,
   never pick one; a lookup that matches none returns `no-matching-screen`. URL lookup strips the
   manifest's hash prefix, removes the authority only after a leading scheme (`https://host`), so a
-  `://` inside a query or fragment is data, and refuses a `${...}` substitution inside a segment
+  `://` inside a query or fragment is data; the authority ends at the first `/`, `?` or `#`, so
+  `https://host?next=/home` is the root, never `/home`; and it refuses a `${...}` substitution inside a segment
   (`partial-segment-substitution`). (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-004`: Each AFU-V1 navigation step MUST become a map step on the unique screen whose
   template matches its state template, with its selector and strength and the page-object methods
@@ -119,17 +122,21 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   their methods, workflows, scenarios, specs (with basis and import chain) and flow steps, each
   with its anchor. (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-007`: Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
-  attribute locator are `strong`; `getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`
+  attribute locator are `strong` (`data-test` and `data-test-id` locators are CSS); `getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`
   and `getByTitle` are `medium`; `getByText` and other CSS locators are `weak`; a non-literal
   argument is `unknown`. A literal counts only as a whole argument (followed by `)` or `,`), so
   `'save-' + id` is non-literal, as is such a `goto` URL (`non-literal-url`). String and template
   escapes decode to the program's value (`\n`, `\xHH`, `\uHHHH`, `\u{H}`, surrogate pairs, line
   continuations); a legacy octal escape, lone surrogate, or short or non-hex `\u` escape makes the
-  literal non-literal, and a failed escape never consumes past the end of the source. A
+  literal non-literal, and a failed escape never consumes past the end of the source. A `/` after
+  the `)` of an `if`, `while`, `for` or `with` condition, or after a keyword such as `else`,
+  `return`, `throw` or `await`, starts a regular-expression literal, so text inside it is never
+  read as a selector; after any other `)` it is a division. A
   `getByRole` name is read from the options object's top-level `name` member in any position, and
   the selector is `unknown` when the object has a spread, a computed or shorthand key, a repeated
   `name`, or a non-literal name, and when the options are passed by reference
-  (`getByRole('button', opts)`), since any of these can set a name the map cannot read. Line
+  (`getByRole('button', opts)`) or the literal is only part of the argument (`{ name } && opts`),
+  since any of these can set a name the map cannot read. Line
   continuations inside a string advance the line count of later anchors. A
   secret-shaped literal is dropped and reported `secret-shaped`.
   (proposed, pending owner acceptance; V1-0956)
@@ -186,8 +193,16 @@ Every requirement below is (proposed, pending owner acceptance; V1-0956).
   claims as its reuse), is never offered as reuse. A reused method whose anchor is `STALE` at the
   evaluated revision is not called: the step keeps a commented note and a TODO, its reuse item
   reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. A reused
-  method is called only when its header literally declares no parameters (`no_args`); otherwise
-  the step keeps a note and a TODO and reports `scaffold-reuse` / `reuse-takes-arguments`. With no
+  method is called only when it is a public instance method of the page object's class, directly
+  in the class body, whose header literally declares no parameters (`callable`: no getter, setter,
+  static, private or protected member, no module function, no object-literal method before, after
+  or inside the class); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
+  `reuse-not-callable`. Borrowed import statements are kept one per statement, each with exactly
+  the names it binds. A statement the map could not read in full (over 8 lines or 512 bytes) is
+  never copied in part nor guessed as a side-effect import: it is emitted as a commented
+  `// UNRESOLVED import { names } from '...'` line, binds nothing, and reports `scaffold-import` /
+  `unread-statement`. When no borrowed, resolvable import binds `test`, the scaffold emits
+  `// UNRESOLVED import { test }` and reports `scaffold-import` / `test-unbound`. With no
   eligible spec, `closest` reads `UNKNOWN no-asserting-spec`. It never writes the file.
   (proposed, pending owner acceptance; V1-0956)
 - `AMAP-V0-014`: Learned facts MUST attach only through the overlay seam: an `Overlay` is asked once
@@ -232,7 +247,7 @@ with one coded JSON error on stderr and nothing on stdout.
 `no-matching-flow`, `partial-segment-substitution`, `no-navigation-step`, `unresolved-import`,
 `import-depth-exceeded`, `unparsed-imports`, `excluded-by-index`, `page-object-unbound`,
 `page-object-ambiguous`, `page-object-unresolved-target`, `import-outside-tests`, `unknown-state`,
-`secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `reuse-takes-arguments`,
+`secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `reuse-not-callable`, `test-unbound`, `unread-statement`,
 `overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse` and `overlay`.
@@ -279,7 +294,14 @@ steps) attaches here; this slice defines the seam only and implements no verific
   `\u` escape at the end of a file (inexact, no read past the end), a URL in a query parameter
   (data, not an authority), a literal router object that is only part of its argument
   (`non-literal-value`), a manifest rebinding a page object (`chain_freshness: STALE`), and a
-  reused method that takes parameters (`reuse-takes-arguments`, no call).
+  reused member that is not a public method callable without arguments (`reuse-not-callable`, no
+  call), a `data-test` attribute locator (CSS, never a test ID), a role options literal that is
+  only part of its argument (`unknown`), two import statements from one module (kept apart), and
+  a closest spec that calls `test` under another name (`test-unbound`), an object-literal method
+  outside the class body (not callable), an import statement over 8 lines (`unread-statement`, no
+  partial copy), a scheme URL whose query names a path (the root), a regular expression after a
+  control-statement condition (no selector), and a router file truncated inside a state call
+  (non-literal, no panic).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -288,18 +310,18 @@ steps) attaches here; this slice defines the seam only and implements no verific
 | Requirement | Evidence |
 | --- | --- |
 | AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0001DeclaredDirectoriesExist` |
-| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys`, `TestAMAPV0002ConfigMustBeWholeArgument` |
-| AMAP-V0-003 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0003QueryURLIsNotAuthority` |
+| AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys`, `TestAMAPV0002ConfigMustBeWholeArgument`, `TestAMAPV0002TruncatedStateCall` |
+| AMAP-V0-003 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0003QueryURLIsNotAuthority`, `TestAMAPV0003AuthorityEndsAtQueryOrFragment` |
 | AMAP-V0-004 | `TestAMAPV0004FlowSteps` |
-| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0005UnresolvedTargetBlocksBinding`, `TestAMAPV0005ImportOutsideTests`, `TestAMAPV0007PartialLiterals` |
+| AMAP-V0-005 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0005UnreadSpecKeepsJoinUnknown`, `TestAMAPV0005UnboundPageObjectKeepsJoinUnknown`, `TestAMAPV0005UnresolvedTargetBlocksBinding`, `TestAMAPV0005ImportOutsideTests`, `TestAMAPV0005SeparateImportsFromOneModule`, `TestAMAPV0007PartialLiterals` |
 | AMAP-V0-006 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0004FlowSteps` |
-| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads`, `TestAMAPV0007RegexReferencedOptionsAndContinuations`, `TestAMAPV0007ShortUnicodeEscape` |
+| AMAP-V0-007 | `TestAMAPV0007SelectorStrength`, `TestAMAPV0007PartialLiterals`, `TestAMAPV0007EscapesAndSpreads`, `TestAMAPV0007RegexReferencedOptionsAndContinuations`, `TestAMAPV0007ShortUnicodeEscape`, `TestAMAPV0007TestIDAttributeIsExact`, `TestAMAPV0007RoleOptionsWholeArgument`, `TestAMAPV0007RegexAfterControlCondition` |
 | AMAP-V0-008 | `TestAMAPV0005ImportGraphJoin`, `TestAMAPV0004FlowSteps` |
 | AMAP-V0-009 | `TestAMAPV0009DeterministicArtifact`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 
@@ -347,3 +369,10 @@ needs migration. Map files are explicit outputs and may be discarded.
 12. Should a reused method that takes parameters be called with argument TODOs (invalid until
     edited) instead of the fail-closed TODO, and should the manifest anchor be narrowed from the
     whole file to the `page_object_screens` entry?
+13. Should the scaffold generate `import { test } from '@playwright/test'` (or call the borrowed
+    alias) instead of the fail-closed `test-unbound`, and should a Playwright `testIdAttribute`
+    configuration make another attribute the test-ID attribute?
+14. The map reads JavaScript and TypeScript with a token- and line-level reader, not a full
+    parser; review rounds 1 to 6 each found further edge cases, each repaired fail-closed. Should
+    an adopter-scale qualification on real test repositories (follow-up) decide whether a full
+    parser is needed before promotion?

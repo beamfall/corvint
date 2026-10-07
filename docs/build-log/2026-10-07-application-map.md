@@ -177,6 +177,39 @@ regression test that a mutation of its fix makes fail:
    `TestAMAPV0013MethodWithArgumentsNotCalled` (`no_args`; `reuse-takes-arguments`).
 
 Finding 5 and the whole-file manifest anchor resolve forks fail-closed (owner question 12).
+
+Round 5 (diff `8af2bf62..aad51492`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. `[data-test=...]` and `[data-test-id=...]` were normalised to the `data-testid` test-ID
+   selector — `TestAMAPV0007TestIDAttributeIsExact` (they stay CSS).
+2. A role options literal that was only part of its argument (`{ name } && options`) named the
+   selector — `TestAMAPV0007RoleOptionsWholeArgument`.
+3. Getters, static, private and protected members and module functions were callable reuse —
+   `TestAMAPV0013MethodWithArgumentsNotCalled` (`callable` replaces round 4's `no_args`;
+   `reuse-not-callable` replaces `reuse-takes-arguments`).
+4. Two import statements from one module merged into one `Import` whose statement bound only some
+   of its names — `TestAMAPV0005SeparateImportsFromOneModule` (one `Import` per statement).
+5. The scaffold called `test` when the closest spec bound it only as an alias —
+   `TestAMAPV0013TestUnbound` (`test-unbound`, fail-closed; owner question 13).
+
+
+Round 6 (diff `8af2bf62..e72b30ec`) reported five P2 findings, each confirmed and repaired with a
+regression test that a mutation of its fix makes fail:
+
+1. An object-literal method before, after or inside the page-object class was callable reuse —
+   `TestAMAPV0013MethodOutsideClassNotCallable` (only members directly in the class body).
+2. An import statement over 8 lines was copied in part, or guessed as a side-effect import —
+   `TestAMAPV0013UnreadImportStatement` (`unread-statement`, commented, binds nothing).
+3. `https://host?next=/home` resolved to `/home` — `TestAMAPV0003AuthorityEndsAtQueryOrFragment`
+   (the authority ends at the first `/`, `?` or `#`).
+4. A regular expression after an `if (...)` condition lexed as code, fabricating a selector —
+   `TestAMAPV0007RegexAfterControlCondition` (a paren stack marks control conditions; `else`,
+   `throw`, `await` and similar keywords also allow a regular expression).
+5. A router file ending inside `app.state('home',` panicked — `TestAMAPV0002TruncatedStateCall`.
+
+Each round finds further edge cases in the token- and line-level JavaScript reader; owner question
+14 asks whether adopter-scale qualification should decide on a full parser before promotion.
 Later rounds are recorded in the lane handoff.
 
 ## Analyzer schema bump

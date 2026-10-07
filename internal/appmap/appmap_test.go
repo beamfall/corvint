@@ -1173,28 +1173,197 @@ func TestAMAPV0010ManifestBindingFreshness(t *testing.T) {
 	check(Stale)
 }
 
-// AMAP-V0-013: a reused method that takes parameters is not called without arguments.
+// AMAP-V0-013: a reused method that takes parameters, or a getter, static, private or protected
+// member, is not called.
 func TestAMAPV0013MethodWithArgumentsNotCalled(t *testing.T) {
 	for line, want := range map[string]bool{
 		"  async book() {": true, "  book = async () => {": true, "  async book(slot: string) {": false,
-		"  async book(n = 1) {": false, "export async function book(": false,
+		"  async book(n = 1) {": false, "  get book() {": false, "  private async book() {": false,
+		"  static book() {": false, "  protected book = async () => {": false, "  readonly book = () => {": true,
 	} {
-		if got := emptyParams(line, "book"); got != want {
-			t.Errorf("emptyParams(%q) = %v", line, got)
+		if got := callable(line, "book"); got != want {
+			t.Errorf("callable(%q) = %v", line, got)
 		}
+	}
+	if f := readFacts("export async function go() {\n  await x();\n}\n"); len(f.methods) != 1 || f.methods[0].callable {
+		t.Fatalf("a module function is not an instance method: %+v", f.methods)
 	}
 	root, _ := fixtureRepo(t)
 	page := "e2e/pages/teesheet.page.ts"
 	data, _ := os.ReadFile(filepath.Join(root, page))
 	writeFile(t, root, page, strings.Replace(string(data), "async book() {", "async book(slot: string) {", 1))
 	m := build(t, root, commitAll(t, root, "book takes a slot"))
+
 	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := string(raw)
 	if strings.Contains(body, "await teeSheetPage.book(") || !strings.Contains(body, "await teeSheetPage.selectSlot();") ||
-		!strings.Contains(body, "takes arguments the flow does not supply") || !strings.Contains(body, `"reason":"reuse-takes-arguments"`) {
+		!strings.Contains(body, "is not a public method callable without arguments") || !strings.Contains(body, `"reason":"reuse-not-callable"`) {
 		t.Fatalf("scaffold: %s", body)
+	}
+}
+
+// AMAP-V0-007: only data-testid is the getByTestId attribute; data-test and data-test-id stay CSS
+// and never share the test-id selector's identity.
+func TestAMAPV0007TestIDAttributeIsExact(t *testing.T) {
+	f := readFacts("page.locator('[data-test=\"save\"]');\npage.locator('[data-test-id=save]');\npage.locator('[data-testid=\"save\"]');\npage.getByTestId('save');")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, s.Kind+":"+s.Strength)
+	}
+	if want := "css:weak|css:weak|test-id:strong|test-id:strong"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+	if f.selectors[0].ID == f.selectors[3].ID || f.selectors[2].ID != f.selectors[3].ID {
+		t.Fatalf("selector identities %v", f.selectors)
+	}
+}
+
+// AMAP-V0-007: a getByRole options literal counts only as the whole argument.
+func TestAMAPV0007RoleOptionsWholeArgument(t *testing.T) {
+	f := readFacts("page.getByRole('button', { name: 'Book' } && options);\npage.getByRole('button', { name: 'Book' },);\npage.getByRole('button', { name: 'Book' });")
+	got := []string{}
+	for _, s := range f.selectors {
+		got = append(got, fmt.Sprintf("%s:%s:%s@%d", s.Value, s.Name, s.Strength, s.Line))
+	}
+	if want := "::unknown@1|button:Book:medium@2|button:Book:medium@3"; strings.Join(got, "|") != want {
+		t.Fatalf("selectors %s, want %s", strings.Join(got, "|"), want)
+	}
+}
+
+// AMAP-V0-005: separate import statements from one module stay separate, each with exactly the
+// names it binds, so a borrowed statement never claims a name another statement binds.
+func TestAMAPV0005SeparateImportsFromOneModule(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	writeFile(t, root, spec, strings.Replace(string(data), "import { TeeSheetPage }", "import { helper } from '../pages/home.page';\nimport { TeeSheetPage }", 1))
+	m := build(t, root, commitAll(t, root, "two imports from one module"))
+	n := 0
+	for _, imp := range m.file(spec).Imports {
+		if imp.Specifier != "../pages/home.page" {
+			continue
+		}
+		n++
+		for _, name := range imp.Names {
+			if !strings.Contains(imp.Statement, name) {
+				t.Fatalf("statement %q does not bind %s", imp.Statement, name)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatalf("%d imports from ../pages/home.page: %+v", n, m.file(spec).Imports)
+	}
+}
+
+// AMAP-V0-013: a scaffold whose borrowed imports bind no test reports it instead of calling an
+// unbound name silently.
+func TestAMAPV0013TestUnbound(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	raw, err := ProjectScaffold(context.Background(), build(t, root, rev), "book-tee-time", Options{Root: root})
+	if err != nil || strings.Contains(string(raw), "test-unbound") {
+		t.Fatalf("baseline scaffold: %v %s", err, raw)
+	}
+	specs, _ := filepath.Glob(filepath.Join(root, "e2e/specs/*.spec.ts"))
+	for _, p := range specs {
+		data, _ := os.ReadFile(p)
+		rel, _ := filepath.Rel(root, p)
+		text := strings.Replace(string(data), "import { test, expect }", "import { test as it, expect }", 1)
+		writeFile(t, root, rel, strings.ReplaceAll(text, "\ntest(", "\nit("))
+	}
+	m := build(t, root, commitAll(t, root, "test as it"))
+	raw, err = ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := string(raw); !strings.Contains(body, "// UNRESOLVED import { test }") || !strings.Contains(body, `"reason":"test-unbound"`) {
+		t.Fatalf("scaffold: %s", body)
+	}
+}
+
+// AMAP-V0-013: only a method directly in the class body is callable reuse; an object literal's
+// method before, after or inside the class is not.
+func TestAMAPV0013MethodOutsideClassNotCallable(t *testing.T) {
+	for _, src := range []string{
+		"export class HomePage {}\nconst helpers = {\n  async click() {\n    return 1;\n  },\n};\n",
+		"const helpers = {\n  async click() {\n    return 1;\n  },\n};\nexport class HomePage {\n}\n",
+		"export class HomePage {\n  async open() {\n    const o = {\n      async click() {\n        return 1;\n      },\n    };\n  }\n}\n",
+	} {
+		for _, m := range readFacts(src).methods {
+			if m.name == "click" && m.callable {
+				t.Errorf("%q: click reads callable", src)
+			}
+		}
+	}
+	if f := readFacts("export class HomePage {\n  async click() {\n    return 1;\n  }\n}\n"); len(f.methods) != 1 || !f.methods[0].callable {
+		t.Fatalf("a class method is callable: %+v", f.methods)
+	}
+}
+
+// AMAP-V0-013: an import statement the map could not read in full is never copied as a partial
+// statement or guessed as a side-effect import; the scaffold reports it UNRESOLVED with the names
+// it binds.
+func TestAMAPV0013UnreadImportStatement(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	long := "import {\n  TeeSheetPage,\n" + strings.Repeat("\n", 10) + "} from '../pages/teesheet.page';"
+	text := strings.Replace(string(data), "import { TeeSheetPage } from '../pages/teesheet.page';", long, 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, spec, text)
+	m := build(t, root, commitAll(t, root, "oversized import"))
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root, Full: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if !strings.Contains(body, `"reason":"unread-statement"`) || !strings.Contains(body, "// UNRESOLVED import { TeeSheetPage } from") {
+		t.Fatalf("scaffold: %s", body)
+	}
+	if strings.Contains(body, `"import {\n  TeeSheetPage,`) || strings.Contains(body, `"import \"../pages/teesheet.page\";"`) {
+		t.Fatalf("partial statement copied: %s", body)
+	}
+}
+
+// AMAP-V0-003: the authority ends at the first '/', '?' or '#', so a query value is never a path.
+func TestAMAPV0003AuthorityEndsAtQueryOrFragment(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	x := newScreenIndex(m.HashPrefix, m.Screens)
+	if got, _ := x.byURL("https://host?next=/home"); got == "screen:admin:app.home" {
+		t.Errorf("https://host?next=/home resolved to %s", got)
+	}
+	if got, _ := x.byURL("https://host#!/home"); got != "screen:admin:app.home" {
+		t.Errorf("https://host#!/home = %q", got)
+	}
+}
+
+// AMAP-V0-007: after a control-statement condition a '/' starts a regular expression, so text in
+// it never reads as a selector; after other parentheses it stays a division.
+func TestAMAPV0007RegexAfterControlCondition(t *testing.T) {
+	for _, src := range []string{
+		"if (enabled) /page.getByTestId('save')/.test(text);",
+		"while (x) /page.getByTestId('save')/.test(text);",
+		"if (a) b(); else /page.getByTestId('save')/.test(text);",
+	} {
+		for _, s := range readFacts(src).selectors {
+			if s.Strength == "strong" {
+				t.Errorf("%q: fabricated selector %+v", src, s)
+			}
+		}
+	}
+	if f := readFacts("x = (a) / 2; page.getByTestId('save');"); len(f.selectors) != 1 || f.selectors[0].Strength != "strong" {
+		t.Fatalf("division after a parenthesis: %+v", f.selectors)
+	}
+}
+
+// AMAP-V0-002: a router file truncated inside a state call reads, never panics.
+func TestAMAPV0002TruncatedStateCall(t *testing.T) {
+	for _, src := range []string{"app.state('home',", "app.state('home', ", "app.state({"} {
+		parseRouter(blobEntry{path: "r.js"}, []byte(src))
 	}
 }
