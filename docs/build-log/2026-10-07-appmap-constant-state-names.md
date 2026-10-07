@@ -19,10 +19,15 @@ another file.
   follows the same resolution as impact analysis.
 - Fail closed: any use of `X` other than an unassigned member read, `typeof`, or an export makes
   the table unprovable; a duplicate, spread, computed key or non-string member does too.
-  Mutation from a third module is out of reach of a static map and is a recorded limit.
-- Evidence: `name_from` / `parent_from` anchors (path, line, blob, span digest at the map
-  revision) on the screen; they join lineage freshness, so editing the constant reads the screen's
-  lineage `STALE`. Both are `omitempty`, so literal-only maps (the committed fixture) are
+  Writes are looked for through parentheses, prefix `++`/`--` and destructuring brackets, and a
+  table named in another initializer (`{ t: X }`) is an escaping alias. Mutation from a third
+  module, or a destructuring target after a comma (`[a, X.Y] = ...`), is out of reach of this
+  token reader and is a recorded limit.
+- Evidence: `name_from` / `parent_from` anchor lists (path, line, blob, span digest at the map
+  revision) on the screen: the declaring line, then the import statement for an imported table;
+  they join lineage freshness, so editing the constant or re-pointing the import reads the
+  screen's lineage `STALE`. A tsconfig `paths` edit that re-routes an alias is not anchored
+  (recorded limit). Both are `omitempty`, so literal-only maps (the committed fixture) are
   byte-identical and keep their digest.
 - Cost: the revision index is now built before the routers (it was always built); each declaring
   file is lexed once per build, only when a router references it.

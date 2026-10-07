@@ -112,9 +112,10 @@ type Screen struct {
 	FlagsFrom       string   `json:"flags_from,omitempty"`
 	Anchor          Anchor   `json:"anchor"`
 	// NameFrom and ParentFrom anchor a state name or parent read through a constant table
-	// (AMAP-V0-016); absent for a literal.
-	NameFrom      *Anchor       `json:"name_from,omitempty"`
-	ParentFrom    *Anchor       `json:"parent_from,omitempty"`
+	// (AMAP-V0-016): the declaring line, then the import binding when the table is imported;
+	// absent for a literal.
+	NameFrom      []Anchor      `json:"name_from,omitempty"`
+	ParentFrom    []Anchor      `json:"parent_from,omitempty"`
 	PageObjects   []string      `json:"page_objects"`
 	Workflows     []string      `json:"workflows"`
 	Scenarios     []string      `json:"scenarios"`

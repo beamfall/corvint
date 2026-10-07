@@ -38,7 +38,7 @@ type constFile struct {
 	decls   map[string]*constDecl // local name -> declaration; "default" for `export default {...}`
 	dflt    string                // the local name `export default NAME` exports, or "default"
 	imports map[string]constImport
-	skip    []bool // tokens inside import statements and constant declarations
+	skip    []bool // tokens of import statements and constant declaration headers
 	reads   map[string]bool
 }
 
@@ -55,13 +55,14 @@ type constMember struct {
 
 type constImport struct {
 	module, exported string
+	first, last      int  // the import statement's lines
 	bad              bool // the local name is bound more than once
 }
 
 // forRouter returns the resolver a router file's `X.Y` references go through.
-func (t *constTable) forRouter(e blobEntry, data []byte) func(ref string) (string, *Anchor, bool) {
+func (t *constTable) forRouter(e blobEntry, data []byte) func(ref string) (string, []Anchor, bool) {
 	var own *constFile
-	return func(ref string) (string, *Anchor, bool) {
+	return func(ref string) (string, []Anchor, bool) {
 		local, member, ok := strings.Cut(ref, ".")
 		if !ok {
 			return "", nil, false
@@ -99,7 +100,12 @@ func (t *constTable) forRouter(e blobEntry, data []byte) func(ref string) (strin
 			case name != "default" && !f.onlyRead(name):
 				return "", nil, false
 			}
-			return f.member(d, member)
+			v, at, ok := f.member(d, member)
+			if !ok {
+				return "", nil, false
+			}
+			// The binding is evidence too: re-pointing the import changes what the name reads.
+			return v, append(at, spanOf(e, data, imp.first, imp.last)), true
 		}
 		return "", nil, false
 	}
@@ -124,7 +130,7 @@ func (t *constTable) file(p string) *constFile {
 	return f
 }
 
-func (f *constFile) member(d *constDecl, name string) (string, *Anchor, bool) {
+func (f *constFile) member(d *constDecl, name string) (string, []Anchor, bool) {
 	if d.bad {
 		return "", nil, false
 	}
@@ -132,8 +138,7 @@ func (f *constFile) member(d *constDecl, name string) (string, *Anchor, bool) {
 	if !ok {
 		return "", nil, false
 	}
-	a := spanOf(f.entry, f.data, m.line, m.line)
-	return m.value, &a, true
+	return m.value, []Anchor{spanOf(f.entry, f.data, m.line, m.line)}, true
 }
 
 // onlyRead reports whether every use of name outside import statements and constant declarations
@@ -157,14 +162,35 @@ func (f *constFile) onlyRead(name string) bool {
 		case prev == "typeof":
 		case prev == "default" && i > 1 && toks[i-2].text == "export":
 		case inExportList(toks, i):
-		case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent && prev != "delete":
-			ok = !assigned(toks, i+3)
+		case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent:
+			ok = !written(toks, i)
 		default:
 			ok = false
 		}
 	}
 	f.reads[name] = ok
 	return ok
+}
+
+// written reports whether the member expression toks[i..i+2] is deleted, incremented or assigned,
+// looking through parentheses (`(X.Y) = ...`, `++X.Y`) and closing brackets of a destructuring
+// pattern (`[X.Y] = ...`, `({a: X.Y} = ...)`). A computed key `o[X.Y] = ...` reads as written too.
+func written(toks []token, i int) bool {
+	b := i - 1
+	for b >= 0 && isPunct(toks[b], "(") {
+		b--
+	}
+	if b >= 0 && toks[b].kind == tokIdent && toks[b].text == "delete" {
+		return true
+	}
+	if b >= 1 && (isPunct(toks[b], "+") && isPunct(toks[b-1], "+") || isPunct(toks[b], "-") && isPunct(toks[b-1], "-")) {
+		return true
+	}
+	a := i + 3
+	for a < len(toks) && (isPunct(toks[a], ")") || isPunct(toks[a], "]") || isPunct(toks[a], "}")) {
+		a++
+	}
+	return assigned(toks, a)
 }
 
 // assigned reports whether the operator at toks[i] assigns to, or increments, what precedes it.
@@ -249,10 +275,10 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 				d.exported = true
 				declare("default", d)
 				f.dflt = "default"
-				f.mark(start, after)
+				f.mark(start, i+1)
 				i = after - 1
-			} else if toks[i+1].kind == tokIdent {
-				f.dflt = toks[i+1].text
+			} else if toks[i+1].kind == tokIdent && (i+2 >= len(toks) || isPunct(toks[i+2], ";") || toks[i+2].line != toks[i+1].line) {
+				f.dflt = toks[i+1].text // only a bare name: `export default X.Y` exports a value, not X
 			}
 		case t.text == "import" && !exported:
 			end := f.readImport(i)
@@ -283,7 +309,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			d := objectDecl(v, toks, after)
 			d.exported = exported
 			declare(name, d)
-			f.mark(start, after)
+			f.mark(start, i+2) // the header only: the initializer may alias another table
 			i = after - 1
 		case t.text == "enum" || (t.text == "const" && i+1 < len(toks) && toks[i+1].text == "enum"):
 			if t.text == "const" {
@@ -295,7 +321,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			d, after := enumDecl(toks, i+2)
 			d.exported = exported
 			declare(toks[i+1].text, d)
-			f.mark(start, after)
+			f.mark(start, i+2)
 			i = after - 1
 		case t.text == "let" || t.text == "var" || t.text == "function" || t.text == "class":
 			if i+1 < len(toks) && toks[i+1].kind == tokIdent {
@@ -424,7 +450,7 @@ func (f *constFile) readImport(i int) int {
 			f.imports[it.local] = prior
 			continue
 		}
-		f.imports[it.local] = constImport{module: toks[j+1].text, exported: it.exported}
+		f.imports[it.local] = constImport{module: toks[j+1].text, exported: it.exported, first: toks[i].line, last: toks[j+1].line}
 	}
 	return j + 2
 }

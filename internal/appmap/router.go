@@ -22,16 +22,17 @@ type rawState struct {
 	anchor             Anchor
 	duplicate          bool
 	// nameFrom and parentFrom anchor a name or parent read through a constant table (AMAP-V0-016).
-	nameFrom, parentFrom *Anchor
+	nameFrom, parentFrom []Anchor
 }
 
 // constLookup resolves a member expression `X.Y` to the string literal a constant table declares
-// for it, with the declaration's anchor (AMAP-V0-016); ok is false when it cannot.
-type constLookup func(ref string) (value string, at *Anchor, ok bool)
+// for it, with the declaration's anchor and, for an imported table, the import binding's
+// (AMAP-V0-016); ok is false when it cannot.
+type constLookup func(ref string) (value string, at []Anchor, ok bool)
 
 // literalName reads a name or parent: a string literal, or a member expression a constant table
 // resolves. Anything else reads "".
-func literalName(v jsValue, lookup constLookup) (string, *Anchor) {
+func literalName(v jsValue, lookup constLookup) (string, []Anchor) {
 	switch {
 	case v.kind == "string":
 		return v.str, nil

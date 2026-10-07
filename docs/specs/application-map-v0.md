@@ -226,9 +226,9 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   from the tracked file that a static ES `import` of `X` (named, aliased, or default via
   `export default {...}` / `export default X`) resolves to at the map revision through the
   contextindex web import resolver (relative paths and tsconfig/jsconfig `baseUrl`/`paths`). The
-  screen MUST carry the declaring line as `name_from` / `parent_from` (an AMAP-V0-010 anchor at the
-  map revision, omitted for literals, so literal-only maps are byte-identical), and that anchor
-  joins the screen's lineage freshness. Anything the map cannot prove MUST stay `UNKNOWN`
+  screen MUST carry the declaring line, then the import statement for an imported table, as
+  `name_from` / `parent_from` (AMAP-V0-010 anchors at the map revision, omitted for literals, so
+  literal-only maps are byte-identical), and those anchors join the screen's lineage freshness. Anything the map cannot prove MUST stay `UNKNOWN`
   `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: a computed key,
   spread or repeated key in the table; a non-string or missing member; a `let`/`var`, typed or
   non-literal initializer; a duplicate declaration of `X` (including a merged enum); `X` both
