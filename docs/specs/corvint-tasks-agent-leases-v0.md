@@ -3338,9 +3338,9 @@ the journal, no hot reload of a running dispatcher, and no change to the user-se
 pin (`service install --replace` remains the explicit acknowledgement). The HANDOFF policy-digest
 fence that the issue also cites belongs to V1-0888 and is unchanged here.
 
-Failure modes: a rollback from N+1 to N over a ledger with a member N does not know refuses
-UNSUPPORTED_VERSION instead of discarding that member; the operator restores the previous ledger or
-drains. An operator who overwrites the installed binary in place instead of renaming may terminate
+Failure modes: a rollback from N+1 to N across different `formats` sets is unsupported and refuses
+UNSUPPORTED_VERSION, including over a ledger with a member N does not know, instead of discarding or
+converting anything; no restore, drain or conversion makes it supported. An operator who overwrites the installed binary in place instead of renaming may terminate
 running build N processes (inferred from macOS code-signing behavior; not measured here); their
 attempts then expire and are reaped as before. Equal `formats` is necessary, not sufficient, for
 behavior unrelated to formats, such as admission policy or dispatcher scheduling changes.
@@ -3655,7 +3655,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-111 | `TestCALV0111_CallerWaitBound`, `TestCALV0111_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0111_OrphanCleanupSpendsCallerWait` (`internal/tasks/store`); `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
 | CAL-V0-112 | `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
 | CAL-V0-113 | `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
-| CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupRetiresTheCommandGroup` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
+| CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
 | CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |

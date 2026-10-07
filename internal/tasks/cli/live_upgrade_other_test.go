@@ -4,21 +4,23 @@ package cli_test
 
 import (
 	"errors"
-	"os"
+	"os/exec"
 	"time"
 )
 
 // The CAL-V0-130 upgrade test skips where the owned process group API is
-// unavailable; these stand-ins only keep it compiling there.
-func commandGroup(int) (int, error) { return 0, errors.ErrUnsupported }
+// unavailable; this stand-in only keeps it compiling there.
+type survivorRunner struct {
+	done    chan struct{}
+	waitErr error
+}
 
-func retireSurvivor(runner *os.Process, _ int, done chan error, bound time.Duration) error {
-	_ = runner.Kill()
-	select {
-	case err := <-done:
-		done <- err
-		return nil
-	case <-time.After(bound):
-		return errors.New("survivor runner not reaped within bound")
-	}
+func watchSurvivor(cmd *exec.Cmd) *survivorRunner {
+	s := &survivorRunner{done: make(chan struct{})}
+	go func() { s.waitErr = cmd.Wait(); close(s.done) }()
+	return s
+}
+
+func (s *survivorRunner) retire(_, _ time.Duration) error {
+	return errors.New("survivor cleanup is unavailable on this platform")
 }

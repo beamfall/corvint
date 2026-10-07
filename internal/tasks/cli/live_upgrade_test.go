@@ -104,37 +104,29 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	survivor.Dir = r.Root
 	var survivorOut, survivorErr bytes.Buffer
 	survivor.Stdout, survivor.Stderr = &survivorOut, &survivorErr
+	// A descendant that outlives the runner cannot hold Wait on its pipes.
+	survivor.WaitDelay = 5 * time.Second
 	if err := survivor.Start(); err != nil {
 		t.Fatal(err)
 	}
-	survivorDone := make(chan error, 1)
-	go func() { survivorDone <- survivor.Wait() }()
-	// Cleanup never hangs the package: the runner puts its command in a
-	// process group of its own, so killing the runner alone can leave the
-	// shell, or a descendant of it, holding the stderr pipe with Wait
-	// blocked. Cleanup retires that whole group, recorded once the command
-	// starts, then the runner, and bounds the wait.
-	shellGroup := 0
+	// Cleanup never hangs the package and never signals a process group
+	// itself: the runner owns its command's group and retires it, while
+	// that group's leader is unreaped, when it gets SIGTERM. The runner is
+	// signalled only while it is unreaped, SIGKILL follows if it does not
+	// stop, and each wait is bounded.
+	runner := watchSurvivor(survivor)
 	t.Cleanup(func() {
-		if err := retireSurvivor(survivor.Process, shellGroup, survivorDone, 10*time.Second); err != nil {
+		if err := runner.retire(10*time.Second, 10*time.Second); err != nil {
 			t.Error(err)
 		}
 	})
 	for deadline := time.Now().Add(time.Minute); ; time.Sleep(20 * time.Millisecond) {
 		if raw, err := os.ReadFile(started); err == nil && bytes.HasSuffix(raw, []byte("\n")) {
-			pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-			if err != nil {
-				t.Fatalf("build N command pid: %q", raw)
-			}
-			if shellGroup, err = commandGroup(pid); err != nil {
-				t.Fatalf("build N command process group: %v", err)
-			}
 			break
 		}
 		select {
-		case err := <-survivorDone:
-			survivorDone <- err
-			t.Fatalf("build N runner exited before its command started: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+		case <-runner.done:
+			t.Fatalf("build N runner exited before its command started: %v %s %s", runner.waitErr, survivorOut.Bytes(), survivorErr.Bytes())
 		default:
 		}
 		if time.Now().After(deadline) {
@@ -159,17 +151,15 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	// and exits 0. Its first heartbeat preceded the swap, so a count of two
 	// or more includes one written after it.
 	select {
-	case err := <-survivorDone:
-		survivorDone <- err
-		t.Fatalf("build N runner exited during the swap: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+	case <-runner.done:
+		t.Fatalf("build N runner exited during the swap: %v %s %s", runner.waitErr, survivorOut.Bytes(), survivorErr.Bytes())
 	default:
 	}
 	fixture.Write(t, finish, nil)
 	select {
-	case err := <-survivorDone:
-		survivorDone <- err
-		if err != nil {
-			t.Fatalf("build N runner: %v %s %s", err, survivorOut.Bytes(), survivorErr.Bytes())
+	case <-runner.done:
+		if runner.waitErr != nil {
+			t.Fatalf("build N runner: %v %s %s", runner.waitErr, survivorOut.Bytes(), survivorErr.Bytes())
 		}
 	case <-time.After(time.Minute):
 		t.Fatal("build N runner did not finish")
