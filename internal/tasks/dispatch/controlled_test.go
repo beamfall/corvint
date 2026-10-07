@@ -144,7 +144,7 @@ func TestSERVICE500_UnsavedLaunchStaysUnrecorded(t *testing.T) {
 		t.Fatalf("later save did not record the unsaved worker: %v", err)
 	}
 	for _, w := range d.ledger.Workers {
-		_, _ = killTree(w, time.Second)
+		_, _ = killTree(w, time.Second, nil)
 	}
 }
 
@@ -360,7 +360,7 @@ func TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded(t *testing.T) {
 		t.Fatalf("synced live worker boundary %v", got)
 	}
 	for _, w := range d.ledger.Workers {
-		_, _ = killTree(w, time.Second)
+		_, _ = killTree(w, time.Second, nil)
 	}
 }
 

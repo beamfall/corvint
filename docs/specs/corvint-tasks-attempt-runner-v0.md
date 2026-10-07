@@ -13,9 +13,9 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
-- Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; dispatcher integration of detached runs (see "Detached runs").
+- Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
 
 ## Intent and boundary
@@ -42,7 +42,7 @@ a private crash/restart quarantine marker; caller-supplied request IDs and same-
 periodic renewal while the command runs (coverage is established once before launch); interactive
 terminal input (the command runs in its own background process group); environment filtering (the
 command inherits the caller's environment, as any wrapper does); Windows. For detached runs, also:
-dispatcher integration, lease-holder transfer to a successor session, restart or adoption of a lost
+lease-holder transfer to a successor session, restart or adoption of a lost
 supervisor, signalling a run from `--attach`, output streaming or following, and pruning of the run directories of a live attempt or on a read
 path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor).
 
@@ -169,19 +169,24 @@ A detached run does not resume, answer or dispatch anything, and it does not ext
 `--timeout`, its lease and the lease's fencing still bound it. A later session that attaches only reads
 the outcome; it neither takes over the lease nor continues the command.
 
-Dispatcher interaction and remaining work. A new session takes the supervisor out of the launcher's
-session and process group, so stopping the launcher's group or session does not reach it. The
-continuous dispatcher's worker tree (CAL-V0-056, `refreshTree` in `internal/tasks/dispatch`) also adds
-the children of recorded members by parent PID, so a supervisor observed while its launcher still
-runs becomes a recorded member, and a later worker tree stop sends it and the command SIGTERM, which
-interrupts the run (class `INTERRUPTED`; the outcome is recorded unless the dispatcher's SIGKILL grace
-ends first). Independently, the dispatcher's hand-off releases the live attempts of an ended
-worker, which fences a detached run at its next heartbeat. Both stop the run, so neither breaks
-fencing, but they defeat the purpose under the dispatcher. Remaining work, each needing its own owner
-decision and a dispatcher change: exclude a live, identity-verified run supervisor and command of the
-worker's attempt from the worker tree; defer hand-off while such a run is live, or transfer the lease
-holder to the successor session; and report detached runs in queue and dispatcher status. Until then,
-detached runs serve externally leased attempts driven by agent hosts outside the dispatcher.
+Dispatcher interaction. A new session takes the supervisor out of the launcher's session and process
+group, so stopping the launcher's group or session does not reach it. The continuous dispatcher's
+worker tree (CAL-V0-056) also adds the children of recorded members by parent PID. Before
+CAL-V0-145, that adoption meant a supervisor seen while its launcher still ran was stopped with the
+worker. A run stopped that way ends as `INTERRUPTED`. Independently, the hand-off released the
+attempt, which fenced the run at its next heartbeat. The proposed dispatcher amendment in
+`docs/specs/corvint-tasks-agent-leases-v0.md`, CAL-V0-145..154 (V1-0936, V1-0858), changes this
+on Darwin and Linux. The dispatcher spares a `RUNNING` run's supervisor, and its session, only after
+verifying that supervisor's start identity and session leadership. While the run runs, the
+hand-off of the worker's attempt is deferred, bounded by the run's timeout plus 3 minutes. Once the
+run finishes, the dispatcher hands the attempt off and launches one session for the same ticket and
+role, which receives the outcome and the `run --attach` replay command. `dispatch status` reports
+the run's state, read-only. The dispatcher only reads the run record and never writes it, so this
+profile's requirements are unchanged.
+
+Remaining work: lease-holder transfer to the successor session; deferral for a run still
+`STARTING`; detached runs of dispatcher lane sessions; a compact one-line `run --attach --wait`
+output; queue status of detached runs outside the dispatcher.
 
 ## Failure modes
 
@@ -202,7 +207,7 @@ detached runs serve externally leased attempts driven by agent hosts outside the
 | Detached supervisor killed or crashed | As for a crashed runner: no restart and no signal. Attach reports `SUPERVISOR_LOST`, warns when the command is still live and unsupervised, and notes that a `RUN_OUTCOME` may already be in the journal (ATR-V0-012). |
 | Supervisor PID reused by an unrelated process | The start identity differs, so the run is not taken for live: `SUPERVISOR_LOST` (ATR-V0-012). |
 | Supervisor exited but not yet reaped | A finished record is read before liveness, so a finished run is unaffected. An unfinished, unreaped supervisor keeps its identity and looks live until its parent (init or a subreaper once the launcher has exited) reaps it; `--wait` bounds an attach. An explicit limit. |
-| Detached launch under the continuous dispatcher | The worker tree may adopt the supervisor and stop it with the worker, and hand-off releases the attempt, which fences the run; the run stops and normally records its outcome. Dispatcher integration is remaining work ("Detached runs"). |
+| Detached launch under the continuous dispatcher | On Darwin and Linux, an identity-verified `RUNNING` run's supervisor is spared, and the worker's hand-off is deferred until the run ends or its bound passes. A finished run relaunches one session with its outcome (CAL-V0-145..154). A `STARTING` run, an unverifiable record, a lane session or another platform keeps the earlier behaviour: the worker tree may stop the supervisor, and the hand-off fences the run. |
 | Several runs of one attempt | Independent, as attached runs are; attach without `--run` refuses and lists them; at most 64 run directories per attempt; a live attempt's runs are never pruned, and after the attempt is terminal its ended runs beyond the newest 16 quiet ones are retired by a later supervisor (ATR-V0-010, ATR-V0-011, ATR-V0-015). |
 | Concurrent detached launches of one attempt near the cap | Each launcher counts again after creating its directory and gives it up when over 64, so at most 64 stay; concurrent launchers may each refuse (ATR-V0-008). |
 | Run-state filesystem stalls | The `RUNNING` write runs beside the runner and never delays its timeout, beats or fence; the launcher then exits 75 at its readiness bound. A stalled `FINISHED` write delays only the supervisor's exit; attach waits or reports `SUPERVISOR_LOST` if the supervisor is killed (ATR-V0-009, ATR-V0-013). |
@@ -221,8 +226,8 @@ Acceptance evidence: the focused tests in Traceability on Darwin, `go vet`, the 
 one independent review of the delivered diff. Linux qualification, composed native qualification on a
 live store, required CI, owner acceptance of the profile, integration and native completion of V1-0677
 remain open and are not implied by this document. For detached runs (V1-0856) the same holds, plus
-Linux qualification of the new-session launch and `/proc` start identity, and the dispatcher
-integration listed in "Detached runs".
+Linux qualification of the new-session launch and `/proc` start identity, and owner acceptance and live
+qualification of the dispatcher integration CAL-V0-145..154 (V1-0936).
 
 Rollback: revert the task-owned commit. Program mode, existing lease verbs and existing receipts are
 unaffected. Already-recorded `RUN_OUTCOME` receipts stay in journals and a binary without the verb
