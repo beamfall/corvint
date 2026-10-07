@@ -1951,6 +1951,23 @@
     ]
   },
   {
+    "path": "docs/specs/mcp-multi-root-v0.md",
+    "title": "MCP multi-root profile V0",
+    "reqPrefix": "MMR-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.",
+    "dependsOn": [
+      "docs/specs/mcp-server-2026-07-28-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-mcp",
+      "internal/mcp/bridge"
+    ]
+  },
+  {
     "path": "docs/specs/mcp-test-validity-profile-v0.md",
     "title": "MCP test-validity profile V0",
     "reqPrefix": "MTV-V0",
