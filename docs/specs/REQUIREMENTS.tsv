@@ -491,10 +491,10 @@ CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4643	(accepted by decisio
 CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4645	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
 CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4648	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
 CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4654	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
-CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	4711	(proposed, pending owner acceptance; V1-0954) A `taskman-dispatch/0`
-CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	4718	(proposed, pending owner acceptance; V1-0954) A string `prompt` MUST decode and
-CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	4723	(proposed, pending owner acceptance; V1-0954) Decoding MUST refuse, with the
-CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	4729	(proposed, pending owner acceptance; V1-0954) Every role prompt check (known
+CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	4711	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`
+CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	4718	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and
+CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	4723	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the
+CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	4729	(accepted by decision 0442; V1-0954) Every role prompt check (known
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
