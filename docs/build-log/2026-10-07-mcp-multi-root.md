@@ -66,6 +66,10 @@ single-root status: 0.07 s, 21.2 MB. Single local observations, not a gate.
   selected 80 units over the dirty paths. Only the MCP packages above ran; the other selected units
   are NOT_RUN. The only non-MCP-package code change is the additive, otherwise unused
   `bridge.Registry.SharesRoot` method.
+- Independent Codex review (`gpt-6-astra`, read-only): round 1 found that `corvint.status` without
+  a selector ignored other arguments, so `{"root":...}` listed every binding instead of refusing.
+  The fix requires an empty argument object for status-all and adds two refusal cases. Round 2:
+  NO FINDINGS.
 
 ## Limits
 
