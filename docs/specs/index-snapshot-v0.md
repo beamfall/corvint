@@ -302,9 +302,9 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   out of an Index (string-table views such as `Symbol.Path`, `Source.Data`, the `Source.Text`
   view) alias the mapping without keeping the Index or any owner object reachable, so neither
   eviction nor the Index becoming unreachable proves the bytes unused. An evicted mapping is
-  therefore never unmapped, and a process keeps one live mapping per distinct pack or sectioned
-  file it has read until it exits, including a file the store has since deleted, whose blocks stay
-  allocated while mapped. Unmapping on eviction, or from a runtime cleanup of the Index or of the
+  therefore never unmapped. A process keeps every mapping it made until it exits: one per read
+  that missed the four retained mappings, so a reader cycling through five unchanged files maps
+  on every read, and a file the store has since deleted keeps its blocks allocated while mapped. Unmapping on eviction, or from a runtime cleanup of the Index or of the
   mapping owner, faults on those escaped values; `TestEvictedMappingsStayValidForEscapedAliases`
   guards that. Bounding live mappings needs either an explicit lifetime for every value that aliases
   a mapping or heap-backed bytes, which this clause's 8 MB heap row excludes; that choice is open.

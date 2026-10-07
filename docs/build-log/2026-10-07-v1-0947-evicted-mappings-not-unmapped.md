@@ -13,7 +13,9 @@ once no in-flight Index uses the bytes, a bounded live-mapping count, and the co
 - **Confirmed.** A scratch probe read twelve distinct copies of a fixture pack and of a fixture
   sectioned file, dropped every Index, deleted each file, and ran the collector. `lsof` on the test
   process still listed twelve mappings for each format: the cache held four and eight were orphaned.
-  The deleted files stay allocated while mapped. Both formats are opt-in
+  The deleted files stay allocated while mapped. The growth is per cache miss, not per distinct
+  file: twenty reads cycling five unchanged files left twenty mapped regions per format (`vmmap`;
+  `lsof` lists one row per file, so it showed five). Both formats are opt-in
   (`CORVINT_SNAPSHOT_FORMAT=pack|sectioned`); the default gob path does not map.
 - **Aliases escape the Index.** In the same probe `Symbol.Path`, `Symbol.Name` and a `Source.Text`
   result of a pack load all pointed into the mapping. Consumers copy these out: for example
@@ -37,6 +39,9 @@ unmapped. Bounding live mappings safely needs an owner choice between:
 
 ## Evidence
 
-- `TestEvictedMappingsStayValidForEscapedAliases` (pack and sectioned) passes under `-race` on the
-  unchanged readers, and fails with SIGSEGV under both mutants.
+- `TestEvictedMappingsStayValidForEscapedAliases` (pack and sectioned) keeps whole `Source` values
+  and bare `Source.Text` and symbol strings after dropping the Index. It passes under `-race` on the
+  unchanged readers and fails with SIGSEGV under both mutants. It skips where no mapping was made.
+  Its catch of a cleanup-driven unmap is best effort, because cleanups run asynchronously after a
+  collection. Deferred-body loads are not covered.
 - Logs are in the lane's private evidence directory, not committed.
