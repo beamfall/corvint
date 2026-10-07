@@ -246,3 +246,9 @@ Round 6 reported one P2 finding, and it was accepted. TypeScript mangles a scope
 to `acme__lib`) only for a root ending in `node_modules/@types` (`getCandidateFromTypeRoot`). That
 root is left to the package test, so a custom root now looks the name up as written. The new case
 fails on the round 5 resolver (observed).
+
+Round 7 reported one P2 finding, and it was accepted. A scheme-shaped name such as
+`virtual:pwa-register` was classified as a package before `paths` could map it. `GPK-V0-080`
+already applies the scheme rule only to names that resolve to no repository file. The code now
+follows it, and the new case fails on the round 6 resolver (observed). Under a classic or unknown
+config, a scheme-shaped name is now unresolved, like every other bare name there.

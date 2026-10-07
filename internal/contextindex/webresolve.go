@@ -139,11 +139,8 @@ func resolvedOrUnknown(target string) WebImportResolution {
 // then `baseUrl`, then node_modules. The node_modules step is replaced by the
 // declared-package test, because dependency trees are not indexed.
 func (resolver *WebImportResolver) resolveBare(importer, specifier string) WebImportResolution {
-	if webSchemeSpecifier(specifier) || strings.HasPrefix(specifier, "/") {
-		if strings.HasPrefix(specifier, "/") {
-			return WebImportResolution{State: WebImportUnresolved}
-		}
-		return WebImportResolution{State: WebImportPackage}
+	if strings.HasPrefix(specifier, "/") {
+		return WebImportResolution{State: WebImportUnresolved}
 	}
 	config := resolver.governing(path.Dir(importer))
 	if config != "" {
@@ -165,7 +162,9 @@ func (resolver *WebImportResolver) resolveBare(importer, specifier string) WebIm
 			return WebImportResolution{State: WebImportUnresolved}
 		}
 	}
-	if resolver.declaredPackage(importer, specifier) {
+	// A scheme-shaped name (`node:fs`, `virtual:x`) is a package only after
+	// `paths` and `baseUrl` claim no file for it, as in TypeScript.
+	if webSchemeSpecifier(specifier) || resolver.declaredPackage(importer, specifier) {
 		return WebImportResolution{State: WebImportPackage}
 	}
 	return WebImportResolution{State: WebImportUnresolved}

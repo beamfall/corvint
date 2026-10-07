@@ -248,6 +248,10 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"package.json":         `{"dependencies": {"lib": "1.0.0"}}`,
 			"types/lib/index.d.ts": page,
 		}, "lib", WebImportResolution{State: WebImportUnresolved}},
+		"paths may map a scheme-shaped name": {map[string]string{
+			"tsconfig.json":           `{"compilerOptions": {"paths": {"virtual:pwa-register": ["./types/pwa-register.d.ts"]}}}`,
+			"types/pwa-register.d.ts": page,
+		}, "virtual:pwa-register", WebImportResolution{"types/pwa-register.d.ts", WebImportRepository}},
 		"typeRoots keep a scoped name as written": {map[string]string{
 			"tsconfig.json":              `{"compilerOptions": {"typeRoots": ["./types"]}}`,
 			"package.json":               `{"dependencies": {"@acme/lib": "1.0.0"}}`,
