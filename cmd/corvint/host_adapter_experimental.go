@@ -93,18 +93,21 @@ func withAdapterContextSuffix(output map[string]any, suffix string) map[string]a
 // recordDeliveredPacket is the user-prompt half of the unplanned-read call
 // site (URE-V0-008): it records the planned set of the packet just delivered.
 // It is a no-op without the operator's marker, and records a refused packet
-// when the rendered output degraded and therefore delivered none.
+// when the rendered output degraded and therefore delivered none. A silent
+// output (AHI-046) delivered an empty planned set.
 func recordDeliveredPacket(root, event string, input, result, output map[string]any) {
 	if event != "user-prompt" {
 		return
 	}
 	session, _ := input["sessionIdSha256"].(string)
-	if _, delivered := output["hookSpecificOutput"]; !delivered {
+	// The planned set is what the host received: the projection's sections, or none when the
+	// adapter was silent because nothing was actionable.
+	projection := hookContextProjection(event, result, false)
+	if _, delivered := output["hookSpecificOutput"]; !delivered && (len(output) != 0 || projection != nil) {
 		unplannedread.RefusePacket(root, session)
 		return
 	}
-	packet, _ := result["context"].(map[string]any)
-	unplannedread.RecordPacket(root, session, deliveredPacketPaths(packet))
+	unplannedread.RecordPacket(root, session, deliveredPacketPaths(projection))
 }
 
 // refuseUndeliveredPacket records a refused packet for a degraded user-prompt
@@ -174,8 +177,8 @@ func (ledger *packetLedger) settle(delivered bool) {
 	}
 }
 
-// deliveredPacketPaths is the union of the path members of the prompt packet's
-// three evidence sections.
+// deliveredPacketPaths is the union of the path members of the delivered
+// projection's three evidence sections; a nil projection delivered none.
 func deliveredPacketPaths(packet map[string]any) []string {
 	paths := []string{}
 	for _, section := range []string{"governance", "declared_scope", "task_evidence"} {

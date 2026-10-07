@@ -44,8 +44,14 @@ or committed-tree changes. Missing, stale, or over-budget context remains visibl
 manual warmup does not qualify the unresolved automatic-refresh performance contract.
 
 Prompt context is produced once by the native event and preserves separate governance, declared
-scope and current-task evidence. The complete core envelope is untrusted repository data; trusted
-status and warmup guidance is rendered outside it using validated root/key values and JSON argv.
+scope and current-task evidence. The adapter validates the full receipt, then injects only its
+actionable `corvint-hook-context/0` projection (AHI-045) as untrusted repository data: evidence rows
+with blob pins, governance, non-current scope, named omissions, new degradations, policy and the
+compaction block, without digests, coverage counters or repository and adapter metadata. A
+`UserPromptSubmit` or subagent `SessionStart` with nothing actionable injects nothing (AHI-046).
+Trusted status and warmup guidance (the workflow argv, rendered outside the envelope from validated
+root/key values) is emitted only at a main-thread `SessionStart`, including `source=compact`
+(AHI-047). An older plugin needs no change: the projection is rendered by the installed binary.
 The default prompt hook does not make a second experimental `context` call. The opt-in self-use
 handoff experiment captures its packet once and passes that same packet to the legacy projection.
 
