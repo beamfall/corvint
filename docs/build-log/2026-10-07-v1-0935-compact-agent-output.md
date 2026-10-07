@@ -30,6 +30,10 @@ The change adds proposed CAL-V0-165 to CAL-V0-174 to
 - `--help` is terse; `--help --verbose` returns the previous full text (amends CAL-V0-047 and the
   help content of CAL-V0-050, 106, 121 and V1-0751). The current source already answered
   `<verb> --help` for all 103 verbs; the MALFORMED refusal came from an older installed binary.
+- Orchestrator integration fix: release mutations ignored a non-trailing `--help`
+  (`release create --help --request-id ...` executed the create). They now answer help, terse or
+  under `--verbose`, and never write; `TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict`
+  covers both forms.
 - List items (`ticket list`, `ticket search`) drop `record`, and COMPLETED or ARCHIVED items drop
   `blockers` and `unknowns`. The ATTEMPT_LIVE unknown that a journal-absent inventory read attaches
   to every item is hoisted into one envelope warning.
