@@ -156,6 +156,7 @@
       "go.mod"
     ],
     "internal/appflows": [],
+    "internal/appmap": [],
     "internal/attest": [
       "interop/cem-0.1/"
     ],
