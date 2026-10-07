@@ -185,10 +185,27 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 	if !has(kinds(t, d), "finished") {
 		t.Fatal("the worker did not finish")
 	}
+	// The finishing tick only marks the removable directories; a pass at
+	// least a minute later removes them.
 	for i := 0; i < 40; i++ {
-		_, err := os.Stat(d.workerDir(fmt.Sprintf("old-%02d", i)))
-		if kept := err == nil; kept != (i < maxRetainedWorkerDirs) {
-			t.Errorf("old-%02d kept=%v", i, kept)
+		name := fmt.Sprintf("old-%02d", i)
+		if _, err := os.Stat(d.workerDir(name)); err != nil {
+			t.Fatalf("%s was removed by the marking pass: %v", name, err)
+		}
+		if marked(d, name) != (i >= maxRetainedWorkerDirs) {
+			t.Errorf("%s marked=%v", name, marked(d, name))
+		}
+	}
+	later := func(by time.Duration) {
+		d.Now = func() time.Time { return time.Now().Add(by) }
+		d.retireWorkerDirs()
+	}
+	later(2 * time.Minute)
+	for i := 0; i < 40; i++ {
+		name := fmt.Sprintf("old-%02d", i)
+		_, err := os.Stat(d.workerDir(name))
+		if kept := err == nil; kept != (i < maxRetainedWorkerDirs) || marked(d, name) {
+			t.Errorf("%s kept=%v marked=%v", name, kept, marked(d, name))
 		}
 	}
 	for _, name := range []string{"recent", id} {
@@ -241,7 +258,8 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 	// it, since its absence would prove that launch never spawned.
 	plant("infra-held", now.Add(-10*time.Hour))
 	d.ledger.InfraRetry = map[string]*InfraEpisode{"ticket:a:q:other": {State: InfraReserved, Launch: "infra-held"}}
-	d.retireWorkerDirs()
+	later(4 * time.Minute)
+	later(6 * time.Minute)
 	if _, err := os.Stat(d.workerDir("infra-held")); err != nil {
 		t.Fatalf("a directory named by an infrastructure retry was retired: %v", err)
 	}
@@ -254,7 +272,8 @@ func TestCALV0144_FinishedWorkerDirsAreRetired(t *testing.T) {
 		t.Errorf("a directory whose tree is gone was kept: %v", err)
 	}
 	d.ledger.InfraRetry = nil
-	d.retireWorkerDirs()
+	later(8 * time.Minute)
+	later(10 * time.Minute)
 	if _, err := os.Stat(d.workerDir("infra-held")); !os.IsNotExist(err) {
 		t.Fatalf("an unprotected oldest directory was kept: %v", err)
 	}
@@ -292,8 +311,10 @@ func TestCALV0144_ProtectedDirsTakeNoRetentionSlot(t *testing.T) {
 	}
 	plant("older", "", now.Add(-10*time.Hour))
 	d.retireWorkerDirs()
-	if _, err := os.Stat(d.workerDir("older")); err != nil {
-		t.Fatalf("protected directories took the retention slots: %v", err)
+	d.Now = func() time.Time { return now.Add(2 * time.Minute) }
+	d.retireWorkerDirs()
+	if _, err := os.Stat(d.workerDir("older")); err != nil || marked(d, "older") {
+		t.Fatalf("protected directories took the retention slots: %v, marked=%v", err, marked(d, "older"))
 	}
 	for i := 0; i < maxRetainedWorkerDirs+1; i++ {
 		if _, err := os.Stat(d.workerDir(fmt.Sprintf("held-%02d", i))); err != nil {
@@ -305,15 +326,19 @@ func TestCALV0144_ProtectedDirsTakeNoRetentionSlot(t *testing.T) {
 // TestCALV0144_IncompleteSessionReadIsRetaken reads a table in which a
 // process is gone before its session is read, as when it forked a child the
 // table does not show. The table is read once more and the two reads are
-// joined, so the second read's sessions count. A gap left only by the table
-// reader itself needs no second read.
+// joined: the groups and sessions of either read alone count. A gap left only
+// by the table reader itself needs no second read.
 func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
 	gone := exec.Command("/bin/sh", "-c", "exit 0")
 	if err := gone.Run(); err != nil {
 		t.Fatal(err)
 	}
-	pid, self := gone.Process.Pid, os.Getpid()
-	sid, err := getsid(self)
+	pid, self, parent := gone.Process.Pid, os.Getpid(), os.Getppid()
+	selfSID, err := getsid(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentSID, err := getsid(parent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,18 +350,149 @@ func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
 		superviseProcs = func() (map[int]proc, error) {
 			reads++
 			if reads == 1 {
-				return map[int]proc{pid: {pid: pid, ppid: ppid, pgid: pid, comm: comm}}, nil
+				return map[int]proc{
+					pid:    {pid: pid, ppid: ppid, pgid: 1_000_001, comm: comm},
+					parent: {pid: parent, ppid: 1, pgid: 1_000_002, comm: "go"},
+				}, nil
 			}
-			return map[int]proc{self: {pid: self, ppid: 1, pgid: self, comm: "go"}}, nil
+			return map[int]proc{self: {pid: self, ppid: 1, pgid: 1_000_003, comm: "go"}}, nil
 		}
 	}
 	table(1, "sh")
-	_, sessions, ok := liveTrees()
-	if !ok || reads != 2 || !sessions[sid] {
-		t.Fatalf("after a gone process: ok=%v reads=%d session kept=%v", ok, reads, sessions[sid])
+	groups, sessions, ok := liveTrees()
+	if !ok || reads != 2 {
+		t.Fatalf("after a gone process: ok=%v reads=%d", ok, reads)
+	}
+	for _, g := range []int{1_000_001, 1_000_002, 1_000_003} {
+		if !groups[g] {
+			t.Errorf("group %d of one read was dropped", g)
+		}
+	}
+	if !sessions[parentSID] || !sessions[selfSID] {
+		t.Errorf("first-read session %d kept=%v, second-read session %d kept=%v", parentSID, sessions[parentSID], selfSID, sessions[selfSID])
 	}
 	table(self, "ps")
 	if _, _, ok := liveTrees(); !ok || reads != 1 {
 		t.Fatalf("after the gone table reader: ok=%v reads=%d", ok, reads)
 	}
+}
+
+// TestCALV0144_RemovalNeedsAConfirmingPass plants 33 quiet finished
+// directories. The first pass marks the oldest and removes nothing, a pass
+// under a minute later still keeps it, and a pass after new log activity
+// clears the mark. Only a pass at least a minute after a fresh mark, finding
+// the same age, removes it.
+func TestCALV0144_RemovalNeedsAConfirmingPass(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs+1; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	oldest := fmt.Sprintf("dir-%02d", maxRetainedWorkerDirs)
+	pass := func(at time.Time) {
+		d.Now = func() time.Time { return at }
+		d.retireWorkerDirs()
+	}
+	exists := func() bool { _, err := os.Stat(d.workerDir(oldest)); return err == nil }
+	pass(now)
+	if !exists() || !marked(d, oldest) {
+		t.Fatalf("first pass: exists=%v marked=%v", exists(), marked(d, oldest))
+	}
+	pass(now.Add(30 * time.Second))
+	if !exists() || !marked(d, oldest) {
+		t.Fatalf("pass under a minute later: exists=%v marked=%v", exists(), marked(d, oldest))
+	}
+	// New output after the mark: still the oldest, and outside the quiet window.
+	touched := now.Add(-2*time.Hour - time.Duration(maxRetainedWorkerDirs)*time.Minute + 30*time.Second)
+	if err := os.Chtimes(filepath.Join(d.workerDir(oldest), "stdout.log"), touched, touched); err != nil {
+		t.Fatal(err)
+	}
+	pass(now.Add(2 * time.Minute))
+	if !exists() || marked(d, oldest) {
+		t.Fatalf("pass after new activity: exists=%v marked=%v", exists(), marked(d, oldest))
+	}
+	pass(now.Add(3 * time.Minute))
+	if !exists() || !marked(d, oldest) {
+		t.Fatalf("re-marking pass: exists=%v marked=%v", exists(), marked(d, oldest))
+	}
+	pass(now.Add(4 * time.Minute))
+	if exists() || marked(d, oldest) {
+		t.Fatalf("confirming pass: exists=%v marked=%v", exists(), marked(d, oldest))
+	}
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		if _, err := os.Stat(d.workerDir(fmt.Sprintf("dir-%02d", i))); err != nil {
+			t.Fatalf("dir-%02d was removed: %v", i, err)
+		}
+	}
+}
+
+// TestCALV0144_LiveMemberOnConfirmingPassKeepsDir marks a directory whose
+// recorded leader is gone with no member left, then lets the confirming
+// pass's process table show a live member of the leader's process group. The
+// directory is kept and its mark is cleared.
+func TestCALV0144_LiveMemberOnConfirmingPassKeepsDir(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	gone := exec.Command("/bin/sh", "-c", "exit 0")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	leader := gone.Process.Pid
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "tree", fmt.Sprintf("%d gone-identity\n", leader), now.Add(-12*time.Hour))
+	self := os.Getpid()
+	prev := superviseProcs
+	defer func() { superviseProcs = prev }()
+	pgid := self
+	superviseProcs = func() (map[int]proc, error) {
+		return map[int]proc{self: {pid: self, ppid: 1, pgid: pgid, comm: "go"}}, nil
+	}
+	d.Now = func() time.Time { return now }
+	d.retireWorkerDirs()
+	if !marked(d, "tree") {
+		t.Fatal("a removable directory was not marked")
+	}
+	pgid = leader // a member of the leader's group is now seen
+	d.Now = func() time.Time { return now.Add(2 * time.Minute) }
+	d.retireWorkerDirs()
+	if _, err := os.Stat(d.workerDir("tree")); err != nil {
+		t.Fatalf("a directory with a live member was removed: %v", err)
+	}
+	if marked(d, "tree") {
+		t.Fatal("a live member left the mark in place")
+	}
+}
+
+func plantQuiet(t *testing.T, d *Dispatcher, name, leader string, at time.Time) {
+	t.Helper()
+	dir := d.workerDir(name)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, "stdout.log")
+	if err := os.WriteFile(p, []byte("old\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if leader != "" {
+		if err := os.WriteFile(filepath.Join(dir, workerLeaderName), []byte(leader), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.Chtimes(p, at, at)
+	os.Chtimes(dir, at, at)
+}
+
+func marked(d *Dispatcher, name string) bool {
+	_, err := os.Stat(filepath.Join(d.dir, "workers", workerRetireMarks, name))
+	return err == nil
 }

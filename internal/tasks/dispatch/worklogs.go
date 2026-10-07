@@ -29,9 +29,16 @@ const (
 	workerDirQuiet = time.Hour
 	// maxWorkerDirScan bounds one retirement pass; a larger backlog shrinks
 	// over later passes.
-	maxWorkerDirScan  = 4096
-	workerLeaderName  = "leader"
-	workerLogMarkerOf = "corvint-tasks dispatch: %s reached %d bytes and was truncated; this segment keeps its last %d bytes\n"
+	maxWorkerDirScan = 4096
+	workerLeaderName = "leader"
+	// workerRetireMarks holds one candidate mark per worker directory a pass
+	// found removable. It sits beside the worker directories, never inside
+	// one, so a mark changes neither a directory's age nor its contents.
+	workerRetireMarks = ".retiring"
+	// workerRetireConfirm is how long a mark must stand before a later pass
+	// that finds the directory removable again may remove it.
+	workerRetireConfirm = time.Minute
+	workerLogMarkerOf   = "corvint-tasks dispatch: %s reached %d bytes and was truncated; this segment keeps its last %d bytes\n"
 )
 
 // capWorkerLogs keeps each of a worker's log streams within one live segment
@@ -102,8 +109,13 @@ func capWorkerLog(dir, name string) bool {
 // maxRetainedWorkerDirs (CAL-V0-144). A directory is never removed while the
 // ledger records its worker, its exit is still awaited, an infrastructure
 // retry names it as its launch (its absence proves no spawn), it changed
-// within workerDirQuiet, or its recorded leader's tree may still run.
-// Failures are left for the next pass.
+// within workerDirQuiet, or its recorded leader's tree may still run; such a
+// directory takes no retention slot. Removal needs two passes: the first that
+// finds a directory removable only marks it, and a pass at least
+// workerRetireConfirm later removes it only if it is still removable with the
+// same age. A pass that finds it otherwise clears the mark. The pass runs once
+// per tick, so the two are always in different ticks. Failures are left for
+// the next pass.
 func (d *Dispatcher) retireWorkerDirs() {
 	root := filepath.Join(d.dir, "workers")
 	f, err := os.Open(root)
@@ -131,7 +143,7 @@ func (d *Dispatcher) retireWorkerDirs() {
 	var finished []dir
 	now := d.Now()
 	for _, e := range entries {
-		if !e.IsDir() || keep[e.Name()] {
+		if !e.IsDir() || e.Name() == workerRetireMarks || keep[e.Name()] {
 			continue
 		}
 		path := filepath.Join(root, e.Name())
@@ -141,44 +153,91 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 		finished = append(finished, dir{e.Name(), newest})
 	}
-	if len(finished) <= maxRetainedWorkerDirs {
-		return
-	}
-	sort.Slice(finished, func(i, j int) bool {
-		if !finished[i].mtime.Equal(finished[j].mtime) {
-			return finished[i].mtime.After(finished[j].mtime)
-		}
-		return finished[i].name > finished[j].name
-	})
-	// A directory whose recorded tree may still run is kept and takes no
-	// retention slot, so the newest maxRetainedWorkerDirs are counted among
-	// the removable ones only.
-	var groups, sessions map[int]bool
-	read, usable, retained := false, false, 0
-	for _, x := range finished {
-		path := filepath.Join(root, x.name)
-		pid, id, err := readLeader(path)
-		switch {
-		case errors.Is(err, fs.ErrNotExist):
-			// A directory from a build that recorded no leader: the quiet
-			// window is its only evidence.
-		case err != nil:
-			continue
-		default:
-			if !read {
-				read = true
-				groups, sessions, usable = liveTrees()
+	removable := map[string]time.Time{}
+	if len(finished) > maxRetainedWorkerDirs {
+		sort.Slice(finished, func(i, j int) bool {
+			if !finished[i].mtime.Equal(finished[j].mtime) {
+				return finished[i].mtime.After(finished[j].mtime)
 			}
-			if !usable || treeMayRun(pid, id, groups, sessions) {
+			return finished[i].name > finished[j].name
+		})
+		// A directory whose recorded tree may still run is kept and takes no
+		// retention slot, so the newest maxRetainedWorkerDirs are counted
+		// among the removable ones only.
+		var groups, sessions map[int]bool
+		read, usable, retained := false, false, 0
+		for _, x := range finished {
+			pid, id, err := readLeader(filepath.Join(root, x.name))
+			switch {
+			case errors.Is(err, fs.ErrNotExist):
+				// A directory from a build that recorded no leader: the quiet
+				// window is its only evidence.
+			case err != nil:
+				continue
+			default:
+				if !read {
+					read = true
+					groups, sessions, usable = liveTrees()
+				}
+				if !usable || treeMayRun(pid, id, groups, sessions) {
+					continue
+				}
+			}
+			if retained < maxRetainedWorkerDirs {
+				retained++
 				continue
 			}
+			removable[x.name] = x.mtime
 		}
-		if retained < maxRetainedWorkerDirs {
-			retained++
-			continue
-		}
-		_ = os.RemoveAll(path)
 	}
+	marks := filepath.Join(root, workerRetireMarks)
+	for name, newest := range removable {
+		mark := filepath.Join(marks, name)
+		markedAt, age, err := readRetireMark(mark)
+		switch {
+		case err != nil:
+			if os.MkdirAll(marks, 0o700) == nil {
+				_ = os.WriteFile(mark, []byte(fmt.Sprintf("%d %d\n", now.UnixNano(), newest.UnixNano())), 0o600)
+			}
+		case !age.Equal(newest):
+			_ = os.Remove(mark) // its logs changed since it was marked
+		case now.Sub(markedAt) >= workerRetireConfirm:
+			if os.RemoveAll(filepath.Join(root, name)) == nil {
+				_ = os.Remove(mark)
+			}
+		}
+	}
+	// A mark whose directory this pass did not find removable is cleared.
+	if f, err := os.Open(marks); err == nil {
+		names, _ := f.Readdirnames(maxWorkerDirScan)
+		f.Close()
+		for _, name := range names {
+			if _, ok := removable[name]; !ok {
+				_ = os.Remove(filepath.Join(marks, name))
+			}
+		}
+	}
+}
+
+// readRetireMark reads when a worker directory was marked removable and the
+// age it had then.
+func readRetireMark(path string) (markedAt, age time.Time, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, 64))
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	at, seen, ok := strings.Cut(strings.TrimSuffix(string(raw), "\n"), " ")
+	a, aerr := strconv.ParseInt(at, 10, 64)
+	b, berr := strconv.ParseInt(seen, 10, 64)
+	if !ok || aerr != nil || berr != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("malformed retirement mark %s", path)
+	}
+	return time.Unix(0, a), time.Unix(0, b), nil
 }
 
 // readLeader reads the leader PID and start identity launch kept in a

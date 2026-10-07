@@ -39,13 +39,18 @@ Of the rest it keeps the newest 32; a protected directory takes none of those sl
 process exits between the process-table read and its session read, the table is read once more
 and both reads count. A pass reads at most 4,096 entries.
 
+Removal is confirmed across two passes. The first pass that finds a directory removable writes a
+mark under `workers/.retiring/` with the time and the directory's age. A pass at least a minute
+later, and so in a later tick, removes the directory only if its own reads again find it
+removable with the same age. Any other finding clears the mark.
+
 ## Bounds
 
 - A recorded worker keeps at most 8 MiB per stream in `.1`, and at most 8 MiB plus one tick of
   writes in the live file. Two streams give at most 2×8 MiB rotated plus 2×(8 MiB + one tick)
   live.
-- At most 32 finished directories older than an hour remain, beside the recorded, protected and
-  recent ones.
+- At most 32 finished directories older than an hour remain after a confirming pass, beside the
+  recorded, protected and recent ones. Marked directories also remain until that pass.
 
 ## Evidence
 
@@ -93,6 +98,16 @@ ticket, and both were fixed afterwards without a further review:
   directory is counted. `TestCALV0144_ProtectedDirsTakeNoRetentionSlot` fails against the
   previous code.
 
+The coordinator's Codex review of `73a42cf2` found that a chain forking and exiting through both
+reads still left the snapshot looking complete (MAJOR), and that the retake test never checked
+the union (MINOR). On the coordinator's decision, removal now needs a confirming pass, as above;
+failing closed on every gap stays rejected for the reason given. The retake test now asserts that
+groups and sessions seen in only the first read, and in only the second, both survive.
+`TestCALV0144_RemovalNeedsAConfirmingPass` and `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`
+cover the confirmation. Each of the three new guards was mutated away in turn: removing on first
+sight, keeping a mark a pass did not confirm, and resetting the maps before the second read. Each
+mutation made its test fail.
+
 ## Limits
 
 - Bytes appended between the size check and the truncation are lost.
@@ -101,7 +116,8 @@ ticket, and both were fixed afterwards without a further review:
 - A tree with no `leader` file is protected only by the one-hour quiet window. This covers a crash
   between the spawn and the `leader` write, and a directory from an older build.
 - A pass sees only the first 4,096 directory entries.
-- A session member chain that forks and exits across both process-table reads is not seen.
+- A process chain that forks and exits through all four process-table reads across the two
+  confirming passes, outside the leader's process group, is not seen.
 
 Linux runs and live dispatcher qualification were NOT_RUN.
 
