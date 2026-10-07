@@ -634,6 +634,7 @@ var killText = map[string]string{
 func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 	busy := false
 	var size int64
+	capWorkerLogs(d.workerDir(w.ID)) // CAL-V0-143, before the sizes are compared
 	for _, name := range []string{"stdout.log", "stderr.log"} {
 		if st, err := os.Stat(filepath.Join(d.workerDir(w.ID), name)); err == nil {
 			size += st.Size()
@@ -882,6 +883,9 @@ func requestID(parts ...string) string {
 // starts a cooldown and, at parkAfter, parks the key for the owner.
 func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending map[string]bool) {
 	now := d.Now()
+	if len(ended) > 0 {
+		defer d.retireWorkerDirs() // CAL-V0-144, once the finished workers left the ledger
+	}
 	for _, w := range ended {
 		if pending[w.ID] {
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "declared progress accounting deferred until a known work state"})
