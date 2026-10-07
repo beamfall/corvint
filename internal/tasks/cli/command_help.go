@@ -255,6 +255,9 @@ func helpFlags(o *wire.Object, key string) []string {
 	flags := []string{"--help", "-h"}
 	for _, word := range strings.Fields(v.Str) {
 		word = strings.Trim(word, "[]();")
+		if i := strings.IndexAny(word, "[="); i > 0 {
+			word = word[:i] // --exclude-authors[=all] names --exclude-authors
+		}
 		if strings.HasPrefix(word, "--") && word != "--help" {
 			found := false
 			for _, f := range flags {

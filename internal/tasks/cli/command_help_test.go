@@ -41,6 +41,11 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 					if name != "help" && (field(r.Items[0], "usage").Str == "" || len(field(r.Items[0], "flags").Arr) == 0) {
 						t.Fatalf("command-specific help missing: %v %s", args, out.Bytes())
 					}
+					for _, f := range field(r.Items[0], "flags").Arr {
+						if strings.ContainsAny(f.Str, "[]=") {
+							t.Fatalf("help flag %q is not a bare flag name: %v", f.Str, args)
+						}
+					}
 					// CAL-V0-170: terse help carries only the call-forming keys
 					// and points at the verbose form when it left anything out.
 					if !verbose && name != "help" {
