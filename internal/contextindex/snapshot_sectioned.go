@@ -396,11 +396,14 @@ func retainSectioned(key packKey, file *sectionedFile) *sectionedFile {
 	if retained, ok := sectionedCache.mapped[key]; ok {
 		return retained
 	}
+	if kept, ok := sectionedCache.mappings[key]; !ok {
+		sectionedCache.mappings[key] = file.mapping
+	} else if &kept[0] != &file.mapping[0] {
+		// As in retainPack: keep the mapping an evicted concurrent read kept.
+		file = &sectionedFile{at: file.at, size: file.size, mapping: kept, adopted: true, close: file.close, key: file.key}
+	}
 	delete(sectionedCache.mapped, sectionedCache.ring[sectionedCache.next])
 	sectionedCache.mapped[key] = file
-	if _, ok := sectionedCache.mappings[key]; !ok {
-		sectionedCache.mappings[key] = file.mapping
-	}
 	sectionedCache.ring[sectionedCache.next] = key
 	sectionedCache.next = (sectionedCache.next + 1) % sectionedCacheCapacity
 	return file

@@ -558,11 +558,16 @@ func retainPack(key packKey, file *packFile) *packFile {
 	if retained, ok := packCache.mapped[key]; ok {
 		return retained
 	}
+	if kept, ok := packCache.mappings[key]; !ok {
+		packCache.mappings[key] = file.mapping
+	} else if &kept[0] != &file.mapping[0] {
+		// A concurrent first read kept a mapping that was evicted while
+		// this read decoded; retain that one so the key keeps one mapping,
+		// and the caller drops this read's index and decodes it again.
+		file = &packFile{at: file.at, size: file.size, mapping: kept, adopted: true, file: file.file, key: file.key}
+	}
 	delete(packCache.mapped, packCache.ring[packCache.next])
 	packCache.mapped[key] = file
-	if _, ok := packCache.mappings[key]; !ok {
-		packCache.mappings[key] = file.mapping
-	}
 	packCache.ring[packCache.next] = key
 	packCache.next = (packCache.next + 1) % packCacheCapacity
 	return file

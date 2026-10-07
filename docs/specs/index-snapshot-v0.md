@@ -306,7 +306,9 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   retention (path, size, modification time and header digest), until it exits. A later read of an
   evicted file with the same key adopts that mapping and releases its own fresh one, which only
   the header read touched, so live mappings are bounded by the distinct keys a process reads, not
-  by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`). The key is sound without inode or
+  by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`); a read whose concurrent first read
+  kept a mapping that was evicted during its decode retains the kept one and decodes again
+  (`TestRetainKeepsOneMappingWhenEvictedDuringDecode`). The key is sound without inode or
   change time: the header digest commits to every section digest, and every snapshot writer
   replaces the file by rename, never in place. A file the store has since deleted or replaced keeps
   its blocks allocated while its old mapping lives. Unmapping on eviction, or from a runtime cleanup

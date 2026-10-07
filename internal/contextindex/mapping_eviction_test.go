@@ -276,3 +276,111 @@ func resetSectionedRetention() {
 	sectionedCache.mappings = map[packKey][]byte{}
 	sectionedCache.Unlock()
 }
+
+// TestRetainKeepsOneMappingWhenEvictedDuringDecode replays a race: a read
+// opens a file before a concurrent first read of it keeps a mapping, and that
+// retention is evicted while the first read still decodes. Retention must
+// answer with the kept mapping, not keep a second one for the same key.
+func TestRetainKeepsOneMappingWhenEvictedDuringDecode(t *testing.T) {
+	t.Run("pack", func(t *testing.T) {
+		index, _ := packFixture(t)
+		identity := fixtureIdentity(index)
+		resetPackRetention()
+		defer resetPackRetention()
+		resetPackMappings()
+		defer resetPackMappings()
+		path := packWithVocabulary(t, index, func(*TermTable) {})
+		late, err := openPackFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer late.close()
+		if late.mapping == nil {
+			t.Skip("no mapping: the read copies the pack")
+		}
+		key, err := late.identity()
+		if err != nil {
+			t.Fatal(err)
+		}
+		late.adoptMapping(key)
+		for _, read := range append([]string{path}, packPaths(t, index, packCacheCapacity)...) {
+			packed, err := readPackSnapshot(read, identity, analyzerEngine(), loadFull)
+			if err != nil {
+				t.Fatal(err)
+			}
+			forgetPackHistory(packed)
+		}
+		packCache.Lock()
+		kept, count := packCache.mappings[key], len(packCache.mappings)
+		packCache.Unlock()
+		retained := retainPack(key, late)
+		if retained == late || &retained.mapping[0] != &kept[0] {
+			t.Fatal("a read evicted during decode kept a second mapping for its pack")
+		}
+		late.release()
+		packCache.Lock()
+		defer packCache.Unlock()
+		if len(packCache.mappings) != count || &packCache.mappings[key][0] != &kept[0] {
+			t.Fatal("the kept mapping table changed")
+		}
+	})
+	t.Run("sectioned", func(t *testing.T) {
+		index, receipt := sectionedFixture(t)
+		identity := fixtureIdentity(index)
+		resetSectionedRetention()
+		defer resetSectionedRetention()
+		content, err := os.ReadFile(receipt.SectionedPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		directory := t.TempDir()
+		paths := make([]string, sectionedCacheCapacity+1)
+		for at := range paths {
+			paths[at] = filepath.Join(directory, fmt.Sprintf("copy-%d%s", at, sectionedExtension))
+			if err := os.WriteFile(paths[at], content, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		late, err := openSectionedFile(paths[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer late.close()
+		if late.mapping == nil {
+			t.Skip("no mapping: the read copies the file")
+		}
+		key, err := late.identity()
+		if err != nil {
+			t.Fatal(err)
+		}
+		late.adoptMapping(key)
+		for _, path := range paths {
+			if _, err := readSectionedSnapshot(path, identity, receipt.Engine, loadFull); err != nil {
+				t.Fatal(err)
+			}
+		}
+		sectionedCache.Lock()
+		kept, count := sectionedCache.mappings[key], len(sectionedCache.mappings)
+		sectionedCache.Unlock()
+		retained := retainSectioned(key, late)
+		if retained == late || &retained.mapping[0] != &kept[0] {
+			t.Fatal("a read evicted during decode kept a second mapping for its file")
+		}
+		late.release()
+		sectionedCache.Lock()
+		defer sectionedCache.Unlock()
+		if len(sectionedCache.mappings) != count || &sectionedCache.mappings[key][0] != &kept[0] {
+			t.Fatal("the kept mapping table changed")
+		}
+	})
+}
+
+// packPaths writes count distinct packs of index.
+func packPaths(t *testing.T, index *Index, count int) []string {
+	t.Helper()
+	paths := make([]string, count)
+	for at := range paths {
+		paths[at] = packWithVocabulary(t, index, func(*TermTable) {})
+	}
+	return paths
+}

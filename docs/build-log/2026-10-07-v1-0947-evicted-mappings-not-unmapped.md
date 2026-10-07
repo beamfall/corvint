@@ -34,6 +34,10 @@ cache keeps a process-wide table from retention key (path, size, modification ti
 to mapping that is never evicted. A read that misses the four-slot ring but finds its key in the
 table adopts that mapping and releases its fresh one, which only the header read touched, before
 anything can alias it. Live mappings are then bounded by the distinct keys a process reads.
+Retention also checks the table: when a concurrent first read kept a mapping for the key and it was
+evicted while this read decoded, retention keeps that mapping and the read decodes again from it.
+The reader change bumps `analyzerSchemaID` to `corvint-analyzer/110` as the input audit requires,
+so existing opt-in packs are rebuilt once.
 
 The coordinator suggested keying on dev, inode, size, mtime and ctime. The existing key was kept:
 its header digest commits to every section digest, which proves the content where an inode does
@@ -57,4 +61,7 @@ Lifetime-bounded unmapping is deferred to a follow-up, which needs an owner choi
   ring and asserts five kept mappings per format, each aliased by every index read from that file.
   Before the change the probe left twenty mapped regions per format (`vmmap`). It passes under
   `-race` and fails when pack adoption is disabled.
+- `TestRetainKeepsOneMappingWhenEvictedDuringDecode` replays that race deterministically for both
+  formats. It passes under `-race` and fails when the pack reconciliation is disabled.
+- Codex's first review of the adoption commit found that race; the reconciliation answers it.
 - Logs are in the lane's private evidence directory, not committed.
