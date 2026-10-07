@@ -149,8 +149,9 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
-// never an input to the native store.
+// Ledger is the dispatcher's private taskman-dispatch-state/1 file. It is
+// never an input to the native store. Version 1 adds the CAL-V0-127 config
+// record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131).
 type Ledger struct {
 	PoolSweeps map[string]*PoolSweepRecord `json:"poolSweeps,omitempty"`
 	Profile    string                      `json:"profile"`

@@ -3612,7 +3612,11 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   `taskman-dispatch-state` version, or that carries a top-level member no spelling of a known member
   matches, MUST refuse UNSUPPORTED_VERSION before any decode, rewrite or worker action, and the
   dispatcher MUST NOT open. Before V1-0889 both cases were reported MALFORMED. A different profile
-  name and case-folded aliases keep their existing malformed refusals.
+  name and case-folded aliases keep their existing malformed refusals. The ledger is
+  `taskman-dispatch-state/1` from the build that added the CAL-V0-127 `config` record and the
+  CAL-V0-125 CPU sample fields; a maintained test pins each version's encoded shape, so a changed
+  shape needs a new version. A version 0 ledger refuses under it, so the upgrade from an earlier
+  build is the differing-formats procedure.
 - `CAL-V0-133`: proposed (V1-0889; GitHub #644). Build N processes that outlive the swap, such as
   detached attempt-runner supervisors (which re-execute their own executable) and supervised program
   owners, keep running build N against the shared store. The procedure MUST install by writing a new
@@ -4091,7 +4095,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-129 | `TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`) |
 | CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner`, `TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
 | CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
-| CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
+| CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
 | CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |
 | CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`); no code change to the supervised-host pin |
 | CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |

@@ -70,7 +70,7 @@ func TestCALV0110_ThrottledEventReportsReason(t *testing.T) {
 func TestCALV0110_LedgerReasonAndMemoryLevelValidated(t *testing.T) {
 	dir := t.TempDir()
 	write := func(pressure string) error {
-		raw := `{"profile":"taskman-dispatch-state/0","program":"prog","launchSeq":0,"eventSeq":0,"workers":[],"backoff":{},"progress":{},"pressure":` + pressure + `}`
+		raw := `{"profile":"taskman-dispatch-state/1","program":"prog","launchSeq":0,"eventSeq":0,"workers":[],"backoff":{},"progress":{},"pressure":` + pressure + `}`
 		if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(raw), 0o600); err != nil {
 			t.Fatal(err)
 		}

@@ -608,7 +608,9 @@ unsupported. Draining does not help, because N refuses the newer formats N+1 per
 procedure.
 
 A dispatcher ledger written by another dispatch-state version, or carrying a member this build
-does not know, refuses `UNSUPPORTED_VERSION` and the dispatcher does not open. A store `VERSION` another
+does not know, refuses `UNSUPPORTED_VERSION` and the dispatcher does not open. The ledger moved
+from `taskman-dispatch-state/0` to `/1` when it gained the configuration-reload record, so a ledger
+written by an earlier build refuses under a build that writes `/1`. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

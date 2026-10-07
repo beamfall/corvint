@@ -21,7 +21,7 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/0"
+	StateProfile  = "taskman-dispatch-state/1"
 	EventProfile  = "taskman-dispatch-event/0"
 	MaxConfig     = 256 << 10
 )

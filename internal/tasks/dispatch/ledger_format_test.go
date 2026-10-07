@@ -41,7 +41,10 @@ func TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts(t *testing.T)
 	}
 	for name, edit := range map[string]func([]byte) []byte{
 		"next profile version": func(b []byte) []byte {
-			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/1"`), 1)
+			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/2"`), 1)
+		},
+		"version 0, written before the config record": func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/0"`), 1)
 		},
 		"unknown member": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`{`), []byte(`{"workerLimits":{},`), 1)
