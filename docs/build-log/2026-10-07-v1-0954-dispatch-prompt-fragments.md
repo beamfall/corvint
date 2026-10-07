@@ -58,3 +58,6 @@ The change adds proposed CAL-V0-175 to CAL-V0-178 to
   the existing element, as the default decoder does, so a repeated top-level `roles` member keeps
   earlier fields (regression in `TestCALV0176_ConfigWithoutFragmentsUnchanged`, fails without it).
   Repeated top-level members are themselves an older looseness of the closed decoder, left as is.
+- Codex round 3: no blocking findings and no remaining P0-P3 findings at 75f54b15.
+- After the repairs: `go test -count=1 ./internal/tasks/dispatch/ ./internal/tasks/cli/
+  ./internal/tasks/service/` passes; local doc gates and use-case receipts pass.
