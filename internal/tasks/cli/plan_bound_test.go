@@ -41,11 +41,31 @@ func TestCALV0141_PlanNodeBoundScalesPerEntry(t *testing.T) {
 		t.Fatalf("flat bound: %v, want LIMIT_EXCEEDED", err)
 	}
 	flat.MaxNodes = planNodeBound(wire.MaxTicketsPerQueue)
-	if _, err := flat.Encode(); err != nil {
+	raw, err := flat.Encode()
+	if err != nil {
 		t.Fatalf("per-entry bound: %v", err)
 	}
-	if got := planNodeBound(wire.MaxTicketsPerQueue); got != 890000 {
-		t.Fatalf("bound %d", got)
+	if got := planNodeBound(wire.MaxTicketsPerQueue); got != wire.MaxResultNodes {
+		t.Fatalf("bound %d, wire cap %d", got, wire.MaxResultNodes)
+	}
+	// The generic decoder keeps its bound; a plan consumer decodes the full
+	// plan through the bounded route, which refuses a bound over the cap.
+	if _, err := wire.DecodeResult(raw); wire.CodeOf(err) != wire.CodeLimitExceeded {
+		t.Fatalf("generic decode of a full plan: %v, want LIMIT_EXCEEDED", err)
+	}
+	back, err := wire.DecodeResultLimit(raw, planNodeBound(wire.MaxTicketsPerQueue))
+	if err != nil || len(back.Items) != 1 {
+		t.Fatalf("bounded decode of a full plan: %v", err)
+	}
+	if got, _ := back.Items[0].Obj.Get("entries"); len(got.Arr) != wire.MaxTicketsPerQueue {
+		t.Fatalf("bounded decode kept %d entries", len(got.Arr))
+	}
+	if _, err := wire.DecodeResultLimit(raw, wire.MaxResultNodes+1); wire.CodeOf(err) != wire.CodeLimitExceeded {
+		t.Fatalf("decode bound over the cap: %v, want LIMIT_EXCEEDED", err)
+	}
+	flat.MaxNodes = wire.MaxResultNodes + 1
+	if _, err := flat.Encode(); wire.CodeOf(err) != wire.CodeLimitExceeded {
+		t.Fatalf("encode bound over the cap: %v, want LIMIT_EXCEEDED", err)
 	}
 	heavy := plan(planEntryNodes)
 	heavy.MaxNodes = planNodeBound(wire.MaxTicketsPerQueue)

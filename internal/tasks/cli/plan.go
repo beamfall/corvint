@@ -117,7 +117,8 @@ const planEntryNodes = 64
 
 // planNodeBound is the full plan's decoded-node bound: the ordinary
 // envelope bound plus planEntryNodes per entry. A queue holds at most
-// wire.MaxTicketsPerQueue tickets, so it never exceeds 890,000 nodes.
+// wire.MaxTicketsPerQueue tickets, so it never exceeds wire.MaxResultNodes
+// (890,000), the cap Encode and wire.DecodeResultLimit enforce.
 func planNodeBound(entries int) int {
 	return wire.MaxJSONNodes + planEntryNodes*entries
 }
