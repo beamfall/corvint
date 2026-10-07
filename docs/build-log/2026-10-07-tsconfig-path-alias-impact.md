@@ -252,3 +252,13 @@ Round 7 reported one P2 finding, and it was accepted. A scheme-shaped name such 
 already applies the scheme rule only to names that resolve to no repository file. The code now
 follows it, and the new case fails on the round 6 resolver (observed). Under a classic or unknown
 config, a scheme-shaped name is now unresolved, like every other bare name there.
+
+Round 8 confirmed the round 7 fix and reported one P2 finding. Under the coordinator's review cap,
+it is recorded here as a follow-up and not fixed in this change. `webresolve.go` (`Resolve` and
+`buildWebImportGraph`) classifies every specifier that begins with `.` as relative. TypeScript
+5.9.3 treats a specifier as relative only when it is `.` or `..` followed by the end or a slash.
+A dot-prefixed bare alias such as `.generated/client`, under `paths: {".generated/*": [...]}`,
+therefore misses its dependant without any disclosure. The repair should classify relative
+specifiers by whole segments in both places and add a regression case. The repair must keep the
+rule (c) oracle's prefix test in `reverseimports.go` unchanged unless the owner amends
+`GPK-V0-027`.
