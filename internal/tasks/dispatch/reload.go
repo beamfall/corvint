@@ -215,8 +215,8 @@ func (d *Dispatcher) workersOf(roles []string) int {
 // memberEpisode is when the dispatcher first observed a lane member in one
 // state episode (CAL-V0-129).
 type memberEpisode struct {
-	state, changed string
-	since          time.Time
+	pool, state, changed string
+	since                time.Time
 }
 
 // stampMemberAges sets each observed member's Age from the dispatcher clock.
@@ -230,7 +230,7 @@ func (d *Dispatcher) stampMemberAges(obs *Observation, now time.Time) {
 		key := laneKey(m.Pool, m.Member)
 		e, ok := d.memberSince[key]
 		if !ok || e.state != m.State || e.changed != m.Changed || now.Before(e.since) {
-			e = memberEpisode{state: m.State, changed: m.Changed, since: now}
+			e = memberEpisode{pool: m.Pool, state: m.State, changed: m.Changed, since: now}
 		}
 		next[key] = e
 		m.Age = now.Sub(e.since)

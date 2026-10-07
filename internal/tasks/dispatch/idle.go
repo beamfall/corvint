@@ -169,6 +169,7 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
+	d.laneAgeDeadlines(early)
 	if d.Config.PoolSweep != nil {
 		early(d.sweepNext)
 	}
@@ -176,6 +177,27 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		return
 	}
 	d.idle = &idleGate{witness: m.witness, ledger: d.ledger, config: d.Config, since: m.since, due: due}
+}
+
+// laneAgeDeadlines passes early the time each tracked lane member episode
+// reaches a minAgeSeconds that could admit it (CAL-V0-129): aging needs no
+// store change, so the gate must wake for it.
+func (d *Dispatcher) laneAgeDeadlines(early func(time.Time)) {
+	for _, r := range d.Config.Roles {
+		if r.Lane == nil || r.Cap == 0 || r.Lane.MinAgeSeconds <= 0 {
+			continue
+		}
+		states := r.Lane.States
+		if len(states) == 0 {
+			states = []string{"QUARANTINED"}
+		}
+		age := time.Duration(r.Lane.MinAgeSeconds) * time.Second
+		for _, e := range d.memberSince {
+			if e.pool == r.Lane.Pool && contains(states, e.state) {
+				early(e.since.Add(age))
+			}
+		}
+	}
 }
 
 // noteLeases keeps the earliest future lease expiry this tick observed: an

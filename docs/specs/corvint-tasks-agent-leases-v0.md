@@ -3704,7 +3704,8 @@ essential. These requirements are proposed; acceptance is human-owned.
   witness MUST cover the journal head, barrier and `VERSION` bytes, the state and receipt
   directories and every top-level intent entry; a witness error reads in full. A skipped tick MUST
   give way to a full tick at the earliest of 60 seconds after the last full read, an observed lease
-  expiry, a recorded cooldown and a scheduled pool sweep, and whenever the clock is behind the
+  expiry, a recorded cooldown, a scheduled pool sweep and the time a tracked lane member episode
+  reaches an enabled lane's `minAgeSeconds` (CAL-V0-129), and whenever the clock is behind the
   armed tick. A deadline that falls after a full tick started and at or before it settles MUST
   leave the gate unarmed, so the next tick reads in full; only deadlines strictly after the settle
   time arm it, and the earliest bounds the skip window. A retained pending pool sweep record blocks
@@ -3759,7 +3760,8 @@ Acceptance evidence: `TestCALV0135_ReceiptFoldPinnedReader`, `TestCALV0138_Revie
 (`internal/tasks/supervisor`); `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`,
 `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`,
 `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`,
-`TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`);
+`TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping`,
+`TestCALV0139_IdleGateWakesForALaneMinimumAge` (`internal/tasks/dispatch`);
 `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`,
 `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_ListsPrefix`
 (`internal/tasks/store`);
@@ -4102,7 +4104,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-136 | `TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`, `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux) (`internal/tasks/supervisor`) |
 | CAL-V0-137 | `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`) |
 | CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_DispatcherTickFold`, `BenchmarkCALV0138_ListsPrefix` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
-| CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
+| CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping`, `TestCALV0139_IdleGateWakesForALaneMinimumAge` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
 | CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
