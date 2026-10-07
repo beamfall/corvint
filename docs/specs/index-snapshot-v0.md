@@ -10,7 +10,7 @@ the measured basis), `docs/specs/revision-cache-dirty-worktree-v0.md` (the cache
 view, `DIRTY-CACHE-001` to `DIRTY-CACHE-004` and `DIRTY-CACHE-007`),
 `docs/specs/deployment-neutral-index-platform-v0.md` (the immutable index direction),
 `docs/specs/task-context-packet-v0.md` (the consumer), `AGENTS.md` invariants 1, 4, and 7.
-Admission amendments: `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`, `docs/decisions/0095-index-path-screen-is-the-go-set-2026-09-12.md` (`IDX-SNAP-V0-018`), `docs/decisions/0438-rc3-batch-3-requirements-accepted-2026-10-06.md` (`IDX-SNAP-V0-025`).
+Admission amendments: `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`, `docs/decisions/0095-index-path-screen-is-the-go-set-2026-09-12.md` (`IDX-SNAP-V0-018`), `docs/decisions/0438-rc3-batch-3-requirements-accepted-2026-10-06.md` (`IDX-SNAP-V0-025`), `docs/decisions/0439-rc3-batch-4-requirements-accepted-2026-10-07.md` (`IDX-SNAP-V0-026`).
 
 ## Agent digest
 - Claim: `corvint index` writes the committed tree's index once; the packet and query verbs read it instead of rebuilding, unchanged, and never write it.
@@ -518,8 +518,7 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   repository with one committed Latin-1 path that refuses `index` or path `impact`, or whose
   receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
   and the parse flag in `history.go`.
-- `IDX-SNAP-V0-026`: (proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
-  accepted) on a fresh opening observation of the build's stability window
+- `IDX-SNAP-V0-026`: (accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observation of the build's stability window
   (`buildStableFrom`: every retry, and the first attempt when no loader observation is carried)
   the tree listing (`git ls-tree -r -l -z --full-tree <tree>`) is issued beside the status scan,
   not after it. The listing reads immutable content named by the identity already read, so its
@@ -740,4 +739,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
 | IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
-| IDX-SNAP-V0-026 (proposed) | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |
+| IDX-SNAP-V0-026 | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |

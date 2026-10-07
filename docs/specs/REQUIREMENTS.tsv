@@ -64,7 +64,7 @@ AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10
 AFP-V0-031	docs/specs/affected-plan-v0.md	654	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
 AFP-V0-032	docs/specs/affected-plan-v0.md	692	(accepted by decision 0438; V1-0865) Only a declaration path that
 AFP-V0-033	docs/specs/affected-plan-v0.md	701	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	717	(proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
+AFP-V0-034	docs/specs/affected-plan-v0.md	717	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -394,7 +394,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	558	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1420	`store.Mutate` MUST take its request lookup and its canonical intent records fro
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1819	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1837	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	4532	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	4531	`corvint-tasks ticket create --template` MUST return, in one
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1999	The optional policy `supervision` object MAY carry `host`, whose admitted
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2075	A `claude-code` stage MUST invoke the pinned executable with the prompt on
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2209	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
@@ -421,7 +421,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2894	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2928	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3052	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3108	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	4715	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	4714	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3149	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3195	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1320	On macOS the memory signal MUST be the kernel memory-pressure level
@@ -430,34 +430,34 @@ CAL-V0-111	docs/specs/corvint-tasks-agent-leases-v0.md	3248	`release` and `attem
 CAL-V0-112	docs/specs/corvint-tasks-agent-leases-v0.md	3257	An evidence HANDOFF release refused LOCK_TIMEOUT MUST leave the store unchanged,
 CAL-V0-113	docs/specs/corvint-tasks-agent-leases-v0.md	3263	No release path MAY convert a plain release into a HANDOFF. A plain release afte
 CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	3297	When the journal audit (complete or checkpoint-resumed) finds more than one faul
-CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3395	(proposed) Writer checkpoint file. The writer checkpoint is derived state.
-CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3445	(proposed) Writer audit and fast route.
-CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3507	(proposed) Counts, advance and scheduled refresh.
-CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3544	(proposed) Writer cost measurement. The opt-in profile
-CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3560	(proposed) Read checkpoint from a writer audit.
+CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3395	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der
+CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3445	(accepted by decision 0439) Writer audit and fast route.
+CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3507	(accepted by decision 0439) Counts, advance and scheduled refresh.
+CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3544	(accepted by decision 0439) Writer cost measurement. The opt-in profile
+CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3560	(accepted by decision 0439) Read checkpoint from a writer audit.
 CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	3333	A policy MAY carry the optional top-level key `holderLiveness`, a closed object
 CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	3345	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s
-CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3683	Proposed (V1-0888; GitHub #643). The issue 482 projection MUST, before comparing
-CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3695	Proposed (V1-0882; GitHub #643). A change limited to the optional top-level
-CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3700	Proposed (V1-0888; GitHub #643). A COMPLETED `policy update` MUST carry
-CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3753	proposed (V1-0891; GitHub #646). The Linux pressure sample MUST read cumulative
-CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3775	proposed (V1-0891; GitHub #646). The `pressure` object MAY carry `signals`, a ma
-CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3813	proposed (V1-0890; GitHub #645). A running `dispatch` MUST re-read its `--config
-CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3840	proposed (V1-0890; GitHub #645). A role `cap` MAY be 0. A role with cap 0 MUST
-CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3846	proposed (V1-0890; GitHub #645). A lane MAY carry `minAgeSeconds` 0..604800. Whe
-CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3883	proposed (V1-0889; GitHub #644). Replacing build N with build N+1 while external
-CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3895	proposed (V1-0889; GitHub #644). `version` MUST report `formats`, the sorted set
-CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3919	proposed (V1-0889; GitHub #644). A dispatcher ledger whose profile is another
-CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	3945	proposed (V1-0889; GitHub #644). Build N processes that outlive the swap, such a
-CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	3955	proposed (V1-0889; GitHub #644). Supervised Codex, Claude Code and OpenCode prog
-CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	3993	proposed (V1-0893; GitHub #641). A whole-history receipt binding fold (`receipt
-CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	4000	proposed (V1-0894; GitHub #641). On Darwin arm64 and amd64 the detached-host
-CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4008	proposed (V1-0894; GitHub #641). The supervisor's host exit capsule poll MUST
-CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4012	proposed (V1-0894; GitHub #641). A long-running dispatcher (`dispatch`, `service
-CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4026	proposed (V1-0894; GitHub #641). A long-running dispatcher whose queue offers a
-CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4043	proposed (V1-0893; GitHub #641). Within one snapshot-pinned read, the journal
-CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4049	proposed (V1-0893; GitHub #641). The full `plan preview` result MUST validate
-CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4057	proposed (V1-0894; GitHub #641). `service run` MUST build its dispatcher's queue
+CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3683	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,
+CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3695	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option
+CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3700	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU
+CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3753	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST
+CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3775	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr
+CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3812	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r
+CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3839	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role
+CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3845	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond
+CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3882	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N
+CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3894	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats
+CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3918	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof
+CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	3944	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive
+CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	3954	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code
+CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	3992	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin
+CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	3999	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the
+CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4007	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap
+CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4011	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di
+CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4025	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos
+CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4042	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea
+CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4048	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result
+CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4056	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -1477,7 +1477,7 @@ GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1340	(accepted 2026-0
 GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1364	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
 GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1382	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
 GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1398	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
-GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1443	(proposed 2026-10-06 (V1-0881; no GitHub issue), owner review pending; not accep
+GPK-V0-076	docs/specs/go-production-kernel-migration-v0.md	1443	(accepted by decision 0439; V1-0881; no GitHub issue)
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1593,8 +1593,8 @@ IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	442	(proposed 2026-09-13, accept
 IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	470	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
 IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	484	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	506	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
-IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	551	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
-IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	521	(proposed 2026-10-06 (V1-0416; no GitHub issue), owner review pending; not
+IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	550	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	521	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the
@@ -1673,7 +1673,7 @@ LCP-V0-012	docs/specs/local-completion-policy-v0.md	231	Private plans, observati
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	237	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	262	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	275	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
-LCP-V0-016	docs/specs/local-completion-policy-v0.md	278	(proposed 2026-10-06 (V1-0881; no GitHub issue), owner review pending; not accep
+LCP-V0-016	docs/specs/local-completion-policy-v0.md	278	(accepted by decision 0439; V1-0881; no GitHub issue)
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
