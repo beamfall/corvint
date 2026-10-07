@@ -165,7 +165,10 @@ A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `glob
 `killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
 `{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
 `roles` (match by labels/kinds/idGlob/states/statuses/planSelected/pool, or a quarantined pool
-`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. A ticket that
+`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. Text shared
+by several roles can live once in a top-level `prompts` map; a role `prompt` may then be an array
+such as `[{"fragment": "rules"}, "Implement {ticketLocal}."]`, joined with no separator at load
+(CAL-V0-175..178, proposed). A fragment no role references is refused. A ticket that
 records `requiresPool` matches only a role whose `match.pool` names that pool, with `{pool}` bound
 for its host's `claim ... --pool {pool}`; other roles never see it (CAL-V0-097). With a `workState`
 reader, a ticket whose known work state no ticket role's `states`/`excludeStates` admits is held: the

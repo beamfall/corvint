@@ -52,6 +52,9 @@ type Config struct {
 	// TicketBudget is the optional CAL-V0-155 rolling 24-hour budget each
 	// ticket key has across every role; lane keys are not tickets.
 	TicketBudget *Budget `json:"ticketBudget,omitempty"`
+	// Prompts are the CAL-V0-175 shared role prompt fragments. DecodeConfig
+	// expands every reference and leaves this nil.
+	Prompts PromptFragments `json:"prompts,omitempty"`
 }
 
 // Budget is a CAL-V0-155 rolling 24-hour launch budget. An absent (zero)
@@ -211,6 +214,8 @@ type Role struct {
 	// UsageFormat names the usage vocabulary of the role's worker standard
 	// output, or is empty when its token usage is not read (CAL-V0-157).
 	UsageFormat string `json:"usageFormat,omitempty"`
+	// promptParts holds an array prompt until expandPrompts joins it.
+	promptParts []promptPart
 }
 
 // Tier is one escalation step: from After consecutive no-progress sessions
@@ -370,6 +375,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	}
 	if d.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("dispatch config: trailing input")
+	}
+	if err := c.expandPrompts(); err != nil {
+		return nil, err
 	}
 	if err := c.validate(); err != nil {
 		return nil, err
