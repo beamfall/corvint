@@ -57,7 +57,7 @@ type Result struct {
 	// MaxNodes, when positive, replaces MaxJSONNodes as the decoded-node
 	// bound Encode validates the envelope under. Only a verb whose one item
 	// grows with the store sets it, from its own documented per-entry bound,
-	// so the bound stays linear in the store's bounded size (V1-0893).
+	// so the bound stays linear in the store's bounded size (CAL-V0-141).
 	MaxNodes int
 }
 

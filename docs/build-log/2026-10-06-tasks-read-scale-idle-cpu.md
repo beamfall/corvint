@@ -10,7 +10,7 @@ writer path, writer audit and journal checkpoint belong to V1-0645 and are not c
 
 ## Change
 
-- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-135..139, each marked proposed,
+- Spec `docs/specs/corvint-tasks-agent-leases-v0.md` adds CAL-V0-135..142, each marked proposed,
   in a V1-0893/V1-0894 subsection with non-goals, failure modes, acceptance evidence and rollback,
   plus a slices row, traceability rows, the input and the delivery status (mirrored in
   `docs/specs/README.md` and `INDEX.json`).
@@ -104,8 +104,8 @@ measured.
 
 ## Follow-up: idle dispatch, shared captures, full plan preview, Linux `/proc`
 
-Coordinator follow-up of 2026-10-06 on the same branch. Three further requirements are written in
-the spec as pending-ID text; the coordinator numbers them at integration.
+Coordinator follow-up of 2026-10-06 on the same branch. The coordinator assigned CAL-V0-140..142
+to the three further requirements, all proposed.
 
 - CAL-V0-139 (idle dispatch tick, `dispatch/idle.go`): `Tick` wraps the old tick. After a full
   tick that left `state.json` byte-identical (so no event and no launch), the dispatcher arms a
@@ -117,16 +117,16 @@ the spec as pending-ID text; the coordinator numbers them at integration.
   cooldown or pool sweep, or a clock behind the armed tick. Dispatchers with live workers,
   recoveries, uncertain launches, a work-state reader or pressure signal never arm. The ledger
   save now skips the write (and its fsyncs) when the encoded bytes are unchanged.
-- Service pools: `service run` built its dispatcher queue without `c.TicketPools()` (9114dc99,
-  `cli/service.go`), so the service dispatcher ran without the configured ticket pools. Both
-  verbs now share `newDispatchQueue`.
-- Shared captures (pending ID): the journal audit's before and after captures reuse the bytes
+- CAL-V0-142 (service pools): `service run` built its dispatcher queue without
+  `c.TicketPools()` (9114dc99, `cli/service.go`), so the service dispatcher ran without the
+  configured ticket pools. Both verbs now share `newDispatchQueue`.
+- CAL-V0-140 (shared captures): the journal audit's before and after captures reuse the bytes
   `snapshot.Reader`'s first probe hashed (`journal.Reader.IntentTree`, passed from `withStore` only
   when that tree is the one the snapshot pinned and probed-tree reuse is on). Every intent file is
   still `lstat`ed; a file whose size changed is read fresh; a same-size rewrite is caught by the
   second probe, which re-hashes every file after the body, so the read moves and retries. This
   removes the two audit content passes; the two probe passes remain.
-- Full plan preview (pending ID): the result self-validation now allows 250,000 + 64 nodes per
+- CAL-V0-141 (full plan preview): the result self-validation now allows 250,000 + 64 nodes per
   plan entry (`cli/plan.go`, `wire.Result.MaxNodes`); a typical entry is 27 nodes, so 10,000
   tickets (about 270,000 nodes) preview instead of refusing LIMIT_EXCEEDED, and an entry with 64
   blockers still refuses. Output bytes are unchanged.

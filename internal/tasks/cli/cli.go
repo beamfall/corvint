@@ -412,7 +412,7 @@ type readCtx struct {
 	// tree is the intent tree the snapshot's first probe hashed, set only
 	// while body runs: the second probe hashes the tree again after body, so
 	// a journal audit inside body shares both hashes instead of reading the
-	// tree twice more (V1-0893).
+	// tree twice more (CAL-V0-140).
 	tree *intent.Tree
 }
 

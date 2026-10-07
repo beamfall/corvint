@@ -101,7 +101,7 @@ type Reader struct {
 	Checkpoint *Checkpoint
 	// IntentTree, when set, is the intent tree the caller's outer snapshot
 	// hashed before this audit began and hashes again after it ends
-	// (V1-0893). Both captures take an intent file's bytes from it
+	// (CAL-V0-140). Both captures take an intent file's bytes from it
 	// instead of reading and hashing the file again; each capture still
 	// stats every intent file into its inventory, and a file whose size
 	// differs is read afresh, so a changed tree still moves the audit or

@@ -78,9 +78,9 @@ type admitAll struct{}
 func (admitAll) Admit(string) (func(bool), error) { return func(bool) {}, nil }
 func (admitAll) Boundary(bool, bool) bool         { return false }
 
-// CAL-V0-139: the service-run dispatcher reads the same pools as the
+// CAL-V0-142: the service-run dispatcher reads the same pools as the
 // foreground dispatch command; before, it was opened without them.
-func TestCALV0139_ServiceDispatcherReadsTicketPools(t *testing.T) {
+func TestCALV0142_ServiceDispatcherReadsTicketPools(t *testing.T) {
 	_, root := psrCLIReady(t, "true")
 	c := psrNativeConfig(root, filepath.Join(t.TempDir(), "dispatch"), "true")
 	c.Roles[0].Match = &dispatch.Match{Pool: "db"}

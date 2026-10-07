@@ -23,12 +23,12 @@ func (s *intentReads) Read(p string, max int) ([]byte, error) {
 	return s.Native.Read(p, max)
 }
 
-// V1-0893: an audit given the tree its caller's outer snapshot hashed takes
+// CAL-V0-140: an audit given the tree its caller's outer snapshot hashed takes
 // the intent bytes from it instead of reading and hashing every file twice
 // more, with the same result. A file whose size differs is read afresh, so
 // the identity moves; a same-size rewrite keeps the shared digest, which is
 // why only a caller that hashes the tree again after the audit may share it.
-func TestV10893_AuditSharesTheOuterIntentTree(t *testing.T) {
+func TestCALV0140_AuditSharesTheOuterIntentTree(t *testing.T) {
 	repo, r := setup(t)
 	fixture.CommitPosts(t, repo, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
 	tree, err := intent.TreeDigest(repo.Root)

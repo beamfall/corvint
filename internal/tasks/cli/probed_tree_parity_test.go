@@ -106,11 +106,11 @@ func TestTMV0008_ProbedTreeMovedSnapshotParity(t *testing.T) {
 	}
 }
 
-// V1-0893: the journal audit shares the first probe's tree, so a ticket
+// CAL-V0-140: the journal audit shares the first probe's tree, so a ticket
 // rewritten in place at the same size and time after the audit must still
 // be caught by the second probe and re-read, never reported from the
 // shared bytes.
-func TestV10893_SharedAuditTreeSameSizeRewriteRereads(t *testing.T) {
+func TestCALV0140_SharedAuditTreeSameSizeRewriteRereads(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.WriteState(t, r)
 	fixture.WriteIntent(t, r)

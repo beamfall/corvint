@@ -10,10 +10,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// V1-0893: a full plan of wire.MaxTicketsPerQueue typical entries encodes
+// CAL-V0-141: a full plan of wire.MaxTicketsPerQueue typical entries encodes
 // under the per-entry node bound that refused it under the flat envelope
 // bound, and the bound still refuses entries far over their budget.
-func TestV10893_PlanNodeBoundScalesPerEntry(t *testing.T) {
+func TestCALV0141_PlanNodeBoundScalesPerEntry(t *testing.T) {
 	retries, err := wire.Parse([]byte(`{"byReason":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"charged":"0","exhausted":false,"limit":"3","reasonHistory":"COMPLETE","remaining":"3","remainingMeaning":"RETRY_CAPACITY","retryAdmissionReason":"RETRY_AVAILABLE"}` + "\n"))
 	if err != nil {
 		t.Fatal(err)

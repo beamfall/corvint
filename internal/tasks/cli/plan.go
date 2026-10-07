@@ -112,7 +112,7 @@ func planPreview(env Env, args []string) *wire.Result {
 // entry decodes to 27 nodes (the retry summary, one resource and one
 // blocker); 64 leaves room for several blockers and resources. The budget
 // is aggregate: a plan whose entries average more refuses LIMIT_EXCEEDED,
-// as before (V1-0893).
+// as before (CAL-V0-141).
 const planEntryNodes = 64
 
 // planNodeBound is the full plan's decoded-node bound: the ordinary

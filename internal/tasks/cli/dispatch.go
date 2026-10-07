@@ -461,7 +461,8 @@ type dispatchQueue struct {
 	reviews *store.ReviewFold
 }
 
-// newDispatchQueue is the queue of a dispatcher running config c.
+// newDispatchQueue is the queue of a dispatcher running config c, with its
+// ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
 func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
 	return dispatchQueue{env: env, pools: c.TicketPools(), reviews: &store.ReviewFold{}}
 }
