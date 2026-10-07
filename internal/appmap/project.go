@@ -37,6 +37,9 @@ type Options struct {
 	Full   bool
 	// Overlays supply learned facts (AMAP-V0-014). The CLI passes none.
 	Overlays []Overlay
+	// Verification carries run evidence for `screen` and `flow` step statuses (RVN-V0-001); nil
+	// prints no verification.
+	Verification *Verification
 }
 
 func budgetError(format string, args ...any) error {
@@ -350,6 +353,7 @@ type projection struct {
 	anchors  []Anchor
 	elements map[string]bool
 	fresh    *freshness
+	revs     map[string]*freshness
 }
 
 func newProjection(ctx context.Context, m *Map, o Options) *projection {
@@ -558,13 +562,15 @@ type stepView struct {
 	Reuse      []string      `json:"reuse"`
 	ReuseTotal int           `json:"reuse_total"`
 	Freshness  string        `json:"freshness"`
+	// Verification is present only when the call supplied receipts (RVN-V0-006).
+	Verification *StepVerification `json:"verification,omitempty"`
 }
 
 const reuseShown = 3
 
 func (p *projection) stepView(fl *Flow, st Step) stepView {
 	v := stepView{ID: st.ID, Action: st.Action, Screen: st.Screen, Status: st.Status, Reason: st.Reason, Selector: viewSelector(st.Selector),
-		Reuse: st.Reuse[:min(len(st.Reuse), reuseShown)], ReuseTotal: len(st.Reuse), Freshness: p.state(fl.Anchor)}
+		Reuse: st.Reuse[:min(len(st.Reuse), reuseShown)], ReuseTotal: len(st.Reuse), Freshness: p.state(fl.Anchor), Verification: p.verify(st)}
 	if s := p.m.screen(st.Screen); s != nil {
 		v.Template = s.Template
 	}
