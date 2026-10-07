@@ -45,6 +45,11 @@ type Result struct {
 	Qualification     string `json:"qualification"`
 	PublisherIdentity string `json:"publisherIdentity"`
 	Receipt           string `json:"receipt,omitempty"`
+	// Removed names every state path apply or rollback deleted under the
+	// retention bound, and Left every transaction entry it kept because it
+	// could not classify or remove it, as "path: reason" (proposed UPD-V0-007).
+	Removed []string `json:"removed,omitempty"`
+	Left    []string `json:"left,omitempty"`
 }
 type asset struct {
 	Name string `json:"name"`
@@ -114,6 +119,14 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		if err = privateDir(c.StateDir); err != nil {
 			return r, err
 		}
+		// The state lock serialises updaters that share this state; the
+		// incomplete sweep also requires an age no live run can reach.
+		unlockState, stateErr := lockDirectory(c.StateDir)
+		if stateErr != nil {
+			return r, fmt.Errorf("state directory: %w", stateErr)
+		}
+		defer unlockState()
+		r.Removed, r.Left = sweepIncomplete(c.StateDir, time.Now())
 	}
 	if command == "rollback" {
 		r.Receipt, err = e.rollback(ctx, destination)
@@ -295,8 +308,116 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.InstalledVersion = candidateVersion
 		r.InstalledBuild = build
 		r.Freshness = "CURRENT"
+		removed, left := retainCommitted(c.StateDir, stage, candidate, rec)
+		r.Removed, r.Left = append(r.Removed, removed...), append(r.Left, left...)
 	}
 	return r, err
+}
+
+// transactionName matches the directories apply creates with
+// os.MkdirTemp(state, "transaction-"); any other name is not the updater's.
+var transactionName = regexp.MustCompile(`^transaction-[0-9]+$`)
+
+// incompleteStaleAfter is how old a transaction without a receipt must be
+// before it is swept. Run bounds a whole command at five minutes, so a
+// directory last modified longer ago than this cannot belong to a live run,
+// including one from an updater that predates the state lock.
+const incompleteStaleAfter = 30 * time.Minute
+
+// sweepIncomplete removes every updater transaction directory without
+// receipt.json that is older than incompleteStaleAfter: an apply killed before
+// its receipt was written, which rollback can never use, whatever component it
+// was for (proposed UPD-V0-007).
+func sweepIncomplete(state string, now time.Time) (removed, left []string) {
+	entries, err := os.ReadDir(state)
+	if err != nil {
+		return nil, []string{state + ": " + err.Error()}
+	}
+	for _, entry := range entries {
+		if !transactionName.MatchString(entry.Name()) {
+			continue
+		}
+		dir := filepath.Join(state, entry.Name())
+		info, err := os.Lstat(dir)
+		if err != nil || !info.IsDir() {
+			left = append(left, dir+": not a real directory")
+			continue
+		}
+		_, err = os.Lstat(filepath.Join(dir, "receipt.json"))
+		if err == nil {
+			continue
+		}
+		if !os.IsNotExist(err) {
+			left = append(left, dir+": "+err.Error())
+			continue
+		}
+		if now.Sub(info.ModTime()) < incompleteStaleAfter {
+			left = append(left, dir+": incomplete transaction younger than "+incompleteStaleAfter.String())
+			continue
+		}
+		if err = os.RemoveAll(dir); err != nil {
+			left = append(left, dir+": "+err.Error())
+			continue
+		}
+		removed = append(removed, dir)
+	}
+	return removed, left
+}
+
+// retainCommitted enforces the retention bound after a successful activation:
+// the committed transaction drops its download, smoke home and candidate copy
+// (now the installed bytes), keeping its receipt, previous executable and
+// release evidence; every other transaction bound to the same component and
+// destination is superseded and removed. A transaction whose receipt cannot be
+// read is left and named, never guessed (proposed UPD-V0-007).
+func retainCommitted(state, stage, candidate string, committed receipt) (removed, left []string) {
+	for _, p := range []string{filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home"), candidate} {
+		if _, err := os.Lstat(p); err != nil {
+			continue
+		}
+		if err := os.RemoveAll(p); err != nil {
+			left = append(left, p+": "+err.Error())
+			continue
+		}
+		removed = append(removed, p)
+	}
+	entries, err := os.ReadDir(state)
+	if err != nil {
+		return removed, append(left, state+": "+err.Error())
+	}
+	for _, entry := range entries {
+		dir := filepath.Join(state, entry.Name())
+		if !transactionName.MatchString(entry.Name()) || dir == stage {
+			continue
+		}
+		info, err := os.Lstat(dir)
+		if err != nil || !info.IsDir() {
+			left = append(left, dir+": not a real directory")
+			continue
+		}
+		b, err := readRegular(filepath.Join(dir, "receipt.json"), metadataLimit)
+		if errors.Is(err, os.ErrNotExist) {
+			continue // incomplete: sweepIncomplete owns it
+		}
+		if err != nil {
+			left = append(left, dir+": "+err.Error())
+			continue
+		}
+		var other receipt
+		if err = json.Unmarshal(b, &other); err != nil {
+			left = append(left, dir+": unreadable receipt")
+			continue
+		}
+		if other.Component != committed.Component || other.Destination != committed.Destination {
+			continue
+		}
+		if err = os.RemoveAll(dir); err != nil {
+			left = append(left, dir+": "+err.Error())
+			continue
+		}
+		removed = append(removed, dir)
+	}
+	return removed, left
 }
 func binaryName(component string) (string, error) {
 	switch component {

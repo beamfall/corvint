@@ -112,7 +112,7 @@ above stands with that substitution.
   reader to emit identical bytes on a hit and a miss, so the implementation exposes the package-level
   `var loadSnapshot = contextindex.LoadSnapshot` and its deferred sibling `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`), and the observed sibling `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:218-220@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
+  (`cmd/corvint/index_snapshot.go:237-239@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
   snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:399-408@3ebad936`),
@@ -823,7 +823,7 @@ above stands with that substitution.
   The implementation exposes the package-level `var loadSnapshot = contextindex.LoadSnapshot` and
   `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`) and `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:218-220@097dbc58`), the dogfood event's zero-spawn seam
+  (`cmd/corvint/index_snapshot.go:237-239@097dbc58`), the dogfood event's zero-spawn seam
   (`LCP-V0-016`). The one call through the deferred seam is
   `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The seven current production calls through the snapshot seams are
   `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`), batch
@@ -843,8 +843,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:760-783@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
-  the snapshot (`internal/contextindex/snapshot.go:687-758@807ae8a9`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:770-793@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
+  the snapshot (`internal/contextindex/snapshot.go:697-768@807ae8a9`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot`, `LoadSnapshotDeferred` or `LoadSnapshotObserved` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,

@@ -5,13 +5,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -56,9 +59,24 @@ func archiveBytes(t *testing.T, entries map[string][]byte) []byte {
 	gz.Close()
 	return b.Bytes()
 }
+
+// scriptBinary is the fixture executable for build; pad appends that many
+// bytes of incompressible comment after exit, so a fixture can weigh like a
+// real binary.
+func scriptBinary(build, pad int) []byte {
+	b := []byte(fmt.Sprintf("#!/bin/sh\necho 'Corvint 1.0.0-rc.1 (build %d)'\n", build))
+	if pad == 0 {
+		return b
+	}
+	noise := make([]byte, pad/2)
+	rand.New(rand.NewSource(int64(build) * int64(pad))).Read(noise)
+	return append(append(b, "exit 0\n#"...), hex.EncodeToString(noise)...)
+}
 func coreArchive(t *testing.T, platform string, build int) []byte {
+	return coreArchiveOf(t, platform, scriptBinary(build, 0))
+}
+func coreArchiveOf(t *testing.T, platform string, binary []byte) []byte {
 	t.Helper()
-	binary := []byte(fmt.Sprintf("#!/bin/sh\necho 'Corvint 1.0.0-rc.1 (build %d)'\n", build))
 	prefix := "corvint_" + platform + "/"
 	files := map[string][]byte{prefix + "corvint": binary, prefix + "SHA256SUMS": []byte(hash(binary) + "  corvint\n")}
 	for _, n := range []string{"LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"} {
@@ -66,9 +84,11 @@ func coreArchive(t *testing.T, platform string, build int) []byte {
 	}
 	return archiveBytes(t, files)
 }
-func releaseClient(t *testing.T, e *engine, build int) {
+func releaseClient(t *testing.T, e *engine, build int) { t.Helper(); releasePadded(t, e, build, 0) }
+func releasePadded(t *testing.T, e *engine, build, pad int) {
 	t.Helper()
-	a := coreArchive(t, e.platform, build)
+	binary := scriptBinary(build, pad)
+	a := coreArchiveOf(t, e.platform, binary)
 	name := "corvint_" + e.platform + ".tar.gz"
 	r := release{Tag: "v1.0.0-rc.1", Published: time.Now(), Prerelease: true, Body: "experimental", Assets: []asset{{name, "https://github.com/archive"}, {"SHA256SUMS", "https://github.com/sums"}, {"verification-report.json", "https://github.com/qualification"}}}
 	rows, _ := json.Marshal([]release{r})
@@ -78,7 +98,6 @@ func releaseClient(t *testing.T, e *engine, build int) {
 		case "/archive":
 			b = a
 		case "/qualification":
-			binary := []byte(fmt.Sprintf("#!/bin/sh\necho 'Corvint 1.0.0-rc.1 (build %d)'\n", build))
 			parts := strings.Split(e.platform, "_")
 			b = []byte(fmt.Sprintf(`{"schema":"corvint.release-go-archive-report.v2","verdict":"PASS","targets":[{"goos":%q,"goarch":%q,"archiveName":%q,"retainedBinary":{"sha256":%q},"retainedArchive":{"sha256":%q}}]}`, parts[0], parts[1], name, hash(binary), hash(a)))
 		case "/sums":
@@ -233,7 +252,7 @@ func TestUPDV0005ApplyRollbackAndPreparedReceipt(t *testing.T) {
 		t.Fatal("rollback guessed nonmatching receipt")
 	}
 	e.config.AllowNetwork = true
-	if _, err = e.run(context.Background(), "apply"); err != nil {
+	if r, err = e.run(context.Background(), "apply"); err != nil {
 		t.Fatal(err)
 	}
 	e.config.AllowNetwork = false
@@ -241,6 +260,8 @@ func TestUPDV0005ApplyRollbackAndPreparedReceipt(t *testing.T) {
 		t.Fatalf("repeated lifecycle: %v", err)
 	}
 	writeScript(t, dest, 163)
+	// The second apply superseded the first transaction (proposed UPD-V0-007),
+	// so the retained one is the one to tamper with.
 	os.WriteFile(filepath.Join(filepath.Dir(r.Receipt), "previous"), []byte("tampered"), 0700)
 	if _, err = e.run(context.Background(), "rollback"); err == nil {
 		t.Fatal("tampered rollback accepted")
@@ -485,4 +506,136 @@ func TestUPDV0005PreparedReceiptInterruptionRecovery(t *testing.T) {
 	if actual != rec.PreviousDigest {
 		t.Fatal("post-switch recovery changed previous bytes")
 	}
+}
+
+// proposed UPD-V0-007: apply keeps one rollback-capable transaction per
+// component and destination, drops its download, smoke home and candidate copy,
+// sweeps a transaction a killed apply left without receipt.json, leaves what it
+// cannot classify, names every removal, and rollback still restores the bytes.
+func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
+	const pad = 4 << 20
+	e := fixtureEngine(t)
+	dest := filepath.Join(e.config.BinDir, "corvint")
+	if err := os.WriteFile(dest, scriptBinary(161, pad), 0700); err != nil {
+		t.Fatal(err)
+	}
+	state := e.config.StateDir
+	if err := os.MkdirAll(state, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// An apply killed before its receipt, long enough ago that no run can
+	// still own it; a fresh one a live run may still be staging; and an
+	// operator directory that only looks like a transaction.
+	stale := time.Now().Add(-2 * incompleteStaleAfter)
+	killed := filepath.Join(state, "transaction-100")
+	fresh := filepath.Join(state, "transaction-400")
+	notes := filepath.Join(state, "transaction-notes")
+	for _, dir := range []string{killed, fresh, notes} {
+		if err := os.MkdirAll(filepath.Join(dir, "extracted"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "archive.tar.gz"), scriptBinary(1, pad), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(dir, stale, stale); err != nil && dir != fresh {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chtimes(fresh, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(state, "transaction-200")
+	malformed := filepath.Join(state, "transaction-300")
+	for dir, body := range map[string]string{other: `{"Component":"tasks","Destination":"/elsewhere/corvint-tasks"}`, malformed: "not json"} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "receipt.json"), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unrelated := filepath.Join(state, "operator-notes")
+	if err := os.WriteFile(unrelated, []byte("kept"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var applied []Result
+	for _, build := range []int{162, 163, 164} {
+		releasePadded(t, &e, build, pad)
+		r, err := e.run(context.Background(), "apply")
+		if err != nil || r.Action != "applied" {
+			t.Fatalf("apply %d: %+v %v", build, r, err)
+		}
+		applied = append(applied, r)
+		t.Logf("after apply %d: state holds %d bytes", build, treeBytes(t, state))
+	}
+	first, second, third := applied[0], applied[1], applied[2]
+	stage := filepath.Dir(first.Receipt)
+	want := []string{killed, filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home"), filepath.Join(stage, "extracted", "corvint_"+e.platform, "corvint")}
+	if strings.Join(first.Removed, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("first apply removed %q, want %q", first.Removed, want)
+	}
+	if len(first.Left) != 2 || first.Left[0] != fresh+": incomplete transaction younger than 30m0s" || !strings.HasPrefix(first.Left[1], malformed+": ") {
+		t.Fatalf("first apply left %q", first.Left)
+	}
+	if !slices.Contains(second.Removed, stage) || slices.Contains(second.Removed, other) {
+		t.Fatalf("second apply removed %q", second.Removed)
+	}
+	for _, kept := range []string{other, malformed, unrelated, fresh, filepath.Join(notes, "archive.tar.gz"), third.Receipt, filepath.Join(filepath.Dir(third.Receipt), "previous"), filepath.Join(filepath.Dir(third.Receipt), "verification-report.json")} {
+		if _, err := os.Lstat(kept); err != nil {
+			t.Fatalf("%s was removed: %v", kept, err)
+		}
+	}
+	transactions, _ := filepath.Glob(filepath.Join(state, "transaction-*"))
+	if len(transactions) != 5 {
+		t.Fatalf("transactions after three applies: %q", transactions)
+	}
+	// An apply killed after its stage existed and before its receipt: the
+	// next run sweeps it and rollback still restores build 163's bytes.
+	interrupted, err := os.MkdirTemp(state, "transaction-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(interrupted, "archive.tar.gz"), []byte("partial"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Chtimes(interrupted, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	// Rollback refuses any unreadable receipt (UPD-V0-005), so the operator
+	// clears the one retention left and named before rolling back.
+	if err = os.RemoveAll(malformed); err != nil {
+		t.Fatal(err)
+	}
+	e.config.AllowNetwork = false
+	r, err := e.run(context.Background(), "rollback")
+	if err != nil || !slices.Contains(r.Removed, interrupted) {
+		t.Fatalf("rollback after interruption: %+v %v", r, err)
+	}
+	if got, _ := digest(dest); got != hash(scriptBinary(163, pad)) {
+		t.Fatal("rollback did not restore the previous binary")
+	}
+	if _, err = e.run(context.Background(), "rollback"); err == nil {
+		t.Fatal("rollback beyond the retained transaction succeeded")
+	}
+	unlock, err := lockDirectory(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	if _, err = e.run(context.Background(), "rollback"); err == nil || !strings.Contains(err.Error(), "state directory") {
+		t.Fatalf("rollback ran while another process held the state lock: %v", err)
+	}
+}
+
+func treeBytes(t *testing.T, root string) (total int64) {
+	t.Helper()
+	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err == nil && d.Type().IsRegular() {
+			if info, err := d.Info(); err == nil {
+				total += info.Size()
+			}
+		}
+		return nil
+	})
+	return total
 }
