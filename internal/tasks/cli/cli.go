@@ -140,7 +140,7 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: pageValueFlags}, func(a []string) *wire.Result { return ticketList(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
 			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
@@ -349,7 +349,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
 		"corvint-tasks pending; corvint-tasks program show",
-		"corvint-tasks ticket list [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks ticket blockers <ticketId|local>",
@@ -584,6 +584,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 // reads, so `--fields` and `--summary` extraction leaves their values alone.
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
+	listValueFlags   = []string{"--offset", "--limit", "--status"}
 	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
 )
 
@@ -653,7 +654,11 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 // no blockers or unknowns on a terminal (COMPLETED or ARCHIVED) ticket, and
 // the reader-wide attempt-liveness unknown reported once as a returned
 // warning instead of on every item.
-func listViews(rc *readCtx, ids []string, p page) ([]wire.Value, *wire.Page, []string) {
+//
+// Every item also carries the record-derived completedAt and statusChangedAt
+// (CAL-V0-182); ended, when non-nil, supplies lastAttemptEndedAt for the
+// page's tickets (CAL-V0-183, `ticket list` only; a missing entry is null).
+func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) ([]wire.Value, *wire.Page, []string) {
 	ctx := rc.store.Context()
 	start, end := p.window(len(ids))
 	items := make([]wire.Value, 0, end-start)
@@ -677,14 +682,162 @@ func listViews(rc *readCtx, ids []string, p page) ([]wire.Value, *wire.Page, []s
 		if terminal {
 			drop = append(drop, "blockers", "unknowns")
 		}
-		items = append(items, withoutKeys(item, drop...))
+		item = withoutKeys(item, drop...)
+		addTransitionTimes(item, v.Record)
+		items = append(items, item)
+	}
+	if ended != nil {
+		for i, id := range ids[start:end] {
+			v, ok := ended[id]
+			if !ok {
+				v = wire.Null()
+			}
+			items[i].Obj.Set("lastAttemptEndedAt", v)
+		}
 	}
 	return items, p.result(len(ids), len(items)), hoisted
 }
 
+// addTransitionTimes sets completedAt and statusChangedAt (CAL-V0-182) from
+// the record alone. completedAt is the completion time, null when the record
+// carries none. statusChangedAt is exact only where the record proves its
+// last status transition: an unmutated DRAFT or OPEN record (createdAt), a COMPLETED
+// record whose last write was the completion, or a HELD record whose last
+// write placed its only hold. Every other record reports UNKNOWN rather
+// than a guess; no field is added to the record itself.
+func addTransitionTimes(item wire.Value, r *ticket.Record) {
+	if item.Obj == nil || r == nil {
+		return
+	}
+	completed := wire.Null()
+	if r.Completion != nil {
+		completed = wire.String(string(r.Completion.RecordedAt))
+	}
+	changed := wire.String("UNKNOWN")
+	switch {
+	case r.Status == ticket.StatusCompleted:
+		if r.Completion != nil && r.Completion.RecordedAt == r.UpdatedAt {
+			changed = wire.String(string(r.UpdatedAt)) // the last write completed it
+		}
+	case r.Status == ticket.StatusHeld:
+		if len(r.Holds) == 1 && r.Holds[0].PlacedAt == r.UpdatedAt {
+			changed = wire.String(string(r.UpdatedAt)) // the last write placed the only hold
+		}
+	case r.Revision == "1" && (r.Status == ticket.StatusDraft || r.Status == ticket.StatusOpen):
+		changed = wire.String(string(r.CreatedAt)) // never written since its creation
+	}
+	item.Obj.Set("completedAt", completed)
+	item.Obj.Set("statusChangedAt", changed)
+}
+
+// lastAttemptEnded returns, per listed ticket, the time its latest terminal
+// attempt ended (CAL-V0-183): the recordedAt of the receipt that wrote the
+// attempt's terminal phase. The receipt is the audited latest afterimage of
+// the attempt record, read by name and checked against the audited digest,
+// so only one bounded receipt read happens per listed ticket. A ticket with
+// no terminal attempt is null; one whose receipt cannot be proven (pruned,
+// rewritten, mismatched) is UNKNOWN; an absent journal is NOT_OBSERVED.
+func lastAttemptEnded(rc *readCtx, ids []string) (map[string]wire.Value, error) {
+	out := map[string]wire.Value{}
+	if rc.journalAbsent {
+		for _, id := range ids {
+			out[id] = wire.String(string(ticket.NotObserved))
+		}
+		return out, nil
+	}
+	in, _, err := planInput(rc)
+	if err != nil || len(in.Attempts) == 0 {
+		return out, err
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	latest := map[string]*snapshot.Attempt{}
+	for _, a := range in.Attempts {
+		id := a.TicketID.Raw
+		if !want[id] || a.Live() {
+			continue
+		}
+		if b := latest[id]; b == nil || a.PhaseSinceSeq.Uint64() > b.PhaseSinceSeq.Uint64() || (a.PhaseSinceSeq == b.PhaseSinceSeq && a.AttemptID > b.AttemptID) {
+			latest[id] = a
+		}
+	}
+	src := journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}
+	for id, a := range latest {
+		out[id] = wire.String("UNKNOWN")
+		path := "attempts/" + a.AttemptID + ".json"
+		record, ok := rc.proof.Records[path]
+		if !ok || record.Sha256 == nil || record.Seq != a.PhaseSinceSeq {
+			continue
+		}
+		name, err := snapshot.ReceiptName(record.Seq.Uint64())
+		if err != nil {
+			continue
+		}
+		raw, err := src.Read("receipts/"+name, wire.MaxReceiptFileBytes)
+		if err != nil {
+			continue
+		}
+		receipt, err := snapshot.DecodeReceipt(raw)
+		if err != nil || receipt.Seq != record.Seq {
+			continue
+		}
+		for _, post := range receipt.Post {
+			if post.Path == path && post.Sha256 != nil && *post.Sha256 == *record.Sha256 {
+				out[id] = wire.String(string(receipt.RecordedAt))
+			}
+		}
+	}
+	return out, nil
+}
+
+// listStatuses parses the `ticket list --status S[,S...]` filter
+// (CAL-V0-181): a non-empty comma-separated set of distinct §3.2 statuses,
+// given at most once. Any other form refuses MALFORMED on --status before
+// the store is read.
+func listStatuses(args []string, fl map[string]string) (map[string]bool, error) {
+	seen := 0
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--status" || strings.HasPrefix(a, "--status=") {
+			seen++
+		}
+		if a == "--status" || a == "--offset" || a == "--limit" {
+			i++
+		}
+	}
+	if seen > 1 {
+		return nil, wire.Errorf(wire.CodeMalformed, "--status", "--status given more than once; pass one comma-separated list")
+	}
+	v, ok := fl["status"]
+	if !ok {
+		return nil, nil
+	}
+	set := map[string]bool{}
+	for _, s := range strings.Split(v, ",") {
+		known := false
+		for _, a := range ticket.Statuses {
+			known = known || s == a
+		}
+		if !known {
+			return nil, wire.Errorf(wire.CodeMalformed, "--status", "value %q not in {%s}", prose(s), strings.Join(ticket.Statuses, "|"))
+		}
+		if set[s] {
+			return nil, wire.Errorf(wire.CodeMalformed, "--status", "status %s listed more than once", s)
+		}
+		set[s] = true
+	}
+	return set, nil
+}
+
 func ticketList(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "list"}
-	_, p, err := pagedFlags("ticket list", args)
+	fl, p, err := pagedFlags("ticket list", args, "status")
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	statuses, err := listStatuses(args, fl)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
@@ -692,7 +845,22 @@ func ticketList(env Env, args []string) *wire.Result {
 	var pg *wire.Page
 	var hoisted []string
 	rc, err := withStore(env, func(rc *readCtx) error {
-		items, pg, hoisted = listViews(rc, rc.store.Inventory.Sorted(), p)
+		ids := rc.store.Inventory.Sorted()
+		if statuses != nil {
+			kept := make([]string, 0, len(ids))
+			for _, id := range ids {
+				if rec, ok := rc.store.Inventory.Get(id); ok && statuses[rec.Status] {
+					kept = append(kept, id)
+				}
+			}
+			ids = kept
+		}
+		start, end := p.window(len(ids))
+		ended, err := lastAttemptEnded(rc, ids[start:end])
+		if err != nil {
+			return err
+		}
+		items, pg, hoisted = listViews(rc, ids, p, ended)
 		return nil
 	})
 	if err != nil {
@@ -840,7 +1008,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 				ids = append(ids, id)
 			}
 		}
-		items, pg, hoisted = listViews(rc, ids, p)
+		items, pg, hoisted = listViews(rc, ids, p, nil)
 		return nil
 	})
 	if err != nil {
@@ -1217,6 +1385,9 @@ func queueStatus(env Env, args []string) *wire.Result {
 		o.Set("byStatus", wire.ObjectValue(bo))
 		o.Set("intentChecksPassed", wire.String(string(wire.CountOf(int64(unknown)))))
 		o.Set("blocked", wire.String(string(wire.CountOf(int64(blocked)))))
+		last, completions := completionSummary(rc, observedAt)
+		o.Set("lastCompletion", last)
+		o.Set("completions", completions)
 		if rc.journalAbsent {
 			for _, key := range []string{"headSeq", "generation", "attempts"} {
 				o.Set(key, wire.String("NOT_OBSERVED"))
@@ -1286,6 +1457,69 @@ func queueStatus(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// completionSummary is the CAL-V0-184 queue-status throughput view, derived
+// from the current records the store already holds and no receipt scan.
+// lastCompletion is the latest completion.recordedAt (ties by ticket ID),
+// null when no record carries a completion. Its receipt is the sequence of
+// the audited latest afterimage of that ticket when the completion was the
+// record's last write; an archived record, a later write or an audit this
+// read cannot complete makes it UNKNOWN and an absent journal NOT_OBSERVED.
+// A non-acceptance edit in the same second as the completion is
+// indistinguishable by timestamp and is a recorded limit. The selecting audit runs first so the attempt reads below it
+// reuse the same proof (CAL-V0-061). completions counts current-record
+// completions in (observedAt-window, observedAt]; a completion a later
+// REOPEN removed from its record is not counted.
+func completionSummary(rc *readCtx, observedAt time.Time) (wire.Value, wire.Value) {
+	observedAt = observedAt.UTC().Truncate(time.Second)
+	var last *ticket.Record
+	hour, day := 0, 0
+	for _, id := range rc.store.Inventory.IDs() {
+		rec, ok := rc.store.Inventory.Get(id)
+		if !ok || rec.Completion == nil {
+			continue
+		}
+		c := rec.Completion.RecordedAt
+		if last == nil || c > last.Completion.RecordedAt || (c == last.Completion.RecordedAt && rec.TicketID.Raw > last.TicketID.Raw) {
+			last = rec
+		}
+		at, err := time.Parse("2006-01-02T15:04:05Z", string(c))
+		if err != nil || at.After(observedAt) {
+			continue
+		}
+		age := observedAt.Sub(at)
+		if age < time.Hour {
+			hour++
+		}
+		if age < 24*time.Hour {
+			day++
+		}
+	}
+	counts := wire.NewObject()
+	counts.Set("observedAt", wire.String(observedAt.Format("2006-01-02T15:04:05Z")))
+	counts.Set("lastHour", wire.String(string(wire.CountOf(int64(hour)))))
+	counts.Set("last24Hours", wire.String(string(wire.CountOf(int64(day)))))
+	if last == nil {
+		return wire.Null(), wire.ObjectValue(counts)
+	}
+	receipt := wire.String(string(ticket.NotObserved))
+	if !rc.journalAbsent {
+		path := "intent/tickets/" + last.TicketID.Local + ".json"
+		// An audit this read cannot complete leaves the receipt UNKNOWN; the
+		// state reads that follow audit again and fail as they always did.
+		receipt = wire.String("UNKNOWN")
+		if proof, err := auditState(rc, "reservations.json", path); err == nil {
+			if r, ok := proof.Records[path]; ok && r.Sha256 != nil && last.Status == ticket.StatusCompleted && last.UpdatedAt == last.Completion.RecordedAt {
+				receipt = wire.String(string(r.Seq))
+			}
+		}
+	}
+	lc := wire.NewObject()
+	lc.Set("ticketId", wire.String(last.TicketID.Raw))
+	lc.Set("at", wire.String(string(last.Completion.RecordedAt)))
+	lc.Set("receipt", receipt)
+	return wire.ObjectValue(lc), wire.ObjectValue(counts)
 }
 
 func archiveExport(env Env, args []string) *wire.Result {

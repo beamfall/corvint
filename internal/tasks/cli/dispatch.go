@@ -341,6 +341,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if held := dispatchLoopDetected(l); len(held) > 0 {
 		o.Set("loopDetected", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
+	if rows, omitted := l.StallRows(); len(rows) > 0 {
+		o.Set("sessionsSinceStatusChange", dispatchStallValue(c, rows, omitted))
+	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
@@ -902,4 +905,21 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 		out = append(out, t)
 	}
 	return out
+}
+
+// dispatchStallValue renders the CAL-V0-185 advisory counts: tickets with at
+// least one finished session since their native status last changed, most
+// sessions first, at most 64, with the configured threshold (null when
+// unset) and whether each count reached it. Nothing here holds or blocks.
+func dispatchStallValue(c *dispatch.Config, rows []dispatch.StallView, omitted int) wire.Value {
+	threshold := wire.Null()
+	if c != nil && c.StalledAfterSessions != nil {
+		threshold = wire.String(strconv.Itoa(*c.StalledAfterSessions))
+	}
+	items := make([]wire.Value, 0, len(rows))
+	for _, r := range rows {
+		stalled := c != nil && c.StalledAfterSessions != nil && r.Sessions >= *c.StalledAfterSessions
+		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(r.Ticket)).Set("status", wire.String(r.Status)).Set("sessions", wire.String(strconv.Itoa(r.Sessions))).Set("stalled", wire.Bool(stalled))))
+	}
+	return wire.ObjectValue(wire.NewObject().Set("threshold", threshold).Set("tickets", wire.Array(items...)).Set("omitted", wire.String(strconv.Itoa(omitted))))
 }
