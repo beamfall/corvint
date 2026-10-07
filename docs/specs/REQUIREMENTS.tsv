@@ -2265,6 +2265,12 @@ PSR-V0-012	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	44	A health, cleanup o
 PSR-V0-013	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	45	`corvint-tasks pool status [--pool ID] [--member ID]` returns one `taskman-pool-
 PSR-V0-014	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	46	`--pool` and `--member` each appear at most once with a nonempty label and filte
 PSR-V0-015	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	47	`pool status` is a pure TM-V0-008 read like `queue status` and `attempt show`: i
+PSR-V0-016	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	48	`corvint-tasks claim <ticketId> --holder H --pool P --stage S --share-allocation
+PSR-V0-017	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	49	A share refuses with stable codes and writes no binding when: the allocation is
+PSR-V0-018	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	50	A shared member stays ALLOCATED until its last bound attempt ends and then takes
+PSR-V0-019	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	51	Sharing excludes the two paths whose effect spans a whole allocation: an attempt
+PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visible in pure reads (PSR-V0-015, TM-V0-008). `pool status` give
+PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use

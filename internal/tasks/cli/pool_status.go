@@ -107,6 +107,7 @@ func poolMemberFree(o *wire.Object) {
 	for _, key := range []string{"allocationId", "holder", "attemptId", "generation", "stage", "changedSeq", "commandKind", "observationSha256", "quarantine"} {
 		o.Set(key, wire.Null())
 	}
+	o.Set("boundAttempts", wire.Array())
 	o.Set("lastHealth", wire.String(poolNotObserved))
 	o.Set("lastCleanup", wire.String(poolNotObserved))
 }
@@ -123,6 +124,7 @@ func poolMemberOccupied(o *wire.Object, en snapshot.PoolEntry, evidence journal.
 		o.Set("attemptId", wire.String(en.AttemptID)).Set("generation", wire.String(string(en.Generation)))
 	}
 	o.Set("changedSeq", wire.String(string(en.ChangedSeq)))
+	o.Set("boundAttempts", boundAttemptsValue(en))
 	// The command kind outlives its command; it is pending only while a
 	// health (PREPARING) or cleanup/sweep (CLEANING) runner owns the member.
 	o.Set("commandKind", wire.Null())
@@ -157,4 +159,55 @@ func poolMemberOccupied(o *wire.Object, en snapshot.PoolEntry, evidence journal.
 		key = "lastCleanup"
 	}
 	o.Set(key, wire.ObjectValue(outcome))
+}
+
+// boundAttemptsValue lists the attempts an allocation binds: the entry's
+// attempt as PRIMARY, then each PSR-V0-016 shared attempt as SHARED in
+// binding order. Only an ALLOCATED member binds attempts.
+func boundAttemptsValue(en snapshot.PoolEntry) wire.Value {
+	out := []wire.Value{}
+	if en.State != "ALLOCATED" || en.AttemptID == "" {
+		return wire.Array()
+	}
+	add := func(id string, generation wire.Size, role string) {
+		out = append(out, wire.ObjectValue(wire.NewObject().Set("attemptId", wire.String(id)).Set("generation", wire.String(string(generation))).Set("role", wire.String(role))))
+	}
+	add(en.AttemptID, en.Generation, "PRIMARY")
+	for _, x := range en.Shared {
+		add(x.AttemptID, x.Generation, "SHARED")
+	}
+	return wire.Array(out...)
+}
+
+// poolBindingValue is the derived `attempt show` view of the attempt's
+// allocation in audited pools.json (PSR-V0-020): its member state, this
+// attempt's role and every bound attempt. An allocation pools.json no
+// longer holds is FREE with no role.
+func poolBindingValue(raw []byte, a *snapshot.Attempt) (wire.Value, error) {
+	o := wire.NewObject().Set("allocationId", wire.String(string(a.PoolAllocation.AllocationID))).Set("state", wire.String("FREE")).Set("role", wire.Null()).Set("boundAttempts", wire.Array())
+	if len(raw) == 0 {
+		return wire.ObjectValue(o), nil
+	}
+	state, err := snapshot.DecodePools(raw)
+	if err != nil {
+		return wire.Value{}, err
+	}
+	for _, en := range state.Entries {
+		if en.AllocationID != a.PoolAllocation.AllocationID {
+			continue
+		}
+		o.Set("state", wire.String(en.State)).Set("boundAttempts", boundAttemptsValue(en))
+		if en.State != "ALLOCATED" {
+			break
+		}
+		if en.AttemptID == a.AttemptID && en.Generation == a.Generation {
+			o.Set("role", wire.String("PRIMARY"))
+		}
+		for _, x := range en.Shared {
+			if x.AttemptID == a.AttemptID && x.Generation == a.Generation {
+				o.Set("role", wire.String("SHARED"))
+			}
+		}
+	}
+	return wire.ObjectValue(o), nil
 }

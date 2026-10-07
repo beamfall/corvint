@@ -56,7 +56,10 @@ type LeaseRequest struct {
 	ExcludeMembers                            []string
 	// ExcludeAuthors is "", ExcludeAuthorsLatest or ExcludeAuthorsAll
 	// (CAL-V0-098).
-	ExcludeAuthors  string
+	ExcludeAuthors string
+	// ShareAllocation binds a CLAIM to an allocation the same holder
+	// already holds through a live attempt (PSR-V0-016); empty otherwise.
+	ShareAllocation string
 	WholeRepository bool
 	AttemptID       string
 	Generation      wire.Size
@@ -114,6 +117,7 @@ const (
 	fieldSweepSeconds
 	fieldHandoff
 	fieldAuthors
+	fieldShare
 )
 
 type leaseShape struct{ required, allowed int }
@@ -128,7 +132,7 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
 	LeasePoolSafe:        {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
-	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
+	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors | fieldShare},
 	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
 	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
@@ -144,7 +148,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -245,6 +249,14 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	}
 	if l.Allocation != "" {
 		if _, e := wire.ParseDigest("allocation", l.Allocation); e != nil {
+			return e
+		}
+	}
+	if l.ShareAllocation != "" {
+		if l.Pool == "" || l.ExcludeMembers != nil || l.ExcludeAuthors != "" {
+			return malformed("--share-allocation needs --pool and takes no member or author exclusion")
+		}
+		if _, e := wire.ParseDigest("shareAllocation", l.ShareAllocation); e != nil {
 			return e
 		}
 	}
@@ -384,6 +396,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	// CAL-V0-098: likewise omitted when absent.
 	if l.ExcludeAuthors != "" {
 		v.Obj.Set("excludeAuthors", s(l.ExcludeAuthors))
+	}
+	// PSR-V0-016: omitted when absent, so every earlier CLAIM keeps its digest.
+	if l.ShareAllocation != "" {
+		v.Obj.Set("shareAllocation", s(l.ShareAllocation))
 	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {

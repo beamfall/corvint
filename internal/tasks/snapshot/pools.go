@@ -9,6 +9,18 @@ import (
 const MaxPoolStateBytes = 1 << 20
 const ProfilePools = "taskman-pool-state/0"
 
+// MaxSharedAttempts bounds the attempts one ALLOCATED member holds at once,
+// the original included (PSR-V0-016). A small fixed bound keeps one member's
+// blast radius, its pools.json entry and its pool status row bounded.
+const MaxSharedAttempts = 4
+
+// PoolShare is one further attempt bound to an ALLOCATED entry's allocation
+// by `claim --share-allocation` (PSR-V0-016..019).
+type PoolShare struct {
+	AttemptID  string
+	Generation wire.Size
+}
+
 type PoolAllocation struct {
 	PoolID, MemberID               string
 	AllocationID, DefinitionSha256 wire.Digest
@@ -26,6 +38,9 @@ type PoolEntry struct {
 	PolicySha256, RequestSha256     wire.Digest
 	ObservationSha256               *wire.Digest
 	Reason                          string
+	// Shared lists the further bound attempts in binding order; it is
+	// written only when non-empty, so legacy bytes stay identical.
+	Shared []PoolShare
 }
 type PoolState struct {
 	QueueID wire.QueueID
@@ -64,10 +79,13 @@ func DecodePools(data []byte) (*PoolState, error) {
 	p := &PoolState{QueueID: r.Field("queueId").QueueID(), Entries: []PoolEntry{}}
 	seen := map[string]bool{}
 	for _, x := range r.Field("entries").Array(intent.MaxPoolMembers, true) {
-		x.Closed(wire.OptionalKeys(x.Value(), []string{"allocation", "state", "holder", "stage", "attemptId", "generation", "changedSeq", "policySha256", "requestSha256", "observationSha256", "reason", "runnerPid", "runnerStarted", "commandKind", "commandRevision", "cleanupPassed"}, "sweep")...)
+		x.Closed(wire.OptionalKeys(x.Value(), []string{"allocation", "state", "holder", "stage", "attemptId", "generation", "changedSeq", "policySha256", "requestSha256", "observationSha256", "reason", "runnerPid", "runnerStarted", "commandKind", "commandRevision", "cleanupPassed"}, "sweep", "shared")...)
 		en := PoolEntry{RunnerPID: x.Field("runnerPid").Count(), RunnerStarted: x.Field("runnerStarted").Prose(0, 128), CommandKind: x.Field("commandKind").String(), CommandRevision: x.Field("commandRevision").String(), CleanupPassed: x.Field("cleanupPassed").Bool(), PoolAllocation: *ReadPoolAllocation(x.Field("allocation")), State: x.Field("state").Enum("PREPARING", "ALLOCATED", "QUARANTINED", "CLEANING"), Holder: x.Field("holder").Label(), Stage: x.Field("stage").String(), AttemptID: x.Field("attemptId").String(), Generation: x.Field("generation").Size(), ChangedSeq: x.Field("changedSeq").Size(), PolicySha256: x.Field("policySha256").Digest(), RequestSha256: x.Field("requestSha256").Digest(), ObservationSha256: x.Field("observationSha256").DigestOrNull(), Reason: x.Field("reason").Prose(0, 4096)}
 		if wire.Has(x.Value(), "sweep") {
 			en.Sweep = ReadPoolSweepOwner(x.Field("sweep"))
+		}
+		if wire.Has(x.Value(), "shared") {
+			en.Shared = readPoolShares(x.Field("shared"), p.QueueID, en)
 		}
 		if en.Stage != "" {
 			x.Field("stage").Enum(intent.StageRoles...)
@@ -112,9 +130,40 @@ func (p *PoolState) Encode() ([]byte, error) {
 		if e.Sweep != nil {
 			value.Obj.Set("sweep", PoolSweepOwnerValue(e.Sweep))
 		}
+		if len(e.Shared) > 0 {
+			shares := []wire.Value{}
+			for _, x := range e.Shared {
+				shares = append(shares, wire.ObjectValue(wire.NewObject().Set("attemptId", wire.String(x.AttemptID)).Set("generation", wire.String(string(x.Generation)))))
+			}
+			value.Obj.Set("shared", wire.Array(shares...))
+		}
 		values = append(values, value)
 	}
 	raw := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ProfilePools)).Set("queueId", wire.String(p.QueueID.Raw)).Set("entries", wire.Array(values...))))
 	_, err := DecodePools(raw)
 	return raw, err
+}
+
+// readPoolShares reads a present "shared" list: non-empty, bounded, only on an
+// ALLOCATED entry, and naming distinct same-queue attempts other than the
+// entry's own (PSR-V0-017).
+func readPoolShares(r *wire.Reader, q wire.QueueID, en PoolEntry) []PoolShare {
+	out := []PoolShare{}
+	seen := map[string]bool{en.AttemptID: true}
+	for _, x := range r.Array(MaxSharedAttempts-1, true) {
+		x.Closed("attemptId", "generation")
+		share := PoolShare{AttemptID: x.Field("attemptId").Identifier(), Generation: x.Field("generation").Size()}
+		if aq, e := AttemptQueue(share.AttemptID); e != nil || aq.Raw != q.Raw {
+			x.Fail(wire.CodeMalformed, "invalid shared attempt")
+		}
+		if seen[share.AttemptID] {
+			x.Fail(wire.CodeDuplicateID, "duplicate shared attempt")
+		}
+		seen[share.AttemptID] = true
+		out = append(out, share)
+	}
+	if len(out) == 0 || en.State != "ALLOCATED" {
+		r.Fail(wire.CodeMalformed, "shared attempts must be non-empty on an ALLOCATED entry")
+	}
+	return out
 }

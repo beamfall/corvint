@@ -37,6 +37,8 @@ type Report struct {
 	LaneUntouchedAttestation *snapshot.LaneUntouchedAttestation
 
 	PoolAllocation *snapshot.PoolAllocation
+	// SharedAllocation is a claimed attempt's PSR-V0-016 binding, nil otherwise.
+	SharedAllocation *snapshot.SharedAllocation
 	// Delivery is what a claim or claim-next delivers from its admission.
 	Delivery *ClaimDelivery
 	// AuthorExclusion is the model's CAL-V0-098 derivation on a fresh

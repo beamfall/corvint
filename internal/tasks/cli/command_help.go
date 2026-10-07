@@ -190,7 +190,7 @@ var commandUsage = map[string]string{
 	"release list":       "corvint-tasks release list",
 	"release show":       "corvint-tasks release show RELEASE",
 	"release readiness":  "corvint-tasks release readiness RELEASE",
-	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--timing] [--role ROLE]",
+	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--timing] [--role ROLE]",
 	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
 	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",

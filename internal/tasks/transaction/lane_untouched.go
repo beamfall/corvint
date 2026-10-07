@@ -41,7 +41,7 @@ func (c leaseContext) verifyLaneUntouched(a *snapshot.Attempt) error {
 		if en.AllocationID != a.PoolAllocation.AllocationID {
 			continue
 		}
-		if found || en.State != "ALLOCATED" || en.AttemptID != a.AttemptID || en.Generation != a.Generation || en.Holder != a.Lease.Holder || en.Stage != a.Stage || !sameAllocation(&en.PoolAllocation, a.PoolAllocation) || en.ChangedSeq != origin.OriginalAdmissionSeq || en.PolicySha256 != a.PolicySha256 || en.RunnerPID.Int() != 0 || en.RunnerStarted != "" || en.CommandKind != "" || en.CommandRevision != "" || en.ObservationSha256 != nil || en.CleanupPassed || en.Reason != "" {
+		if found || en.State != "ALLOCATED" || en.AttemptID != a.AttemptID || en.Generation != a.Generation || en.Holder != a.Lease.Holder || en.Stage != a.Stage || !sameAllocation(&en.PoolAllocation, a.PoolAllocation) || en.ChangedSeq != origin.OriginalAdmissionSeq || en.PolicySha256 != a.PolicySha256 || en.RunnerPID.Int() != 0 || en.RunnerStarted != "" || en.CommandKind != "" || en.CommandRevision != "" || en.ObservationSha256 != nil || en.CleanupPassed || en.Reason != "" || len(en.Shared) != 0 {
 			return missing("occupancy has changed or recorded command use")
 		}
 		found = true

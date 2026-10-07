@@ -139,7 +139,7 @@ func claimedTicket(repo *intent.Repository, verb string, report *Report, err err
 		return wire.Errorf(wire.CodeFenced, "claim", "receipt generation differs")
 	}
 	report.Ticket = a.TicketID.Raw
-	report.PoolAllocation = a.PoolAllocation
+	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
 	report.Delivery = claimDelivery(repo, a)
 	return nil
 }
