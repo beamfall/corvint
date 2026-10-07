@@ -281,11 +281,13 @@ func TestMMRV0005ClientRootsNeverSwitchRepository(t *testing.T) {
 		toolCall(2, "corvint.status", map[string]any{"repository": "core", "root": other}),
 		toolCall(3, "corvint.status", map[string]any{"repository": "core", "roots": []any{"file://" + other}}),
 		toolCall(4, "corvint.status", map[string]any{"repository": "other"}),
+		toolCall(5, "corvint.status", map[string]any{"root": other}),
+		toolCall(6, "corvint.status", map[string]any{"roots": []any{}}),
 	)
 	if got := statusRevision(t, responses["1"]); got != headRevision(t, core) {
 		t.Fatalf("client roots switched the repository: %s", got)
 	}
-	for _, id := range []string{"2", "3", "4"} {
+	for _, id := range []string{"2", "3", "4", "5", "6"} {
 		failure, _ := responses[id]["error"].(map[string]any)
 		if failure == nil || fmt.Sprint(failure["code"]) != "-32602" {
 			t.Fatalf("request %s response=%#v", id, responses[id])

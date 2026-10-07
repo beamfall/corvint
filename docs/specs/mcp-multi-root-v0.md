@@ -64,8 +64,8 @@ into the tool catalogue.
   or a path in its place MUST be refused as JSON-RPC `-32602 Invalid params`, the same mapping the
   bridge's `invalid-arguments` code already has. Client `roots` capabilities, `_meta` members and any
   `root` or `roots` argument MUST NOT add, remove or switch a repository; the latter two remain
-  closed-decode refusals.
-- `MMR-V0-006`: (proposed, pending owner acceptance; V1-0938) `corvint.status` without `repository`
+  closed-decode refusals, including on `corvint.status` without a selector.
+- `MMR-V0-006`: (proposed, pending owner acceptance; V1-0938) `corvint.status` with no arguments
   MUST return every declared binding as the closed object
   `{"schema":"corvint-mcp-multi-root-status/0","tool":"corvint.status","mutates":false,"repositories":[...]}`,
   one `{"repository":ALIAS,"result":RESULT}` entry per alias in byte order. Each `RESULT` MUST equal

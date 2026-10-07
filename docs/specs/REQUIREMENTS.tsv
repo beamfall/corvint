@@ -1913,7 +1913,7 @@ MMR-V0-002	docs/specs/mcp-multi-root-v0.md	43	(proposed, pending owner acceptanc
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	48	(proposed, pending owner acceptance; V1-0938) Every declared root MUST be valida
 MMR-V0-004	docs/specs/mcp-multi-root-v0.md	55	(proposed, pending owner acceptance; V1-0938) In multi-root mode `tools/list` MU
 MMR-V0-005	docs/specs/mcp-multi-root-v0.md	60	(proposed, pending owner acceptance; V1-0938) A tool call MUST reach only the
-MMR-V0-006	docs/specs/mcp-multi-root-v0.md	68	(proposed, pending owner acceptance; V1-0938) `corvint.status` without `reposito
+MMR-V0-006	docs/specs/mcp-multi-root-v0.md	68	(proposed, pending owner acceptance; V1-0938) `corvint.status` with no arguments
 MMR-V0-007	docs/specs/mcp-multi-root-v0.md	78	(proposed, pending owner acceptance; V1-0938) Every result MUST bind to its own
 MMR-V0-008	docs/specs/mcp-multi-root-v0.md	84	(proposed, pending owner acceptance; V1-0938) Per-root resident state MUST be on
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	38	The profile MUST be served by the separate executable `corvint-test-validity-mcp

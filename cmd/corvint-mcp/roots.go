@@ -96,11 +96,12 @@ func (handler *toolHandler) multiRootTools() []bridge.ToolDescriptor {
 // route binds a multi-root call to the registry its declared alias names and
 // removes the selector before the bridge's closed decode (MMR-V0-005). A
 // missing, non-string, or undeclared alias is not ok; a path is never an alias.
-// A nil registry with ok means corvint.status without an alias.
+// A nil registry with ok means corvint.status without an alias, which, like
+// the closed status input, admits no other argument.
 func (handler *toolHandler) route(name string, arguments map[string]any) (*bridge.Registry, map[string]any, bool) {
 	value, present := arguments[repositoryArgument]
 	if !present {
-		return nil, nil, name == bridge.ToolStatus
+		return nil, nil, name == bridge.ToolStatus && len(arguments) == 0
 	}
 	alias, isString := value.(string)
 	registry := handler.repositories[alias]
