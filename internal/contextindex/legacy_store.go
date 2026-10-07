@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"syscall"
 	"time"
 )
 
@@ -138,8 +139,10 @@ func sweepLegacyStore(root string, now time.Time) (directory string, removed []E
 			err = errors.New("replaced during the sweep")
 		}
 	}
+	// rmdir, unlike Remove, never deletes a file or link that replaced the
+	// directory after the check above, nor a directory that is not empty.
 	if err == nil {
-		err = corvint.Remove("index")
+		err = syscall.Rmdir(directory)
 	}
 	if err != nil {
 		return directory, removed, append(left, LegacyEntry{directory, "remove failed: " + err.Error()})

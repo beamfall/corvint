@@ -53,6 +53,10 @@ age floor; both cases are in the test.
 ## Limits
 
 - An interrupted apply is swept by the first run at least 30 minutes later, not the very next run.
+- The 30-minute age is wall-clock mtime. A forward clock jump over 30 minutes while an older
+  (pre-lock) updater sharing the state directory is staging can sweep its directory; that apply
+  then fails before writing its receipt, with its destination unchanged (re-review finding,
+  retained as a documented limit rather than fixed).
 
 - Rollback depth is one step. Earlier transactions are removed once superseded, which changes the
   previous behaviour of keeping all of them.

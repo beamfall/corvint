@@ -63,7 +63,10 @@ The baseline is manual archive verification and copying binaries, with external 
   and was last modified more than 30 minutes ago: an apply killed before its receipt, which rollback
   can never use for any component, and which no live run can still own because a run is bounded at
   five minutes (this also covers an older updater without the state lock sharing the directory). A
-  younger one is kept and named in `left`, and is swept by a later run. After
+  younger one is kept and named in `left`, and is swept by a later run. The age is the directory's
+  wall-clock modification time: a forward clock jump of more than 30 minutes during a live pre-lock
+  updater's staging can sweep its directory, and that apply then fails before its receipt and
+  activation with its destination unchanged. After
   a successful activation, apply MUST remove the committed transaction's `archive.tar.gz`,
   `smoke-home` and extracted candidate executable (whose bytes are now the installed ones), keeping
   `receipt.json`, `previous`, the release checksums and metadata, qualification evidence, and the
@@ -78,7 +81,8 @@ The baseline is manual archive verification and copying binaries, with external 
   failed activation after its receipt was written is kept until the next successful apply of that
   component and destination. Falsifier: after an apply, a state directory holding a superseded
   transaction of the same component and destination, an archive, smoke home or candidate copy of
-  the committed one, or a receipt-less transaction; a removal not named in `removed`; or a rollback
+  the committed one, or a receipt-less updater transaction last modified more than 30 minutes before
+  the run; a removal not named in `removed`; or a rollback
   after pruning that does not restore the exact previous digest. Rollback of this requirement:
   revert `sweepIncomplete`, `retainCommitted`, the state lock and the two result fields; transactions
   then accumulate as before and the operator prunes them by hand (older ones are not needed for the

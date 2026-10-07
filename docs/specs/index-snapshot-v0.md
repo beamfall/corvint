@@ -595,8 +595,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   (`temporary`). `.corvint` and `.corvint/index` are opened only when a no-follow `lstat` shows a
   real directory and the opened descriptor is that same directory, and every removal is relative to
   those descriptors, so a symlinked entry is never followed and swapping either directory for a
-  link mid-sweep cannot redirect a removal; the directory itself is removed only if it is still the
-  one opened. When nothing is left, the store's own `.gitignore` is removed if it holds
+  link mid-sweep cannot redirect a file removal; the directory itself is removed with `rmdir`
+  after re-checking that it is still the one opened, so a file or link swapped in is never deleted
+  and at worst an empty directory swapped in at that path in the last instant is. When nothing is left, the store's own `.gitignore` is removed if it holds
   exactly `*\n` (`ignore`), then the empty directory (`directory`, 0 bytes). A `.corvint/index`
   that is a symlink or not a directory, a link, a subdirectory, a fresh temporary, any other
   name, an unreadable entry, a failed removal and an unfinished listing past the entry bound are

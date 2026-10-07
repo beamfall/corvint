@@ -41,8 +41,9 @@ directory; `legacy_removed` names each with its byte count, which sum to 1,055,2
 
 Codex (gpt-6-astra, read-only) found a blocker: the first version `lstat`ed `.corvint/index` and
 then reopened it by path, so a link swapped in between could redirect removals outside the store.
-Fixed by the descriptor identity check above and a re-check before removing the directory. The
-race itself has no deterministic test; the static-link cases are tested.
+Fixed by the descriptor identity check above. The re-review found the final directory removal
+could still delete a regular file swapped in after the re-check; it now uses `rmdir`, which removes
+only an empty directory. The races have no deterministic test; the static-link cases are tested.
 
 ## Limits
 
