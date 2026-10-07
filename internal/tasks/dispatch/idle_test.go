@@ -155,3 +155,28 @@ func TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers(t *testing.T) {
 		t.Fatal("a work-state reader is an input outside the store witness")
 	}
 }
+
+// A tick with no worker to supervise reads no process table.
+func TestSuperviseWithoutWorkersReadsNoProcessTable(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match = &Match{Labels: []string{"no-such-label"}}
+	q := &fakeQueue{}
+	q.obs.Tickets = []Ticket{ticket("T-1", "P1", 1)}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	reads := 0
+	prev := superviseProcs
+	superviseProcs = func() (map[int]proc, error) { reads++; return prev() }
+	defer func() { superviseProcs = prev }()
+	for i := 0; i < 2; i++ {
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if reads != 0 {
+		t.Fatalf("an empty worker set read the process table %d times", reads)
+	}
+}

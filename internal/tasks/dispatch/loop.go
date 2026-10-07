@@ -556,10 +556,17 @@ func (d *Dispatcher) admitProgress(ctx context.Context, obs *Observation, ended 
 	return granted, pending, unparked, nil
 }
 
+// superviseProcs reads the process table for supervise; tests count it.
+var superviseProcs = observeProcs
+
 // supervise refreshes every worker's tree and activity, kills idle,
 // over-wall and orphaned trees, and returns the workers whose tree is empty.
+// With no worker it reads no process table.
 func (d *Dispatcher) supervise() []*Worker {
-	procs, err := observeProcs()
+	if len(d.ledger.Workers) == 0 {
+		return nil
+	}
+	procs, err := superviseProcs()
 	if err != nil {
 		d.emit(Event{Kind: "alert", Message: "process table unavailable: " + err.Error()})
 		return nil
