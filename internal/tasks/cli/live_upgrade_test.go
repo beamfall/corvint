@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -38,7 +38,9 @@ while [ ! -f "$2" ] && [ -d "$3" ] && [ "$(date +%s 3>&-)" -lt "$end" ]; do slee
 // the same way keeps an attempt claimed under build N+1 working. The stamped
 // build number is the seam.
 func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
-	if !groupreap.OwnerAvailable() {
+	// Tasks imports no Core package (decision 0397), so this mirrors the
+	// darwin || linux build constraint of internal/groupreap's owner.
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("the build N attempt runner needs the owned process group API")
 	}
 	dir := t.TempDir()
