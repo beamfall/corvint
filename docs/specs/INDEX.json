@@ -196,6 +196,24 @@
     ]
   },
   {
+    "path": "docs/specs/application-map-v0.md",
+    "title": "Application Map V0",
+    "reqPrefix": "AMAP-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/applied-intelligence-breakthroughs-v0.md",
     "title": "Applied Intelligence Breakthroughs V0",
     "reqPrefix": "",
