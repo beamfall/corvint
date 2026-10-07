@@ -976,7 +976,11 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			detail["detachedRun"] = run
 		}
 		d.finishUsage(w, detail)
+		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
+		if stalled != nil {
+			d.emit(*stalled)
+		}
 		d.remove(w.ID)
 		// ESC-V0-008: classification precedes no-progress parking. An
 		// infrastructure session is unknown progress for the ladder and a
@@ -1020,6 +1024,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		d.emit(Event{Kind: "cooldown", Ticket: w.Ticket, Message: fmt.Sprintf("%s cools down until %s after a run without progress (%d of %d before parking)", d.keyText(w.Key), b.CooldownUntil.UTC().Format(time.RFC3339), b.NoProgress, d.Config.Backoff.ParkAfter)})
 	}
 	d.pruneInfra(obs)
+	d.pruneStall(obs)
 	if d.Config.Escalates() {
 		present := map[string]bool{}
 		for _, t := range obs.Tickets {
@@ -1358,6 +1363,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		d.ledger.Workers = append(d.ledger.Workers, w)
 		d.recordSession(a, id, UsageRunning, now)
+		d.seedStall(obs, a.Key)
 		d.exits[id] = exit
 		if ep != nil {
 			ep.State = InfraRunning
