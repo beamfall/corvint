@@ -11,11 +11,14 @@ import (
 // fold from one observation to the next (CAL-V0-138), so a dispatcher tick
 // folds only the receipts appended since its previous tick. The fold is a
 // pure left fold over the hash-chained history: it continues only while the
-// receipt it last folded keeps its digest and every new receipt chains to
-// its predecessor. Any other observation (a shorter or rewritten history, an
-// unreadable receipt, or a binding refusal) discards the carried state and
-// answers exactly as FoldExternalReviews does from receipt 1. The state is
-// process memory only; nothing is written.
+// receipt it last folded keeps its digest, the receipts directory still
+// names every receipt up to it, and every new receipt chains to its
+// predecessor. Any other observation (a shorter history, a removed or
+// renamed earlier receipt, a rewritten last receipt, an unreadable receipt,
+// or a binding refusal) discards the carried state and answers exactly as
+// FoldExternalReviews does from receipt 1. An earlier receipt's content
+// rewritten in place is not re-hashed on each fold; receipt audit and
+// refresh detect it. The state is process memory only; nothing is written.
 type ReviewFold struct {
 	audit *transaction.ExternalReviewReceiptAudit
 	seq   uint64
@@ -58,7 +61,7 @@ func (f *ReviewFold) advance(repo *intent.Repository, last uint64) (ok bool) {
 		}
 	}()
 	raw, err := files.read(f.seq)
-	if err != nil || wire.Sum(raw) != f.sum {
+	if err != nil || wire.Sum(raw) != f.sum || !files.listsPrefix(f.seq) {
 		return false
 	}
 	blob := ExternalReviewBlob(repo)

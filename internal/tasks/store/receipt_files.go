@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
@@ -82,4 +84,34 @@ func (r *receiptFiles) binding() error {
 		return wire.Errorf(wire.CodeSnapshotMoved, r.dir, "previously observed identity disappeared or changed")
 	}
 	return nil
+}
+
+// listsPrefix reports that the pinned receipts/ directory still names every
+// receipt 1..last, by listing its names (CAL-V0-138). It reads names only;
+// a receipt's content is not re-hashed.
+func (r *receiptFiles) listsPrefix(last uint64) bool {
+	if r.root == nil {
+		return false
+	}
+	d, err := r.root.Open(".")
+	if err != nil {
+		return false
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return false
+	}
+	var n uint64
+	for _, name := range names {
+		digits, ok := strings.CutSuffix(name, ".json")
+		if !ok || len(digits) != 12 {
+			continue
+		}
+		seq, err := strconv.ParseUint(digits, 10, 64)
+		if err == nil && seq >= 1 && seq <= last {
+			n++
+		}
+	}
+	return n == last
 }
