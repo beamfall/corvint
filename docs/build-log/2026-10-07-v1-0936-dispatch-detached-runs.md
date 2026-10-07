@@ -69,9 +69,28 @@ NOT_RUN:
 - Owner acceptance.
 - `make gate`, by lane rule.
 
+## Independent review (Codex, read-only)
+
+Round 1 reported three P1 findings. Each was checked against the code before any change:
+
+- **Fixed.** A forged record that names a session leader enclosing the dispatcher could spare the
+  worker itself. `exemption.has` followed parents past the worker leader into the dispatcher's
+  session. Reproduced: `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` fails on the round-1
+  code. The parent walk now stops at the worker leader and at the dispatcher, and a supervisor that
+  is an ancestor of the dispatcher is ignored.
+- **Accepted and documented.** A crash between the spawn and the ledger write leaves an untracked
+  successor. This window exists for every launch before this change. The marker still prevents the
+  outcome-bearing relaunch from being repeated. The window is recorded in the failure modes.
+- **Accepted and documented.** The exemption is decided once per tick. A run that becomes
+  `RUNNING` during a stop within that tick is stopped like a `STARTING` run. Re-reading run records
+  every 100 ms of a kill loop is not worth that window.
+
 ## Out-of-scope finding
 
 `TestCALV0127_ReloadRemovedRoleKeepsWorkers` and `TestCALV0127_ReloadKeepsLaunchDeadlines`
 (`internal/tasks/dispatch`) leave orphan `sleep 300` processes after they pass. This was observed on
-base 79536edd behaviour, during this lane's package runs. It was not filed: the lane rules forbid
-task-store writes.
+base 79536edd behaviour, during this lane's package runs. `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`
+leaves its `host.sh` worker running after the test. One full `internal/tasks/cli` run failed
+`TestATRV0008_DetachedRunSurvivesItsLauncher` with "unassigned stage slot". The test passed three
+times in isolation, and this change does not touch it, so the failure is a suspected flake. None of
+these were filed: the lane rules forbid task-store writes.

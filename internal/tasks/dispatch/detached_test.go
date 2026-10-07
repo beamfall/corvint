@@ -404,6 +404,38 @@ func TestCALV0145_SupervisorMustBeAnotherSessionLeader(t *testing.T) {
 	os.WriteFile(filepath.Join(r.c.WorkRoot, r.w.ID+".go"), nil, 0o600)
 }
 
+// CAL-V0-145, CAL-V0-151: a record naming a session leader that encloses
+// the dispatcher spares nothing of the worker; the worker's own run
+// supervisor is still spared.
+func TestCALV0151_EnclosingSessionLeaderSparesNoWorker(t *testing.T) {
+	r := newDetachedRig(t)
+	outer, err := getsid(os.Getpid())
+	if err != nil || outer <= 1 || outer == os.Getpid() {
+		t.Skipf("no enclosing session leader: %d %v", outer, err)
+	}
+	outerID, err := identityOf(outer)
+	if err != nil || outerID == "" {
+		t.Skipf("enclosing session leader unreadable: %v", err)
+	}
+	supID, _ := identityOf(r.sup)
+	procs, err := observeProcs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := r.w
+	w.Members = append([]Proc(nil), r.w.Members...)
+	if err := refreshTree(&w, procs, map[int]string{outer: outerID, r.sup: supID}); err != nil {
+		t.Fatal(err)
+	}
+	in := map[int]bool{}
+	for _, m := range w.Members {
+		in[m.PID] = true
+	}
+	if !in[r.w.PID] || in[r.sup] || in[r.cmd] {
+		t.Fatalf("members %v: leader %d kept, supervisor %d and its command %d spared", w.Members, r.w.PID, r.sup, r.cmd)
+	}
+}
+
 // CAL-V0-146, CAL-V0-148: a supervisor lost while deferring ends the
 // deferral: the attempt is handed off, and no session is relaunched.
 func TestCALV0148_SupervisorLostHandsOffWithoutRelaunch(t *testing.T) {

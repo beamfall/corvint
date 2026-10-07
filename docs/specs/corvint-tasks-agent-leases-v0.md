@@ -4344,7 +4344,11 @@ Failure modes:
   live session leader with the recorded start identity, other than the worker leader and the
   dispatcher, and only the worker's own descendants that are in that session or below it are spared.
   Such a writer can already start a legitimate detached run, so a planted record grants nothing
-  beyond what `run --detach` grants.
+  beyond what `run --detach` grants. The parent walk stops at the worker leader and the dispatcher,
+  and a recorded supervisor that is an ancestor of the dispatcher is ignored, so a record naming an
+  enclosing session leader spares nothing.
+- The exemption is decided once per tick from the records read in that tick. A run that becomes
+  `RUNNING` while its worker is being stopped within that tick is stopped like a `STARTING` one.
 - A run still `STARTING` when its worker ends is not exempt and is not deferred for. A supervisor
   adopted by the tree is stopped as before. That window ends when the `RUNNING` record is written
   (ATR-V0-009).
@@ -4353,6 +4357,9 @@ Failure modes:
 - If the dispatcher crashes between naming the successor and the spawn, the relaunch is lost.
   The marker is retired on the next tick without a launch, and the ticket is planned normally. A
   spawn whose result is ambiguous is treated the same way, and its `launch-failed` event reports it.
+  A crash after the spawn and before the ledger records the successor leaves an untracked session,
+  as for any launch; the restarted dispatcher may then launch an ordinary session on the ticket, and
+  the lease admits only one of them to the attempt.
 - A supervisor PID reused with the same start identity is not possible within the start-identity
   contract. A supervisor that exited but has not been reaped looks live until it is reaped, bounded
   by the deferral.
@@ -4368,8 +4375,8 @@ Acceptance evidence: `TestCALV0145_WorkerExitsWhileDetachedRunContinues`,
 `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0146_DeferralIsBounded`,
 `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved`,
 `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch`,
-`TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches` (`internal/tasks/dispatch`, Darwin and
-Linux); `TestCALV0150_StatusShowsDetachedRunStateReadOnly` and
+`TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`,
+`TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`, Darwin and Linux); `TestCALV0150_StatusShowsDetachedRunStateReadOnly` and
 `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); `GOOS=windows go vet`. The following are NOT_RUN: Linux execution, live dispatcher qualification
 with a real host session, and owner acceptance.
 
@@ -4727,13 +4734,13 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
 | CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish`, `TestCALV0144_RestartConfirmsLeftMarks`, `TestCALV0144_FailedConfirmingPassIsRetried` (`internal/tasks/dispatch`) |
-| CAL-V0-145 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches` (`internal/tasks/dispatch`) |
+| CAL-V0-145 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
 | CAL-V0-146 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0146_DeferralIsBounded` (`internal/tasks/dispatch`) |
 | CAL-V0-147 | `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
 | CAL-V0-148 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch` (`internal/tasks/dispatch`) |
 | CAL-V0-149 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0147_DeferralAndRelaunchSurviveRestart` (`internal/tasks/dispatch`) |
 | CAL-V0-150 | `TestCALV0150_StatusShowsDetachedRunStateReadOnly` (`internal/tasks/cli`) |
-| CAL-V0-151 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches` (`internal/tasks/dispatch`) |
+| CAL-V0-151 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
 | CAL-V0-152 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues` (`internal/tasks/dispatch`) |
 | CAL-V0-153 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches` (`internal/tasks/dispatch`); other platforms: `GOOS=windows go vet` only; lane sessions: NOT_PRODUCED |
 | CAL-V0-154 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues` (the run's supervisor and command stay live and unsignalled) (`internal/tasks/dispatch`) |

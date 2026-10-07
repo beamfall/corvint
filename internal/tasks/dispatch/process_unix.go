@@ -127,7 +127,7 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 // error: an unobservable member is never taken for a gone one. Processes of
 // the verified detached run supervisors in exempt are left out (CAL-V0-145).
 func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
-	ex, err := newExemption(procs, exempt)
+	ex, err := newExemption(procs, exempt, w.PID)
 	if err != nil {
 		return err
 	}
@@ -202,17 +202,33 @@ func refreshTree(w *Worker, procs map[int]proc, exempt map[int]string) error {
 // exemption decides membership of the detached run supervisors that
 // survive their worker (CAL-V0-145): a supervisor whose start identity is
 // re-verified against this table, every process in its session, and the
-// descendants of either, by parent chain.
+// descendants of either, by parent chain. The chain stops at the worker
+// leader and at this dispatcher, and a supervisor that is an ancestor of
+// this dispatcher is never one, so a record naming an enclosing session
+// leader cannot spare the worker itself.
 type exemption struct {
-	procs map[int]proc
-	sups  map[int]bool
-	memo  map[int]bool
+	procs  map[int]proc
+	sups   map[int]bool
+	memo   map[int]bool
+	leader int
 }
 
-func newExemption(procs map[int]proc, exempt map[int]string) (*exemption, error) {
-	e := &exemption{procs: procs, sups: map[int]bool{}, memo: map[int]bool{}}
+func newExemption(procs map[int]proc, exempt map[int]string, leader int) (*exemption, error) {
+	e := &exemption{procs: procs, sups: map[int]bool{}, memo: map[int]bool{}, leader: leader}
+	if len(exempt) == 0 {
+		return e, nil
+	}
+	ancestors := map[int]bool{}
+	for pid := os.Getpid(); pid > 1 && !ancestors[pid]; {
+		ancestors[pid] = true
+		p, ok := procs[pid]
+		if !ok {
+			break
+		}
+		pid = p.ppid
+	}
 	for pid, want := range exempt {
-		if _, ok := procs[pid]; !ok || want == "" {
+		if _, ok := procs[pid]; !ok || want == "" || pid == leader || ancestors[pid] {
 			continue
 		}
 		id, err := processIdentity(pid)
@@ -233,7 +249,7 @@ func (e *exemption) has(pid int) bool {
 	var chain []int
 	seen := map[int]bool{}
 	out := false
-	for pid > 1 && !seen[pid] {
+	for pid > 1 && !seen[pid] && pid != e.leader && pid != os.Getpid() {
 		if v, ok := e.memo[pid]; ok {
 			out = v
 			break
