@@ -158,6 +158,7 @@ func TestPSRV0017_ShareRefusals(t *testing.T) {
 		{"claim", tickets[1], "--holder", "builder", "--request-id", "m2", "--pool", "db", "--share-allocation", "not-a-digest"},
 		{"claim", "--next", "--holder", "builder", "--request-id", "m3", "--pool", "db", "--share-allocation", a.allocation},
 		{"claim", tickets[1], "--holder", "builder", "--request-id", "m4", "--pool", "db", "--share-allocation", a.allocation, "--share-allocation", a.allocation + "0"},
+		{"claim", tickets[1], "--holder", "builder", "--request-id", "m5", "--pool", "db", "--stage", "implement", "--share-allocation", ""},
 	} {
 		if x := atm(t, r.Root, nil, args...); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeMalformed) {
 			t.Fatalf("malformed %d accepted: %s", i, x.stdout)

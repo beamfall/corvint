@@ -208,6 +208,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if evidence, supplied := parsed.values["--evidence"]; name == "release" && supplied && evidence == "" {
 		return fail(wire.Errorf(wire.CodeMalformed, "evidence", "handoff reference must be a nonempty Identifier"))
 	}
+	if value, supplied := parsed.values["--share-allocation"]; supplied && value == "" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--share-allocation needs an allocation id"))
+	}
 	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
 		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "%s belongs to release and needs a value", flag))

@@ -71,7 +71,7 @@ func TestPSRV0016_LoadPoolsValidatesSharedAttempts(t *testing.T) {
 				attempts[x.AttemptID] = x
 			}
 			_, e := loadPools(Request{Operation: Lease, QueueID: q.QueueID.Raw}, Input{Inventory: inv, Pools: raw}, inputState{queue: q, policy: policy, attempts: attempts})
-			if (e == nil) != (c == "ok") {
+			if (e == nil) != (c == "ok") || e != nil && wire.CodeOf(e) != wire.CodeMalformed {
 				t.Fatalf("%s: %v", c, e)
 			}
 		})
