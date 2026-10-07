@@ -533,3 +533,52 @@ func TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt(t *testing.T) {
 		t.Fatalf("AHI-031: linked worktree prompt event = %s", &stdout)
 	}
 }
+
+// IDX-SNAP-V0-027 (proposed): the index receipt names the superseded
+// per-worktree store and every file it removed from it or left there; a
+// write with no such store carries none of the three keys.
+func TestIndexReceiptNamesTheSweptLegacyStore(t *testing.T) {
+	t.Parallel()
+	root := taskContextRepository(t)
+	legacy := filepath.Join(root, ".corvint", "index")
+	if err := os.MkdirAll(legacy, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := filepath.Join(legacy, "sha1-"+strings.Repeat("e", 40)+"-0123456789abcdef.gob")
+	if err := os.WriteFile(snapshot, []byte("superseded"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "notes.txt"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var receipt map[string]any
+	if err := json.Unmarshal(runIndexForTest(t, root, false), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"legacy_store": legacy,
+		"legacy_removed": []any{map[string]any{
+			"kind": "snapshot", "path": snapshot, "bytes": float64(len("superseded")),
+			"tree": strings.Repeat("e", 40), "engine": "0123456789abcdef", "live_head": false,
+		}},
+		"legacy_left": []any{map[string]any{"path": filepath.Join(legacy, "notes.txt"), "reason": "unrecognised entry"}},
+	}
+	for key, value := range want {
+		if !reflect.DeepEqual(receipt[key], value) {
+			t.Fatalf("%s = %#v, want %#v", key, receipt[key], value)
+		}
+	}
+	if err := os.Remove(filepath.Join(legacy, "notes.txt")); err != nil {
+		t.Fatal(err)
+	}
+	// The emptied directory goes on the next write; the one after has no
+	// legacy store and keeps the frozen key set.
+	var next map[string]any
+	if err := json.Unmarshal(runIndexForTest(t, root, false), &next); err != nil {
+		t.Fatal(err)
+	}
+	if removed, _ := next["legacy_removed"].([]any); len(removed) != 1 || removed[0].(map[string]any)["kind"] != "directory" {
+		t.Fatalf("emptied legacy store not removed: %v", next["legacy_removed"])
+	}
+	writingIndexReceipt(t, runIndexForTest(t, root, false))
+}

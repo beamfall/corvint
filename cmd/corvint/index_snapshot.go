@@ -165,6 +165,11 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 	if receipt.PackPath != "" {
 		payload["pack_bytes"] = receipt.PackBytes
 	}
+	if receipt.LegacyStore != "" {
+		payload["legacy_store"] = receipt.LegacyStore
+		payload["legacy_removed"] = evictedSnapshotsPayload(receipt.LegacyRemoved)
+		payload["legacy_left"] = legacyLeftPayload(receipt.LegacyLeft)
+	}
 	encoded, err := gokernel.CanonicalJSON(payload)
 	if err != nil {
 		emitError(stderr, err)
@@ -191,6 +196,9 @@ binary's of a tree checked out at a live worktree HEAD, then this binary's
 others, then another binary's live trees, then the rest, newest first.
 The receipt names the store ("store") and every file it removed
 ("evicted_snapshots", each flagged "live_head" when its tree was checked out).
+A worktree's own .corvint/index, the store before the shared one, is then
+swept: its snapshots, companions, build-cost record and stale temporaries are
+removed ("legacy_removed"), and anything else is left and named ("legacy_left").
 This is the only verb that writes there;
 "context" reads a matching snapshot in place of rebuilding the index and
 applies the worktree's dirty paths from git status, and falls back to a full
@@ -211,6 +219,17 @@ func evictedSnapshotsPayload(evicted []contextindex.EvictedSnapshot) []any {
 			"kind": file.Kind, "path": file.Path, "bytes": file.Bytes,
 			"tree": file.Tree, "engine": file.Engine, "live_head": file.LiveHead,
 		})
+	}
+	return payload
+}
+
+// legacyLeftPayload is the receipt's list of every entry of the superseded
+// per-worktree store an index write left, with the reason (proposed
+// IDX-SNAP-V0-027); empty, never null.
+func legacyLeftPayload(left []contextindex.LegacyEntry) []any {
+	payload := make([]any, 0, len(left))
+	for _, entry := range left {
+		payload = append(payload, map[string]any{"path": entry.Path, "reason": entry.Reason})
 	}
 	return payload
 }
