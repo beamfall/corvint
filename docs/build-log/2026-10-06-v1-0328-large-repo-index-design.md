@@ -165,10 +165,10 @@ the four constants and the single deadline).
 | Repository | Operation | Now | Expected |
 |---|---|---|---|
 | r50k | 1-file change | 2.9 s, 13-14 CPU s, full rebuild | 0.6-1.2 s, 2-4 CPU s: status 0.25 s, listing 0.05 s, one blob, record copy about 60 MB sequential, global tables recompiled (the dominant term) |
-| r50k | `context` hit | 0.77 s, 281 MiB | 0.1-0.2 s, under 100 MiB: identity, sources, vocabulary sections and result bodies only |
+| r50k | `context` hit | 0.77 s, 281 MiB | 0.5-0.7 s, under 100 MiB: two status scans of 0.21-0.27 s each are the floor under the current bracket, plus 0.1-0.2 s for identity, sources, vocabulary sections and result bodies only |
 | r200k | cold `index` | refused (count) or deadline at 30 s | 15-20 s wall, 40-60 CPU s, admitted under per-stage deadlines |
 | r200k | 1-file change | refused | 2-3 s: the status scan (1.2-2 s) is the floor, as it is for hooks |
-| r200k | `context` hit | refused | 0.3-0.6 s, two status scans plus touched sections; a 250 MB gob would have been 2-3 s and about 1 GiB RSS |
+| r200k | `context` hit | refused | 2.5-4.5 s under the current bracket: two status scans of 1.2-2 s each are the floor, plus 0.3-0.6 s for the touched sections; 0.3-0.6 s only under the identity-only closing observation, an unqualified contract change (V1-0881 addendum). A 250 MB gob would have added 2-3 s and about 1 GiB RSS |
 | kubernetes | cold `index` | refused at 128 MiB | about 5-8 s wall, 15-25 CPU s (161 MiB in two batches, at r50k's bytes-per-second); hooks then hit as r50k's do |
 
 What this does not fix: the status scan floor on hooks at 200,000 files (two scans of 1.2-2 s
