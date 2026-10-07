@@ -3593,8 +3593,10 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
 - `CAL-V0-131`: proposed (V1-0889; GitHub #644). `version` MUST report `formats`, the sorted set of
   the store `VERSION` and every profile the tasks packages persist and decode again (journal, intent,
   lease, run, release, review, pool, dispatcher and user-service records, and the command-result
-  envelope a supervisor reads back); only profiles written solely to stdout are left out, and a
-  maintained test fails when a profile the sources name is in neither list. Two builds are
+  envelope a supervisor reads back); only profiles written solely to stdout are left out, as is
+  an older version the build only adopts and never writes (the drained dispatcher ledger of the
+  proposed CAL-V0-132 amendment), and a maintained test fails when a profile the sources name is
+  in none of those lists. Two builds are
   adjacent-compatible only when their sets are equal. A build that changes the encoding of any
   listed format MUST change that format's version, so the sets differ and the procedure requires a
   drain. A decoder that meets its own profile at another version MUST refuse UNSUPPORTED_VERSION

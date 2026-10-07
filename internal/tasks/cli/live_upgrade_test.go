@@ -283,6 +283,11 @@ var outputOnlyProfiles = []string{
 	"taskman-user-service-uninstall/0",
 }
 
+// adoptOnlyProfiles are older versions this build only adopts once and never
+// writes, such as a drained taskman-dispatch-state/0 ledger (CAL-V0-132,
+// proposed amendment); they are not part of the CAL-V0-131 format set.
+var adoptOnlyProfiles = []string{"taskman-dispatch-state/0"}
+
 // CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, holds the
 // store version, and holds every profile the tasks packages name except the
 // output-only ones. A new persisted or decoded profile that is not added to
@@ -321,12 +326,17 @@ func TestCALV0131_LiveFormatsCoverEveryDecodedProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	for profile, p := range named {
-		live, output := slices.Contains(got, profile), slices.Contains(outputOnlyProfiles, profile)
-		if live == output {
-			t.Errorf("%s (%s) must be in exactly one of LiveFormats and outputOnlyProfiles", profile, p)
+		lists := 0
+		for _, in := range []bool{slices.Contains(got, profile), slices.Contains(outputOnlyProfiles, profile), slices.Contains(adoptOnlyProfiles, profile)} {
+			if in {
+				lists++
+			}
+		}
+		if lists != 1 {
+			t.Errorf("%s (%s) must be in exactly one of LiveFormats, outputOnlyProfiles and adoptOnlyProfiles", profile, p)
 		}
 	}
-	for _, profile := range append(slices.Clone(got), outputOnlyProfiles...) {
+	for _, profile := range slices.Concat(got, outputOnlyProfiles, adoptOnlyProfiles) {
 		if _, ok := named[profile]; !ok && profile != version {
 			t.Errorf("%s is listed but no tasks source names it", profile)
 		}
