@@ -112,9 +112,10 @@ type Observation struct {
 	Attempts []Attempt
 	Members  []Member
 	// Replan, when set, replans the same snapshot with the tickets the
-	// work state holds outside the selection window (CAL-V0-105) and
-	// returns each planned ticket's plan state and reason by ticket ID.
-	Replan func(held map[string]bool) map[string]PlanView
+	// work state holds (CAL-V0-105) and those a budget holds (CAL-V0-155)
+	// outside the selection window, and returns each planned ticket's plan
+	// state and reason by ticket ID.
+	Replan func(held, budgetHeld map[string]bool) map[string]PlanView
 }
 
 // PlanView is one ticket's plan state and reason.
@@ -212,7 +213,7 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
-	out, _ := roster(c, obs, busy, skip, nil, nil, nil)
+	out, _ := roster(c, obs, busy, skip, nil, nil, nil, nil)
 	return out
 }
 
@@ -220,7 +221,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 // tierOf (nil means every tier is 0). A candidate whose tier is at its tier
 // cap waits; it never falls back to a lower tier.
 func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
-	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil)
+	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil, nil)
 	return out
 }
 
@@ -232,17 +233,18 @@ func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool,
 // earlier holds) would have admitted it, unless a later exempt candidate launched the
 // same key.
 func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
-	return roster(c, obs, busy, skip, nil, budget, nil)
+	return roster(c, obs, busy, skip, nil, budget, nil, nil)
 }
 
 // roster is the shared pure roster behind Roster, RosterTiers and
-// RosterWithPressure. The CAL-V0-057 tier cap is a static fence, so it is
-// checked before the CAL-V0-068 pressure budget is charged.
+// RosterWithPressure. The CAL-V0-057 tier cap and the CAL-V0-155 budgets are
+// static fences, so they are checked before the CAL-V0-068 pressure budget
+// is charged.
 //
 // prefer names, by ticket, the role a CAL-V0-149 relaunch must use: while
 // that role is enabled, a ticket role and matches the ticket, no other role
 // is a candidate for it.
-func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string) (out, held []Assignment) {
+func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string, spend *spendGate) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -357,6 +359,11 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		if n, ok := tierCaps[tk]; ok && tierCount[tk] >= n {
 			continue
 		}
+		// CAL-V0-155: a budget is a static fence too; its hold is reported
+		// as a budget event, never as pressure.
+		if spend != nil && !spend.admits(a) {
+			continue
+		}
 		if budget != nil && !budget.Accept(a) {
 			// Report a hold only while the static role, tier and global
 			// caps, charged with earlier launches and holds, would still
@@ -382,6 +389,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		count[a.Role]++
 		tierCount[tierKey(a.Role, a.Tier)]++
 		total++
+		if spend != nil {
+			spend.charge(a)
+		}
 		out = append(out, a)
 	}
 	if len(held) > 0 {

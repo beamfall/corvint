@@ -116,3 +116,23 @@ func TestCALV0105_HeldPooledTicketStillTakesPriorityYield(t *testing.T) {
 		t.Fatalf("held plan chose %s on the pool", c.Ticket.TicketID.Raw)
 	}
 }
+
+// CAL-V0-155: budget-held tickets leave the window the same way, with their
+// own reason; a work-state hold names the ticket first.
+func TestCALV0155_BudgetHeldTicketsLeaveWindow(t *testing.T) {
+	in := resourcePlanInput(t, 14, 0, 4, 0, 0)
+	starved := planStates(PriorityFirst(in))
+	in.WorkStateHeld = map[string]bool{fixture.TicketID("MX-00"): true}
+	in.BudgetHeld = map[string]bool{fixture.TicketID("MX-00"): true, fixture.TicketID("MX-01"): true}
+	got := planStates(PriorityFirst(in))
+	for id, want := range map[string][2]string{
+		"MX-00": {PlanDeferred, PlanReasonWorkStateHeld},
+		"MX-01": {PlanDeferred, PlanReasonBudgetHeld},
+		"MX-02": {PlanSelected, starved["MX-00"][1]},
+		"MX-03": {PlanSelected, starved["MX-00"][1]},
+	} {
+		if got[id] != want {
+			t.Errorf("%s = %v, want %v", id, got[id], want)
+		}
+	}
+}

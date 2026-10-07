@@ -47,11 +47,11 @@ func TestCALV0105_DispatchObservationReplansHeldTickets(t *testing.T) {
 		t.Fatal("the native observation offers no replan")
 	}
 	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
-	got := obs.Replan(map[string]bool{h1: true, h2: true})
+	got := obs.Replan(map[string]bool{h1: true, h2: true}, nil)
 	if got[h1] != (dispatch.PlanView{State: "DEFERRED", Reason: "WORK_STATE_HELD"}) || got[h2] != got[h1] || got[a1].State != "SELECTED" {
 		t.Fatalf("replan %v", got)
 	}
-	if again := obs.Replan(map[string]bool{h1: true, h2: true}); again[a1] != got[a1] || again[h1] != got[h1] {
+	if again := obs.Replan(map[string]bool{h1: true, h2: true}, nil); again[a1] != got[a1] || again[h1] != got[h1] {
 		t.Fatalf("replan is not deterministic: %v vs %v", again, got)
 	}
 	if !reflect.DeepEqual(state, fixture.TreeSnapshot(t, r.StateDir)) || !reflect.DeepEqual(intents, fixture.TreeSnapshot(t, r.IntentDir)) {

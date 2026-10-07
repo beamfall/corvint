@@ -35,7 +35,7 @@ func windowQueue(ts []Ticket, replans *[]map[string]bool) *fakeQueue {
 		ts[i].Plan, ts[i].PlanReason = base[ts[i].ID].State, base[ts[i].ID].Reason
 	}
 	q := &fakeQueue{obs: Observation{Tickets: ts}}
-	q.obs.Replan = func(held map[string]bool) map[string]PlanView {
+	q.obs.Replan = func(held, _ map[string]bool) map[string]PlanView {
 		*replans = append(*replans, held)
 		return plan(held)
 	}

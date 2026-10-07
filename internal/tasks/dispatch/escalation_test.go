@@ -117,7 +117,7 @@ func TestCALV0054_TierCapPrecedesPressureBudget(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		launches, holds := roster(c, obs, nil, nil, tierOf, b, nil)
+		launches, holds := roster(c, obs, nil, nil, tierOf, b, nil, nil)
 		for _, a := range launches {
 			out = append(out, a.Local+"@"+string(rune('0'+a.Tier)))
 		}

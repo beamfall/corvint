@@ -169,6 +169,11 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
+	if r := d.ledger.Budget; r != nil {
+		for _, h := range r.Held {
+			early(h.ResetsAt) // CAL-V0-158: a budget hold releases on the clock
+		}
+	}
 	if !d.retireConfirm.IsZero() {
 		early(d.retireConfirm) // a pending CAL-V0-144 confirmation
 	}

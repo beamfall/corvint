@@ -284,6 +284,10 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 			o.Set("tier", str(strconv.Itoa(w.Tier)))
 			o.Set("model", str(w.Model))
 		}
+		if w.Effort != "" {
+			o.Set("effort", str(w.Effort))
+		}
+		o.Set("usage", dispatchWorkerUsageValue(w.Usage))
 		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	keys := make([]string, 0, len(l.Backoff))
@@ -349,9 +353,87 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if l.Config != nil {
 		o.Set("config", dispatchConfigRecordValue(l.Config))
 	}
+	o.Set("budget", dispatchBudgetValue(c, l, now))
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchWorkerUsageValue is a running worker's CAL-V0-157 token account so
+// far: a lower bound while it runs, and UNKNOWN, never 0, when nothing was
+// read or its role declares no usage format.
+func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
+	o := wire.NewObject()
+	format, state := "NONE", u.State(false)
+	if u != nil {
+		format = u.Format
+	}
+	if state == dispatch.UsagePartial {
+		state = dispatch.UsageRunning
+	}
+	o.Set("format", wire.String(format))
+	o.Set("state", wire.String(state))
+	in, out, total := dispatch.UsageUnknown, dispatch.UsageUnknown, dispatch.UsageUnknown
+	if state != dispatch.UsageUnknown {
+		in, out, total = strconv.FormatUint(u.Input, 10), strconv.FormatUint(u.Output, 10), strconv.FormatUint(u.Input+u.Output, 10)
+	}
+	o.Set("inputTokens", wire.String(in))
+	o.Set("outputTokens", wire.String(out))
+	o.Set("tokens", wire.String(total))
+	return wire.ObjectValue(o)
+}
+
+// dispatchBudgetValue is the CAL-V0-158 view of the rolling window: each
+// role's spend and, with a ticket budget, each ticket's; the limits ("NONE"
+// when unset), the hold in force and when the window releases it. Observed
+// tokens are a lower bound while any session is PARTIAL or RUNNING, and
+// sessions with an UNKNOWN total are counted apart, never as 0 tokens.
+func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time) wire.Value {
+	str := wire.String
+	limit := func(n uint64) wire.Value {
+		if n == 0 {
+			return str("NONE")
+		}
+		return str(strconv.FormatUint(n, 10))
+	}
+	scopes := []wire.Value{}
+	for _, s := range dispatch.SpendReport(c, l, now) {
+		o := wire.NewObject().Set("scope", str(s.Scope)).Set("name", str(s.Name))
+		o.Set("sessions", str(strconv.Itoa(s.Sessions)))
+		o.Set("observedTokens", str(strconv.FormatUint(s.Tokens, 10)))
+		o.Set("partialSessions", str(strconv.Itoa(s.Partial)))
+		o.Set("runningSessions", str(strconv.Itoa(s.Running)))
+		o.Set("unknownSessions", str(strconv.Itoa(s.Unknown)))
+		var b dispatch.Budget
+		if s.Budget != nil {
+			b = *s.Budget
+		}
+		o.Set("sessionsPerDay", limit(uint64(b.SessionsPerDay)))
+		o.Set("tokensPerDay", limit(b.TokensPerDay))
+		held, resets := "NONE", "NONE"
+		if h := s.Hold; h != nil {
+			held, resets = h.Limit, h.ResetsAt.UTC().Format(time.RFC3339)
+		}
+		o.Set("held", str(held))
+		o.Set("resetsAt", str(resets))
+		scopes = append(scopes, wire.ObjectValue(o))
+	}
+	o := wire.NewObject()
+	o.Set("windowSeconds", str(strconv.Itoa(int(dispatch.BudgetWindow.Seconds()))))
+	truncated, from := "NONE", "NONE"
+	if r := l.Budget; r != nil {
+		cutoff := now.Add(-dispatch.BudgetWindow)
+		if r.Truncated.After(cutoff) {
+			truncated = r.Truncated.UTC().Format(time.RFC3339)
+		}
+		if r.HistoryFrom.After(cutoff) {
+			from = r.HistoryFrom.UTC().Format(time.RFC3339)
+		}
+	}
+	o.Set("historyTruncatedThrough", str(truncated))
+	o.Set("historyFrom", str(from))
+	o.Set("scopes", wire.Array(scopes...))
+	return wire.ObjectValue(o)
 }
 
 // dispatchConfigRecordValue is the CAL-V0-127 view of this run's reload
@@ -555,9 +637,9 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		obs.Tickets = dispatchTickets(in)
 		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
 		// the tickets its work state holds; no store read or write happens.
-		obs.Replan = func(held map[string]bool) map[string]dispatch.PlanView {
+		obs.Replan = func(held, budgetHeld map[string]bool) map[string]dispatch.PlanView {
 			replan := in
-			replan.WorkStateHeld = held
+			replan.WorkStateHeld, replan.BudgetHeld = held, budgetHeld
 			out := map[string]dispatch.PlanView{}
 			for _, e := range transaction.PriorityFirst(replan).Entries {
 				out[e.Ticket.TicketID.Raw] = dispatch.PlanView{State: e.State, Reason: e.Reason}

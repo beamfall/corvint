@@ -60,6 +60,11 @@ type Worker struct {
 	ProgressDigest  string    `json:"progressDigest,omitempty"`
 	Tier            int       `json:"tier,omitempty"`
 	Model           string    `json:"model,omitempty"`
+	// Effort is the role's declared effort at launch (CAL-V0-159).
+	Effort string `json:"effort,omitempty"`
+	// Usage is the token account of a role that declares a usage format
+	// (CAL-V0-157); without one the worker's usage is UNKNOWN.
+	Usage *WorkerUsage `json:"usage,omitempty"`
 }
 
 // EscalationState is the CAL-V0-057 ladder record of one ticket: the
@@ -150,9 +155,11 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/1 file. It is
-// never an input to the native store. Version 1 adds the CAL-V0-127 config
-// record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131).
+// Ledger is the dispatcher's private taskman-dispatch-state/2 file. It is
+// never an input to the native store. Version 1 added the CAL-V0-127 config
+// record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131);
+// version 2 adds the CAL-V0-156 budget history and the worker effort and
+// usage members (CAL-V0-160).
 type Ledger struct {
 	PoolSweeps map[string]*PoolSweepRecord `json:"poolSweeps,omitempty"`
 	Profile    string                      `json:"profile"`
@@ -171,6 +178,9 @@ type Ledger struct {
 	// Config is present only after this run's configuration file changed
 	// (CAL-V0-127).
 	Config *ConfigRecord `json:"config,omitempty"`
+	// Budget is the CAL-V0-156 launch history and budget holds, present
+	// once a worker launched.
+	Budget *SpendRecord `json:"budget,omitempty"`
 	// durable is the digest of the bytes this ledger last saved with every
 	// step durable, zero when unknown (CAL-V0-139). It is never encoded.
 	durable [sha256.Size]byte
@@ -283,11 +293,11 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // by a build with another format. It is refused as UNSUPPORTED_VERSION and
 // never read or migrated. A member that repeats, or that aliases a known
 // member by case folding, at any depth refuses MALFORMED (exactLedger).
-// The one exception (proposed amendment) is a drained version 0 ledger:
+// The one exception (proposed amendment) is a drained version 1 ledger:
 // drained reports it, and the caller adopts it as this version.
 func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained bool, err error) {
 	// The profile is found under any spelling the struct decoder would
-	// read, so an aliased version 0 profile meets version 0's rules.
+	// read, so an aliased version 1 profile meets version 1's rules.
 	for name, value := range members {
 		var profile string
 		if !strings.EqualFold(name, "profile") || json.Unmarshal(value, &profile) != nil || profile == StateProfile {
@@ -328,12 +338,12 @@ func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained bool,
 	return false, nil
 }
 
-// state1Members are what taskman-dispatch-state/1 added to version 0, by
-// the type that holds them: the CAL-V0-127 config record and the CAL-V0-125
-// CPU sample fields.
-var state1Members = map[reflect.Type][]string{
-	reflect.TypeFor[Ledger]():         {"config"},
-	reflect.TypeFor[PressureSample](): {"cpuBusyTicks", "cpuTotalTicks", "cpuTicksKnown", "cpuUtilization", "cpuUtilizationKnown"},
+// state2Members are what taskman-dispatch-state/2 added to version 1, by
+// the type that holds them: the CAL-V0-156 budget history and the worker
+// effort and usage (CAL-V0-160).
+var state2Members = map[reflect.Type][]string{
+	reflect.TypeFor[Ledger](): {"budget"},
+	reflect.TypeFor[Worker](): {"effort", "usage"},
 }
 
 // exactLedger walks the ledger's JSON tokens against the Ledger type, because
@@ -345,9 +355,9 @@ var state1Members = map[reflect.Type][]string{
 // refuses any data after the ledger value. A lone case-folded spelling stays the strict decoder's
 // concern, as CAL-V0-064 keeps a legacy ledger's "Profile" loading. Unknown
 // members are left to ledgerFormat and the strict decoder. For a drained
-// version 0 ledger every refusal is UNSUPPORTED_VERSION, a lone alias is
-// refused too, and so is any member, at any depth, outside version 0's
-// closed member set (the Ledger type less state1Members).
+// version 1 ledger every refusal is UNSUPPORTED_VERSION, a lone alias is
+// refused too, and so is any member, at any depth, outside version 1's
+// closed member set (the Ledger type less state2Members).
 func exactLedger(raw []byte, drained bool) error {
 	code := wire.CodeMalformed
 	if drained {
@@ -458,8 +468,8 @@ func folded(fields map[string]reflect.Type, key string) string {
 }
 
 // addFields records t's encoded member names and types, flattening embedded
-// structs as encoding/json does; a drained version 0 ledger omits the
-// members version 1 added.
+// structs as encoding/json does; a drained version 1 ledger omits the
+// members version 2 added.
 func addFields(t reflect.Type, fields map[string]reflect.Type, drained bool) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -476,7 +486,7 @@ func addFields(t reflect.Type, fields map[string]reflect.Type, drained bool) {
 		if tag == "" {
 			tag = f.Name
 		}
-		if drained && slices.Contains(state1Members[t], tag) {
+		if drained && slices.Contains(state2Members[t], tag) {
 			continue
 		}
 		fields[tag] = f.Type
@@ -517,6 +527,14 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 			return nil, errors.New("dispatch state: malformed infraRetry JSON")
 		}
 	}
+	// CAL-V0-156: the budget history exists only in this version, which
+	// always writes it canonically, so its presence requires the strict
+	// reader.
+	for name := range members {
+		if strings.EqualFold(name, "budget") && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+			return nil, errors.New("dispatch state: malformed budget JSON")
+		}
+	}
 	// CAL-V0-103: a recorded loop hold is closed whether or not the ledger
 	// carries progress, so its presence alone requires the strict reader.
 	if seenCarries(raw, "loops") && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
@@ -534,6 +552,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	}
 	if drained && l.Profile == drainedStateProfile {
 		l.Profile = StateProfile // the next save writes this version
+		// CAL-V0-156: the older build recorded no launches, so the
+		// history is complete only from now.
+		l.Budget = &SpendRecord{Sessions: []SpendSession{}, HistoryFrom: time.Now(), Held: []BudgetHold{}}
 	}
 	if l.Profile != StateProfile || l.Program != program {
 		return nil, fmt.Errorf("dispatch state belongs to profile %q program %q", l.Profile, l.Program)
@@ -567,6 +588,16 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if l.Config != nil {
 		if err := l.Config.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
+		}
+	}
+	if l.Budget != nil {
+		if err := l.Budget.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: %w", err)
+		}
+	}
+	for _, w := range l.Workers {
+		if err := w.Usage.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: worker %s: %w", w.ID, err)
 		}
 	}
 	if l.Backoff == nil {
@@ -609,13 +640,21 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config", "budget"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
 				fields = []string{"pending", "evidence", "receipt", "receiptSeq", "outcome"}
 			case "worker":
-				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model"}
+				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model", "effort", "usage"}
+			case "usage":
+				fields = []string{"format", "offset", "input", "output", "records", "lost", "malformed", "failed", "skipping", "open", "stopped"}
+			case "budget":
+				fields = []string{"sessions", "truncated", "historyFrom", "held"}
+			case "spend-session":
+				fields = []string{"worker", "role", "ticket", "launched", "usage", "input", "output"}
+			case "budget-hold":
+				fields = []string{"scope", "name", "limit", "resetsAt"}
 			case "backoff-state":
 				fields = []string{"noProgress", "cooldownUntil", "parked", "fingerprint", "baseFingerprint", "progressDigest"}
 			case "proc":
@@ -648,7 +687,7 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" || key == "config" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" || key == "config" || key == "budget" {
 						child = key
 					}
 				case "config":
@@ -656,7 +695,11 @@ func strictProgressJSON(raw []byte) bool {
 						child = "config-refusal"
 					}
 				case "worker":
-					if key == "members" {
+					if key == "members" || key == "usage" {
+						child = key
+					}
+				case "budget":
+					if key == "sessions" || key == "held" {
 						child = key
 					}
 				case "backoff":
@@ -724,6 +767,10 @@ func strictProgressJSON(raw []byte) bool {
 				child = "proc"
 			} else if schema == "request-list" {
 				child = "open-request"
+			} else if schema == "sessions" {
+				child = "spend-session"
+			} else if schema == "held" {
+				child = "budget-hold"
 			}
 			for d.More() {
 				if !value(depth+1, child) {
@@ -981,7 +1028,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.
