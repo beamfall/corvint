@@ -4148,17 +4148,22 @@ not kept for a reason below; a kept directory takes none of the 32. A
   writes a mark, `workers/.retiring/<name>`, holding the mark time and the directory's age, and
   removes nothing. The mark sits beside the worker directories, so it neither changes a directory's
   age nor counts as its content. A later pass, at least one minute after the mark, removes the
-  directory only if its own fresh reads again find it removable with the same age. A pass that finds
-  the directory protected, recent, retained or changed in age clears its mark; a pass runs at most
-  once per tick, so the two passes are always in different ticks. Removal failures are left for the
-  next pass.
+  directory only if its own fresh reads again find it removable with the same age, and a re-read of
+  the directory and its logs immediately before removal still shows that age. A pass that finds the
+  directory protected, recent, retained or changed in age clears its mark; a pass runs at most once
+  per tick, so the two passes are always in different ticks. A mark older than 10 minutes or three
+  ticks, whichever is longer, is stale: the pass marks the directory again and removes nothing.
+  Marks are pruned by reading their own directory, at most 4,096 entries per pass; every mark whose
+  directory the pass did not find removable is cleared. At most 4,096 marks exist: a pass that reads
+  4,096 marks writes no new one, so confirmation of newly removable directories waits for the next
+  pass after the prune. Removal failures are left for the next pass.
 
 Bound: a recorded worker keeps at most 8 MiB per stream in its rotated segment. Its live file holds
 at most 8 MiB plus what the worker writes during one tick interval (`tickSeconds`, at most 3,600 s).
 A finished worker's logs were cut on its last supervising tick. Beyond the recorded and the
 protected directories, at most 32 finished directories stay quiet longer than an hour after a
 confirming pass, each within the same per-stream bound; between the marking and the confirming pass
-the marked directories also remain. The event log keeps its existing single rotation at 16 MiB (CAL-V0-058).
+the marked directories also remain. At most 4,096 marks of at most 64 bytes each exist. The event log keeps its existing single rotation at 16 MiB (CAL-V0-058).
 
 Non-goals: a dispatcher-owned pipe or log relay; logs of a worker the ledger does not record; a
 configurable segment size or retention count; compressing or archiving segments; changing the event
@@ -4189,6 +4194,8 @@ Failure modes:
   for an hour.
 - A mark whose directory falls outside the 4,096-entry window is cleared; the directory is marked
   again once it is back in the window.
+- Output a worker writes between the re-read before removal and the removal itself is lost with
+  the directory. That window is one `stat` of the directory and its four log files.
 - A pass reads only the first 4,096 entries of `workers/`, in directory order. Retirement within
   that window is complete. Directories beyond it wait until the window shrinks, so more than about
   4,000 protected or recent directories in the window would stall the rest.
@@ -4551,7 +4558,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
 | CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
 | CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
-| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir` (`internal/tasks/dispatch`) |
+| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

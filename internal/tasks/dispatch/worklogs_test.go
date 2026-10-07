@@ -326,22 +326,25 @@ func TestCALV0144_ProtectedDirsTakeNoRetentionSlot(t *testing.T) {
 // TestCALV0144_IncompleteSessionReadIsRetaken reads a table in which a
 // process is gone before its session is read, as when it forked a child the
 // table does not show. The table is read once more and the two reads are
-// joined: the groups and sessions of either read alone count. A gap left only
-// by the table reader itself needs no second read.
+// joined: the groups and the sessions of either read alone count. The two
+// live processes lead sessions of their own, so each read sees a session the
+// other does not. A gap left only by the table reader itself needs no second
+// read.
 func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
 	gone := exec.Command("/bin/sh", "-c", "exit 0")
 	if err := gone.Run(); err != nil {
 		t.Fatal(err)
 	}
-	pid, self, parent := gone.Process.Pid, os.Getpid(), os.Getppid()
-	selfSID, err := getsid(self)
-	if err != nil {
-		t.Fatal(err)
+	leader := func() int {
+		c := exec.Command("/bin/sleep", "60")
+		c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { c.Process.Kill(); c.Wait() })
+		return c.Process.Pid
 	}
-	parentSID, err := getsid(parent)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pid, first, second, self := gone.Process.Pid, leader(), leader(), os.Getpid()
 	prev := superviseProcs
 	defer func() { superviseProcs = prev }()
 	reads := 0
@@ -351,11 +354,11 @@ func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
 			reads++
 			if reads == 1 {
 				return map[int]proc{
-					pid:    {pid: pid, ppid: ppid, pgid: 1_000_001, comm: comm},
-					parent: {pid: parent, ppid: 1, pgid: 1_000_002, comm: "go"},
+					pid:   {pid: pid, ppid: ppid, pgid: 1_000_001, comm: comm},
+					first: {pid: first, ppid: self, pgid: 1_000_002, comm: "sleep"},
 				}, nil
 			}
-			return map[int]proc{self: {pid: self, ppid: 1, pgid: 1_000_003, comm: "go"}}, nil
+			return map[int]proc{second: {pid: second, ppid: self, pgid: 1_000_003, comm: "sleep"}}, nil
 		}
 	}
 	table(1, "sh")
@@ -368,8 +371,8 @@ func TestCALV0144_IncompleteSessionReadIsRetaken(t *testing.T) {
 			t.Errorf("group %d of one read was dropped", g)
 		}
 	}
-	if !sessions[parentSID] || !sessions[selfSID] {
-		t.Errorf("first-read session %d kept=%v, second-read session %d kept=%v", parentSID, sessions[parentSID], selfSID, sessions[selfSID])
+	if !sessions[first] || !sessions[second] {
+		t.Errorf("first-read session kept=%v, second-read session kept=%v", sessions[first], sessions[second])
 	}
 	table(self, "ps")
 	if _, _, ok := liveTrees(); !ok || reads != 1 {
@@ -470,6 +473,124 @@ func TestCALV0144_LiveMemberOnConfirmingPassKeepsDir(t *testing.T) {
 	}
 	if marked(d, "tree") {
 		t.Fatal("a live member left the mark in place")
+	}
+}
+
+// TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir marks a directory
+// with no leader file, then lets its logs change while the confirming pass
+// reads the process table for another directory's leader, after the pass's
+// scan. The fresh check before removal sees the change: the directory is
+// kept and its mark is cleared.
+func TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	gone := exec.Command("/bin/sh", "-c", "exit 0")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		leader := ""
+		if i == 0 {
+			leader = fmt.Sprintf("%d gone-identity\n", gone.Process.Pid)
+		}
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), leader, now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	d.Now = func() time.Time { return now }
+	d.retireWorkerDirs()
+	if !marked(d, "target") {
+		t.Fatal("a removable directory was not marked")
+	}
+	prev := superviseProcs
+	defer func() { superviseProcs = prev }()
+	superviseProcs = func() (map[int]proc, error) {
+		at := time.Now()
+		if err := os.Chtimes(filepath.Join(d.workerDir("target"), "stdout.log"), at, at); err != nil {
+			t.Error(err)
+		}
+		return prev()
+	}
+	d.Now = func() time.Time { return now.Add(2 * time.Minute) }
+	d.retireWorkerDirs()
+	if _, err := os.Stat(d.workerDir("target")); err != nil {
+		t.Fatalf("a directory that resumed logging was removed: %v", err)
+	}
+	if marked(d, "target") {
+		t.Fatal("the resumed directory kept its mark")
+	}
+}
+
+// TestCALV0144_StaleMarkStartsOver lets a mark outlive its maximum age. The
+// pass that finds it stale marks the directory again instead of removing it;
+// a pass a minute after the fresh mark removes it.
+func TestCALV0144_StaleMarkStartsOver(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	pass := func(at time.Time) {
+		d.Now = func() time.Time { return at }
+		d.retireWorkerDirs()
+	}
+	pass(now)
+	stale := now.Add(workerRetireMarkMaxAge + time.Minute)
+	pass(stale)
+	if _, err := os.Stat(d.workerDir("target")); err != nil {
+		t.Fatalf("a stale mark was confirmed: %v", err)
+	}
+	markedAt, _, err := readRetireMark(filepath.Join(d.dir, "workers", workerRetireMarks, "target"))
+	if err != nil || !markedAt.Equal(stale) {
+		t.Fatalf("stale mark not renewed: %v %v", markedAt, err)
+	}
+	pass(stale.Add(workerRetireConfirm))
+	if _, err := os.Stat(d.workerDir("target")); !os.IsNotExist(err) {
+		t.Fatalf("a confirmed directory was kept: %v", err)
+	}
+}
+
+// TestCALV0144_MarksAreBounded fills the mark directory with maxRetireMarks
+// marks of directories that do not exist. The pass prunes them from their
+// own directory and, having read a full set, writes no new mark; the next
+// pass marks the removable directory.
+func TestCALV0144_MarksAreBounded(t *testing.T) {
+	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now()
+	for i := 0; i < maxRetainedWorkerDirs; i++ {
+		plantQuiet(t, d, fmt.Sprintf("dir-%02d", i), "", now.Add(-2*time.Hour-time.Duration(i)*time.Minute))
+	}
+	plantQuiet(t, d, "target", "", now.Add(-10*time.Hour))
+	marks := filepath.Join(d.dir, "workers", workerRetireMarks)
+	if err := os.MkdirAll(marks, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < maxRetireMarks; i++ {
+		if err := os.WriteFile(filepath.Join(marks, fmt.Sprintf("absent-%04d", i)), []byte("0 0\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.Now = func() time.Time { return now }
+	d.retireWorkerDirs()
+	left, _ := os.ReadDir(marks)
+	if len(left) != 0 {
+		t.Fatalf("%d marks left after a full set (target marked=%v)", len(left), marked(d, "target"))
+	}
+	d.retireWorkerDirs()
+	if !marked(d, "target") {
+		t.Fatal("the pass after the prune did not mark")
 	}
 }
 

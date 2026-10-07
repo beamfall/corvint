@@ -42,7 +42,10 @@ and both reads count. A pass reads at most 4,096 entries.
 Removal is confirmed across two passes. The first pass that finds a directory removable writes a
 mark under `workers/.retiring/` with the time and the directory's age. A pass at least a minute
 later, and so in a later tick, removes the directory only if its own reads again find it
-removable with the same age. Any other finding clears the mark.
+removable with the same age, and a re-read just before removal still shows that age. Any other
+finding clears the mark. A mark older than 10 minutes or three ticks, whichever is longer, is
+stale and starts confirmation over. Marks are pruned from their own directory, and at most 4,096
+exist; a pass that reads that many writes none.
 
 ## Bounds
 
@@ -51,6 +54,7 @@ removable with the same age. Any other finding clears the mark.
   live.
 - At most 32 finished directories older than an hour remain after a confirming pass, beside the
   recorded, protected and recent ones. Marked directories also remain until that pass.
+- At most 4,096 marks of at most 64 bytes each.
 
 ## Evidence
 
@@ -108,6 +112,25 @@ cover the confirmation. Each of the three new guards was mutated away in turn: r
 sight, keeping a mark a pass did not confirm, and resetting the maps before the second read. Each
 mutation made its test fail.
 
+The coordinator's Codex review of `d85d2ec3` found one MAJOR and two MINORs. All three are fixed:
+
+- MAJOR: the confirming pass removed a directory on the age it had cached at its scan. It now
+  re-reads the age just before removal, and on any change it clears the mark and keeps the
+  directory. The window between that re-read and the removal is documented.
+- MINOR: a stale mark could survive a shift of the scan window and be confirmed later. Marks now
+  have a maximum age and are pruned from their own directory, with at most 4,096 marks.
+- MINOR: the retake test used processes that share a session. It now uses two `setsid` processes,
+  one seen by each read.
+
+New tests: `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`,
+`TestCALV0144_StaleMarkStartsOver` and `TestCALV0144_MarksAreBounded`. Each guard was broken in
+turn, and the matching test failed each time:
+- skipping the re-read;
+- ignoring the mark's maximum age;
+- writing marks when a full set was read;
+- dropping the first read's sessions;
+- dropping the second read's sessions.
+
 ## Limits
 
 - Bytes appended between the size check and the truncation are lost.
@@ -118,6 +141,7 @@ mutation made its test fail.
 - A pass sees only the first 4,096 directory entries.
 - A process chain that forks and exits through all four process-table reads across the two
   confirming passes, outside the leader's process group, is not seen.
+- Output written between the re-read before removal and the removal is lost with the directory.
 
 Linux runs and live dispatcher qualification were NOT_RUN.
 

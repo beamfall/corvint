@@ -38,7 +38,12 @@ const (
 	// workerRetireConfirm is how long a mark must stand before a later pass
 	// that finds the directory removable again may remove it.
 	workerRetireConfirm = time.Minute
-	workerLogMarkerOf   = "corvint-tasks dispatch: %s reached %d bytes and was truncated; this segment keeps its last %d bytes\n"
+	// workerRetireMarkMaxAge, or three ticks if longer, is the oldest mark a
+	// pass may confirm; an older one is stale and confirmation starts over.
+	workerRetireMarkMaxAge = 10 * time.Minute
+	// maxRetireMarks bounds the marks that exist at once.
+	maxRetireMarks    = 4096
+	workerLogMarkerOf = "corvint-tasks dispatch: %s reached %d bytes and was truncated; this segment keeps its last %d bytes\n"
 )
 
 // capWorkerLogs keeps each of a worker's log streams within one live segment
@@ -190,30 +195,53 @@ func (d *Dispatcher) retireWorkerDirs() {
 			removable[x.name] = x.mtime
 		}
 	}
+	// Marks are pruned from their own directory, not from the worker scan: a
+	// mark whose directory this pass did not find removable is cleared. At
+	// most maxRetireMarks exist; a pass that reads that many writes none.
 	marks := filepath.Join(root, workerRetireMarks)
-	for name, newest := range removable {
-		mark := filepath.Join(marks, name)
-		markedAt, age, err := readRetireMark(mark)
-		switch {
-		case err != nil:
-			if os.MkdirAll(marks, 0o700) == nil {
-				_ = os.WriteFile(mark, []byte(fmt.Sprintf("%d %d\n", now.UnixNano(), newest.UnixNano())), 0o600)
-			}
-		case !age.Equal(newest):
-			_ = os.Remove(mark) // its logs changed since it was marked
-		case now.Sub(markedAt) >= workerRetireConfirm:
-			if os.RemoveAll(filepath.Join(root, name)) == nil {
-				_ = os.Remove(mark)
+	held, full := 0, false
+	if f, err := os.Open(marks); err == nil {
+		names, _ := f.Readdirnames(maxRetireMarks)
+		f.Close()
+		full = len(names) == maxRetireMarks
+		for _, name := range names {
+			if _, ok := removable[name]; ok {
+				held++
+			} else {
+				_ = os.Remove(filepath.Join(marks, name))
 			}
 		}
 	}
-	// A mark whose directory this pass did not find removable is cleared.
-	if f, err := os.Open(marks); err == nil {
-		names, _ := f.Readdirnames(maxWorkerDirScan)
-		f.Close()
-		for _, name := range names {
-			if _, ok := removable[name]; !ok {
-				_ = os.Remove(filepath.Join(marks, name))
+	markAge := max(workerRetireMarkMaxAge, 3*time.Duration(d.Config.TickSeconds)*time.Second)
+	writeMark := func(mark string, age time.Time) {
+		if os.MkdirAll(marks, 0o700) == nil {
+			_ = os.WriteFile(mark, []byte(fmt.Sprintf("%d %d\n", now.UnixNano(), age.UnixNano())), 0o600)
+		}
+	}
+	for name, newest := range removable {
+		mark := filepath.Join(marks, name)
+		markedAt, age, err := readRetireMark(mark)
+		since := now.Sub(markedAt)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			if !full && held < maxRetireMarks {
+				held++
+				writeMark(mark, newest)
+			}
+		case err != nil || since < 0 || since > markAge:
+			writeMark(mark, newest) // malformed or stale: confirmation starts over
+		case !age.Equal(newest):
+			_ = os.Remove(mark) // its logs changed since it was marked
+		case since >= workerRetireConfirm:
+			// The scan's age may be stale by now: a directory that changed
+			// since keeps its logs, and its mark is cleared.
+			path := filepath.Join(root, name)
+			if fresh, ok := newestMtime(path); !ok || !fresh.Equal(age) {
+				_ = os.Remove(mark)
+				continue
+			}
+			if os.RemoveAll(path) == nil {
+				_ = os.Remove(mark)
 			}
 		}
 	}
