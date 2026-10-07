@@ -274,7 +274,7 @@ func (g *spendGate) ticketHolds(t Ticket, prefer string) []BudgetHold {
 	selected := t
 	selected.Plan = "SELECTED"
 	roles := g.c.Roles
-	if r := g.c.roleNamed(prefer); r != nil && r.Cap > 0 && r.Lane == nil && r.Match != nil && matches(r.Match, selected) {
+	if r := g.c.relaunchRole(prefer, selected); r != nil {
 		roles = []Role{*r}
 	}
 	var out []BudgetHold

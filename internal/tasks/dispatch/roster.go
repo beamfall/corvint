@@ -258,8 +258,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 	preferred := map[string]bool{}
 	for _, t := range obs.Tickets {
 		if name, ok := prefer[t.ID]; ok {
-			r := c.roleNamed(name)
-			preferred[t.ID] = r != nil && r.Cap > 0 && r.Lane == nil && matches(r.Match, t)
+			preferred[t.ID] = c.relaunchRole(name, t) != nil
 		}
 	}
 	var cands []candidate
@@ -404,6 +403,20 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		held = kept
 	}
 	return out, held
+}
+
+// relaunchRole is the role named for t's pending CAL-V0-149 relaunch when
+// that role would serve t, else nil. A budget deferral (CAL-V0-155) keeps
+// the restriction: such a ticket is matched as if it were selected.
+func (c *Config) relaunchRole(name string, t Ticket) *Role {
+	if t.PlanReason == PlanReasonBudgetHeld {
+		t.Plan = "SELECTED"
+	}
+	r := c.roleNamed(name)
+	if r == nil || r.Cap == 0 || r.Lane != nil || r.Match == nil || !matches(r.Match, t) {
+		return nil
+	}
+	return r
 }
 
 func matches(m *Match, t Ticket) bool {

@@ -4264,7 +4264,8 @@ ticket from local observations alone. They can see what was spent and why work i
   reaches the next eligible ticket. A ticket is budget-held when its ticket scope is exhausted, or
   when every enabled ticket role that would serve it has an exhausted role scope. A ticket with a
   pending CAL-V0-149 relaunch is served only by its relaunch role when that role would match it, so
-  that role alone decides the hold. A
+  that role alone decides the hold, and a `BUDGET_HELD` deferral keeps that restriction: the roster
+  matches the relaunch role against the ticket as if it were selected. A
   `WORK_STATE_HELD` deferral takes precedence. Because the roster never meets a deferred ticket,
   the launch tick records the holds of each `BUDGET_HELD` ticket's exhausted scopes as CAL-V0-158
   holds. `BUDGET_HELD` exists only in the dispatcher's in-process preview; it is never written or

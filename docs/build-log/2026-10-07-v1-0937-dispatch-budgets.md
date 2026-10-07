@@ -147,4 +147,8 @@ starve other tickets. A CAL-V0-149 relaunch launches only under its own role, bu
 another matching role was not, the ticket was neither deferred nor launched, so it held a
 one-ticket selection window until the budget reset. The budget hold now considers only the
 relaunch role for such a ticket, the same restriction the roster applies. A regression in
-`TestCALV0155_BudgetHeldTicketLeavesSelectionWindow` fails without the fix.
+`TestCALV0155_BudgetHeldTicketLeavesSelectionWindow` fails without the fix. A second round found that once the ticket was deferred, the
+roster matched the relaunch role against the deferred plan, which failed a `planSelected` role and
+lifted the restriction, so a spare role could launch the ticket without its detached outcome. The
+roster and the budget hold now share one rule, `relaunchRole`, which matches a budget-deferred
+ticket as if it were selected; the regression now continues through replanning and the roster.
