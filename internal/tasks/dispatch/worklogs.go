@@ -122,14 +122,29 @@ func capWorkerLog(dir, name string) bool {
 // per tick, so the two are always in different ticks. Failures are left for
 // the next pass.
 func (d *Dispatcher) retireWorkerDirs() {
+	// A pass that cannot read what it needs leaves any marks in place. When a
+	// confirmation was scheduled, it schedules the next one
+	// workerRetireConfirm later, so a transient failure retries at most once
+	// a minute and never cancels confirmation.
+	armed := !d.retireConfirm.IsZero()
 	d.retireConfirm = time.Time{}
+	retry := func() {
+		if armed {
+			d.retireConfirm = d.Now().Add(workerRetireConfirm)
+		}
+	}
 	root := filepath.Join(d.dir, "workers")
 	f, err := os.Open(root)
 	if err != nil {
+		retry()
 		return
 	}
-	entries, _ := f.ReadDir(maxWorkerDirScan)
+	entries, err := f.ReadDir(maxWorkerDirScan)
 	f.Close()
+	if err != nil && err != io.EOF {
+		retry()
+		return
+	}
 	keep := map[string]bool{}
 	for _, w := range d.ledger.Workers {
 		keep[w.ID] = true
@@ -160,6 +175,9 @@ func (d *Dispatcher) retireWorkerDirs() {
 		finished = append(finished, dir{e.Name(), newest})
 	}
 	removable := map[string]time.Time{}
+	// A directory kept only because the process table could not be read
+	// keeps its mark, and its confirmation is retried.
+	unsure := map[string]bool{}
 	if len(finished) > maxRetainedWorkerDirs {
 		sort.Slice(finished, func(i, j int) bool {
 			if !finished[i].mtime.Equal(finished[j].mtime) {
@@ -185,7 +203,11 @@ func (d *Dispatcher) retireWorkerDirs() {
 					read = true
 					groups, sessions, usable = liveTrees()
 				}
-				if !usable || treeMayRun(pid, id, groups, sessions) {
+				if !usable {
+					unsure[x.name] = true
+					continue
+				}
+				if treeMayRun(pid, id, groups, sessions) {
 					continue
 				}
 			}
@@ -200,20 +222,6 @@ func (d *Dispatcher) retireWorkerDirs() {
 	// mark whose directory this pass did not find removable is cleared. At
 	// most maxRetireMarks exist; a pass that reads that many writes none.
 	marks := filepath.Join(root, workerRetireMarks)
-	held, full := 0, false
-	if f, err := os.Open(marks); err == nil {
-		names, _ := f.Readdirnames(maxRetireMarks)
-		f.Close()
-		full = len(names) == maxRetireMarks
-		for _, name := range names {
-			if _, ok := removable[name]; ok {
-				held++
-			} else {
-				_ = os.Remove(filepath.Join(marks, name))
-			}
-		}
-	}
-	markAge := max(workerRetireMarkMaxAge, 3*time.Duration(d.Config.TickSeconds)*time.Second)
 	// A pass that leaves a mark schedules its own confirming pass: a tick
 	// workerRetireConfirm from now, and at most one tick later, is inside
 	// every mark's maximum age, so confirmation never waits on another
@@ -229,6 +237,30 @@ func (d *Dispatcher) retireWorkerDirs() {
 			d.retireConfirm = now.Add(workerRetireConfirm)
 		}
 	}()
+	held, full := 0, false
+	if f, err := os.Open(marks); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		retry()
+		return
+	} else if err == nil {
+		names, err := f.Readdirnames(maxRetireMarks)
+		f.Close()
+		if err != nil && err != io.EOF {
+			retry()
+			return
+		}
+		full = len(names) == maxRetireMarks
+		for _, name := range names {
+			if _, ok := removable[name]; ok {
+				held++
+			} else if unsure[name] {
+				held++
+				pending = true
+			} else {
+				_ = os.Remove(filepath.Join(marks, name))
+			}
+		}
+	}
+	markAge := max(workerRetireMarkMaxAge, 3*time.Duration(d.Config.TickSeconds)*time.Second)
 	for name, newest := range removable {
 		mark := filepath.Join(marks, name)
 		markedAt, age, err := readRetireMark(mark)

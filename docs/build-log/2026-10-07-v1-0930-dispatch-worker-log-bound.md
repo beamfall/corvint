@@ -156,6 +156,11 @@ Four mutations each made a test fail:
 - dropping the start-up check;
 - running retirement on every tick.
 
+The review of `7cdfb81d` found one MAJOR: a confirming pass that failed to open `workers/` cleared
+the schedule and set no retry. A pass that cannot read `workers/`, `.retiring` or the process table
+now keeps its marks and retries one minute later. `TestCALV0144_FailedConfirmingPassIsRetried`
+makes `workers/` unreadable on the confirming tick and fails when the retry is disabled.
+
 ## Limits
 
 - Bytes appended between the size check and the truncation are lost.
