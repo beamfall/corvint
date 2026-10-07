@@ -88,6 +88,7 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 		{TicketID: fixture.Ticket("AT-02").TicketID, Obligation: "COMPLETED", Stages: []string{"integrate"}},
 	}
 	rec.AttachedEvidence = []ticket.AttachedEvidence{{AcceptanceRevision: "1", Actor: "russell", Evidence: []wire.Digest{wire.Sum([]byte("evidence"))}, Reason: "focused test log", RecordedAt: "2026-09-06T13:00:00Z"}}
+	rec.KnowHow = issue502KnowHow()
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)
@@ -149,5 +150,23 @@ func TestIssue502_RecordEscalationsRefusals(t *testing.T) {
 	raw := strings.Replace(string(issue502Carrier().Encode()), `"escalations"`, `"escalation"`, 1)
 	if _, err := ticket.Decode([]byte(raw)); err == nil {
 		t.Fatal("unknown key escalation decoded")
+	}
+}
+
+// issue502KnowHow is the shared fixture's KHN-V0-002 ledger: an ADD, a
+// superseding ADD, an ADD with full provenance and its RETRACT, so both
+// readers see every entry form and leave note 2 active.
+func issue502KnowHow() []ticket.KnowHowEntry {
+	one, three := wire.Count("1"), wire.Count("3")
+	why, gone := "the helper moved", "obsolete after the refactor"
+	attempt, gen, ev := "attempt-1", wire.Size("2"), "docs/build-log/2026-10-07-example.md"
+	commit := strings.Repeat("c", 40)
+	anchor := []ticket.KnowHowAnchor{{Path: "internal/a.go", Blob: strings.Repeat("a", 40)}}
+	at := wire.Timestamp("2026-09-06T14:00:00Z")
+	return []ticket.KnowHowEntry{
+		{Seq: "1", Operation: ticket.KnowHowAdd, Text: "run the focused tests first", Anchors: anchor, Routes: []string{}, Commit: commit, ActorID: "russell", ActorRole: "OWNER", RecordedAt: at},
+		{Seq: "2", Operation: ticket.KnowHowAdd, Text: "run the focused tests in internal/b", Anchors: []ticket.KnowHowAnchor{anchor[0], {Path: "internal/b.go", Blob: strings.Repeat("b", 40)}}, Routes: []string{"flow-build", "route-1"}, Commit: commit, Supersedes: &one, Reason: &why, ActorID: "russell", ActorRole: "OWNER", RecordedAt: at},
+		{Seq: "3", Operation: ticket.KnowHowAdd, Text: "the cache key includes the tree", Anchors: anchor, Routes: []string{}, Commit: commit, Attempt: &attempt, Generation: &gen, EvidencePath: &ev, ActorID: "operator-1", ActorRole: "OPERATOR", RecordedAt: at},
+		{Seq: "4", Operation: ticket.KnowHowRetract, Note: three, Reason: &gone, ActorID: "russell", ActorRole: "OWNER", RecordedAt: at},
 	}
 }

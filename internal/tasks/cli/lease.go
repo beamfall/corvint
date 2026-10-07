@@ -614,6 +614,10 @@ func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
 	if d.EscalationAnswers.Err != nil {
 		res.Warnings = append(res.Warnings, "escalation answers unavailable ("+wire.CodeOf(escalationReadError(d.EscalationAnswers.Err))+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
 	}
+	res.Items[0].Obj.Set("knowHow", claimedKnowHowValue(d.KnowHow))
+	if d.KnowHow.Err != nil {
+		res.Warnings = append(res.Warnings, "know-how notes unavailable ("+wire.CodeOf(d.KnowHow.Err)+"): the claim is committed; read them with ticket know-how list")
+	}
 }
 
 // claimedAnswersValue is the `escalationAnswers` member of a claim or
