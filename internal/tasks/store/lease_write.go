@@ -43,6 +43,9 @@ type preparedLease struct {
 	failure            error
 	observationFailure error
 	fatalCleanup       []inventoryCleanup
+	// writer is the writer checkpoint the complete audit derived, retained
+	// with the read checkpoint at commit (CAL-V0-116, proposed).
+	writer *journal.WriterCheckpoint
 }
 
 func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (leaseAuditKey, error) {
@@ -161,6 +164,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 				return p, err
 			}
 			supplied = proof
+			p.writer, _ = proof.WriterCheckpoint(observation.Files)
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.
 		// Preserve the ordinary inventory-first replay/recovery path below.
@@ -303,6 +307,14 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	// every existing guarded observation and locked rebind below.
 	timing, admission := leaseTimingOf(ctx), time.Now()
 	timing.Transactions++
+	// The scheduled complete audit runs after the preparation gate and the
+	// writer lock are released (CAL-V0-117).
+	refresh := false
+	defer func() {
+		if refresh {
+			refreshWriterCheckpoint(ctx, repo)
+		}
+	}()
 	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	timing.AdmissionWait += time.Since(admission)
 	if err != nil {
@@ -339,6 +351,16 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		timing.Guards += time.Since(guards)
 		if err != nil {
 			return guardFailureAudit(report, request.RequestID, err)
+		}
+		// CAL-V0-116 (proposed): a retained writer checkpoint serves the write
+		// under one lock; every decline prepares the complete route below.
+		handled, due, fast, err := leaseWriter(ctx, repo, request, now, beforeCommit, facts, report)
+		if handled {
+			if err != nil {
+				return guardFailureAudit(report, request.RequestID, err)
+			}
+			refresh = due
+			return report, fast, nil
 		}
 		p, err := prepareLease(ctx, repo, request, now, facts)
 		if p != nil && len(p.fatalCleanup) > 0 {
@@ -442,6 +464,7 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
 	retainCheckpoint(repo, p.proof)
+	retainWriterCheckpoint(repo, p.writer)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil

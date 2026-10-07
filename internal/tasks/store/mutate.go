@@ -53,6 +53,13 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	// platforms. Like lease preparation's, it closes after the lock is released.
 	var watch *authority.ChangeGuard
 	defer func() { _ = watch.Close() }()
+	// The scheduled complete audit runs after the lock is released (CAL-V0-117).
+	refresh := false
+	defer func() {
+		if refresh {
+			refreshWriterCheckpoint(ctx, repo)
+		}
+	}()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
@@ -77,7 +84,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		return guardFailure(report, env.RequestID, err)
 	}
 	report.Redone = redone
-	return mutateLocked(ctx, repo, session, headState, request, env, now, report, &watch)
+	return mutateLocked(ctx, repo, session, headState, request, env, now, report, &watch, &refresh)
 }
 
 // mutateLocked is Mutate after the lock, the session, the writer guards and
@@ -85,10 +92,17 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 // commit of one envelope. The caller holds the writer lock for its whole run
 // and closes the change watch it leaves in *keep after releasing the lock.
 // MutateBatch runs it once per entry of a chunk under one lock (CAL-V0-106).
-func mutateLocked(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, keep **authority.ChangeGuard) (*Report, error) {
+func mutateLocked(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, keep **authority.ChangeGuard, refresh *bool) (*Report, error) {
 	var watch *authority.ChangeGuard
 	var err error
 	defer func() { *keep = watch }()
+
+	// CAL-V0-116 (proposed): a retained writer checkpoint lets the write
+	// resume the audit at the checkpoint; every decline runs the complete
+	// route below, unchanged.
+	if handled, out, err := mutateWriter(ctx, repo, session, headState, request, env, now, report, refresh); handled {
+		return out, err
+	}
 
 	// CAL-V0-070: one audit answers the request lookup and supplies the
 	// canonical intent records, with the same refusals as Lookup and Audit made
@@ -127,6 +141,9 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 		return guardFailure(report, env.RequestID, err)
 	}
 	retainCheckpoint(repo, canonical)
+	if wc, err := audit.WriterCheckpoint(); err == nil {
+		retainWriterCheckpoint(repo, wc)
+	}
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}

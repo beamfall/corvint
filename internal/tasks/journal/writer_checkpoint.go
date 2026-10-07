@@ -435,7 +435,37 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if err := r.strays(o, st.canonical, true); err != nil {
 		return result, err
 	}
+	result.listing = map[string]ListedFile{}
+	for p, info := range o.files {
+		switch {
+		case p == "intent" || strings.HasPrefix(p, "intent/"):
+		case info.IsDir():
+			result.listing[p] = ListedFile{Dir: true}
+		case info.Mode().IsRegular():
+			result.listing[p] = ListedFile{Bytes: info.Size()}
+		}
+	}
 	result.chain, result.writerBase = st, wc
 	result.ProjectionAgreement = "AGREES"
 	return result, nil
+}
+
+// ListedFile is one path a writer audit listed: a directory, or a regular
+// file and its listed size.
+type ListedFile struct {
+	Dir   bool
+	Bytes int64
+}
+
+// WriterListing is what a ModeWriter audit listed outside the intent tree:
+// every directory, with receipts/ and the request shards listed but not
+// entered, and every regular file with its listed size. Evidence and pinned
+// blobs are listed but not read; their content-addressed name is their
+// digest. The physical observation names every file that was read. It is
+// nil for every other result.
+func (res *Result) WriterListing() map[string]ListedFile {
+	if res == nil || res.Mode != ModeWriter {
+		return nil
+	}
+	return res.listing
 }

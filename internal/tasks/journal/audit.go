@@ -85,6 +85,8 @@ type Result struct {
 	selectErr, intentErr error
 	// writerBase is the writer checkpoint a ModeWriter audit resumed from.
 	writerBase *WriterCheckpoint
+	// listing is what a ModeWriter audit listed but did not read.
+	listing map[string]ListedFile
 }
 
 // Reader always streams receipt bytes, retaining only bounded path/digest
