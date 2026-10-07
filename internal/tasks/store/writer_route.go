@@ -221,9 +221,11 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
 		return false, false, nil, nil
 	}
+	bound := writerStage(ctx, "lease.bind", modeled)
 	// As in commitLease: the lock is held and the head is the audited one
 	// (CAL-V0-060, CAL-V0-119 proposed).
 	retainCheckpoint(repo, w.proof)
+	checkpointed := writerStage(ctx, "lease.readCheckpoint", bound)
 	write := time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
@@ -242,6 +244,6 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return true, false, nil, err
 	}
 	refresh = advanceWriterCheckpoint(repo, w)
-	writerStage(ctx, "lease.commit", modeled)
+	writerStage(ctx, "lease.commit", checkpointed)
 	return true, refresh, w.proof, nil
 }
