@@ -691,6 +691,18 @@ func (r *runner) runPlugin() {
 		if err != nil {
 			return "", err
 		}
+		if receipt["profile"] == hookContextProfile {
+			// The projection (AHI-045) carries no repository block: the clean pin is the governing
+			// AGENTS.md row at its HEAD blob and no mixed-worktree freshness note.
+			blob, err := r.revision("HEAD:AGENTS.md")
+			if err != nil {
+				return "", err
+			}
+			if !citesSection(receipt, "governance", "AGENTS.md", blob) || receipt["freshness"] != nil {
+				return "", fmt.Errorf("session-start projection does not pin AGENTS.md at blob %s on a clean tree (freshness %v)", blob, receipt["freshness"])
+			}
+			return fmt.Sprintf("SessionStart: enveloped %s projection, governance pinned to HEAD", hookContextProfile), nil
+		}
 		repository, _ := receipt["repository"].(map[string]any)
 		if repository["commitRevision"] != head || repository["worktreeState"] != "clean" {
 			return "", fmt.Errorf("session-start receipt pins %v (%v), fixture HEAD is %s", repository["commitRevision"], repository["worktreeState"], head)
@@ -833,6 +845,12 @@ func (r *runner) pluginChange() (string, error) {
 	receipt, _, err := r.contextHook("UserPromptSubmit", map[string]any{"prompt": "Review the change to add.go"})
 	if err != nil {
 		return "", err
+	}
+	if receipt["profile"] == hookContextProfile {
+		if receipt["freshness"] != "mixed-worktree" {
+			return "", fmt.Errorf("after the edit the prompt projection reports freshness %v", receipt["freshness"])
+		}
+		return detail + "next prompt projection reports a mixed-worktree freshness", nil
 	}
 	repository, _ := receipt["repository"].(map[string]any)
 	if repository["dirtyPathCount"] != float64(1) || repository["worktreeState"] == "clean" {
@@ -1026,8 +1044,13 @@ func (r *runner) contextHook(event string, fields map[string]any) (map[string]an
 	return receipt, text, nil
 }
 
+// hookContextProfile is the model-visible projection a current adapter injects in place of the
+// full receipt (AHI-045); an older binary still injects the corvint-dogfood-event/0 receipt.
+const hookContextProfile = "corvint-hook-context/0"
+
 // envelopedReceipt extracts the one JSON receipt line inside the repository-data envelope of a
-// hook's additionalContext and requires it to be a successful corvint-dogfood-event/0 receipt.
+// hook's additionalContext and requires it to be a successful corvint-dogfood-event/0 receipt or
+// its corvint-hook-context/0 projection.
 func envelopedReceipt(output string) (map[string]any, string, error) {
 	var document struct {
 		HookSpecificOutput struct {
@@ -1051,6 +1074,9 @@ func envelopedReceipt(output string) (map[string]any, string, error) {
 			}
 			break
 		}
+	}
+	if receipt != nil && receipt["profile"] == hookContextProfile {
+		return receipt, text, nil
 	}
 	if receipt == nil || receipt["ok"] != true || receipt["profile"] != "corvint-dogfood-event/0" || receipt["mutates"] != false {
 		return nil, text, fmt.Errorf("enveloped receipt is not a successful non-mutating corvint-dogfood-event/0 receipt")
@@ -1076,8 +1102,17 @@ func quotedBounded(text string, limit int) string {
 
 // citesPath reports whether the receipt's task evidence names path at blob.
 func citesPath(receipt map[string]any, path, blob string) bool {
-	nested, _ := receipt["context"].(map[string]any)
-	evidence, _ := nested["task_evidence"].([]any)
+	return citesSection(receipt, "task_evidence", path, blob)
+}
+
+// citesSection reports whether a section of the receipt's context, or of its projection, names
+// path at blob.
+func citesSection(receipt map[string]any, section, path, blob string) bool {
+	rows := receipt
+	if receipt["profile"] != hookContextProfile {
+		rows, _ = receipt["context"].(map[string]any)
+	}
+	evidence, _ := rows[section].([]any)
 	for _, item := range evidence {
 		entry, _ := item.(map[string]any)
 		if entry["path"] == path && entry["blob_hash"] == blob {

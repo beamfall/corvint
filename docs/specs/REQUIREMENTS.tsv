@@ -177,6 +177,9 @@ AHI-041	docs/specs/agent-harness-integration-v0.md	810	The terminal MUST show at
 AHI-042	docs/specs/agent-harness-integration-v0.md	826	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
 AHI-043	docs/specs/agent-harness-integration-v0.md	834	For an unchanged committed tree, worktree state, hook input and session key, the
 AHI-044	docs/specs/agent-harness-integration-v0.md	851	Every shipped hook adapter MUST fail open under the faults a host or machine can
+AHI-045	docs/specs/agent-harness-integration-v0.md	891	(proposed 2026-10-07, pending owner acceptance; V1-0942) The Claude Code and Cod
+AHI-046	docs/specs/agent-harness-integration-v0.md	914	(proposed 2026-10-07, pending owner acceptance; V1-0942) Outside a main-thread
+AHI-047	docs/specs/agent-harness-integration-v0.md	924	(proposed 2026-10-07, pending owner acceptance; V1-0939) The Claude Code trusted
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -948,6 +951,7 @@ DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	246	(proposed 2026-09
 DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	254	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
 DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	263	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
 DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	274	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
+DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	296	(proposed 2026-10-07, pending owner acceptance; V1-0940) This amends the stdout
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1700,11 +1704,11 @@ LCP-V0-008	docs/specs/local-completion-policy-v0.md	149	Codex and Claude Code St
 LCP-V0-009	docs/specs/local-completion-policy-v0.md	184	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
 LCP-V0-010	docs/specs/local-completion-policy-v0.md	208	New-profile prompt context MUST separate project governance, declared enrollment
 LCP-V0-011	docs/specs/local-completion-policy-v0.md	218	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	231	Private plans, observations and report sets MUST have explicit byte/count limits
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	237	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	262	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	275	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
-LCP-V0-016	docs/specs/local-completion-policy-v0.md	278	(accepted by decision 0439; V1-0881; no GitHub issue)
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	236	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	242	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
@@ -2857,7 +2861,7 @@ URE-V0-005	docs/specs/unplanned-read-events-v0.md	88	`Read(root)` MUST be read-o
 URE-V0-006	docs/specs/unplanned-read-events-v0.md	105	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
 URE-V0-007	docs/specs/unplanned-read-events-v0.md	110	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
 URE-V0-008	docs/specs/unplanned-read-events-v0.md	116	After a Claude Code `user-prompt` event renders a delivered context,
-URE-V0-009	docs/specs/unplanned-read-events-v0.md	130	`corvint host-adapter claude-code post-tool` MUST call
+URE-V0-009	docs/specs/unplanned-read-events-v0.md	132	`corvint host-adapter claude-code post-tool` MUST call
 VAF-001	docs/specs/verified-absence-frontier-v0.md	58	every result MUST bind the repository identity, base revision, target revision,
 VAF-002	docs/specs/verified-absence-frontier-v0.md	60	Corvint MUST distinguish `missing`, `stale`, `unobserved`, and `out-of-scope`. I
 VAF-003	docs/specs/verified-absence-frontier-v0.md	62	a closed frontier MUST be scoped to a named, finite obligation universe. The CLI

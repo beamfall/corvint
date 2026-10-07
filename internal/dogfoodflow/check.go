@@ -30,6 +30,9 @@ type CheckOptions struct {
 	TreeVerifier      Runner
 	Override          *Runner
 	Exception         string
+	// Verbose prints the full CEM and OCM status JSON on PASS, the output
+	// DCW-V0-020 fixed before DCW-V0-033 (DOGFOOD_VERBOSE=1).
+	Verbose bool
 }
 
 // AggregateCheckStage is an already admitted private observation. Finish only
@@ -527,13 +530,95 @@ func (c *check) verifyBinding(report []byte) int {
 	if c.record(true, bootstrap) != nil {
 		c.fail("dogfood-report-write")
 	}
-	_, _ = c.stdout.Write(firstLine(cem.stdout))
+	cemLine := firstLine(cem.stdout)
 	if cem.status != 0 {
+		// A failing policy keeps its whole status JSON: it is the repair detail.
+		_, _ = c.stdout.Write(cemLine)
 		c.fail("cem-policy", missingLines(readFile(c.report))...)
 	}
-	_, _ = c.stdout.Write(ocmLine)
+	detail := c.evidence + "/dogfood-check.stdout"
+	full := append(append([]byte{}, cemLine...), ocmLine...)
+	if noIntent {
+		full = cemLine
+	}
+	if c.options.Verbose || os.MkdirAll(c.evidence, 0o700) != nil || removeFile(detail) != nil || writePrivate(detail, full) != nil {
+		// Verbose, or with no detail file to point at, the former full output stands.
+		_, _ = c.stdout.Write(cemLine)
+		_, _ = c.stdout.Write(ocmLine)
+		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
+		return 0
+	}
+	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, detail))
+	if noIntent {
+		_, _ = c.stdout.Write(ocmLine)
+	}
 	fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 	return 0
+}
+
+// checkSummary is the one PASS line that stands in for the CEM and OCM status
+// JSON (DCW-V0-033): their states and counts, the report, and the detail file
+// that holds the full JSON. A field the JSON does not carry prints NOT_OBSERVED.
+func checkSummary(cemLine, ocmLine []byte, noIntent bool, detail string) string {
+	var cem struct {
+		State  *string `json:"state"`
+		Counts *struct {
+			Total      *int `json:"total"`
+			Supported  *int `json:"supported"`
+			Unknown    *int `json:"unknown"`
+			Mechanical *int `json:"mechanical"`
+		} `json:"counts"`
+	}
+	_ = json.Unmarshal(cemLine, &cem)
+	fields := []string{"cem=" + summaryString(cem.State)}
+	if counts := cem.Counts; counts != nil {
+		fields = append(fields, "hunks="+summaryInt(counts.Total), "supported="+summaryInt(counts.Supported), "unknown="+summaryInt(counts.Unknown), "mechanical="+summaryInt(counts.Mechanical))
+	} else {
+		fields = append(fields, "hunks=NOT_OBSERVED")
+	}
+	if noIntent {
+		fields = append(fields, "ocm=NOT_ASSESSED")
+	} else {
+		var ocm struct {
+			Aggregate *struct {
+				State    *string `json:"state"`
+				Coverage *struct {
+					Total   *int `json:"total"`
+					Linked  *int `json:"linked"`
+					Unknown *int `json:"unknown"`
+				} `json:"coverage"`
+			} `json:"aggregate"`
+		}
+		_ = json.Unmarshal(ocmLine, &ocm)
+		if ocm.Aggregate == nil {
+			fields = append(fields, "ocm=NOT_OBSERVED")
+		} else {
+			fields = append(fields, "ocm="+summaryString(ocm.Aggregate.State))
+			if coverage := ocm.Aggregate.Coverage; coverage != nil {
+				fields = append(fields, "requirements="+summaryInt(coverage.Total), "linked="+summaryInt(coverage.Linked), "unlinked="+summaryInt(coverage.Unknown))
+			}
+		}
+	}
+	fields = append(fields, "report=.corvint/dogfood-report.json", "detail="+detail)
+	return "dogfood-check: SUMMARY " + strings.Join(fields, " ")
+}
+
+// summaryString admits one state token of letters, digits, '-' and '_';
+// anything else is NOT_OBSERVED, so the line cannot be forged or split.
+func summaryString(value *string) string {
+	if value == nil || *value == "" || len(*value) > 64 || strings.TrimFunc(*value, func(r rune) bool {
+		return r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
+	}) != "" {
+		return "NOT_OBSERVED"
+	}
+	return *value
+}
+
+func summaryInt(value *int) string {
+	if value == nil {
+		return "NOT_OBSERVED"
+	}
+	return strconv.Itoa(*value)
 }
 
 // verifyOCM requires the verifiers to agree on the OCM aggregate the change

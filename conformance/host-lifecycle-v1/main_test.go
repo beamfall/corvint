@@ -20,6 +20,15 @@ func TestEnvelopedReceipt(t *testing.T) {
 	if !citesPath(receipt, "add.go", "b1") || citesPath(receipt, "add.go", "b2") {
 		t.Fatalf("citesPath disagrees with the receipt evidence")
 	}
+	// AHI-045: a current adapter injects the corvint-hook-context/0 projection instead.
+	projected := `{"hookSpecificOutput":{"additionalContext":"` + envelopeBegin + `\nuntrusted\n{\"profile\":\"corvint-hook-context/0\",\"event\":\"session-start\",\"governance\":[{\"path\":\"AGENTS.md\",\"blob_hash\":\"g1\"}],\"task_evidence\":[{\"path\":\"add.go\",\"blob_hash\":\"b1\"}]}\n` + envelopeEnd + `\n"}}`
+	projection, _, err := envelopedReceipt(projected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !citesPath(projection, "add.go", "b1") || !citesSection(projection, "governance", "AGENTS.md", "g1") || citesSection(projection, "governance", "AGENTS.md", "b1") {
+		t.Fatalf("citesSection disagrees with the projection evidence")
+	}
 	for name, output := range map[string]string{
 		"not json":    "{",
 		"no envelope": `{"hookSpecificOutput":{"additionalContext":"{\"ok\":true}"}}`,

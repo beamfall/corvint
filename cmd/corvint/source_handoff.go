@@ -75,12 +75,12 @@ func runClaudeSourceHandoff(ctx context.Context, arguments []string, payload map
 	}
 	lead, err := captureSourceHandoff(ctx, root, normalized["task"].(string), arguments[1])
 	if err != nil {
-		return renderClaudeContext("user-prompt", "NOT_PRODUCED "+sourceErrorCode(err), claudeGuidance(root, normalized["sessionIdSha256"].(string)))
+		return renderClaudeContext("user-prompt", "NOT_PRODUCED "+sourceErrorCode(err), "") // workflow argv is SessionStart-only (AHI-047)
 	}
 	if _, reason := invokeDogfoodEvent(ctx, root, "claude-code", "user-prompt", normalized, adapterOutputLimit); reason != "" {
 		return degradedAdapterOutput(reason)
 	}
-	return renderClaudeContext("user-prompt", string(lead), claudeGuidance(root, normalized["sessionIdSha256"].(string)))
+	return renderClaudeContext("user-prompt", string(lead), "")
 }
 
 func captureSourceHandoff(ctx context.Context, root, task, destination string) ([]byte, error) {
