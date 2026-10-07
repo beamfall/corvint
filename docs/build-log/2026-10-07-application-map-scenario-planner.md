@@ -61,18 +61,33 @@ are deliberately kept out of the repository.
 
 ## Verification seam (issue 658)
 
-`appmap.Verifier.Status(ctx, elementIDs)` is the narrow input, called once per plan with the
-sorted step, selector and shown-method IDs. `PlanOptions.Verifier` is nil on both surfaces
-today, so every element reads `unverified` and every MAPPED step reads `candidate`.
+Verification is read through the issue-657 overlay seam (`Overlay.Facts`, AMAP-V0-014), as the
+orchestrator directed once issue 657 closed at `6a1dab87`. Each overlay in
+`PlanOptions.Options.Overlays` is asked once per plan, with the sorted step, selector and
+shown-method IDs. Only facts of kind `run-verification` (`appmap.VerificationFactKind`) count.
+Both surfaces pass no overlays today, so every element reads `unverified` and every MAPPED step
+reads `candidate`.
 
-`VERIFIED@<rev>` counts only for the evaluated revision and a FRESH anchor; anything else is
-`UNVERIFIED_AT_HEAD`. An invalid value reads `unverified` and is reported. A verifier error is
-reported and changes nothing else. Plan `authority` is always `candidate`.
+A `VERIFIED` fact reads `VERIFIED@<rev>` only when its `revision` is the evaluated revision and
+the anchor is FRESH; otherwise it reads `UNVERIFIED_AT_HEAD`. An invalid fact reads
+`unverified` and is reported. When facts conflict, the most restrictive wins, so one
+`CONTRADICTED` defeats any number of `VERIFIED`. An overlay error is reported and changes
+nothing else. Plan `authority` is always `candidate`.
 
-V1-0957 is expected to supply a receipt-bound `Verifier` keyed by AMAP-V0 element IDs, and to
-wire it into `cmd/corvint/flows_appmap_plan.go` and `cmd/corvint-corpus-mcp/mapplan.go`. No
-receipt binding is implemented here. `TestAMSPV0007VerificationSeam` pins the contract with a
-fake verifier.
+The earlier `Verifier` interface and its exported status constants were removed. A trial merge
+with `origin/claude/gh658` at `ce09732d` showed that its `verify.go` declares
+`UnverifiedAtHead`, `Contradicted` and `Unverified` in the same package, which broke the build.
+The plan's constants are now unexported.
+
+The gh658 head at that commit exposes `VerifySteps` and `StepVerification{Status, Revision}`,
+but no overlay yet. To feed the planner, V1-0957 needs an `Overlay` that emits one
+`run-verification` fact per step, selector and shown-method ID, with `text` set to the status
+and `revision` set to its revision. It also needs to pass that overlay in
+`cmd/corvint/flows_appmap_plan.go` and `cmd/corvint-corpus-mcp/mapplan.go`. Its step-level
+`SelectorEvidence` covers the selector, but only if the overlay also emits a fact for the
+selector ID; until then a step stays `candidate`, which is the fail-closed reading. No receipt
+binding is implemented here. `TestAMSPV0007VerificationSeam` pins the contract with a fake
+overlay.
 
 ## Evidence
 

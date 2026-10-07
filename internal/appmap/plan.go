@@ -45,29 +45,29 @@ const (
 	StepContradicted = "CONTRADICTED"
 )
 
-// Verification statuses read through the Verifier seam (AMSP-V0-007). The receipt-bound producer
-// is issue 658 (V1-0957); until it is wired every element reads Unverified.
-const (
-	VerifiedPrefix   = "VERIFIED@"
-	UnverifiedAtHead = "UNVERIFIED_AT_HEAD"
-	Contradicted     = "CONTRADICTED"
-	Unverified       = "unverified"
-)
+// VerificationFactKind is the overlay Fact kind the planner reads as run verification
+// (AMSP-V0-007). Such a fact's Text is one of VERIFIED, UNVERIFIED_AT_HEAD, CONTRADICTED or
+// unverified, and a VERIFIED fact names the full commit it was observed at in Revision. Facts of
+// any other kind are not verification. The receipt-bound producer is issue 658 (V1-0957); until
+// an overlay supplies such facts every element reads unverified.
+const VerificationFactKind = "run-verification"
 
-// Verifier reports the run-verification status of map elements (step, method and selector IDs).
-// Status is called once per plan with the sorted, unique IDs the plan prints; IDs it omits read
-// Unverified. It must be read-only and bounded.
-type Verifier interface {
-	Status(ctx context.Context, elementIDs []string) (map[string]string, error)
-}
+// Plan verification statuses (AMSP-V0-007). They are unexported so the issue-658 package-level
+// status names stay free.
+const (
+	planVerified         = "VERIFIED"
+	planVerifiedPrefix   = "VERIFIED@"
+	planUnverifiedAtHead = "UNVERIFIED_AT_HEAD"
+	planContradicted     = "CONTRADICTED"
+	planUnverified       = "unverified"
+)
 
 // PlanOptions are the planner inputs beyond the shared projection Options.
 type PlanOptions struct {
 	Options
-	// Draft adds the Playwright spec skeleton to the plan (AMSP-V0-008).
+	// Draft adds the Playwright spec skeleton to the plan (AMSP-V0-008). Verification is read
+	// from Options.Overlays (VerificationFactKind facts); with none every element reads unverified.
 	Draft bool
-	// Verifier supplies receipt-bound verification; nil reads every element Unverified.
-	Verifier Verifier
 }
 
 var enumerator = regexp.MustCompile(`^\(?[0-9]{1,2}[.)]\s*`)
@@ -332,24 +332,41 @@ type draftView struct {
 	Lines        []string `json:"lines"`
 }
 
-// verificationOf folds a provider status into the closed set: VERIFIED@<rev> stands only for the
-// evaluated revision and a FRESH anchor, else it reads UNVERIFIED_AT_HEAD; an unknown value reads
+// verificationOf folds one verification fact into the closed set: a VERIFIED fact reads
+// VERIFIED@<rev> only when its Revision is the evaluated revision and the anchor is FRESH, else
+// UNVERIFIED_AT_HEAD; an unknown value or a VERIFIED fact without a full commit ID reads
 // unverified and is reported (AMSP-V0-007).
-func verificationOf(raw, evaluated, freshness string) (string, bool) {
-	switch raw {
-	case "", Unverified:
-		return Unverified, true
-	case UnverifiedAtHead, Contradicted:
-		return raw, true
+func verificationOf(f Fact, evaluated, freshness string) (string, bool) {
+	switch f.Text {
+	case planUnverified:
+		return planUnverified, true
+	case planUnverifiedAtHead, planContradicted:
+		return f.Text, true
+	case planVerified:
+		if !isHexID(f.Revision) {
+			return planUnverified, false
+		}
+		if f.Revision != evaluated || freshness != Fresh {
+			return planUnverifiedAtHead, true
+		}
+		return planVerifiedPrefix + f.Revision, true
 	}
-	rev, ok := strings.CutPrefix(raw, VerifiedPrefix)
-	if !ok || !isHexID(rev) {
-		return Unverified, false
+	return planUnverified, false
+}
+
+// verificationRank orders folded statuses from the most to the least restrictive, so conflicting
+// facts about one element resolve fail-closed: any CONTRADICTED wins, and VERIFIED stands only
+// when every fact agrees.
+func verificationRank(v string) int {
+	switch {
+	case v == planContradicted:
+		return 0
+	case v == planUnverified:
+		return 1
+	case v == planUnverifiedAtHead:
+		return 2
 	}
-	if rev != evaluated || freshness != Fresh {
-		return UnverifiedAtHead, true
-	}
-	return raw, true
+	return 3
 }
 
 func isHexID(s string) bool {
@@ -488,25 +505,41 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 		}
 	}
 	unknowns := []any{}
-	statuses := map[string]string{}
-	if o.Verifier != nil && len(verifyIDs) > 0 {
-		got, err := o.Verifier.Status(ctx, sortedKeys(verifyIDs))
-		if err != nil {
-			unknowns = append(unknowns, Unknown{Kind: "verification", Ref: "map_plan", Reason: "verification-unavailable"})
-		} else {
-			for id, st := range got {
-				if verifyIDs[id] {
-					statuses[id] = st
+	facts, kept := map[string][]Fact{}, 0
+	if len(verifyIDs) > 0 {
+		ids := sortedKeys(verifyIDs)
+	overlays:
+		for _, ov := range o.Overlays {
+			got, err := ov.Facts(ctx, ids)
+			if err != nil {
+				unknowns = append(unknowns, Unknown{Kind: "verification", Ref: "map_plan", Reason: "verification-unavailable"})
+				continue
+			}
+			for _, f := range got {
+				if f.Kind != VerificationFactKind || !verifyIDs[f.ElementID] {
+					continue
 				}
+				if kept == maxFacts {
+					unknowns = append(unknowns, Unknown{Kind: "verification", Ref: "map_plan", Reason: "verification-bound-exceeded"})
+					break overlays
+				}
+				facts[f.ElementID] = append(facts[f.ElementID], f)
+				kept++
 			}
 		}
 	}
 	invalid := map[string]bool{}
 	verify := func(id, freshness string) string {
-		v, ok := verificationOf(statuses[id], fresh.evaluated, freshness)
-		if !ok && !invalid[id] {
-			invalid[id] = true
-			unknowns = append(unknowns, Unknown{Kind: "verification", Ref: id, Reason: "verification-invalid"})
+		v := planUnverified
+		for i, f := range facts[id] {
+			got, ok := verificationOf(f, fresh.evaluated, freshness)
+			if !ok && !invalid[id] {
+				invalid[id] = true
+				unknowns = append(unknowns, Unknown{Kind: "verification", Ref: id, Reason: "verification-invalid"})
+			}
+			if i == 0 || verificationRank(got) < verificationRank(v) {
+				v = got
+			}
 		}
 		return v
 	}
@@ -564,17 +597,17 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 			if st.Selector != nil {
 				sr := selectorRef{ID: st.Selector.ID, selectorView: *viewSelector(st.Selector), Verification: verify(st.Selector.ID, fa.Freshness)}
 				av.Selector = &sr
-				if sr.Verification == Contradicted {
+				if sr.Verification == planContradicted {
 					contradicted = append(contradicted, st.Selector.ID)
 				}
-				if !strings.HasPrefix(sr.Verification, VerifiedPrefix) {
+				if !strings.HasPrefix(sr.Verification, planVerifiedPrefix) {
 					allVerified = false
 				}
 			}
-			if av.Verification == Contradicted {
+			if av.Verification == planContradicted {
 				contradicted = append(contradicted, st.ID)
 			}
-			if !strings.HasPrefix(av.Verification, VerifiedPrefix) {
+			if !strings.HasPrefix(av.Verification, planVerifiedPrefix) {
 				allVerified = false
 			}
 			av.MethodsTotal = len(reuseMethods(st))
@@ -585,10 +618,10 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 				mf := fresh.of(me.Anchor)
 				note(mf, anchorRef(me.Anchor))
 				mr := methodRef{ID: me.ID, Ref: refAt(ps.files[j][k].Path, me.Anchor.Start), Freshness: mf, Verification: verify(me.ID, mf)}
-				if mr.Verification == Contradicted {
+				if mr.Verification == planContradicted {
 					contradicted = append(contradicted, me.ID)
 				}
-				if !strings.HasPrefix(mr.Verification, VerifiedPrefix) {
+				if !strings.HasPrefix(mr.Verification, planVerifiedPrefix) {
 					allVerified = false
 				}
 				av.Methods = append(av.Methods, mr)
@@ -760,7 +793,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 					continue
 				}
 				seenPre[pf.f.ID+"\x00"+t] = true
-				pv := preconditionView{Flow: pf.f.ID, Text: t, Status: Unverified}
+				pv := preconditionView{Flow: pf.f.ID, Text: t, Status: planUnverified}
 				if by := flowStep[app+"/"+t]; strings.HasPrefix(t, "flow:") && by > 0 && by < ps.Index {
 					pv.SatisfiedBy = by
 				}

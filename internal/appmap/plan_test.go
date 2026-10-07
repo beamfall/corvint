@@ -190,7 +190,7 @@ func TestAMSPV0002MultiStepPlanOnFixture(t *testing.T) {
 	satisfied := false
 	for _, p := range admin["setup"].(map[string]any)["preconditions"].([]any) {
 		pv := p.(map[string]any)
-		if pv["text"] == "flow:book-tee-time" && pv["satisfied_by_step"] == 1.0 && pv["status"] == Unverified {
+		if pv["text"] == "flow:book-tee-time" && pv["satisfied_by_step"] == 1.0 && pv["status"] == "unverified" {
 			satisfied = true
 		}
 	}
@@ -272,6 +272,10 @@ func TestAMSPV0005StaleAndUnknownFreshness(t *testing.T) {
 	}
 }
 
+// fakeVerifier is an Overlay that answers VerificationFactKind facts. status returns
+// "VERIFIED@<rev>" for a VERIFIED fact at rev, any other text verbatim, or "" for no fact. Every
+// ID also gets a VERIFIED fact of another kind, and an unasked ID gets one of the right kind; the
+// planner must ignore both.
 type fakeVerifier struct {
 	calls  int
 	ids    []string
@@ -279,39 +283,55 @@ type fakeVerifier struct {
 	err    error
 }
 
-func (f *fakeVerifier) Status(_ context.Context, ids []string) (map[string]string, error) {
+func (f *fakeVerifier) Facts(_ context.Context, ids []string) ([]Fact, error) {
 	f.calls++
 	f.ids = append([]string{}, ids...)
 	if f.err != nil {
 		return nil, f.err
 	}
-	out := map[string]string{}
+	out := []Fact{}
 	for _, id := range ids {
-		if s := f.status(id); s != "" {
-			out[id] = s
+		out = append(out, Fact{ElementID: id, Source: "fake", Kind: "note", Text: "VERIFIED", Revision: strings.Repeat("c", 40)})
+		s := f.status(id)
+		if s == "" {
+			continue
 		}
+		fact := Fact{ElementID: id, Source: "fake", Kind: VerificationFactKind, Text: s}
+		if rev, ok := strings.CutPrefix(s, "VERIFIED@"); ok {
+			fact.Text, fact.Revision = "VERIFIED", rev
+		}
+		out = append(out, fact)
 	}
-	out["step:not-asked/x"] = VerifiedPrefix + strings.Repeat("a", 40)
+	out = append(out, Fact{ElementID: "step:not-asked/x", Kind: VerificationFactKind, Text: "VERIFIED", Revision: strings.Repeat("a", 40)})
 	return out, nil
 }
 
-// AMSP-V0-007: per-step verification comes only through the Verifier seam. Absent reads
-// unverified, VERIFIED@ stands only at the evaluated revision, CONTRADICTED is a gap, malformed or
-// failed verification is reported, and the plan's authority stays candidate.
+func verifiers(v ...*fakeVerifier) []Overlay {
+	out := []Overlay{}
+	for _, f := range v {
+		out = append(out, f)
+	}
+	return out
+}
+
+// AMSP-V0-007: per-step verification comes only through VerificationFactKind overlay facts.
+// Absent reads unverified, VERIFIED stands only at the evaluated revision, CONTRADICTED is a gap,
+// conflicting facts resolve to the most restrictive, malformed or failed verification is
+// reported, and the plan's authority stays candidate.
 func TestAMSPV0007VerificationSeam(t *testing.T) {
 	root, rev, maps := planRepo(t)
 	steps := []string{"book a tee time"}
-	run := func(v Verifier) (map[string]any, map[string]any) {
-		doc := planOf(t, maps, steps, PlanOptions{Options: Options{Root: root, Revision: rev}, Verifier: v})
+	run := func(v ...*fakeVerifier) (map[string]any, map[string]any) {
+		doc := planOf(t, maps, steps, PlanOptions{Options: Options{Root: root, Revision: rev, Overlays: verifiers(v...)}})
 		return doc, planSteps(t, doc)[0]
 	}
-	_, s := run(nil)
+	_, s := run()
 	for _, a := range actions(s) {
-		if a["verification"] != Unverified {
+		if a["verification"] != "unverified" {
 			t.Fatalf("default verification = %v", a["verification"])
 		}
 	}
-	all := &fakeVerifier{status: func(string) string { return VerifiedPrefix + rev }}
+	all := &fakeVerifier{status: func(string) string { return "VERIFIED@" + rev }}
 	doc, s := run(all)
 	if all.calls != 1 || s["confidence"] != "run-verified" || doc["authority"] != "candidate" {
 		t.Fatalf("calls %d confidence %v authority %v", all.calls, s["confidence"], doc["authority"])
@@ -319,26 +339,36 @@ func TestAMSPV0007VerificationSeam(t *testing.T) {
 	if !reflect.DeepEqual(all.ids, uniqueSorted(all.ids)) || len(all.ids) == 0 {
 		t.Fatalf("verifier ids not sorted/unique: %v", all.ids)
 	}
-	other := &fakeVerifier{status: func(string) string { return VerifiedPrefix + strings.Repeat("b", 40) }}
+	other := &fakeVerifier{status: func(string) string { return "VERIFIED@" + strings.Repeat("b", 40) }}
 	_, s = run(other)
-	if s["confidence"] != "candidate" || actions(s)[0]["verification"] != UnverifiedAtHead {
+	if s["confidence"] != "candidate" || actions(s)[0]["verification"] != "UNVERIFIED_AT_HEAD" {
 		t.Fatalf("other revision: %v %v", s["confidence"], actions(s)[0]["verification"])
 	}
 	contra := &fakeVerifier{status: func(id string) string {
 		if id == "step:book-tee-time/select-slot" {
-			return Contradicted
+			return "CONTRADICTED"
 		}
-		return VerifiedPrefix + rev
+		return "VERIFIED@" + rev
 	}}
 	doc, s = run(contra)
 	if s["status"] != StepContradicted || s["confidence"] != "contradicted" || doc["status"] != "INCOMPLETE" ||
 		!reflect.DeepEqual(explorationNeeds(s), []string{"re-explore"}) {
 		t.Fatalf("contradicted: %v %v %v", s["status"], s["confidence"], s["exploration"])
 	}
-	bad := &fakeVerifier{status: func(string) string { return "yes" }}
-	doc, s = run(bad)
-	if s["confidence"] != "candidate" || !strings.Contains(stringOf(doc["unknowns"]), "verification-invalid") {
-		t.Fatalf("malformed: %v %v", s["confidence"], doc["unknowns"])
+	// Conflicting overlays: one CONTRADICTED fact defeats any number of VERIFIED ones, and one
+	// unverified fact keeps the step at candidate.
+	for _, c := range []struct{ status, confidence string }{{"CONTRADICTED", "contradicted"}, {"unverified", "candidate"}, {"UNVERIFIED_AT_HEAD", "candidate"}} {
+		doc, s = run(all, &fakeVerifier{status: func(string) string { return c.status }})
+		if s["confidence"] != c.confidence || doc["authority"] != "candidate" {
+			t.Fatalf("conflict with %s: confidence %v", c.status, s["confidence"])
+		}
+	}
+	for _, malformed := range []string{"yes", "VERIFIED@", "VERIFIED@" + strings.ToUpper(rev), "verified@" + rev} {
+		bad := &fakeVerifier{status: func(string) string { return malformed }}
+		doc, s = run(all, bad)
+		if s["confidence"] != "candidate" || !strings.Contains(stringOf(doc["unknowns"]), "verification-invalid") {
+			t.Fatalf("malformed %q: %v %v", malformed, s["confidence"], doc["unknowns"])
+		}
 	}
 	failed := &fakeVerifier{err: errors.New("receipts unreadable")}
 	doc, s = run(failed)
@@ -471,18 +501,18 @@ func TestAMSPV0007UnverifiedSelectorBlocksRunVerified(t *testing.T) {
 	st := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}}))[0]
 	all := map[string]string{}
 	for _, av := range actions(st) {
-		all[av["step"].(string)] = VerifiedPrefix + rev
+		all[av["step"].(string)] = "VERIFIED@" + rev
 		for _, me := range av["methods"].([]any) {
-			all[me.(map[string]any)["id"].(string)] = VerifiedPrefix + rev
+			all[me.(map[string]any)["id"].(string)] = "VERIFIED@" + rev
 		}
 	}
-	got := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Verifier: &fakeVerifier{status: func(id string) string { return all[id] }}}))[0]
+	got := planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev, Overlays: verifiers(&fakeVerifier{status: func(id string) string { return all[id] }})}}))[0]
 	if got["confidence"] != "candidate" {
 		t.Fatalf("confidence with unverified selector = %v", got["confidence"])
 	}
 	sel := actions(st)[0]["selector"].(map[string]any)["id"].(string)
-	all[sel] = VerifiedPrefix + rev
-	got = planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Verifier: &fakeVerifier{status: func(id string) string { return all[id] }}}))[0]
+	all[sel] = "VERIFIED@" + rev
+	got = planSteps(t, planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev, Overlays: verifiers(&fakeVerifier{status: func(id string) string { return all[id] }})}}))[0]
 	if got["confidence"] != "run-verified" {
 		t.Fatalf("confidence with every element verified = %v", got["confidence"])
 	}

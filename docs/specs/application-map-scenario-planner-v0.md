@@ -14,8 +14,8 @@ run-verified steps, which will supply verification statuses).
 ## Agent digest
 - Claim: A plain-language multi-step request becomes one capped, deterministic E2E plan over application maps that fails closed on unmapped or stale steps.
 - Status: proposed (pending owner acceptance; V1-0959); experimental. AMSP-V0-001..010 are implemented in `internal/appmap/plan.go`, `corvint flows appmap plan` and the corpus MCP tool `corvint.map_plan`, over the committed AMAP-V0 fixture plus a two-app overlay; no adopter-scale qualification.
-- Exists: step resolution by explicit `flow:<id>` or weighted term coverage, one browser session per app, `goto`/`stay`/`follow`/`in-screen` navigation, route-parameter handoff, a Playwright draft and the `Verifier` seam.
-- Blocked on: owner acceptance; receipt-bound verification arrives with V1-0957 through the `Verifier` seam, and until then every element reads `unverified`.
+- Exists: step resolution by explicit `flow:<id>` or weighted term coverage, one browser session per app, `goto`/`stay`/`follow`/`in-screen` navigation, route-parameter handoff, a Playwright draft and the verification seam over AMAP-V0-014 overlay facts.
+- Blocked on: owner acceptance; receipt-bound verification arrives with V1-0957 as an AMAP-V0-014 overlay of `run-verification` facts, and until then every element reads `unverified`.
 - Read next: Requirements; Verification seam; Failure modes; Owner questions.
 
 ## User and measurable job
@@ -38,7 +38,7 @@ Measured jobs, each over `internal/appmap/testdata/fixture` plus `internal/appma
    with an unplaced step reads `UNMAPPED`. A step whose anchors changed reads `STALE`. Each
    such step lists the exploration it needs, and the plan reads `INCOMPLETE`.
 3. **Authority**: no step or plan reads more than `candidate`, except `run-verified`, which
-   requires every element to carry a fresh `VERIFIED@<evaluated revision>` from the verifier.
+   requires every element to carry a fresh `VERIFIED@<evaluated revision>` from the overlays.
 4. **Draft**: the skeleton has one `test.step` per request step. Each step names its outcome
    assertions, and it is served by the CLI and the corpus MCP.
 
@@ -60,7 +60,7 @@ data from one flow to the next. The corpus MCP serves documentation-corpus tools
 - **Handoff**: one route parameter, recorded with its producing step (or setup) and the steps
   that consume it.
 - **Verification status**: one of `VERIFIED@<rev>`, `UNVERIFIED_AT_HEAD`, `CONTRADICTED` or
-  `unverified`, read per map element through the `Verifier` seam.
+  `unverified`, read per map element from `run-verification` overlay facts.
 
 ## Requirements
 
@@ -100,7 +100,7 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
     (`no-flow-steps`), any flow step is unplaced or abstract (`unplaced-step`), or the flow
     declares no outcome (`no-declared-outcome`).
   - `STALE`: an anchor of the step reads STALE (`stale-anchors`).
-  - `CONTRADICTED`: a verifier status is `CONTRADICTED` (`run-contradicted`).
+  - `CONTRADICTED`: a verification status is `CONTRADICTED` (`run-contradicted`).
   - `UNKNOWN`: the step's freshness is unknown (`freshness-unknown`).
   - `MAPPED`: none of the above.
 
@@ -123,16 +123,22 @@ Every requirement below is (proposed, pending owner acceptance; V1-0959).
   that step, together with the URL template it is captured from. Handoff never crosses
   applications: a parameter is keyed by `<app>:<name>`, so the same name in two apps is two
   handoffs. (proposed, pending owner acceptance; V1-0959)
-- `AMSP-V0-007`: Verification MUST be read once per plan, through `Verifier.Status`, with the
-  sorted unique step, selector and shown-method IDs. A nil verifier, an omitted ID or an empty
-  value reads `unverified`. A `VERIFIED@<rev>` stands only when `<rev>` is a full object ID
-  equal to the evaluated revision and the element's anchor is FRESH. Otherwise it reads
-  `UNVERIFIED_AT_HEAD`. Any other value reads `unverified` and is reported
-  `verification-invalid`. A verifier error is reported `verification-unavailable` and changes
-  nothing else. A MAPPED step reads `run-verified` only when every one of its elements stands
-  `VERIFIED@`, including each action's selector; otherwise it reads `candidate`. Plan `authority` is always `candidate`.
-  Candidate research, overlays and setup preconditions MUST never raise any of these values.
-  (proposed, pending owner acceptance; V1-0959)
+- `AMSP-V0-007`: Verification MUST be read from the AMAP-V0-014 overlays in
+  `Options.Overlays`: each overlay's `Facts` is called once per plan with the sorted unique step,
+  selector and shown-method IDs, and only facts of kind `run-verification`
+  (`VerificationFactKind`) about those IDs count. Such a fact's text is `VERIFIED`,
+  `UNVERIFIED_AT_HEAD`, `CONTRADICTED` or `unverified`. No overlay, or no fact for an ID, reads
+  `unverified`. A `VERIFIED` fact reads `VERIFIED@<rev>` only when its revision `<rev>` is a full
+  object ID equal to the evaluated revision and the element's anchor is FRESH; otherwise it reads
+  `UNVERIFIED_AT_HEAD`. Any other text, or a `VERIFIED` fact without a full object ID, reads
+  `unverified` and is reported `verification-invalid`. Several facts about one element resolve
+  to the most restrictive (`CONTRADICTED`, then `unverified`, then `UNVERIFIED_AT_HEAD`, then
+  `VERIFIED@`). An overlay error is reported `verification-unavailable`, and past 4096 facts the
+  rest are dropped and reported `verification-bound-exceeded`; neither changes anything else. A
+  MAPPED step reads `run-verified` only when every one of its elements stands `VERIFIED@`,
+  including each action's selector; otherwise it reads `candidate`. Plan `authority` is always
+  `candidate`. Candidate research, overlays and setup preconditions MUST never raise any of
+  these values. (proposed, pending owner acceptance; V1-0959)
 - `AMSP-V0-008`: With `draft`, the plan MUST include a Playwright skeleton that is guarded by
   `test.fixme` and has a proposed path beside the closest asserting spec. The skeleton has one
   browser context per session and exactly one `test.step` per request step. A MAPPED step's
@@ -195,15 +201,19 @@ freshness, verification}` and `methods_total`.
 The planner owns no new error code. It reuses `appmap-invalid-query`,
 `appmap-budget-too-small` and `appmap-invalid-map` from AMAP-V0. An unresolvable `revision` is
 not refused: it makes freshness `UNKNOWN` (AMSP-V0-003).
-Unknown kind is `verification`, with reasons `verification-unavailable` and
-`verification-invalid`.
+Unknown kind is `verification`, with reasons `verification-unavailable`,
+`verification-invalid` and `verification-bound-exceeded`.
 
 ## Verification seam
 
-`internal/appmap/plan.go` defines `Verifier.Status(ctx, elementIDs) (map[string]string,
-error)` and `PlanOptions.Verifier`. The CLI and the MCP pass nil today, so every element reads
-`unverified`. Issue 658 (V1-0957) is expected to supply a receipt-bound implementation keyed
-by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or run.
+The planner reads verification from the issue-657 overlay seam (`Overlay.Facts`, AMAP-V0-014)
+through `PlanOptions.Options.Overlays`, using only facts of kind `run-verification`
+(`appmap.VerificationFactKind`). The CLI and the MCP pass no overlays today, so every element
+reads `unverified`. Issue 658 (V1-0957) is expected to supply a receipt-bound overlay keyed by
+the AMAP-V0 element IDs: one fact per step, selector and shown method, with `text` set to its
+status and `revision` set to the commit that a `VERIFIED` status was observed at. An element it
+does not cover stays `unverified`, which keeps its step at `candidate`. This slice implements no
+receipt binding, ledger or run.
 
 ## Non-goals and simpler baseline
 
@@ -217,7 +227,7 @@ by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or 
 
 ## Trust boundary, limits and failure modes
 
-- Request text, maps, flow intents and verifier values are untrusted. Request text is matched,
+- Request text, maps, flow intents and overlay facts are untrusted. Request text is matched,
   never executed. Values printed in the draft are quoted or escaped, and comments are flattened
   to one line.
 - Failure modes, each mapped to its outcome:
@@ -227,7 +237,7 @@ by the AMAP-V0 element IDs. This slice implements no receipt binding, ledger or 
   - changed anchors: `STALE` with `rebuild-map`;
   - Git unavailable: `UNKNOWN`;
   - a contradicting receipt: `CONTRADICTED`;
-  - a verifier error or an invalid verifier value: reported, with the element read as
+  - an overlay error or an invalid verification fact: reported, with the element read as
     `unverified`;
   - a budget too small for the head: refused;
   - a map path outside `--root`: the MCP refuses to start;
@@ -276,7 +286,7 @@ No stored state needs migration. Without `--map`, the corpus MCP behaves exactly
 
 ## Follow-ups (proposed tickets)
 
-1. Wire the V1-0957 receipt verifier into the CLI and the MCP.
+1. Wire the V1-0957 receipt overlay into the CLI and the MCP.
 2. Step-level matching, so one request step can name part of a flow.
 3. Generate outcome assertion code from the declared matcher, locator and value.
 4. Adopter-scale qualification of resolution precision against a labelled request set.
