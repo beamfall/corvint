@@ -1068,8 +1068,8 @@ Arguments:
 Language capabilities (syntax evidence, never complete runtime impact):
   Go          .go                         path/range; package imports (path).
   Ruby        .rb                         path/range; markers; imports unknown.
-  JavaScript  .js .jsx .mjs .cjs           path/range; literal/profile imports (path).
-  TypeScript  .ts .tsx                    path/range; literal/profile imports (path).
+  JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
+  TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 

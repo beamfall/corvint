@@ -74,7 +74,12 @@ func staticImpactLoadArgument(tail, language string) bool {
 
 // nonGoImpactUnknowns intentionally emits a baseline even when lexical probes
 // find no dynamic token. Absence of a syntax candidate cannot prove closure.
-func nonGoImpactUnknowns(index *Index, paths []string) []any {
+//
+// unresolvedImports is the repository's count of bare web import specifiers
+// that resolve to no repository file or declared package (GPK-V0-080,
+// proposed). It is reported once per web path, because any of them may name
+// that path, so the path's reverse importers are not closed.
+func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int) []any {
 	rows := []any{}
 	for _, name := range paths {
 		language := NonGoImpactLanguage(name)
@@ -94,6 +99,10 @@ func nonGoImpactUnknowns(index *Index, paths []string) []any {
 		add("dynamic-dispatch-unresolved", 0)
 		if language == "ruby" {
 			add("reverse-import-rule-unavailable", 0)
+		}
+		if language != "ruby" && unresolvedImports != 0 && !isTestPath(name) {
+			add("bare-import-unresolved", 0)
+			seen["bare-import-unresolved"]["count"] = unresolvedImports
 		}
 		source, exists := index.Sources[name]
 		text, valid, loaded := source.Text()
@@ -131,8 +140,8 @@ func nonGoImpactUnknowns(index *Index, paths []string) []any {
 	return rows
 }
 
-func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string) error {
-	unknowns := nonGoImpactUnknowns(index, paths)
+func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int) error {
+	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports)
 	if len(unknowns) == 0 {
 		return nil
 	}
