@@ -643,6 +643,54 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 	}
 }
 
+// CAL-V0-116 (proposed): a fast write rechecks the intent branch before
+// effects, as the complete route does (commitLease for a lease, the queue's
+// intent branch for a mutation). A branch switch after modelling that leaves
+// the intent tree unchanged declines the route, publishes nothing and is
+// decided by the complete route exactly as with no checkpoint.
+func TestCALV0116_FastWriteRechecksIntentBranch(t *testing.T) {
+	repo := writerStore(t, 70)
+	holdLeasePolicy(t, repo)
+	if run := writerMutate(t, repo, "branch-reseed", nil); !run.completed() || readWriterCheckpoint(repo) == nil {
+		t.Fatalf("reseed: %+v %v", run.rep, run.err)
+	}
+	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
+	holdGit(t, root, "init", "-q", "-b", "main")
+	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+	_, ticketFile := mutationBoundaryFiles(t, repo)
+	entries, err := os.ReadDir(filepath.Dir(ticketFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimTarget := fixture.TicketID(strings.TrimSuffix(entries[len(entries)-1].Name(), ".json"))
+	claim := func(ctx context.Context) (*Report, error) {
+		return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "branch-lease", Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: claimTarget, Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
+	}
+	for _, tc := range []struct {
+		name, stage string
+		write       func(context.Context) (*Report, error)
+	}{
+		{"lease", "fast.lease.model", claim},
+		{"mutate", "fast.model", writerCreate(repo, "branch-mutate", WallClock())},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := mutationPublished(t, repo)
+			undo := func() {}
+			defer func() { undo() }()
+			run := stagedWrite(tc.write, at(tc.stage, func() {
+				undo = rewriteFile(t, repo.IntentHEAD(), func([]byte) []byte { return []byte("ref: refs/heads/other\n") })
+			}))
+			if run.fast() || !strings.Contains(strings.Join(run.stages, "\n"), tc.stage+"=") || run.completed() {
+				t.Fatalf("write after a branch switch: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if after := mutationPublished(t, repo); after != before {
+				t.Fatalf("published %s, before %s", after, before)
+			}
+			sameDecision(t, run, writerOracle(t, repo, tc.write))
+		})
+	}
+}
+
 // CAL-V0-116 (proposed), the accepted scope: a fast writer does not re-read
 // request afterimages before its checkpoint, so it commits over a tampered
 // prefix request. The complete audit receipt audit runs refuses that store,

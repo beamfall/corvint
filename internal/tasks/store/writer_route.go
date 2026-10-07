@@ -221,6 +221,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
 		return false, false, nil, nil
 	}
+	// As commitLease does under the lock: the modeled branch is still the
+	// intent worktree's, so a switch that left the intent tree unchanged
+	// cannot commit (the complete route then decides it).
+	if branch, err := primaryBranch(repo); err != nil || branch != w.branch {
+		return false, false, nil, nil
+	}
 	bound := writerStage(ctx, "lease.bind", modeled)
 	// As in commitLease: the lock is held and the head is the audited one
 	// (CAL-V0-060, CAL-V0-119 proposed).
