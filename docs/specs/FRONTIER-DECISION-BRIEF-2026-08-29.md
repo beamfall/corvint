@@ -97,9 +97,9 @@ internal to the drafts rather than to the code:
   (`change-frontier-v0.md:340-344`) is consulted at all.
 - What the relation needs is a **definition span**, "the exact `(path, blobOid, startLine, endLine)`"
   (`change-witness-relation-v0.md:95-96`). *Cost evidence, not authority:* the index's `Symbol` record
-  is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:186-188`) — a definition
+  is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:187-189`) — a definition
   line, no end line — and no exported build entry point accepts a revision (`Build(ctx, root)`,
-  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:268,294,387`;
+  `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:269,295,388`;
   the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:373`). So
   "reuse the index" would not shorten the work much even if permitted.
 
@@ -480,4 +480,4 @@ D7 combined — all six of which, answered as recommended above, leave every rec
   records it as not locatable here; D3's recommendation assumes that still holds.
 - Any claim about `src/`. It was not read and not touched; `git status --short src/` is 0.
 - The exact build cost of end-line derivation per grammar (D1 option 1). The gap is verified
-  (`internal/contextindex/index.go:186-188`); the effort to close it is not estimated.
+  (`internal/contextindex/index.go:187-189`); the effort to close it is not estimated.

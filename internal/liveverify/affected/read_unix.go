@@ -14,13 +14,21 @@ import (
 // and size on the open descriptor: one path resolution per file instead of
 // the Lstat-then-Open pair, which on a 200,000-file checkout was 19% of
 // affected's CPU (3.7 of 19.7 s, V1-0416). A symlink, directory or FIFO is
-// refused exactly as the Lstat refused it, and a FIFO cannot block the open.
+// refused exactly as the Lstat refused it, and a FIFO cannot block the open;
+// a path whose open fails for another reason is Lstat-ed only then, so the
+// success path stays at one open and one fstat.
 // The body is read against the bound, not the stat size, so a file that
 // grows past MaxSourceBytes after the stat is refused rather than truncated.
 func readSourceFile(full, relative string) ([]byte, error) {
 	file, err := os.OpenFile(full, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		if errors.Is(err, syscall.ELOOP) || errors.Is(err, syscall.EMLINK) {
+			return nil, fmt.Errorf("%w: %q is not a regular file", ErrInvalidUnit, relative)
+		}
+		// A socket, or a directory the caller may not read, fails the open
+		// itself; the Lstat path refused both as not regular, so the failed
+		// open pays the Lstat it skipped and keeps that classification.
+		if info, statErr := os.Lstat(full); statErr == nil && !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("%w: %q is not a regular file", ErrInvalidUnit, relative)
 		}
 		return nil, err

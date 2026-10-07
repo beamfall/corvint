@@ -1212,51 +1212,51 @@ FPK-V0-004	docs/specs/falsifiable-packet-v0.md	78	`history-consistent` MUST be j
 FPK-V0-005	docs/specs/falsifiable-packet-v0.md	89	A result answers for the rows that carry its kind and id only. It is `proven`
 FPK-V0-006	docs/specs/falsifiable-packet-v0.md	101	The whole operation MUST be bracketed: the dirty set is read before the packet i
 FPK-V0-007	docs/specs/falsifiable-packet-v0.md	104	For a fixed tree, HEAD, dirty set, task, limit, and budget the document MUST be
-FPK-V0-008	docs/specs/falsifiable-packet-v0.md	126	Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
-FPK-V0-009	docs/specs/falsifiable-packet-v0.md	146	The `query`, `impact`, `feature`, and harness wires and every parity case MUST b
-FPK-V0-010	docs/specs/falsifiable-packet-v0.md	148	`prove [--limit N] PATH...` MUST embed the packet that `impact` would emit for t
-FPK-V0-011	docs/specs/falsifiable-packet-v0.md	153	`reference-resolves` is assigned to `syntax` rows of results of kind
-FPK-V0-012	docs/specs/falsifiable-packet-v0.md	164	`prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]` MUST embed
-FPK-V0-013	docs/specs/falsifiable-packet-v0.md	191	A `reverse-import` row whose cited path ends in `.py` (`reason` `imports X`) MUS
-FPK-V0-014	docs/specs/falsifiable-packet-v0.md	229	`test-kills-mutant` is assigned to `test-convention` rows of results of kind
-FPK-V0-015	docs/specs/falsifiable-packet-v0.md	340	`prove --cem ... --attest` MUST emit, instead of the document, an in-toto
-FPK-V0-016	docs/specs/falsifiable-packet-v0.md	365	`prove` MUST report `proof.ledger`, the repository's falsification rate over the
-FPK-V0-017	docs/specs/falsifiable-packet-v0.md	299	`prove --base FULL_COMMIT_ID [--limit N] [--mutate]` is change mode, the
-FPK-V0-018	docs/specs/falsifiable-packet-v0.md	199	A `reverse-import` or `reference` row whose cited path ends in `.js`, `.mjs`,
-FPK-V0-019	docs/specs/falsifiable-packet-v0.md	385	`test-kills-mutant` is also assigned to a test row whose path names a pytest
-FPK-V0-020	docs/specs/falsifiable-packet-v0.md	427	(accepted 2026-09-04 for AT-06 by decision 0052) A checkpoint document is caller
-FPK-V0-021	docs/specs/falsifiable-packet-v0.md	474	(accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an
-FPK-V0-022	docs/specs/falsifiable-packet-v0.md	615	(accepted 2026-09-04 for AT-06 by decision 0052) Selector matching MUST be gated
-FPK-V0-023	docs/specs/falsifiable-packet-v0.md	665	(accepted 2026-09-04 for AT-06 by decision 0052) Stored `verification` rows are
-FPK-V0-024	docs/specs/falsifiable-packet-v0.md	679	(accepted 2026-09-04 for AT-06 by decision 0052) `prove --checkpoint` MUST refus
-FPK-V0-025	docs/specs/falsifiable-packet-v0.md	862	(accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSIO
-FPK-V0-026	docs/specs/falsifiable-packet-v0.md	866	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS
-FPK-V0-027	docs/specs/falsifiable-packet-v0.md	931	`proof.claims` MUST be present in every output that carries `proof`, keyed by al
-FPK-V0-028	docs/specs/falsifiable-packet-v0.md	942	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a
-FPK-V0-029	docs/specs/falsifiable-packet-v0.md	958	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
-FPK-V0-030	docs/specs/falsifiable-packet-v0.md	975	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
-FPK-V0-031	docs/specs/falsifiable-packet-v0.md	1001	(experimental prototype, not advertised; help labels it experimental) The CLI
-FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1039	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1055	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
-FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1073	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
-FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1092	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
-FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1113	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
-FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1180	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1194	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1202	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
-FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1215	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
-FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1225	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
-FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1236	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
-FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1250	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
-FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1260	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
-FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1268	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
-FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1290	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
-FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1306	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
-FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1311	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
-FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1319	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
-FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1128	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
-FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1144	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
-FPK-V0-052	docs/specs/falsifiable-packet-v0.md	1164	(accepted 2026-09-25, decision 0393; pre-1.0 panel
+FPK-V0-008	docs/specs/falsifiable-packet-v0.md	128	Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
+FPK-V0-009	docs/specs/falsifiable-packet-v0.md	148	The `query`, `impact`, `feature`, and harness wires and every parity case MUST b
+FPK-V0-010	docs/specs/falsifiable-packet-v0.md	150	`prove [--limit N] PATH...` MUST embed the packet that `impact` would emit for t
+FPK-V0-011	docs/specs/falsifiable-packet-v0.md	155	`reference-resolves` is assigned to `syntax` rows of results of kind
+FPK-V0-012	docs/specs/falsifiable-packet-v0.md	166	`prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]` MUST embed
+FPK-V0-013	docs/specs/falsifiable-packet-v0.md	193	A `reverse-import` row whose cited path ends in `.py` (`reason` `imports X`) MUS
+FPK-V0-014	docs/specs/falsifiable-packet-v0.md	231	`test-kills-mutant` is assigned to `test-convention` rows of results of kind
+FPK-V0-015	docs/specs/falsifiable-packet-v0.md	342	`prove --cem ... --attest` MUST emit, instead of the document, an in-toto
+FPK-V0-016	docs/specs/falsifiable-packet-v0.md	367	`prove` MUST report `proof.ledger`, the repository's falsification rate over the
+FPK-V0-017	docs/specs/falsifiable-packet-v0.md	301	`prove --base FULL_COMMIT_ID [--limit N] [--mutate]` is change mode, the
+FPK-V0-018	docs/specs/falsifiable-packet-v0.md	201	A `reverse-import` or `reference` row whose cited path ends in `.js`, `.mjs`,
+FPK-V0-019	docs/specs/falsifiable-packet-v0.md	387	`test-kills-mutant` is also assigned to a test row whose path names a pytest
+FPK-V0-020	docs/specs/falsifiable-packet-v0.md	429	(accepted 2026-09-04 for AT-06 by decision 0052) A checkpoint document is caller
+FPK-V0-021	docs/specs/falsifiable-packet-v0.md	476	(accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an
+FPK-V0-022	docs/specs/falsifiable-packet-v0.md	617	(accepted 2026-09-04 for AT-06 by decision 0052) Selector matching MUST be gated
+FPK-V0-023	docs/specs/falsifiable-packet-v0.md	667	(accepted 2026-09-04 for AT-06 by decision 0052) Stored `verification` rows are
+FPK-V0-024	docs/specs/falsifiable-packet-v0.md	681	(accepted 2026-09-04 for AT-06 by decision 0052) `prove --checkpoint` MUST refus
+FPK-V0-025	docs/specs/falsifiable-packet-v0.md	866	(accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSIO
+FPK-V0-026	docs/specs/falsifiable-packet-v0.md	870	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS
+FPK-V0-027	docs/specs/falsifiable-packet-v0.md	935	`proof.claims` MUST be present in every output that carries `proof`, keyed by al
+FPK-V0-028	docs/specs/falsifiable-packet-v0.md	946	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a
+FPK-V0-029	docs/specs/falsifiable-packet-v0.md	962	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
+FPK-V0-030	docs/specs/falsifiable-packet-v0.md	979	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
+FPK-V0-031	docs/specs/falsifiable-packet-v0.md	1005	(experimental prototype, not advertised; help labels it experimental) The CLI
+FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1043	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1059	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
+FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1077	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1096	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1117	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
+FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1184	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1198	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1206	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1219	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1229	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1240	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
+FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1254	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1264	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
+FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1272	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1294	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1310	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1315	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1323	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1132	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
+FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1148	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
+FPK-V0-052	docs/specs/falsifiable-packet-v0.md	1168	(accepted 2026-09-25, decision 0393; pre-1.0 panel
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin

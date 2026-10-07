@@ -5,6 +5,7 @@ package affected
 import (
 	"errors"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -14,9 +15,9 @@ import (
 
 // TestReadSourceRefusesNonRegularFilesOnOpenDescriptor pins the disk reader's
 // admission after it stopped stat-ing the path first (V1-0416): a symlink,
-// a directory and a FIFO are refused as ErrInvalidUnit, a FIFO without
-// blocking, an over-bound file as ErrWalkLimit, and a missing optional file
-// as fs.ErrNotExist.
+// a directory, a FIFO, a socket and an unreadable directory are refused as
+// ErrInvalidUnit, a FIFO without blocking, an over-bound file as
+// ErrWalkLimit, and a missing optional file as fs.ErrNotExist.
 func TestReadSourceRefusesNonRegularFilesOnOpenDescriptor(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -43,11 +44,36 @@ func TestReadSourceRefusesNonRegularFilesOnOpenDescriptor(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A socket and an unreadable directory fail the open itself, so their
+	// classification needs the stat after the failed open; the Lstat path
+	// refused both as ErrInvalidUnit. The socket lives in a short-path
+	// directory because macOS binds socket paths to 104 bytes.
+	socketDir, err := os.MkdirTemp("", "rs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(socketDir) })
+	listener, err := net.Listen("unix", filepath.Join(socketDir, "sock.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+	unreadable := os.Geteuid() != 0
+	if unreadable {
+		if err := os.Mkdir(filepath.Join(root, "closed.go"), 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(filepath.Join(root, "closed.go"), 0o755) })
+	}
+
 	body, err := ReadSource(root, "regular.go")
 	if err != nil || string(body) != "package x\n" {
 		t.Fatalf("regular file = %q, %v", body, err)
 	}
-	for _, tc := range []struct {
+	if body, err := ReadSource(socketDir, "sock.go"); !errors.Is(err, ErrInvalidUnit) || body != nil {
+		t.Fatalf("sock.go: body=%d bytes, err=%v, want %v", len(body), err, ErrInvalidUnit)
+	}
+	cases := []struct {
 		name    string
 		wantErr error
 	}{
@@ -56,7 +82,14 @@ func TestReadSourceRefusesNonRegularFilesOnOpenDescriptor(t *testing.T) {
 		{"fifo.go", ErrInvalidUnit},
 		{"large.go", ErrWalkLimit},
 		{"missing.go", fs.ErrNotExist},
-	} {
+	}
+	if unreadable {
+		cases = append(cases, struct {
+			name    string
+			wantErr error
+		}{"closed.go", ErrInvalidUnit})
+	}
+	for _, tc := range cases {
 		started := time.Now()
 		body, err := ReadSource(root, tc.name)
 		if !errors.Is(err, tc.wantErr) || body != nil {

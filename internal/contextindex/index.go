@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -1419,12 +1420,21 @@ func openingObservation(ctx context.Context, root string, attempt int, opening *
 // the scan is still running and cancels it, instead of waiting behind it. At
 // 200,000 tracked files the scan is 1.5-3 s and the listing 0.2 s; no blob
 // was read in either order. A carried observation has already paid its scan,
-// so its listing simply follows it, and a retry after HEAD moved observes
-// again. When both the listing and the scan fail, the listing's error is the
-// one reported.
+// and a carried identity or status failure is refused before any listing, as
+// the sequential build refused it; a retry after HEAD moved observes again.
+// When the listing fails while the scan is still running, the scan is
+// cancelled and the listing's error is reported. A scan that failed on its
+// own, not because the listing cancelled it, keeps its own refusal: the
+// listing's error only replaces a cancellation the listing caused.
 func openingObservationWithTree(ctx context.Context, root string, attempt int, opening *repositoryObservation) (repositoryObservation, []treeEntry, map[string]struct{}, error) {
 	skipped := make(map[string]struct{})
 	if attempt == 0 && opening != nil {
+		if opening.identityErr != nil {
+			return *opening, nil, nil, opening.identityErr
+		}
+		if opening.statusErr != nil {
+			return *opening, nil, nil, opening.statusErr
+		}
 		entries, err := readTreeEntries(ctx, root, opening.identity, skipped)
 		return *opening, entries, skipped, err
 	}
@@ -1446,6 +1456,9 @@ func openingObservationWithTree(ctx context.Context, root string, attempt int, o
 	if err != nil {
 		cancelScan()
 		<-scanned
+		if observation.statusErr != nil && !cancelledByListing(ctx, observation.statusErr) {
+			return observation, nil, nil, observation.statusErr
+		}
 		return observation, nil, nil, err
 	}
 	<-scanned
@@ -1453,6 +1466,18 @@ func openingObservationWithTree(ctx context.Context, root string, attempt int, o
 		return observation, nil, nil, observation.statusErr
 	}
 	return observation, entries, skipped, nil
+}
+
+// cancelledByListing reports whether a status scan's error is the
+// cancellation openingObservationWithTree issued after its listing failed:
+// the scan's own context error while the build's context is still live. Any
+// other failure, a git error or the build's own deadline, is the scan's.
+func cancelledByListing(ctx context.Context, statusErr error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var failure *Error
+	return errors.As(statusErr, &failure) && failure.Message == "Git repository index was cancelled"
 }
 
 // residualBlobs is one committed-blob fetch's result, carried across the

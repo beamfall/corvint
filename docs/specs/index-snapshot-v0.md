@@ -522,13 +522,19 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   index is accepted. The source-count refusal (`Git tree exceeds the source-count limit`,
   `maxIndexedSources`) and the tree-byte bound therefore return while the scan is still running
   and before any `cat-file` is spawned; the build cancels the scan and waits for it before
-  returning, so no observation outlives the build; a listing error wins when both fail. Refusal
-  codes, messages, limits, the carried loader observation on the first attempt and the
-  `IDX-SNAP-V0-016` shard path (`openingObservation`) are unchanged. Measured on a 200,000-file
+  returning, so no observation outlives the build. When both fail, a scan that failed on its
+  own (a git failure or the build's deadline, not the cancellation the listing issued) keeps
+  its own refusal, code and message, as the sequential build reported it; the listing's error
+  is reported only when the scan failed because the listing cancelled it. A carried loader
+  observation on the first attempt is refused on its carried identity or status error before
+  any listing, exactly as the sequential build refused it. Refusal codes, messages, limits and
+  the `IDX-SNAP-V0-016` shard path (`openingObservation`) are unchanged. Measured on a 200,000-file
   repository (`index --if-stale`, medians of three under load 8-11): 2.39 s wall and 5.13 CPU s
   before, 0.54 s and 0.65 CPU s after, the same refusal; `context` 2.73 s / 5.93 CPU s to
   0.40 s / 0.60 CPU s. Falsifier: a build whose shimmed status reports completion before the
-  refusal, or any `cat-file` spawn before it. Rollback: restore `openingObservation` followed by
+  refusal, any `cat-file` spawn before it, a carried observation whose identity or status read
+  failed that still yields an index, or an independent status failure reported as the listing's
+  refusal. Rollback: restore `openingObservation` followed by
   `buildEvidence` in the loop.
 
 ## Non-goals and authority
@@ -676,4 +682,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
 | IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
-| IDX-SNAP-V0-026 (proposed) | `openingObservationWithTree`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn) |
+| IDX-SNAP-V0-026 (proposed) | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index) |

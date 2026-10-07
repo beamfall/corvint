@@ -28,17 +28,23 @@ refusal on a 200,000-file tree spent seconds in a status scan it never needed, a
    keep the `Lstat` + `ReadFile` pair. Spec: `AFP-V0-034` (proposed, not accepted) in
    `docs/specs/affected-plan-v0.md`.
 3. `internal/contextindex/analyzer_schema_test.go`: `IDX-SNAP-V0-017` input-audit digest
-   re-pinned for the `index.go` edit (consumer-only: `analyzerSchemaID` stays
-   `corvint-analyzer/105`; no fact or encoding changed, the precedent is commit 43f3e40d).
+   re-pinned. The digest covers every `index.go` byte, and this change edits the builder's
+   control flow (when the listing runs and which refusal is reported), not what the analyzer
+   extracts or how a fact is encoded, so `analyzerSchemaID` stays `corvint-analyzer/105` and the
+   pin moves with the bytes (the precedent is commit 43f3e40d).
 
 ## Decisions
 
 - **Same refusal, earlier.** The coordinator ruled the pre-check is not a contract change: the
   code, message and limit are the ones `readTreeEntries` already returns. The build still closes
   the window with a full identity-and-status observation, so `GPK-V0-007`'s proof shape holds.
-- **Listing error wins.** When the listing fails and the cancelled scan also reports an error, the
-  listing's error is returned: it is the one that happened first and the one a caller can act on;
-  the scan's error after cancellation is a consequence.
+- **An independent status failure wins.** When the listing fails, the scan is cancelled and
+  waited for. If the scan's error is the cancellation the listing caused (`Git repository index
+  was cancelled` while the build's context is live, `cancelledByListing`), it is a consequence
+  and the listing's error is returned. Any other scan error, a git failure or the build's
+  deadline, is the scan's own and is returned with its old code and message, so an over-limit
+  tree cannot mask a status refusal the sequential build would have reported. A carried
+  observation's identity or status error is refused before the listing, as before.
 - **Only the walk's reader.** `ReadBounded`'s disk path still takes the `Lstat` pair; it is not on
   the measured hot path and is left for a follow-up rather than widened into this change.
 - **`O_NOFOLLOW` only where it exists.** Build tags mirror `internal/delta/input_unix.go`; the
@@ -84,7 +90,21 @@ Tests (`TMPDIR=TD/tmp GOMAXPROCS=3 GOTOOLCHAIN=local go test -p 1 -count=1 -time
 (`TD/contextindex-refusal-order.log`, `-negative.log`);
 `TestReadSourceRefusesNonRegularFilesOnOpenDescriptor` and the rest of
 `./internal/liveverify/affected/...` PASS (`TD/affected-tests.log`); `TestAnalyzerSchemaInputs`
-PASS after the re-pin. `go vet` clean on darwin, linux and windows. The frozen evaluations are
+PASS after the re-pin.
+
+Review round 3 (Codex findings on the first version of this change) added, each failing first
+on the earlier code (`TD/r3-*-failing-first.log`) and passing after the fix (`TD/r3-*.log`):
+`TestBuildRefusesCarriedOpeningObservationErrors` (a carried observation with a status or
+identity error yielded an index); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing`
+(the source-count refusal masked a shimmed `status` that failed with exit 128 before the
+listing); the socket and mode-0 directory cases of
+`TestReadSourceRefusesNonRegularFilesOnOpenDescriptor` (the failed open reported the raw
+`open` error instead of `ErrInvalidUnit`); and `TestCheckpointSnapshotLoadCounterSeesEverySeam`
+in `cmd/corvint`, the negative control for `countSnapshotLoads`, which now wraps
+`loadSnapshotObserved` as well as `loadSnapshot` and `loadSnapshotDeferred` for
+`TestCheckpointReadsNoIndexSnapshotAndRetainsNothing` (it counted 2 of 3 before the wrap).
+No timing-relevant path changed: the carried-error checks and the status-error choice run only
+on failures, and the `Lstat` runs only after a failed open. `go vet` clean on darwin, linux and windows. The frozen evaluations are
 not touched (no ranking input moved); `dogfood-change` binding is left to the integrating session.
 
 Not reproduced: the `cmd/corvint` fixture-setup "git signal: bus error" seen once in
