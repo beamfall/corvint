@@ -353,12 +353,13 @@ func lifecycleOrphanOwner(git string) {
 	if k.Start() != nil {
 		os.Exit(3)
 	}
+	fmt.Println(k.Process.Pid)
 	keeper.Close()
 	if h.Start() != nil {
 		_ = k.Process.Kill()
 		os.Exit(3)
 	}
-	fmt.Printf("%d %d\n", k.Process.Pid, h.Process.Pid)
+	fmt.Println(h.Process.Pid)
 	frame := stableEncodeFrame(stableOpFormat, 40, []string{git, filepath.Dir(git)})
 	if git == "partial" {
 		frame = frame[:6]
@@ -385,8 +386,9 @@ func lifecycleOrphanOwner(git string) {
 }
 
 // lifecycleOrphan runs the orphan owner and returns the keeper pid, the
-// reported status kind and its value. Keeper and holder are killed at
-// cleanup whatever the outcome.
+// reported status kind and its value. Keeper and holder each lead their own
+// process group; cleanup kills both whole groups, Git included, whatever the
+// outcome and without relying on the keeper under test.
 func lifecycleOrphan(t *testing.T, git string) (int, byte, int) {
 	t.Helper()
 	exe, err := os.Executable()
@@ -403,7 +405,7 @@ func lifecycleOrphan(t *testing.T, git string) (int, byte, int) {
 	t.Cleanup(func() {
 		for _, pid := range []int{keeper, holder} {
 			if pid > 1 {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
 			}
 		}
 	})

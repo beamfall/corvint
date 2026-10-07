@@ -40,17 +40,22 @@ is NOT_OBSERVED. The fix covers both.
   exit. Control EOF still retires the group, exactly as before.
 - Both new exits use the existing retirement path: `kill(0, SIGKILL)` then exit 2. No polling or
   timer is added, so a parked keeper uses no CPU.
-- While the owner is alive, behaviour is unchanged: the keeper stays owned and unreaped until the
-  owner's signal decision, as the proposed rules in
-  `protocol/cem-1.0/stable/repository-envelope-packet/PROPOSED-RULES.md` require. The new exits
-  apply only when no owner is left to make that decision.
+- While the owner is alive and kqueue works, behaviour is unchanged: the keeper stays owned and
+  unreaped until the owner's signal decision, as the proposed rules in
+  `protocol/cem-1.0/stable/repository-envelope-packet/PROPOSED-RULES.md` require.
+  - The owner-exit retirements apply only when no owner is left to make that decision.
+  - The fail-closed kqueue-error retirement can also happen while the owner is alive. The owner
+    then sees its control socket close, as it would if the keeper crashed.
 - Tests:
   - The protocol-error test now creates its socketpair the way the production owner does.
   - Three new tests re-execute the test binary as a short-lived owner. That owner leaks its control
     end into a long-lived `/bin/sleep` holder, then exits:
     - `TestStableLifecycleKeeperOwnerExitMidFrame`: the owner sends 6 bytes of the frame header,
-      waits 500 ms so the keeper is blocked in the frame read rather than retiring at start, then
-      exits.
+      waits 500 ms, then exits.
+      - The wait makes it very likely the keeper is already blocked in the frame read rather than
+        retiring at start, but cannot guarantee it.
+      - On a heavily loaded host the keeper can start late. The test then passes without
+        exercising the frame-read path (a false pass, never a false failure).
     - `TestStableLifecycleKeeperOwnerExitWhileHolding`: a failed launch, then the hold loop.
     - `TestStableLifecycleKeeperOwnerExitWhileRunning`: a fake Git that runs `sleep 300`.
   - Each test requires the keeper (and the Git child) to be gone within 10 seconds while the holder
@@ -69,13 +74,25 @@ is NOT_OBSERVED. The fix covers both.
 - The full `interop/cem01-go` module tests pass (`ok`, 183.8 s, `-p 1`, `GOMAXPROCS=3`), and `go vet`
   passes with `GOOS=darwin`, `linux` and `windows`. The linux and windows vets are compile evidence
   only. No `cem01-go.test` process remained after the run.
-- Independent review (Codex round 1) found two P2s, both fixed here:
-  - the frame read was not owner-aware;
-  - the test helper had an unchecked deadline and could leak processes on failure. It now prints
-    pids before any step that can fail, bounds the owner run at 30 s, and kills only parsed pids
-    above 1 at cleanup.
-  - Codex confirmed the running and holding paths, and that `ESRCH` is returned for an exited but
-    unreaped child.
+- Independent review (Codex, three rounds):
+  - **Round 1** found two P2s:
+    - the frame read was not owner-aware;
+    - the test helper had an unchecked deadline and could leak processes on failure.
+  - **Round 2** confirmed the frame-read fix and the kqueue logic: `EINTR`/`EAGAIN` re-waits,
+    one-shot re-registration, `ESRCH` for an exited but unreaped child, and the `Getppid` check
+    after registration. It found that failure cleanup could still leak Git, because it killed
+    the keeper and holder by pid only.
+  - **The test helper now:**
+    - prints each pid as soon as its process starts;
+    - bounds the owner run at 30 s;
+    - at cleanup, kills the keeper's and the holder's whole process groups (each leads its own
+      group), for any parsed pid above 1.
+  - **Cleanup check:** the cleanup does not depend on the keeper under test. With the
+    `7acc91c1` keeper, which leaves Git running, and an injected test failure straight after
+    Git starts, neither the keeper nor the Git child remained.
+  - **Remaining window:** a timeout that lands in the microseconds between a process starting
+    and its pid being printed can leave that process unreported. The holder is `sleep 300`, so
+    it ends by itself.
 - No other platform is affected. The keeper exists only on Darwin; `stable_process_other.go`
   stubs it out elsewhere. The production binary (`main.go`) and the test binary share the same
   keeper entry point, so the fix covers both.
