@@ -41,10 +41,10 @@ func TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts(t *testing.T)
 	}
 	for name, edit := range map[string]func([]byte) []byte{
 		"next profile version": func(b []byte) []byte {
-			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/2"`), 1)
+			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/3"`), 1)
 		},
-		"version 0 still recording a worker": func(b []byte) []byte {
-			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"taskman-dispatch-state/0"`), 1)
+		"version 1 still recording a worker": func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"`+StateProfile+`"`), []byte(`"`+drainedStateProfile+`"`), 1)
 		},
 		"unknown member": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`{`), []byte(`{"workerLimits":{},`), 1)

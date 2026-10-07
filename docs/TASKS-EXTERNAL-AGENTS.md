@@ -615,7 +615,11 @@ earlier build until its ledger records none, then restart under the new build,
 which keeps the backoff and cooldown history and rewrites the ledger as `/1` on its next save
 (proposed). A `/0` ledger that still records a worker, or carries any member `/0` never had,
 at any depth or under any repeated or case-folded spelling, or trailing data, refuses unchanged, and an earlier
-build refuses `/1`. A store `VERSION` another
+build refuses `/1`. The ledger then moved from `/1` to `/2` when it gained the budget history,
+the worker usage account and the declared effort (CAL-V0-161, proposed). The same rule applies one
+version on: a build that writes `/2` adopts only a drained `/1` ledger, starts its budget history
+at the adoption time (`historyFrom` in `dispatch status`), and refuses a `/0` ledger. An earlier
+build refuses `/2`, so drain before rolling back. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

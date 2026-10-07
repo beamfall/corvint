@@ -21,10 +21,10 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/1"
+	StateProfile  = "taskman-dispatch-state/2"
 	// drainedStateProfile is the previous ledger version, adopted only when
 	// it records no worker (CAL-V0-132, proposed amendment).
-	drainedStateProfile = "taskman-dispatch-state/0"
+	drainedStateProfile = "taskman-dispatch-state/1"
 	EventProfile        = "taskman-dispatch-event/0"
 	MaxConfig           = 256 << 10
 )
@@ -49,7 +49,32 @@ type Config struct {
 	// InfrastructureRetry is the optional ESC-V0-007 infrastructure retry
 	// policy. Without it an infrastructure session is ordinary no-progress.
 	InfrastructureRetry *InfraRetryConfig `json:"infrastructureRetry,omitempty"`
+	// TicketBudget is the optional CAL-V0-155 rolling 24-hour budget each
+	// ticket key has across every role; lane keys are not tickets.
+	TicketBudget *Budget `json:"ticketBudget,omitempty"`
 }
+
+// Budget is a CAL-V0-155 rolling 24-hour launch budget. An absent (zero)
+// member has no limit; at least one member is present.
+type Budget struct {
+	SessionsPerDay int    `json:"sessionsPerDay,omitempty"`
+	TokensPerDay   uint64 `json:"tokensPerDay,omitempty"`
+}
+
+// maxBudgetSessions and maxBudgetTokens bound a budget; sessionsPerDay stays
+// well below the history's count cap (maxSpendSessions).
+const maxBudgetSessions, maxBudgetTokens = 1000, 1 << 50
+
+func (b *Budget) validate() error {
+	if b.SessionsPerDay < 0 || b.SessionsPerDay > maxBudgetSessions || b.TokensPerDay > maxBudgetTokens || (b.SessionsPerDay == 0 && b.TokensPerDay == 0) {
+		return fmt.Errorf("budget needs sessionsPerDay 1..%d or tokensPerDay 1..%d", maxBudgetSessions, uint64(maxBudgetTokens))
+	}
+	return nil
+}
+
+// UsageFormats are the CAL-V0-157 host usage vocabularies a role may
+// declare for its workers' standard output.
+var UsageFormats = []string{"claude-code", "codex", "opencode"}
 
 // InfraRetryConfig bounds automatic retries of a ticket's infrastructure
 // sessions per acceptance revision. An absent member takes its default.
@@ -121,6 +146,14 @@ type Role struct {
 	Model                string `json:"model,omitempty"`
 	Escalate             []Tier `json:"escalate,omitempty"`
 	DeescalateOnProgress *bool  `json:"deescalateOnProgress,omitempty"`
+	// Effort is the declared reasoning effort (CAL-V0-159); the role's
+	// host must render {effort}.
+	Effort string `json:"effort,omitempty"`
+	// Budget is the optional CAL-V0-155 rolling 24-hour role budget.
+	Budget *Budget `json:"budget,omitempty"`
+	// UsageFormat names the usage vocabulary of the role's worker standard
+	// output, or is empty when its token usage is not read (CAL-V0-157).
+	UsageFormat string `json:"usageFormat,omitempty"`
 }
 
 // Tier is one escalation step: from After consecutive no-progress sessions
@@ -239,7 +272,7 @@ func (h Heal) ExitRecoveryOn() bool { return h.Handoff && (h.ExitRecovery == nil
 // Placeholders are the only substitutions in argv, env and prompts.
 // {operatorNote} renders untrusted operator prose, so only a role prompt may
 // use it (ON-V0-011).
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}", "{operatorNote}"}
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{effort}", "{nextStage}", "{operatorNote}"}
 
 // operatorNotePlaceholder is refused in host argv, env and activity paths.
 const operatorNotePlaceholder = "{operatorNote}"
@@ -249,6 +282,7 @@ var (
 	placeholder  = regexp.MustCompile(`\{[A-Za-z]+\}`)
 	envKeyFormat = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
 	modelFormat  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}$`)
+	effortFormat = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$`)
 )
 
 // ValidName is the bound on program and role names; worker IDs and holder
@@ -404,6 +438,30 @@ func (c *Config) validate() error {
 		if err := c.validateLadder(r); err != nil {
 			return fail("role %s %v", r.Name, err)
 		}
+		if err := c.validateEffort(r); err != nil {
+			return fail("role %s %v", r.Name, err)
+		}
+		if r.UsageFormat != "" && !contains(UsageFormats, r.UsageFormat) {
+			return fail("role %s usageFormat must be one of %s", r.Name, strings.Join(UsageFormats, ", "))
+		}
+		if b := r.Budget; b != nil {
+			if err := b.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
+			if b.TokensPerDay > 0 && r.UsageFormat == "" {
+				return fail("role %s budget tokensPerDay needs a usageFormat: undeclared usage is unknown, never zero", r.Name)
+			}
+		}
+	}
+	if b := c.TicketBudget; b != nil {
+		if err := b.validate(); err != nil {
+			return fail("ticketBudget: %v", err)
+		}
+		for _, r := range c.Roles {
+			if b.TokensPerDay > 0 && r.Lane == nil && r.UsageFormat == "" {
+				return fail("ticketBudget tokensPerDay needs a usageFormat on role %s: undeclared usage is unknown, never zero", r.Name)
+			}
+		}
 	}
 	if len(c.Pinned) > 256 {
 		return fail("pinned is limited to 256 tickets")
@@ -477,6 +535,35 @@ func (c *Config) validateLadder(r Role) error {
 			return fmt.Errorf("escalate[%d].notes must be at most 1024 bytes without control characters", i)
 		}
 		prev, after = t.Model, t.After
+	}
+	return nil
+}
+
+// validateEffort applies the {model} rule to a declared effort: a role with
+// an effort needs a host that renders {effort} in argv or env, and such a
+// host serves only roles that declare one, so the effort reported is the
+// one delivered (CAL-V0-159).
+func (c *Config) validateEffort(r Role) error {
+	uses, named := false, strings.Contains(r.Prompt, "{effort}")
+	h := c.Hosts[r.Host]
+	for _, a := range h.Argv {
+		uses = uses || strings.Contains(a, "{effort}")
+	}
+	for _, v := range h.Env {
+		uses = uses || strings.Contains(v, "{effort}")
+	}
+	for _, p := range h.ActivityPaths {
+		named = named || strings.Contains(p, "{effort}")
+	}
+	switch {
+	case r.Effort == "" && (uses || named):
+		return fmt.Errorf("uses an {effort} placeholder but declares no effort")
+	case r.Effort == "":
+		return nil
+	case !effortFormat.MatchString(r.Effort):
+		return fmt.Errorf("effort must match %s", effortFormat)
+	case !uses:
+		return fmt.Errorf("declares an effort but host %q renders no {effort}: unsupported effort configuration", r.Host)
 	}
 	return nil
 }

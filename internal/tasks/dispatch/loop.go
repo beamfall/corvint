@@ -647,11 +647,17 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 	dir := d.workerDir(w.ID)
 	size := workerLogBytes(dir)
 	busy := size != w.LogBytes
+	// CAL-V0-157: usage is read before the cut, which then loses whatever
+	// the read did not reach.
+	readUsage(dir, w.Usage)
 	// CAL-V0-143: the cut follows the comparison, so output that is then
 	// truncated still counts as activity, and the next tick compares against
 	// the size left after the cut.
-	if capWorkerLogs(dir) {
+	if cut, stdout := capWorkerLogs(dir); cut {
 		size = workerLogBytes(dir)
+		if stdout && w.Usage != nil {
+			w.Usage.cut()
+		}
 	}
 	w.LogBytes = size
 	for _, p := range w.ActivityPaths {
@@ -933,7 +939,9 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		if summary != "" {
 			msg += ": " + summary
 		}
-		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}})
+		detail := map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}
+		d.finishUsage(w, detail)
+		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.remove(w.ID)
 		// ESC-V0-008: classification precedes no-progress parking. An
 		// infrastructure session is unknown progress for the ladder and a
@@ -1152,13 +1160,17 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 	}
 	d.stampMemberAges(obs, now)
+	d.syncSpend(now)
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
 		return
 	}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget)
+	spend := d.spendGate(now)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, spend)
 	d.recordHeld(obs, held)
+	// Holds are recorded after the launches, so a budget event counts them.
+	defer d.recordBudget(spend)
 	retried := map[string]bool{}
 	for _, a := range launches {
 		// A cancelled dispatcher (service stop) launches nothing further.
@@ -1212,7 +1224,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{nextStage}": a.NextStage}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage}
 		// {operatorNote} renders only into the role prompt (ON-V0-011); argv,
 		// env and activity paths never see the operator prose directly.
 		promptValues := maps.Clone(values)
@@ -1246,6 +1258,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			var started *startedError
 			if errors.As(err, &started) {
 				d.uncertain = append(d.uncertain, started)
+				// CAL-V0-156: a launch that may have started is charged,
+				// and its usage is never observed.
+				d.recordSession(a, id, UsageUnknown, now)
 			}
 			if ep != nil && started != nil {
 				// An ambiguous spawn consumes the reservation and holds.
@@ -1258,7 +1273,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
-		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model}
+		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model, Effort: role.Effort}
+		if role.UsageFormat != "" {
+			w.Usage = &WorkerUsage{Format: role.UsageFormat}
+		}
 		if h := d.ledger.Progress[a.Key]; h != nil {
 			w.BaseFingerprint, w.ProgressDigest = baseFingerprint(obs, a.Key), h.Current
 		}
@@ -1266,6 +1284,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			w.ActivityPaths = append(w.ActivityPaths, Render(p, values))
 		}
 		d.ledger.Workers = append(d.ledger.Workers, w)
+		d.recordSession(a, id, UsageRunning, now)
 		d.exits[id] = exit
 		if ep != nil {
 			ep.State = InfraRunning
@@ -1289,6 +1308,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
+		}
+		if role.Effort != "" {
+			detail["effort"] = role.Effort
 		}
 		if n := a.OperatorNote; n != nil {
 			detail["operatorNote"], detail["operatorNoteRevision"] = n.State, n.Revision

@@ -215,31 +215,42 @@ func ObservedOpenCodeUsage(raw []byte) (uint64, uint64, bool) {
 	}
 	var input, output uint64
 	for _, raw := range s.finishes {
-		var part struct {
-			Tokens struct {
-				Input     json.RawMessage `json:"input"`
-				Output    json.RawMessage `json:"output"`
-				Reasoning json.RawMessage `json:"reasoning"`
-				Cache     struct {
-					Read  json.RawMessage `json:"read"`
-					Write json.RawMessage `json:"write"`
-				} `json:"cache"`
-			} `json:"tokens"`
-		}
-		if json.Unmarshal(raw, &part) != nil {
+		i, o, ok := openCodeStepCounters(raw)
+		if !ok || input+i < input || output+o < output {
 			return 0, 0, false
 		}
-		t := part.Tokens
-		for _, add := range []struct {
-			sum *uint64
-			v   json.RawMessage
-		}{{&input, t.Input}, {&input, t.Cache.Read}, {&input, t.Cache.Write}, {&output, t.Output}, {&output, t.Reasoning}} {
-			n, ok := openCodeCounter(add.v)
-			if !ok || *add.sum+n < *add.sum {
-				return 0, 0, false
-			}
-			*add.sum += n
+		input, output = input+i, output+o
+	}
+	return input, output, true
+}
+
+// openCodeStepCounters sums one step-finish part's disjoint counters: input
+// plus cache read and cache write, and output plus reasoning.
+func openCodeStepCounters(raw json.RawMessage) (input, output uint64, ok bool) {
+	var part struct {
+		Tokens struct {
+			Input     json.RawMessage `json:"input"`
+			Output    json.RawMessage `json:"output"`
+			Reasoning json.RawMessage `json:"reasoning"`
+			Cache     struct {
+				Read  json.RawMessage `json:"read"`
+				Write json.RawMessage `json:"write"`
+			} `json:"cache"`
+		} `json:"tokens"`
+	}
+	if json.Unmarshal(raw, &part) != nil {
+		return 0, 0, false
+	}
+	t := part.Tokens
+	for _, add := range []struct {
+		sum *uint64
+		v   json.RawMessage
+	}{{&input, t.Input}, {&input, t.Cache.Read}, {&input, t.Cache.Write}, {&output, t.Output}, {&output, t.Reasoning}} {
+		n, ok := openCodeCounter(add.v)
+		if !ok || *add.sum+n < *add.sum {
+			return 0, 0, false
 		}
+		*add.sum += n
 	}
 	return input, output, true
 }
@@ -252,4 +263,34 @@ func openCodeCounter(v json.RawMessage) (uint64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// OpenCodeLineUsage reads one OpenCode event line for the dispatcher's
+// incremental token accounting (CAL-V0-157) under the same member rules as
+// readOpenCodeEvents. It returns the event type and, for a step_finish, the
+// part's type, finish reason and counters (openCodeStepCounters). ok is
+// false for a line that is not a qualified event object, or a step_finish
+// whose part or counters are not observations.
+func OpenCodeLineUsage(line []byte) (kind, partType, reason string, input, output uint64, ok bool) {
+	if uniqueMembers(line) != nil || openCodeEventMembers.check(line) != nil {
+		return "", "", "", 0, 0, false
+	}
+	var ev openCodeEvent
+	if json.Unmarshal(line, &ev) != nil {
+		return "", "", "", 0, 0, false
+	}
+	if ev.Type != "step_finish" {
+		return ev.Type, "", "", 0, 0, true
+	}
+	var part struct {
+		Type   string `json:"type"`
+		Reason string `json:"reason"`
+	}
+	if openCodeFinishMembers.check(ev.Part) != nil || json.Unmarshal(ev.Part, &part) != nil {
+		return ev.Type, "", "", 0, 0, false
+	}
+	if input, output, ok = openCodeStepCounters(ev.Part); !ok {
+		return ev.Type, "", "", 0, 0, false
+	}
+	return ev.Type, part.Type, part.Reason, input, output, true
 }
