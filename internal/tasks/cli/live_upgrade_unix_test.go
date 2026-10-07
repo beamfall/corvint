@@ -181,12 +181,10 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Registered first, so it runs after the cleanups below that
-			// read exit from this pipe.
-			t.Cleanup(func() { exitRead.Close() })
 			// The stand-in runner ignores SIGTERM, starts the fixture
 			// exactly as the upgrade test's runner does, and is SIGKILLed,
-			// which closes its copy of fd 3.
+			// which closes its copy of fd 3. It leads process group G, and
+			// the fixture and every child of either stay in G.
 			runnerCmd := exec.Command("/bin/sh", "-c", `trap "" TERM; /bin/sh -c "$1" survivor "$2" "$3" "$4" "$5" & echo ready > "$6"; wait`,
 				"runner", survivorFixture, started, filepath.Join(fixtureDir, "finish"), fixtureDir, tc.seconds, ready)
 			runnerCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -194,6 +192,7 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 			err = runnerCmd.Start()
 			exitWrite.Close()
 			if err != nil {
+				exitRead.Close()
 				t.Fatal(err)
 			}
 			exited := make(chan struct{})
@@ -201,29 +200,35 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 				_, _ = io.Copy(io.Discard, exitRead)
 				close(exited)
 			}()
-			runner := watchSurvivor(runnerCmd)
+			// One cleanup owns G: it kills the whole group, then waits for
+			// EOF. G stays pinned while any member lives; only once every
+			// member is gone could G be reused, the stated residual.
+			group := runnerCmd.Process.Pid
 			t.Cleanup(func() {
-				if err := runner.retire(time.Second, 5*time.Second); err != nil {
-					t.Error(err)
+				defer exitRead.Close()
+				if err := syscall.Kill(-group, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+					t.Errorf("kill fixture group %d: %v", group, err)
+				}
+				select {
+				case <-exited:
+				case <-time.After(5 * time.Second):
+					t.Errorf("fixture group %d still holds fd 3 5s after cleanup killed it", group)
 				}
 			})
+			runner := watchSurvivor(runnerCmd)
 			sent := recordSignals(runner)
 			pid, err := strconv.Atoi(strings.TrimSpace(waitForLine(t, started, 10*time.Second)))
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Should the fixture not exit, the failure leaves nothing
-			// running: while the pipe is open the fixture is still alive,
-			// so it is SIGKILLed (with its group only when it leads one).
-			t.Cleanup(func() { retireFixture(t, pid, exited, 5*time.Second) })
 			waitForLine(t, ready, 10*time.Second)
+			// SIGKILL the runner only, never G, so the fixture must outlive it.
 			if err := runner.retire(200*time.Millisecond, 5*time.Second); err != nil {
 				t.Fatal(err)
 			}
 			if !slices.Equal(*sent, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}) {
 				t.Fatalf("signals sent: %v", *sent)
 			}
-			// The runner is gone and nothing retired the fixture's group.
 			select {
 			case <-exited:
 				t.Fatal("fixture already gone before its bound")
@@ -240,30 +245,6 @@ func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
 				t.Fatalf("fixture loop %d still running %s after its runner was killed", pid, tc.within)
 			}
 		})
-	}
-}
-
-// retireFixture kills a fixture loop that has not exited. The open pipe
-// proves it alive, so its pid is still its own; its process group is killed
-// only when it leads that group.
-func retireFixture(t *testing.T, pid int, exited <-chan struct{}, bound time.Duration) {
-	t.Helper()
-	select {
-	case <-exited:
-		return
-	default:
-	}
-	target := pid
-	if group, err := syscall.Getpgid(pid); err == nil && group == pid {
-		target = -pid
-	}
-	if err := syscall.Kill(target, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		t.Errorf("kill fixture %d: %v", target, err)
-	}
-	select {
-	case <-exited:
-	case <-time.After(bound):
-		t.Errorf("fixture %d still running %s after cleanup killed it", pid, bound)
 	}
 }
 
