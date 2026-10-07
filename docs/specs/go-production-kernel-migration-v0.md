@@ -1477,12 +1477,18 @@ arm is unchanged.
   references are not evaluated. Resolution follows TypeScript's order: an exact `paths` key, else
   the matching wildcard key with the longest prefix, trying its substitutions in order (relative
   to the effective `baseUrl`, else to the declaring config's directory; `${configDir}` to the leaf
-  config's directory); then `baseUrl`; then the package test of `GPK-V0-080`. A candidate path
-  resolves to an indexed or tracked file by TypeScript's bundler/node rules: a `.js`, `.jsx`,
-  `.mjs` or `.cjs` extension is replaced by its TypeScript sources first (`.ts`, `.tsx`, `.d.ts`,
-  then the JavaScript file; `.mts`/`.d.mts` and `.cts`/`.d.cts` for the module forms), any other
-  named file resolves exactly, an extensionless candidate tries `.ts`, `.tsx`, `.d.ts`, `.js`,
-  `.jsx`, and a directory resolves through its `index` file with the same extensions. A resolved
+  config's directory; a substitution naming a TypeScript extension is tried as written first);
+  then `baseUrl`, but only when no `paths` key matched, because a matched key that resolves no
+  substitution sends TypeScript straight to `node_modules`; then the `GPK-V0-080` package
+  test. A candidate path resolves to an indexed or tracked file by TypeScript's
+  `tryAddingExtensions` order: `.ts`, `.d.ts`, `.js` and an extensionless candidate try `.ts`,
+  `.tsx`, `.d.ts`, `.js`, `.jsx`; `.tsx` and `.jsx` try `.tsx`, `.ts`, `.d.ts`, `.jsx`, `.js`;
+  the `.mjs`/`.mts` and `.cjs`/`.cts` families try their TypeScript, declaration and JavaScript
+  forms; `.json` tries `.d.json.ts` then `.json`; any other named file (a stylesheet, say)
+  resolves exactly or through its `.d<ext>.ts` declaration, as a bundler would; an
+  extension-bearing candidate that fails still tries the five extensions appended; and a
+  directory, including the repository root, resolves through its `index` file with the same
+  extensions. A resolved
   importer other than the changed path itself is a `reverse-import` row of the same shape,
   scores, evidence reason (`imports <specifier>`) and `syntax` authority as an oracle row, in
   addition to the oracle arm's rows. `NewWebImportResolver(index).Resolve(importer, specifier)`
@@ -1500,9 +1506,11 @@ arm is unchanged.
   substitution, an empty substitution list) makes the whole config unknown, even a field the leaf
   declares, because TypeScript rejects the project as written. A package-named entry is legal but
   not indexed, so only the fields no earlier config declares become unknown. An unknown `baseUrl`
-  or `paths` resolves nothing through the config; two matching wildcard keys with the same prefix
-  length, and a candidate directory that holds a `package.json` (whose `exports`, `types` and
-  `main` are not read), make that specifier unresolved rather than picking one.
+  or `paths` may claim any name, even a declared package's, so every bare specifier under that
+  config is unresolved. Two matching wildcard keys with the same prefix length, an absolute or
+  repository-escaping substitution (TypeScript could pick a file outside the index), and a
+  candidate directory that holds a `package.json` (whose `exports`, `types` and `main` are not
+  read) make that specifier unresolved rather than picking one.
 - `GPK-V0-079`: (proposed, pending owner acceptance; V1-0958) A web reverse-import row whose
   importer names the specifier only in `import type` or `export type` statements (the clause's
   first word is `type` and the next token is not `from`, `,` or `=`) is type-only: TypeScript

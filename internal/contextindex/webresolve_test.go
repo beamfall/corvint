@@ -263,6 +263,30 @@ func TestWebImportResolverFailsClosed(t *testing.T) {
 			"base/tsconfig.json": `{"compilerOptions": {"paths": {"~/*": ["${configDir}/src/*"]}}}`,
 			"tsconfig.json":      `{"extends": "./base/tsconfig.json"}`,
 		}, "~/lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"unknown paths may claim a declared package": {map[string]string{
+			"tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": "src"}}`,
+			"package.json":  `{"dependencies": {"left-pad": "1"}}`,
+		}, "left-pad", WebImportResolution{State: WebImportUnresolved}},
+		"explicit substitution extension": {map[string]string{
+			"tsconfig.json":   `{"compilerOptions": {"paths": {"alias": ["src/lib/page.js"]}}}`,
+			"src/lib/page.js": page,
+		}, "alias", WebImportResolution{"src/lib/page.js", WebImportRepository}},
+		"matched key skips baseUrl": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"baseUrl": "src", "paths": {"lib/*": ["missing/*"]}}}`,
+		}, "lib/page", WebImportResolution{State: WebImportUnresolved}},
+		"jsx specifier names a ts source": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias/*": ["src/lib/*"]}}}`,
+		}, "alias/page.jsx", WebImportResolution{"src/lib/page.ts", WebImportRepository}},
+		"absolute substitution": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias/*": ["/src/lib/*"]}}}`,
+		}, "alias/page", WebImportResolution{State: WebImportUnresolved}},
+		"escaping substitution": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"alias/*": ["../outside/*", "src/lib/*"]}}}`,
+		}, "alias/page", WebImportResolution{State: WebImportUnresolved}},
+		"repository root directory": {map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"paths": {"root": ["."]}}}`,
+			"index.ts":      page,
+		}, "root", WebImportResolution{"index.ts", WebImportRepository}},
 		"jsconfig": {map[string]string{
 			"jsconfig.json": `{"compilerOptions": {"baseUrl": "src"}}`,
 		}, "lib/page", WebImportResolution{"src/lib/page.ts", WebImportRepository}},

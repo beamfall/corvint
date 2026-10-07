@@ -139,8 +139,9 @@ func (resolver *WebImportResolver) resolveBare(importer, specifier string) WebIm
 }
 
 // webAliasOutcome is one (config, specifier) answer: a target, an explicit
-// unknown (an ambiguous pattern or a package directory), or neither, when the
-// config does not claim the name and the package test decides.
+// unknown (an unknown config, an ambiguous pattern, a substitution outside the
+// repository or a package directory), or neither, when the config claims no
+// file for the name and the package test decides.
 type webAliasOutcome struct {
 	target  string
 	unknown bool
@@ -149,9 +150,9 @@ type webAliasOutcome struct {
 func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutcome {
 	options := resolver.effective(config)
 	if !options.pathsKnown || !options.baseKnown {
-		// An unknown inherited baseUrl or paths may claim any name; only the
-		// package test can still classify it, and it does so conservatively.
-		return webAliasOutcome{}
+		// An unknown inherited baseUrl or paths may claim any name, even a
+		// declared package's, so no answer is safe.
+		return webAliasOutcome{unknown: true}
 	}
 	if options.paths != nil {
 		pattern, capture, matched, ambiguous := options.match(specifier)
@@ -159,8 +160,22 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 			return webAliasOutcome{unknown: true}
 		}
 		if matched {
+			// A matched key ends the paths/baseUrl stage even when no
+			// substitution resolves: TypeScript then goes straight to
+			// node_modules, so baseUrl is not tried.
 			for _, substitution := range options.paths[pattern] {
-				target, stop := resolver.load(options.webSubstitutionPath(strings.Replace(substitution, "*", capture, 1)))
+				candidate, inside := options.webSubstitutionPath(strings.Replace(substitution, "*", capture, 1))
+				if !inside {
+					// An absolute or escaping substitution may name a file
+					// outside the repository that TypeScript would pick.
+					return webAliasOutcome{unknown: true}
+				}
+				// A substitution naming a TypeScript extension is tried as
+				// written before any replacement.
+				if webExtension(substitution) != "" && resolver.exists(candidate) {
+					return webAliasOutcome{target: candidate}
+				}
+				target, stop := resolver.load(candidate)
 				if target != "" {
 					return webAliasOutcome{target: target}
 				}
@@ -168,6 +183,7 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 					return webAliasOutcome{unknown: true}
 				}
 			}
+			return webAliasOutcome{}
 		}
 	}
 	if options.baseURL != "" {
@@ -182,13 +198,27 @@ func (resolver *WebImportResolver) alias(config, specifier string) webAliasOutco
 	return webAliasOutcome{}
 }
 
-// webJSReplacements is TypeScript's extension replacement: a `.js` specifier
-// names the `.ts` source that compiles to it.
-var webJSReplacements = map[string][]string{
-	".js":  {".ts", ".tsx", ".d.ts", ".js", ".jsx"},
-	".jsx": {".tsx", ".d.ts", ".jsx"},
-	".mjs": {".mts", ".d.mts", ".mjs"},
-	".cjs": {".cts", ".d.cts", ".cjs"},
+// webExtensions are the extensions TypeScript strips from a candidate before
+// replacing them, longest declaration forms first.
+var webExtensions = []string{".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx", ".json"}
+
+func webExtension(name string) string {
+	for _, extension := range webExtensions {
+		if strings.HasSuffix(name, extension) {
+			return extension
+		}
+	}
+	return ""
+}
+
+// webReplacements is TypeScript's extension replacement (tryAddingExtensions):
+// a `.js` specifier names the `.ts` source that compiles to it, and so on.
+var webReplacements = map[string][]string{
+	".ts": webImplicitExtensions, ".d.ts": webImplicitExtensions, ".js": webImplicitExtensions,
+	".tsx": {".tsx", ".ts", ".d.ts", ".jsx", ".js"}, ".jsx": {".tsx", ".ts", ".d.ts", ".jsx", ".js"},
+	".mjs": {".mts", ".d.mts", ".mjs"}, ".mts": {".mts", ".d.mts", ".mjs"}, ".d.mts": {".mts", ".d.mts", ".mjs"},
+	".cjs": {".cts", ".d.cts", ".cjs"}, ".cts": {".cts", ".d.cts", ".cjs"}, ".d.cts": {".cts", ".d.cts", ".cjs"},
+	".json": {".d.json.ts", ".json"},
 }
 
 // webImplicitExtensions is the order TypeScript tries for an extensionless
@@ -196,37 +226,48 @@ var webJSReplacements = map[string][]string{
 var webImplicitExtensions = []string{".ts", ".tsx", ".d.ts", ".js", ".jsx"}
 
 // load resolves one candidate path to a tracked file: the file itself with an
-// extension replaced or added, then the directory's index. stop reports a
-// directory holding a package.json, whose entry point is not resolved here,
-// so the caller reports unknown instead of trying a later candidate.
+// extension replaced or added, then the directory's index. Another named
+// extension (a stylesheet, say) resolves exactly or through its `.d<ext>.ts`
+// declaration, because a bundler resolves it. stop reports a directory holding
+// a package.json, whose entry point is not resolved here, so the caller
+// reports unknown instead of trying a later candidate.
 func (resolver *WebImportResolver) load(candidate string) (target string, stop bool) {
 	candidate = path.Clean(candidate)
-	if candidate == "." || candidate == ".." || strings.HasPrefix(candidate, "../") || strings.HasPrefix(candidate, "/") {
+	if candidate == ".." || strings.HasPrefix(candidate, "../") || strings.HasPrefix(candidate, "/") {
 		return "", false
 	}
-	extension := path.Ext(candidate)
-	if replacements, ok := webJSReplacements[extension]; ok {
-		stem := strings.TrimSuffix(candidate, extension)
-		for _, replacement := range replacements {
-			if resolver.exists(stem + replacement) {
-				return stem + replacement, false
+	directory := candidate + "/"
+	if candidate == "." {
+		// The repository root has no file form, only a directory index.
+		directory = ""
+	} else {
+		if extension := webExtension(candidate); extension != "" {
+			stem := strings.TrimSuffix(candidate, extension)
+			for _, replacement := range webReplacements[extension] {
+				if resolver.exists(stem + replacement) {
+					return stem + replacement, false
+				}
+			}
+		} else if extension := path.Ext(candidate); extension != "" {
+			stem := strings.TrimSuffix(candidate, extension)
+			for _, name := range []string{candidate, stem + ".d" + extension + ".ts"} {
+				if resolver.exists(name) {
+					return name, false
+				}
 			}
 		}
-	} else if extension != "" && resolver.exists(candidate) {
-		// `.ts`, `.tsx`, `.json` and any other named file resolve exactly.
-		return candidate, false
-	}
-	for _, added := range webImplicitExtensions {
-		if resolver.exists(candidate + added) {
-			return candidate + added, false
+		for _, added := range webImplicitExtensions {
+			if resolver.exists(candidate + added) {
+				return candidate + added, false
+			}
 		}
 	}
-	if resolver.exists(candidate + "/package.json") {
+	if resolver.exists(directory + "package.json") {
 		return "", true
 	}
 	for _, added := range webImplicitExtensions {
-		if resolver.exists(candidate + "/index" + added) {
-			return candidate + "/index" + added, false
+		if resolver.exists(directory + "index" + added) {
+			return directory + "index" + added, false
 		}
 	}
 	return "", false
@@ -468,12 +509,17 @@ func webConfigPath(value, directory, leafDirectory string) string {
 
 // webSubstitutionPath places one `paths` substitution, with its `*` already
 // replaced, in the repository: against the leaf config's directory for a
-// `${configDir}` substitution, else against the paths base.
-func (options *webOptions) webSubstitutionPath(substitution string) string {
+// `${configDir}` substitution, else against the paths base. inside is false
+// for an absolute substitution or one that leaves the repository.
+func (options *webOptions) webSubstitutionPath(substitution string) (candidate string, inside bool) {
 	if rest, ok := strings.CutPrefix(substitution, "${configDir}"); ok {
-		return path.Join(options.leafDirectory, rest)
+		candidate = path.Join(options.leafDirectory, rest)
+	} else if strings.HasPrefix(substitution, "/") {
+		return "", false
+	} else {
+		candidate = path.Join(options.pathsBase, substitution)
 	}
-	return path.Join(options.pathsBase, substitution)
+	return candidate, candidate != ".." && !strings.HasPrefix(candidate, "../")
 }
 
 type webExtendsState int

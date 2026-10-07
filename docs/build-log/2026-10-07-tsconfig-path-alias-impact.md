@@ -133,3 +133,26 @@ plus an `NGI-V0-003` amendment and the closed code `bare-import-unresolved`
   web impact incomplete. This is conservative by design; narrowing it is an owner question.
 - When no result is admitted, the packet state stays `OUT_OF_SCOPE` and carries the disclosure. The
   state value itself does not change.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) round 1 reported six P2 findings and no P0 or P1 findings. Each one
+was checked against the `moduleNameResolver` code of TypeScript 5.9.3 (`tryLoadModuleUsingPaths`,
+`tryLoadModuleUsingOptionalResolutionSettings`, `tryAddingExtensions`). All six were accepted. Each
+has a `TestWebImportResolverFailsClosed` case, and all seven new cases fail on the round-0
+resolver (observed):
+
+1. An unknown inherited `baseUrl` or `paths` fell through to the package test, so a declared name
+   it might alias counted as a package. Now every bare specifier under such a config is unresolved.
+2. A substitution naming a TypeScript extension is now tried as written before extension
+   replacement.
+3. A matched `paths` key whose substitutions all miss no longer falls back to `baseUrl`. TypeScript
+   goes straight to `node_modules`.
+4. The extension table now follows `tryAddingExtensions`: `.jsx`/`.tsx` also try `.ts` and `.js`,
+   `.mts`/`.cts` and declaration forms map to their families, `.json` tries `.d.json.ts`, and other
+   extensions try `.d<ext>.ts`.
+5. An absolute or repository-escaping substitution makes the specifier unresolved. It used to be
+   rebased into the repository or skipped.
+6. The repository root resolves as a directory, through its `index` file.
+
+On this repository, impact after these fixes still reports 12 specifiers in 8 sources.
