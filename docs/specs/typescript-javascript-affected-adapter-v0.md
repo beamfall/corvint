@@ -197,13 +197,13 @@ unknown-membership cases require the full independently enumerated 353-unit base
 additional conservative units remain permitted. Unknown project sets require full-config fallback
 with zero runnable approximations. Every case repeats canonical serialization for identical inputs.
 
-`TestPlaywrightGolfQualification` extends that synthetic repository shape with global `use`, a
+`TestPlaywrightExampleAppQualification` extends that synthetic repository shape with global `use`, a
 global-setup helper, and alias imports through specs, fixtures, page objects, workflows and scenario
 builders. A cohort helper change selects exactly 41 of 353 units (13 files across three projects plus
 setup/cleanup); a global-setup helper or config change selects all 353. Computed imports, undeclared
 or missing aliases, unsupported config inheritance, ambiguous module candidates and dynamic config
 inputs require full fallback without exclusions. Identical inputs reproduce canonical receipt bytes.
-The exact golf-e2e checkout/config was unavailable (`NOT_OBSERVED`); this is not consumer recall or
+The exact example-app-e2e checkout/config was unavailable (`NOT_OBSERVED`); this is not consumer recall or
 execution qualification. JSONC comments/trailing commas are supported; package-directory resolution,
 custom loaders and `extends` remain conservative frontiers. Source digests include tsconfig inputs.
 
@@ -305,6 +305,6 @@ The issue 41 extension can instead be reverted independently: restore the opt-in
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
-| `TJAA-V0-012..017` golf shape | `TestPlaywrightGolfQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_golf_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
+| `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
