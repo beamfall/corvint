@@ -48,3 +48,11 @@ binary was executed.
 - Dispatcher batching over shared allocations is not implemented.
 - Supervised attempts cannot share.
 - `cli/pools.go` occupancy rows in other views still name only the entry's attempt.
+
+## Independent review
+
+Three Codex read-only rounds. Round 1 found an empty `--share-allocation` value silently taken as an
+ordinary claim (now refused `MALFORMED`) and PSR-V0-017 promising `FENCED` for an inconsistent stored
+binding that load validation refuses `MALFORMED` first (spec corrected, test pins the code). Round 2
+found PSR-V0-016 claiming refusal before any state read, while every lease flag is validated after
+the head probe (spec corrected). Round 3: no findings.
