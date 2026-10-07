@@ -21,6 +21,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// survivorFixture is the build N runner's command: it records its pid in $1,
+// then waits until the finish file $2 exists. It has a lifetime of its own,
+// independent of the runner and of the finish file: it also ends once $4
+// seconds have passed or its directory $3 is gone, so a runner killed before
+// it retired the command cannot leave the loop running.
+const survivorFixture = `end=$(( $(date +%s) + $4 )); echo $$ > "$1"
+while [ ! -f "$2" ] && [ -d "$3" ] && [ "$(date +%s)" -lt "$end" ]; do sleep 0.05; done`
+
 // CAL-V0-130, CAL-V0-131 and CAL-V0-133: an attempt claimed by build N keeps
 // heartbeating, renewing and releasing after build N+1 is installed in place
 // by atomic rename. A build N attempt runner started from the installed path
@@ -100,7 +108,7 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 	// path, whose command waits until the test lets it finish.
 	started, finish := filepath.Join(dir, "started"), filepath.Join(dir, "finish")
 	survivor := exec.Command(installed, "run", "--attempt", attempt, "--generation", generation, "--timeout", "300", "--",
-		"/bin/sh", "-c", `echo $$ > "$1"; while [ ! -f "$2" ]; do sleep 0.05; done`, "survivor", started, finish)
+		"/bin/sh", "-c", survivorFixture, "survivor", started, finish, dir, "120")
 	survivor.Dir = r.Root
 	var survivorOut, survivorErr bytes.Buffer
 	survivor.Stdout, survivor.Stderr = &survivorOut, &survivorErr

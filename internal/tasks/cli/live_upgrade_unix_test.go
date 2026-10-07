@@ -5,8 +5,12 @@ package cli_test
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -102,17 +106,14 @@ func exitedUnreaped(pid int) error {
 // even when the runner ignores SIGTERM and a descendant keeps its stderr
 // open, and a runner already reaped is never signalled again.
 func TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner(t *testing.T) {
-	record := func(s *survivorRunner) *[]syscall.Signal {
-		var sent []syscall.Signal
-		real := s.signal
-		s.signal = func(sig syscall.Signal) error { sent = append(sent, sig); return real(sig) }
-		return &sent
-	}
+	record := recordSignals
 
 	// A runner that ignores SIGTERM, with a background sleep holding stderr.
 	// SIGTERM, then SIGKILL, and WaitDelay closing the held pipe end it well
-	// before the sleep would.
-	stuck := exec.Command("/bin/sh", "-c", `trap "" TERM; sleep 5 & wait`)
+	// before the sleep would. The runner reports ready only after its trap is
+	// installed and the sleep started, and nothing is signalled before that.
+	ready := filepath.Join(t.TempDir(), "ready")
+	stuck := exec.Command("/bin/sh", "-c", `trap "" TERM; sleep 5 & echo ready > "$1"; wait`, "stuck", ready)
 	stuck.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stuck.Stderr = new(sliceWriter)
 	stuck.WaitDelay = 500 * time.Millisecond
@@ -121,7 +122,7 @@ func TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner(t *testing.T) {
 	}
 	s := watchSurvivor(stuck)
 	sent := record(s)
-	time.Sleep(100 * time.Millisecond)
+	waitForLine(t, ready, 10*time.Second)
 	began := time.Now()
 	if err := s.retire(500*time.Millisecond, 5*time.Second); err != nil {
 		t.Fatal(err)
@@ -149,6 +150,86 @@ func TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner(t *testing.T) {
 	if err := c.retire(time.Second, time.Second); err != nil || len(*sent) != 0 || c.waitErr != nil {
 		t.Fatalf("cleanup after a clean exit: %v, signals %v, wait %v", err, *sent, c.waitErr)
 	}
+}
+
+// CAL-V0-130 test hygiene: the upgrade test's fixture command ends by itself
+// when its runner was SIGKILLed before retiring it, once its lifetime bound
+// passes or once its directory is removed, as failed-test cleanup does.
+func TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		seconds string
+		remove  bool
+		within  time.Duration
+	}{
+		{"lifetime bound", "3", false, 10 * time.Second},
+		{"directory removed", "120", true, 5 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			fixtureDir := filepath.Join(dir, "fixture")
+			if err := os.Mkdir(fixtureDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			started, ready := filepath.Join(fixtureDir, "started"), filepath.Join(dir, "ready")
+			// The stand-in runner ignores SIGTERM, starts the fixture
+			// exactly as the upgrade test's runner does, and is SIGKILLed.
+			runnerCmd := exec.Command("/bin/sh", "-c", `trap "" TERM; /bin/sh -c "$1" survivor "$2" "$3" "$4" "$5" & echo ready > "$6"; wait`,
+				"runner", survivorFixture, started, filepath.Join(fixtureDir, "finish"), fixtureDir, tc.seconds, ready)
+			runnerCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			if err := runnerCmd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			runner := watchSurvivor(runnerCmd)
+			sent := recordSignals(runner)
+			waitForLine(t, ready, 10*time.Second)
+			pid, err := strconv.Atoi(strings.TrimSpace(waitForLine(t, started, 10*time.Second)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := runner.retire(200*time.Millisecond, 5*time.Second); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(*sent, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}) {
+				t.Fatalf("signals sent: %v", *sent)
+			}
+			// The runner is gone and nothing retired the fixture's group.
+			if err := syscall.Kill(pid, 0); err != nil {
+				t.Fatalf("fixture already gone before its bound: %v", err)
+			}
+			if tc.remove {
+				if err := os.RemoveAll(fixtureDir); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for deadline := time.Now().Add(tc.within); syscall.Kill(pid, 0) == nil; time.Sleep(50 * time.Millisecond) {
+				if time.Now().After(deadline) {
+					t.Fatalf("fixture loop %d still running %s after its runner was killed", pid, tc.within)
+				}
+			}
+		})
+	}
+}
+
+// waitForLine waits at most bound for path to hold a complete line.
+func waitForLine(t *testing.T, path string, bound time.Duration) string {
+	t.Helper()
+	for deadline := time.Now().Add(bound); ; time.Sleep(10 * time.Millisecond) {
+		if raw, err := os.ReadFile(path); err == nil && strings.HasSuffix(string(raw), "\n") {
+			return string(raw)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%s not written within %s", path, bound)
+		}
+	}
+}
+
+// recordSignals wraps a runner's kill so the signals cleanup sends are kept.
+func recordSignals(s *survivorRunner) *[]syscall.Signal {
+	var sent []syscall.Signal
+	real := s.signal
+	s.signal = func(sig syscall.Signal) error { sent = append(sent, sig); return real(sig) }
+	return &sent
 }
 
 // sliceWriter is a non-file writer, so exec copies the command's output
