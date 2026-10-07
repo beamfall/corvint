@@ -614,7 +614,7 @@ that writes `/1` adopts a `/0` ledger only once it is drained: let every worker 
 earlier build until its ledger records none, then restart under the new build,
 which keeps the backoff and cooldown history and rewrites the ledger as `/1` on its next save
 (proposed). A `/0` ledger that still records a worker, or carries any member `/0` never had,
-at any depth or under any repeated or case-folded spelling, refuses unchanged, and an earlier
+at any depth or under any repeated or case-folded spelling, or trailing data, refuses unchanged, and an earlier
 build refuses `/1`. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;

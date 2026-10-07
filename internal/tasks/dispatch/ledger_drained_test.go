@@ -100,6 +100,8 @@ func TestCALV0132_DrainedPreviousVersionLedgerIsAdopted(t *testing.T) {
 		"a nested alias":                         prefix(`"pressure":{"SAMPLE":{}}`),
 		"a nested unknown member":                prefix(`"pressure":{"sample":{"futureField":1}}`),
 		"an unknown backoff member":              with("backoff", `{"k":{"futureField":1}}`),
+		"a trailing worker value":                append(append([]byte{}, drained...), []byte(` {"workers":[{"id":"w1"}]}`)...),
+		"a Profile alias":                        bytes.Replace(drained, []byte(`"profile":`), []byte(`"Profile":`), 1),
 	} {
 		if bytes.Equal(bad, drained) {
 			t.Fatalf("%s: fixture not reached", name)

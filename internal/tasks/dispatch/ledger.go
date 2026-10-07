@@ -286,11 +286,16 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // The one exception (proposed amendment) is a drained version 0 ledger:
 // drained reports it, and the caller adopts it as this version.
 func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained bool, err error) {
-	var profile string
-	if raw, ok := members["profile"]; ok && json.Unmarshal(raw, &profile) == nil && profile != StateProfile {
+	// The profile is found under any spelling the struct decoder would
+	// read, so an aliased version 0 profile meets version 0's rules.
+	for name, value := range members {
+		var profile string
+		if !strings.EqualFold(name, "profile") || json.Unmarshal(value, &profile) != nil || profile == StateProfile {
+			continue
+		}
 		if profile == drainedStateProfile {
 			drained = true
-		} else if err := wire.CheckProfile("/profile", profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
+		} else if err := wire.CheckProfile("/"+name, profile, StateProfile); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
 			return false, err
 		}
 	}
@@ -336,7 +341,8 @@ var state1Members = map[reflect.Type][]string{
 // fields by case folding: a later "workers":[] or "WORKERS":[] could
 // otherwise hide a recorded worker. In any object it refuses a repeated
 // member and, in a struct's object, two members that fold to one field
-// (MALFORMED). A lone case-folded spelling stays the strict decoder's
+// (MALFORMED); dynamic map keys stay case-sensitive (CAL-V0-064). It also
+// refuses any data after the ledger value. A lone case-folded spelling stays the strict decoder's
 // concern, as CAL-V0-064 keeps a legacy ledger's "Profile" loading. Unknown
 // members are left to ledgerFormat and the strict decoder. For a drained
 // version 0 ledger every refusal is UNSUPPORTED_VERSION, a lone alias is
@@ -426,7 +432,15 @@ func exactLedger(raw []byte, drained bool) error {
 		}
 		return nil
 	}
-	return value(reflect.TypeFor[Ledger](), "", 0)
+	if err := value(reflect.TypeFor[Ledger](), "", 0); err != nil {
+		return err
+	}
+	// Only whitespace may follow the ledger: the decoders read the first
+	// value, so a trailing one would be dropped by the next save.
+	if _, err := d.Token(); err != io.EOF {
+		return wire.Errorf(code, "", "dispatch state carries data after the ledger")
+	}
+	return nil
 }
 
 // folded is the field key names under encoding/json's case folding, or key

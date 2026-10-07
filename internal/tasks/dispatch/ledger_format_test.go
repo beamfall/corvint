@@ -129,6 +129,8 @@ func TestCALV0132_RepeatedLedgerMemberRefuses(t *testing.T) {
 		"a PROGRAM alias":             suffix(`"PROGRAM":"prog"`),
 		"a repeated worker member":    bytes.Replace(good, []byte(`"pid":`), []byte(`"pid":1,"pid":`), 1),
 		"a folded repeat in a worker": bytes.Replace(good, []byte(`"pid":`), []byte(`"PID":1,"pid":`), 1),
+		"a trailing value":            append(append([]byte{}, good...), []byte(` {"workers":[]}`)...),
+		"a repeated map key":          suffix(`"escalation":{"k":{},"k":{}}`),
 		"a repeated pressure sample":  suffix(`"pressure":{"sample":{},"sample":{}}`),
 	} {
 		if bytes.Equal(bad, good) {
