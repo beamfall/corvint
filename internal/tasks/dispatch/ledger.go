@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -164,6 +165,9 @@ type Ledger struct {
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
 	// InfraRetry is present only once an ESC-V0-007 episode exists.
 	InfraRetry map[string]*InfraEpisode `json:"infraRetry,omitempty"`
+	// durable is the digest of the bytes this ledger last saved with every
+	// step durable, zero when unknown (CAL-V0-139). It is never encoded.
+	durable [sha256.Size]byte
 }
 
 const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
@@ -666,15 +670,26 @@ func ledgerBytes(l *Ledger) ([]byte, error) {
 func (l *Ledger) save(dir string) error {
 	raw, err := ledgerBytes(l)
 	if err != nil {
+		l.durable = [sha256.Size]byte{}
 		return err
 	}
-	// CAL-V0-139: bytes already in place are not rewritten or synced again;
-	// every rename into place followed its file's fsync.
+	// CAL-V0-139: bytes this ledger last saved durably (file fsync, rename
+	// and directory fsync all succeeded) and still in place are not
+	// rewritten or synced again. Any failed save forgets that, so the next
+	// identical save retries the whole write and reports its own result.
+	sum := sha256.Sum256(raw)
 	path := filepath.Join(dir, "state.json")
-	if old, err := readBounded(path, maxLedger); err == nil && bytes.Equal(old, raw) {
-		return nil
+	if sum == l.durable {
+		if old, err := readBounded(path, maxLedger); err == nil && bytes.Equal(old, raw) {
+			return nil
+		}
 	}
-	return writeAtomic(path, raw)
+	l.durable = [sha256.Size]byte{}
+	if err := writeAtomic(path, raw); err != nil {
+		return err
+	}
+	l.durable = sum
+	return nil
 }
 
 func writeAtomic(path string, raw []byte) error {

@@ -51,14 +51,14 @@ func (d *Dispatcher) idleEligible() bool {
 	if d.Config.WorkState != nil || d.Config.Pressure != nil {
 		return false
 	}
-	if d.Config.PoolSweep != nil {
-		if d.sweepNext.IsZero() {
+	if d.Config.PoolSweep != nil && d.sweepNext.IsZero() {
+		return false
+	}
+	// A retained pending sweep record blocks the gate whether or not the
+	// current configuration sweeps.
+	for _, r := range d.ledger.PoolSweeps {
+		if sweepPending(r.Phase) {
 			return false
-		}
-		for _, r := range d.ledger.PoolSweeps {
-			if sweepPending(r.Phase) {
-				return false
-			}
 		}
 	}
 	return true
@@ -143,10 +143,18 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 	if e != nil || sha256.Sum256(raw) != m.state {
 		return
 	}
+	// A deadline that fell after the tick started and at or before now may
+	// have passed after the tick read it, so the gate stays unarmed and the
+	// next tick reads in full. Only deadlines strictly after now arm it, and
+	// the earliest of them bounds the skip window.
 	now := d.Now()
 	due := m.since.Add(idleFullEvery)
+	crossed := false
 	early := func(t time.Time) {
-		if t.After(now) && t.Before(due) {
+		switch {
+		case t.After(m.since) && !t.After(now):
+			crossed = true
+		case t.After(now) && t.Before(due):
 			due = t
 		}
 	}
@@ -164,7 +172,7 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 	if d.Config.PoolSweep != nil {
 		early(d.sweepNext)
 	}
-	if !now.Before(due) {
+	if crossed || !now.Before(due) {
 		return
 	}
 	d.idle = &idleGate{witness: m.witness, ledger: d.ledger, config: d.Config, since: m.since, due: due}

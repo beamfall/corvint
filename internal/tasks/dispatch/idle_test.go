@@ -16,14 +16,19 @@ import (
 // the full observations.
 type witnessQueue struct {
 	fakeQueue
-	witness  string
-	fail     error
-	observes int
+	witness   string
+	fail      error
+	observes  int
+	onObserve func()
 }
 
 func (q *witnessQueue) Observe(ctx context.Context) (*Observation, error) {
 	q.observes++
-	return q.fakeQueue.Observe(ctx)
+	obs, err := q.fakeQueue.Observe(ctx)
+	if q.onObserve != nil {
+		q.onObserve()
+	}
+	return obs, err
 }
 
 func (q *witnessQueue) Witness() (string, error) { return q.witness, q.fail }
