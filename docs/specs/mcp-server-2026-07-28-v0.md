@@ -116,7 +116,7 @@ Requests cannot replace the root. The canonical root MUST resolve to the Git wor
 Corvint before a tool can return repository evidence. A path escape, repository identity drift, or an
 unavailable Git snapshot MUST fail closed for the Corvint operation. Clean and mixed worktrees are
 both reportable states; neither may be silently converted to the other. This single-root form is
-unchanged by the proposed descendant profile `mcp-multi-root-v0.md` (`MMR-V0`), which alone defines
+unchanged by the accepted (decision 0441) descendant profile `mcp-multi-root-v0.md` (`MMR-V0`), which alone defines
 operator-declared `--root ALIAS=ABSOLUTE_ROOT` roots.
 
 - `MCPV0-002`: P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF. The
@@ -332,7 +332,7 @@ tool registry fits one page, no cursor is currently issued. Tool results themsel
 `roots/list`, does not infer authority from client-advertised roots, and does not advertise a server
 roots capability (none exists). A client `roots` capability is ignored. Supporting client-provided
 roots later requires an accepted multi-root authority profile; V0 never switches repositories in
-response to request data. The proposed `mcp-multi-root-v0.md` profile (`MMR-V0-005`) keeps this
+response to request data. The accepted (decision 0441) `mcp-multi-root-v0.md` profile (`MMR-V0-005`) keeps this
 rule: its roots are operator-declared only, and client roots or request data never select one.
 
 ### Trust boundary and failure policy

@@ -120,7 +120,7 @@ by legitimate exploration that no packet could have anticipated.
   nothing for an empty session key, and is log-and-drop like `HookPostTool`. A degraded
   `user-prompt` output, including a refused adapter input or event whose session identity is still
   valid, delivered no packet and MUST record, through `RefusePacket(root, sessionIdSha256)`, a
-  refused packet row for that session. (Proposed amendment 2026-10-07, pending owner acceptance;
+  refused packet row for that session. (Amendment 2026-10-07, accepted by decision 0441;
   V1-0942: the delivered packet is the `AHI-045` projection, and a prompt the `AHI-046` rule
   silences delivered an empty packet, so it records an empty planned set.) A packet row that cannot be written (over-bound or
   failed) is refused: `RecordPacket` persists the error row and then, best-effort, a refused packet

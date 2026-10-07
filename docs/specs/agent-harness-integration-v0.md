@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-045..047 proposed (V1-0939, V1-0942, pending owner acceptance)
+Intent status: accepted direction; AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-045..047 proposed (V1-0939, V1-0942, pending owner acceptance)/experimental
+- Status: accepted direction; AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -888,7 +888,7 @@ do not reinterpret this Frontier result.
   - Real hosts remain NOT_OBSERVED.
   Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
   plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
-- `AHI-045`: (proposed 2026-10-07, pending owner acceptance; V1-0942) The Claude Code and Codex
+- `AHI-045`: (accepted by decision 0441; V1-0942) The Claude Code and Codex
   `corvint-dogfood-event/0` adapters MUST inject, inside the unchanged `AHI-004` envelope, the
   `corvint-hook-context/0` projection of the engine receipt rather than the whole receipt. The
   projection carries `profile`, `event` and only these actionable fields when present: task
@@ -911,7 +911,7 @@ do not reinterpret this Frontier result.
   FALLBACK outputs, the `AHI-016` disclosure or the opt-in compaction kernel suffix.
   Failure modes: a consumer that parsed `repository` or `adapter` from additionalContext finds them
   absent; `tools/native-hook-observer` (experimental, UNQUALIFIED) still compares the full receipt.
-- `AHI-046`: (proposed 2026-10-07, pending owner acceptance; V1-0942) Outside a main-thread
+- `AHI-046`: (accepted by decision 0441; V1-0942) Outside a main-thread
   SessionStart, an event whose projection carries no task evidence, non-current scope, omission,
   unavailable selector, non-baseline degradation or compaction block MUST inject nothing: the
   adapter writes `{}` (or only the opt-in kernel suffix as its own context). Governance rows, an
@@ -921,7 +921,7 @@ do not reinterpret this Frontier result.
   degraded or undelivered packet still refuses it.
   Failure modes: an anchorless prompt that needed governance gets none until an anchor, a direct
   query or the next SessionStart; the direct query command is unchanged.
-- `AHI-047`: (proposed 2026-10-07, pending owner acceptance; V1-0939) The Claude Code trusted
+- `AHI-047`: (accepted by decision 0441; V1-0939) The Claude Code trusted
   workflow argv guidance (`LCP-V0-011`) MUST appear only on a main-thread SessionStart, including
   `source=compact`, and never on UserPromptSubmit or another event; a blocked Stop names only its
   `Next:` recovery argv. A Claude Code hook payload with a
@@ -1147,7 +1147,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-042` | `integrations/opencode/src/ui-presentation.js`, `cockpit-tui.tsx`, `tui.tsx`, `task-tui.tsx`, `workbench-tui.tsx`, `task-metrics.js` and `workbench.js` | `integrations/opencode/ui-presentation.test.mjs`, AHI-042 declared-gate cases in `task-metrics.test.mjs` / `workbench.test.mjs`, and the stock native inspector witness for bounded Work → Change → Evidence navigation and honest status/limit presentation |
 | `AHI-043` | `cmd/corvint/host_adapter.go` Claude SessionStart/UserPromptSubmit output | `cmd/corvint/host_adapter_stability_test.go::TestAHI043ClaudeContextPacketsAreByteStableAcrossTime` (fake-clock 61 s and 25 h gaps, unchanged dirty fixture, full envelope required) |
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
-| `AHI-045`–`AHI-047` (proposed, pending owner acceptance; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
+| `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |

@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-10-07
 Requirement prefix: `MMR-V0`
-Intent status: proposed
+Intent status: accepted (decision 0441)
 Delivery status: experimental
 Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07-28-v0.md`
 `MCPV0-001`, `MCPV0-015`; native ticket `V1-0938`.
 
 ## Agent digest
 - Claim: One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.
-- Status: proposed (pending owner acceptance; V1-0938) / experimental
+- Status: accepted (decision 0441; V1-0938) / experimental
 - Exists: `cmd/corvint-mcp/roots.go`, `cmd/corvint-mcp/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; tests in `cmd/corvint-mcp/roots_test.go` and `main_test.go`.
 - Blocked on: owner acceptance; no qualified host run; `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` remain single-root.
 - Read next: Requirements; Bounded state and measurements.
@@ -32,7 +32,7 @@ into the tool catalogue.
 
 ## Requirements
 
-- `MMR-V0-001`: (proposed, pending owner acceptance; V1-0938) `corvint-mcp` MUST accept
+- `MMR-V0-001`: (accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept
   `--root ALIAS=ABSOLUTE_ROOT`, repeated, as the multi-root form. One aliased root already selects
   multi-root mode. A value is aliased only when the text before its first `=` is a valid alias
   (`MMR-V0-002`); otherwise the whole value is a plain root. A plain root MUST appear alone: exactly
@@ -40,24 +40,24 @@ into the tool catalogue.
   byte-identical to the server before this profile, and a plain root combined with any other root is
   refused. An aliased declaration with an empty root is refused. The form composes with
   `--protocol-version`, `--tool-profile` and `--error-profile` exactly as the single-root form does.
-- `MMR-V0-002`: (proposed, pending owner acceptance; V1-0938) An alias MUST match
+- `MMR-V0-002`: (accepted by decision 0441; V1-0938) An alias MUST match
   `^[a-z][a-z0-9-]{0,31}$`, aliases MUST be unique, and at most 32 roots may be declared. Each root
   keeps the `MCPV0-001` bounds (absolute, clean, at most 4,096 UTF-8 bytes). A duplicate alias, more
   than 32 roots, or any argv shape outside `MMR-V0-001` MUST exit 2 with
   `corvint-mcp: invalid arguments` before any MCP byte is written.
-- `MMR-V0-003`: (proposed, pending owner acceptance; V1-0938) Every declared root MUST be validated
+- `MMR-V0-003`: (accepted by decision 0441; V1-0938) Every declared root MUST be validated
   and pinned at startup by the same `MCPV0-001` rules and code as the single root, under the selected
   tool profile, before the server reads stdin. Any root that fails exits 2 with
   `corvint-mcp: repository unavailable`. The same directory declared under two aliases, under any
   spelling (symlink, case-folded path), compared by the pinned canonical root identity, MUST exit 2
   with `corvint-mcp: invalid arguments`. Distinct linked worktrees of one repository are distinct
   roots.
-- `MMR-V0-004`: (proposed, pending owner acceptance; V1-0938) In multi-root mode `tools/list` MUST
+- `MMR-V0-004`: (accepted by decision 0441; V1-0938) In multi-root mode `tools/list` MUST
   return the selected profile's tool set, each input schema equal to the single-root schema plus one
   property `repository` of `{"type":"string","enum":[ALIASES]}`, aliases in byte order. `repository`
   MUST be required for every tool except `corvint.status`, where it is optional. No root path appears
   in the catalogue. `cacheScope` and `ttlMs` are unchanged.
-- `MMR-V0-005`: (proposed, pending owner acceptance; V1-0938) A tool call MUST reach only the
+- `MMR-V0-005`: (accepted by decision 0441; V1-0938) A tool call MUST reach only the
   repository its `repository` alias names; the selector is removed before the bridge's closed
   argument decode, so every other argument is validated exactly as in single-root mode. A missing
   selector (except on `corvint.status`), a non-string selector, an undeclared alias, a case variant,
@@ -65,7 +65,7 @@ into the tool catalogue.
   bridge's `invalid-arguments` code already has. Client `roots` capabilities, `_meta` members and any
   `root` or `roots` argument MUST NOT add, remove or switch a repository; the latter two remain
   closed-decode refusals, including on `corvint.status` without a selector.
-- `MMR-V0-006`: (proposed, pending owner acceptance; V1-0938) `corvint.status` with no arguments
+- `MMR-V0-006`: (accepted by decision 0441; V1-0938) `corvint.status` with no arguments
   MUST return every declared binding as the closed object
   `{"schema":"corvint-mcp-multi-root-status/0","tool":"corvint.status","mutates":false,"repositories":[...]}`,
   one `{"repository":ALIAS,"result":RESULT}` entry per alias in byte order. Each `RESULT` MUST equal
@@ -75,13 +75,13 @@ into the tool catalogue.
   `false` because the listing itself succeeded. Cancellation is `-32603 Internal error`, as in
   single-root mode. Per-alias results carry no alias member; their closed `/0` shapes are unchanged
   and a client correlates them by request id.
-- `MMR-V0-007`: (proposed, pending owner acceptance; V1-0938) Every result MUST bind to its own
+- `MMR-V0-007`: (accepted by decision 0441; V1-0938) Every result MUST bind to its own
   root's startup pin and current revision, re-verified per call as `MCPV0-001` requires. No result,
   abstention or cached value may be shared or mixed across roots: the bridge registries are
   independent, and the process-wide snapshot caches key on absolute path, size, modification time
   and content digest. A commit in one root changes only that root's binding. Interleaved calls across
   roots in one process MUST each return their own root's revision.
-- `MMR-V0-008`: (proposed, pending owner acceptance; V1-0938) Per-root resident state MUST be only
+- `MMR-V0-008`: (accepted by decision 0441; V1-0938) Per-root resident state MUST be only
   the startup identity pin (paths and `os.FileInfo` identities; no file descriptor, index, goroutine
   or timer). Index handles stay per call and are bounded by the server's 64-request concurrency
   ceiling; the only cross-call retention is the existing process-wide snapshot mapping cache of 4
@@ -147,7 +147,7 @@ Failure modes:
 Acceptance evidence: the maintained tests in the traceability table pass; the existing
 `cmd/corvint-mcp` golden `tools/list` files and the `conformance/mcp-2026-07-28` black-box suite pass
 unchanged; the measurements above are recorded in
-`docs/build-log/2026-10-07-mcp-multi-root.md`. Owner acceptance of this proposed intent is pending.
+`docs/build-log/2026-10-07-mcp-multi-root.md`. The owner accepted this intent in decision 0441.
 
 Rollback: revert the implementing commit. A plain single `--root` is unchanged by this profile, so
 existing configurations are unaffected; a host using aliased roots returns to one server per root.
