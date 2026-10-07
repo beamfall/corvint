@@ -32,6 +32,9 @@ func ReceiptRuntimeTuple(r Receipt) string {
 	if !isExternalProfile(r.Profile) {
 		return RuntimeTupleNotApplicable
 	}
+	if r.Identity.NodeVersion == "" {
+		return RuntimeTupleUnobserved
+	}
 	switch r.Identity.RunnerVersion {
 	case "1.60.0":
 		if r.Profile == AttemptExternalProfile {
@@ -39,9 +42,6 @@ func ReceiptRuntimeTuple(r Receipt) string {
 		}
 		return RuntimeTupleCandidate
 	case "1.63.0":
-		if r.Identity.NodeVersion == "" {
-			return RuntimeTupleUnobserved
-		}
 		if r.Identity.NodeVersion == qualifiedNodeVersion || (r.Profile == ExternalProfile && r.Identity.NodeVersion == admittedBundledNodeVersion) {
 			return RuntimeTupleCandidate
 		}

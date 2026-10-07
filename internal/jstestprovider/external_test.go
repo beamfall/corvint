@@ -644,6 +644,7 @@ func TestReceiptRuntimeTupleClassification(t *testing.T) {
 		{ExternalProfile, "1.63.0", "v24.11.1", RuntimeTupleCandidate},
 		{ExternalProfile, "1.63.0", "v22.23.3", RuntimeTupleUnqualified},
 		{ExternalProfile, "1.63.0", "", RuntimeTupleUnobserved},
+		{ExternalProfile, "1.60.0", "", RuntimeTupleUnobserved},
 		{ExternalProfile, "1.60.0", "v24.11.1", RuntimeTupleCandidate},
 		{AttemptExternalProfile, "1.60.0", "v22.23.2", RuntimeTupleUnqualified},
 		{ExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},

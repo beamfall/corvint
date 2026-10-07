@@ -417,6 +417,12 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 			if runErr != nil || unqualified.Identity.NodeVersion != controlVersion || jstestprovider.ReceiptRuntimeTuple(unqualified) != jstestprovider.RuntimeTupleUnqualified {
 				t.Fatalf("control Node %s was not observed as unqualified: %v %+v", controlVersion, runErr, unqualified.Identity)
 			}
+			// The control is not vacuous: either the provider recorded the
+			// unqualified run as infrastructure, or it retained the one passing
+			// outcome that must still not project passing.
+			if unqualified.Infrastructure == nil && (len(unqualified.Tests) != 1 || unqualified.Tests[0].State != jstestprovider.StatePassed) {
+				t.Fatalf("control run neither abstained as infrastructure nor retained the passing outcome: %+v", unqualified.Tests)
+			}
 			for _, test := range unqualified.Tests {
 				if jstestprovider.ReceiptTestProjection(unqualified, test).Execution.State == testvalidity.ExecutionPassed {
 					t.Fatal("unqualified Node tuple projected passing execution")

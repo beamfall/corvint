@@ -117,3 +117,22 @@ Live qualification ran once, on 2026-10-07, on Darwin 25.6.0 arm64. The retained
 2. Should `v24.11.0`, or the whole `v24.11.x` line the issue names, be admitted? Today only
    `v24.11.1` has live evidence.
 3. Should `/3` (and `/1`/`/2`) be qualified on Node 24 with their own live runs?
+
+## Independent review
+
+Codex review, round 1, on `0b45b052..e0ac000f`. It found no P0 or P1 issue. Both findings were
+repaired:
+
+- **P2.** A Playwright 1.60.0 receipt with no observed Node version was classified as `candidate`.
+  As a result, discovery omitted the `UNKNOWN` abstention that `LPCV-V0-056` requires.
+  - Repair: `ReceiptRuntimeTuple` now returns `unobserved` for an empty Node version before it
+    checks the runner version.
+  - This makes the predicate only stricter.
+  - Covered by a new `TestReceiptRuntimeTupleClassification` case.
+- **P3.** The live control could pass vacuously.
+  - Repair: the control now requires one of two outcomes. Either the run is recorded as
+    infrastructure, or it retains the one passing outcome, which must still not project passing.
+  - This assertion was added after the single live run and has not been re-executed (`NOT_RUN`),
+    because the matrix runs once at the terminal boundary.
+  - In that run the control was observed as `unqualified`, and discovery reported
+    `runtime-tuple-unqualified`.
