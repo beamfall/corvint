@@ -3911,7 +3911,11 @@ requirements are proposed (V1-0889; GitHub #644); acceptance is human-owned.
   build with an unknown member, to the decoder that reads it and fails on any other code. This
   amends ATR-V0-010: a run record of another `taskman-attempt-run-record` version is
   UNSUPPORTED_VERSION, while another profile name stays MALFORMED. The append-only dispatcher event log is the one exception: its
-  tail readers skip a line of another profile, as they skip a torn line, and never refuse.
+  tail readers skip a line of another profile, as they skip a torn line, and never refuse. The
+  derived writer checkpoint (`taskman-writer-checkpoint`, proposed CAL-V0-115) is listed and its
+  decoder refuses another version UNSUPPORTED_VERSION, but that refusal only makes the writer
+  decline to the complete route, which re-derives the checkpoint from the journal; the checkpoint
+  is never authority, so replacing another version's checkpoint is not a migration.
 - `CAL-V0-132`: proposed (V1-0889; GitHub #644). A dispatcher ledger whose profile is another
   `taskman-dispatch-state` version, or that carries a top-level member no spelling of a known member
   matches, MUST refuse UNSUPPORTED_VERSION before any decode, rewrite or worker action, and the

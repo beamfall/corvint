@@ -171,6 +171,11 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if len(raw) > MaxWriterCheckpointBytes {
 		return nil, bad("larger than its bound")
 	}
+	// Another version of this profile is refused before any layout check
+	// (CAL-V0-131); the caller still only declines to the complete audit.
+	if name, _, _ := strings.Cut(ProfileWriterCheckpoint, "/"); bytes.HasPrefix(raw, []byte(name+"/")) && !bytes.HasPrefix(raw, []byte(writerMagic)) {
+		return nil, wire.Errorf(wire.CodeUnsupportedVersion, "writer checkpoint", "another %s version", name)
+	}
 	if len(raw) < len(writerMagic)+8+7*8+8+2*sha256.Size {
 		return nil, bad("truncated")
 	}

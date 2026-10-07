@@ -398,7 +398,7 @@ func LiveFormats() []string {
 	f := []string{
 		strings.TrimSpace(snapshot.VersionBytes), wire.ProfileCommandResult,
 		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
-		archive.Profile, journal.ProfileCheckpoint, mutation.Profile, mutation.OutcomeProfile,
+		archive.Profile, journal.ProfileCheckpoint, journal.ProfileWriterCheckpoint, mutation.Profile, mutation.OutcomeProfile,
 		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
 		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileInit,
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,

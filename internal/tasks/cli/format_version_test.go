@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"os"
 	"path/filepath"
@@ -113,12 +114,18 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := snapshot.Probe(dir)
 			return err
 		},
-		wire.ProfileCommandResult:           plain(func(b []byte) error { _, e := wire.DecodeResult(b); return e }),
-		wire.CriterionCaptureProfile:        plain(func(b []byte) error { _, e := wire.DecodeCriterionCapture(b); return e }),
-		wire.CriterionVerificationProfile:   val(func(v wire.Value) error { _, e := wire.ReadCriterionVerification(v); return e }),
-		wire.CriterionCaptureResultProfile:  val(func(v wire.Value) error { _, _, e := wire.ReadCriterionCaptureResult(v); return e }),
-		archive.Profile:                     plain(func(b []byte) error { _, e := archive.DecodeManifest(b); return e }),
-		journal.ProfileCheckpoint:           plain(func(b []byte) error { _, e := journal.DecodeCheckpoint(b); return e }),
+		wire.ProfileCommandResult:          plain(func(b []byte) error { _, e := wire.DecodeResult(b); return e }),
+		wire.CriterionCaptureProfile:       plain(func(b []byte) error { _, e := wire.DecodeCriterionCapture(b); return e }),
+		wire.CriterionVerificationProfile:  val(func(v wire.Value) error { _, e := wire.ReadCriterionVerification(v); return e }),
+		wire.CriterionCaptureResultProfile: val(func(v wire.Value) error { _, _, e := wire.ReadCriterionCaptureResult(v); return e }),
+		archive.Profile:                    plain(func(b []byte) error { _, e := archive.DecodeManifest(b); return e }),
+		journal.ProfileCheckpoint:          plain(func(b []byte) error { _, e := journal.DecodeCheckpoint(b); return e }),
+		journal.ProfileWriterCheckpoint: func(t *testing.T, p string) error {
+			body := []byte(nextVersion(t, p) + "\nzzNewerLayout")
+			sum := sha256.Sum256(body)
+			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...))
+			return err
+		},
 		mutation.Profile:                    plain(func(b []byte) error { _, e := mutation.Decode(b); return e }),
 		mutation.OutcomeProfile:             plain(func(b []byte) error { _, e := mutation.DecodeOutcome(b); return e }),
 		intent.ProfileImportMap:             plain(func(b []byte) error { _, e := intent.DecodeImportMap(b); return e }),
