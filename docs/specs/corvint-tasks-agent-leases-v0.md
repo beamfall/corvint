@@ -3400,6 +3400,8 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - a note count and, for each live ticket entry whose afterimage at Seq carries an operator-note
       reference, the entry's index and the SHA-256 of the reference's canonical encoding, 36 bytes
       each, in entry order;
+    - the SHA-256 of the `CAL-V0-117` invalidation token that was current when the audit deriving
+      it began (the invalidation digest);
     - a SHA-256 trailer over everything before it.
   - Decoding. A decoder MUST refuse each of these:
     - a file over the bound;
@@ -3411,7 +3413,9 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - receipt bytes above payload bytes;
     - request digests that are not strictly ascending;
     - a note count above the ticket bound or disagreeing with the remaining bytes, or note entries
-      that are not strictly ascending indexes of live `intent/tickets/` entries.
+      that are not strictly ascending indexes of live `intent/tickets/` entries;
+    - a missing invalidation digest. A file written in the layout without it therefore falls back
+      to the complete route.
   - Derivation. It MUST be derived only from bytes a settled audit physically read, and only when
     that audit's last receipt is the head. Two kinds of audit qualify:
     - a complete audit from receipt 1, which sets `FullSeq` to its head;
@@ -3501,9 +3505,17 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     that tail under the same lock and keeps `FullSeq`.
   - Scheduling. A write whose new head is 512 or more receipts past `FullSeq` schedules a complete
     audit. That audit runs after the write has released the lock and the preparation gate.
+  - Invalidation token. The token is `<state directory>.writer-checkpoint.invalidated`, derived
+    state beside the checkpoint. An absent file is an observed empty token. A file that cannot be
+    read, or is empty, is unobserved.
+  - Binding. Every consumer of the writer checkpoint MUST read the current token and use the
+    checkpoint only when the token is observed and its SHA-256 equals the checkpoint's invalidation
+    digest. A missing or unobserved token, or a different digest, declines to the complete route.
+    Every retention MUST record the token read before the audit that derived the checkpoint, and
+    MUST publish nothing when that token was unobserved or has changed by the time the checkpoint
+    would be written.
   - Refresh.
-    1. Read the invalidation token `<state directory>.writer-checkpoint.invalidated`; an absent file
-       is an observed empty token.
+    1. Read the invalidation token.
     2. Audit from receipt 1 without the lock.
     3. Under the lock, read the token again. If either read failed, or the token changed, another
        refresh refused after this audit began: publish nothing (stage `refresh.superseded`).
@@ -3513,12 +3525,13 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - Racing writers. The next writer walks any writer that committed in between as its tail. A
     receipt changed in between fails that writer's rebinding, and the complete route then decides.
   - Refusal. A refusal other than SNAPSHOT_MOVED or a pending receipt, under the lock, replaces the
-    invalidation token with a fresh random value and then removes the writer checkpoint, so every
-    later write takes the complete route and refuses as it would without one. An older refresh that
-    succeeds afterwards sees the new token and cannot reinstall the checkpoint. If the token cannot
-    be written, the checkpoint is still removed; an older refresh may then reinstall it, and the next
-    scheduled refresh refuses and removes it again. An
-    intent-only divergence keeps the checkpoint for the intent repair.
+    invalidation token with a fresh random value and then removes the writer checkpoint. Replacing
+    the token unbinds the retained checkpoint at once, so a stop before the removal still sends every
+    later write to the complete route, which refuses as it would without a checkpoint; the removal is
+    cleanup. An older refresh that succeeds afterwards sees the new token and cannot reinstall the
+    checkpoint. If the token cannot be written, the checkpoint is still removed; an older refresh may
+    then reinstall it, and the next scheduled refresh refuses and removes it again. An intent-only
+    divergence keeps the checkpoint for the intent repair.
   - Effect on the triggering write. The refresh never fails or changes that write, but its caller's
     wall time includes the refresh. This is a known latency spike.
 - `CAL-V0-118`: (proposed) Writer cost measurement. The opt-in profile
@@ -3588,7 +3601,7 @@ Failure modes, also in the table below:
 
 Acceptance evidence:
 - `internal/tasks/journal`: `TestCALV0115_WriterCheckpointCodecIsClosed` (including the note
-  references).
+  references, the invalidation digest and the layout without it).
 - `internal/tasks/store`:
   - `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (removed, corrupt, torn, foreign,
     forged and outrun checkpoints);
@@ -3603,7 +3616,9 @@ Acceptance evidence:
   - `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (after two checkpoint advances);
   - `TestCALV0117_RefreshWriteInterleave`;
   - `TestCALV0117_WriterAdvanceAndScheduledRefresh`;
-  - `TestCALV0117_OlderRefreshCannotUndoInvalidation`.
+  - `TestCALV0117_OlderRefreshCannotUndoInvalidation`;
+  - `TestCALV0117_InvalidationSurvivesStopBeforeRemoval` (a refusing refresh stopped after the
+    token replacement and before the removal).
 - `internal/tasks/archive`: `TestCALV0117_FileSetCostParity`.
 - `internal/tasks/transaction`:
   - `TestCALV0117_SummarizedInventoryCostParity`;
@@ -3799,14 +3814,16 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit`, every complete-route write and the scheduled writer refresh run the complete audit and refuse (CAL-V0-116, CAL-V0-117, proposed); the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
 | Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
-| Writer checkpoint absent, torn, corrupt, foreign, not matching its named receipt, or outrun (tail over 256, head 4,096 or more past `FullSeq`) | The write cannot resume | The complete route serves or refuses the write and retains a fresh checkpoint at the head it audited (CAL-V0-115, CAL-V0-116, proposed) |
+| Writer checkpoint absent, torn, corrupt, foreign, in the layout without an invalidation digest, bound to another invalidation token, not matching its named receipt, or outrun (tail over 256, head 4,096 or more past `FullSeq`) | The write cannot resume | The complete route serves or refuses the write and retains a fresh checkpoint at the head it audited, bound to the token read before that audit (CAL-V0-115, CAL-V0-116, CAL-V0-117, proposed) |
 | Crash after the unsynced writer checkpoint write | The file is torn or older | A torn file falls back to the complete route; an older one still names a receipt of the append-only chain, so its tail is walked or declined (CAL-V0-115, proposed) |
-| Prefix receipt, request, evidence or pinned content altered, a stray request planted, or an internally consistent writer checkpoint forged | A fast writer commits over it | `receipt audit`, every complete-route write and the scheduled refresh refuse; a refusing refresh removes the writer checkpoint so every later write refuses (CAL-V0-116, CAL-V0-117, proposed) |
+| Prefix receipt, request, evidence or pinned content altered, a stray request planted, or an internally consistent writer checkpoint forged | A fast writer commits over it | `receipt audit`, every complete-route write and the scheduled refresh refuse; a refusing refresh replaces the invalidation token, which unbinds the writer checkpoint, and removes it, so every later write refuses (CAL-V0-116, CAL-V0-117, proposed) |
 | A writer commits between the scheduled refresh's audit and its lock | The refresh observed an older head | It retains the writer checkpoint bound to the head it audited unless the retained one descends from a later complete audit, and the read checkpoint only when `head.json` is unchanged; the next writer walks the rest as tail (CAL-V0-117, proposed) |
 | The intent worktree switches to another branch with identical intent contents after a fast writer observed it | A fast lease would commit on the wrong branch | The fast route rechecks the branch before effects and declines; the complete route decides (CAL-V0-116, proposed) |
 | A tail receipt changes or removes the note reference of a ticket last posted before the writer checkpoint, without its note event | A fast writer would accept a note change the complete audit refuses | The writer audit binds the post to the checkpoint's note reference and declines; the complete route refuses `JOURNAL_FORKED` (CAL-V0-116, proposed) |
 | An older refresh's audit succeeds after a newer refresh refused and removed the writer checkpoint | The older refresh would reinstall it | The newer refusal replaced the invalidation token, so the older refresh publishes nothing (`refresh.superseded`) (CAL-V0-117, proposed) |
 | The invalidation token cannot be written | A refusal is not recorded for older refreshes | The checkpoint is still removed; an older refresh may reinstall it until the next scheduled refresh refuses and removes it again (CAL-V0-117, proposed) |
+| A refusing refresh stops after replacing the invalidation token and before removing the writer checkpoint | The checkpoint over the known corruption stays on disk | Its invalidation digest no longer matches the token, so the next write declines and the complete route refuses; the removal is only cleanup (CAL-V0-117, proposed) |
+| The invalidation token is unreadable or empty, for example torn by a crash after its unsynced write | No checkpoint can be bound to it | Every consumer declines and no retention publishes, so the complete route serves or refuses every write until the token is removed together with the writer checkpoint (CAL-V0-117, proposed) |
 | Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
 | Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
 | Extra repository sibling worktree dirty or retargeted when a gate runs | A gate result would certify a tree other than the composite candidate | The gate refuses `DIRTY_WORKTREE` or `STALE_TREE` and records no result; the attempt does not reach `READY_FOR_INTEGRATION` (CAL-V0-087) |
@@ -3965,7 +3982,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-121 | `TestCALV0121_StaleHolderCoordinatorHandoff`, `TestCALV0120_PolicyTTLDrivesHolderReads` (`internal/tasks/cli`) |
 | CAL-V0-115 | `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`); `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (`internal/tasks/store`); `TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints` (`internal/tasks/cli`) |
 | CAL-V0-116 | `TestCALV0116_WriterFullBoundDeclines`, `TestCALV0116_WriterRouteParity`, `TestCALV0116_WriterRouteCounterexamples`, `TestCALV0116_WriterRouteTamperAtFastStages`, `TestCALV0116_PrefixTamperIsLeftToCompleteAudits`, `TestCALV0116_FastWriteRechecksIntentBranch`, `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (`internal/tasks/store`) |
-| CAL-V0-117 | `TestCALV0117_RefreshWriteInterleave`, `TestCALV0117_WriterAdvanceAndScheduledRefresh`, `TestCALV0117_OlderRefreshCannotUndoInvalidation` (`internal/tasks/store`); `TestCALV0117_FileSetCostParity` (`internal/tasks/archive`); `TestCALV0117_SummarizedInventoryCostParity`, `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`, `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary` (`internal/tasks/transaction`) |
+| CAL-V0-117 | `TestCALV0117_RefreshWriteInterleave`, `TestCALV0117_WriterAdvanceAndScheduledRefresh`, `TestCALV0117_OlderRefreshCannotUndoInvalidation`, `TestCALV0117_InvalidationSurvivesStopBeforeRemoval` (`internal/tasks/store`); `TestCALV0117_FileSetCostParity` (`internal/tasks/archive`); `TestCALV0117_SummarizedInventoryCostParity`, `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`, `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary` (`internal/tasks/transaction`) |
 | CAL-V0-118 | `TestCALV0118_WriterHoldProfile` (`internal/tasks/store`, opt-in); measured, see `docs/build-log/2026-10-06-v1-0645-writer-checkpoint.md` |
 | CAL-V0-119 | `TestCALV0116_WriterRouteParity`, `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit`, `TestCALV0117_RefreshWriteInterleave` (`internal/tasks/store`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |

@@ -213,6 +213,27 @@ fixed behind a test that failed first.
 
 CAL-V0-115..117 wording and the failure-mode table were updated; the requirements stay PROPOSED.
 
+## Codex review round 2 (2026-10-07)
+
+Codex reviewed e676fb42..0df9d4ca, confirmed the round 1 fixes, and raised one P2: invalidation was
+not crash-safe. A refusing refresh replaced the token and then removed the checkpoint as a separate
+step, and no writer read the token. A stop between the two left the checkpoint, and the next fast
+write committed over the known corruption. The test
+`TestCALV0117_InvalidationSurvivesStopBeforeRemoval` stops a refusing refresh at the new
+`refresh.invalidated` stage and failed first: the next write was served on the fast route.
+
+The fix binds consumption to the invalidation state rather than to the removal. The writer
+checkpoint now carries the SHA-256 of the token that was current when the audit deriving it began,
+before the trailer. Every consumer (`observeWriter` and the refresh's freshness check) uses it only
+while the current token is readable and hashes to that digest; anything else declines to the complete
+route. Every retention (complete mutate, complete lease, fast advance, refresh) binds to the token it
+read before its audit and publishes nothing if that token was unreadable or has changed. Replacing
+the token therefore unbinds at once, and the removal is cleanup. The profile stays
+`taskman-writer-checkpoint/0` because the format is unreleased; a file in the earlier layout fails
+decode and the writer falls back (a codec case covers it). An unreadable or empty token, as a crash
+after its unsynced write could leave, disables the fast route until the operator removes it with the
+checkpoint; this trades speed for never binding a checkpoint to a torn refusal.
+
 ## Follow-ups (not built here)
 
 Already filed in the native queue:
@@ -248,7 +269,9 @@ Not filed here (the coordinator owns the queue for this lane):
 ## Rollback
 
 Revert the change. Per store, deleting `<git common dir>/taskman.writer-checkpoint` forces the next
-write through the complete audit. The `taskman.writer-checkpoint.invalidated` token beside it can
-be deleted when no refresh is running; during one, deleting it could let an older refresh reinstall a
-checkpoint a newer refresh removed. Older runtimes ignore both checkpoint files. No journal, intent,
+write through the complete audit. Delete the `taskman.writer-checkpoint.invalidated` token beside it
+only together with the checkpoint and when no refresh is running. Deleting the token alone re-binds a
+checkpoint published while it was absent, including one a refusal stopped before removing, and
+deleting it during a refresh could let an older refresh reinstall a checkpoint a newer refresh
+removed. Older runtimes ignore both checkpoint files. No journal, intent,
 request, receipt or archive bytes change.
