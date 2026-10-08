@@ -245,3 +245,36 @@ func (inv *Inventory) Sorted() []string {
 	})
 	return ids
 }
+
+// UnmetDependency is one COMPLETED-obligation dependency that is not
+// satisfied; Status is "" when the dependency ticket is not in the queue.
+type UnmetDependency struct {
+	TicketID string
+	Status   string
+}
+
+// UnmetCompletedDependencies returns the COMPLETED-obligation dependencies of
+// id that are neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 test),
+// a missing ticket included, in ticketId byte order (CAL-V0-186).
+func (inv *Inventory) UnmetCompletedDependencies(id string) []UnmetDependency {
+	r, ok := inv.byID[id]
+	if !ok {
+		return nil
+	}
+	var out []UnmetDependency
+	for _, d := range r.Dependencies {
+		if d.Obligation != "COMPLETED" {
+			continue
+		}
+		dep, ok := inv.byID[d.TicketID.Raw]
+		switch {
+		case !ok:
+			out = append(out, UnmetDependency{TicketID: d.TicketID.Raw})
+		case dep.Status == StatusCompleted || (dep.Status == StatusArchived && dep.ArchivedFrom != nil && *dep.ArchivedFrom == StatusCompleted):
+		default:
+			out = append(out, UnmetDependency{TicketID: d.TicketID.Raw, Status: dep.Status})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TicketID < out[j].TicketID })
+	return out
+}
