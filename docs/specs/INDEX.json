@@ -61,7 +61,7 @@
     "path": "docs/specs/agent-harness-integration-v0.md",
     "title": "Agent Harness Integration V0",
     "reqPrefix": "AHI",
-    "intent": "accepted direction; AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)",
+    "intent": "accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)",
     "delivery": "experimental",
     "claim": "Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.",
     "dependsOn": [
@@ -1111,7 +1111,7 @@
     "path": "docs/specs/dogfood-query-abstention-v0.md",
     "title": "Dogfood Query Abstention V0",
     "reqPrefix": "QAT-V0",
-    "intent": "proposed",
+    "intent": "accepted (decision 0450; V1-0523)",
     "delivery": "experimental",
     "claim": "An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.",
     "dependsOn": [
@@ -1433,7 +1433,7 @@
     "path": "docs/specs/flow-document-maintenance-v0.md",
     "title": "Flow Document Maintenance V0",
     "reqPrefix": "FDM-V0",
-    "intent": "proposed",
+    "intent": "accepted (decision 0451; V1-0465)",
     "delivery": "experimental",
     "claim": "Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.",
     "dependsOn": [
@@ -1829,7 +1829,7 @@
     "path": "docs/specs/local-completion-policy-v0.md",
     "title": "Local Completion Policy V0",
     "reqPrefix": "LCP-V0",
-    "intent": "accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task)",
+    "intent": "accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)",
     "delivery": "implemented",
     "claim": "Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.",
     "dependsOn": [
