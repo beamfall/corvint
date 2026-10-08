@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0467-v1-0827-role-stage-selection-accepted-2026-10-08.md`](0467-v1-0827-role-stage-selection-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts CAL-V0-197: run/admit --role select an answered wait only for the role's stage; intent only, delivery stays experimental. |
 | [`0455-v1-0252-navigation-execution-profile-accepted-2026-10-08.md`](0455-v1-0252-navigation-execution-profile-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts the NEX-V0 navigation execution profile under AFU-V1-029; delivery stays experimental with qualification pending. |
 | [`0454-v1-0620-nightwatch-stable-selection-accepted-2026-10-08.md`](0454-v1-0620-nightwatch-stable-selection-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TRE-V0-021..023 Nightwatch stable selection, keeping expectedTests and expectedSelection mutually exclusive; delivery stays experimental. |
 | [`0453-v1-0449-tasks-beamfall-queue-takeover-accepted-2026-10-08.md`](0453-v1-0449-tasks-beamfall-queue-takeover-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts that Corvint Tasks takes over the Beamfall production queue; decision only, the takeover remains a manual owner step and nothing was executed. |
