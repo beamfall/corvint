@@ -82,9 +82,9 @@ Design: `internal/groupreap` gains a `Retirer`.
   retained in `execution.retirement`. They fail Execute, which yields an `execution-boundary`
   problem, so the observation is incomplete.
 - New `swift-xctest` plans set `retireDetachedDescendants`. The field is omitempty, so
-  historical plan and receipt bytes and identities are unchanged. `corvint-test-runner run`
-  admits a historical `swift-xctest` plan that differs only by the absent flag and runs it
-  with retirement on.
+  historical plan and receipt bytes and identities are unchanged, and existing receipts still
+  bind. `corvint-test-runner run` refuses a historical `swift-xctest` plan that differs only
+  by the absent flag, with a re-plan diagnosis.
 
 Passing after:
 
@@ -103,8 +103,8 @@ Passing after:
     baseline survives; admission refusals; refusal off Darwin; a cleanup failure cannot
     leave a complete observation; plan byte identity.
   - `corvint-test-runner`: the historical plan and receipt keep their bytes; a
-    pre-retirement `swift-xctest` plan is admitted and runs with retirement; a plan cannot
-    add the flag outside its profile.
+    pre-retirement `swift-xctest` plan is refused for execution with a re-plan diagnosis; a
+    plan cannot add the flag outside its profile.
 
 Review (codex, gpt-6-astra, on a8bcd149) found three issues, all fixed in the follow-up commit:
 
@@ -113,8 +113,10 @@ Review (codex, gpt-6-astra, on a8bcd149) found three issues, all fixed in the fo
   problems. `TestRetirerKeepsReadFailuresAsUncertainty` failed on a8bcd149 and passes after
   the fix. A probe found 0 of 684 live same-uid processes with an unreadable token, so this
   does not add false failures on this host.
-- P2: historical `swift-xctest` plans no longer matched the rebuilt profile. They are now
-  admitted as described above.
+- P2: historical `swift-xctest` plans no longer matched the rebuilt profile. They were first
+  admitted with retirement on. Re-review then found that this breaks the receipt's
+  invocation binding in `cemcandidate`. The final rule is the explicit re-plan refusal
+  described above.
 - P2: a scan failure skipped the kill of processes it had already stopped. Stopped processes
   are now always killed.
 
@@ -153,3 +155,11 @@ field.
 
 NOT_RUN: Linux and Windows execution of the refusal test (cross-vet only); Swift versions
 other than 6.4; `make gate`.
+
+Re-review (codex, on 5df456b1) found two P2 issues, both fixed in the final commit:
+
+- Admitting historical plans with retirement on broke receipt binding; they are now refused
+  for execution, as described above.
+- The retirement record was merged only after the post-run binding and write checks, so an
+  earlier failure could discard it. It is now merged immediately after the run.
+  `TestRetirementSurvivesLaterExecutionFailure` failed on 5df456b1 and passes after the fix.

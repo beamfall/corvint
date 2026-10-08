@@ -174,21 +174,24 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 }
 
 // admittedInvocation rebuilds the fixed profile and requires the plan to match
-// it. A plan from before TRE-V0-025 differs only by the absent additive
-// retirement flag; it keeps its identity and runs with retirement on.
+// it exactly. A plan from before TRE-V0-025 keeps its identity, so its
+// receipts still bind, but it is refused for new execution: running it
+// without retirement could hide a detached-process leak, and running it with
+// retirement would break its receipt's invocation binding. Re-plan instead.
 func admittedInvocation(p plan) (tr.Invocation, error) {
 	v, e := registry.Build(p.Request)
 	if e != nil {
 		return v, e
 	}
+	if tr.Identity(v) == tr.Identity(p.Invocation) {
+		return v, nil
+	}
 	compare := v
-	if v.RetireDetachedDescendants && !p.Invocation.RetireDetachedDescendants {
-		compare.RetireDetachedDescendants = false
+	compare.RetireDetachedDescendants = false
+	if v.RetireDetachedDescendants && tr.Identity(compare) == tr.Identity(p.Invocation) {
+		return v, fmt.Errorf("plan predates detached descendant retirement; re-plan it")
 	}
-	if tr.Identity(compare) != tr.Identity(p.Invocation) {
-		return v, fmt.Errorf("plan does not match current fixed runner profile")
-	}
-	return v, nil
+	return v, fmt.Errorf("plan does not match current fixed runner profile")
 }
 func read(path string, dst any) error {
 	f, e := os.Open(path)

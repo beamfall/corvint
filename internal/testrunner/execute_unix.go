@@ -234,6 +234,16 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 		runErr := groupreap.RunRetiring(cmd, retirer)
+		var retireErr error
+		if retirer != nil {
+			// Retain the record before any fallible post-processing, so a
+			// later binding or write failure cannot discard it (TRE-V0-025).
+			got := retirer.Result()
+			out.Retirement.Merge(got)
+			if !got.Clean() {
+				retireErr = fmt.Errorf("detached descendant retirement incomplete: %d unretired, %d problems", len(got.Unretired), len(got.Problems))
+			}
+		}
 		a, ovA := stdout.value()
 		b, ovB := stderr.value()
 		code := -1
@@ -268,14 +278,10 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 			out.Input.Interrupted = result.Interrupted
 			out.Input.Overflow = result.Overflow
 		}
-		if retirer != nil {
+		if retireErr != nil {
 			// A cleanup failure is an execution problem, so no complete or
 			// passing observation can hide it (TRE-V0-025).
-			got := retirer.Result()
-			out.Retirement.Merge(got)
-			if !got.Clean() {
-				return out, fmt.Errorf("detached descendant retirement incomplete: %d unretired, %d problems", len(got.Unretired), len(got.Problems))
-			}
+			return out, retireErr
 		}
 		if result.TimedOut || result.Interrupted || result.Overflow || code < 0 || (p.Kind != "TEST" && runErr != nil) {
 			out.Input.TimedOut = result.TimedOut

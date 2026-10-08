@@ -146,6 +146,40 @@ func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 	}
 }
 
+// TestRetirementSurvivesLaterExecutionFailure keeps the retirement record when
+// a post-run binding check fails: the leader mutates a pinned input after its
+// detached descendants are ready, and both are still retired and retained.
+func TestRetirementSurvivesLaterExecutionFailure(t *testing.T) {
+	r, inv := executorRequest(t)
+	marker := filepath.Join(r.Root, "ready")
+	inv.Environment["CORVINT_EXEC_MODE"] = "detach"
+	inv.Environment["CORVINT_EXEC_TARGET"] = marker
+	inv.Environment["CORVINT_EXEC_EXIT"] = "1"
+	inv.Environment["CORVINT_EXEC_MUTATE"] = filepath.Join(r.Root, "source")
+	inv.RetireDetachedDescendants = true
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		pids := detachedPIDs(t, marker, stop)
+		for _, pid := range pids {
+			if s := processStart(pid); s != "" {
+				t.Cleanup(func() {
+					if processStart(pid) == s {
+						_ = syscall.Kill(pid, syscall.SIGKILL)
+					}
+				})
+			}
+		}
+	}()
+	out, err := Execute(context.Background(), r, inv)
+	if err == nil {
+		t.Fatal("mutated pinned input admitted")
+	}
+	if out.Retirement == nil || len(out.Retirement.Retired) != 2 || !out.Retirement.Clean() {
+		t.Fatalf("retirement record lost on later failure: %v %+v", err, out.Retirement)
+	}
+}
+
 // TestExecuteRetirementAdmission refuses ambiguous lifecycles before launch.
 func TestExecuteRetirementAdmission(t *testing.T) {
 	r, inv := executorRequest(t)

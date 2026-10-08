@@ -367,11 +367,11 @@ func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
 	}
 }
 
-// TestPreRetirementXCTestPlanRunsWithRetirement keeps historical swift-xctest
-// plans admissible after TRE-V0-025 added retirement to the fixed profile:
-// their identity is unchanged and execution gains retirement; no plan can
-// add retirement where the profile does not.
-func TestPreRetirementXCTestPlanRunsWithRetirement(t *testing.T) {
+// TestPreRetirementXCTestPlanRefusedForExecution binds TRE-V0-025's
+// compatibility rule: a historical swift-xctest plan keeps its identity but is
+// refused for new execution with a re-plan diagnosis, a current plan runs with
+// retirement, and no plan can add retirement where its profile does not.
+func TestPreRetirementXCTestPlanRefusedForExecution(t *testing.T) {
 	r := tr.Request{Runner: "swift-xctest", Root: "/source", Config: "/source/Package.swift", ConfigSha256: strings.Repeat("a", 64), Executable: "/usr/bin/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", TimeoutSeconds: 60, InputFiles: map[string]string{"Package.swift": strings.Repeat("a", 64)}, Selectors: []string{"ProofTests.Proof/testPass"}}
 	current, e := registry.Build(r)
 	if e != nil || !current.RetireDetachedDescendants {
@@ -379,11 +379,11 @@ func TestPreRetirementXCTestPlanRunsWithRetirement(t *testing.T) {
 	}
 	historical := current
 	historical.RetireDetachedDescendants = false
-	for _, inv := range []tr.Invocation{historical, current} {
-		v, e := admittedInvocation(plan{Request: r, Invocation: inv})
-		if e != nil || !v.RetireDetachedDescendants {
-			t.Fatalf("plan not admitted with retirement: %+v %v", v, e)
-		}
+	if v, e := admittedInvocation(plan{Request: r, Invocation: current}); e != nil || !v.RetireDetachedDescendants {
+		t.Fatalf("current plan not admitted with retirement: %+v %v", v, e)
+	}
+	if _, e := admittedInvocation(plan{Request: r, Invocation: historical}); e == nil || !strings.Contains(e.Error(), "re-plan") {
+		t.Fatalf("pre-retirement plan admitted: %v", e)
 	}
 	changed := historical
 	changed.Argv = append([]string{}, historical.Argv...)

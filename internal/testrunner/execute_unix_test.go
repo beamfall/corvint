@@ -98,6 +98,9 @@ func TestExecutorHelper(t *testing.T) {
 		if os.Getenv("CORVINT_EXEC_EXIT") == "1" {
 			for {
 				if _, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET")); e == nil {
+					if m := os.Getenv("CORVINT_EXEC_MUTATE"); m != "" {
+						_ = os.WriteFile(m, []byte("changed"), 0600)
+					}
 					fmt.Print("native result")
 					os.Exit(0)
 				}
