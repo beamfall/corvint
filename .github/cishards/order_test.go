@@ -38,7 +38,7 @@ func TestAFPV0022OrderFallsBackToTheCurrentOrder(t *testing.T) {
 		"empty":     "",
 		"not json":  "go: no plan",
 		"truncated": `{"profile":"affected-plan/0","ok":true,` + selected,
-		"profile":   `{"profile":"affected-plan/1","ok":true,` + selected + `}`,
+		"profile":   `{"profile":"affected-plan/2","ok":true,` + selected + `}`,
 		"not ok":    `{"profile":"affected-plan/0","ok":false,` + selected + `}`,
 		"oversized": `{"profile":"affected-plan/0","ok":true,` + selected + `}` + strings.Repeat(" ", MaxPlanBytes),
 	} {
@@ -48,6 +48,16 @@ func TestAFPV0022OrderFallsBackToTheCurrentOrder(t *testing.T) {
 	}
 	if got, ok := Order(packages, []byte(`{"profile":"affected-plan/0","ok":true,"plan":{"selected":[]}}`)); !ok || !reflect.DeepEqual(got, packages) {
 		t.Errorf("empty selection: ok=%v got=%v", ok, got)
+	}
+}
+
+// TestAFPV0035OrderReadsTheCompactDefaultPlan pins that the compact
+// affected-plan/1 default (testCount, no tests array) orders like the full /0.
+func TestAFPV0035OrderReadsTheCompactDefaultPlan(t *testing.T) {
+	packages := []string{"m/a", "m/b"}
+	plan := `{"profile":"affected-plan/1","ok":true,"plan":{"excluded":{"count":1,"digest":"d","groups":[]},"selected":[{"testCount":3,"unitId":"go:m/b","witness":{"kind":"DIRECT_SOURCE_CHANGE"}}]}}`
+	if got, ok := Order(packages, []byte(plan)); !ok || !reflect.DeepEqual(got, []string{"m/b", "m/a"}) {
+		t.Fatalf("ok=%v got=%v", ok, got)
 	}
 }
 

@@ -1048,7 +1048,7 @@ func runImpact(ctx context.Context, corvintGo, root, changed string, limit int) 
 // order, distinct; the limit is applied by judgeAffected.
 func runAffected(ctx context.Context, corvintGo, root, changed string, limit int) (arm, error) {
 	stdout, err := withDirtyFile(ctx, root, changed, func() ([]byte, error) {
-		return runCorvintGo(ctx, corvintGo, "--root", root, "affected")
+		return runCorvintGo(ctx, corvintGo, "--root", root, "affected", "--full")
 	})
 	if err != nil {
 		return arm{}, fmt.Errorf("corvint affected: %w", err)
@@ -1094,7 +1094,8 @@ func restoreFile(ctx context.Context, root, target string, original []byte) erro
 	return nil
 }
 
-// plan is the part of an affected-plan/0 document the affected arm reads.
+// plan is the part of an affected-plan/0 document (`affected --full`) the
+// affected arm reads: it needs every selected test file (AFP-V0-035).
 type plan struct {
 	Plan struct {
 		Scope    string `json:"scope"`

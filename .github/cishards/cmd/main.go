@@ -14,8 +14,8 @@ func main() {
 	shard := flag.Int("shard", 0, "zero-based shard index")
 	total := flag.Int("shards", 4, "complete partition shard count")
 	profile := flag.Bool("profile", false, "print protected partition digest")
-	order := flag.String("order", "", "advisory affected-plan/0 file; its selected packages are emitted first")
-	share := flag.String("share", "", "advisory affected-plan/0 file; print its selected share of the universe's estimated time")
+	order := flag.String("order", "", "advisory affected-plan/1 (or /0) file; its selected packages are emitted first")
+	share := flag.String("share", "", "advisory affected-plan/1 (or /0) file; print its selected share of the universe's estimated time")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected arguments")

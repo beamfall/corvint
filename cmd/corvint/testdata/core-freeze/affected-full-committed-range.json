@@ -27,16 +27,14 @@
       "testing/features.yaml",
       "testing/scenarios.yaml"
     ],
-    "excluded": {
-      "count": 0,
-      "digest": "affected-excluded:sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "groups": []
-    },
+    "excluded": [],
     "graphDigest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
     "scope": "UNKNOWN",
     "selected": [
       {
-        "testCount": 1,
+        "tests": [
+          "pkg/main_test.go"
+        ],
         "unitId": "go:example.test/cli/pkg",
         "witness": {
           "dirtyPath": "pkg/main.go",
@@ -62,7 +60,7 @@
       }
     ]
   },
-  "profile": "affected-plan/1",
+  "profile": "affected-plan/0",
   "provider": {
     "go": {
       "packages": [

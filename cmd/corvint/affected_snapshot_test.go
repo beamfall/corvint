@@ -57,6 +57,15 @@ func TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources(t *testing.T) {
 		if code != 0 || stdout.Len() == 0 {
 			t.Fatalf("%d %s", code, stderr.String())
 		}
+		compact, _, stderrText, code := runAffectedCLI(t, root, "--snapshot", name)
+		full, fullRaw, fullStderr, fullCode := runAffectedCLI(t, root, "--snapshot", name, "--full")
+		if code != 0 || fullCode != 0 {
+			t.Fatalf("%d %s; --full %d %s", code, stderrText, fullCode, fullStderr)
+		}
+		if full["snapshot"] == nil {
+			t.Fatal("--snapshot --full dropped the snapshot binding")
+		}
+		assertAffectedCompactSummarizesFull(t, compact, full, fullRaw)
 		r.Digest = strings.Repeat("0", 64)
 		raw, _ = json.Marshal(r)
 		os.WriteFile(name, raw, 0600)

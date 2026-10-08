@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -96,10 +97,10 @@ func affectedGit(t *testing.T, root string, arguments ...string) string {
 	return string(output)
 }
 
-func runAffectedCLI(t *testing.T, root string) (map[string]any, []byte, string, int) {
+func runAffectedCLI(t *testing.T, root string, options ...string) (map[string]any, []byte, string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := runContext(context.Background(), []string{"--root", root, "affected"}, strings.NewReader(""), &stdout, &stderr)
+	code := runContext(context.Background(), append([]string{"--root", root, "affected"}, options...), strings.NewReader(""), &stdout, &stderr)
 	var receipt map[string]any
 	if code == 0 {
 		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
@@ -128,11 +129,11 @@ func TestAffectedCleanTreeSelectsNothingAndWritesNothing(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	if receipt["tool"] != "affected" || receipt["profile"] != affectedProfile || receipt["mutates"] != false || receipt["ok"] != true {
+	if receipt["tool"] != "affected" || receipt["profile"] != affectedCompactProfile || receipt["mutates"] != false || receipt["ok"] != true {
 		t.Fatalf("receipt envelope: %v", receipt)
 	}
 	plan := receipt["plan"].(map[string]any)
-	if len(plan["selected"].([]any)) != 0 || len(plan["excluded"].([]any)) == 0 {
+	if len(plan["selected"].([]any)) != 0 || plan["excluded"].(map[string]any)["count"].(float64) == 0 {
 		t.Fatalf("clean tree must select nothing and exclude every unit: %v", plan)
 	}
 	goProvider := receipt["provider"].(map[string]any)["go"].(map[string]any)
@@ -258,7 +259,7 @@ func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	receipt, first, stderr, code := runAffectedCLI(t, root)
+	receipt, first, stderr, code := runAffectedCLI(t, root, "--full")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -274,7 +275,7 @@ func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
 	if packages := fmt.Sprint(receipt["provider"]); !strings.Contains(packages, "packages:[example.com/fixture/core] state:RUNNABLE") {
 		t.Fatalf("provider=%s", packages)
 	}
-	if _, second, _, _ := runAffectedCLI(t, root); !bytes.Equal(first, second) {
+	if _, second, _, _ := runAffectedCLI(t, root, "--full"); !bytes.Equal(first, second) {
 		t.Fatalf("plan is not byte-identical across runs:\n%s\n%s", first, second)
 	}
 }
@@ -468,7 +469,7 @@ func TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions(t *testing.T)
 		if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("scratch\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		receipt, _, stderr, code := runAffectedCLI(t, root)
+		receipt, _, stderr, code := runAffectedCLI(t, root, "--full")
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, stderr)
 		}
@@ -859,4 +860,79 @@ func anyStrings(value any) []string {
 		out = append(out, item.(string))
 	}
 	return out
+}
+
+// AFP-V0-035: the default affected-plan/1 document is the affected-plan/0
+// document with each selection's test files replaced by their count and the
+// exclusions replaced by a count, a digest of the full list's bytes, and
+// groups that state each reason, universe and invalidation once; `--full`
+// still emits affected-plan/0.
+func TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	appendFile(t, filepath.Join(root, "leaf", "leaf.go"), "\n// dirty\n")
+	compact, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	full, fullRaw, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	assertAffectedCompactSummarizesFull(t, compact, full, fullRaw)
+	for _, arguments := range [][]string{{"--full", "--full"}, {"--full=true"}, {"--full", "--playwright-config", "playwright.config.ts"}} {
+		if _, err := parseAffectedOptions(arguments); err == nil {
+			t.Fatalf("%v must be refused", arguments)
+		}
+	}
+}
+
+// assertAffectedCompactSummarizesFull checks that a default affected-plan/1
+// document is the AFP-V0-035 projection of the --full document.
+func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]any, fullRaw []byte) {
+	t.Helper()
+	if compact["profile"] != affectedCompactProfile || full["profile"] != affectedProfile {
+		t.Fatalf("profiles: default %v, --full %v", compact["profile"], full["profile"])
+	}
+	for _, member := range []string{"advice", "mutates", "ok", "provider", "range", "revision", "snapshot", "tool"} {
+		if !reflect.DeepEqual(compact[member], full[member]) {
+			t.Fatalf("%s differs: %v != %v", member, compact[member], full[member])
+		}
+	}
+	compactPlan, fullPlan := compact["plan"].(map[string]any), full["plan"].(map[string]any)
+	for _, member := range []string{"graphDigest", "dirty", "scope", "unknown"} {
+		if !reflect.DeepEqual(compactPlan[member], fullPlan[member]) {
+			t.Fatalf("plan.%s differs", member)
+		}
+	}
+	compactSelected, fullSelected := compactPlan["selected"].([]any), fullPlan["selected"].([]any)
+	if len(fullSelected) == 0 || len(compactSelected) != len(fullSelected) {
+		t.Fatalf("selected: %d compact, %d full", len(compactSelected), len(fullSelected))
+	}
+	for index, item := range compactSelected {
+		got, want := item.(map[string]any), fullSelected[index].(map[string]any)
+		if _, listed := got["tests"]; listed || got["unitId"] != want["unitId"] || !reflect.DeepEqual(got["witness"], want["witness"]) ||
+			int(got["testCount"].(float64)) != len(want["tests"].([]any)) {
+			t.Fatalf("selection %d: %v vs %v", index, got, want)
+		}
+	}
+	var document struct {
+		Plan struct {
+			Excluded json.RawMessage `json:"excluded"`
+		} `json:"plan"`
+	}
+	if err := json.Unmarshal(fullRaw, &document); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(document.Plan.Excluded)
+	summary, fullExcluded := compactPlan["excluded"].(map[string]any), fullPlan["excluded"].([]any)
+	if len(fullExcluded) == 0 || int(summary["count"].(float64)) != len(fullExcluded) || summary["digest"] != affectedExcludedDigestPrefix+hex.EncodeToString(sum[:]) {
+		t.Fatalf("excluded summary %v does not bind the %d full exclusions", summary, len(fullExcluded))
+	}
+	groups := summary["groups"].([]any)
+	group := groups[0].(map[string]any)
+	if len(groups) != 1 || int(group["count"].(float64)) != len(fullExcluded) || group["universe"] != fullPlan["graphDigest"] ||
+		group["reason"] != "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT" || group["invalidation"] != "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH" {
+		t.Fatalf("groups must state the shared exclusion values once: %v", groups)
+	}
 }

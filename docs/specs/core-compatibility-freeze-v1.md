@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -53,7 +53,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `impact PATH...` | `tool=impact`; `context.schema_version` = 1; `context.mode` = `impact` |
   | `impact --base FULL_COMMIT_ID` | `context.profile` = `corvint-range-impact/0`; `context.mode` = `range-impact` |
   | `impact --working-tree-untracked PATH...` | `context.profile` = `corvint-working-tree-impact/0` |
-  | `affected`, default and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/0` |
+  | `affected`, default and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/1` (proposed; V1-0943, AFP-V0-035; needs a CCF-V1-006 decision record) |
+  | `affected --full`, worktree and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/0` (the previous default, byte-identical) |
   | `prove --task`, `prove PATH...`, `prove --base FULL_COMMIT_ID` | `tool=prove`; `profile` = `falsifiable-packet/0`; with `--base`, `packet.profile` = `corvint-range-impact/0` |
   | `index` | `command=index`; `profile` = `corvint-index-snapshot/1`; `mutates=true` (the snapshot write) |
   | `index --if-stale` with a fresh snapshot | `state=fresh`, `mutates=false`; no `ok`, `profile` or `command` member |
@@ -160,7 +161,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   unexamined, budget_shortage, governance, governance_refused, answerability}`. `init` / `adopt`:
   `inventory.operationalState`, `gaps`, `denominator`, `dirtyState`, `semanticFrontier` and
   `samplesTruncated`. `affected`: `plan.scope`, `plan.unknown`, `plan.excluded`, `advice.status` and
-  `provider.go.state` (AFP-V0-003/004). `prove`: `state` and `proof.{counts, proven_results,
+  `provider.go.state` (AFP-V0-003/004). (proposed; V1-0943) In the `affected-plan/1` default,
+  `plan.excluded` is `{count, digest, groups}` and the registered `plan.excluded[].reason` and
+  `[].invalidation` values appear at `plan.excluded.groups[]` (AFP-V0-035); `--full` keeps the array. `prove`: `state` and `proof.{counts, proven_results,
   unproven_results, failed_results}` with every row's falsifier verdict (FPK-V0). A frozen
   enumeration may gain a value only under CCF-V1-006. For `index`, `cem`, `ocm`, `frontier` and
   `dogfood status` this contract lists no further members: NOT_PRODUCED; their owning specs
@@ -220,8 +223,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:58@884d7796` |
-  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:115@7320d4cb` |
-  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:135@797e536b` |
+  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:123@7320d4cb` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:143@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1727@b984fed9` |
   | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3264@c020e4b8` |
   | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:201@56442382` |
@@ -305,7 +308,10 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   register. `index --if-stale` on a fresh snapshot is skipped: its setup writes the snapshot with this
   build, and an engine mismatch is a miss by design under (a). (accepted 2026-09-26, decision 0424)
   `impact path non-utf8 source` is also skipped: 0.8.1 refuses a repository with a non-UTF-8 path,
-  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. The target
+  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. (proposed;
+  V1-0943) The `affected worktree` and `affected committed range` defaults are skipped because 0.8.1
+  predates `affected-plan/1`; their `affected full` counterparts replay without `--full`, which is the
+  N-1 default and the same `affected-plan/0` document. The target
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
   above. A member, value or order that no fixture exercises stays unreplayed.

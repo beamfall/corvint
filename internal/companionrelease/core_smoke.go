@@ -81,7 +81,7 @@ func smokeAffectedSelection(ctx context.Context, binary, root string) error {
 	if err := decodeClosedJSON(stdout, &receipt); err != nil {
 		return err
 	}
-	if !receipt.OK || receipt.Profile != "affected-plan/0" || len(receipt.Plan.Selected) == 0 {
+	if !receipt.OK || (receipt.Profile != "affected-plan/1" && receipt.Profile != "affected-plan/0") || len(receipt.Plan.Selected) == 0 {
 		return fmt.Errorf("affected selection did not select the committed fixture test")
 	}
 	return nil
