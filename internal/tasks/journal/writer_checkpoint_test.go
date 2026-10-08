@@ -73,7 +73,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	if !got.HasRequest(requestPathOf(a[:])) || !got.HasRequest(requestPathOf(b[:])) {
 		t.Fatal("retained request path not found")
 	}
-	// CAL-V0-187 (proposed): each request carries its afterimage digest.
+	// CAL-V0-190 (proposed): each request carries its afterimage digest.
 	if d, ok := got.RequestAfterimage(requestPathOf(a[:])); !ok || d != wire.Digest(hex.EncodeToString(afterA[:])) {
 		t.Fatalf("request a afterimage %q %v", d, ok)
 	}
@@ -171,12 +171,12 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 }
 
-// TestCALV0186_WriterAuditReadsIntentOnce covers CAL-V0-186 (proposed): a
+// TestCALV0189_WriterAuditReadsIntentOnce covers CAL-V0-189 (proposed): a
 // writer audit reads each intent file's bytes once, in its first capture.
 // The walk takes selected intent records from those bytes, and the second
 // capture reuses them for a file that is still the same file with the same
 // size and modification time; the bytes it returns are the bytes on disk.
-func TestCALV0186_WriterAuditReadsIntentOnce(t *testing.T) {
+func TestCALV0189_WriterAuditReadsIntentOnce(t *testing.T) {
 	repo, r := setup(t)
 	for _, id := range []string{"A", "B"} {
 		appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
@@ -221,12 +221,12 @@ func TestCALV0186_WriterAuditReadsIntentOnce(t *testing.T) {
 	}
 }
 
-// TestCALV0187_WriterReplayKeyAndCloseFailure covers CAL-V0-187 (proposed)
+// TestCALV0190_WriterReplayKeyAndCloseFailure covers CAL-V0-190 (proposed)
 // in the journal: a request posted before the checkpoint is found under the
 // record keyed by the SHA-256 of its request ID (the name of its request
 // path) and replays its original entry; a failed native close while reading
 // it is returned as cleanup, with no replay, for each kind of handle.
-func TestCALV0187_WriterReplayKeyAndCloseFailure(t *testing.T) {
+func TestCALV0190_WriterReplayKeyAndCloseFailure(t *testing.T) {
 	repo, r := setup(t)
 	rp, err := snapshot.RequestPath("R")
 	if err != nil {

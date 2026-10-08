@@ -21,7 +21,7 @@ import (
 // guards and §5.2 redo, models the envelope against the summarized inventory
 // and commits it as the complete route does. A retained request replays
 // from its original entry, and a model result that plans no transaction is
-// reported without a write, as the complete route reports both (CAL-V0-187,
+// reported without a write, as the complete route reports both (CAL-V0-190,
 // proposed). handled is false, with nothing written, whenever the route
 // declines: a REOPEN or review operation (they read attempt history), a
 // request the route cannot bind, a model that needed an elided path, and

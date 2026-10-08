@@ -525,8 +525,8 @@ CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4726	(accepted by decisio
 CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4732	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry
 CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4738	(accepted by decision 0447; V1-0966) `queue status` and
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4749	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per
-CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	4837	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A
-CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4850	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
+CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4837	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A
+CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4850	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

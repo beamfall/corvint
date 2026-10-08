@@ -158,7 +158,7 @@ type writerObservation struct {
 	branch                      string
 	// replay is set when the caller's request is retained: the route then
 	// answers it from the original entry and observes nothing else
-	// (CAL-V0-187, proposed).
+	// (CAL-V0-190, proposed).
 	replay *writerReplay
 }
 
@@ -204,7 +204,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 		return nil, errWriterRoute("head.json", "head changed after the audit"), nil
 	}
 	// A retained request replays from its original entry; one the route
-	// cannot bind to the checkpoint declines (CAL-V0-187, proposed).
+	// cannot bind to the checkpoint declines (CAL-V0-190, proposed).
 	found, entry, ticketID, cleanup, err := journalReader(repo, headState).WriterReplay(proof, requestID)
 	if cleanup != nil {
 		return nil, nil, err

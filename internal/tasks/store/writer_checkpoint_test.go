@@ -495,7 +495,7 @@ func sameDecision(t *testing.T, got, want writerRun) {
 // CAL-V0-116 (proposed): the route declines a request file no receipt
 // posted and a fork at or after the checkpoint receipt; the complete route
 // then decides exactly as it does with no checkpoint, and a refusal publishes
-// nothing. Retained requests are CAL-V0-187's.
+// nothing. Retained requests are CAL-V0-190's.
 func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "tail-request", nil); !run.completed() || !run.fast() {
@@ -553,7 +553,7 @@ func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
 }
 
 // servedWithoutWrite is the writer-route stage that answered a retained
-// request or a model result without a write, if one did (CAL-V0-187).
+// request or a model result without a write, if one did (CAL-V0-190).
 func (r writerRun) servedWithoutWrite() string {
 	for _, s := range r.stages {
 		for _, stage := range []string{"fast.replay", "fast.refused", "fast.lease.replay", "fast.lease.refused"} {
@@ -580,14 +580,14 @@ func retainedRequestSeq(t *testing.T, repo *intent.Repository, id string) uint64
 	return req.Seq.Uint64()
 }
 
-// CAL-V0-187 (proposed): the writer route answers a retained request, in the
+// CAL-V0-190 (proposed): the writer route answers a retained request, in the
 // walked tail or bound to the checkpoint before it, and a model result that
 // plans no transaction, without a write and as the complete route answers
 // it: the same outcome, kind, codes, ticket and attempt. A prefix request
 // whose afterimage or receipt chain no longer binds the checkpoint, or that
 // lies beyond MaxWriterTail receipts before it, is declined to the complete
 // route, which decides it as it does with no checkpoint.
-func TestCALV0187_WriterRouteServesReplaysAndRefusals(t *testing.T) {
+func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
@@ -713,10 +713,10 @@ func TestCALV0187_WriterRouteServesReplaysAndRefusals(t *testing.T) {
 	}
 }
 
-// CAL-V0-187 (proposed): a retained request more than MaxWriterTail receipts
+// CAL-V0-190 (proposed): a retained request more than MaxWriterTail receipts
 // before the checkpoint is not bound by the route; the complete route
 // replays it.
-func TestCALV0187_WriterReplayBeyondBoundDeclines(t *testing.T) {
+func TestCALV0190_WriterReplayBeyondBoundDeclines(t *testing.T) {
 	repo := writerStore(t, journal.MaxWriterTail+40)
 	write := writerEnvelope(repo, historyCreate("history-create-0", "history history-create-0"), WallClock())
 	run := stagedWrite(write, nil)
@@ -816,12 +816,12 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 	}
 }
 
-// CAL-V0-186 (proposed): the writer audit reads each intent file once, so
+// CAL-V0-189 (proposed): the writer audit reads each intent file once, so
 // the pre-effect recheck is what binds the modeled intent bytes, and it still
 // compares content, not stat stamps. An in-place edit after the observation
 // that keeps the ticket file's inode, size and modification time publishes
 // nothing on the fast route and is decided by the complete route.
-func TestCALV0186_FastWriteRechecksIntentContent(t *testing.T) {
+func TestCALV0189_FastWriteRechecksIntentContent(t *testing.T) {
 	repo := writerStore(t, 70)
 	holdLeasePolicy(t, repo)
 	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")

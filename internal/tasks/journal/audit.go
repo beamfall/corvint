@@ -507,7 +507,7 @@ func (r Reader) sharedIntent(p string, size int64) ([]byte, wire.Digest, bool) {
 
 // writerIntent returns the bytes AuditForWriter's first capture read for
 // intent path p while p is still the same file with the same mode, size and
-// modification time (CAL-V0-186, proposed). This capture only confirms that
+// modification time (CAL-V0-189, proposed). This capture only confirms that
 // nothing moved during the walk; the writer route rechecks the intent tree's
 // content before any effect, so these stat stamps are never the evidence
 // that the modeled intent bytes are current.

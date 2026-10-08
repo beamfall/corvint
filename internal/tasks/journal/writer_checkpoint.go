@@ -46,7 +46,7 @@ const writerMagic = ProfileWriterCheckpoint + "\n"
 const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
 
 // writerRequestBytes is one encoded request: the SHA-256 of its path, then
-// the SHA-256 of its afterimage (CAL-V0-187, proposed).
+// the SHA-256 of its afterimage (CAL-V0-190, proposed).
 const writerRequestBytes = 2 * sha256.Size
 
 // writerNoteBytes is one encoded note: a uint32 entry index and a digest.
@@ -130,7 +130,7 @@ func (w *WriterCheckpoint) HasRequest(p string) bool {
 
 // RequestAfterimage returns the digest of the latest afterimage of request
 // path p that receipts 1..Seq posted, as the audit deriving the checkpoint
-// read it (CAL-V0-187, proposed).
+// read it (CAL-V0-190, proposed).
 func (w *WriterCheckpoint) RequestAfterimage(p string) (wire.Digest, bool) {
 	d, ok := requestDigest(p)
 	if !ok {
@@ -464,7 +464,7 @@ func (m *MutationAudit) WriterCheckpoint() (*WriterCheckpoint, error) {
 // forMutation selects what AuditForMutation selects (queue, policy and every
 // observed ticket and release); otherwise it selects what AuditForWrite
 // does. A requestID retained in the tail or before wc does not fail the
-// audit: WriterReplay then finds it (CAL-V0-187, proposed).
+// audit: WriterReplay then finds it (CAL-V0-190, proposed).
 //
 // Every error, refusal or not, means only that this route cannot serve the
 // observation: the caller runs the complete audit, which derives the refusal
@@ -637,7 +637,7 @@ func (res *Result) WriterListing() map[string]ListedFile {
 // WriterReplay reports whether requestID is retained in the journal a
 // ModeWriter audit observed, and if so the original index entry and the
 // ticket its receipt targeted, as AuditForMutation reports them
-// (CAL-V0-187, proposed). A request posted in the walked tail was validated
+// (CAL-V0-190, proposed). A request posted in the walked tail was validated
 // by the walk. A request posted at or before the checkpoint is served only
 // when every byte the answer rests on is bound to the checkpoint:
 //

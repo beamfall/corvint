@@ -89,7 +89,7 @@ func newNativeRead(n Native) *nativeRead {
 }
 
 var afterReadNames func(string)  // deterministic enumeration/metadata race witness
-var afterNativeRead func(string) // per-file read witness (CAL-V0-186)
+var afterNativeRead func(string) // per-file read witness (CAL-V0-189)
 // pinnedReads is false only in the CAL-V0-070 equivalence test, which compares
 // per-file InRoot opens with reads beneath a pinned parent descriptor.
 var pinnedReads = true
