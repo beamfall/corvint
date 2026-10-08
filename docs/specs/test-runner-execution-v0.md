@@ -84,7 +84,8 @@ limits: TestCafe's current common-executor remote-Chrome CLI witness is qualifie
 refusal and first-use helper failure remain retained. Detox lacks a qualified task application/device;
 legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
-repair independently reviewed and locally qualified for native cooperating Playwright. The prior no-browser fixture remains retained. Nightwatch's current fixture
+repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-024 adds
+executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch's current fixture
 used `start_session:false`, so its browser execution remains NOT_OBSERVED. Other OS versions, retries, parameterized cases and lifecycle negatives remain open
 where their adapter provenance says so.
 
@@ -174,6 +175,8 @@ leader receives bounded fallback. Historical Go and Playwright plan/receipt byte
 when the optional flag is absent; current execution of an older Playwright plan requires replanning.
 Historical Go candidate assembly replay remains VERIFIED. V1-0608 stays OPEN until integration
 and native completion; cooperative native cleanup does not qualify hostile detached execution.
+TRE-V0-024 (2026-10-08) retires escaped owned descendants without runner cooperation; its exact
+Playwright 1.63 browser requalification is NOT_RUN (see the V1-0608 build log).
 
 ## Runner observation code ownership
 
@@ -221,6 +224,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:149@7e3f3a32` |
 | `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:335@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:334@7d964fc3` |
+| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:221@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:251@7bb3fc94`; `internal/testrunner/dynamic/parse.go:255@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
 | `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:293@4b70a549` |
@@ -436,10 +440,21 @@ part, and historical plan, receipt and identity bytes are unchanged.
   observation incomplete. Public states become `UNKNOWN`, and native IDs,
   including session IDs, stay retained. Status: proposed (V1-0620).
 
+- `TRE-V0-024`: The Unix executor MUST run every phase through `groupreap.RunContained`
+  (`PGO-V0-007`), so a descendant that leaves the phase's process group (a detached
+  browser in its own session, for example) is retired when the phase ends normally,
+  times out or is interrupted. A non-graceful timeout or interruption signals only the
+  phase leader, leaving the remaining group and escaped descendants attached to it for
+  the structural sweep; graceful SIGINT and its bounded fallback are unchanged. Incomplete
+  containment appends a `process-containment` execution problem, so shared normalization
+  makes the observation incomplete. A sampled escaped descendant that lost its owned parent
+  is retired only under its unchanged sampled PID and start time. Status: proposed (V1-0608).
+
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-021 | `selection.go`, `types.go`, `document.go`; `TestSelectionIsAdditiveToHistoricalBytes`, `TestHistoricalPlanAndReceiptBytesSurviveSelectionContract` | Frozen plan and receipt bytes generated at `0c94c66c` decode and re-encode byte-identically with an unchanged plan digest |
 | TRE-V0-022 | `AdmitSelection`, `registry.Build`; `TestSelectionAdmissionIsClosed`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Invalid selections refuse at `plan` and at `run` before the report directory exists |
+| TRE-V0-024 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
 | TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs only: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch |
 
 Recorded limits. A real pinned Nightwatch 3.16.0 browser run with fresh

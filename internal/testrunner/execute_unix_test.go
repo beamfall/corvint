@@ -55,6 +55,45 @@ func TestExecutorHelper(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 
+	case "escape":
+		// A Playwright-shaped tree: this leader's worker launches a detached
+		// browser in its own session (V1-0608).
+		signal.Ignore(os.Interrupt)
+		exe, _ := os.Executable()
+		worker := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		worker.Env = append(os.Environ(), "CORVINT_EXEC_MODE=escape-worker")
+		if e := worker.Start(); e != nil {
+			os.Exit(9)
+		}
+		for os.Getenv("CORVINT_ESCAPE_EXIT") == "1" {
+			if _, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET") + ".pid"); e == nil {
+				fmt.Print("native result")
+				os.Exit(0)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		for {
+			time.Sleep(time.Second)
+		}
+	case "escape-worker":
+		exe, _ := os.Executable()
+		browser := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		browser.Env = append(os.Environ(), "CORVINT_EXEC_MODE=child")
+		browser.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if e := browser.Start(); e != nil {
+			os.Exit(9)
+		}
+		// Publish the browser PID only after its first heartbeat.
+		for {
+			if st, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET")); e == nil && st.Size() > 0 {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		_ = os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET")+".pid", []byte(fmt.Sprint(browser.Process.Pid)), 0600)
+		for {
+			time.Sleep(time.Second)
+		}
 	case "mutate":
 		if err := os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET"), []byte("changed"), 0700); err != nil {
 			os.Exit(9)
@@ -475,6 +514,80 @@ func TestGracefulInterruptLifecycle(t *testing.T) {
 				}
 				if mode != "uncooperative" && mode != "overflow" && mode != "postbinding" && !strings.Contains(string(out.Input.Stdout), "native cleanup complete") {
 					t.Fatal("native shutdown did not finish")
+				}
+			}
+		})
+	}
+}
+
+// V1-0608: a detached browser that leaves the runner's process group is
+// retired on timeout, interruption and normal completion, for graceful and
+// hard cancellation alike, and the executor reports no containment problem.
+func TestExecuteRetiresEscapedDetachedDescendants(t *testing.T) {
+	for _, mode := range []string{"timeout", "timeout-graceful", "interrupt", "normal"} {
+		t.Run(mode, func(t *testing.T) {
+			r, inv := executorRequest(t)
+			// Three helper processes start under a loaded host before the bound.
+			r.TimeoutSeconds = 4
+			target := filepath.Join(r.Root, "heartbeat")
+			inv.Environment["CORVINT_EXEC_TARGET"] = target
+			inv.Environment["CORVINT_EXEC_MODE"] = "escape"
+			inv.GracefulInterrupt = mode == "timeout-graceful" || mode == "interrupt"
+			if mode == "normal" {
+				r.TimeoutSeconds = 30
+				inv.Environment["CORVINT_ESCAPE_EXIT"] = "1"
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var browser int
+			ready := make(chan struct{})
+			go func() {
+				defer close(ready)
+				for ctx.Err() == nil {
+					if b, e := os.ReadFile(target + ".pid"); e == nil {
+						fmt.Sscan(string(b), &browser)
+						if mode == "interrupt" {
+							cancel()
+						}
+						return
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+			}()
+			out, e := Execute(ctx, r, inv)
+			cancel()
+			<-ready
+			if e != nil {
+				t.Fatal(e)
+			}
+			if browser <= 1 {
+				t.Fatal("detached browser never started")
+			}
+			a, _ := os.ReadFile(target)
+			time.Sleep(100 * time.Millisecond)
+			b, _ := os.ReadFile(target)
+			if len(a) != len(b) {
+				// The browser is this test's own descendant; retire it.
+				_ = syscall.Kill(browser, syscall.SIGKILL)
+				t.Fatalf("detached browser %d survived the executor", browser)
+			}
+			for _, p := range out.Input.ExecutionProblems {
+				if p.Code == "process-containment" {
+					t.Fatalf("containment problem: %+v", p)
+				}
+			}
+			switch mode {
+			case "normal":
+				if out.Input.ExitCode != 0 || out.Input.TimedOut || out.Input.Interrupted {
+					t.Fatal(out.Input)
+				}
+			case "interrupt":
+				if !out.Input.Interrupted {
+					t.Fatal("missing interruption")
+				}
+			default:
+				if !out.Input.TimedOut {
+					t.Fatal("missing timeout")
 				}
 			}
 		})
