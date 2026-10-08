@@ -45,8 +45,8 @@ are `UNKNOWN` and yield no selectors.
 
 ## Passing after
 
-Evidence: `/private/tmp/claude-501/mocha-td/after/qualification.json`, SHA-256
-`16cd52a5…ed17634`. All six subtests pass.
+Evidence: `/private/tmp/claude-501/mocha-td/after2/qualification.json`, SHA-256
+`bc666080…0fd995c8e`, from the post-review build. All six subtests pass.
 
 - `exact`: the plan is BOUNDED, with one selected file and one exclusion. Selected file,
   expected identity and observed identity reconcile, and the observation is complete.
@@ -62,6 +62,14 @@ root, because Mocha reports resolved paths.
 
 Focused tests pass: `./internal/testrunner/...`, `./internal/liveverify/affected/typescript`
 and `./internal/specindex`. The listed doc gates also pass.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) found no P0 or P1 issues. Its review is at
+`/private/tmp/claude-501/mocha-td/review.md`. It raised one P2: the expected-identity check also
+ran when no selectors were given. That broke the stated no-selector compatibility. The fix gates
+the whole reconciliation on non-empty selectors and adds a no-selector regression with an
+expected subset.
 
 ## Non-goals and failure modes
 

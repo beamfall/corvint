@@ -12,9 +12,10 @@ import (
 // a selector that matches nothing, so either form exits zero (TRE-V0-024).
 // The comparison is lexical: Parse stays pure, so a non-canonical root, a
 // directory selector or a native path outside the selected files stays
-// incomplete instead of being resolved.
+// incomplete instead of being resolved. A run without selectors keeps its
+// earlier inventory behaviour.
 func reconcileMochaSelection(in tr.Input, o *tr.Observation) {
-	if in.Runner != "mocha" {
+	if in.Runner != "mocha" || len(in.Selectors) == 0 {
 		return
 	}
 	files := make([]string, len(in.Selectors))
@@ -31,12 +32,10 @@ func reconcileMochaSelection(in tr.Input, o *tr.Observation) {
 		expected[id] = true
 	}
 	for _, t := range o.Tests {
-		if len(selected) > 0 {
-			if _, ok := selected[t.File]; ok {
-				selected[t.File] = true
-			} else {
-				problem(o, "unselected-test-file", t.ID)
-			}
+		if _, ok := selected[t.File]; ok {
+			selected[t.File] = true
+		} else {
+			problem(o, "unselected-test-file", t.ID)
 		}
 		if len(expected) > 0 && !expected[t.ID] {
 			problem(o, "unexpected-observed-test", t.ID)

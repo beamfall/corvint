@@ -226,13 +226,13 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:294@4b70a549` |
 | `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:286@be9d02c7` |
 | `section-test-conflict` | Nightwatch completed-section and completed-test records map to different states for the same name. | `internal/testrunner/dynamic/browser.go:211@7936fd1f` |
-| `selector-without-tests` | A Mocha file selector names a file with no observed test, including a missing path Mocha only warns about. | `internal/testrunner/dynamic/mocha_selection.go:47@1584fa21` |
+| `selector-without-tests` | A Mocha file selector names a file with no observed test, including a missing path Mocha only warns about. | `internal/testrunner/dynamic/mocha_selection.go:46@1584fa21` |
 | `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:69@b1ab2b72` |
 | `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:277@04a1c2a9` |
 | `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:250@b75d2c79` |
 | `test-bound` | Observed inventory exceeds MaxTests at the shared boundary. | `internal/testrunner/validate.go:41@e88d43a4` |
 | `unclassified-exit` | An admitted shared-boundary failure exit has no observed FAILED test. | `internal/testrunner/validate.go:125@94987f7f` |
-| `unexpected-observed-test` | A Mocha run with expected identities observes a test outside them. | `internal/testrunner/dynamic/mocha_selection.go:42@4ac5bca8` |
+| `unexpected-observed-test` | A Mocha run with file selectors and expected identities observes a test outside them. | `internal/testrunner/dynamic/mocha_selection.go:41@4ac5bca8` |
 | `unexplained-exit` | A dynamic runner exits nonzero without failed/timed-out/interrupted tests or any previously recorded observation problem. | `internal/testrunner/dynamic/parse.go:145@67d7a680` |
 | `unknown-attempt-state` | A Playwright attempt status maps to UNKNOWN, or the shared boundary sees an attempt state outside its admitted state enumeration. | `internal/testrunner/validate.go:86@94ec202d`; `internal/testrunner/dynamic/native.go:376@4a8c35e3` |
 | `unknown-expected-status` | A Playwright test with results has an expectedStatus that maps to UNKNOWN. | `internal/testrunner/dynamic/native.go:383@07ce9705` |
@@ -243,7 +243,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:265@045a51e8` |
 | `unknown-test-state` | A shared-boundary test state is outside its admitted state enumeration. | `internal/testrunner/validate.go:73@8c1af2e1` |
 | `unresolved-test-state` | A shared-boundary test state is UNKNOWN, INTERRUPTED or TIMED_OUT. | `internal/testrunner/validate.go:79@80befa5b` |
-| `unselected-test-file` | A Mocha test with file selectors reports a native file outside their lexical root-joined paths. | `internal/testrunner/dynamic/mocha_selection.go:38@b034c3f6` |
+| `unselected-test-file` | A Mocha test with file selectors reports a native file outside their lexical root-joined paths. | `internal/testrunner/dynamic/mocha_selection.go:38@490b448f` |
 
 ## Explicit argument-free TEST phases and CMocka (experimental)
 
@@ -474,7 +474,8 @@ slice both runs produced complete observations.
   observed identity outside them (`unexpected-observed-test`) make the
   observation incomplete. A non-canonical root, a directory selector or a
   subset of expected identities therefore stays incomplete. A run without
-  selectors keeps its earlier inventory behaviour. Status: proposed (V1-0598).
+  selectors skips all three checks and keeps its earlier inventory behaviour.
+  Status: proposed (V1-0598).
 - `TRE-V0-025`: Every concrete JavaScript/TypeScript affected runner ID MUST
   name a dynamic execution profile with the same ID, and the affected `unknown`
   runner MUST NOT name one. Status: proposed (V1-0598).

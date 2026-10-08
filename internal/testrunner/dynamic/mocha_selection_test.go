@@ -24,6 +24,7 @@ func TestMochaSelectionReconciliation(t *testing.T) {
 		{"exact", []map[string]any{a}, []string{"tests/a.test.cjs"}, []string{"/r/tests/a.test.cjs::a"}, nil},
 		{"absolute selector", []map[string]any{a}, []string{"/r/tests/a.test.cjs"}, nil, nil},
 		{"no selectors keeps legacy inventory", []map[string]any{a, b}, nil, nil, nil},
+		{"no selectors keeps legacy expected subset", []map[string]any{a, b}, nil, []string{"/r/tests/a.test.cjs::a"}, nil},
 		{"configured spec broadens", []map[string]any{a, b}, []string{"tests/a.test.cjs"}, []string{"/r/tests/a.test.cjs::a"}, []string{"unselected-test-file", "unexpected-observed-test"}},
 		{"no-match selector", []map[string]any{a}, []string{"tests/a.test.cjs", "tests/missing.test.cjs"}, nil, []string{"selector-without-tests"}},
 		{"directory selector stays lexical", []map[string]any{a}, []string{"tests"}, nil, []string{"unselected-test-file", "selector-without-tests"}},
