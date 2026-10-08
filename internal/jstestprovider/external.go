@@ -167,6 +167,9 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
+	if cfg.negation != nil {
+		cfg.negation.started = true
+	}
 	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit, ObserveDescendants: cfg.ObserveDescendants})
 	r.DescendantObservation = obs.DescendantObservation
 	r.RunnerResources = obs.Usage
@@ -416,7 +419,13 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	if c.KeepReporters {
 		prelude, reporters, attemptOption = keptReportersConfig(), "[...keptReporters(original.reporter), ", attemptOption+keepReportersOption
 	}
+	if c.negation != nil {
+		prelude += c.negation.prelude(quoted)
+	}
 	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" + prelude + "module.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: " + reporters + "[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]]};\n"
+	if c.negation != nil {
+		config += c.negation.override(quoted)
+	}
 	if err := os.WriteFile(reporterPath, qualifiedReporter, 0600); err != nil {
 		return "", nil, "", err
 	}

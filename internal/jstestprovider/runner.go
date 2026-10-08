@@ -221,6 +221,9 @@ type E2EConfig struct {
 	// KeepReporters appends the provider reporter to the project's reporter
 	// list instead of replacing it (PWP-V0-010); external mode only.
 	KeepReporters bool
+	// negation is set only by RunNegate (LPCV-V0-058): trace recording, the
+	// fault injection module and the scratch output directory.
+	negation *negationRun
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
