@@ -265,7 +265,9 @@ func TestHistoricalPlanAndReceiptBytesSurviveSelectionContract(t *testing.T) {
 	}
 	var p plan
 	tr.DecodeDocument([]byte(historicalNightwatchPlan), &p)
-	if p.Request.ExpectedSelection != nil || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
+	// Detached retirement (TRE-V0-025) is additive: historical plans keep
+	// their bytes and are executed without it.
+	if p.Request.ExpectedSelection != nil || p.Invocation.RetireDetachedDescendants || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
 		t.Fatal("historical plan identity moved")
 	}
 	if _, e := registry.Build(p.Request); e != nil {

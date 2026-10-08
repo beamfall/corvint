@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 func TestExecutorHelper(t *testing.T) {
@@ -83,6 +85,45 @@ func TestExecutorHelper(t *testing.T) {
 			_, _ = f.Write([]byte("x"))
 			time.Sleep(10 * time.Millisecond)
 		}
+	case "detach":
+		// A Setpgid child leaves the leader's group; its setsid child leaves
+		// the session too. The marker is the readiness signal.
+		exe, _ := os.Executable()
+		child := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		child.Env = append(os.Environ(), "CORVINT_EXEC_MODE=orphaner")
+		child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if child.Start() != nil {
+			os.Exit(9)
+		}
+		if os.Getenv("CORVINT_EXEC_EXIT") == "1" {
+			for {
+				if _, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET")); e == nil {
+					fmt.Print("native result")
+					os.Exit(0)
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+		for {
+			time.Sleep(time.Second)
+		}
+	case "orphaner":
+		exe, _ := os.Executable()
+		sleeper := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		sleeper.Env = append(os.Environ(), "CORVINT_EXEC_MODE=sleep")
+		sleeper.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if sleeper.Start() != nil {
+			os.Exit(9)
+		}
+		target := os.Getenv("CORVINT_EXEC_TARGET")
+		_ = os.WriteFile(target+".tmp", []byte(fmt.Sprintf("%d %d", os.Getpid(), sleeper.Process.Pid)), 0600)
+		_ = os.Rename(target+".tmp", target)
+		for {
+			time.Sleep(time.Second)
+		}
+	case "sleep":
+		time.Sleep(10 * time.Minute)
+		os.Exit(0)
 	case "env":
 		fmt.Print(os.Getenv("PATH") + "\n" + os.Getenv("JAVA_HOME") + "\n" + os.Getenv("CORVINT_HOST_SECRET"))
 	}
@@ -517,6 +558,16 @@ func TestHistoricalPlanByteIdentity(t *testing.T) {
 		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"gracefulInterrupt":true`)) {
 			t.Fatal("new lifecycle not bound into plan identity")
 		}
+		plan.Invocation.GracefulInterrupt = false
+		plan.Invocation.RetireDetachedDescendants = false
+		if encoded, _ = json.Marshal(plan); !bytes.Equal(before, encoded) {
+			t.Fatal("explicit false retirement changed old identity")
+		}
+		plan.Invocation.RetireDetachedDescendants = true
+		encoded, _ = json.Marshal(plan)
+		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"retireDetachedDescendants":true`)) {
+			t.Fatal("detached retirement not bound into plan identity")
+		}
 	}
 }
 
@@ -566,5 +617,21 @@ func TestExecuteExplicitPrimaryTestWithoutArguments(t *testing.T) {
 				t.Fatal(result, err)
 			}
 		})
+	}
+}
+
+// TestExecuteRefusesUnprovenRetirement keeps TRE-V0-025 closed off Darwin:
+// a plan requesting detached retirement is refused before launch.
+func TestExecuteRefusesUnprovenRetirement(t *testing.T) {
+	if groupreap.RetirementSupported {
+		t.Skip("platform retirement is proved by the Darwin tests")
+	}
+	r, inv := executorRequest(t)
+	inv.RetireDetachedDescendants = true
+	if _, err := Execute(context.Background(), r, inv); err == nil || !strings.Contains(err.Error(), "unsupported") {
+		t.Fatalf("unproven retirement admitted: %v", err)
+	}
+	if _, err := os.Stat(r.ReportDir); err == nil {
+		t.Fatal("refusal created the report directory")
 	}
 }

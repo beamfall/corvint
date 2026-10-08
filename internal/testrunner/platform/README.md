@@ -98,6 +98,14 @@ symlink, which executor admission refuses. A caller-pinned wrapper that writes t
 XML under a generic JUnit profile (bun-test, deno-test, pytest) would still decode
 it as complete: that is the trusted-local-executable limit of TRE-V0-004.
 
+TRE-V0-025 (V1-0613): SwiftPM 6.4 runs the xctest child and Foundation `Process`
+helpers outside swift-test's process group, so the group kill alone leaves them.
+New swift-xctest plans set `retireDetachedDescendants`; the executor then stops and
+kills owned processes proved by ancestry or the per-phase owner token, and records
+them in the execution's `retirement`. The opt-in `TestSwiftPMXCTestLiveDetachedTeardown`
+runs `ProofTests.Hang/testHang` with a `CORVINT_SWIFT_READY` marker path, which the
+fixture writes as "xctestpid helperpid" before hanging. Darwin arm64/amd64 only.
+
 Robolectric requires prepared compiled classes/runtime jars, pinned Console jar
 and the exact pinned API-35 android-all-instrumented artifact for Robolectric
 4.16.1. The fixed invocation sets offline mode and enabledSdks=35. Other SDKs,

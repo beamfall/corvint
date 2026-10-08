@@ -5,6 +5,8 @@
 V1-0597 records that SwiftPM 6.4's parallel xUnit file reports an XCTSkip as an ordinary pass.
 This entry retains that witness, binds the serial native transport as the only SwiftPM XCTest
 execution path, and adds proposed `TRE-V0-024` to `docs/specs/test-runner-execution-v0.md`.
+V1-0613 adds proposed `TRE-V0-025`: bounded, ownership-proved retirement of the detached
+xctest and helper processes SwiftPM leaves outside the runner's process group.
 The tuple is Swift 6.4 (swiftlang-6.4.0.34.1, swift-driver 1.168.6), macOS 26.6.2 (25G83),
 arm64. Owner acceptance is pending.
 
@@ -53,3 +55,72 @@ Rollback: remove the two fixtures, the inventory count change, the two tests, th
 test and the spec section. The profile and historical plan and receipt bytes are untouched.
 
 NOT_RUN: Linux; Swift versions other than 6.4; `make gate` (owner policy for scoped work).
+
+## V1-0613: detached XCTest teardown
+
+Failing before (actual, shared executor without retirement): the scratch fixture
+`/private/tmp/claude-501/swiftpm-td/fx` `ProofTests.Hang/testHang` starts a Foundation
+`Process` running `/bin/sleep 600`, writes "xctestpid helperpid" to the `CORVINT_SWIFT_READY`
+path and hangs. With a 30 s bound the run timed out and the receipt was incomplete
+(`PROCESS_TIMEOUT`, `timeout`, `no-tests`, `runner-exit`). The xctest process (60944) and the
+helper (60986) both survived the group SIGKILL, because each has its own process group. The
+test then killed them after re-checking their identities. Evidence:
+`/private/tmp/claude-501/swiftpm-td/live2/teardown-contained-only.json` (sha256
+`7d09d119…ba92`). An earlier standalone probe (`repro.py`) showed the same survival chain:
+swift-test 37926, then xctest 38438, then sleep 38450.
+
+Design: `internal/groupreap` gains a `Retirer`.
+
+- Ownership is proved only in two ways: ppid ancestry from the identity-verified live leader,
+  or a random per-phase `CORVINT_TEST_RUNNER_OWNER` token read from KERN_PROCARGS2. Plans
+  cannot set that key.
+- Teardown first SIGSTOPs owned processes until no new one appears (at most 32 rounds). It
+  then SIGKILLs each pid whose start time it has re-verified, and polls for up to 3 s.
+- It runs in `cmd.Cancel` before the group kill (timeout and interruption). It also runs after
+  the leader exits but before the leader is reaped, so normal exit is covered too.
+- Foreign-uid, stop-refused or surviving processes, and an unconverged or unbounded scan, are
+  retained in `execution.retirement`. They fail Execute, which yields an `execution-boundary`
+  problem, so the observation is incomplete.
+- New `swift-xctest` plans set `retireDetachedDescendants`. The field is omitempty, so
+  historical plan and receipt bytes and identities are unchanged.
+
+Passing after:
+
+- Live, through `/usr/bin/swift` and the same fixture:
+  - Timeout run: xctest 70855 and helper 70885 were retired by ancestry, nothing survived, and
+    the retirement record was clean (`teardown-timeout.json`, sha256 `508d5192…718d`).
+  - Interruption run: xctest 80476 and helper 80495 were retired, nothing survived, and the
+    record was clean (`teardown-interrupt.json`, sha256 `a8a9fb77…6df9`).
+  - Both observations stay incomplete, as they should after a timeout or interruption.
+  - The three-outcome witness still passes with retirement enabled (`three.json`).
+- Focused tests:
+  - `groupreap`: ownership refusals against an injected table (unrelated, reused pid,
+    pre-phase, zombie, foreign uid, immortal, fork storm) and real-table retirement in three
+    modes: none, live leader, and post-exit token.
+  - `testrunner`: retirement on timeout, interruption and normal exit; the no-retirement
+    baseline survives; admission refusals; refusal off Darwin; a cleanup failure cannot
+    leave a complete observation; plan byte identity.
+  - `corvint-test-runner`: the historical plan and receipt keep their bytes.
+
+Non-goals:
+
+- Linux and Windows retirement. Those platforms refuse the flag before launch.
+- Processes started through launchd or XPC.
+- Retiring processes that are neither descendants nor token holders.
+- Graceful-interrupt profiles such as Playwright.
+
+Failure modes:
+
+- A pid could be reused between the final check and the signal.
+- A descendant that scrubs its environment and is reparented before the ancestry snapshot is
+  not seen.
+- A timed-out phase's receipt keeps `exitCode` -1. The closed document decoder refuses that
+  value independently of this change, which was observed while writing the decode
+  round-trip test. That is a pre-existing limit and is fail-closed.
+
+Rollback: remove `retire*.go`, the `wait` hook, the `retirement` field and the flag in
+`buildXCTest`. A plan that already sets the flag would then be refused as having an unknown
+field.
+
+NOT_RUN: Linux and Windows execution of the refusal test (cross-vet only); Swift versions
+other than 6.4; `make gate`.

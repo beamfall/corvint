@@ -1,5 +1,7 @@
 package testrunner
 
+import "github.com/Beamfall/corvint/internal/groupreap"
+
 type PhaseResult struct {
 	Kind         string `json:"kind"`
 	ToolSha256   string `json:"toolSha256"`
@@ -21,4 +23,6 @@ type Execution struct {
 	Input              Input             `json:"-"`
 	ExecutionAuthority string            `json:"executionAuthority"`
 	DependencyClosure  string            `json:"dependencyClosure"`
+	// Retirement is present only for plans that request detached retirement.
+	Retirement *groupreap.Retirement `json:"retirement,omitempty"`
 }

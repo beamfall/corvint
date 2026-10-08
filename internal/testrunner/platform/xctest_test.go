@@ -51,6 +51,9 @@ func TestSwiftPMXCTestBuildPinsPackageAndExactSelector(t *testing.T) {
 	if e != nil || !strings.Contains(strings.Join(v.Argv, " "), "--disable-swift-testing --no-parallel --disable-automatic-resolution --skip-update") {
 		t.Fatalf("%+v %v", v, e)
 	}
+	if !v.RetireDetachedDescendants || v.GracefulInterrupt {
+		t.Fatal("SwiftPM XCTest plan does not request detached descendant retirement (TRE-V0-025)")
+	}
 	r.Selectors = []string{"Proof/testPass"}
 	if _, e = Build(r); e == nil {
 		t.Fatal("short selector admitted")

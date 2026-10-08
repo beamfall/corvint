@@ -6,8 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -94,5 +99,122 @@ func TestSwiftPMXCTestLiveThreeOutcomes(t *testing.T) {
 		if row.State == tr.Failed && row.FailureKind != tr.Assertion {
 			t.Fatalf("assertion failure kind lost: %+v", row)
 		}
+	}
+}
+
+// liveStart is a process's state-free start time and command, or "" when it
+// is gone or a zombie. Cleanup signals only an unchanged identity.
+func liveStart(pid int) string {
+	out, err := exec.Command("/bin/ps", "-o", "stat=,lstart=,command=", "-p", strconv.Itoa(pid)).Output()
+	line := strings.TrimSpace(string(out))
+	if err != nil || line == "" || strings.HasPrefix(line, "Z") {
+		return ""
+	}
+	return line[strings.IndexByte(line, ' ')+1:]
+}
+
+// TestSwiftPMXCTestLiveDetachedTeardown is the actual TRE-V0-025 witness.
+// testHang starts a Foundation Process helper, writes "xctestpid helperpid"
+// as its readiness marker and hangs. SwiftPM 6.4 runs xctest and the helper
+// outside swift-test's process group, so the group kill alone leaves both
+// ("contained-only"); the profile's retirement removes them on timeout and
+// on interruption.
+func TestSwiftPMXCTestLiveDetachedTeardown(t *testing.T) {
+	root, exe, sha, out, inputs := swiftPMLiveFixture(t)
+	for _, mode := range []string{"contained-only", "timeout", "interrupt"} {
+		t.Run(mode, func(t *testing.T) {
+			marker := filepath.Join(out, mode+".ready")
+			_ = os.Remove(marker)
+			r := tr.Request{Runner: "swift-xctest", Root: root, Executable: exe, ExecutableSha256: sha, Config: filepath.Join(root, "Package.swift"), ConfigSha256: inputs["Package.swift"], InputFiles: inputs, ReportDir: filepath.Join(out, mode), TimeoutSeconds: 120, Selectors: []string{"ProofTests.Hang/testHang"}}
+			if mode != "interrupt" {
+				// The package is prebuilt by the three-outcome witness, so a
+				// short bound times out while testHang is ready.
+				r.TimeoutSeconds = 30
+			}
+			v, e := Build(r)
+			if e != nil || !v.RetireDetachedDescendants {
+				t.Fatalf("%+v %v", v, e)
+			}
+			v.Environment = map[string]string{"CORVINT_SWIFT_READY": marker}
+			if mode == "contained-only" {
+				v.RetireDetachedDescendants = false
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ready := make(chan []int, 1)
+			done := make(chan struct{})
+			go func() {
+				defer close(ready)
+				for {
+					if b, err := os.ReadFile(marker); err == nil && strings.HasSuffix(string(b), "\n") {
+						var pids []int
+						for _, f := range strings.Fields(string(b)) {
+							n, _ := strconv.Atoi(f)
+							pids = append(pids, n)
+						}
+						starts := map[int]string{}
+						for _, pid := range pids {
+							starts[pid] = liveStart(pid)
+						}
+						t.Cleanup(func() {
+							for pid, s := range starts {
+								if s != "" && liveStart(pid) == s {
+									_ = syscall.Kill(pid, syscall.SIGKILL)
+								}
+							}
+						})
+						if mode == "interrupt" {
+							cancel()
+						}
+						ready <- pids
+						return
+					}
+					select {
+					case <-done:
+						return
+					case <-time.After(20 * time.Millisecond):
+					}
+				}
+			}()
+			x, execErr := tr.Execute(ctx, r, v)
+			close(done)
+			o, parseErr := Parse(x.Input)
+			o = tr.Normalize(x.Input, o)
+			retainSwiftPMLive(t, out, "teardown-"+mode, r, v, x, o, execErr, parseErr)
+			pids := <-ready
+			if len(pids) != 2 {
+				t.Fatalf("readiness marker missing: execute=%v", execErr)
+			}
+			time.Sleep(100 * time.Millisecond)
+			survivors := []int{}
+			for _, pid := range pids {
+				if liveStart(pid) != "" {
+					survivors = append(survivors, pid)
+				}
+			}
+			t.Logf("xctest=%d helper=%d survivors=%v retirement=%+v", pids[0], pids[1], survivors, x.Retirement)
+			if o.Complete {
+				t.Fatal("hung run produced a complete observation")
+			}
+			if mode == "contained-only" {
+				if len(survivors) != 2 || x.Retirement != nil {
+					t.Fatalf("baseline did not reproduce detached survivors: %v", survivors)
+				}
+				return
+			}
+			if execErr != nil || len(survivors) != 0 || x.Retirement == nil || !x.Retirement.Clean() {
+				t.Fatalf("execute=%v survivors=%v retirement=%+v", execErr, survivors, x.Retirement)
+			}
+			retired := map[int]bool{}
+			for _, p := range x.Retirement.Retired {
+				retired[p.PID] = true
+			}
+			if !retired[pids[0]] || !retired[pids[1]] {
+				t.Fatalf("xctest/helper identities not in the retirement report: %+v", x.Retirement)
+			}
+			if (mode == "timeout") != x.Input.TimedOut || (mode == "interrupt") != x.Input.Interrupted {
+				t.Fatalf("lifecycle not retained: %+v", x.Input)
+			}
+		})
 	}
 }

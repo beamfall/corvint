@@ -69,6 +69,10 @@ type Invocation struct {
 	Environment             map[string]string `json:"environment"`
 	Format                  string            `json:"format"`
 	GracefulInterrupt       bool              `json:"gracefulInterrupt,omitempty"`
+	// RetireDetachedDescendants proves and retires processes that left the
+	// leader's group (TRE-V0-025); omitted when false, so older plans keep
+	// their bytes.
+	RetireDetachedDescendants bool `json:"retireDetachedDescendants,omitempty"`
 }
 type Input struct {
 	Target                  string            `json:"target"`
