@@ -213,7 +213,9 @@ func testCALV0027_ReleaseWrongActor(t *testing.T) {
 
 // observePublishedStage reconstructs the plan descriptor from the writer's actual
 // artifacts and leaves it beside its completed head, as a final-cleanup interruption.
-func observePublishedStage(t *testing.T, repo *intent.Repository, operation, kind string, run func()) {
+// Every other operation relabels the same actual artifacts and must refuse without
+// writing; kindBound names those whose layout fits, so the receipt-kind binding refuses.
+func observePublishedStage(t *testing.T, repo *intent.Repository, operation, kind string, run func(), kindBound ...string) {
 	t.Helper()
 	beforeHead, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
 	if err != nil {
@@ -265,7 +267,38 @@ func observePublishedStage(t *testing.T, repo *intent.Repository, operation, kin
 	if storeDigest(t, repo) != before {
 		t.Fatal("completed observation wrote")
 	}
+	// V1-0466: every other stage class refuses the same actual artifacts, either
+	// at the closed layout or, where the layout fits, at the receipt-kind binding.
+	binding := map[string]bool{}
+	for _, op := range kindBound {
+		binding[op] = true
+	}
+	for _, op := range stageOperations {
+		if op == operation {
+			continue
+		}
+		d.Operation = op
+		raw, err := d.Encode()
+		if err == nil {
+			fixture.Write(t, filepath.Join(repo.StateDir, "staging", "active.json"), raw)
+			before := storeDigest(t, repo)
+			_, err = reader.Audit()
+			if storeDigest(t, repo) != before {
+				t.Fatalf("refused %s/%s observation wrote", op, kind)
+			}
+		}
+		if err == nil || binding[op] != strings.Contains(err.Error(), "completed operation or timestamp differs") {
+			t.Fatalf("cross-class %s/%s: %v", op, kind, err)
+		}
+	}
+	// The test operator removes its descriptor; observation has no cleanup authority.
+	if err := os.Remove(filepath.Join(repo.StateDir, "staging", "active.json")); err != nil {
+		t.Fatal(err)
+	}
 }
+
+// stageOperations is the closed stage-class set plus one unknown label.
+var stageOperations = []string{snapshot.StageInit, snapshot.StagePause, snapshot.StageUnpause, snapshot.StageKeepJournal, snapshot.StageAdoptFile, snapshot.StageMutate, snapshot.StageRelease, snapshot.StagePolicyUpdate, snapshot.StageImportApply, snapshot.StageAuthoritySwitch, snapshot.StageLease, snapshot.StageQualification, snapshot.StageEscalation, "UNKNOWN"}
 
 // CAL-V0-027: real writers, including gate/manifest and recorded refusal, bind completed stages.
 func TestCALV0027_ActualCompletedStages(t *testing.T) {
@@ -278,6 +311,41 @@ func testCALV0027_ActualCompletedStages(t *testing.T) {
 		observePublishedStage(t, repo, snapshot.StageMutate, "MUTATION", func() {
 			if r := mutate(t, repo, envelope("actual-create", mutation.OpCreate, "", "", createPayload("actual"))); r.Outcome.Outcome != mutation.OutcomeCompleted {
 				t.Fatal(r)
+			}
+		})
+	})
+	// V1-0466: ARCHIVE and RESTORE are MUTATE-class receipts from the same writer.
+	t.Run("ARCHIVE-RESTORE", func(t *testing.T) {
+		repo := nonFixture(t, "NATIVE")
+		id := mutate(t, repo, envelope("actual-create", mutation.OpCreate, "", "", createPayload("actual"))).Ticket
+		for _, step := range []struct{ request, operation, expected, kind string }{
+			{"actual-archive", mutation.OpArchive, "1", "ARCHIVE"},
+			{"actual-restore", mutation.OpRestore, "2", "RESTORE"},
+		} {
+			observePublishedStage(t, repo, snapshot.StageMutate, step.kind, func() {
+				if r := mutate(t, repo, envelope(step.request, step.operation, id, step.expected, obj("reason", str("actual")))); r.Outcome.Outcome != mutation.OutcomeCompleted {
+					t.Fatal(r)
+				}
+			}, snapshot.StageAdoptFile, snapshot.StageImportApply, snapshot.StageLease)
+		}
+	})
+	// V1-0466: release writes and settled release reconciliation are RELEASE-class receipts.
+	t.Run("RELEASE-RECONCILE", func(t *testing.T) {
+		repo := nonFixture(t, "NATIVE")
+		observePublishedStage(t, repo, snapshot.StageRelease, "RELEASE", func() {
+			applyRelease(t, repo, releaseRequest("create", release.OpCreate, "", "Original"))
+		})
+		path := filepath.Join(filepath.Join(repo.PrimaryWorktree, intent.Dir), "releases", "v1.json")
+		canonical, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		discarded := []byte("untrusted manual edit\n")
+		fixture.Write(t, path, discarded)
+		observePublishedStage(t, repo, snapshot.StageRelease, "RECONCILE", func() {
+			request := store.ReconcileRequest{RequestID: "keep", TargetID: "v1", Choice: transaction.KeepJournal, File: discarded, CanonicalSha256: wire.Sum(canonical)}
+			if r, err := store.Reconcile(context.Background(), repo, operator(), request, now(t)); err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+				t.Fatalf("reconcile: %+v %v", r, err)
 			}
 		})
 	})
@@ -309,6 +377,6 @@ func testCALV0027_ActualCompletedStages(t *testing.T) {
 		s.lease(t, "release", releaseOf(c), 1, nil)
 		observePublishedStage(t, s.repo, snapshot.StageLease, "TRANSITION", func() {
 			refusedWith(t, s.lease(t, "stale", renewOf(c), 2, nil), mutation.OutcomeRevisionConflict, wire.CodeFenced)
-		})
+		}, snapshot.StageUnpause, snapshot.StageImportApply)
 	})
 }

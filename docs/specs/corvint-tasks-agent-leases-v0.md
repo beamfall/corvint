@@ -593,7 +593,12 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   queue/head/base/request/receipt binding and malformed/fork refusals. Completed observations
   MUST use the closed receipt kinds emitted by each supported stage class, including recorded
   FENCED transitions with their original refusal outcome and codes; cross-class or unknown kinds
-  refuse. Import-mapped queues,
+  refuse. The closed map (V1-0466 amendment, proposed) is: `MUTATE` to `MUTATION`, `ARCHIVE` or
+  `RESTORE`; `LEASE` to `ADMIT`, `TRANSITION`, `GATE_RESULT` or `MANIFEST`, a recorded FENCED
+  refusal being a `TRANSITION` with outcome `REVISION_CONFLICT` and code `FENCED`, never a kind;
+  `ESCALATION` to `TRANSITION`; `RELEASE` to `RELEASE` or settled `RECONCILE`; `KEEP_JOURNAL` and
+  `ADOPT_FILE` to `RECONCILE`; and `INIT`, `PAUSE`, `UNPAUSE`, `POLICY_UPDATE`, `IMPORT_APPLY`,
+  `AUTHORITY_SWITCH` and `QUALIFICATION` to their own name. Import-mapped queues,
   fixture execution cutover and INIT with execution cutover remain refused. Observation MUST
   NOT remove stage bytes or authorize execution. The existing locked writer retry MUST recover
   orphan slots and redo a durable receipt exactly once; an unchanged request replays and a
@@ -5304,7 +5309,10 @@ assertions under both queue profiles, before/after-receipt fault injection, exac
 qualified post-cutover writes, and pending/active reconciliation refusal. Returned publication
 faults and reconstructed orphan slots prove the bounded retry path; arbitrary process-crash
 recovery is not claimed by this slice. Completed ordinary mutation and lease observations are
-proved against real published artifacts, including gate, manifest and FENCED refusal receipts.
+proved against real published artifacts, including gate, manifest and FENCED refusal receipts;
+the V1-0466 amendment adds actual `ARCHIVE`, `RESTORE`, `RELEASE` and settled release `RECONCILE`
+stages, and relabels each actual stage as every other class plus one unknown label, which must
+refuse without writing at the closed layout or, where the layout fits, at the receipt-kind binding.
 CAL-V0-027 rollback restores the three fixture-only admission boundaries; retain every existing receipt,
 release projection and evidence blob. Production migration and concurrent-agent rehearsal remain
 separate release obligations; this slice does not switch Beamfall or establish complete takeover.
