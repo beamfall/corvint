@@ -2855,6 +2855,7 @@ TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and ame
 TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
 TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
 TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

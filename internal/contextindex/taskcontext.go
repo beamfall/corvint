@@ -132,6 +132,13 @@ type taskContextCompiler struct {
 	// or out of the head. TCP-V0-061's share line compares the deferred
 	// documentation against the weakest of them the packet carries.
 	lexicalTail []string
+	// lexicalCode is the code hits that competed for the lexical fill's
+	// positions (neither documentation, record data nor held) and
+	// lexicalData the record-data hits the gate deferred past every code
+	// and deferred documentation hit (TCP-V0-063), in strength order, for
+	// the record-data line of the coverage statement.
+	lexicalCode []string
+	lexicalData []lexicalHit
 	// lexicalFill and lexicalShare are the positions the lexical fill could
 	// take and the documentation share of them, for TCP-V0-061's statement.
 	lexicalFill, lexicalShare int
@@ -214,6 +221,11 @@ const (
 	// reads as a documentation task, its strongest hits being prose. The
 	// quota is the pre-amendment two-row rule kept as the floor.
 	contextDocumentationQuota = 2
+	// contextRecordDataQuota is the record-data rows (TCP-V0-063) the lexical
+	// fill places in the merged order without their outscoring every other
+	// code hit; past it a record-data row follows every code row and every
+	// deferred documentation row.
+	contextRecordDataQuota = 2
 	// contextLexicalBase and contextLexicalCeiling bound the lexical score band
 	// (TCP-V0-060): the strongest hit of the walk scores the ceiling and every
 	// other hit its BM25 share of the band, so no lexical row reaches the 600
@@ -1180,8 +1192,12 @@ type lexicalHit struct {
 	score, rarestIDF      float64
 	rarest                string
 	documentation         bool
-	anchors               []anchorHit
-	role                  *roleHit
+	// data marks a record-data path (TCP-V0-063): structured records such as
+	// receipts, fixtures and manifests, which the fill gates like
+	// documentation rather than ranks as code.
+	data    bool
+	anchors []anchorHit
+	role    *roleHit
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1291,8 +1307,9 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			hits = append(hits, lexicalHit{
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
-				documentation: isDocumentationSuffix(table.Paths[source]), anchors: anchorHits[uint32(source)],
-				role: roles[uint32(source)],
+				documentation: isDocumentationSuffix(table.Paths[source]), data: isRecordDataSuffix(table.Paths[source]),
+				anchors: anchorHits[uint32(source)],
+				role:    roles[uint32(source)],
 			})
 		}
 	}
@@ -1320,14 +1337,19 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 // the earlier slots took and the reservations `reserve` prepends; a hit for
 // the subject or for a path those rows already hold keeps its strength
 // position but takes no head, share or fill position, because take drops it
-// as a duplicate and reserve promotes it in place.
+// as a duplicate and reserve promotes it in place. A record-data hit
+// (TCP-V0-063) takes no head position and joins the merged order only when it
+// outscores every other code hit or as one of contextRecordDataQuota; the rest
+// follow the deferred documentation.
 func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow {
 	hits := compiler.lexicalHits()
 	held := compiler.heldPaths()
 	code := 0
+	compiler.lexicalCode = compiler.lexicalCode[:0]
 	for _, item := range hits {
-		if !item.documentation && !held[item.path] {
+		if !item.documentation && !item.data && !held[item.path] {
 			code++
+			compiler.lexicalCode = append(compiler.lexicalCode, item.path)
 		}
 	}
 	fill := max(limit-taken-compiler.reservedPositions(), 0)
@@ -1337,9 +1359,10 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 	ordered := make([]lexicalHit, 0, len(hits))
 	deferred := make([]lexicalHit, 0)
 	compiler.lexicalDocumentation = compiler.lexicalDocumentation[:0]
+	compiler.lexicalData = compiler.lexicalData[:0]
 	headTaken, documentation := 0, 0
 	for _, item := range hits {
-		if !item.documentation && !held[item.path] && headTaken < head {
+		if !item.documentation && !item.data && !held[item.path] && headTaken < head {
 			ordered = append(ordered, item)
 			headTaken++
 		}
@@ -1349,6 +1372,7 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 	// position when it outscores every code hit competing for the fill (a
 	// held row takes no fill position and sets no lead), or as one of the
 	// quota of documentation hits that do not; the rest follow every code hit.
+	// A record-data hit counts as code for this lead.
 	lead, codeHit := 0.0, false
 	for _, item := range hits {
 		if !item.documentation && !held[item.path] {
@@ -1356,11 +1380,32 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 			break
 		}
 	}
+	// The record-data gate (TCP-V0-063): a record-data hit takes a merged
+	// position when it outscores every other code hit competing for the
+	// fill, or as one of the quota that do not; the rest follow every code
+	// hit and every deferred documentation hit. Record data takes no head
+	// position and no documentation share position.
+	dataLead := 0.0
+	for _, item := range hits {
+		if !item.documentation && !item.data && !held[item.path] {
+			dataLead = item.score
+			break
+		}
+	}
+	dataTrailing := 0
 	headTaken = 0
 	trailing := 0
 	for _, item := range hits {
 		switch {
 		case held[item.path]:
+		case item.data:
+			if item.score <= dataLead {
+				if dataTrailing == contextRecordDataQuota {
+					compiler.lexicalData = append(compiler.lexicalData, item)
+					continue
+				}
+				dataTrailing++
+			}
 		case !item.documentation && headTaken < head:
 			headTaken++
 			continue
@@ -1379,6 +1424,7 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 		ordered = append(ordered, item)
 	}
 	ordered = append(ordered, deferred...)
+	ordered = append(ordered, compiler.lexicalData...)
 	strongest := 0.0
 	if len(hits) > 0 {
 		strongest = hits[0].score
@@ -1553,9 +1599,48 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 		lines = append(lines, fmt.Sprintf("%d documentation rows that outscore a carried code row are omitted by the documentation share (%d of %d lexical positions); the strongest is `%s` (bm25 %.2f)",
 			stronger, compiler.lexicalShare, compiler.lexicalFill, strongest.path, strongest.score))
 	}
+	// TCP-V0-063: the record-data hits the gate deferred that the packet does
+	// not carry and that outscore the weakest code hit it carries, which the
+	// gate rather than their strength omitted.
+	weakestCarried, carriedCode := 0.0, false
+	for _, path := range compiler.lexicalCode {
+		if _, ok := carried[path]; !ok {
+			continue
+		}
+		if score := bm25[path]; !carriedCode || score < weakestCarried {
+			weakestCarried = score
+		}
+		carriedCode = true
+	}
+	gated, strongestData := 0, lexicalHit{}
+	for _, hit := range compiler.lexicalData {
+		if _, ok := carried[hit.path]; ok || withheld || !carriedCode || hit.score <= weakestCarried {
+			continue
+		}
+		if gated == 0 {
+			strongestData = hit
+		}
+		gated++
+	}
+	if gated > 0 {
+		lines = append(lines, fmt.Sprintf("%d record-data rows that outscore a carried code row are omitted by the record-data gate (%d admitted below the strongest code row); the strongest is `%s` (bm25 %.2f)",
+			gated, contextRecordDataQuota, strongestData.path, strongestData.score))
+	}
 	if len(lines) > before {
 		coverage["uncertainty"] = lines
 	}
+}
+
+// isRecordDataSuffix is TCP-V0-063's record-data class: line- or
+// document-structured records (JSON, JSON Lines, CSV, TSV), not
+// configuration. YAML, TOML and XML stay code because they commonly carry
+// build, CI and project configuration a change edits.
+func isRecordDataSuffix(candidate string) bool {
+	switch strings.ToLower(path.Ext(candidate)) {
+	case ".json", ".jsonl", ".ndjson", ".csv", ".tsv":
+		return true
+	}
+	return false
 }
 
 func isDocumentationSuffix(candidate string) bool {
