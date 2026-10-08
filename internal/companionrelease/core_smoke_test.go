@@ -56,6 +56,14 @@ func TestPUBV0024DocumentationCorpusSearchProfiles(t *testing.T) {
 			{"empty results", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[]}`, true},
 			{"malformed JSON", `{`, true},
 			{"trailing JSON", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]} {}`, true},
+			{"trailing whitespace", "{\"schema\":\"corvint-corpus-receipt/2\",\"operation\":\"search\",\"results\":[{}]}\n \t\r\n", false},
+			{"legacy trailing whitespace", "{\"schema\":\"corvint-corpus-receipt/1\",\"operation\":\"search\",\"results\":[{}]}\n", false},
+			{"trailing incomplete object", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]} {`, true},
+			{"legacy trailing incomplete object", `{"schema":"corvint-corpus-receipt/1","operation":"search","results":[{}]}{`, true},
+			{"trailing garbage", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]} x`, true},
+			{"trailing close brace", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]}}`, true},
+			{"trailing second value", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]}` + "\n" + `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]}`, true},
+			{"trailing scalar", `{"schema":"corvint-corpus-receipt/2","operation":"search","results":[{}]} 1`, true},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
