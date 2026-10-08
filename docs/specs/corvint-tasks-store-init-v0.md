@@ -99,6 +99,11 @@ drains, the import-map writer, and writing or changing the foreign export.
   other probe failure stay immediate. The `taskman-command-result/0` envelope and the
   `outcomeFor` mapping (`NOT_RUN`) are unchanged; a test binary disables the budget so planted
   pending receipts are reported at once.
+- `CTS-V0-007`: (proposed (V1-0759)) A re-import that writes the next revision of an `IMPORT` record
+  MUST keep that record's `requiresPool` and `requiredRoles` byte-identical when present. These
+  acceptance-relevant keys are set by `REFINE` and are not export fields, so the next revision MUST
+  NOT drop them and MUST NOT bump `acceptanceRevision` on their account. A record without them
+  stays without them.
 
 ## Import export and batching
 
@@ -149,6 +154,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Import interrupted after some writes | Each written record is complete and journaled; rerunning the same export skips the unchanged items and finishes the rest (CTS-V0-003). |
 | Import batch refused after earlier batches committed (for example store capacity) | Earlier batches stay committed and the CLI reports the refused batch with a warning; a rerun of the same export skips the committed items (CTS-V0-003). |
 | Dependency or supersession target absent from both the export and the store, or a gate not declared by policy | Refused before the first write with `DEPENDENCY_MISSING` or `GATE_UNKNOWN`; nothing is written (CTS-V0-003). |
+| Re-import of an `IMPORT` record that a `REFINE` gave `requiresPool` or `requiredRoles` | Both keys are kept byte-identical; only the changed `source` bumps `acceptanceRevision` (CTS-V0-007). |
 
 ## Acceptance and rollback
 
@@ -194,6 +200,12 @@ to one budget, with the final `SNAPSHOT_MOVED` naming the wait and called retrya
 sets `DefaultPatience` to `NoPatience` in `internal/tasks/snapshot/probe.go`, which restores the
 immediate `REDO_PENDING` and the unpaused attempts; no state format or envelope changes.
 
+CTS-V0-007 (proposed, V1-0759) is evidenced by a store test that imports a record, sets
+`requiresPool` and `requiredRoles` on it with `REFINE`, re-imports a changed block, and checks both
+keys byte-identical, one `acceptanceRevision` bump for the changed `source`, and a clean receipt
+audit. Rollback removes the carry-over in `importer.record`; no store migration is needed, and a
+later re-import then drops the keys again.
+
 ## Traceability
 
 | Requirement | Implementation | Evidence |
@@ -204,3 +216,4 @@ immediate `REDO_PENDING` and the unpaused attempts; no state format or envelope 
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`), `internal/tasks/safeopen` | TestCTSV0004_InitThroughSymlinkedAncestor, TestCTSV0004_TraversalOnlyAncestors, TestTMV0001_AS10_DirectorySwapNoRedirectOrBlock |
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
+| CTS-V0-007 | `internal/tasks/importer/importer.go` (`record`) | TestCTSV0007_ReimportKeepsRefinedPoolAndRoles |
