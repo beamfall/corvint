@@ -26,7 +26,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:569-570@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:571-572@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([CEM in CI](CEM-CI.md#policy-and-failure-behavior)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -68,7 +68,7 @@ Scope: the table lists the steps that answer a question about one change against
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
 read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:295-296@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:1195-1207@133d4add`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:1199-1211@133d4add`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
@@ -84,7 +84,7 @@ Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:30`; exits `cmd/corvint/affected.go:312-335`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:940-945`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:569@f024c3ab`).
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:571@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:320-339` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/read.go:59-87`; refusals pass through the ledger recorder
