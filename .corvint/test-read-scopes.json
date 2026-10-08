@@ -281,6 +281,7 @@
     "internal/specindex": [
       "docs/specs/"
     ],
+    "internal/stepnegation": [],
     "internal/taskman": [
       "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json"
     ],

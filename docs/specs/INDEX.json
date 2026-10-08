@@ -1834,7 +1834,7 @@
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
     "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)",
-    "delivery": "not-started",
+    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
       "docs/specs/applied-intelligence-breakthroughs-v0.md",

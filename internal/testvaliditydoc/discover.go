@@ -122,7 +122,7 @@ func Discover(root string) (Document, error) {
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
 		discovery.Freshness = &binding
 		discovery.Abstention = runtimeAbstention(input)
-		return withDiscovery(applyFreshness(Project(input), binding), discovery), nil
+		return withDiscovery(JoinStepNegation(applyFreshness(Project(input), binding), input, root), discovery), nil
 	}
 	reason := AbstentionNoRetainedEvidence
 	if discovery.Skipped != 0 {

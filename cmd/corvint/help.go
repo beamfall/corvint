@@ -339,6 +339,9 @@ const testValidityHelp = `Project test-level results through the shared test-val
 
 Usage:
   corvint [--root PATH] test-validity [--receipt FILE | --discover]
+  corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
+      [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
+      [external-server provider options]
 
 FILE is one corvint-js-test-provider stdout document (at most 4 MiB). The command
 recomputes, from its receipt member alone, one corvint-test-validity/0 document:
@@ -359,6 +362,22 @@ compared with the worktree now: a mismatch makes freshness STALE, an identity
 that cannot be recomputed makes it UNKNOWN, and only fully matched digests are
 CURRENT. With no usable document every run axis stays UNSUPPORTED. The command
 runs no test and never writes. Experimental.
+
+negate is the only mode that runs tests or writes. It execs the named
+corvint-js-test-provider file (never a PATH lookup), which runs the one test
+unfaulted --baseline-repeat times (1 to 5, default 1) against an externally
+managed application on profile /0 or /1, then one derived network or DOM fault
+per step (--step) or one joint run (--all-steps), within --max-runs (baselines
+included; default 3 or 2). Retries are 0 and there is one worker. It prints one
+corvint-step-negation/0 document, a human summary on stderr (a step with no
+derivable fault reads "strength: UNPROVEN (manual control needed)"), and
+retains the merged document under .corvint/strength-evidence. It repeats the
+test's own side effects on the application and is not a sandbox. An
+unqualified runtime tuple, owned server, /2, /3, --keep-reporters, freshness or
+watch refuses before any run (exit 2, no stdout), as does a selection that
+matches no test or several. Incomplete cleanup or a retention failure exits 1
+after the document. Results are diagnostic: no strength axis joins them until
+the live matrix is qualified. Experimental.
 `
 
 const workHelp = `Validate a repository queue observation or compile a non-operative shadow wave.
