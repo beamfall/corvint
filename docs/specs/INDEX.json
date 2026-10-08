@@ -1829,7 +1829,7 @@
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
-    "intent": "accepted (decision 0047, 2026-09-04)",
+    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 proposed (V1-1024; GitHub #682)",
     "delivery": "not-started",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
