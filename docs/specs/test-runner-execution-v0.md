@@ -848,3 +848,58 @@ outside the root keeps its absolute filename as an identity and is incomplete.
 
 Rollback removes the additive `jasmine` profile, the embedded shim, `jasmine.go`, its tests and
 `testdata/jasmine`. No shared executor, other profile, queue, store or frozen wire changes.
+
+## Killed-run receipts (experimental)
+
+A runner-killed phase has no native exit status. The executor already records
+`exitCode` `-1` for it, but the strict wire parser behind `DecodeDocument`
+refused every negative number, so a timed-out run's receipt could not be read
+back (V1-1025). This slice states the exit-code domain and makes the producer
+and both receipt decoders agree.
+
+- `TRE-V0-040`: A receipt phase MUST record `exitCode` as the native exit
+  status 0..255 when its process exited normally, and exactly `-1` when it
+  reported no exit status: it was signal-terminated by the runner's timeout,
+  interruption or output-overflow kill or by an external signal, or it never
+  started. `-1` is outside every admitted exit profile, so shared `Normalize`
+  reports `runner-exit` (with `timeout`, `interrupted` or `output-overflow` when
+  that phase flag is set), the observation is incomplete and resolved states
+  become `UNKNOWN`. A killed run is never reported complete. No signal number is
+  recorded; the phase flags carry the termination classification. Status:
+  proposed (V1-1025).
+- `TRE-V0-041`: Runner plan and receipt decoders (`DecodeDocument` and the CEM
+  candidate runner binding) MUST admit a negative number only as an `exitCode`
+  object member equal to `-1`, and refuse any other negative number with
+  `negative-document-integer`. They MUST refuse with `killed-run-complete` a
+  receipt whose observation is complete while a phase has exit code `-1` or a
+  set `timedOut`, `interrupted` or `overflow` flag. Duplicate, unknown and
+  trailing fields still refuse, and an admitted receipt re-encodes
+  byte-identically. Status: proposed (V1-1025).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-040 | `execute_unix.go`, `Normalize`; `TestKilledRunReceiptRoundTrip` | An actual executor run killed at its one-second timeout records phase exit `-1` with `timedOut`, and normalizes incomplete |
+| TRE-V0-041 | `document.go` `StructuralBytes`, `CheckReceipt`; `cemcandidate` `runnerBinding`; `TestKilledRunReceiptRoundTrip`, `TestRunnerBindingAdmitsKilledRunReceipt` | Before the change the same receipt failed with `invalid-json: negative numbers are outside the wire integer range`; after it decodes and re-encodes byte-identically, and the named refusals hold |
+
+| Code | Implemented check | Emitters |
+| --- | --- | --- |
+| `negative-document-integer` | A plan or receipt document carries a negative number other than an `exitCode` member equal to `-1`. | `internal/testrunner/document.go` `StructuralBytes` |
+| `killed-run-complete` | A receipt claims a complete observation alongside a killed, timed-out, interrupted or overflowed phase. | `internal/testrunner/document.go` `CheckReceipt` |
+
+A live Swift 6.4 swift-xctest run of a hanging XCTest, killed at a 20-second
+timeout, produced a receipt with TEST exit `-1` and `timedOut`. It was
+incomplete (`runner-exit`, `timeout`), and the base decoder refused it as
+`invalid-json`; the changed decoder reads it back byte-identically.
+
+Failure modes. A receipt
+whose producer omitted the termination flags on a `-1` phase still decodes, and
+still cannot be complete. Masking blanks only the sign byte of a tokenized
+number, so string contents that spell `-1` are data.
+
+Non-goals. No signal-number or termination-cause field is added; that would
+change every receipt's bytes. Exit-profile lists keep their 0..255 domain. The
+CEM wire parser is unchanged.
+
+Rollback removes `StructuralBytes`, `CheckReceipt` and the two call sites.
+Killed-run receipts then refuse again as `invalid-json`; no other receipt or
+plan byte, digest or decode result changes.

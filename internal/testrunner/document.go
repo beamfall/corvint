@@ -3,7 +3,9 @@ package testrunner
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
@@ -25,13 +27,33 @@ type ReceiptDocument struct {
 	Error       string      `json:"error"`
 }
 
+// KilledExitCode is the phase exit code of a process that reported no normal
+// exit status: it was signal-terminated (runner timeout, interruption, output
+// overflow or an external signal) or never started. It is the only negative
+// integer a plan or receipt document carries, and only as an `exitCode` member.
+const KilledExitCode = -1
+
+var (
+	// ErrNegativeInteger names a document negative integer other than an
+	// `exitCode` member equal to KilledExitCode.
+	ErrNegativeInteger = errors.New("negative-document-integer")
+	// ErrKilledRunComplete names a receipt that claims a complete observation
+	// although a phase was killed, timed out, interrupted or overflowed.
+	ErrKilledRunComplete = errors.New("killed-run-complete")
+)
+
 // DecodeDocument rejects duplicate, trailing and unknown fields, including in
 // nested tool declarations. Documents remain operator declarations, not proof.
+// A receipt additionally passes CheckReceipt.
 func DecodeDocument(b []byte, out any) error {
 	if len(b) > MaxReportBytes {
 		return fmt.Errorf("document bound")
 	}
-	v, e := cw.Parse(b)
+	structural, e := StructuralBytes(b)
+	if e != nil {
+		return e
+	}
+	v, e := cw.Parse(structural)
 	if e != nil {
 		return e
 	}
@@ -44,7 +66,84 @@ func DecodeDocument(b []byte, out any) error {
 	}
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
-	return d.Decode(out)
+	if e = d.Decode(out); e != nil {
+		return e
+	}
+	if r, ok := out.(*ReceiptDocument); ok {
+		return CheckReceipt(*r)
+	}
+	return nil
+}
+
+// StructuralBytes returns b with the sign of each `"exitCode": -1` object
+// member blanked, so the strict non-negative wire parser can check duplicate
+// keys, closed fields and encoding while the typed decode keeps the original
+// bytes. Any other negative number is refused with ErrNegativeInteger.
+func StructuralBytes(b []byte) ([]byte, error) {
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.UseNumber()
+	type frame struct{ object, key bool }
+	var stack []frame
+	key, out, cloned := "", b, false
+	for {
+		tok, e := d.Token()
+		if e == io.EOF {
+			return out, nil
+		}
+		if e != nil {
+			return nil, e
+		}
+		if len(stack) == 0 && tok != json.Delim('{') && tok != json.Delim('[') {
+			// A scalar document is refused by the typed decoders, not here.
+			continue
+		}
+		if delim, ok := tok.(json.Delim); ok {
+			switch delim {
+			case '{':
+				stack = append(stack, frame{object: true, key: true})
+			case '[':
+				stack = append(stack, frame{})
+			default:
+				stack = stack[:len(stack)-1]
+				if len(stack) > 0 && stack[len(stack)-1].object {
+					stack[len(stack)-1].key = true
+				}
+			}
+			continue
+		}
+		top := &stack[len(stack)-1]
+		if top.object && top.key {
+			key, top.key = tok.(string), false
+			continue
+		}
+		if n, ok := tok.(json.Number); ok && strings.HasPrefix(string(n), "-") {
+			if !top.object || key != "exitCode" || n != "-1" {
+				return nil, fmt.Errorf("%w: %s", ErrNegativeInteger, n)
+			}
+			end := int(d.InputOffset())
+			if out[end-2] != '-' {
+				return nil, fmt.Errorf("%w: offset", ErrNegativeInteger)
+			}
+			if !cloned {
+				out, cloned = bytes.Clone(b), true
+			}
+			out[end-2] = ' '
+		}
+		if top.object {
+			top.key = true
+		}
+	}
+}
+
+// CheckReceipt refuses a receipt whose observation is complete although a
+// phase did not exit normally within its bounds.
+func CheckReceipt(r ReceiptDocument) error {
+	for _, p := range r.Execution.Phases {
+		if (p.ExitCode == KilledExitCode || p.TimedOut || p.Interrupted || p.Overflow) && r.Observation.Complete {
+			return fmt.Errorf("%w: %s phase", ErrKilledRunComplete, p.Kind)
+		}
+	}
+	return nil
 }
 func closedFields(v cw.Value, t reflect.Type) error {
 	switch t.Kind() {
