@@ -121,7 +121,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	lifecycle := &ExternalLifecycle{ReadyURL: cfg.ServerReadyURL, DeclaredAppIdentity: cfg.AppIdentity, Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ConfigOverride: config}
 	if cfg.KeepReporters {
 		// Entries stay unobserved (nil) until the reporter's closed list binds.
-		lifecycle.ProjectReporters = &ProjectReporters{Effects: "unknown"}
+		lifecycle.ProjectReporters = &ProjectReporters{Effects: "unknown", Qualification: cfg.KeepReportersQualification}
 	}
 	r := Receipt{Profile: profile, Kind: "e2e", Identity: identity, External: lifecycle, SensitiveInputPolicy: cfg.SensitiveInputPolicy, Tests: []TestOutcome{}}
 	var provider *preparedApplicationAttestationProvider
@@ -412,11 +412,11 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	if c.Freshness != nil {
 		attemptOption = ", freshnessProfile:true"
 	}
-	prelude, reporters := "", "["
+	prelude, kept := "", ""
 	if c.KeepReporters {
-		prelude, reporters, attemptOption = keptReportersConfig(), "[...keptReporters(original.reporter), ", attemptOption+keepReportersOption
+		prelude, kept, attemptOption = keptReportersConfig(), keptReportersAfterProvider, attemptOption+keepReportersOption
 	}
-	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" + prelude + "module.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: " + reporters + "[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]]};\n"
+	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" + prelude + "module.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]" + kept + "]};\n"
 	if err := os.WriteFile(reporterPath, qualifiedReporter, 0600); err != nil {
 		return "", nil, "", err
 	}
@@ -555,7 +555,20 @@ func qualifiedTestID(identity Identity, t TestOutcome) string {
 
 // QualifiedTestProjection checks receipt-wide prerequisites before projecting a
 // passed test. Consumers must not trust a carried projection or an isolated row.
+// Keep-reporters mode runs project reporters beside the provider reporter and
+// projects passing execution only with a matching retained qualification
+// (PWP-V0-012, PWP-V0-016). The retained receipt stays readable either way.
 func qualifiedUnknown(r Receipt, t TestOutcome) bool {
+	if qualifiedPrerequisitesUnknown(r, t) {
+		return true
+	}
+	return r.External != nil && r.External.ProjectReporters != nil && !keepReportersQualified(r)
+}
+
+// qualifiedPrerequisitesUnknown is every passing prerequisite other than the
+// keep-reporters qualification; the qualification command applies it to both
+// of its runs (PWP-V0-015).
+func qualifiedPrerequisitesUnknown(r Receipt, t TestOutcome) bool {
 	x := r.External
 	if !isExternalProfile(r.Profile) {
 		return false
@@ -572,12 +585,6 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	// /2 changes the reporter and must complete its own live matrix before it
 	// can project passing execution. Its redacted trace remains readable.
 	if r.Profile == SensitiveExternalProfile {
-		return true
-	}
-	// Keep-reporters mode runs project reporters before the provider reporter
-	// and must complete its own live qualification before it can project
-	// passing execution (PWP-V0-012). The retained receipt stays readable.
-	if r.External.ProjectReporters != nil {
 		return true
 	}
 	if (r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation == nil)) && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
