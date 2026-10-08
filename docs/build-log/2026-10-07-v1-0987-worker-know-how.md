@@ -4,7 +4,7 @@
 
 GitHub issue beamfall/corvint#671 (ticket V1-0987) asks that the agent holding a claim be able to
 record know-how on the ticket it is working, without an owner relaying it. The amendment is
-specified in `docs/specs/corvint-tasks-know-how-notes-v0.md` as KHN-V0-008..010, which are proposed
+specified in `docs/specs/corvint-tasks-know-how-notes-v0.md` as KHN-V0-016..018, which are proposed
 and await owner acceptance. Delivery stays experimental.
 
 ## Decisions
@@ -26,13 +26,16 @@ and await owner acceptance. Delivery stays experimental.
   already bound the claimed work; they remain a possible extension.
 - **Record.** The entry records role WORKER plus the verified attempt and generation. The codec and
   the Core reader admit WORKER only on such a non-superseding ADD.
-- **Admission order.** WORKER `KNOWHOW_ADD` is now admitted into the transaction model, and the
-  policy check runs there. The refusal is identical, but it is now reached after the store lock and
-  state read, so an uninitialized store reports UNINITIALIZED first.
+- **Admission order.** WORKER `KNOWHOW_ADD` is now admitted into the transaction model, which
+  checks the canonical policy under the lock. The store first screens it before the lock against
+  the committed intent tree's policy, so a disabled grant is refused before the store checks and
+  §5.2 recovery, as before (the independent review found that the first version ran recovery
+  first). The writer-checkpoint route declines the request because it models without attempts.
+  Trade-off: once the key is removed, a retry of a committed WORKER add is refused, not replayed.
 
 ## Decisions that need amending
 
-- Decision 0443 answered owner question 4 with "no WORKER grant". Accepting KHN-V0-008..010 needs
+- Decision 0443 answered owner question 4 with "no WORKER grant". Accepting KHN-V0-016..018 needs
   an amendment recording that WORKER may hold a scoped, policy-opt-in ADD and still never
   supersedes or retracts.
 - Decision 0444 assigns attempt/generation verification for every know-how writer to V1-0964.

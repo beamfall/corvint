@@ -66,7 +66,7 @@ func knowHow(v wire.Value, _, _ uint64) error {
 			return e
 		}
 		if value(value(x, "actor"), "role").Str == "WORKER" && (op.Str != "ADD" || target != nil || value(x, "attempt").Kind == wire.KindNull || value(x, "generation").Kind == wire.KindNull) {
-			// KHN-V0-010: a WORKER entry is a non-superseding ADD that records
+			// KHN-V0-018: a WORKER entry is a non-superseding ADD that records
 			// its attempt and generation.
 			return errors.New("know-how WORKER entry")
 		}

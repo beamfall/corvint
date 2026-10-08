@@ -89,7 +89,7 @@ type Context struct {
 	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
 	ExternalReview *ExternalReviewPost
 	// WorkerAttempt is the transaction layer's observation of the attempt a
-	// WORKER KNOWHOW_ADD names (KHN-V0-009); nil refuses that write.
+	// WORKER KNOWHOW_ADD names (KHN-V0-017); nil refuses that write.
 	WorkerAttempt *WorkerAttemptObservation
 }
 

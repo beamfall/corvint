@@ -13,12 +13,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestKHNV0009_WorkerKnowHowThroughTheCLI: with policy knowHow.workerAdd the
+// TestKHNV0017_WorkerKnowHowThroughTheCLI: with policy knowHow.workerAdd the
 // claim holder, acting as WORKER, adds a note on its claimed ticket naming the
 // attempt and generation the claim returned, and the audited attempt record
 // refuses a stale generation, an anchor outside touchPaths, another ticket and
 // another actor, each with its stable detail prefix.
-func TestKHNV0009_WorkerKnowHowThroughTheCLI(t *testing.T) {
+func TestKHNV0017_WorkerKnowHowThroughTheCLI(t *testing.T) {
 	r := exclusionCLIRepo(t)
 	policyPath := filepath.Join(r.IntentDir, "policy.json")
 	raw, err := os.ReadFile(policyPath)
@@ -81,12 +81,25 @@ func TestKHNV0009_WorkerKnowHowThroughTheCLI(t *testing.T) {
 		"--note", "1", "--reason", "wrong", "--role", "WORKER"); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("WORKER retract accepted: %s", x.stdout)
 	}
+	// Once the attempt ends, a new WORKER add is fenced, while an identical
+	// retry of the committed one still replays.
+	if x := atm(t, r.Root, nil, "release", "--attempt", attempt, "--generation", gen, "--request-id", "release-home"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("release: %s", x.stdout)
+	}
+	late := add("w-late", home, gen, "src/a.go")
+	late[7] = "2"
+	if x := atm(t, r.Root, nil, late...); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), mutation.KnowHowWorkerAttemptStale) {
+		t.Fatalf("add after release: %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, add("w-ok", home, gen, "src/a.go")...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("replay after release: %s", x.stdout)
+	}
 }
 
-// TestKHNV0008_WorkerKnowHowRefusedWithoutPolicy: without knowHow.workerAdd
+// TestKHNV0016_WorkerKnowHowRefusedWithoutPolicy: without knowHow.workerAdd
 // the claim holder's WORKER add is refused UNAUTHORIZED with the same detail
 // an unadmitted role always received, and nothing is written.
-func TestKHNV0008_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
+func TestKHNV0016_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
 	r := knowHowCLIRepo(t)
 	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
 	home := planTicket(t, r.Root, "home", "P1", `["src/"]`)
@@ -103,5 +116,19 @@ func TestKHNV0008_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
 	}
 	if after := fixture.TreeSnapshot(t, r.StateDir); !reflect.DeepEqual(after, state) {
 		t.Fatal("a refused WORKER add changed the state directory")
+	}
+	// The refusal precedes the store checks and recovery, as ActorAdmitted's
+	// did: a repository with no store is refused the same way.
+	bare := knowHowCLIRepo(t)
+	if err := os.RemoveAll(bare.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	x = atm(t, bare.Root, nil, "ticket", "know-how", "add", home, "--request-id", "w-2", "--expected-revision", "1",
+		"--issued-at", "2026-10-07T12:00:00Z", "--text", "t", "--anchor", "src/a.go", "--attempt", "a", "--generation", "1", "--role", "WORKER")
+	if len(x.res.Items) == 0 || field(x.res.Items[0], "outcome").Str != mutation.OutcomeUnauthorized || !strings.Contains(string(x.stdout), "outside hypothetical role subset") {
+		t.Fatalf("WORKER add without a store: %s", x.stdout)
+	}
+	if _, err := os.Stat(bare.StateDir); !os.IsNotExist(err) {
+		t.Fatalf("a refused WORKER add created the store: %v", err)
 	}
 }

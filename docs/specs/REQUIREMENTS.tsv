@@ -1701,9 +1701,9 @@ KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	89	Before an entry is a
 KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	93	Freshness MUST be computed at read time against the reader's committed `HEAD`,
 KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	102	`claim` and `claim --next` MUST add a `knowHow` member to their result.
 KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	119	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
-KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	125	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
-KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	135	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-008 MUST be checked, after request
-KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	155	An entry written under KHN-V0-009 MUST record actor role WORKER together with th
+KHN-V0-016	docs/specs/corvint-tasks-know-how-notes-v0.md	125	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
+KHN-V0-017	docs/specs/corvint-tasks-know-how-notes-v0.md	139	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-016 MUST be checked, after request
+KHN-V0-018	docs/specs/corvint-tasks-know-how-notes-v0.md	161	An entry written under KHN-V0-017 MUST record actor role WORKER together with th
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation

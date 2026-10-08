@@ -259,7 +259,7 @@ func ActiveKnowHow(entries []KnowHowEntry) []KnowHowEntry {
 // validateKnowHow enforces the KHN-V0-002 relationships a closed type check
 // cannot: seq is the 1-based position, a superseding ADD and a RETRACT name
 // an earlier ADD that is still active, and an ADD carries a reason exactly
-// when it supersedes. A WORKER entry (KHN-V0-010) is only a non-superseding
+// when it supersedes. A WORKER entry (KHN-V0-018) is only a non-superseding
 // ADD that records its attempt and generation.
 func (rec *Record) validateKnowHow() error {
 	active := map[wire.Count]bool{}

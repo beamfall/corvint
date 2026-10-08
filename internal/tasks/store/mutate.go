@@ -40,6 +40,11 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		return report, nil
 	}
+	if workerAttemptUnadmitted(repo, request) {
+		result := transaction.WorkerAttemptRefusal(request)
+		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
+		return report, nil
+	}
 	if _, err = os.Stat(repo.StateDir); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return report, wire.Errorf(wire.CodeUninitialized, repo.StateDir, "no store: run `corvint-tasks init` first")

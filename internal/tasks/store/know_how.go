@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -17,9 +18,28 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// workerAttemptUnadmitted reports a WORKER KNOWHOW_ADD that the committed
+// intent tree's policy does not opt in to (KHN-V0-016). It runs before the
+// lock, the store checks and §5.2 recovery, so a disabled grant is refused
+// exactly where ActorAdmitted refused it before the key existed, with nothing
+// read from the journal or written. An unreadable policy counts as disabled.
+// An opted-in tree is checked again under the lock against the canonical
+// policy record.
+func workerAttemptUnadmitted(repo *intent.Repository, r transaction.Request) bool {
+	if !transaction.WorkerAttemptMutation(r) {
+		return false
+	}
+	raw, err := os.ReadFile(filepath.Join(repo.IntentRoot(), intent.Dir, intent.PolicyFile))
+	if err != nil {
+		return true
+	}
+	p, err := intent.DecodePolicy(raw)
+	return err != nil || !p.WorkerKnowHowAdd()
+}
+
 // workerAttemptAudit re-audits a WORKER KNOWHOW_ADD with every attempt
 // record, so the model checks the named attempt, its holder and generation
-// from journal-authoritative bytes (KHN-V0-009). Other requests keep their
+// from journal-authoritative bytes (KHN-V0-017). Other requests keep their
 // read boundary unchanged.
 func workerAttemptAudit(reader journal.Reader, inv *transaction.Inventory, actor mutation.Binding, env *mutation.Envelope, paths []string, canonical *journal.Result) ([]string, *journal.Result, error) {
 	if actor.Role != "WORKER" || env.Operation != mutation.OpKnowHowAdd {

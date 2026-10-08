@@ -239,7 +239,7 @@ func canonical(raw []byte) error {
 // review reducer's recorder roles and live leases, never the role matrix
 // (ERG-V0-001). WORKER may also enter for KNOWHOW_ADD, which Model refuses
 // exactly as an unadmitted actor unless policy knowHow.workerAdd is true
-// (KHN-V0-008).
+// (KHN-V0-016).
 func ActorAdmitted(r Request) bool {
 	switch r.Actor.Role {
 	case "OWNER", "OPERATOR":
@@ -531,9 +531,9 @@ func Model(r Request, in Input) Result {
 		return failed(r.RequestID, e)
 	}
 	if workerKnowHowMutation(r) && !state.policy.WorkerKnowHowAdd() {
-		// KHN-V0-008: without the policy opt-in the WORKER write is refused
+		// KHN-V0-016: without the policy opt-in the WORKER write is refused
 		// as it was before the key existed.
-		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
+		return WorkerAttemptRefusal(r)
 	}
 	if r.Operation == Init && state.head != nil {
 		return refused(r.RequestID, mutation.OutcomeBlocked, "", "already initialized")
@@ -979,8 +979,21 @@ func validateInput(r Request, in Input) (inputState, error) {
 	return st, e
 }
 
+// WorkerAttemptMutation reports a WORKER KNOWHOW_ADD (KHN-V0-016): the one
+// WORKER write outside review that reads attempt history. The store screens
+// it against policy before the lock and keeps it off the writer-checkpoint
+// route, which models without attempts.
+func WorkerAttemptMutation(r Request) bool { return workerKnowHowMutation(r) }
+
+// WorkerAttemptRefusal is the refusal a WORKER KNOWHOW_ADD meets when policy
+// does not opt in (KHN-V0-016): the outcome and detail an unadmitted actor
+// received before the key existed.
+func WorkerAttemptRefusal(r Request) Result {
+	return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
+}
+
 // workerKnowHowMutation reports a WORKER KNOWHOW_ADD, whose scope check
-// (KHN-V0-009) needs the audited attempt records.
+// (KHN-V0-017) needs the audited attempt records.
 func workerKnowHowMutation(r Request) bool {
 	if r.Operation != Mutate || r.Actor.Role != "WORKER" {
 		return false
@@ -990,8 +1003,9 @@ func workerKnowHowMutation(r Request) bool {
 }
 
 // workerKnowHowAttempt observes, from the audited attempt records, the
-// attempt a WORKER KNOWHOW_ADD names (KHN-V0-009). Any other request gets
-// nil. An absent, ended, unleased or expired attempt is not live.
+// attempt a WORKER KNOWHOW_ADD names (KHN-V0-017). Any other request gets
+// nil. An absent, ended, unleased or expired attempt is not live; as for every
+// lease command, a supervised attempt's lease does not expire by time.
 func workerKnowHowAttempt(r Request, st inputState, env *mutation.Envelope, now wire.Timestamp) *mutation.WorkerAttemptObservation {
 	p, ok := env.Payload.(*mutation.KnowHowAddPayload)
 	if !ok || r.Actor.Role != "WORKER" {
