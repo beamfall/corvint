@@ -117,7 +117,7 @@ above stands with that substitution.
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:399-408@3ebad936`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path instead uses its separate
-  `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:318-325@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
+  `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:319-326@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot`, `LoadSnapshotDeferred` or `LoadSnapshotObserved` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
   (`cmd/corvint/prove_checkpoint_test.go:739-806@c3f154c6`); the counting test wraps all three dynamic seams (`loadSnapshot`, `loadSnapshotDeferred`,
@@ -835,7 +835,7 @@ above stands with that substitution.
   (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path does not use
   that seam: it supplies `loadContextSnapshot` to `compileTaskContext`
   (`cmd/corvint/taskcontext.go:216-218@ccb78c62`), with that variable bound to
-  `contextindex.LoadContextSnapshotDeferred` (`cmd/corvint/taskcontext.go:318-325@73708428`), which
+  `contextindex.LoadContextSnapshotDeferred` (`cmd/corvint/taskcontext.go:319-326@73708428`), which
   reaches the private `internal/contextindex.loadSnapshot`
   (`internal/contextindex/observed_build.go:42-49@d916a414`).
   `LoadSnapshot` is not the tree's only exported snapshot reader. The harness calls

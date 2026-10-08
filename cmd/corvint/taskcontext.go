@@ -250,6 +250,7 @@ Usage:
   corvint [--root PATH] context --task TEXT --subject PATH
     --instruction-host HOST --instruction-host-version VERSION
     --instruction-cwd DIR --instruction-profile default
+  corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
