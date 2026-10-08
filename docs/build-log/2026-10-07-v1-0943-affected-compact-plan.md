@@ -16,7 +16,7 @@ must keep them through an explicit option. The change adds proposed AFP-V0-035 t
   CCF-V1-005 freezes that member. Under CCF-V1-006 this is a breaking change, so the default is
   now `affected-plan/1`. `--full` writes the `affected-plan/0` document, byte-identical to the
   previous default; the renamed core-freeze goldens (`affected-full-*.json`) prove this. The
-  CCF-V1-006 decision record is still owed. This lane does not number decisions.
+  CCF-V1-006 record is decision 0449.
 - **Projection after compilation.** `compactAffectedReceipt` projects the finished `/0` receipt,
   so the selector, the advice, the provider and the snapshot form are unchanged. The digest is
   the SHA-256 of the exact `plan.excluded` bytes that `--full` writes, so a reader can check a
