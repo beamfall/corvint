@@ -9,8 +9,8 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
-// Synthetic golf-e2e shape: this is not an observation of the consumer checkout.
-func golfPlaywrightFixture(t *testing.T) string {
+// Synthetic example-app-e2e shape: this is not an observation of the consumer checkout.
+func exampleAppPlaywrightFixture(t *testing.T) string {
 	t.Helper()
 	root := qualificationCorpus(t)
 	write(t, root, "playwright.config.ts", strings.Replace(qualificationConfig, "defineConfig({ projects:", `defineConfig({ use: { browserName: "chromium", baseURL: "http://localhost:4200", trace: "retain-on-failure" }, globalSetup: "./support/global-setup.ts", projects:`, 1))
@@ -20,13 +20,13 @@ func golfPlaywrightFixture(t *testing.T) string {
 	write(t, root, "support/workflow0.ts", `export { value } from "@pages/0"`)
 	write(t, root, "support/scenario0.ts", `export { value } from "@workflows/0"`)
 	write(t, root, "support/page0.ts", `export { value } from "support/helper0"`)
-	write(t, root, "tests/case000.spec.ts", `import { test } from "@fixtures"; import { value } from "@scenarios/0"; test("golf", () => value)`)
+	write(t, root, "tests/case000.spec.ts", `import { test } from "@fixtures"; import { value } from "@scenarios/0"; test("example-app", () => value)`)
 	return root
 }
 
-func TestPlaywrightGolfQualification(t *testing.T) {
+func TestPlaywrightExampleAppQualification(t *testing.T) {
 	t.Run("TJAA-V0-017 global use aliases and narrow closure", func(t *testing.T) {
-		root := golfPlaywrightFixture(t)
+		root := exampleAppPlaywrightFixture(t)
 		for _, dirty := range []string{"support/helper0.ts", "support/page0.ts", "support/workflow0.ts", "support/scenario0.ts"} {
 			plan := qualifySelection(t, root, dirty)
 			if plan.Scope != affected.ScopeBounded || plan.Fallback != PlaywrightFallbackNone || !slices.Equal(playwrightSelectionIDs(plan), qualificationOracle(0, 13)) {
@@ -48,7 +48,7 @@ func TestPlaywrightGolfQualification(t *testing.T) {
 		}
 	})
 	t.Run("TJAA-V0-013 setup helper and config closure", func(t *testing.T) {
-		root := golfPlaywrightFixture(t)
+		root := exampleAppPlaywrightFixture(t)
 		for _, dirty := range []string{"support/setup-helper.ts", "setup/global.setup.ts", "playwright.config.ts"} {
 			plan := qualifySelection(t, root, dirty)
 			if plan.Scope != affected.ScopeBounded || !slices.Equal(playwrightSelectionIDs(plan), qualificationOracle(0, 117)) {
@@ -71,7 +71,7 @@ func TestPlaywrightGolfQualification(t *testing.T) {
 			{"dynamic setup", "playwright.config.ts", `export default { globalSetup: setupPath, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownConfigSyntax},
 		} {
 			t.Run(row.name, func(t *testing.T) {
-				root := golfPlaywrightFixture(t)
+				root := exampleAppPlaywrightFixture(t)
 				write(t, root, row.file, row.body)
 				plan := qualifySelection(t, root, "support/helper0.ts")
 				if plan.Scope != affected.ScopeUnknown || plan.Fallback != PlaywrightFallbackFullSuite || len(plan.Excluded) != 0 || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, row.reason) {
