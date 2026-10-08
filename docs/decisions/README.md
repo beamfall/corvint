@@ -1,5 +1,8 @@
 # Decision records index
 
+| [`0465-v1-1012-local-completion-ok-mirrors-exit-accepted-2026-10-08.md`](0465-v1-1012-local-completion-ok-mirrors-exit-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts LCP-V0-017 local-completion ok mirroring; intent only, delivery stays experimental. |
+| [`0464-v1-0967-web-dot-specifier-alias-accepted-2026-10-08.md`](0464-v1-0967-web-dot-specifier-alias-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts GPK-V0-082 dot-specifier web imports; intent only, delivery stays experimental. |
+| [`0463-v1-0651-sandbox-launcher-refusal-accepted-2026-10-08.md`](0463-v1-0651-sandbox-launcher-refusal-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCQ-V0-059 sandbox launcher refusal; intent only, delivery stays experimental. |
 | [`0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md`](0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts KHN-V0-024..027 repository-qualified know-how notes; intent only, delivery stays experimental. |
 | [`0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md`](0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts AMAP-V0-021..023 AngularJS injected state-name constants; intent only, delivery stays experimental. |
 | [`0459-v1-1026-ticket-milestone-policy-accepted-2026-10-08.md`](0459-v1-1026-ticket-milestone-policy-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts CAL-V0-195..196 ticket milestones in queue policy; intent only, delivery stays experimental. |

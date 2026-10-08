@@ -1579,6 +1579,7 @@ GPK-V0-078	docs/specs/go-production-kernel-migration-v0.md	1522	(accepted by dec
 GPK-V0-079	docs/specs/go-production-kernel-migration-v0.md	1542	(accepted by decision 0445; V1-0958) A web reverse-import row whose
 GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	1550	(accepted by decision 0445; V1-0958) A bare specifier that resolves to
 GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	1568	(accepted by decision 0445; V1-0958) The alias arm reads only the
+GPK-V0-082	docs/specs/go-production-kernel-migration-v0.md	1601	(accepted 2026-10-08, decision 0464; V1-0967) In `GPK-V0-077` and
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1806,6 +1807,7 @@ LCP-V0-013	docs/specs/local-completion-policy-v0.md	242	Prompt context MUST acce
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
+LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
@@ -2870,6 +2872,7 @@ TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and ame
 TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
 TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
 TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
@@ -2928,6 +2931,7 @@ TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	673	`corvint cem discrimina
 TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one optional hunk member `discriminates` admitted only on
 TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a
 TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a
+TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST

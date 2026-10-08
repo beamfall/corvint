@@ -247,6 +247,34 @@ func TestRunRefusesToJudgeARunWithoutAVerdict(t *testing.T) {
 	}
 }
 
+// TCQ-V0-059: a launcher that refuses to apply its profile before go test
+// starts, as sandbox-exec does inside an enclosing sandbox that forbids
+// nesting, is a distinct sandbox-unavailable error, never a kill. The fake
+// launcher prints sandbox-exec's own refusal line and exit status, so the test
+// does not depend on running inside a real outer sandbox.
+func TestRunReportsASandboxLauncherRefusalAsUnavailable(t *testing.T) {
+	git := gitExecutable(t)
+	shell, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skipf("no sh on PATH: %v", err)
+	}
+	root, revision := standardFixture(t, git, fixtureCalcTest)
+	previous := findSandbox
+	findSandbox = func() (sandbox, error) {
+		return sandbox{name: "refusing", confine: func([]string) ([]string, error) {
+			return []string{shell, "-c", "echo 'sandbox-exec: sandbox_apply: Operation not permitted' >&2; exit 71", "sandbox-exec"}, nil
+		}}, nil
+	}
+	t.Cleanup(func() { findSandbox = previous })
+	_, err = Run(context.Background(), baseRequest(root, git, revision))
+	if !errors.Is(err, ErrSandboxUnavailable) {
+		t.Fatalf("err = %v, want %v", err, ErrSandboxUnavailable)
+	}
+	if strings.Contains(err.Error(), "Operation not permitted") {
+		t.Fatalf("err %q echoes launcher output", err)
+	}
+}
+
 // TestRunRejectsARelativeCacheDir keeps the shared cache an absolute path.
 func TestRunRejectsARelativeCacheDir(t *testing.T) {
 	request := baseRequest("/repo", "git", "HEAD")

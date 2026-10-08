@@ -46,7 +46,7 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 			run("git", "config", "user.email", "corvint@example.test")
 			write("package main\n\nfunc main() {}\n")
 			run("git", "add", "main.go")
-			run("git", "commit", "-qm", "initial")
+			run("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", "initial")
 			if linked {
 				worktree := filepath.Join(t.TempDir(), "linked")
 				run("git", "worktree", "add", "-q", "-b", "linked", worktree)
@@ -67,7 +67,7 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 				t.Fatalf("init created private trace state: %v", err)
 			}
 			write("package main\n\nfunc main() { _ = 1 }\n")
-			run("git", "commit", "-qam", "change")
+			run("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qam", "change")
 			run(binary, "index", "--if-stale")
 			if status := run("git", "status", "--porcelain"); len(status) != 0 {
 				t.Fatalf("fresh repository is dirty: %s", status)

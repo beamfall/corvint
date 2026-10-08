@@ -76,7 +76,7 @@ func newRepository(t *testing.T, files map[string]string) string {
 	home := t.TempDir()
 	run := func(arguments ...string) {
 		t.Helper()
-		command := exec.Command("git", arguments...)
+		command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		command.Env = []string{
 			"PATH=" + os.Getenv("PATH"), "HOME=" + home, "LANG=C", "LC_ALL=C",
@@ -544,7 +544,7 @@ func TestLocalReplaceTargetNotADirectory(t *testing.T) {
 		if err := os.Symlink("real", filepath.Join(root, "linkdir")); err != nil {
 			t.Fatal(err)
 		}
-		command := exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "link")
+		command := exec.Command("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "link")
 		command.Dir = root
 		if err := exec.Command("git", "-C", root, "add", "linkdir").Run(); err != nil {
 			t.Fatal(err)

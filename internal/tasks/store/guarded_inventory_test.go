@@ -214,7 +214,7 @@ func inventoryClaimRepo(t *testing.T) (*intent.Repository, LeaseChoice) {
 	}
 	gitroot := fixture.TempDirOutside(t)
 	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base"}} {
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = gitroot
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {

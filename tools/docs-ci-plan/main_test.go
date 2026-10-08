@@ -20,7 +20,7 @@ const fixtureREADME = "# Corvint\n\nA context compiler.\n\n## Evidence\n\nStable
 
 func gitTest(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.invalid")
 	b, e := cmd.CombinedOutput()
 	if e != nil {

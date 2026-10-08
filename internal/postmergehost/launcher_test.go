@@ -234,11 +234,11 @@ func TestPairedAuthorSourceConformance(t *testing.T) {
 	copyTree(filepath.Join(fixture, "base"), product)
 	pass(product, "git", "init", "--quiet")
 	pass(product, "git", "add", ".")
-	pass(product, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "base")
+	pass(product, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "core.hooksPath=/dev/null", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "--quiet", "-m", "base")
 	base := pass(product, "git", "rev-parse", "HEAD")
 	copyTree(filepath.Join(fixture, "merged"), product)
 	pass(product, "git", "add", ".")
-	pass(product, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "add")
+	pass(product, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "core.hooksPath=/dev/null", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "--quiet", "-m", "add")
 	head := pass(product, "git", "rev-parse", "HEAD")
 	candidate := intake.Record{Profile: "corvint-intake/0", Base: base, Head: head, Intent: "FEATURE", Behaviours: []intake.Behaviour{{Kind: "ADD", Path: "calc.go"}}, Flags: []string{}, Tests: []string{}, Comparison: "ALIGNED", Concerns: []string{}, WorkItems: []intake.WorkItem{}}
 	raw, _ := json.Marshal(candidate)

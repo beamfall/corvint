@@ -17,7 +17,7 @@ func bindingGit(t *testing.T, dir string, args ...string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := gitrun.Run(context.Background(), gitrun.NewBudget(1, 5*time.Second), gitrun.Options{Binary: binary, Dir: dir, Env: []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.invalid"}, StdoutLimit: 4096}, args...)
+	output, err := gitrun.Run(context.Background(), gitrun.NewBudget(1, 5*time.Second), gitrun.Options{Binary: binary, Dir: dir, Env: []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.invalid"}, StdoutLimit: 4096}, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	if err != nil {
 		t.Fatal(err)
 	}
