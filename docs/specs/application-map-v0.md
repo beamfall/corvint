@@ -410,8 +410,8 @@ AMAP-V0-016 adds two optional screen members (`name_from`, `parent_from`) that l
 omit; rolling it back removes `internal/appmap/stateconst.go`, the `member` value kind in
 `internal/appmap/jslex.go` and the lookup argument of `parseRouter`, after which those names read
 `non-literal-name` again and a map that carries the members still decodes in a build with them.
-AMAP-V0-017..019 are
-additive: rolling them back removes the `repo`/`roots` members, `BuildRoots`, the two refusal codes
+The second-root requirements AMAP-V0-017..020 are additive: rolling them back
+ removes the `repo`/`roots` members, `BuildRoots`, the two refusal codes
 and the `--repo`/`--manifest-repo` flags; `internal/rootalias` may stay as the MMR-V0 helper.
 
 ## Follow-ups (proposed tickets)
