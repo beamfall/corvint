@@ -16,8 +16,9 @@ import (
 // owns the output pipes so the group is swept only after they drain: a
 // descendant that still holds a pipe delay after the leader exits is reported
 // as incomplete capture (exec.ErrWaitDelay, its pipe closed), not killed into
-// apparent completion. ctx ending signals the group at once. Where waitid is
-// available every group signal is sent while the leader is unreaped.
+// apparent completion. ctx ending stops the leader at once (Stop) and then
+// sweeps the group as soon as the leader's exit is observed. Where waitid is
+// available every group signal is sent while the leader is held unreaped.
 //
 // Stdout and Stderr must be distinct writers (or nil, or *os.File, which are
 // passed through untracked as os/exec does). A command without its own new
@@ -86,8 +87,10 @@ func Drain(ctx context.Context, command *exec.Cmd, delay time.Duration) (func() 
 		select {
 		case observed = <-exited:
 		case <-ctx.Done():
-			// Only this wait reaps the leader, so it is still unreaped here.
-			_ = signalGroup(-processID, syscall.SIGKILL)
+			// The leader may already be reaped by a foreign reaper, so stop
+			// only the leader here; the group is swept below once the exit
+			// observation proves the leader is held unreaped (V1-0652).
+			_ = Stop(command)
 			observed = <-exited
 		}
 		var waitErr error

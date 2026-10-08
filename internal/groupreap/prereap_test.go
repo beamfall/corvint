@@ -383,3 +383,46 @@ func processStopped(t *testing.T, pid int) bool {
 	}
 	return strings.HasPrefix(strings.TrimSpace(string(out)), "T")
 }
+
+// Cancellation racing a foreign reap stops only the leader: no group signal
+// is sent before the exit observation proves the leader is held unreaped.
+func TestDrainCancellationAfterForeignReapSendsNoGroupSignal(t *testing.T) {
+	release := make(chan struct{})
+	previous := observeExit
+	t.Cleanup(func() { observeExit = previous })
+	observeExit = func(int) error {
+		<-release
+		return syscall.ECHILD
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	command := exec.CommandContext(ctx, "/bin/sh", "-c", "exit 0")
+	Contain(command)
+	var stdout bytes.Buffer
+	command.Stdout = &stdout
+	signals := hookGroupSignals(t, startedPID(command))
+	wait, err := Drain(ctx, command, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status syscall.WaitStatus
+	if _, err := syscall.Wait4(command.Process.Pid, &status, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- wait() }()
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+	close(release)
+	select {
+	case err := <-result:
+		if err == nil {
+			t.Fatal("Drain after a foreign reap reported success")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Drain did not return")
+	}
+	if got := signals.snapshot(); len(got) != 0 {
+		t.Fatalf("group signalled %d times after a foreign reap", len(got))
+	}
+}

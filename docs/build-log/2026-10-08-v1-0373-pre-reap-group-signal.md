@@ -61,6 +61,18 @@ the unfixed classification and passes now.
 
 One shared helper replaces seven Cancel copies and two post-reap sweeps.
 
+`internal/contextindex` sources are pinned analyzer inputs, so the analyzer
+schema moves from `corvint-analyzer/112` to `/113` with a new audit digest
+(TestAnalyzerSchemaInputs). The change is process handling only; no pack
+facts or encoding change.
+
+Independent review (Codex) found that Drain's cancellation branch signalled
+the group before the exit observation, so cancellation racing a foreign reap
+could still send a post-reap group signal. Drain now stops only the leader on
+cancellation and sweeps the group after the observation succeeds;
+TestDrainCancellationAfterForeignReapSendsNoGroupSignal fails on the earlier
+code and passes now.
+
 ## Limits (recorded, not fixed)
 
 - Platforms without waitid (aix, dragonfly, freebsd, netbsd, openbsd,
@@ -70,6 +82,10 @@ One shared helper replaces seven Cancel copies and two post-reap sweeps.
 - Pre-reap signal errors stay non-fatal so no previously working command is
   refused; on Linux an EPERM would mean a surviving member owned by another
   user, which these runners never create.
+- The Owner's exit wait (`owner_waitid.go`) uses the same `leaderUnreaped`,
+  so the Darwin stop fix applies there too. A leader that stays stopped is now
+  waited for on Darwin, as it already was on Linux, instead of being swept
+  while alive; context cancellation or the runner's timeout still kills it.
 - A failed exit observation now leaves cleanup unproved instead of sending an
   unsafe signal; RunContained already reported that case as incomplete.
 
@@ -86,7 +102,8 @@ One shared helper replaces seven Cancel copies and two post-reap sweeps.
   TestFailedExitObservationSendsNoGroupSignal (Wait, Drain, RunContained),
   TestWaitAfterForeignReapSendsNoGroupSignal, TestStopAfterReapSendsNoGroupSignal,
   TestContainCancellationSweepsGroupBeforeReap,
-  TestLeaderUnreapedIgnoresStopAndContinue.
+  TestLeaderUnreapedIgnoresStopAndContinue,
+  TestDrainCancellationAfterForeignReapSendsNoGroupSignal.
 - `go vet` native and with GOOS=linux and GOOS=windows for touched packages;
   GOOS=freebsd builds groupreap, contextindex and worksource (the freebsd vet of
   the wider set fails in internal/cem/publish, pre-existing, V1-0393).
