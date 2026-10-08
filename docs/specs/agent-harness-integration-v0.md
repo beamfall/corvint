@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -413,7 +413,7 @@ do not reinterpret this Frontier result.
   tuple completes the separate protected authority and full host qualification requirements.
   The wildcard Pi peer dependency only selects host-owned modules; it MUST NOT broaden exact
   runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.2.
-  Protected Pi runtime/image contracts retain their separately pinned tuple.
+  Protected Pi runtime/image contracts retain their separately pinned tuple. The exact ordinary-tuple bridge amendment is accepted by decision 0452 (V1-0506); its FALLBACK support and qualification limits are unchanged.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
