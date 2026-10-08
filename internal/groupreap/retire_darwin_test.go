@@ -108,7 +108,7 @@ func cleanupIdentity(t *testing.T, pid int) {
 	})
 }
 
-func alive(pid int) bool {
+func pidAlive(pid int) bool {
 	r, ok, err := darwinIdentity(pid)
 	return err == nil && ok && !r.zombie
 }
@@ -168,8 +168,8 @@ func TestRetirerRetiresDetachedDescendants(t *testing.T) {
 			<-done
 			time.Sleep(50 * time.Millisecond)
 			for _, pid := range pids {
-				if alive(pid) == retire {
-					t.Fatalf("retire=%v pid %d alive=%v", retire, pid, alive(pid))
+				if pidAlive(pid) == retire {
+					t.Fatalf("retire=%v pid %d alive=%v", retire, pid, pidAlive(pid))
 				}
 			}
 			if r != nil {

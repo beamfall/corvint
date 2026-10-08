@@ -20,15 +20,12 @@ const sigStop, sigKill = syscall.SIGSTOP, syscall.SIGKILL
 // Darwin's 64-bit kinfo_proc (648 bytes): extern_proc starts with p_starttime
 // (sec int64, usec int32) and carries p_stat at 36 and p_pid at 40; eproc
 // begins at 296 with e_ucred.cr_uid at +124, e_ppid at +264. Layout verified
-// against golang.org/x/sys/unix ztypes_darwin_{arm64,amd64}.go.
+// against golang.org/x/sys/unix ztypes_darwin_{arm64,amd64}.go. kinfoStat,
+// kinfoPID, kinfoPPID and kernProc are shared with proctable_darwin.go.
 const (
 	kinfoSize   = 0x288
-	kinfoStat   = 36
-	kinfoPID    = 40
 	kinfoUID    = 296 + 124
-	kinfoPPID   = 296 + 264
 	kinfoZombie = 5 // SZOMB
-	kernProc    = 14
 	kernArgmax  = 8
 	kernArgs2   = 49 // KERN_PROCARGS2
 )

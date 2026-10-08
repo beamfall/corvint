@@ -234,7 +234,10 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		stdout, stderr := &limitedBuffer{cancel: phaseCancel}, &limitedBuffer{cancel: phaseCancel}
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
-		runErr := groupreap.RunRetiring(cmd, retirer)
+		containment, runErr := groupreap.RunContainedRetiring(cmd, retirer)
+		if !containment.Complete() {
+			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"process-containment", containmentDetail(i, containment)})
+		}
 		var retireErr error
 		if retirer != nil {
 			// Retain the record before any fallible post-processing, so a
@@ -667,6 +670,9 @@ func containPhase(cmd *exec.Cmd, graceful bool, retirer *groupreap.Retirer) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	// Playwright owns detached browser groups. Interrupt its leader so native
 	// worker teardown can close them before the bounded hard-kill fallback.
+	// Cancellation signals only the leader: groupreap.RunContained then stops
+	// the remaining group, retires descendants that left it while their owned
+	// parents are stopped, and kills the group (TRE-V0-034, V1-0608).
 	cmd.Cancel = func() error {
 		if cmd.Process != nil {
 			if graceful {
@@ -674,10 +680,10 @@ func containPhase(cmd *exec.Cmd, graceful bool, retirer *groupreap.Retirer) {
 			}
 			if retirer != nil {
 				// Stop and retire owned detached descendants while the
-				// leader still proves their ancestry, then kill its group.
+				// leader still proves their ancestry (TRE-V0-030).
 				retirer.Retire()
 			}
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			return cmd.Process.Kill()
 		}
 		return nil
 	}
@@ -688,4 +694,24 @@ func containPhase(cmd *exec.Cmd, graceful bool, retirer *groupreap.Retirer) {
 	if graceful {
 		cmd.WaitDelay = 5 * time.Second
 	}
+}
+
+// containmentDetail names the phase and the bounded escaped-descendant
+// outcome; survivors are listed, never signalled again.
+func containmentDetail(phase int, c groupreap.Containment) string {
+	detail := fmt.Sprintf("phase %d: escaped descendants retired=%d survivors=%d", phase, len(c.Retired), len(c.Survivors))
+	for i, p := range c.Survivors {
+		if i == 8 {
+			detail += " ..."
+			break
+		}
+		detail += " [" + p.String() + "]"
+	}
+	if c.Err != nil {
+		detail += ": " + c.Err.Error()
+	}
+	if len(detail) > 1024 {
+		detail = detail[:1024]
+	}
+	return detail
 }
