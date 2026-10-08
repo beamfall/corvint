@@ -16,7 +16,7 @@ import (
 
 func testGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", append([]string{"-C", root}, args...)...)
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
 	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	raw, e := c.CombinedOutput()
 	if e != nil {

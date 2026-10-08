@@ -21,7 +21,7 @@ func TestCloneTrustChildTransport(t *testing.T) {
 		run := func(e []string, args ...string) (int, string) {
 			t.Helper()
 			var b bytes.Buffer
-			code, err := command(context.Background(), dir, e, &b, &b, 10*time.Second, "git", args...)
+			code, err := command(context.Background(), dir, e, &b, &b, 10*time.Second, "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 			if err != nil {
 				t.Fatal(err)
 			}

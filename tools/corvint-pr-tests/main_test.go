@@ -42,7 +42,7 @@ func fixture(t *testing.T) (options, identity) {
 	ctx := context.Background()
 	mustGit := func(args ...string) string {
 		t.Helper()
-		s, err := git(ctx, o, args...)
+		s, err := git(ctx, o, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -363,7 +363,7 @@ func TestTestEnvironmentSilencesGraftAdvice(t *testing.T) {
 		run := func(env []string, args ...string) string {
 			t.Helper()
 			var b strings.Builder
-			code, err := command(context.Background(), o.root, env, &b, &b, time.Minute, "git", args...)
+			code, err := command(context.Background(), o.root, env, &b, &b, time.Minute, "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 			if err != nil || code != 0 {
 				t.Fatalf("git %v: %d %v %s", args, code, err, b.String())
 			}
@@ -405,7 +405,7 @@ func TestExecuteGivesTestsSilencedGraftEnvironment(t *testing.T) {
 		}
 		ctx := context.Background()
 		for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base"}} {
-			if _, err := git(ctx, o, args...); err != nil {
+			if _, err := git(ctx, o, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...); err != nil {
 				t.Fatal(err)
 			}
 		}
