@@ -4908,10 +4908,13 @@ the worker and knows its attempt, reaps such an attempt after a bounded grace an
   no live attempt but is the lease holder of a `FAILED` attempt with cause `LEASE_EXPIRED` MUST be
   stopped the same way (kill reason `LEASE_EXPIRED`, `killing` event, no further store write), so the
   store's reap, not the dispatcher's memory, is the durable record of the stop. Before supervision
-  signals anything on a tick, a `LEASE_EXPIRED` stop that has not yet signalled (no kill deadline)
-  MUST be cancelled, with an `alert`, when that tick's observation shows the worker holding a live
-  attempt, as when it claimed again after the observation that decided the stop; a stop that has
-  signalled MUST run to completion. An attempt whose lease is unexpired (for example renewed),
+  signals anything on a tick, a `LEASE_EXPIRED` stop that this dispatcher process decided and has
+  not yet handed to supervision MUST be cancelled, with an `alert`, when that tick's observation
+  shows the worker holding a live attempt, as when it claimed again after the observation that
+  decided the stop. A stop that has reached supervision, and every `KILLING` record a restarted
+  dispatcher finds in its ledger, MUST run to completion: the ledger is saved only at tick exit, so
+  a saved record without a kill deadline may predate a signal already sent in a tick that ended
+  before its save, and cancelling it could abandon a signalled worker. An attempt whose lease is unexpired (for example renewed),
   expired for at most the grace,
   or already handled by an earlier step of the same heal pass (a CAL-V0-104 exit recovery or a
   detached-run hand-off), and every attempt when `heal.reap` is off, MUST be left untouched.
@@ -4930,7 +4933,9 @@ tick exit) restarts with the worker `RUNNING`, and the store's reaped attempt st
 tick without a second reap or a second `lease-expired` event; a stop before the store write reaps
 again on the next tick, still fenced on the then observed expiry. Residual limits: a claim that
 lands between a tick's observation and its supervision pass a few instructions later is not seen
-before the signal (no coordination with claim admission exists); and if the dispatcher ends after
+before the signal (no coordination with claim admission exists); a dispatcher that ends between
+deciding a stop and the next tick's supervision completes that stop after its restart even if the
+worker has claimed again; and if the dispatcher ends after
 the reap but before its ledger records `KILLING`, and another holder claims the ticket before the
 restart, the retry reuses the attempt ID and replaces the reaped holder and cause, so the stop is
 not recovered and the worker runs until the idle or wall-time cap stops it, as before this

@@ -25,8 +25,9 @@ wall-time cap does, and record a `lease-expired` event.
   attempt first) leaves the worker running silently. A refused reap emits `alert` and leaves the
   worker running for the next tick's retry. Every heal pass also stops a running worker that holds
   no live attempt but holds a `FAILED` `LEASE_EXPIRED` attempt (`stopReapedWorkers`). Before
-  supervision signals on a tick, `keepReclaimedWorkers` cancels an unsignalled `LEASE_EXPIRED`
-  stop (zero `KillDeadline`) for a worker now observed holding a live attempt.
+  supervision signals on a tick, `keepReclaimedWorkers` cancels a `LEASE_EXPIRED` stop that this
+  process decided and has not yet handed to supervision (the in-memory `unsignalled` set) for a
+  worker now observed holding a live attempt.
 - `internal/tasks/dispatch/ledger.go`: `lease-expired` joins `EventKinds`. The ledger shape is
   unchanged.
 - `internal/tasks/dispatch/roster.go`, `internal/tasks/cli/dispatch.go`: `Queue.ReapExpired`
@@ -74,6 +75,14 @@ wall-time cap does, and record a `lease-expired` event.
     residual limit: the worker runs until the idle or wall cap stops it, which is no worse than
     before this change. Closing it needs a ledger member (a CAL-V0-131 version bump) or a claim
     wire change, both out of scope.
+- A third review (Codex, of 4fc9cdca..d41b86ff) found that a zero `KillDeadline` is not proof of
+  no signal after a restart: `killTree` sets it in memory before the TERM, and the ledger is saved
+  at tick exit, so a crash in that tick could restart with the record unsignalled and revive a
+  worker already sent TERM. Cancellation is now limited to stops decided by the running process
+  and not yet handed to supervision; a `KILLING` record found on restart always completes.
+  Persisting the ledger before the first TERM was the alternative; it was not taken because it adds
+  a save and a refusal path to the shared kill path for every kill reason. The cost is that a crash
+  between deciding a stop and the next tick completes it even if the worker has claimed again.
 - The issue says "KILL after idleSeconds", but the wall cap actually waits
   `killGraceSeconds`. The requirement follows the actual wall-cap behavior, because the issue asks
   for "the same as the wall-time limit".
@@ -102,7 +111,9 @@ wall-time cap does, and record a `lease-expired` event.
   that holds a live one; a reap by another writer stops it once it holds none.
 - `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`: a recovery stop followed by a new live
   attempt is cancelled before any signal and the process survives; a stop that has already
-  signalled runs to completion despite a live attempt.
+  signalled runs to completion despite a live attempt; and a `KILLING` record with no deadline
+  restored from the ledger after a restart (as after a TERM in an unsaved tick) is not cancelled
+  by a live attempt and stops the worker. Without the in-process guard that last case fails.
 - `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`): a stale expiry is
   `FENCED` and changes nothing; the current expiry reaps and replays; a released attempt is a
   receiptless no-change; an expiry without attempt, on another verb, or malformed is `MALFORMED`.

@@ -96,6 +96,10 @@ type Dispatcher struct {
 	// run state, not ledger state: after a restart heal.reap still reaps
 	// the expired lease of a holder that is not a running worker.
 	recoveries map[string]*exitRecovery
+	// unsignalled names the workers whose CAL-V0-191 LEASE_EXPIRED stop this
+	// process decided and has not signalled yet; only those may be kept. It
+	// is never persisted, so a stop found in the ledger always completes.
+	unsignalled map[string]bool
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -637,6 +641,7 @@ func (d *Dispatcher) supervise() []*Worker {
 			w.State, w.KillReason = "KILLING", reason
 			d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText[reason]), Detail: map[string]string{"reason": reason, "processes": strconv.Itoa(len(w.Members))}})
 		}
+		delete(d.unsignalled, w.ID) // killTree may signal from here on
 		switch gone, err := killTree(w, time.Duration(cfg.KillGraceSeconds)*time.Second, exempt); {
 		case err != nil:
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s while stopping it; retrying next tick: %v", w.ID, err)})
@@ -804,21 +809,24 @@ func (d *Dispatcher) stopReapedWorkers(obs *Observation) {
 	}
 }
 
-// keepReclaimedWorkers cancels a LEASE_EXPIRED stop that has not signalled
-// yet when this observation shows the worker holding a live attempt, such as
-// one it claimed after the observation that decided the stop (CAL-V0-191).
-// A stop that has signalled (KillDeadline set) always runs to completion.
+// keepReclaimedWorkers cancels a LEASE_EXPIRED stop that this process
+// decided and has not signalled yet when this observation shows the worker
+// holding a live attempt, such as one it claimed after the observation that
+// decided the stop (CAL-V0-191). A stop that has reached supervision, or
+// that a restart finds in the ledger (whose kill deadline may predate a
+// signal sent before an unsaved tick), always runs to completion.
 func (d *Dispatcher) keepReclaimedWorkers(obs *Observation) {
 	if obs == nil {
 		return
 	}
 	for _, w := range d.ledger.Workers {
-		if w.State != "KILLING" || w.KillReason != "LEASE_EXPIRED" || !w.KillDeadline.IsZero() {
+		if !d.unsignalled[w.ID] || w.State != "KILLING" || w.KillReason != "LEASE_EXPIRED" || !w.KillDeadline.IsZero() {
 			continue
 		}
 		for _, a := range obs.Attempts {
 			if a.Live && a.Holder == w.ID {
 				w.State, w.KillReason = "RUNNING", ""
+				delete(d.unsignalled, w.ID)
 				d.emit(Event{Kind: "alert", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("kept %s worker %s running: it holds live attempt %s, so its lease-expired stop is cancelled before any signal", w.Role, w.ID, a.ID), Detail: map[string]string{"attempt": a.ID, "generation": a.Generation, "reason": "LEASE_EXPIRED"}})
 				break
 			}
@@ -833,6 +841,10 @@ func (d *Dispatcher) stopLeaseExpired(w *Worker) {
 		return
 	}
 	w.State, w.KillReason = "KILLING", "LEASE_EXPIRED"
+	if d.unsignalled == nil {
+		d.unsignalled = map[string]bool{}
+	}
+	d.unsignalled[w.ID] = true
 	d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText["LEASE_EXPIRED"]), Detail: map[string]string{"reason": "LEASE_EXPIRED", "processes": strconv.Itoa(len(w.Members))}})
 }
 

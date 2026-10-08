@@ -245,7 +245,7 @@ func TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne(t *testing.T) {
 // TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker: a recovery stop
 // decided on an observation that predates the worker's new claim is
 // cancelled on the next tick before any signal; a stop that has already
-// signalled is never cancelled.
+// signalled, or that a restart finds in the ledger, is never cancelled.
 func TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker(t *testing.T) {
 	t.Run("before the signal", func(t *testing.T) {
 		now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
@@ -265,6 +265,42 @@ func TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker(t *testing.T) {
 		tick(t, d)
 		if w.State != "RUNNING" || gone(w.PID) {
 			t.Fatalf("a worker with a live attempt was stopped again: state %q", w.State)
+		}
+	})
+	t.Run("found on restart", func(t *testing.T) {
+		// The saved ledger holds the stop with no deadline, as after a TERM
+		// sent in a tick that ended before its save; the worker survived and
+		// holds a live attempt. The restarted dispatcher must not keep it.
+		now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+		q := &refusingQueue{fakeQueue: &fakeQueue{}}
+		d, w := leaseRig(t, q, &now, now.Add(time.Hour), nil)
+		w.State, w.KillReason = "KILLING", "LEASE_EXPIRED"
+		if err := d.ledger.save(d.dir); err != nil {
+			t.Fatal(err)
+		}
+		crashed, err := os.ReadFile(filepath.Join(d.dir, "state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d.dir, "state.json"), crashed, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		restarted, err := Open("lease", d.Config, q, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { restarted.Close() })
+		restarted.Now = func() time.Time { return now }
+		again := restarted.ledger.Workers[0]
+		if again.ID != w.ID || again.State != "KILLING" || !again.KillDeadline.IsZero() {
+			t.Fatalf("restarted worker %+v", again)
+		}
+		tick(t, restarted)
+		if again.State != "KILLING" || again.KillReason != "LEASE_EXPIRED" || !gone(w.PID) || restarted.Running() != 0 {
+			t.Fatalf("a stop found on restart was cancelled: state %q running %d", again.State, restarted.Running())
 		}
 	})
 	t.Run("after the signal", func(t *testing.T) {
