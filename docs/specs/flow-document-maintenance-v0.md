@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Drafted: 2026-09-28
-Intent status: proposed
+Intent status: accepted (decision 0451; V1-0465)
 Delivery status: experimental
 Implementation: `internal/appflows/docs_maintain.go`, `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go`
 Authoritative inputs: `docs/specs/application-flow-understanding-v1.md` AFU-V1-030..033 and AFU-V1-036..038; owner-approved V1-0465 bounded maintenance plan.
 
 ## Agent digest
 - Claim: Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.
-- Status: proposed/experimental
+- Status: accepted (decision 0451; V1-0465)/experimental
 - Exists: additive preview/apply command, committed receipt and explicit legacy adoption, retained original inodes on replacement.
-- Blocked on: owner acceptance, independent review and release-boundary qualification; no general narrative or API inference.
+- Blocked on: independent review and release-boundary qualification (owner acceptance recorded by decision 0451); no general narrative or API inference.
 - Read next: Requirements; CLI and failure model; Acceptance and rollback.
 
 ## User job and verified current state
@@ -114,4 +114,4 @@ validation is deferred to the integrated release boundary, not replaced by focus
 Rollback removes the additive command/profile and keeps existing immediate generation. Retain
 receipts and recovery files as evidence; explicitly restore reviewed prior bytes if needed. Promote
 only after the bounded acceptance path and independent review pass and the owner accepts this
-profile. Wider HDC and 1.0 release obligations remain open; none are inferred from this profile.
+profile (intent accepted by decision 0451; promotion remains open). Wider HDC and 1.0 release obligations remain open; none are inferred from this profile.
