@@ -49,13 +49,29 @@ abstentions byte-identical, and keep the default read-only behaviour.
 
 ## Limits and NOT_RUN
 
-- The retirement bound is per stage, not constant: a slot generator between two boundaries
-  (symbol, reference, importer, sibling, graph placement) runs to completion. The worst case on a
+- The retirement bound is the work between adjacent checks, not a constant: the slot generators
+  between two boundaries (for example frame relations, mentions and symbols before the subject-slot
+  check; references, importers, siblings and graph placement before the history join) run to
+  completion. The worst case on a
   large repository is not measured (`NOT_RUN`).
 - A cancellation that arrives after `Registry.Call`'s final check is a completed call; `MCPV0-011`
   decides at the server whether its frame is written.
 - `make gate`, full `go test ./...`, the MCP compiled-process conformance suites and live LSP
   qualification: `NOT_RUN` (lane policy: focused tests only).
+
+The analyzer audit input SHA (`IDX-SNAP-V0-017`) is repinned because `taskcontext.go` is a
+hashed input; the analyzer schema stays `corvint-analyzer/112`, since no extracted fact or pack
+encoding changes (precedent: `8208764d`, `73c12536`).
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only, `origin/main..HEAD`) confirmed one finding: an early cancellation
+skipped `compile`'s history join, so `taskContext` read `historyErr` while the history reader could
+still write it (`go test -race` reported it on the `pair` stage and the pre-cancelled test). Fixed by
+returning the recorded cancellation first and joining the history reader before reading its error;
+both tests pass under `-race`. The review also narrowed the retirement-bound wording (above). It
+noted the before/after packet assertions prove recovery within the changed code, not byte parity
+with `origin/main`; parity rests on the unchanged existing context tests.
 
 ## Rollback
 

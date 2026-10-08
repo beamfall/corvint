@@ -51,11 +51,14 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 	}
 	defer compiler.join()
 	rows := compiler.compile(limit)
-	if compiler.historyErr != nil {
-		return nil, compiler.historyErr
-	}
 	if compiler.cancelled != nil {
 		return nil, compiler.cancelled
+	}
+	// compile joins the history reader on every path that reaches here
+	// without a cancellation; reading historyErr is ordered after that join.
+	compiler.awaitHistory()
+	if compiler.historyErr != nil {
+		return nil, compiler.historyErr
 	}
 	compiler.answerability = compiler.answer()
 	compiler.answerability.relations = relationRows(rows)

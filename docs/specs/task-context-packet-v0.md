@@ -1062,9 +1062,9 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   complete. A context that has ended at any boundary returns the existing cancellation refusal
   (`Git repository index was cancelled`, or its deadline form) and no packet; it never returns a
   READY or abstaining packet. The co-change history and recency readers are joined before
-  `TaskContext` returns on every path. A slot generator between two boundaries runs to completion,
-  so the retirement bound is one generator's run time, not a constant; that worst case is not
-  measured. An uncancelled request keeps its packet bytes.
+  `TaskContext` returns on every path, and the history error is read only after its reader is
+  joined. The slot generators between two adjacent boundaries run to completion, so the retirement
+  bound is the work between adjacent checks, not a constant; that worst case is not measured. An uncancelled request keeps its packet bytes.
 
 ## Non-goals and authority
 
