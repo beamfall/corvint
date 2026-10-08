@@ -22,6 +22,7 @@ var ledgerSchemas = map[string]string{
 	"taskman-dispatch-state/1": "fcc36ae74c3b4a2c4824ac58610c68bd0c232cb819298db263068a07e95438b9",
 	"taskman-dispatch-state/2": "8d851eaa19d55f5dc4727701b1f1ce829fde819762e22224a013a647c12a263d",
 	"taskman-dispatch-state/3": "ea6e637009c42f13fd3891c8258267258901e8b847d8da36d07196339b0533ca",
+	"taskman-dispatch-state/4": "07ba439e54972201a00d7768f46a3300d0b67fbd9da7aa58324adea09400a94c",
 }
 
 // encodedSchema renders t's JSON shape: every encoded field's name, options

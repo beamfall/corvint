@@ -139,6 +139,12 @@ type Input struct {
 	// ExternalReviewLater is the chain-verified submission history after the
 	// subject; nil means unobserved, and the subject is then not current.
 	ExternalReviewLater *ExternalSubmissionHistory
+	// ObligationEvents is the target's obligation-ledger chain by event
+	// digest and ObligationReport the writer's report recomputation; Mutate
+	// OBLIGATIONS_* only (TOL-V0-002, TOL-V0-013). The pure transition
+	// re-hashes and folds the chain against the canonical reference.
+	ObligationEvents map[wire.Digest][]byte
+	ObligationReport *mutation.ObligationReportCheck
 }
 
 type HandoffPolicyObservation struct {
@@ -247,7 +253,7 @@ func ActorAdmitted(r Request) bool {
 	case "REVIEWER":
 		return reviewMutation(r)
 	case "WORKER":
-		return reviewMutation(r) || workerKnowHowMutation(r)
+		return reviewMutation(r) || workerKnowHowMutation(r) || workerObligationMutation(r)
 	}
 	return false
 }
@@ -530,9 +536,9 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
-	if workerKnowHowMutation(r) && !state.policy.WorkerKnowHowAdd() {
-		// KHN-V0-021: without the policy opt-in the WORKER write is refused
-		// as it was before the key existed.
+	if WorkerAttemptMutation(r) && !WorkerAttemptAdmitted(r, state.policy) {
+		// KHN-V0-021 and TOL-V0-015: without the policy opt-in the WORKER
+		// write is refused as it was before the key existed.
 		return WorkerAttemptRefusal(r)
 	}
 	if r.Operation == Init && state.head != nil {
@@ -651,6 +657,7 @@ func Model(r Request, in Input) Result {
 		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 		ctx.RetryRecovery = retryRecovery(state, env)
 		ctx.PriorNoteEvent = in.PriorNoteEvent
+		ctx.ObligationEvents, ctx.ObligationReport = in.ObligationEvents, in.ObligationReport
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
 		}
@@ -981,11 +988,37 @@ func validateInput(r Request, in Input) (inputState, error) {
 	return st, e
 }
 
-// WorkerAttemptMutation reports a WORKER KNOWHOW_ADD (KHN-V0-021): the one
-// WORKER write outside review that reads attempt history. The store screens
-// it against policy before the lock and keeps it off the writer-checkpoint
-// route, which models without attempts.
-func WorkerAttemptMutation(r Request) bool { return workerKnowHowMutation(r) }
+// WorkerAttemptMutation reports a WORKER KNOWHOW_ADD (KHN-V0-021) or
+// OBLIGATIONS_WITNESS (TOL-V0-015): the WORKER writes outside review that
+// read attempt history. The store screens them against policy before the
+// lock and keeps them off the writer-checkpoint route, which models without
+// attempts.
+func WorkerAttemptMutation(r Request) bool {
+	return workerKnowHowMutation(r) || workerObligationMutation(r)
+}
+
+// WorkerAttemptAdmitted reports whether policy opts in to the WORKER write r:
+// knowHow.workerAdd for KNOWHOW_ADD and obligations.workerWitness for
+// OBLIGATIONS_WITNESS. A nil policy admits nothing.
+func WorkerAttemptAdmitted(r Request, p *intent.Policy) bool {
+	if p == nil {
+		return false
+	}
+	if workerObligationMutation(r) {
+		return p.WorkerObligationWitness()
+	}
+	return p.WorkerKnowHowAdd()
+}
+
+// workerObligationMutation reports a WORKER OBLIGATIONS_WITNESS, the one
+// obligation write a WORKER may enter with (TOL-V0-015).
+func workerObligationMutation(r Request) bool {
+	if r.Operation != Mutate || r.Actor.Role != "WORKER" {
+		return false
+	}
+	env, err := mutation.Decode(r.Envelope)
+	return err == nil && env.Operation == ticket.OpObligationsWitness
+}
 
 // WorkerAttemptRefusal is the refusal a WORKER KNOWHOW_ADD meets when policy
 // does not opt in (KHN-V0-021): the outcome and detail an unadmitted actor
@@ -1063,6 +1096,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 		return e
 	}
 	if e := importAttachedEvidence(post, pre, where); e != nil {
+		return e
+	}
+	if e := importObligations(post, pre, where); e != nil {
 		return e
 	}
 	if e := importKnowHow(post, pre, where); e != nil {
@@ -1338,6 +1374,23 @@ func importKnowHow(post, pre *ticket.Record, where string) error {
 	}
 	if !wire.Equal(ticket.KnowHowValue(want), ticket.KnowHowValue(post.KnowHow)) {
 		return wire.Errorf(wire.CodeMalformed, where+"/knowHow", "an imported record cannot add, rewrite or drop know-how entries")
+	}
+	return nil
+}
+
+// importObligations keeps an IMPORT batch from adding, rewriting or dropping
+// the obligation-ledger reference (TOL-V0-014): only OBLIGATIONS_* writes
+// move it, each with its receipt-bound event.
+func importObligations(post, pre *ticket.Record, where string) error {
+	want, got := wire.Null(), wire.Null()
+	if pre != nil && pre.ObligationsRef != nil {
+		want = pre.ObligationsRef.Value()
+	}
+	if post.ObligationsRef != nil {
+		got = post.ObligationsRef.Value()
+	}
+	if !wire.Equal(want, got) {
+		return wire.Errorf(wire.CodeMalformed, where+"/obligations", "an imported record cannot add, rewrite or drop the obligation ledger")
 	}
 	return nil
 }

@@ -827,7 +827,7 @@
     "title": "Corvint Tasks obligation ledger V0",
     "reqPrefix": "TOL-V0",
     "intent": "accepted (decision 0456; V1-1022)",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.",
     "dependsOn": [
       "docs/specs/corvint-tasks-agent-leases-v0.md",
@@ -839,7 +839,17 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/taskman/obligations.go",
+      "internal/tasks/cli/obligations.go",
+      "internal/tasks/mutation/obligations.go",
+      "internal/tasks/obligation/report.go",
+      "internal/tasks/store/obligations.go",
+      "internal/tasks/ticket/obligation_plan.go",
+      "internal/tasks/ticket/obligations.go",
+      "internal/tasks/transaction/obligation_audit.go",
+      "internal/tasks/wire/obligations.go"
+    ]
   },
   {
     "path": "docs/specs/corvint-tasks-external-reviews-v0.md",

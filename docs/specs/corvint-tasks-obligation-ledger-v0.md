@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-10-08
 Intent status: accepted (decision 0456; V1-1022)
-Delivery status: not-started
+Delivery status: experimental
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
 V1-1022 ("native per-ticket obligation ledger with step-level Playwright witnessing"). This document
 was agent-drafted. The owner accepted TOL-V0-001..021 as written in chat on 2026-10-08 (decision
 0456; V1-1022), which also resolved the former Unresolved decisions by accepting the positions this
-text takes. Acceptance settles intent only: nothing is implemented, and nothing may be promoted or
-advertised as delivered until implementation and its acceptance evidence exist. It reuses unchanged the ticket, mutation,
+text takes. Acceptance settles intent only. The V1-1022 implementation is experimental (see the Agent digest),
+and nothing may be promoted or advertised as delivered until its acceptance evidence exists. It reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
@@ -21,9 +21,9 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decision 0456; V1-1022; owner issue #680); not-started; no code, store member or command exists.
-- Exists: this accepted spec only; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
-- Blocked on: implementation; a live Playwright 1.63 fixture before any crediting code can qualify.
+- Status: accepted (decision 0456; V1-1022; owner issue #680); experimental; TOL-V0-001..018, 020 and 021 implemented with focused tests; the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
+- Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
 
 ## User and current state
@@ -314,16 +314,20 @@ justified only if the owner wants the queue and dispatcher to see proven progres
 
 ## Acceptance evidence and traceability
 
-Nothing is implemented, so every row is `NOT_RUN`. Test names below are the required witnesses,
-marked `(PLANNED)` because none exists yet.
+V1-1022 implements the profile as experimental under the owner acceptance recorded in decision
+0456 (`docs/build-log/2026-10-08-v1-1022-obligation-ledger.md`). Delivered evidence is focused Go
+tests on synthetic Playwright json reports; the live Playwright 1.63 fixture, the integrated items in
+the last column and the TOL-V0-019 plain-language status line remain `NOT_RUN`. The qualified
+Playwright version list is empty, so a real report refuses `UNSUPPORTED_VERSION` until a live
+fixture passes.
 
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| TOL-V0-001..004 | V1-1022 | `internal/tasks/wire` (optional key), `internal/tasks/ticket` (record codec), `internal/taskman` (Core reader), `internal/tasks/snapshot` (derived-event slot) | none | `TestTOLV0001_RecordMemberRoundTrip` (PLANNED), `TestTOLV0001_ReaderAdmitsObligations` (PLANNED), `TestTOLV0002_EventCanonicalAndChained` (PLANNED), `TestTOLV0002_EventSlotBound` (PLANNED) (65,536-byte boundary, one event per MUTATE), `TestTOLV0002_FoldFromRetainedRequestsAfterRestart` (PLANNED), `TestTOLV0003_UpdatedAtIsIssuedAtNotRecordedAt` (PLANNED), `TestTOLV0003_EntryCodecRefusals` (PLANNED), `TestTOLV0004_EvidenceCodec` (PLANNED); legacy byte-identity fixture |
-| TOL-V0-005..008, 014, 015 | V1-1022 | `internal/tasks/mutation` (payloads, Apply), `internal/tasks/intent` (grants, policy key), `internal/tasks/transaction` (adopt/import guards, claim checks), `internal/tasks/cli` | none | `TestTOLV0005_SeedPrefixAndDuplicates` (PLANNED), `TestTOLV0006_ShowIsReadOnly` (PLANNED), `TestTOLV0007_SetTransitions` (PLANNED), `TestTOLV0008_DeclaredWitness` (PLANNED), `TestTOLV0014_RevisionOnlyWrite` (PLANNED), `TestTOLV0015_RoleMatrix` (PLANNED), `TestTOLV0015_WorkerStaleGenerationFenced` (PLANNED) (same actor after reclamation); native archive round trip; two-process CAS; interrupted-commit redo |
-| TOL-V0-009..013 | V1-1022 | new report reader under `internal/tasks` (no Node dependency), secret screen, receipt audit | none | `TestTOLV0009_ReportAdmissionAndRetention` (PLANNED) (version, shape, size, no report or stdout retained, secret screen), `TestTOLV0010_StepOwnErrorCredits` (PLANNED) (soft sibling, nested parent, hard failure, soft outside steps), `TestTOLV0010_Retry0Only` (PLANNED), `TestTOLV0011_ConflictingMatches` (PLANNED), `TestTOLV0012_SourcePresence` (PLANNED) (forged title, wrong commit, outside repository), `TestTOLV0013_CreditMismatchAndAudit` (PLANNED), `TestTOLV0013_AuditAfterReportDeleted` (PLANNED), `TestTOLV0013_DeclaredWitnessAudit` (PLANNED), `TestTOLV0013_TamperedWorkerGenerationInconsistent` (PLANNED); live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case |
-| TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | none | `TestTOLV0016_HighWaterMonotone` (PLANNED), `TestTOLV0017_FingerprintLegacyIdentity` (PLANNED), `TestTOLV0017_LedgerChurnIsNotProgress` (PLANNED), `TestTOLV0017_HighWaterRaiseIsProgress` (PLANNED), `TestTOLV0018_LastRaiseEndsNoProgressRun` (PLANNED) (claim admission at the loop threshold), `TestTOLV0021_StallRestartsOnRaise` (PLANNED) (mid-session and across restart), `TestTOLV0021_PreviousLedgerVersionAdopted` (PLANNED) |
-| TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | none | `TestTOLV0019_QueueStatusLegacyIdentity` (PLANNED), `TestTOLV0019_ObligationSummary` (PLANNED), `TestTOLV0020_PlanCheck` (PLANNED) (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) |
+| TOL-V0-001..004 | V1-1022 | `internal/tasks/wire` (optional key), `internal/tasks/ticket` (record codec), `internal/taskman` (Core reader), `internal/tasks/snapshot` (derived-event slot) | `TestTOLV0001_RecordMemberRoundTrip`, `TestTOLV0002_EventCanonicalAndChained`, `TestTOLV0002_EventSlotBound` (65,536-byte boundary), `TestTOLV0003_EntryCodecRefusals`, `TestTOLV0004_EvidenceCodec` (`internal/tasks/ticket`); `TestTOLV0001_ReaderAdmitsObligations` (`internal/taskman`); `TestTOLV0002_OversizedWriteRefused`, `TestTOLV0002_FoldFromRetainedRequestsAfterRestart` (one event per MUTATE), `TestTOLV0003_UpdatedAtIsIssuedAtNotRecordedAt` (`internal/tasks/cli`); legacy byte identity in `TestTOLV0001_RecordMemberRoundTrip` and `TestTOLV0019_QueueStatusLegacyIdentity` | none beyond the live row below |
+| TOL-V0-005..008, 014, 015 | V1-1022 | `internal/tasks/mutation` (payloads, Apply), `internal/tasks/intent` (grants, policy key), `internal/tasks/transaction` (adopt/import guards, claim checks), `internal/tasks/cli` | `TestTOLV0005_SeedPrefixAndDuplicates`, `TestTOLV0006_ShowIsReadOnly`, `TestTOLV0007_SetTransitions`, `TestTOLV0008_DeclaredWitness`, `TestTOLV0014_RevisionOnlyWrite`, `TestTOLV0014_WitnessReplay` (CAS, replay, HELD admitted, COMPLETED refused), `TestTOLV0015_RoleMatrix`, `TestTOLV0015_WorkerStaleGenerationFenced` (same actor after reclamation) (`internal/tasks/cli`) | native archive round trip; two-process CAS; interrupted-commit redo (`NOT_RUN`) |
+| TOL-V0-009..013 | V1-1022 | report reader `internal/tasks/obligation` (no Node dependency), secret screen, receipt audit (`internal/tasks/transaction/obligation_audit.go`) | `TestTOLV0009_ReportAdmissionAndRetention`, `TestTOLV0009_SubsetIgnoresExcludedMatchBound`, `TestTOLV0010_StepOwnErrorCredits`, `TestTOLV0010_Retry0Only`, `TestTOLV0011_ConflictingMatches`, `TestTOLV0012_SourcePresence`, `TestTOLV0013_CreditMismatchAndAudit`, `TestTOLV0013_AuditAfterReportDeleted`, `TestTOLV0013_DeclaredWitnessAudit`, `TestTOLV0013_DeclaredCommitAudited`, `TestTOLV0013_TamperedWorkerGenerationInconsistent` (`internal/tasks/cli`), all on synthetic json reports | live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case (`NOT_RUN`: Playwright is not installed on this host; the qualified version list stays empty) |
+| TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
+| TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
 (not the qualified 1.63) with Node v22 and the built-in json reporter showed that `test.step`

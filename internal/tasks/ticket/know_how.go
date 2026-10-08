@@ -202,6 +202,9 @@ func ReadKnowHowSymbol(r *wire.Reader) string {
 	return s
 }
 
+// ReadFilePath is ReadKnowHowFile for the obligation match codec.
+func ReadFilePath(r *wire.Reader) string { return ReadKnowHowFile(r) }
+
 // ReadKnowHowFile reads a Path naming a file, not a directory prefix.
 func ReadKnowHowFile(r *wire.Reader) string {
 	s := r.Path()

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -19,9 +20,10 @@ func TestONV0006_DerivedEventSlotClosedToDeclaringOperations(t *testing.T) {
 		e := derivedEventPost(op, event, posts)
 		// ERG-V0-009 review operations declare the slot too; their receipt
 		// audit binding is ExternalReviewReceiptAudit (slot-reuse rule).
-		declares := mutation.IsNoteOperation(op) || mutation.IsReviewOperation(op)
+		// TOL-V0-002 obligation operations bind ObligationReceiptAudit.
+		declares := mutation.IsNoteOperation(op) || mutation.IsReviewOperation(op) || ticket.IsObligationOperation(op)
 		if mutation.DeclaresDerivedEvent(op) != declares {
-			t.Fatalf("%s: only note and review operations declare a derived event", op)
+			t.Fatalf("%s: only note, review and obligation operations declare a derived event", op)
 		}
 		if declares {
 			if e != nil || len(posts) != 1 || string(posts["evidence/"+string(wire.Sum(event))]) != string(event) {
