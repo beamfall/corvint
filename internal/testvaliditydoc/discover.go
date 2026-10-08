@@ -116,7 +116,9 @@ func Discover(root string) (Document, error) {
 			continue
 		}
 		discovery.Evidence = EvidenceDirectory + "/" + item.name
-		binding := bindFreshness(worktree, root, input)
+		binding := bindFreshness(input, func(path, digest string) string {
+			return compareBound(worktree, root, path, digest)
+		})
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
 		discovery.Freshness = &binding
 		discovery.Abstention = runtimeAbstention(input)
@@ -233,18 +235,33 @@ func readCandidate(evidence *os.Root, item candidate) (Input, bool) {
 	return input, err == nil
 }
 
-// bindFreshness compares the retained document's bound identity with the
-// worktree now. A definite mismatch is STALE; an identity that cannot be
-// recomputed is UNKNOWN; only fully matched bound digests are CURRENT.
-func bindFreshness(worktree *os.Root, root string, input Input) testvalidity.Axis {
-	if input.goSession != nil {
-		if input.goSession.State == "stale" {
-			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: "workspace-execution-identity-mismatch"}
-		}
-		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-session-identity-unverifiable"}
+// ProjectBound projects input through the shared builder and states the
+// LPCV-V0-053 binding on every freshness axis, comparing each bound path's
+// retained digest through compare. compare returns "" for a match,
+// retained-digest-mismatch for changed or removed content, and an
+// unverifiable reason otherwise. TCN-V0-004 compares against a Git revision
+// instead of the worktree.
+func ProjectBound(input Input, compare func(path, digest string) string) Document {
+	return applyFreshness(Project(input), bindFreshness(input, compare))
+}
+
+// BoundPaths lists, sorted, the paths whose digests the input binds.
+func BoundPaths(input Input) []string {
+	bound := boundDigests(input)
+	paths := make([]string, 0, len(bound))
+	for path := range bound {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func boundDigests(input Input) map[string]string {
+	bound := map[string]string{}
+	if input.js == nil {
+		return bound
 	}
 	identity := input.js.Identity
-	bound := map[string]string{}
 	for path, digest := range identity.ConfigInputDigests {
 		bound[path] = digest
 	}
@@ -254,17 +271,27 @@ func bindFreshness(worktree *os.Root, root string, input Input) testvalidity.Axi
 	if identity.ConfigFile != "" {
 		bound[identity.ConfigFile] = identity.ConfigDigest
 	}
+	return bound
+}
+
+// bindFreshness compares the retained document's bound identity through
+// compare. A definite mismatch is STALE; an identity that cannot be
+// recomputed is UNKNOWN; only fully matched bound digests are CURRENT.
+func bindFreshness(input Input, compare func(path, digest string) string) testvalidity.Axis {
+	if input.goSession != nil {
+		if input.goSession.State == "stale" {
+			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: "workspace-execution-identity-mismatch"}
+		}
+		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-session-identity-unverifiable"}
+	}
+	identity := input.js.Identity
+	bound := boundDigests(input)
 	if len(bound) == 0 {
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-identity-unbound"}
 	}
 	unknown := ""
-	paths := make([]string, 0, len(bound))
-	for path := range bound {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		reason := compareBound(worktree, root, path, bound[path])
+	for _, path := range BoundPaths(input) {
+		reason := compare(path, bound[path])
 		if reason == "retained-digest-mismatch" {
 			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: reason}
 		}

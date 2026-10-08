@@ -221,6 +221,8 @@ func helpText(topic string) string {
 		return witnessHelp
 	case "test-validity":
 		return testValidityHelp
+	case "test-plan":
+		return testPlanHelp
 	default:
 		panic("unknown help topic")
 	}
@@ -281,6 +283,7 @@ Commands:
   skill-export  learned traces as SKILL.md
   witness  unwitnessed surface of a range
   test-validity  project a live-test receipt
+  test-plan  candidate test consolidation plan
   step  declared authoring scope receipts
   delta  source-free record of one change
 
@@ -1191,6 +1194,32 @@ tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
 `
 
+const testPlanHelp = `Propose a candidate consolidation of declared test variations.
+
+Usage:
+  corvint [--root PATH] test-plan consolidate --input FILE [--tests FILE]...
+      [--map FILE]... [--revision REV] [--max-steps N] [--format table|json]
+  corvint [--root PATH] test-plan check --plan FILE --input FILE [--tests FILE]...
+      [--map FILE]... [--revision REV] [--max-steps N]
+
+FILE --input is one test-consolidation-input/0 document (at most 8 MiB). The
+planner abstains every variation with a missing anchor, reuses a variation only
+when a --tests provider document (at most 8) shows a passing, associated,
+eligible e2e test whose bound digests match --revision (default HEAD), classes
+duplicates, isolates destructive and conflicting variations, and groups the rest
+by context into ordered tests of at most N steps (2..32, default 8). --map (at
+most 8 AMAP-V0 maps) validates screens, routes and lineage freshness at the
+revision; without it anchor validation is NOT_RUN. Plan authority is always
+candidate: it states no test adequacy.
+
+check recomputes the plan and compares it with the one table header and its rows
+inside --plan (a Markdown file may surround it). It exits 0 when they match and
+the plan is COMPLETE, 1 on test-plan-mismatch, test-plan-incomplete or
+test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
+The command reads only its named files and Git, runs no test and never writes.
+Experimental.
+`
+
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
 // other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
 const commandMaturityHelp = `Command maturity:
@@ -1205,7 +1234,7 @@ const commandMaturityHelp = `Command maturity:
     depsource (DSE-V0), necessity (NEC-V0), surprise (TSS-V0),
     answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
-    features (RGV-V0), overview (RGV-V0), review (RGV-V0),
+    test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
     breakage (BKM-V0), step (ASS-V0), delta (DLT-V0)
 
