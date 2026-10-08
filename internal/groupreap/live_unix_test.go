@@ -201,6 +201,31 @@ func TestAHI048DrainKeepsGroupRecordedUntilReap(t *testing.T) {
 	requireGone(t, member)
 }
 
+// Contain serves both a context-bound Git spawn (V1-0373: Cancel becomes Stop)
+// and a plain exec.Command started through StartLive (V1-0734): the latter
+// keeps a nil Cancel, which exec.Cmd.Start requires, and is still recorded.
+func TestContainKeepsPlainCommandStartable(t *testing.T) {
+	command := exec.Command("/bin/sh", "-c", "exit 0")
+	Contain(command)
+	if command.Cancel != nil || command.SysProcAttr == nil || !command.SysProcAttr.Setpgid {
+		t.Fatalf("Contain on a plain command: Cancel set %v, attributes %+v", command.Cancel != nil, command.SysProcAttr)
+	}
+	if err := StartLive(command); err != nil {
+		t.Fatal(err)
+	}
+	if !liveGroups.recorded(command.Process.Pid) {
+		t.Fatal("a contained plain command was not recorded")
+	}
+	if err := Wait(command); err != nil {
+		t.Fatal(err)
+	}
+	withContext := exec.CommandContext(context.Background(), "/bin/sh", "-c", "exit 0")
+	Contain(withContext)
+	if withContext.Cancel == nil {
+		t.Fatal("Contain dropped the context cancellation")
+	}
+}
+
 // AHI-048: concurrent starts, releases and one exit kill never signal a group
 // whose leader was reaped, and nothing is recorded after the kill. Every
 // worker keeps starting until the kill refuses it, so starts and releases

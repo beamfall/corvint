@@ -55,15 +55,19 @@ func wait(command *exec.Cmd, exited func()) error {
 	return err
 }
 
-// Contain places command in its own process group and makes its context
-// cancellation use Stop. Started through StartLive or Drain, the group is also
-// recorded for KillLive until its pre-reap release (AHI-048).
+// Contain places command in its own process group and, for a command made by
+// exec.CommandContext (which sets a default Cancel), makes its context
+// cancellation use Stop. A command without a context keeps a nil Cancel, which
+// exec.Cmd.Start requires. Started through StartLive or Drain, the group is
+// also recorded for KillLive until its pre-reap release (AHI-048).
 func Contain(command *exec.Cmd) {
 	if command.SysProcAttr == nil {
 		command.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	command.SysProcAttr.Setpgid = true
-	command.Cancel = func() error { return Stop(command) }
+	if command.Cancel != nil {
+		command.Cancel = func() error { return Stop(command) }
+	}
 }
 
 // Stop SIGKILLs a started command early. Where waitid lets Wait and Drain
