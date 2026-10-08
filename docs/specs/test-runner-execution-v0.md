@@ -465,17 +465,18 @@ interrupt it (V1-0624). Admission now refuses such a path before a blocking open
   and exit 1. Admission stats the path, opens it nonblocking and requires the
   opened descriptor to be the same regular file. The executor's independently
   pinned tools and configuration/reporter files, including the Gradle build
-  manifest, MUST open nonblocking without following a final symlink after their
-  no-follow regular-file checks, so a FIFO swapped in after the check refuses
-  instead of blocking. Regular documents, historical bytes and approved-plan
+  manifest, MUST open nonblocking after their no-follow regular-file checks and
+  require the opened descriptor to be the file the no-follow check saw, so a FIFO
+  or final symlink swapped in after the check refuses instead of blocking or
+  being followed. Regular documents, historical bytes and approved-plan
   semantics are unchanged. Status: proposed (V1-0624).
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-024 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
+| TRE-V0-024 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`, `openPinnedRegular`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, `TestOpenPinnedRegularRefusesFIFOAndFinalSymlink` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
 
-Recorded limits. The swap between the pinned-file check and its open is closed
-by the nonblocking open but has no deterministic regression test. Parent
+Recorded limits. The swap between the pinned-file check and its open is tested
+through the open helper, not by racing a live swap. Parent
 directories of a document path are trusted, as before. This is not hostile
 filesystem authority.
 

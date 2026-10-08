@@ -432,6 +432,26 @@ func declaredPath(r Request) string {
 	}
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
+
+// openPinnedRegular binds the opened descriptor to a no-follow Lstat, because
+// os.Root follows a final symlink even with O_NOFOLLOW. O_NONBLOCK keeps a FIFO
+// swapped in after the path checks from blocking admission (V1-0624).
+func openPinnedRegular(root *os.Root, rel string) (*os.File, os.FileInfo, error) {
+	before, err := root.Lstat(rel)
+	if err != nil {
+		return nil, nil, err
+	}
+	f, err := root.OpenFile(rel, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() || !os.SameFile(before, st) {
+		f.Close()
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	return f, st, nil
+}
 func checkPinnedFile(base, name, digest string) error {
 	if name == "" && digest == "" {
 		return nil
@@ -457,13 +477,12 @@ func checkPinnedFile(base, name, digest string) error {
 	if err = regularPath(root, rel); err != nil {
 		return err
 	}
-	f, err := root.OpenFile(rel, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	f, st, err := openPinnedRegular(root, rel)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || st.Size() > MaxPinnedArtifactBytes {
+	if st.Size() > MaxPinnedArtifactBytes {
 		return fmt.Errorf("pinned artifact byte bound")
 	}
 	h := sha256.New()

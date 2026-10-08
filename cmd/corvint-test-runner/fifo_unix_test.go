@@ -142,7 +142,7 @@ func TestPinnedGradleManifestFIFORefusedBeforeExecution(t *testing.T) {
 	}
 	toolsPath := filepath.Join(dir, "tools.json")
 	writeJSON(t, toolsPath, map[string]tr.Tool{"java": tools["java"]})
-	r := tr.Request{Runner: "gradle-junit", Root: root, Project: "app", Config: manifest, ConfigSha256: tr.Digest(manifestBytes), Target: ":test", ReportDir: filepath.Join(dir, "reports"), TimeoutSeconds: 60, InputFiles: map[string]string{"app/build.gradle": tr.Digest(manifestBytes), "app/A.java": tr.Digest(source)}}
+	r := tr.Request{Runner: "gradle-junit", Root: root, Project: "app", Config: manifest, ConfigSha256: tr.Digest(manifestBytes), Target: ":test", ReportDir: filepath.Join(dir, "reports"), TimeoutSeconds: 60, InputFiles: map[string]string{"app/A.java": tr.Digest(source)}}
 	requestPath := filepath.Join(dir, "request.json")
 	writeJSON(t, requestPath, r)
 	identity := []string{"--executable", tools["gradle"].Executable, "--executable-sha256", tools["gradle"].Sha256, "--tools", toolsPath}
@@ -174,7 +174,9 @@ func TestPinnedGradleManifestFIFORefusedBeforeExecution(t *testing.T) {
 	if err = json.Unmarshal(b, &result); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(result.Error, "nonregular file refused") {
+	// The manifest is pinned only through Config, so the refusal comes from the
+	// pinned-file reader rather than the source input inventory.
+	if !strings.HasPrefix(result.Error, "config: nonregular file refused") {
 		t.Fatalf("manifest refusal not retained: %q", result.Error)
 	}
 	if _, err = os.Stat(r.ReportDir); !os.IsNotExist(err) {
