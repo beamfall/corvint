@@ -241,28 +241,7 @@ func TestReviewProjectionHostileText(t *testing.T) {
 // retained separately on the final integrated requirement-bearing OCM.
 func TestReviewProjectionNativeOCMAdapterUnknownOnly(t *testing.T) {
 	t.Run("CEM-PILOT-029 native unknown obligations and retained CEM bytes", func(t *testing.T) {
-		root := t.TempDir()
-		gitCmd(t, root, "init", "-q", "-b", "main")
-		writeFile(t, root, "intent.md", "# Intent\n\n## Requirements\n\n- `REV-TEST-001`: show exact review evidence.\n- `REV-TEST-002`: retain absent execution.\n\n## Non-goals\n")
-		writeFile(t, root, "widget.go", "package widget\nfunc Frob() int { return 1 }\n")
-		writeFile(t, root, "widget_test.go", "package widget\nimport \"testing\"\nfunc TestWidget(t *testing.T) {\n t.Run(\"REV-TEST-001\", func(t *testing.T) {})\n}\n")
-		gitCmd(t, root, "add", ".")
-		gitCmd(t, root, "commit", "-qm", "base")
-		base := gitCmd(t, root, "rev-parse", "HEAD")
-		writeFile(t, root, "widget.go", "package widget\nfunc Frob() int { return 2 }\n")
-		gitCmd(t, root, "add", ".")
-		gitCmd(t, root, "commit", "-qm", "target")
-		target := gitCmd(t, root, "rev-parse", "HEAD")
-		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := openSession(t, root).Cite(ctx(), CiteOptions{MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "intent.md", Lines: "5:5", Relation: "specification"}); err != nil {
-			t.Fatal(err)
-		}
-		path := ".corvint/change.ocm.json"
-		if _, err := lrfrepo.PrepareOCM(ctx(), root, lrfrepo.PrepareOptions{MapPath: path, CEMPath: wire.ExcludedCEMPath, IntentPath: "intent.md", ExpectedBase: base, Target: target}); err != nil {
-			t.Fatal(err)
-		}
+		root, base, target, path := nativeOCMRepo(t)
 		raw, _ := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
 		// At this point CEMRaw is the only admitted CEM input to the adapter.
 		writeFile(t, root, wire.ExcludedCEMPath, "replaced input path")
@@ -349,6 +328,122 @@ func TestReviewProjectionNativeOCMAdapterUnknownOnly(t *testing.T) {
 					}
 				}
 			})
+		}
+	})
+}
+
+// nativeOCMRepo builds a two-commit repository with a real producer CEM and
+// OCM whose two obligations are both unknown.
+func nativeOCMRepo(t *testing.T) (root, base, target, path string) {
+	t.Helper()
+	root = t.TempDir()
+	gitCmd(t, root, "init", "-q", "-b", "main")
+	writeFile(t, root, "intent.md", "# Intent\n\n## Requirements\n\n- `REV-TEST-001`: show exact review evidence.\n- `REV-TEST-002`: retain absent execution.\n\n## Non-goals\n")
+	writeFile(t, root, "widget.go", "package widget\nfunc Frob() int { return 1 }\n")
+	writeFile(t, root, "widget_test.go", "package widget\nimport \"testing\"\nfunc TestWidget(t *testing.T) {\n t.Run(\"REV-TEST-001\", func(t *testing.T) {})\n}\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "base")
+	base = gitCmd(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, "widget.go", "package widget\nfunc Frob() int { return 2 }\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "target")
+	target = gitCmd(t, root, "rev-parse", "HEAD")
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := openSession(t, root).Cite(ctx(), CiteOptions{MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "intent.md", Lines: "5:5", Relation: "specification"}); err != nil {
+		t.Fatal(err)
+	}
+	path = ".corvint/change.ocm.json"
+	if _, err := lrfrepo.PrepareOCM(ctx(), root, lrfrepo.PrepareOptions{MapPath: path, CEMPath: wire.ExcludedCEMPath, IntentPath: "intent.md", ExpectedBase: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	return root, base, target, path
+}
+
+// CEM-PILOT-032 (V1-0513): a natively invalid OCM keeps its verdict, native
+// state and every escaped verification issue in Markdown, binds the same record
+// digest as JSON, and never renders a ready state or obligation join.
+func TestReviewProjectionNativeInvalidOCMMarkdownParity(t *testing.T) {
+	root, base, target, path := nativeOCMRepo(t)
+	ocmRaw, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongBase := func(ctx context.Context, root, path string, raw []byte, _, target string) (map[string]any, error) {
+		return lrfrepo.ReadOCMReview(ctx, root, path, raw, target, target)
+	}
+	cases := []struct {
+		name   string
+		ocm    string
+		reader ReviewOCMReader
+	}{
+		{"wrong base", string(ocmRaw), wrongBase},
+		{"noncanonical bytes", " " + string(ocmRaw), lrfrepo.ReadOCMReview},
+		{"malformed canonical object", "{}\n", lrfrepo.ReadOCMReview},
+	}
+	for _, tc := range cases {
+		t.Run("CEM-PILOT-032 "+tc.name, func(t *testing.T) {
+			writeFile(t, root, path, tc.ocm)
+			options := ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target, Format: "json", OCMPath: path, ReadOCM: tc.reader}
+			machine, err := openSession(t, root).Read(ctx(), "report", options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			review := machine["review"].(map[string]any)
+			ocm := review["ocm"].(map[string]any)
+			issues, _ := ocm["verification"].(map[string]any)["issues"].([]any)
+			if machine["ok"] != false || review["ocmValid"] != false || ocm["valid"] != false || ocm["state"] != "invalid" || len(issues) == 0 {
+				t.Fatalf("JSON did not retain native invalid OCM verdict: %v", ocm)
+			}
+			for _, item := range review["hunks"].([]any) {
+				if len(item.(map[string]any)["obligations"].([]any)) != 0 {
+					t.Fatal("invalid OCM joined an obligation")
+				}
+			}
+			options.Format = "markdown"
+			human, err := openSession(t, root).Read(ctx(), "report", options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if human["ok"] != false || human["recordSetSha256"] != review["recordSetSha256"] {
+				t.Fatalf("Markdown verdict/digest diverged from JSON: ok=%v %v != %v", human["ok"], human["recordSetSha256"], review["recordSetSha256"])
+			}
+			raw, err := os.ReadFile(human["report"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			text := string(raw)
+			want := []string{"OCM validity: `false`", "OCM state: `invalid`", review["recordSetSha256"].(string)}
+			for _, item := range issues {
+				issue := item.(map[string]any)
+				line := "- OCM issue: " + mdreport.CodeSpan(issue["code"].(string))
+				if message, _ := issue["message"].(string); message != "" {
+					line += ": " + mdreport.CodeSpan(message)
+				}
+				want = append(want, line+"\n")
+			}
+			for _, s := range want {
+				if !strings.Contains(text, s) {
+					t.Fatalf("Markdown omits %q:\n%s", s, text)
+				}
+			}
+			for _, forbidden := range []string{"ready-for-review", "ready-for-ci", "OCM validity: `true`", "  - Obligation "} {
+				if strings.Contains(text, forbidden) {
+					t.Fatalf("Markdown inferred %q for invalid OCM:\n%s", forbidden, text)
+				}
+			}
+		})
+	}
+	t.Run("CEM-PILOT-032 non-JSON OCM is refused without a report", func(t *testing.T) {
+		writeFile(t, root, path, "not json\n")
+		output := ".corvint/invalid-ocm-report.md"
+		_, err := openSession(t, root).Read(ctx(), "report", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target, OCMPath: path, ReadOCM: lrfrepo.ReadOCMReview, Output: output})
+		if err == nil {
+			t.Fatal("non-JSON OCM produced a report")
+		}
+		if _, statErr := os.Stat(filepath.Join(root, output)); !os.IsNotExist(statErr) {
+			t.Fatalf("refused OCM still published a report: %v", statErr)
 		}
 	})
 }
