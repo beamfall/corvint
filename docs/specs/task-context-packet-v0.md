@@ -1126,8 +1126,8 @@ file or accept the warning. It does not screen homoglyphs, U+00AD soft hyphens, 
 selectors or other format characters outside the named sets, does not screen ordinary rows,
 `query`/`impact` wires or `external` rows, and does not add a `--base` option: a committed range is
 `cem status`'s to report (CEM-CB-026). It does not change what CCF-V1-005 freezes; the
-`governance_refused` member keeps its name and type, and its relation and trust register is the
-owner's to review under CCF-V1-006 now that a generator writes rows there. `AGENTS.override.md` and
+`governance_refused` member keeps its name and type, and decision 0468 (V1-0653) registers its
+relation, trust and warning values under CCF-V1-007 (d). `AGENTS.override.md` and
 other names `documentKind` does not classify as `instructions` are outside the screen, as they are
 outside TCP-V0-008.
 

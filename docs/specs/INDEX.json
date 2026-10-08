@@ -3,7 +3,7 @@
     "path": "docs/specs/core-compatibility-freeze-v1.md",
     "title": "Core Compatibility Freeze V1",
     "reqPrefix": "CCF-V1",
-    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)",
+    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)",
     "delivery": "experimental",
     "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
