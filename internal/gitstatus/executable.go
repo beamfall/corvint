@@ -73,15 +73,10 @@ func resolveExecutable() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	// xcrun runs in its own recorded group, so an exit that abandons this lookup retires it (AHI-048).
 	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "--find", "git")
-	groupreap.Contain(command)
 	var output bytes.Buffer
 	command.Stdout = &output
-	if err := groupreap.StartLive(command); err != nil {
-		return resolved
-	}
-	if err := groupreap.Wait(command); err != nil {
+	if err := runLookup(command); err != nil {
 		return resolved
 	}
 	target := strings.TrimSpace(output.String())
@@ -90,4 +85,18 @@ func resolveExecutable() string {
 		return resolved
 	}
 	return target
+}
+
+// runLookup runs a lookup child in its own recorded group, so an exit that
+// abandons the lookup retires it (AHI-048). An owned worker's child stays in
+// the worker's group for the enclosing runner to retire, as its Git does.
+func runLookup(command *exec.Cmd) error {
+	if OwnedWorker() {
+		return command.Run()
+	}
+	groupreap.Contain(command)
+	if err := groupreap.StartLive(command); err != nil {
+		return err
+	}
+	return groupreap.Wait(command)
 }

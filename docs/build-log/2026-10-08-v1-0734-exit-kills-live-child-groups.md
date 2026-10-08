@@ -34,7 +34,7 @@ process group synchronously before `os.Exit`.
   `terminateProcessGroup` stays as it was. A pipe holder is unrecorded during the drain, and that
   limit is listed under `AHI-048`'s failure modes.
 - **The `xcrun --find git` lookup is contained** (`Contain` + `StartLive` + `Wait`), so an exit
-  that abandons the lookup also retires it.
+  that abandons the lookup also retires it. In an owned worker it stays in the worker's group.
 - **The outlive bound is asserted for slow-Git cases only.** The run-to-run evidence is below: a
   Git that is running, not sleeping, can take longer than 100 ms to act on the SIGKILL under heavy
   host load, even though it was recorded and signalled. Other cases log the time
@@ -67,6 +67,24 @@ process group synchronously before `os.Exit`.
   - concurrent starts and releases against one kill.
 - Race and focused package tests, vet (including `GOOS=windows` and `GOOS=linux`), gofmt and the
   doc gates are listed in the lane report.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only, `f33ea8ef..HEAD`) reported no P0/P1. It found no recorded group
+reaped by a plain `command.Wait`, and no gate race that lets `KillLive` signal a reaped leader's
+group. Dispositions:
+
+- **P2 accepted and fixed: `xcrun` escaped owned-worker containment.** `runLookup` now keeps the
+  lookup in an owned worker's group. Evidence: `TestAHI048LookupKeepsOwnedWorkerGroup`.
+- **P2 accepted as a documented limit: pipe-holding `contextindex` descendants go unrecorded
+  during the drain.** Recording them past the leader's reap would break the no-reaped-group rule.
+  `AHI-048` now claims only groups whose leader has not exited, and lists the drain window under
+  failure modes.
+- **P2 retained: the 100 ms assertion.** Ticket acceptance (2) requires it, and it applies only to
+  sleeping slow-Git children. Signal evidence comes from the deterministic helper-process test,
+  and the one-minute hang detector still bounds eventual termination.
+- **P3 fixed: the concurrency test now proves overlap.** Every worker keeps starting until the
+  kill refuses it, instead of relying on a 20 ms sleep.
 
 ## NOT_RUN
 

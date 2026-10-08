@@ -164,8 +164,9 @@ func TestAHI048WaitPipesReleasesWithoutKillingTheGroup(t *testing.T) {
 }
 
 // AHI-048: concurrent starts, releases and one exit kill never signal a group
-// whose leader was reaped, and nothing is recorded after the kill. Run under
-// -race.
+// whose leader was reaped, and nothing is recorded after the kill. Every
+// worker keeps starting until the kill refuses it, so starts and releases
+// overlap the kill. Run under -race.
 func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 	var mu sync.Mutex
 	reaped := map[int]bool{}
@@ -177,18 +178,27 @@ func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 		}
 		return syscall.Kill(group, signal)
 	})
-	var workers sync.WaitGroup
-	for range 8 {
-		workers.Add(1)
+	const workers = 8
+	var started sync.WaitGroup
+	started.Add(workers)
+	refused := make(chan bool, workers)
+	for range workers {
 		go func() {
-			defer workers.Done()
-			for range 10 {
+			first := true
+			for {
 				command := exec.Command("/bin/sh", "-c", "exit 0")
 				command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-				if err := r.start(command); errors.Is(err, ErrExiting) {
+				err := r.start(command)
+				if first {
+					first = false
+					started.Done()
+				}
+				if errors.Is(err, ErrExiting) {
+					refused <- true
 					return
 				} else if err != nil {
 					t.Error(err)
+					refused <- false
 					return
 				}
 				leader := command.Process.Pid
@@ -201,9 +211,13 @@ func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 			}
 		}()
 	}
-	time.Sleep(20 * time.Millisecond)
+	started.Wait()
 	r.kill()
-	workers.Wait()
+	for range workers {
+		if !<-refused {
+			t.Fatal("a worker stopped before the kill refused it")
+		}
+	}
 	if len(r.groups) != 0 {
 		t.Fatalf("groups remain recorded after the kill: %v", r.groups)
 	}
