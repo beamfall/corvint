@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed
+Intent status: proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620)
 Delivery status: experimental
 Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 `docs/specs/live-proof-carrying-verification-v0.md`, `docs/specs/go-live-test-provider-v0.md`.
 
 ## Agent digest
 - Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
-- Status: proposed technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
+- Status: proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620); technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
 - Exists: 57 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.
@@ -416,14 +416,14 @@ part, and historical plan, receipt and identity bytes are unchanged.
   historical bytes and plan identity. The only version is
   `corvint-test-selection/1`. The only matcher is `nightwatch-session-elided/1`,
   bound to runner `nightwatch`. Document decoding stays closed: unknown or
-  duplicate fields refuse. Status: proposed (V1-0620).
+  duplicate fields refuse. Status: accepted (decision 0454; V1-0620).
 - `TRE-V0-022`: Plan and run admission MUST refuse, before any launch, a
   selection with another version, an unknown matcher or a matcher bound to
   another runner, one combined with non-empty `ExpectedTests`, zero or more than
   4096 identities, a duplicate identity, or an identity that is not exactly four
   non-empty `::`-separated components of at most 4096 bytes without control
   characters or an edge colon. The admitted selection is part of the approved
-  plan digest. Status: proposed (V1-0620).
+  plan digest. Status: accepted (decision 0454; V1-0620).
 - `TRE-V0-023`: After native observation, shared `Normalize` MUST project each
   observed test from its structured file, suite and name fields: its identity must be
   `File::Suite::TestEnv::SessionID::Name` with a non-empty session that has no
@@ -434,7 +434,7 @@ part, and historical plan, receipt and identity bytes are unchanged.
   (`extra-selected-test`), an absent selected identity (`missing-selected-test`)
   or a selection that fails `TRE-V0-022` (`invalid-test-selection`) makes the
   observation incomplete. Public states become `UNKNOWN`, and native IDs,
-  including session IDs, stay retained. Status: proposed (V1-0620).
+  including session IDs, stay retained. Status: accepted (decision 0454; V1-0620).
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |

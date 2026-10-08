@@ -541,7 +541,7 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   any other class, unknown included, only against a listed origin, else
   `observer-origin-not-disposable`.
 
-The separate proposed [navigation execution profile](application-flow-navigation-execution-v0.md)
+The separate accepted (decision 0455) [navigation execution profile](application-flow-navigation-execution-v0.md)
 connects these unchanged packets to the explicit experimental companion. Its closed committed
 execution input supplies operations and observable outcome mappings; prose is never executable.
 The initial consumer accepts evidence/registry/traffic-free UI packets only, preserves verification
