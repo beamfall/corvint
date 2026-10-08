@@ -528,7 +528,9 @@ function validateCanonicalContent(value: JsonValue | undefined, structured: Json
   const block = object(content[0], "MCP text content");
   exactKeys(block, ["text", "type"], "MCP text content");
   if (block.type !== "text" || typeof block.text !== "string" || Buffer.byteLength(block.text, "utf8") > 384 * 1024 ||
-    block.text !== (isError ? canonicalJson(structured) : frameRepositoryData(canonicalJson(textSummary(structured))))) {
+    (isError ? block.text !== canonicalJson(structured)
+      : block.text !== frameRepositoryData(canonicalJson(textSummary(structured))) &&
+        block.text !== frameRepositoryData(canonicalJson(structured)))) {
     throw new McpFailure("protocol", "MCP text and structured content are not canonical duplicates");
   }
 }

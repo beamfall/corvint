@@ -596,7 +596,8 @@ Each row cites the first emitting site and states only the condition checked the
   receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
   and omission disclosures as `query`. Range (`--base`) and `--working-tree-untracked` impact
   keep refusing it as `unsupported-impact-option`, and `--provider` with `--budget-bytes` is an
-  argument error because the external section is not budgeted. This amends the
+  argument error because the external section is not budgeted. `prove` refuses `--budget-bytes`
+  because it embeds the unbudgeted impact packet (`FPK-V0-010`). This amends the
   `GPK-V0` "only `--limit`" impact-option clause for path impact only.
 - `MCPV0-033`: proposed (V1-0944; no GitHub issue). When a successful tool result carries
   `structuredContent` and its receipt has a `results` list, the text block carries the framed
@@ -606,7 +607,8 @@ Each row cites the first emitting site and states only the condition checked the
   refusal of `MCPV0-008` is still decided on the full object. Results without a `results` list,
   tool errors and flows results keep the full framed text. This deliberately departs from the MCP
   SHOULD that a structured result also returns its serialized JSON as text; a text-only client
-  sees the ranked rows but not their evidence.
+  sees the ranked rows but not their evidence. A client that validates the text block MUST also
+  admit the full framed object, which servers predating this requirement emit.
 
 ## Acceptance matrix
 
@@ -686,8 +688,8 @@ that focused run.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
-| `MCPV0-031` | `contextindex.capImpactRows` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions` |
-| `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget` | `TestMCPV0032PathImpactHonoursBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
+| `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
+| `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 
 ## Unresolved decisions and promotion/kill criteria

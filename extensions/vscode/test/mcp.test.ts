@@ -109,8 +109,9 @@ test("MCP text is the canonical receipt summary inside the AHI-004 envelope with
   assert.equal(decodeCallResult(result, "query").authority.state, "READY");
   const bare = { ...result, content: [{ type: "text", text: canonical(structured) }] };
   assert.throws(() => decodeCallResult(bare, "query"), /canonical duplicates/);
+  // A server predating MCPV0-033 frames the full object; it stays admitted.
   const full = { ...result, content: [{ type: "text", text: framed(canonical(structured)) }] };
-  assert.throws(() => decodeCallResult(full, "query"), /canonical duplicates/);
+  assert.equal(decodeCallResult(full, "query").authority.state, "READY");
 });
 
 test("MCP admits a closed null-receipt abstention and rejects authority laundering", () => {

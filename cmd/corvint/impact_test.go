@@ -423,3 +423,15 @@ func TestMCPV0032PathImpactHonoursBudgetBytes(t *testing.T) {
 		}
 	})
 }
+
+// TestMCPV0032ProveRefusesBudgetBytes: prove embeds the unbudgeted impact
+// packet (FPK-V0-010), so it refuses --budget-bytes instead of ignoring it.
+func TestMCPV0032ProveRefusesBudgetBytes(t *testing.T) {
+	t.Run("MCPV0-032", func(t *testing.T) {
+		root := impactCLIRepository(t)
+		var stdout, stderr bytes.Buffer
+		if exit := run([]string{"--root", root, "prove", "pkg/main.go", "--budget-bytes", "2048"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "prove does not support --budget-bytes") {
+			t.Fatalf("exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
+		}
+	})
+}
