@@ -196,8 +196,9 @@ func TestKHNV0002_PayloadRefusals(t *testing.T) {
 
 // TestKHNV0004_SecretScreenRefusesTheWrite: a secret in the text, a
 // supersede or retract reason, a route or an anchor path is refused with the
-// stable KNOWHOW_SECRET_DETECTED detail prefix, and the detail never repeats
-// the secret.
+// owned SECRET_DETECTED code (KHN-V0-010, not MALFORMED) and the retained
+// KNOWHOW_SECRET_DETECTED detail prefix (KHN-V0-011), and the detail never
+// repeats the secret.
 func TestKHNV0004_SecretScreenRefusesTheWrite(t *testing.T) {
 	secret := "AKIAABCDEFGHIJKLMNOP"
 	if !secretscreen.MatchString(secret) {
@@ -220,8 +221,8 @@ func TestKHNV0004_SecretScreenRefusesTheWrite(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := newCtx(t, owner, nil, base)
 			plan := apply(t, ctx, envelope("sec", owner, "AT-01", string(base.Revision), c.op, c.p))
-			want(t, plan, mutation.OutcomeValidationFailed, wire.CodeMalformed)
-			if !strings.HasPrefix(plan.Detail, mutation.KnowHowSecretDetail+":") || strings.Contains(plan.Detail, secret) || plan.Post != nil && len(plan.Post.KnowHow) != 1 {
+			want(t, plan, mutation.OutcomeValidationFailed, wire.CodeSecretDetected)
+			if plan.Outcome.HasCode(wire.CodeMalformed) || !strings.HasPrefix(plan.Detail, mutation.KnowHowSecretDetail+":") || strings.Contains(plan.Detail, secret) || plan.Post != nil && len(plan.Post.KnowHow) != 1 {
 				t.Fatalf("secret refusal detail %q", plan.Detail)
 			}
 		})
@@ -302,5 +303,138 @@ func TestKHNV0002_RecordCodecRefusals(t *testing.T) {
 	empty.Obj.Set("knowHow", wire.Array())
 	if _, err := ticket.Decode(wire.EncodeFile(empty)); err == nil {
 		t.Fatal("an empty knowHow array decoded")
+	}
+}
+
+// TestKHNV0010_ArgumentScreenUsesTheOwnedCode: the CLI argument screen
+// returns SECRET_DETECTED with the retained detail prefix and never the
+// argument; a clean argument list passes.
+func TestKHNV0010_ArgumentScreenUsesTheOwnedCode(t *testing.T) {
+	secret := "AKIAABCDEFGHIJKLMNOP"
+	err := mutation.ScreenKnowHowArgs([]string{"--text", "ok", "--reason", "rotated " + secret})
+	if wire.CodeOf(err) != wire.CodeSecretDetected || !strings.Contains(err.Error(), mutation.KnowHowSecretDetail+":") || strings.Contains(err.Error(), secret) {
+		t.Fatalf("argument screen: %v", err)
+	}
+	if err := mutation.ScreenKnowHowArgs([]string{"--text", "ok"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func khnTicketID(id string) wire.TicketID {
+	out, err := wire.ParseTicketID("", id)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
+
+// khnLedger is one AT-01 attempt at generation 3 with prior generations 1
+// and 2, plus one AT-02 attempt.
+func khnLedger() mutation.AttemptLedger {
+	return mutation.AttemptLedger{
+		"att-home":  {TicketID: khnTicketID(fixture.TicketID("AT-01")), Generation: "3", Prior: []wire.Size{"1", "2"}, Live: true},
+		"att-other": {TicketID: khnTicketID(fixture.TicketID("AT-02")), Generation: "1"},
+	}
+}
+
+func khnWithProvenance(attempt, generation string) wire.Value {
+	p := knowHowAdd("ok", "", "", khAnchor("a.go", khBlobA))
+	p.Obj.Set("attempt", strOrNull(attempt))
+	p.Obj.Set("generation", strOrNull(generation))
+	return p
+}
+
+// TestKHNV0008_ProvenanceIsVerified: a KNOWHOW_ADD naming an attempt or a
+// generation commits only when the audited ledger proves the attempt is on
+// the home ticket and the generation is its current or a recorded prior one;
+// otherwise it refuses VALIDATION_FAILED/PROVENANCE_UNVERIFIED without
+// echoing the asserted value. A nil ledger fails closed, and an add naming
+// neither ignores the ledger.
+func TestKHNV0008_ProvenanceIsVerified(t *testing.T) {
+	pre := fixture.Ticket("AT-01")
+	cases := []struct {
+		name, attempt, generation string
+		ledger                    mutation.AttemptLedger
+		ok                        bool
+	}{
+		{"neither, nil ledger", "", "", nil, true},
+		{"attempt only", "att-home", "", khnLedger(), true},
+		{"current generation", "att-home", "3", khnLedger(), true},
+		{"prior generation", "att-home", "1", khnLedger(), true},
+		{"unknown attempt", "att-ghost-9", "", khnLedger(), false},
+		{"other ticket's attempt", "att-other", "1", khnLedger(), false},
+		{"unrecorded generation", "att-home", "4", khnLedger(), false},
+		{"generation without attempt", "", "3", khnLedger(), false},
+		{"unobserved ledger", "att-home", "3", nil, false},
+		{"empty ledger", "att-home", "", mutation.AttemptLedger{}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := newCtx(t, owner, nil, pre)
+			ctx.KnowHowAttempts = c.ledger
+			plan := apply(t, ctx, envelope("prov", owner, "AT-01", string(pre.Revision), mutation.OpKnowHowAdd, khnWithProvenance(c.attempt, c.generation)))
+			if c.ok {
+				want(t, plan, mutation.OutcomeCompleted, "")
+				e := plan.Post.KnowHow[len(plan.Post.KnowHow)-1]
+				if (c.attempt == "") != (e.Attempt == nil) || (c.generation == "") != (e.Generation == nil) {
+					t.Fatalf("provenance not carried: %+v", e)
+				}
+				return
+			}
+			want(t, plan, mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified)
+			if c.attempt != "" && strings.Contains(plan.Detail, c.attempt) {
+				t.Fatalf("detail echoes the attempt: %q", plan.Detail)
+			}
+		})
+	}
+}
+
+// TestKHNV0008_ReusableCheck: CheckKnowHowProvenance is callable on its own
+// (the V1-0987 WORKER path calls it) and reports liveness only through the
+// ledger, never as a refusal.
+func TestKHNV0008_ReusableCheck(t *testing.T) {
+	home := khnTicketID(fixture.TicketID("AT-01"))
+	att, gen := "att-home", wire.Size("2")
+	if err := mutation.CheckKnowHowProvenance(khnLedger(), home, &att, &gen); err != nil {
+		t.Fatal(err)
+	}
+	ended := khnLedger()
+	p := ended["att-home"]
+	p.Live = false
+	ended["att-home"] = p
+	if err := mutation.CheckKnowHowProvenance(ended, home, &att, nil); err != nil {
+		t.Fatalf("an ended attempt is still verified provenance: %v", err)
+	}
+	if err := mutation.CheckKnowHowProvenance(nil, home, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := mutation.CheckKnowHowProvenance(khnLedger(), khnTicketID(fixture.TicketID("AT-02")), &att, nil); wire.CodeOf(err) != wire.CodeProvenanceUnverified {
+		t.Fatalf("home mismatch: %v", err)
+	}
+}
+
+// TestKHNV0008_KnowHowNamesAttempt: only a KNOWHOW_ADD naming an attempt or
+// a generation asks the writer for the attempt ledger.
+func TestKHNV0008_KnowHowNamesAttempt(t *testing.T) {
+	for name, c := range map[string]struct {
+		op   string
+		p    wire.Value
+		want bool
+	}{
+		"plain add":       {mutation.OpKnowHowAdd, knowHowAdd("ok", "", "", khAnchor("a.go", khBlobA)), false},
+		"attempt":         {mutation.OpKnowHowAdd, khnWithProvenance("att-home", ""), true},
+		"generation only": {mutation.OpKnowHowAdd, khnWithProvenance("", "3"), true},
+		"retract":         {mutation.OpKnowHowRetract, obj("note", str("1"), "reason", str("stale")), false},
+	} {
+		env, err := mutation.Decode(envelope("n", owner, "AT-01", "1", c.op, c.p))
+		if err != nil {
+			t.Fatal(name, err)
+		}
+		if mutation.KnowHowNamesAttempt(env) != c.want {
+			t.Fatalf("%s: want %v", name, c.want)
+		}
+	}
+	if mutation.KnowHowNamesAttempt(nil) {
+		t.Fatal("nil envelope")
 	}
 }

@@ -65,3 +65,9 @@ Lifetime-bounded unmapping is deferred to a follow-up, which needs an owner choi
   formats. It passes under `-race` and fails when the pack reconciliation is disabled.
 - Codex's first review of the adoption commit found that race; the reconciliation answers it.
 - Logs are in the lane's private evidence directory, not committed.
+
+## Batch integration
+
+V1-0944 and V1-0947 each bumped the analyzer schema to `corvint-analyzer/110` independently. Batch C
+combines both changes as `corvint-analyzer/111`, with a new audited input SHA in
+`internal/contextindex/analyzer_schema_test.go`.

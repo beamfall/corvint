@@ -89,7 +89,7 @@ func genesisPlatformRefusal(platform string) error {
 }
 
 func impactBudgetOptionRefusal() error {
-	return refused("unsupported-impact-option", "--budget-bytes is not implemented for native Go impact", diagnostic.Refusal{
+	return refused("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base or --working-tree-untracked", diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "argument", Value: "--budget-bytes"},
 		SupportedFixes: []string{"impact.omit-budget-bytes"},
 	})

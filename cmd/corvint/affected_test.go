@@ -425,7 +425,9 @@ func TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages(t *testing.T) {
 		if advisory["kind"] != adviceKindAdvisory || advisory["source"] != adviceSourcePlan {
 			t.Fatalf("last check must be the advisory plan command: %v", advisory)
 		}
-		if !strings.HasPrefix(advisory["command"].(string), "GOTOOLCHAIN=local go test -count=1 'example.com/fixture") {
+		// AFP-V0-038: the default names provider.go.packages; --full spells them out.
+		resolved := resolveCompactAdvice(t, receipt).(map[string]any)["checks"].([]any)[3].(map[string]any)
+		if advisory["arguments"] != affectedAdvisoryArguments || !strings.HasPrefix(resolved["command"].(string), "GOTOOLCHAIN=local go test -count=1 'example.com/fixture") {
 			t.Fatalf("advisory command must run the selected packages: %v", advisory)
 		}
 		if !strings.Contains(advisory["reason"].(string), "dirty path") {
@@ -894,10 +896,13 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 	if compact["profile"] != affectedCompactProfile || full["profile"] != affectedProfile {
 		t.Fatalf("profiles: default %v, --full %v", compact["profile"], full["profile"])
 	}
-	for _, member := range []string{"advice", "mutates", "ok", "provider", "range", "revision", "snapshot", "tool"} {
+	for _, member := range []string{"mutates", "ok", "provider", "range", "revision", "snapshot", "tool"} {
 		if !reflect.DeepEqual(compact[member], full[member]) {
 			t.Fatalf("%s differs: %v != %v", member, compact[member], full[member])
 		}
+	}
+	if resolved := resolveCompactAdvice(t, compact); !reflect.DeepEqual(resolved, full["advice"]) {
+		t.Fatalf("advice does not resolve to the full advice:\n%v\n%v", resolved, full["advice"])
 	}
 	compactPlan, fullPlan := compact["plan"].(map[string]any), full["plan"].(map[string]any)
 	for _, member := range []string{"graphDigest", "dirty", "scope", "unknown"} {
@@ -934,5 +939,84 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 	if len(groups) != 1 || int(group["count"].(float64)) != len(fullExcluded) || group["universe"] != fullPlan["graphDigest"] ||
 		group["reason"] != "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT" || group["invalidation"] != "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH" {
 		t.Fatalf("groups must state the shared exclusion values once: %v", groups)
+	}
+}
+
+// resolveCompactAdvice rebuilds the affected-plan/0 advice from a default
+// document: a check with arguments gets each provider.go.packages entry
+// appended, single-quoted (AFP-V0-038).
+func resolveCompactAdvice(t *testing.T, compact map[string]any) any {
+	t.Helper()
+	encoded, err := json.Marshal(compact["advice"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var advice map[string]any
+	if err := json.Unmarshal(encoded, &advice); err != nil {
+		t.Fatal(err)
+	}
+	packages := []string{}
+	for _, value := range compact["provider"].(map[string]any)["go"].(map[string]any)["packages"].([]any) {
+		packages = append(packages, value.(string))
+	}
+	for _, item := range advice["checks"].([]any) {
+		check := item.(map[string]any)
+		if check["arguments"] == nil {
+			continue
+		}
+		if check["arguments"] != affectedAdvisoryArguments {
+			t.Fatalf("unknown arguments reference %v", check["arguments"])
+		}
+		check["command"] = check["command"].(string) + " " + shellQuoteJoin(packages)
+		delete(check, "arguments")
+	}
+	return advice
+}
+
+func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	appendFile(t, filepath.Join(root, "leaf", "leaf.go"), "\n// dirty\n")
+	compact, compactRaw, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	full, _, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	packages := compact["provider"].(map[string]any)["go"].(map[string]any)["packages"].([]any)
+	if len(packages) == 0 {
+		t.Fatal("fixture selected no Go package")
+	}
+	referenced := 0
+	for _, item := range compact["advice"].(map[string]any)["checks"].([]any) {
+		check := item.(map[string]any)
+		if check["arguments"] != nil {
+			referenced++
+			if check["command"] != adviceAdvisoryGoTest || check["kind"] != adviceKindAdvisory || check["source"] != adviceSourcePlan {
+				t.Fatalf("referenced check %v", check)
+			}
+		}
+	}
+	adviceRaw, _ := json.Marshal(compact["advice"])
+	if referenced != 1 || bytes.Contains(adviceRaw, []byte(packages[0].(string))) || !bytes.Contains(compactRaw, []byte(packages[0].(string))) {
+		t.Fatalf("the package list must appear only in provider.go.packages: %s", compactRaw)
+	}
+	if !reflect.DeepEqual(resolveCompactAdvice(t, compact), full["advice"]) {
+		t.Fatal("compact advice does not resolve to the --full advice")
+	}
+	// A command that is not exactly the prefix plus the quoted packages is
+	// kept whole, and a package path with a quote still round-trips.
+	quoted := []string{"example.com/it's"}
+	advice := affectedAdvice{Checks: []affectedCheck{
+		{Command: adviceAdvisoryGoTest + " " + shellQuoteJoin(quoted), Kind: adviceKindAdvisory, Source: adviceSourcePlan},
+		{Command: adviceAdvisoryGoTest + " 'other'", Kind: adviceKindAdvisory, Source: adviceSourcePlan},
+		{Command: "make gate", Kind: adviceKindMandatory, Source: adviceMakefileName},
+	}}
+	checks := compactAffectedAdvice(advice, quoted).Checks
+	if checks[0].Command != adviceAdvisoryGoTest || checks[0].Arguments != affectedAdvisoryArguments ||
+		checks[1].Command != advice.Checks[1].Command || checks[1].Arguments != "" || checks[2].Command != "make gate" || checks[2].Arguments != "" {
+		t.Fatalf("compact checks %+v", checks)
 	}
 }

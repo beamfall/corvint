@@ -182,11 +182,13 @@ func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witnes
 		delete(start, id)
 	}
 	reached = graph.traverse(start)
+	built := graph.builtCommands(reached, enclosing)
 	graph.testUsersOf(reached)
 	for id := range contained {
 		reached[id] = seeds[id]
 	}
 	mergeWitnesses(reached, enclosing)
+	graph.execUsersOf(reached, built)
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, normalized)
 	graph.scopedReadersOf(reached, normalized)

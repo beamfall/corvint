@@ -38,6 +38,11 @@ type BehaviorMigration struct {
 	SourceRevision        string            `json:"source_revision"`
 	DocumentationRevision string            `json:"documentation_revision"`
 }
+// BehaviorRevisions is the fixed /1 repository triple, shared by the /1
+// provider registry and its migration, discovery, runtime, adapter and corpus
+// manifest wires. The E2E member keeps the legacy /1 member name because the
+// /1 bytes are frozen (AFU-V1-006, AFU-V1-054). /2 carries that repository only
+// as the neutral provider source and one repositories entry (AFU-V1-055).
 type BehaviorRevisions struct {
 	App  Repository `json:"app"`
 	E2E  Repository `json:"golf_e2e"`

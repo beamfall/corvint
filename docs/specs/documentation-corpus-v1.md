@@ -176,7 +176,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-028`: One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
   `corvint-corpus-behavior-provider/1` record, the normalized normative variation projection,
   canonical test semantic claims and complete migration, live-discovery and runtime sidecar bytes
-  with their SHA-256 identities. The provider retains the issue-40 `golf_e2e` member and digest
+  with their SHA-256 identities. The provider retains the issue-40 legacy /1 member and digest
   algorithm. Sidecars remain separately publishable inputs, avoiding self-reference.
 - `DCP-V1-029`: The adapter preserves the same canonical variation set in both directions across
   flow, variation, exact test ID, Playwright project, assertion and semantic test claim. Preconditions,
@@ -326,8 +326,8 @@ The registry pins contract ID/digest, source and documentation revisions, a full
 manifest anchor, flows, source-discovered behaviors and exact Playwright test/project executions.
 The schema-2 migration manifest contains `schema`, `contract_id`, `source_revision`,
 `documentation_revision` and `revisions`. The latter pins repository IDs and commits for `app`,
-`golf_e2e` and `docs_corpus`; the registry, migration manifest, live discovery and runtime must agree
-with the corpus manifest's caller-supplied `behavior_revisions`. Any changed member blocks recorded
+the legacy /1 member and `docs_corpus`; the registry, migration manifest, live discovery and runtime
+must agree with the corpus manifest's caller-supplied `behavior_revisions`. Any changed member blocks recorded
 verification. External repository expectations remain caller-declared; local anchors still rebind
 through immutable Git. Each flow retains its derivation, documentation anchor, criterion IDs, exact
 test IDs, required page IDs, negative-control IDs and ordered complete event identities. Generated
@@ -444,7 +444,7 @@ or trusted from caller paths. `/2` has no fixed three-repository conversion and 
 runtime reconciliation. Discovery, migration and runtime claims remain unqualified, every verified
 set stays empty, and `full-relevant-suite` fallback is unconditional. Legacy/stability registries and
 non-behavior provider record families are refused in this bounded `/2` producer/ingest profile.
-Existing `/1` wire bytes and behavior remain unchanged.
+Existing `/1` wire bytes and behavior remain unchanged; `/2` never emits the legacy /1 member (AFU-V1-055).
 
 Acceptance: `TestBehaviorV2ProducerCorpusRoundTrip`, `TestBehaviorV2RepositoryGaps`,
 `TestBehaviorV2RefusesMalformedOrConflictingRecords`, `TestBehaviorProviderV2CLI`, and the retained

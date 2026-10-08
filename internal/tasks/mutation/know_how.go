@@ -7,19 +7,20 @@ import (
 )
 
 // KnowHowSecretDetail prefixes the refusal detail of a know-how write whose
-// free text matches the secret screen (KHN-V0-004). The refusal is
-// VALIDATION_FAILED with detail code MALFORMED; the detail names the field,
-// never the matched text.
+// free text matches the secret screen. Since KHN-V0-010 the refusal carries
+// the owned detail code SECRET_DETECTED instead of MALFORMED; the prefix is
+// kept as a deprecated compatibility alias for scripts that matched the
+// MALFORMED detail (KHN-V0-011). The detail names the field, never the text.
 const KnowHowSecretDetail = "KNOWHOW_SECRET_DETECTED"
 
 // ScreenKnowHowArgs refuses a know-how command whose raw arguments match the
 // secret screen before any parse or pin error can echo them (KHN-V0-004).
-// The error is MALFORMED with the KnowHowSecretDetail prefix and never
+// The error is SECRET_DETECTED with the KnowHowSecretDetail prefix and never
 // repeats the argument; the mutation step screens the payload again.
 func ScreenKnowHowArgs(args []string) error {
 	for _, s := range args {
 		if secretscreen.MatchString(s) {
-			return wire.Errorf(wire.CodeMalformed, "/payload", "%s: an argument matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail)
+			return wire.Errorf(wire.CodeSecretDetected, "/payload", "%s: an argument matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail)
 		}
 	}
 	return nil
@@ -28,8 +29,8 @@ func ScreenKnowHowArgs(args []string) error {
 // knowHowStep appends one KNOWHOW_ADD or KNOWHOW_RETRACT entry (KHN-V0-003)
 // to a live native home ticket. Actor, role, time and seq come from the
 // trusted context; nothing acceptance-relevant changes, so finalize bumps
-// revision alone. The secret screen runs here, after request replay, so only
-// a fresh write is screened.
+// revision alone. The secret screen and the provenance check (KHN-V0-008)
+// run here, after request replay, so only a fresh write is checked.
 func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 	op := p.operation()
 	if !isLive(work.Status) {
@@ -60,6 +61,9 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		if r := screenKnowHow(fields, p); r != nil {
 			return r
 		}
+		if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
+			return refuseErr(err)
+		}
 		entry.Operation = ticket.KnowHowAdd
 		entry.Text = p.Text
 		entry.Anchors = append([]ticket.KnowHowAnchor{}, p.Anchors...)
@@ -88,11 +92,11 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 
 // screenKnowHow refuses a write whose free text, route tokens or paths match
 // the shared Core secret screen (decision 0397, V1-0955 addendum). The detail
-// names only the field.
+// names only the field; the code is SECRET_DETECTED (KHN-V0-010).
 func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 	for _, name := range []string{"text", "reason"} {
 		if s, ok := fields[name]; ok && secretscreen.MatchString(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: /payload/%s matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail, name)
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "%s: /payload/%s matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail, name)
 		}
 	}
 	if add == nil {
@@ -107,7 +111,7 @@ func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 	}
 	for _, s := range extra {
 		if secretscreen.MatchString(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: a route or path in /payload matches the secret screen", KnowHowSecretDetail)
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "%s: a route or path in /payload matches the secret screen", KnowHowSecretDetail)
 		}
 	}
 	return nil

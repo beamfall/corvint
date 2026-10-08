@@ -67,6 +67,17 @@ test("strict CLI decoder admits the current CLI's unparsed, extraction, and impa
   assert.throws(() => decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", ["src/a.go"]));
 });
 
+test("strict CLI decoder keeps capped impact omissions visible (MCPV0-031)", () => {
+  const response = JSON.parse(Buffer.from(receiptBytes("result-id")).toString("utf8")) as { context: { results: Array<Record<string, unknown>> } };
+  const first = response.context.results[0];
+  assert.ok(first);
+  first.evidence_omitted = 3;
+  first.references_omitted = 2;
+  const decoded = decodeCorvintReceipt(Buffer.from(`${JSON.stringify(response)}\n`, "utf8"), "query", 262_144, "corvint", "project operations");
+  assert.ok(decoded.uncertainty.includes("result-id: 3 evidence rows omitted"));
+  assert.ok(decoded.uncertainty.includes("result-id: 2 references omitted"));
+});
+
 test("strict CLI decoder rejects unsafe identities and non-Git blob widths", () => {
   assert.throws(
     () => decodeCorvintReceipt(receiptBytes("bad\u202eid"), "query", 262_144, "corvint", "project operations"),

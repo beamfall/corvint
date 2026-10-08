@@ -565,6 +565,8 @@ summary, unknowns, scope) and provider.go.packages, the exact import paths an
 operator may copy into a Go live-test provider bundle. plan.excluded is
 {count, digest, groups}: groups state each reason, universe and invalidation
 once with its count, and digest is the SHA-256 of the full exclusion list.
+An advisory check with arguments="provider.go.packages" runs its command with
+each of those packages appended, single-quoted.
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
@@ -1182,6 +1184,8 @@ Usage:
 Features are bounded heuristic candidates with immutable blob/line evidence, not
 accepted feature IDs. Overview includes inert suggested argv. Review composes
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
+review.affected is the compact affected-plan/1 document; review.affectedFull
+names the argv that prints the full affected-plan/0 plan and that plan's digest.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
