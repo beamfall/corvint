@@ -2919,23 +2919,23 @@ TRE-V0-007	docs/specs/test-runner-execution-v0.md	46	Parsing MUST verify native 
 TRE-V0-008	docs/specs/test-runner-execution-v0.md	49	Execution MUST enforce bounded time/output and retire owned ordinary descendants
 TRE-V0-009	docs/specs/test-runner-execution-v0.md	52	Each supported tuple MUST have actual runner-generated fixture evidence for pass
 TRE-V0-010	docs/specs/test-runner-execution-v0.md	56	Provider-neutral receipts MUST compose with canonical CEM hunks and Tasks criter
-TRE-V0-011	docs/specs/test-runner-execution-v0.md	227	SQL assertion/suite profiles use explicit independently pinned native tools and
-TRE-V0-012	docs/specs/test-runner-execution-v0.md	228	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
-TRE-V0-013	docs/specs/test-runner-execution-v0.md	247	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
-TRE-V0-014	docs/specs/test-runner-execution-v0.md	248	Native observations MUST contain exactly the declared device and one canonical s
-TRE-V0-015	docs/specs/test-runner-execution-v0.md	348	An argument-free invocation MUST use exactly one explicitly
-TRE-V0-016	docs/specs/test-runner-execution-v0.md	360	`cmocka-xml` MUST execute one caller-prepared, independently pinned
-TRE-V0-017	docs/specs/test-runner-execution-v0.md	368	The dedicated parser MUST validate the native group against
-TRE-V0-018	docs/specs/test-runner-execution-v0.md	415	`ginkgo-v2` MUST execute one independently pinned suite binary
-TRE-V0-019	docs/specs/test-runner-execution-v0.md	430	Selection MUST add exactly one 18th element,
-TRE-V0-020	docs/specs/test-runner-execution-v0.md	438	The dedicated parser MUST accept exactly one `ginkgo.json`
-TRE-V0-021	docs/specs/test-runner-execution-v0.md	508	A request MAY carry `expectedSelection` `{version, matcher,
-TRE-V0-022	docs/specs/test-runner-execution-v0.md	514	Plan and run admission MUST refuse, before any launch, a
-TRE-V0-023	docs/specs/test-runner-execution-v0.md	521	After native observation, shared `Normalize` MUST project each
+TRE-V0-011	docs/specs/test-runner-execution-v0.md	229	SQL assertion/suite profiles use explicit independently pinned native tools and
+TRE-V0-012	docs/specs/test-runner-execution-v0.md	230	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
+TRE-V0-013	docs/specs/test-runner-execution-v0.md	249	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
+TRE-V0-014	docs/specs/test-runner-execution-v0.md	250	Native observations MUST contain exactly the declared device and one canonical s
+TRE-V0-015	docs/specs/test-runner-execution-v0.md	350	An argument-free invocation MUST use exactly one explicitly
+TRE-V0-016	docs/specs/test-runner-execution-v0.md	362	`cmocka-xml` MUST execute one caller-prepared, independently pinned
+TRE-V0-017	docs/specs/test-runner-execution-v0.md	370	The dedicated parser MUST validate the native group against
+TRE-V0-018	docs/specs/test-runner-execution-v0.md	417	`ginkgo-v2` MUST execute one independently pinned suite binary
+TRE-V0-019	docs/specs/test-runner-execution-v0.md	432	Selection MUST add exactly one 18th element,
+TRE-V0-020	docs/specs/test-runner-execution-v0.md	440	The dedicated parser MUST accept exactly one `ginkgo.json`
+TRE-V0-021	docs/specs/test-runner-execution-v0.md	510	A request MAY carry `expectedSelection` `{version, matcher,
+TRE-V0-022	docs/specs/test-runner-execution-v0.md	516	Plan and run admission MUST refuse, before any launch, a
+TRE-V0-023	docs/specs/test-runner-execution-v0.md	523	After native observation, shared `Normalize` MUST project each
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	109	`boost-test-junit` MUST execute the pinned test executable with
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	124	The dedicated parser MUST accept exactly one `boost-junit.xml`
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	135	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a
-TRE-V0-039	docs/specs/test-runner-execution-v0.md	153	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
+TRE-V0-039	docs/specs/test-runner-execution-v0.md	154	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

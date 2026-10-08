@@ -81,6 +81,11 @@ func TestBoostTestLiveExecution(t *testing.T) {
 	if !o.Complete || in.ExitCode != 0 || states[boostID("math/passes")] != tr.Passed || states[boostID("top_level")] != tr.Passed || states[boostID("math/fails")] != tr.Skipped {
 		t.Fatalf("selected-pass: exit=%d %+v", in.ExitCode, o)
 	}
+	o, in = run("multiple-and-fatal-assertions", 4, boostInventoryFor(4), nil)
+	states = boostStates(o)
+	if !o.Complete || in.ExitCode != 201 || states[boostID("two_failures")] != tr.Failed || states[boostID("requires")] != tr.Failed || states[boostID("top_level")] != tr.Passed {
+		t.Fatalf("multiple-and-fatal-assertions: exit=%d %+v", in.ExitCode, o)
+	}
 	for name, c := range map[string]struct {
 		mode      int
 		expected  []string
@@ -89,6 +94,7 @@ func TestBoostTestLiveExecution(t *testing.T) {
 		"missing-expected":      {1, append(boostInventoryFor(1), boostID("math/fails")), nil},
 		"suite-fixture-failure": {2, boostInventoryFor(2), nil},
 		"uncaught-exception":    {3, boostInventoryFor(3), nil},
+		"check-then-exception":  {5, boostInventoryFor(5), nil},
 		"selected-no-match":     {0, append(boostInventoryFor(0), boostID("math/nomatch")), []string{boostID("math/nomatch")}},
 	} {
 		o, in = run(name, c.mode, c.expected, c.selectors)

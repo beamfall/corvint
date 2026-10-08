@@ -34,21 +34,35 @@ Nothing was installed outside lane scratch.
 - Failing before: at the base, `TestBoostTestRegistryDispatch` fails because the
   registry lists no `boost-test-junit` runner (count 0).
 - Recorded fixtures: `native/testdata/boosttest-provenance.json` retains
-  the fixture source and seven actual runs (bytes, exit, stdout, stderr). They
+  the fixture source and nine actual runs (bytes, exit, stdout, stderr). They
   cover pass, failure and disabled (exit 201); pass and disabled (0);
   suite-fixture failure (201, `math-setup-teardown` pseudo row); uncaught
   exception (201, `errors=1`); a selected run (0); a selected disabled case,
-  which Boost enables and runs (201); and a no-match filter (200, empty sink).
+  which Boost enables and runs (201); a no-match filter (200, empty sink); two
+  failed checks in one case plus a failed `BOOST_REQUIRE` (201, two `failure`
+  entries in one row, `errors=1` for the aborted REQUIRE case); and a failed
+  check followed by an exception (201, `failure` and `error` in one row).
 - Passing after: `TestBoostTestRecordedJUnitWitnesses`,
-  `TestBoostTestBoundaryContradictions` (39 mutations, each incomplete with
+  `TestBoostTestBoundaryContradictions` (40 mutations, each incomplete with
   public `UNKNOWN`), `TestBoostTestClosedBuild` and
   `TestBoostTestRegistryDispatch` pass.
 - Live: `CORVINT_BOOST_ROOT=<scratch>/boost_1_92_0 go test -run
   TestBoostTestLiveExecution ./internal/testrunner/native` compiles the
   pinned fixture and runs it through `tr.Execute`. It passed. The complete
-  cases are pass/fail/disabled at exit 201 and a selected run at exit 0. The
-  incomplete cases all left every public state `UNKNOWN`: missing expected
-  case, suite-fixture failure, uncaught exception, and no-match exit 200.
+  cases are pass/fail/disabled at exit 201, a selected run at exit 0, and
+  multiple and fatal assertions at exit 201. The incomplete cases all left
+  every public state `UNKNOWN`: missing expected case, suite-fixture failure,
+  uncaught exception, check then exception, and no-match exit 200.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) found two P2 defects in the first commit, both
+fail-closed (`UNKNOWN`, never a pass). First, a case with several failed checks
+was refused, because Boost writes one `failure` per assertion. Second, a failed
+`BOOST_REQUIRE` raised a counter mismatch, because Boost counts it as aborted in
+`errors`. Both were confirmed live and fixed. The parser now accepts several
+outcome entries per row and counts aborted rows, and new native fixtures cover
+both cases.
 
 ## Non-goals
 

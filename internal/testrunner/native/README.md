@@ -131,7 +131,8 @@ not delivered by this profile.
 adds one colon-joined `--run_test=` element. JUnit was chosen because the
 detailed XML report omits disabled cases and the XML log has no per-case status.
 Identity is `Module::suite/.../case`, from the normalized `classname` and name.
-Assertion failures are `FAILED`/`ASSERTION`; disabled and filtered-out cases are
+Assertion failures, including several per case and fatal `REQUIRE` failures,
+are `FAILED`/`ASSERTION`; disabled and filtered-out cases are
 `SKIPPED`; uncaught exceptions, other failure types, suite-fixture pseudo rows,
 counter or exit contradictions, missing or surplus cases and exit 200 are
 incomplete. The pins (official archive SHA-256, release commit, BSL-1.0), the

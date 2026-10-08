@@ -61,8 +61,13 @@ func boostInventoryFor(mode int) []string {
 	if mode != 1 {
 		ids = append(ids, boostID("math/fails"))
 	}
-	if mode == 3 {
+	switch mode {
+	case 3:
 		ids = append(ids, boostID("throws"))
+	case 4:
+		ids = append(ids, boostID("two_failures"), boostID("requires"))
+	case 5:
+		ids = append(ids, boostID("check_then_throw"))
 	}
 	return ids
 }
@@ -112,6 +117,9 @@ func TestBoostTestRecordedJUnitWitnesses(t *testing.T) {
 		"uncaught-exception":        {201, false, map[string]string{"math/passes": tr.Passed, "math/fails": tr.Failed, "math/disabled_case": tr.Skipped, "top_level": tr.Passed, "throws": tr.Failed}, "BOOST_ERROR_ENTRY"},
 		"selected-pass":             {0, true, map[string]string{"math/passes": tr.Passed, "math/fails": tr.Skipped, "math/disabled_case": tr.Skipped, "top_level": tr.Passed}, ""},
 		"selected-disabled-enabled": {201, true, map[string]string{"math/passes": tr.Skipped, "math/fails": tr.Skipped, "math/disabled_case": tr.Failed, "top_level": tr.Skipped}, ""},
+		// Two failure elements in one case, and a REQUIRE that Boost counts as aborted.
+		"multiple-and-fatal-assertions": {201, true, map[string]string{"math/passes": tr.Passed, "math/fails": tr.Failed, "math/disabled_case": tr.Skipped, "top_level": tr.Passed, "two_failures": tr.Failed, "requires": tr.Failed}, ""},
+		"check-then-exception":          {201, false, map[string]string{"math/passes": tr.Passed, "math/fails": tr.Failed, "math/disabled_case": tr.Skipped, "top_level": tr.Passed, "check_then_throw": tr.Failed}, "BOOST_ERROR_ENTRY"},
 	} {
 		c, ok := cases[name]
 		if !ok || c.ExitCode != w.exit {
@@ -128,10 +136,10 @@ func TestBoostTestRecordedJUnitWitnesses(t *testing.T) {
 			}
 		}
 		for _, v := range o.Tests {
-			if v.State == tr.Failed && v.ID == boostID("math/fails") && v.FailureKind != tr.Assertion {
+			if v.State == tr.Failed && (v.ID == boostID("math/fails") || v.ID == boostID("two_failures") || v.ID == boostID("requires")) && v.FailureKind != tr.Assertion {
 				t.Fatalf("%s: assertion failure not classified: %+v", name, v)
 			}
-			if v.ID == boostID("throws") && v.FailureKind != tr.Unknown {
+			if (v.ID == boostID("throws") || v.ID == boostID("check_then_throw")) && v.FailureKind != tr.Unknown {
 				t.Fatalf("%s: aborted case given an ordinary cause: %+v", name, v)
 			}
 			if v.ID == boostID("math/passes") && v.Suite != boostID("math") || v.ID == boostID("top_level") && v.Suite != boostTarget {
@@ -234,9 +242,13 @@ func TestBoostTestBoundaryContradictions(t *testing.T) {
 		"extra report":       func(in *tr.Input) { in.Reports["other.xml"] = []byte("<x/>") },
 		"report missing":     func(in *tr.Input) { delete(in.Reports, boostReport) },
 		"report renamed":     func(in *tr.Input) { in.Reports["junit.xml"] = in.Reports[boostReport]; delete(in.Reports, boostReport) },
-		"timed out":          func(in *tr.Input) { in.TimedOut = true },
-		"interrupted":        func(in *tr.Input) { in.Interrupted = true },
-		"caller target":      func(in *tr.Input) { in.Target = "Other" },
+		"fatal not aborted": func(in *tr.Input) {
+			*in = boostInput(t, cases["multiple-and-fatal-assertions"])
+			report(in, `type="fatal error"`, `type="assertion error"`)
+		},
+		"timed out":     func(in *tr.Input) { in.TimedOut = true },
+		"interrupted":   func(in *tr.Input) { in.Interrupted = true },
+		"caller target": func(in *tr.Input) { in.Target = "Other" },
 	} {
 		in := base()
 		change(&in)

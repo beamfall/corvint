@@ -24,6 +24,10 @@ const boostReport = "boost-junit.xml"
 // means an aborted run, a setup error or an empty filter and stays unadmitted.
 const boostFailureExit = 201
 
+// boostMaxNodes bounds the decoded tree; Boost writes one failure element per
+// failed assertion, so a case may carry several outcome elements.
+const boostMaxNodes = 65536
+
 var boostSegment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 var boostTime = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?(e[-+][0-9]+)?$`)
 
@@ -124,7 +128,7 @@ func boostXML(data []byte) (*boostNode, error) {
 		switch t := token.(type) {
 		case xml.StartElement:
 			nodes++
-			if t.Name.Space != "" || nodes > 1+tr.MaxTests*4 || len(stack) >= 3 {
+			if t.Name.Space != "" || nodes > boostMaxNodes || len(stack) >= 3 {
 				return nil, fmt.Errorf("boost.test XML structure outside profile")
 			}
 			n := &boostNode{name: t.Name.Local, attrs: map[string]string{}}
@@ -264,7 +268,7 @@ func parseBoostTest(in tr.Input) (tr.Observation, error) {
 		if n, e := strconv.ParseUint(c.attrs["assertions"], 10, 32); e != nil || strconv.FormatUint(n, 10) != c.attrs["assertions"] {
 			return reject(fmt.Errorf("boost.test assertion counter mismatch"))
 		}
-		var outcome *boostNode
+		outcomes := []*boostNode{}
 		skip := false
 		for _, child := range c.children {
 			if len(child.children) != 0 {
@@ -276,24 +280,24 @@ func parseBoostTest(in tr.Input) (tr.Observation, error) {
 					return reject(fmt.Errorf("boost.test case log grammar mismatch"))
 				}
 			case "skipped":
-				if skip || outcome != nil || len(child.attrs) != 0 || strings.TrimSpace(child.text) != "" {
+				if skip || len(outcomes) != 0 || len(child.attrs) != 0 || strings.TrimSpace(child.text) != "" {
 					return reject(fmt.Errorf("boost.test skipped grammar mismatch"))
 				}
 				skip = true
 			case "failure", "error":
-				if skip || outcome != nil || !boostShape(child, child.name, []string{"message", "type"}) {
+				if skip || !boostShape(child, child.name, []string{"message", "type"}) {
 					return reject(fmt.Errorf("boost.test outcome grammar mismatch"))
 				}
-				outcome = child
+				outcomes = append(outcomes, child)
 			default:
 				return reject(fmt.Errorf("unknown boost.test case element"))
 			}
 		}
 		if boostPseudo(c.attrs["name"]) {
-			if _, ok := c.attrs["classname"]; ok || outcome == nil {
+			if _, ok := c.attrs["classname"]; ok || len(outcomes) == 0 {
 				return reject(fmt.Errorf("boost.test synthetic row grammar mismatch"))
 			}
-			problem("BOOST_SUITE_FIXTURE_FAILURE", "native suite fixture or global row reported "+outcome.attrs["type"])
+			problem("BOOST_SUITE_FIXTURE_FAILURE", "native suite fixture or global row reported "+outcomes[0].attrs["type"])
 			continue
 		}
 		path := []string{}
@@ -318,25 +322,35 @@ func parseBoostTest(in tr.Input) (tr.Observation, error) {
 		case skip:
 			v.State = tr.Skipped
 			skipped++
-		case outcome != nil && outcome.name == "failure":
+		case len(outcomes) > 0:
+			// Boost counts a case as aborted (native errors) after an uncaught
+			// error entry or a fatal (REQUIRE-level) assertion, and as an
+			// ordinary failure (native failures) otherwise.
 			v.State = tr.Failed
-			v.Message = outcome.text
-			failed++
-			ran++
-			if t := outcome.attrs["type"]; t == "assertion error" || t == "fatal error" {
-				v.FailureKind = tr.Assertion
-			} else {
-				v.FailureKind = tr.Unknown
-				problem("BOOST_FAILURE_TYPE", "native failure type is not an ordinary assertion: "+t)
+			v.FailureKind = tr.Assertion
+			aborted := false
+			messages := []string{}
+			for _, out := range outcomes {
+				messages = append(messages, out.text)
+				t := out.attrs["type"]
+				switch {
+				case out.name == "error":
+					aborted = true
+					v.FailureKind = tr.Unknown
+					problem("BOOST_ERROR_ENTRY", "native case aborted: "+t)
+				case t == "fatal error":
+					aborted = true
+				case t != "assertion error":
+					v.FailureKind = tr.Unknown
+					problem("BOOST_FAILURE_TYPE", "native failure type is not an ordinary assertion: "+t)
+				}
 			}
-		case outcome != nil:
-			v.State = tr.Failed
-			v.FailureKind = tr.Unknown
-			v.Message = outcome.text
+			v.Message = strings.Join(messages, "\n")
 			failed++
-			errored++
 			ran++
-			problem("BOOST_ERROR_ENTRY", "native case aborted: "+outcome.attrs["type"])
+			if aborted {
+				errored++
+			}
 		default:
 			ran++
 		}

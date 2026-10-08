@@ -127,14 +127,14 @@ suite path as `classname`. Stdout parsing is not used.
   `failures`, `id="0"`, `name` and `time`, depth at most three, bounded nodes, no
   namespaces, duplicate attributes, comments or directives. `name` MUST equal
   Target. Each `testcase` has exactly `assertions`, `name`, `time` and an
-  optional `classname`, and at most one outcome: `skipped` (no attributes or
-  text), or `failure`/`error` with exactly `message` and `type`, plus optional
-  `system-out`/`system-err`. The identity is Target, `::`, then the `classname`
+  optional `classname`, and either one `skipped` (no attributes or text) or any
+  number of `failure`/`error` entries with exactly `message` and `type` (Boost
+  writes one per failed assertion), plus optional `system-out`/`system-err`. The identity is Target, `::`, then the `classname`
   segments split on `.` and the case `name`, joined with `/`; a non-identifier
   segment or duplicate identity refuses the report. Proposed (V1-0861).
 - `TRE-V0-038`: A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a
-  `failure` with type `assertion error` or `fatal error` is `FAILED` with cause
-  `ASSERTION`. These make the observation incomplete, so shared `Normalize` sets
+  row whose entries are all `failure` with type `assertion error` or `fatal
+  error` is `FAILED` with cause `ASSERTION`. These make the observation incomplete, so shared `Normalize` sets
   every public state to `UNKNOWN`: an `error` row (uncaught exception, timeout,
   system or user error; `BOOST_ERROR_ENTRY`), any other failure type
   (`BOOST_FAILURE_TYPE`), a synthetic `-setup-teardown` or `-timed-execution`
@@ -144,7 +144,8 @@ suite path as `classname`. Stdout parsing is not used.
   non-selected row that was not skipped while selectors exist
   (`BOOST_UNSELECTED_EXECUTED`), no rows (`BOOST_NO_TESTS`), counters that
   disagree with the rows (`tests` = non-skipped rows, `skipped` = skipped rows,
-  `errors` = error rows, `failures` = failed rows minus error rows;
+  `errors` = aborted rows, meaning rows with an `error` entry or a `fatal error`
+  failure, and `failures` = failed rows minus aborted rows;
   `BOOST_COUNT_MISMATCH`), exit 0 with a failed row or 201 without one
   (`BOOST_EXIT_REPORT_CONTRADICTION`), any other exit
   (`BOOST_EXIT_UNSUPPORTED`), and any grammar refusal (`BOOST_INVALID_REPORT`).
@@ -153,7 +154,8 @@ suite path as `classname`. Stdout parsing is not used.
 - `TRE-V0-039`: Maintained tests MUST replay the actual Boost 1.92.0 JUnit
   bytes retained in the provenance file (pass, assertion failure, disabled,
   suite-fixture failure, uncaught exception, selected run, selected disabled
-  case and empty no-match sink) and mutate them into every contradiction above.
+  case, empty no-match sink, several failed checks and a failed `REQUIRE` in
+  one run, and a failed check followed by an exception) and mutate them into every contradiction above.
   An opt-in live test (`CORVINT_BOOST_ROOT`) MUST compile the pinned fixture
   against a `BOOST_VERSION 109200` header tree and run it through the common
   executor. Proposed (V1-0861).
