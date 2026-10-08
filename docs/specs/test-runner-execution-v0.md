@@ -566,3 +566,33 @@ and runtime 9.0.18. A `TMPDIR` of 56 bytes runs; 57 bytes aborts on the
 unqualified. Linux and .NET 10 are NOT_RUN. Callers needing longer report
 directories must choose a shorter report root. Rollback removes the admission
 check and this section; the executor `TMPDIR` value is unchanged.
+
+## Nonregular runner document admission (experimental)
+
+A runner request, plan or tools document that named a FIFO without a writer
+blocked `os.Open` before any validation, and the signal context could not
+interrupt it (V1-0624). Admission now refuses such a path before a blocking open.
+
+- `TRE-V0-028`: The companion MUST refuse a request, plan or tools document that
+  is not a regular file before any blocking open, document validation or runner
+  execution, with the stable refusal `runner refused: regular document required`
+  and exit 1. Admission stats the path, opens it nonblocking and requires the
+  opened descriptor to be the same regular file. The executor's independently
+  pinned tools and configuration/reporter files, including the Gradle build
+  manifest, MUST open nonblocking after their no-follow regular-file checks and
+  require the opened descriptor to be the file the no-follow check saw, so a FIFO
+  or final symlink swapped in after the check refuses instead of blocking or
+  being followed. Regular documents, historical bytes and approved-plan
+  semantics are unchanged. Status: proposed (V1-0624).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-028 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`, `openPinnedRegular`, `openCheckedRegular`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, `TestOpenPinnedRegularRefusesFIFOAndFinalSymlink`, `TestOpenCheckedRegularRefusesSwapAfterCheck` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
+
+Recorded limits. A swap between the no-follow check and the open is tested by
+replacing the path between a recorded `Lstat` and the open helper, not by racing
+a live swap. Swapped parent directories remain trusted. Parent
+directories of a document path are trusted, as before. This is not hostile
+filesystem authority.
+
+Rollback restores the blocking opens; no wire, plan or receipt bytes change.

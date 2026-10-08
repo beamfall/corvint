@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -319,7 +320,7 @@ func checkTool(t Tool) error {
 	if e != nil || !s.Mode().IsRegular() || s.Size() > 256<<20 {
 		return fmt.Errorf("tool must be bounded regular file")
 	}
-	f, e := os.Open(t.Executable)
+	f, _, e := openCheckedRegular(t.Executable, s)
 	if e != nil {
 		return e
 	}
@@ -427,6 +428,37 @@ func declaredPath(r Request) string {
 	}
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
+
+// openPinnedRegular binds the opened descriptor to a no-follow Lstat. The open
+// goes through the absolute path with O_NOFOLLOW because os.Root follows a final
+// symlink even with that flag (V1-0624).
+func openPinnedRegular(root *os.Root, rel string) (*os.File, os.FileInfo, error) {
+	before, err := root.Lstat(rel)
+	if err != nil {
+		return nil, nil, err
+	}
+	return openCheckedRegular(filepath.Join(root.Name(), rel), before)
+}
+
+// openCheckedRegular opens a path whose no-follow check saw before. O_NONBLOCK
+// keeps a FIFO swapped in after that check from blocking admission, O_NOFOLLOW
+// refuses a final symlink swapped in, and the same-file check refuses any other
+// replacement (V1-0624).
+func openCheckedRegular(name string, before os.FileInfo) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() || !before.Mode().IsRegular() || !os.SameFile(before, st) {
+		f.Close()
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	return f, st, nil
+}
 func checkPinnedFile(base, name, digest string) error {
 	if name == "" && digest == "" {
 		return nil
@@ -452,13 +484,12 @@ func checkPinnedFile(base, name, digest string) error {
 	if err = regularPath(root, rel); err != nil {
 		return err
 	}
-	f, err := root.Open(rel)
+	f, st, err := openPinnedRegular(root, rel)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || st.Size() > MaxPinnedArtifactBytes {
+	if st.Size() > MaxPinnedArtifactBytes {
 		return fmt.Errorf("pinned artifact byte bound")
 	}
 	h := sha256.New()

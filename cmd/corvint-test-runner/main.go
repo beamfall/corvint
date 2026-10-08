@@ -175,14 +175,25 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		return fail(fmt.Errorf("unknown command"))
 	}
 }
+
+// read refuses a nonregular document before any blocking open (V1-0624): a
+// FIFO without a writer would otherwise block os.Open, which a signal context
+// cannot interrupt. The nonblocking open and same-file check close the swap race.
 func read(path string, dst any) error {
-	f, e := os.Open(path)
+	before, e := os.Stat(path)
+	if e != nil {
+		return e
+	}
+	if !before.Mode().IsRegular() {
+		return fmt.Errorf("regular document required")
+	}
+	f, e := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if e != nil {
 		return e
 	}
 	defer f.Close()
 	s, e := f.Stat()
-	if e != nil || !s.Mode().IsRegular() {
+	if e != nil || !s.Mode().IsRegular() || !os.SameFile(before, s) {
 		return fmt.Errorf("regular document required")
 	}
 	b, e := io.ReadAll(io.LimitReader(f, tr.MaxReportBytes+1))
