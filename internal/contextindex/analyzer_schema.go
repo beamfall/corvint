@@ -37,6 +37,7 @@ func probeAnalyzerPack(directory string, identity repositoryIdentity) (SnapshotP
 		return SnapshotProbe{}, false, nil
 	}
 	forgetPackHistory(index)
+	index.Release()
 	return SnapshotProbe{Path: path, Tree: identity.treeRevision, Commit: identity.commitRevision, Engine: engineID}, true, nil
 }
 

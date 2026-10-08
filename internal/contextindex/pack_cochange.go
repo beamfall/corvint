@@ -81,7 +81,7 @@ func decodeCochangeSection(data []byte, strings packStringTable) ([]historyEntry
 
 // cochange decodes the section once per retained mapping: a later read of
 // the same pack registers the entries this one decoded. The strings they
-// hold alias the mapping, which outlives every index built over it.
+// hold come from the file's heap string table, so they outlive the mapping.
 func (f *packFile) cochange(data []byte, strings packStringTable) ([]historyEntry, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
