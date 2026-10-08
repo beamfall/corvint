@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0467-v1-0827-role-stage-selection-accepted-2026-10-08.md`](0467-v1-0827-role-stage-selection-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts CAL-V0-197: run/admit --role select an answered wait only for the role's stage; intent only, delivery stays experimental. |
 | [`0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md`](0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts KHN-V0-024..027 repository-qualified know-how notes; intent only, delivery stays experimental. |
 | [`0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md`](0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts AMAP-V0-021..023 AngularJS injected state-name constants; intent only, delivery stays experimental. |
 | [`0459-v1-1026-ticket-milestone-policy-accepted-2026-10-08.md`](0459-v1-1026-ticket-milestone-policy-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts CAL-V0-195..196 ticket milestones in queue policy; intent only, delivery stays experimental. |
