@@ -16,16 +16,7 @@ import (
 func keptReceipt() jstestprovider.Receipt {
 	identity := jstestprovider.Identity{RunnerName: "playwright", RunnerVersion: "1.60.0", NodeVersion: "v22", Argv: []string{"npx", "playwright", "--config=/tmp/a/config.cjs", "--project=one"}, ConfigFile: "/repo/config.cjs", ConfigDigest: "config", TestFileDigests: map[string]string{"/repo/test.cjs": "test"}, ConfigInputDigests: map[string]string{"/repo/config.cjs": "config", "/repo/project-reporter.cjs": strings.Repeat("b", 64)}}
 	test := jstestprovider.TestOutcome{Name: "pass", FullName: "one > pass", State: jstestprovider.StatePassed, Anchor: &jstestprovider.Anchor{File: "/repo/test.cjs", Line: 1}, Project: &jstestprovider.ProjectIdentity{Name: "one", Browser: "chromium", Device: "unknown", Use: json.RawMessage(`{}`), ConfigDigest: "config"}, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed, FailureKind: "none"}}}
-	bound := identity
-	bound.Argv = []string{"npx", "playwright", "--config=/repo/config.cjs", "--project=one"}
-	raw, _ := json.Marshal(struct {
-		Identity jstestprovider.Identity
-		Project  *jstestprovider.ProjectIdentity
-		Anchor   *jstestprovider.Anchor
-		FullName string
-	}{bound, test.Project, test.Anchor, test.FullName})
-	digest := sha256.Sum256(raw)
-	test.ID = hex.EncodeToString(digest[:])
+	test.ID = boundTestID(identity, test)
 	return jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, Kind: "e2e", Identity: identity, Tests: []jstestprovider.TestOutcome{test}, External: &jstestprovider.ExternalLifecycle{
 		Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ReadyAtStart: true, ReadyAtPublish: true, RunnerDescendantsGone: true, InputsUnchanged: true,
 		ReadyURL: "http://127.0.0.1:3002", DeclaredAppIdentity: "fixture", ConfigOverride: "controlled-fixture-config, keepReporters:true}]]};\n",
@@ -35,6 +26,55 @@ func keptReceipt() jstestprovider.Receipt {
 			{Name: "/outside/reporter.mjs", Module: "unknown", Options: "unknown"},
 		}},
 	}}
+}
+
+// boundTestID is the provider's qualified test ID for this fixture's argv.
+func boundTestID(identity jstestprovider.Identity, test jstestprovider.TestOutcome) string {
+	bound := identity
+	bound.Argv = []string{"npx", "playwright", "--config=/repo/config.cjs", "--project=one"}
+	raw, _ := json.Marshal(struct {
+		Identity jstestprovider.Identity
+		Project  *jstestprovider.ProjectIdentity
+		Anchor   *jstestprovider.Anchor
+		FullName string
+	}{bound, test.Project, test.Anchor, test.FullName})
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:])
+}
+
+// PWP-V0-016: test-validity accepts a retained provider-first keep-reporters
+// receipt carrying a matching qualification and recomputes a passing
+// projection; the same receipt without it abstains.
+func TestKeepReportersQualifiedReceiptProjects(t *testing.T) {
+	keep := keptReceipt()
+	keep.External.ConfigOverride = "controlled-fixture-config, keepReporters:true}], ...keptReporters(original.reporter)]};\n"
+	keep.External.ProjectReporters.Entries = keep.External.ProjectReporters.Entries[:2]
+	control := keptReceipt()
+	control.External.ConfigOverride, control.External.ProjectReporters = "controlled-fixture-config", nil
+	control.Identity.ConfigInputDigests = map[string]string{"/repo/config.cjs": "config"}
+	control.Tests[0].ID = boundTestID(control.Identity, control.Tests[0])
+	record := jstestprovider.QualifyKeepReporters(control, nil, keep, nil)
+	if record.Verdict != jstestprovider.KeepReportersQualified {
+		t.Fatalf("fixture pair not qualified: %v", record.Reasons)
+	}
+	for _, carried := range []bool{false, true} {
+		r := keptReceipt()
+		r.External.ConfigOverride, r.External.ProjectReporters.Entries = keep.External.ConfigOverride, keep.External.ProjectReporters.Entries
+		if carried {
+			r.External.ProjectReporters.Qualification = &record
+		}
+		data, err := jstestprovider.EncodeQualified(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		input, err := Decode(data)
+		if err != nil {
+			t.Fatalf("carried=%v refused: %v", carried, err)
+		}
+		if passed := Project(input).Tests[0].Projection.Execution.State == testvalidity.ExecutionPassed; passed != carried {
+			t.Fatalf("carried=%v projected passing=%v", carried, passed)
+		}
+	}
 }
 
 // PWP-V0-013: test-validity accepts the retained receipt of a keep-reporters
