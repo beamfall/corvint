@@ -1798,6 +1798,7 @@ LCP-V0-013	docs/specs/local-completion-policy-v0.md	242	Prompt context MUST acce
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
+LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(proposed; V1-1012) The top-level `ok` of a `corvint-local-completion/0`
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result

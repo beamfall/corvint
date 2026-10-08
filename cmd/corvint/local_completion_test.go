@@ -272,3 +272,63 @@ func TestLocalCompletionCLIRejectsUnknownAndSecretInputs(t *testing.T) {
 		}
 	}
 }
+
+// TestLocalCompletionVerifyOKMirrorsCheckResult pins LCP-V0-017 (V1-1012):
+// a selected check that exits 1 yields exit 1 and top-level ok:false, with the
+// observation still reporting qualified:false and the observed exit; a passing
+// check yields exit 0 and ok:true.
+func TestLocalCompletionVerifyOKMirrorsCheckResult(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, ".gitignore", ".corvint/\n")
+	cemWrite(t, root, "intent.md", "# Intent\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	plan := localcompletion.Plan{Base: cemGit(t, root, "rev-parse", "HEAD"), Intents: []string{"intent.md"}, Checks: []localcompletion.Check{
+		{ID: "fails", Argv: []string{"sh", "-c", "exit 1"}, TimeoutSeconds: 30},
+		{ID: "passes", Argv: []string{"sh", "-c", "exit 0"}, TimeoutSeconds: 30},
+	}}
+	raw, _ := json.Marshal(plan)
+	planPath := filepath.Join(t.TempDir(), "plan.json")
+	if err = os.WriteFile(planPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := localcompletion.HashSession(t.Name())
+	run := func(args ...string) (int, map[string]any) {
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, append(args, "--session-key", key), strings.NewReader(""), &stdout, &stderr)
+		var envelope map[string]any
+		if err := json.Unmarshal([]byte(stdout.String()), &envelope); err != nil {
+			t.Fatalf("%v exit=%d stdout=%s stderr=%s: %v", args, code, stdout.String(), stderr.String(), err)
+		}
+		return code, envelope
+	}
+	if code, _ := run("begin", "--plan", planPath); code != 0 {
+		t.Fatalf("begin exit %d", code)
+	}
+	for _, want := range []struct {
+		check     string
+		code      int
+		qualified bool
+		exit      float64
+	}{{"fails", 1, false, 1}, {"passes", 0, true, 0}} {
+		code, envelope := run("verify", "--check", want.check)
+		if code != want.code || envelope["ok"] != (want.code == 0) || envelope["tool"] != "dogfood-verify" {
+			t.Fatalf("%s: exit=%d envelope=%v", want.check, code, envelope)
+		}
+		found := false
+		for _, item := range envelope["policy"].(map[string]any)["checks"].([]any) {
+			check := item.(map[string]any)
+			if check["id"] == want.check {
+				found = check["qualified"] == want.qualified && check["exit"] == want.exit
+			}
+		}
+		if !found {
+			t.Fatalf("%s: check observation hidden or wrong: %v", want.check, envelope["policy"])
+		}
+	}
+}
