@@ -452,3 +452,32 @@ including WebdriverIO, need their own matcher version.
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
 Plans without the field are unaffected, and plans that carry it then refuse as
 unknown fields.
+
+## SwiftPM XCTest transport and lifecycle (experimental)
+
+Swift 6.4 (swiftlang-6.4.0.34.1) on macOS 26.6.2 (25G83) arm64 is the only
+qualified tuple. Linux, other Swift versions and Swift Testing in this profile
+remain NOT_OBSERVED.
+
+- `TRE-V0-024`: SwiftPM XCTest execution evidence MUST come only from the
+  serial native text profile `swift-xctest`, which keeps pass, assertion failure
+  and XCTSkip distinct. That profile MUST NOT request `--parallel` or
+  `--xunit-output` and MUST refuse any report file. The actual parallel xUnit
+  file, in which XCTSkip is an ordinary passing testcase without a `file`
+  attribute, is retained only as a negative witness. TCQ JUnit import MUST leave
+  its rows unkeyed, so they cannot key criterion evidence. Status: proposed
+  (V1-0597).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-024 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
+
+Recorded limits. The shared executor admits only a regular-file executable, so
+the live witness uses the `/usr/bin/swift` shim; the toolchain `swift` symlink is
+refused. Generic JUnit profiles (bun-test, deno-test, pytest) still decode this
+XML as complete if a caller pins a wrapper that writes it; that is the
+trusted-local-executable boundary of `TRE-V0-004`, not SwiftPM qualification. AFU
+run ingest of arbitrary JUnit files is outside CEM execution and unchanged.
+
+Rollback removes the two fixtures, their tests and this section. The
+`swift-xctest` profile and historical plan and receipt bytes are unchanged.
