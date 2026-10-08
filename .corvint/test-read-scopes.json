@@ -81,6 +81,7 @@
     "cmd/corvint-release-gate": [],
     "cmd/corvint-test-runner": [],
     "cmd/corvint-tests-accept": [],
+    "cmd/corvint-web-flows": [],
     "cmd/corvint-work-queue": [
       ".corvint/work-queue-policy.json"
     ],

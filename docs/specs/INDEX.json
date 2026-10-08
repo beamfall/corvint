@@ -3437,5 +3437,23 @@
       "interop/cem01-go",
       "protocol/cem-1.0"
     ]
+  },
+  {
+    "path": "docs/specs/application-flow-navigation-execution-v0.md",
+    "title": "Application Flow Navigation Execution V0",
+    "reqPrefix": "NEX-V0",
+    "intent": "proposed technical profile under AFU-V1-029",
+    "delivery": "experimental; qualification pending",
+    "claim": "An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appflows/navigation_execution.go",
+      "cmd/corvint-web-flows",
+      "tools/web-flows/navigation.mjs"
+    ]
   }
 ]
