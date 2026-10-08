@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -19,7 +20,7 @@ import (
 // proposed). Like the read checkpoint it is not journal state: no receipt
 // posts it, no archive carries it, and a missing, stale, torn or foreign file
 // only sends the next writer through the complete audit.
-const ProfileWriterCheckpoint = "taskman-writer-checkpoint/0"
+const ProfileWriterCheckpoint = "taskman-writer-checkpoint/1"
 
 // ModeWriter is Result.Mode for a writer audit that resumed at a writer
 // checkpoint and walked only the receipts after it (CAL-V0-116, proposed).
@@ -42,7 +43,11 @@ const (
 const writerMagic = ProfileWriterCheckpoint + "\n"
 
 // MaxWriterCheckpointBytes bounds the file a writer is willing to consume.
-const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + 32*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
+const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
+
+// writerRequestBytes is one encoded request: the SHA-256 of its path, then
+// the SHA-256 of its afterimage (CAL-V0-187, proposed).
+const writerRequestBytes = 2 * sha256.Size
 
 // writerNoteBytes is one encoded note: a uint32 entry index and a digest.
 const writerNoteBytes = 4 + sha256.Size
@@ -75,7 +80,7 @@ type WriterCheckpoint struct {
 	// uses the checkpoint only while the token still has this digest
 	// (CAL-V0-117, proposed).
 	Invalidation [sha256.Size]byte
-	requests     []byte // sorted 32-byte request path digests
+	requests     []byte // writerRequestBytes records, strictly ordered by path digest
 	notes        []writerNote
 }
 
@@ -115,17 +120,30 @@ func (w *WriterCheckpoint) sameNote(p string, ref *ticket.OperatorNoteReference)
 }
 
 // Requests is the number of request afterimages receipts 1..Seq posted.
-func (w *WriterCheckpoint) Requests() uint64 { return uint64(len(w.requests) / sha256.Size) }
+func (w *WriterCheckpoint) Requests() uint64 { return uint64(len(w.requests) / writerRequestBytes) }
 
 // HasRequest reports whether p is a request path posted at or before Seq.
 func (w *WriterCheckpoint) HasRequest(p string) bool {
+	_, ok := w.RequestAfterimage(p)
+	return ok
+}
+
+// RequestAfterimage returns the digest of the latest afterimage of request
+// path p that receipts 1..Seq posted, as the audit deriving the checkpoint
+// read it (CAL-V0-187, proposed).
+func (w *WriterCheckpoint) RequestAfterimage(p string) (wire.Digest, bool) {
 	d, ok := requestDigest(p)
 	if !ok {
-		return false
+		return "", false
 	}
-	n := len(w.requests) / sha256.Size
-	i := sort.Search(n, func(i int) bool { return bytes.Compare(w.requests[i*sha256.Size:(i+1)*sha256.Size], d) >= 0 })
-	return i < n && bytes.Equal(w.requests[i*sha256.Size:(i+1)*sha256.Size], d)
+	n := len(w.requests) / writerRequestBytes
+	i := sort.Search(n, func(i int) bool {
+		return bytes.Compare(w.requests[i*writerRequestBytes:i*writerRequestBytes+sha256.Size], d) >= 0
+	})
+	if i == n || !bytes.Equal(w.requests[i*writerRequestBytes:i*writerRequestBytes+sha256.Size], d) {
+		return "", false
+	}
+	return wire.Digest(hex.EncodeToString(w.requests[i*writerRequestBytes+sha256.Size : (i+1)*writerRequestBytes])), true
 }
 
 func requestDigest(p string) ([]byte, bool) {
@@ -142,7 +160,7 @@ func requestDigest(p string) ([]byte, bool) {
 }
 
 // Encode renders the file bytes: a magic line, the read checkpoint encoding,
-// the aggregates, the request digests, the note count and notes, the
+// the aggregates, the request records, the note count and notes, the
 // invalidation digest, and a SHA-256 trailer over all of it.
 func (w *WriterCheckpoint) Encode() []byte {
 	cp := w.Checkpoint.Encode()
@@ -207,7 +225,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	rest = rest[7*8:]
 	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}}
 	requests, seq := v[6], cp.Seq.Uint64()
-	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*sha256.Size+8+sha256.Size {
+	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*writerRequestBytes+8+sha256.Size {
 		return nil, bad("request digest count")
 	}
 	w.Cost.Files = int(v[2])
@@ -217,9 +235,9 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if w.FullSeq < 1 || w.FullSeq > seq || w.ReceiptBytes > w.Cost.PayloadBytes {
 		return nil, bad("aggregate bounds")
 	}
-	digests, rest := rest[:requests*sha256.Size], rest[requests*sha256.Size:]
-	for i := sha256.Size; i < len(digests); i += sha256.Size {
-		if bytes.Compare(digests[i-sha256.Size:i], digests[i:i+sha256.Size]) >= 0 {
+	digests, rest := rest[:requests*writerRequestBytes], rest[requests*writerRequestBytes:]
+	for i := writerRequestBytes; i < len(digests); i += writerRequestBytes {
+		if bytes.Compare(digests[i-writerRequestBytes:i-sha256.Size], digests[i:i+sha256.Size]) >= 0 {
 			return nil, bad("request digests are not strictly ordered")
 		}
 	}
@@ -292,20 +310,24 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		if !ok || l.digest == nil {
 			return nil, errCheckpoint(p, "request afterimage is not a canonical retained file")
 		}
+		after, err := hex.DecodeString(string(*l.digest))
+		if err != nil || len(after) != sha256.Size {
+			return nil, errCheckpoint(p, "request afterimage digest is not canonical")
+		}
 		if err := w.charge(physical, p, l.digest); err != nil {
 			return nil, err
 		}
-		digests = append(digests, d)
+		digests = append(digests, append(d, after...))
 	}
 	if res.Mode == ModeWriter {
-		for i := 0; i < len(res.writerBase.requests); i += sha256.Size {
-			digests = append(digests, res.writerBase.requests[i:i+sha256.Size])
+		for i := 0; i < len(res.writerBase.requests); i += writerRequestBytes {
+			digests = append(digests, res.writerBase.requests[i:i+writerRequestBytes])
 		}
 	}
 	sort.Slice(digests, func(i, j int) bool { return bytes.Compare(digests[i], digests[j]) < 0 })
-	w.requests = make([]byte, 0, len(digests)*sha256.Size)
+	w.requests = make([]byte, 0, len(digests)*writerRequestBytes)
 	for i, d := range digests {
-		if i > 0 && bytes.Equal(digests[i-1], d) {
+		if i > 0 && bytes.Equal(digests[i-1][:sha256.Size], d[:sha256.Size]) {
 			return nil, errCheckpoint("requests", "request path repeats")
 		}
 		w.requests = append(w.requests, d...)
@@ -441,8 +463,8 @@ func (m *MutationAudit) WriterCheckpoint() (*WriterCheckpoint, error) {
 //
 // forMutation selects what AuditForMutation selects (queue, policy and every
 // observed ticket and release); otherwise it selects what AuditForWrite
-// does. requestID, when set, must not be retained anywhere: a writer that
-// finds its own request replays through the complete audit.
+// does. A requestID retained in the tail or before wc does not fail the
+// audit: WriterReplay then finds it (CAL-V0-187, proposed).
 //
 // Every error, refusal or not, means only that this route cannot serve the
 // observation: the caller runs the complete audit, which derives the refusal
@@ -514,11 +536,6 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if o.receipts[0] != first || o.receipts[len(o.receipts)-1] != last {
 		return result, errCheckpoint("receipts", "receipt names differ from head")
 	}
-	if request != "" {
-		if rp, _ := snapshot.RequestPath(request); wc.HasRequest(rp) {
-			return result, errCheckpoint(rp, "request is retained before the checkpoint")
-		}
-	}
 	name, err := snapshot.ReceiptName(from)
 	if err != nil {
 		return result, err
@@ -550,9 +567,6 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 		if err := r.step(o, st, result, name, seq, headSeq, selected, request, lim); err != nil {
 			return result, err
 		}
-	}
-	if result.request != nil {
-		return result, errCheckpoint("requests", "request is retained in the tail")
 	}
 	result.StructuralConsistency = ModeWriter
 	for _, p := range sortedPaths(st.canonical) {
@@ -618,4 +632,101 @@ func (res *Result) WriterListing() map[string]ListedFile {
 		return nil
 	}
 	return res.listing
+}
+
+// WriterReplay reports whether requestID is retained in the journal a
+// ModeWriter audit observed, and if so the original index entry and the
+// ticket its receipt targeted, as AuditForMutation reports them
+// (CAL-V0-187, proposed). A request posted in the walked tail was validated
+// by the walk. A request posted at or before the checkpoint is served only
+// when every byte the answer rests on is bound to the checkpoint:
+//
+//   - its afterimage is read from disk and its SHA-256 equals the digest the
+//     checkpoint holds for its path;
+//   - the receipt that posted it is reached from the checkpoint's receipt by
+//     the Prev digests of at most MaxWriterTail receipts, each read and
+//     hashed;
+//   - that receipt posts exactly this afterimage under this request ID with
+//     the request's sequence, outcome and codes.
+//
+// Every error means only that this route cannot serve the replay: the caller
+// runs the complete route, which derives the replay or the refusal itself.
+func (r Reader) WriterReplay(res *Result, requestID string) (found bool, entry mutation.IndexEntry, ticketID string, err error) {
+	if res == nil || res.Mode != ModeWriter || res.writerBase == nil {
+		return false, entry, "", errCheckpoint("writer replay", "not a writer audit")
+	}
+	if res.request != nil {
+		if res.request.Entry.RequestID != requestID {
+			return false, entry, "", errCheckpoint("requests", "walked request differs")
+		}
+		return true, res.request.Entry, res.requestTicket, nil
+	}
+	rp, err := snapshot.RequestPath(requestID)
+	if err != nil {
+		return false, entry, "", err
+	}
+	wc := res.writerBase
+	want, ok := wc.RequestAfterimage(rp)
+	if !ok {
+		return false, entry, "", nil
+	}
+	bound, err := snapshot.PostBound(rp)
+	if err != nil {
+		return false, entry, "", err
+	}
+	raw, err := requiredRead(r.Source, rp, bound)
+	if err != nil {
+		return false, entry, "", err
+	}
+	if wire.Sum(raw) != want {
+		return false, entry, "", errCheckpoint(rp, "request afterimage differs from the checkpoint")
+	}
+	req, err := snapshot.DecodeRequest(raw)
+	if err != nil {
+		return false, entry, "", err
+	}
+	seq, last := req.Seq.Uint64(), wc.Seq.Uint64()
+	if req.Entry.RequestID != requestID || seq < 1 || seq > last || last-seq > MaxWriterTail {
+		return false, entry, "", errCheckpoint(rp, "request is not within the bound before the checkpoint")
+	}
+	digest := wc.ReceiptSha256
+	var rc *snapshot.Receipt
+	for at := last; ; at-- {
+		name, err := snapshot.ReceiptName(at)
+		if err != nil {
+			return false, entry, "", err
+		}
+		body, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
+		if err != nil {
+			return false, entry, "", err
+		}
+		if wire.Sum(body) != digest {
+			return false, entry, "", errCheckpoint(name, "receipt is not on the checkpoint's chain")
+		}
+		rc, err = snapshot.DecodeReceipt(body)
+		if err != nil {
+			return false, entry, "", err
+		}
+		if rc.Seq.Uint64() != at {
+			return false, entry, "", errCheckpoint(name, "receipt sequence differs")
+		}
+		if at == seq {
+			break
+		}
+		if rc.Prev == nil {
+			return false, entry, "", errCheckpoint(name, "receipt chain ends early")
+		}
+		digest = *rc.Prev
+	}
+	posted := false
+	for _, p := range rc.Post {
+		posted = posted || (p.Path == rp && p.Sha256 != nil && *p.Sha256 == want)
+	}
+	if !posted || rc.RequestID == nil || *rc.RequestID != requestID || req.Entry.Outcome.Outcome != rc.Outcome || strings.Join(req.Entry.Outcome.Codes, "\x00") != strings.Join(rc.Codes, "\x00") {
+		return false, entry, "", errCheckpoint(rp, "request afterimage does not bind its receipt")
+	}
+	if rc.TicketID != nil {
+		ticketID = rc.TicketID.Raw
+	}
+	return true, req.Entry, ticketID, nil
 }

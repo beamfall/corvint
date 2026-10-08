@@ -16,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -155,6 +156,16 @@ type writerObservation struct {
 	head, barrier, reservations []byte
 	headReceipt                 []byte
 	branch                      string
+	// replay is set when the caller's request is retained: the route then
+	// answers it from the original entry and observes nothing else
+	// (CAL-V0-187, proposed).
+	replay *writerReplay
+}
+
+// writerReplay is a retained request as the writer audit found it.
+type writerReplay struct {
+	entry  mutation.IndexEntry
+	ticket string
 }
 
 // tail is the number of receipts the writer audit walked after wc.
@@ -191,6 +202,16 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	}
 	if wire.Sum(w.head) != proof.Identity.HeadSha256 {
 		return nil, errWriterRoute("head.json", "head changed after the audit"), nil
+	}
+	// A retained request replays from its original entry; one the route
+	// cannot bind to the checkpoint declines (CAL-V0-187, proposed).
+	found, entry, ticketID, err := journalReader(repo, headState).WriterReplay(proof, requestID)
+	if err != nil {
+		return nil, errWriterRoute("requests", err.Error()), nil
+	}
+	if found {
+		w.replay = &writerReplay{entry: entry, ticket: ticketID}
+		return w, nil, nil
 	}
 	// Request shards are not listed on this route, so a request file no
 	// receipt posted is looked for by name: the complete route classifies it.

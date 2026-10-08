@@ -39,7 +39,8 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
 	cp := checkpointed(t, repo, r)
 	a, b := sha256.Sum256([]byte("a")), sha256.Sum256([]byte("b"))
-	digests := [][]byte{a[:], b[:]}
+	afterA, afterB := sha256.Sum256([]byte("request a")), sha256.Sum256([]byte("request b"))
+	digests := [][]byte{append(append([]byte(nil), a[:]...), afterA[:]...), append(append([]byte(nil), b[:]...), afterB[:]...)}
 	sort.Slice(digests, func(i, j int) bool { return bytes.Compare(digests[i], digests[j]) < 0 })
 	wc := &WriterCheckpoint{Checkpoint: *cp, FullSeq: 2, ReceiptBytes: 900, Cost: archive.FileSetCost{Files: 4, PayloadBytes: 1200, EntryBytes: 300, TarBytes: 4096}}
 	wc.requests = append(append([]byte(nil), digests[0]...), digests[1]...)
@@ -68,6 +69,13 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 	if !got.HasRequest(requestPathOf(a[:])) || !got.HasRequest(requestPathOf(b[:])) {
 		t.Fatal("retained request path not found")
+	}
+	// CAL-V0-187 (proposed): each request carries its afterimage digest.
+	if d, ok := got.RequestAfterimage(requestPathOf(a[:])); !ok || d != wire.Digest(hex.EncodeToString(afterA[:])) {
+		t.Fatalf("request a afterimage %q %v", d, ok)
+	}
+	if d, ok := got.RequestAfterimage(requestPathOf(b[:])); !ok || d != wire.Digest(hex.EncodeToString(afterB[:])) {
+		t.Fatalf("request b afterimage %q %v", d, ok)
 	}
 	changed := *ref
 	changed.Revision = "2"
@@ -109,14 +117,19 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	requestsAt := aggregates + 7*8
 	swapped := append([]byte(nil), body...)
 	copy(swapped[requestsAt:], digests[1])
-	copy(swapped[requestsAt+sha256.Size:], digests[0])
+	copy(swapped[requestsAt+writerRequestBytes:], digests[0])
 	repeated := append([]byte(nil), body...)
-	copy(repeated[requestsAt+sha256.Size:], digests[0])
+	copy(repeated[requestsAt+writerRequestBytes:], digests[0])
+	// The same path with another afterimage is still a repeated request.
+	repeatedPath := append([]byte(nil), body...)
+	copy(repeatedPath[requestsAt+writerRequestBytes:], digests[0][:sha256.Size])
 	foreign := append([]byte(nil), body...)
-	copy(foreign, strings.Replace(writerMagic, "/0", "/1", 1))
+	copy(foreign, strings.Replace(writerMagic, "/1", "/2", 1))
+	previous := append([]byte(nil), body...)
+	copy(previous, strings.Replace(writerMagic, "/1", "/0", 1))
 	longCP := append([]byte(nil), body...)
 	binary.BigEndian.PutUint64(longCP[len(writerMagic):], uint64(len(body)))
-	notesAt := requestsAt + 2*sha256.Size
+	notesAt := requestsAt + 2*writerRequestBytes
 	note := func(edit func(out []byte) []byte) []byte {
 		return sealWriter(edit(append([]byte(nil), body...)))
 	}
@@ -125,6 +138,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 	for name, bad := range map[string][]byte{
 		"foreign profile":         sealWriter(foreign),
+		"previous profile":        sealWriter(previous),
 		"embedded length":         sealWriter(longCP),
 		"truncated aggregates":    sealWriter(body[:aggregates+8]),
 		"request count":           field(6, 3),
@@ -134,6 +148,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		"receipt bytes > payload": field(1, 1201),
 		"unordered requests":      sealWriter(swapped),
 		"repeated request":        sealWriter(repeated),
+		"repeated request path":   sealWriter(repeatedPath),
 		"trailing digest bytes":   sealWriter(append(append([]byte(nil), body...), 1)),
 		"truncated notes":         sealWriter(body[:notesAt+4]),
 		"note count":              note(func(out []byte) []byte { binary.BigEndian.PutUint64(out[notesAt:], 2); return out }),
