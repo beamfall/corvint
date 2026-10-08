@@ -75,6 +75,7 @@ var ReadVerbs = []string{
 	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
+	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
@@ -156,6 +157,9 @@ func Run(env Env) int {
 		}
 		if args[1] == "know-how" {
 			return emit(env.Stdout, knowHowCommand(env, args[2:]))
+		}
+		if args[1] == "obligations" {
+			return emit(env.Stdout, obligationsCommand(env, args[2:]))
 		}
 		switch args[1] {
 		case "escalate":
@@ -420,6 +424,7 @@ func LiveFormats() []string {
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0",
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
+		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile,
 		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/0", "taskman-dispatch-detached-run/0",
@@ -1438,6 +1443,9 @@ func queueStatus(env Env, args []string) *wire.Result {
 			fallback = serialFallbackDeferredValue(in)
 		}
 		o.Set("serialFallbackDeferred", fallback)
+		if v, ok := obligationsSummary(st.Inventory); ok {
+			o.Set("obligations", v)
+		}
 		// The per-ticket retry map dominates the bytes on a large queue, so
 		// it is opt-in (CAL-V0-169); the attempt audit above still runs.
 		if withRetries {
@@ -1464,6 +1472,31 @@ func queueStatus(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// obligationsSummary is the TOL-V0-019 queue status sum over the OPEN and
+// HELD native tickets that carry an obligation ledger, read from the loaded
+// records only. ok is false when no such ticket exists, so the key is
+// absent and legacy output is byte-identical.
+func obligationsSummary(inv *ticket.Inventory) (wire.Value, bool) {
+	var n, witnessed, total, deferred, coreWitnessed, coreTotal int64
+	for _, id := range inv.IDs() {
+		rec, _ := inv.Get(id)
+		if rec == nil || rec.ObligationsRef == nil || rec.Source.Kind != "NATIVE" || rec.Status != ticket.StatusOpen && rec.Status != ticket.StatusHeld {
+			continue
+		}
+		c := rec.ObligationsRef.Counts
+		n++
+		witnessed, total, deferred = witnessed+c.Witnessed, total+c.Total, deferred+c.Deferred
+		coreWitnessed, coreTotal = coreWitnessed+c.CoreWitnessed, coreTotal+c.CoreTotal
+	}
+	if n == 0 {
+		return wire.Value{}, false
+	}
+	count := func(v int64) wire.Value { return wire.String(string(wire.CountOf(v))) }
+	core := wire.NewObject().Set("witnessed", count(coreWitnessed)).Set("total", count(coreTotal))
+	return wire.ObjectValue(wire.NewObject().Set("tickets", count(n)).Set("witnessed", count(witnessed)).Set("total", count(total)).
+		Set("deferred", count(deferred)).Set("core", wire.ObjectValue(core))), true
 }
 
 // serialFallbackDeferredValue is the CAL-V0-193 queue-status list of the

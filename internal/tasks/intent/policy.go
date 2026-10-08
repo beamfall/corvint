@@ -17,6 +17,7 @@ var Operations = []string{
 	"RELEASE_CREATE", "RELEASE_UPDATE", "RELEASE_CANDIDATE", "RELEASE_EXTERNAL_ATTEST", "RELEASE_MANUAL_ATTEST", "RELEASE_PROMOTE",
 	"ESCALATE", "ANSWER", "NOTE_SET", "NOTE_CLEAR", "REVIEW_RECORD", "REVIEW_RESUBMIT",
 	"ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM",
+	"OBLIGATIONS_SEED", "OBLIGATIONS_SET", "OBLIGATIONS_WITNESS",
 }
 
 // TicketKinds mirrors ticket.Kinds for policy kind lists.
@@ -129,7 +130,23 @@ type Policy struct {
 	// KnowHow is the optional KHN-V0-021 know-how policy; nil (the key
 	// absent) keeps WORKER without KNOWHOW_ADD.
 	KnowHow *KnowHowPolicy
-	Raw     []byte
+	// Obligations is the optional TOL-V0-015 obligation-ledger policy; nil
+	// (the key absent) keeps WORKER without OBLIGATIONS_WITNESS.
+	Obligations *ObligationsPolicy
+	Raw         []byte
+}
+
+// ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
+// issue OBLIGATIONS_WITNESS from a Playwright report under the live attempt
+// generation it holds; it grants nothing else.
+type ObligationsPolicy struct {
+	WorkerWitness bool
+}
+
+// WorkerObligationWitness reports whether policy opts WORKER into the
+// report witness (TOL-V0-015). Absent or false keeps the default refusal.
+func (p *Policy) WorkerObligationWitness() bool {
+	return p.Obligations != nil && p.Obligations.WorkerWitness
 }
 
 // KnowHowPolicy is the KHN-V0-021 opt-in. WorkerAdd lets a WORKER issue
@@ -259,7 +276,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -445,6 +462,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 			return nil, err
 		}
 	}
+	if wire.Has(v, "obligations") {
+		o := r.Field("obligations")
+		o.Closed("workerWitness")
+		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
 	return p, nil
 }
 
@@ -474,9 +499,10 @@ func (p *Policy) PolicySha256() wire.Digest {
 // although that role's default row omits them: an OPERATOR gets a note verb
 // (ON-V0-004) or an escalation verb (ESC-V0-001, ESC-V0-004) only through an
 // explicit policy.roles.OPERATOR row, never by default; the same holds for
-// ATTACH_EVIDENCE (TEA-V0-001) and the know-how verbs (KHN-V0-003,
-// KHN-V0-018). No other role may be granted them.
-var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM"}}
+// ATTACH_EVIDENCE (TEA-V0-001), the know-how verbs (KHN-V0-003,
+// KHN-V0-018) and the obligation-ledger verbs (TOL-V0-015). No other role may
+// be granted them.
+var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM", "OBLIGATIONS_SEED", "OBLIGATIONS_SET", "OBLIGATIONS_WITNESS"}}
 
 // PolicyGrantable is the closed set a policy row for role may list: its
 // default row plus its explicit-only grants.

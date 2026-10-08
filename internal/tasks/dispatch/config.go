@@ -21,12 +21,15 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/3"
+	StateProfile  = "taskman-dispatch-state/4"
 	// drainedStateProfile and drainedState2Profile are the previous ledger
 	// versions, each adopted only when it records no worker (CAL-V0-132,
-	// proposed amendment; CAL-V0-185 added version 3).
+	// proposed amendment; CAL-V0-185 added version 3). Version 3 is adopted
+	// as recorded, with every stall count's TOL-V0-021 high-water baseline
+	// absent (version 4).
 	drainedStateProfile  = "taskman-dispatch-state/1"
 	drainedState2Profile = "taskman-dispatch-state/2"
+	drainedState3Profile = "taskman-dispatch-state/3"
 	EventProfile         = "taskman-dispatch-event/0"
 	MaxConfig            = 256 << 10
 )

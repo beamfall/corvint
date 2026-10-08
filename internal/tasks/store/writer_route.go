@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -23,13 +24,14 @@ import (
 // from its original entry, and a model result that plans no transaction is
 // reported without a write, as the complete route reports both (CAL-V0-190,
 // proposed). handled is false, with nothing written, whenever the route
-// declines: a REOPEN, review or attempt-naming know-how operation, including
+// declines: a REOPEN, review, obligation-ledger (TOL-V0-014) or
+// attempt-naming know-how operation, including
 // every WORKER KNOWHOW_ADD that passes its scope (they read attempt history),
 // a request the route cannot bind, a model that needed an elided path, and
 // every refusal of the audit or the pre-effect checks, which the complete
 // route derives itself.
 func mutateWriter(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, refresh *bool) (handled bool, out *Report, err error) {
-	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) || mutation.KnowHowNamesAttempt(env) {
+	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) || mutation.KnowHowNamesAttempt(env) || ticket.IsObligationOperation(env.Operation) {
 		return false, nil, nil
 	}
 	start := time.Now()

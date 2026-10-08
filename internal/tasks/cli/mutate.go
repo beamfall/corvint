@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"slices"
@@ -181,7 +182,7 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "CREATE names no target or expected revision")
 		}
 	} else {
-		if f.target == "" || (f.expected == "" && !mutation.DeclaresDerivedEvent(operation)) {
+		if f.target == "" || (f.expected == "" && !mutation.IsNoteOperation(operation) && !mutation.IsReviewOperation(operation)) {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
 		target = wire.String(qualifyTicket(queueID, f.target))
@@ -289,6 +290,12 @@ func nullableCount(c *wire.Count) wire.Value {
 // submitMutation composes the envelope around an already-read payload and
 // commits it through the §5.2 writer; mutateCommand and `ticket note` share it.
 func submitMutation(env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
+	return submitMutationContext(writerContext(), env, cmd, operation, actor, flags, payload)
+}
+
+// submitMutationContext is submitMutation under a caller's writer context,
+// which may carry write-time inputs such as an obligation report check.
+func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -314,7 +321,7 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
+	report, err := store.Mutate(ctx, repo, actor, envelope, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
