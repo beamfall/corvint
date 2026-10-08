@@ -115,7 +115,12 @@ func TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen(t *testing.T) {
 // V1-0624: the independently pinned Gradle build manifest is refused without a
 // blocking open when it becomes a FIFO after the plan was approved.
 func TestPinnedGradleManifestFIFORefusedBeforeExecution(t *testing.T) {
-	dir := t.TempDir()
+	// Pinned paths are checked no-follow in every prefix, so resolve a linked
+	// TMPDIR such as macOS /var/folders first.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	root := filepath.Join(dir, "src")
 	project := filepath.Join(root, "app")
 	if err := os.MkdirAll(project, 0700); err != nil {

@@ -18,7 +18,13 @@ func TestCheckPinnedFileRefusesFIFOAndFinalSymlink(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root bypasses the search-only ancestor")
 	}
-	dir := filepath.Join(t.TempDir(), "search-only")
+	// Every prefix is checked no-follow, so resolve a linked TMPDIR such as
+	// macOS /var/folders first.
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(base, "search-only")
 	if err := os.Mkdir(dir, 0700); err != nil {
 		t.Fatal(err)
 	}

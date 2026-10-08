@@ -72,7 +72,10 @@ semantics are unchanged; `openPinnedRegular` is removed. `TestCheckPinnedFileRef
 puts the files below a search-only (`0100`) directory as a portable stand-in for the sandbox: the
 previous code failed it on macOS (`statat …/build.gradle: permission denied`, because `os.Root`
 opens each intermediate directory for reading) and the fix passes. After the fix both packages
-pass on macOS and under the Landlock wrapper on Linux.
+pass on macOS and under the Landlock wrapper on Linux. Review of the fix found that a linked
+`TMPDIR` (macOS `/var/folders`) is refused as a symlink prefix, as it already was through
+`os.Root`; both pinned-file tests now resolve `t.TempDir()` first and pass with the default
+macOS `TMPDIR`.
 
 ## Non-goals
 
