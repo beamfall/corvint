@@ -2,14 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-08
-Intent status: proposed
+Intent status: accepted (decision 0456; V1-1022)
 Delivery status: not-started
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
 V1-1022 ("native per-ticket obligation ledger with step-level Playwright witnessing"). This document
-is an agent-drafted proposal. Acceptance is human-owned: no requirement below is accepted, and
-nothing may be implemented, promoted or advertised as delivered until the owner accepts it (in whole
-or in part) and resolves the Unresolved decisions. It reuses unchanged the ticket, mutation,
+was agent-drafted. The owner accepted TOL-V0-001..021 as written in chat on 2026-10-08 (decision
+0456; V1-1022), which also resolved the former Unresolved decisions by accepting the positions this
+text takes. Acceptance settles intent only: nothing is implemented, and nothing may be promoted or
+advertised as delivered until implementation and its acceptance evidence exist. It reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
@@ -20,10 +21,10 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: proposed (owner issue #680, V1-1022; owner acceptance required); not-started; no code, store member or command exists.
-- Exists: this proposal only; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
-- Blocked on: owner acceptance and the Unresolved decisions; a live Playwright 1.63 fixture before any crediting code can qualify.
-- Read next: User and current state; Requirements; Failure modes and trust; Unresolved decisions.
+- Status: accepted (decision 0456; V1-1022; owner issue #680); not-started; no code, store member or command exists.
+- Exists: this accepted spec only; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
+- Blocked on: implementation; a live Playwright 1.63 fixture before any crediting code can qualify.
+- Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
 
 ## User and current state
 
@@ -281,7 +282,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 | Forged title: a report names an id in a test or step the repository never wrote | — | No credit unless the spec file at `--commit` literally contains the id (TOL-V0-012); the command reports the id as `unbound` and no event stores it. Titles alone are never trusted. |
 | Hand-edited report JSON, or a report whose failing matches are later disputed | — | The report is discarded after validation; the event keeps its digest and the passing, source-bound matches. Audit re-checks those against the commit but cannot prove the discarded report held no failing match or came from a real run. Trust is bounded by the declared actor and role (TOL-V0-015); a qualified receipt path is a non-goal for V0. |
 | Duplicate ids: seeded twice, or matched by several tests, steps or projects | — | Seed refuses `DUPLICATE_ID` (TOL-V0-003/005); a cross-ticket prefix collision refuses; an id matched by both passing and failing results is `conflicting` and uncredited (TOL-V0-011). |
-| Report from a different commit | — | The source presence check at the declared commit (TOL-V0-012) refuses matches whose file or id is absent there; a commit the repository lacks refuses. A report run on an unrecorded working tree that happens to match is a retained limit (Unresolved decision 6). |
+| Report from a different commit | — | The source presence check at the declared commit (TOL-V0-012) refuses matches whose file or id is absent there; a commit the repository lacks refuses. A report run on an unrecorded working tree that happens to match is a retained limit (owner decision 6, decision 0456). |
 | Flaky retries | A pass at retry 1 looks like success | Only retry 0 credits (TOL-V0-010); a `flaky` test's retry-1 pass never credits. |
 | Missing, truncated, oversize or foreign-format report | — | Refuses with `OBLIGATION_REPORT:` and writes nothing (TOL-V0-009). |
 | Unqualified Playwright version | — | Refuses `UNSUPPORTED_VERSION` with `OBLIGATION_REPORT_VERSION_UNQUALIFIED:`. |
@@ -296,7 +297,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 ## Non-goals and simpler baseline
 
 - Gating completion, gates or acceptance on obligations. V0 only records and reports; whether
-  `complete` should require every core obligation `WITNESSED` is Unresolved decision 1.
+  `complete` should require every core obligation `WITNESSED` was resolved no in V0 (owner decision 1,
+  decision 0456).
 - Running tests, launching Playwright or editing reports. Corvint consumes a finished report only.
 - Consuming PWP-V0 qualified receipts. The `/2` redaction profile retains steps, so a later
   `VERIFIED_RECEIPT` source could credit from a receipt Corvint itself produced; it is excluded here.
@@ -333,7 +335,7 @@ records it; it qualifies nothing.
 
 ## Resolved decisions
 
-These are drafting choices, proposed for owner acceptance, not accepted decisions.
+These drafting choices were accepted by the owner with the requirements (decision 0456).
 
 1. Storage by reference: the record carries counts and a head digest, and the ledger is a chain
    of at most 64 KiB events in the existing single MUTATE derived-event slot. 256 entries with
@@ -353,23 +355,22 @@ These are drafting choices, proposed for owner acceptance, not accepted decision
 9. Loop integration reads `lastRaise` from the record that `LoopHoldOf` already receives, instead of
    recording a value at claim time, which `lease_claim.go` would only write after the hold check.
 
-## Unresolved decisions
+## Resolved owner decisions
 
-Owner decisions required before acceptance:
+Resolved by the owner on 2026-10-08 (decision 0456; V1-1022) by accepting the positions this spec takes:
 
-1. Should `complete` (or a gate) require every core obligation `WITNESSED` at the current
-   acceptance revision? V0 says no.
-2. Retry policy: retry 0 only, or an explicitly declared per-ticket policy that admits retry N?
-3. Grants: OPERATOR by explicit row and WORKER report witness by opt-in policy, or OWNER only?
-4. Bounds: 256 obligations, 1,024 ledger events (a worst-case fold reads 64 MiB), 64 KiB events,
-   64 MiB reports.
-5. Whether HELD tickets admit ledger writes (proposed yes, unlike TEA-V0).
-6. Whether to require report-embedded commit metadata (Playwright `captureGitInfo`) once qualified,
-   in addition to the source presence check.
-7. Whether the stall restart (TOL-V0-021) is worth a dispatcher ledger version, or should be
-   dropped in favour of the fingerprint alone.
-8. Whether the TOL-V0-017 fingerprint change should also drop the workState `State` for ledger
-   tickets, so self-reported state stops counting as progress.
+1. `complete` and gates do NOT require every core obligation `WITNESSED` in V0.
+2. Retry 0 only (TOL-V0-010); no per-ticket retry policy.
+3. OWNER by default; OPERATOR only through an explicit `policy.roles.OPERATOR` row; a WORKER report
+   witness only by opt-in policy.
+4. Bounds as stated: 256 obligations, 1,024 ledger events (a worst-case fold reads 64 MiB), 64 KiB
+   events, 64 MiB reports.
+5. HELD tickets admit ledger writes (unlike TEA-V0).
+6. Report-embedded commit metadata (Playwright `captureGitInfo`) is not required in V0; the source
+   presence check alone binds the commit.
+7. The TOL-V0-021 stall restart and its dispatcher ledger version are kept, with the rollback limit
+   recorded under Rollout and rollback.
+8. The workState `State` stays in the TOL-V0-017 fingerprint; it is not dropped for ledger tickets.
 
 ## Rollout and rollback
 

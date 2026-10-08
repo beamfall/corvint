@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-08
 Requirement prefix: `TCN-V0`
-Intent status: proposed
+Intent status: accepted (decision 0457; V1-1023)
 Delivery status: not-started
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
@@ -15,10 +15,10 @@ declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-
 
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
-- Status: proposed/not-started (V1-1023; GitHub #681). Acceptance is human-owned: nothing here is accepted until the owner records a decision.
+- Status: accepted (decision 0457; V1-1023; GitHub #681); not-started. Acceptance settles intent only.
 - Exists: nothing. AMAP-V0 knows screens and routes, AMSP-V0 knows sessions and setup scenarios, AFU-V1 knows variations and declared test keys, and `corvint test-validity` projects per-test execution; no surface turns a set of variations into a consolidated test plan.
-- Blocked on: owner acceptance of TCN-V0-001..012 and the owner questions; implementation; all acceptance evidence.
-- Read next: Requirements; Grouping algorithm; Table and check; Owner questions.
+- Blocked on: implementation; all acceptance evidence.
+- Read next: Requirements; Grouping algorithm; Table and check; Owner questions (resolved).
 
 ## User and measurable job
 
@@ -93,7 +93,7 @@ At `2a93b5a1` (origin/main):
 
 ## Requirements
 
-Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
+Every requirement below is accepted as written (decision 0457; V1-1023; GitHub #681); delivery is not-started.
 
 - `TCN-V0-001`: The planner MUST be a read-only local projection. `corvint test-plan consolidate
   --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]
@@ -102,7 +102,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   no network connection, persist no state and generate no test code. The default format is
   `table`. Exit 0 means a plan was produced, whether `COMPLETE` or `INCOMPLETE`; invalid arguments
   or input exit 2 with nothing on stdout. Plan `authority` MUST always be `candidate`.
-  (proposed; V1-1023)
+  (accepted (decision 0457; V1-1023))
 - `TCN-V0-002`: The input MUST be one closed `test-consolidation-input/0` JSON document of at most
   8 MiB with members `schema`, optional `revision` (the full object ID the anchors were read at) and
   `variations` (1..8192 entries). A variation is a closed object with `variation_id` and optional
@@ -120,7 +120,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   other members, `flow_id` and `route` are optional, an absent `witnesses` means none, and any
   other member that is absent or `null` is a missing anchor (TCN-V0-003), not a refusal. Empty
   `requires` and `changes` arrays and `destructive: false` are explicit declarations, never
-  defaults. Input order MUST NOT affect any output byte. (proposed; V1-1023)
+  defaults. Input order MUST NOT affect any output byte. (accepted (decision 0457; V1-1023))
 - `TCN-V0-003`: A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
   when any of `spec`, `app`, `screen`, `setup`, `user`, `org`, `action`, `assertion`,
   `requires`, `changes` or `destructive` is missing (reason `missing-anchor`, naming each missing
@@ -131,7 +131,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   freshness MUST be evaluated by the AMAP-V0 rule at `--revision` (default `HEAD`): STALE abstains
   `stale-anchor`, UNKNOWN abstains `anchor-unknown`. Without `--map` the plan MUST report
   `anchor_validation: NOT_RUN` and every variation's anchors as `caller` basis. A plan with any
-  abstained variation reads `INCOMPLETE`; otherwise `COMPLETE`. (proposed; V1-1023)
+  abstained variation reads `INCOMPLETE`; otherwise `COMPLETE`. (accepted (decision 0457; V1-1023))
 - `TCN-V0-004`: Reuse MUST be decided only from `--tests` files (0..8), each one original provider
   document of the kind `corvint test-validity --receipt` accepts (LPCV-V0-051), read through the
   same safe reader and bounds and projected through the shared `internal/testvaliditydoc` builder,
@@ -154,7 +154,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   sorted by `test_id` then project, each with its unchanged five-axis projection (LPCV-V0-047);
   the first is the one the table names. Reuse states that a passing witness exists, not that the
   test is adequate (LPCV-V0-048), and its strength state stays visible in the table.
-  (proposed; V1-1023)
+  (accepted (decision 0457; V1-1023))
 - `TCN-V0-005`: Among non-abstained variations, duplicates MUST be classed by equal context, equal
   `requires`, equal `changes`, equal `destructive`, equal ordered `action` and equal `assertion`
   set. Each class keeps one representative: the smallest `variation_id` (byte order) among members
@@ -162,7 +162,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   representative and needs no test of its own; a duplicate of a reused representative is reported
   as such. Variations whose action and assertion match but whose context or any state or safety
   declaration differs MUST NOT be classed as duplicates, so no declared effect is discarded.
-  (proposed; V1-1023)
+  (accepted (decision 0457; V1-1023))
 - `TCN-V0-006`: The remaining variations (not abstained, reused or duplicate) MUST be partitioned
   by context. A variation with `destructive` true MUST be placed in its own test with reason
   `destructive-change`. The others are grouped by TCN-V0-007. Every test MUST carry exactly one
@@ -170,7 +170,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   variation alone because of a requires conflict or a cycle; for any other one-step test,
   `different-user-or-org` when another variation placed in a new test shares its `spec`, `app`,
   `setup` and `screen` but differs in `user` or `org`, else `unique-context`; and `-` for a test
-  with two or more steps. (proposed; V1-1023)
+  with two or more steps. (accepted (decision 0457; V1-1023))
 - `TCN-V0-007`: Within one context the variations MUST be split into compatible sets, each with an
   independent order. Variations are visited in `variation_id` byte order and each joins the first
   set none of whose members requires a different value for a key it requires, else opens a new
@@ -183,13 +183,13 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   More than 1,048,576 precedence edges in one input MUST refuse with `test-plan-bound-exceeded`.
   This is a deterministic, conservative consolidation: it never places dependent steps in one test,
   but it is not guaranteed to reach the global minimum number of tests, which is a set-partition
-  problem without a known efficient exact algorithm. (proposed; V1-1023)
+  problem without a known efficient exact algorithm. (accepted (decision 0457; V1-1023))
 - `TCN-V0-008`: Each set's ordered steps MUST be cut into consecutive tests of at most `--max-steps`
   steps (2..32, default 8); every cut test keeps the independent order. Tests MUST be numbered
   `T001`, `T002`, ... after sorting by `spec`, then by the smallest `variation_id` they contain.
   The same input bytes, provider-document bytes, map bytes, revision and options MUST give the same
   output bytes on every run and host, whatever the order of the files and of the witnesses.
-  (proposed; V1-1023)
+  (accepted (decision 0457; V1-1023))
 - `TCN-V0-009`: `--format json` MUST print one closed `test-consolidation-plan/0` document: `schema`,
   `input_digest` (`sha256:` of the canonical input: variations sorted by ID, set members sorted,
   compact JSON), `tests_digest` (`sha256:` over the sorted SHA-256 digests of the `--tests` files,
@@ -204,7 +204,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   `witness_rejections[]{variation_id, test_id, reason}` and `table_digest`. Every input variation
   MUST appear exactly once among test steps, `reused`, `duplicates` and `abstained`, and
   `baseline_one_per_row` equals the number of input variations. Output over 8 MiB MUST refuse with
-  `test-plan-bound-exceeded`, never truncate. (proposed; V1-1023)
+  `test-plan-bound-exceeded`, never truncate. (accepted (decision 0457; V1-1023))
 - `TCN-V0-010`: `--format table` MUST print exactly: one header line `<!-- corvint
   test-consolidation-table/0 input=<input_digest> tests=<tests_digest> maps=<maps_digest>
   revision=<evaluated_revision> anchors=<VALIDATED|NOT_RUN> max-steps=<N>
@@ -216,7 +216,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   and per abstained variation (`| ABSTAIN | <spec or -> | <id> | <reason> |`), each block sorted by
   variation ID. Lines end with LF; no field is escaped because TCN-V0-002 excludes `|` and control
   characters from every printed value and whitespace from every identifier. `table_digest` is the
-  SHA-256 of these bytes. (proposed; V1-1023)
+  SHA-256 of these bytes. (accepted (decision 0457; V1-1023))
 - `TCN-V0-011`: `corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]...
   [--revision REV] [--max-steps N]` MUST locate exactly one header line of TCN-V0-010 in FILE
   (at most 8 MiB; a Markdown plan may surround the table), take the table as the header and the
@@ -229,7 +229,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   `test-plan-incomplete` when they match but the plan has abstained variations, and with
   `test-plan-header-missing` when FILE has no header or more than one; it exits 2 for invalid
   arguments or input. Its `max-steps` and the header's MUST agree, and an edited, reordered, added
-  or dropped row MUST fail. (proposed; V1-1023)
+  or dropped row MUST fail. (accepted (decision 0457; V1-1023))
 - `TCN-V0-012`: When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
   non-destructive, closed-world tool `corvint.consolidate_tests` on `corvint-corpus-mcp`, listed
   only when that server is started with `--consolidation`; `corvint-mcp` and its frozen MCP
@@ -238,7 +238,7 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   optional `max_steps`, `format` and `plan` (a table string to check, at most 1 MiB), decoded
   strictly; it returns the CLI's exact bytes in the untrusted-data envelope with the plan object
   as `structuredContent`, and refuses with `test-plan-bound-exceeded` rather than exceed the
-  1 MiB message cap. (proposed; V1-1023)
+  1 MiB message cap. (accepted (decision 0457; V1-1023))
 
 ## Grouping algorithm (informative restatement of TCN-V0-003..008)
 
@@ -357,7 +357,7 @@ All evidence is planned; none exists. Each row is `NOT_RUN` until implemented.
 | TCN-V0-009 | Golden JSON; every variation accounted for exactly once; output bound refusal. |
 | TCN-V0-010 | Golden table, including the worked example above. |
 | TCN-V0-011 | Check passes on the exact table inside surrounding Markdown; fails on an edited, reordered, added and dropped row, on a missing and a doubled header, on a max-steps disagreement, on a changed map or revision with unchanged rows, and on an `INCOMPLETE` plan. |
-| TCN-V0-012 | Only if accepted: MCP strict decoding, listing gated by `--consolidation`, byte parity with the CLI, `corvint-mcp` tool list unchanged. |
+| TCN-V0-012 | MCP strict decoding, listing gated by `--consolidation`, byte parity with the CLI, `corvint-mcp` tool list unchanged. |
 
 Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
 (issue 681 cites 3,614 core rows over 133 flows) and record new tests versus
@@ -386,6 +386,9 @@ pasted table becomes unverifiable after rollback, which is the intended fail-clo
   not reveal.
 
 ## Owner questions
+
+Resolved on 2026-10-08 (decision 0457): the owner accepted TCN-V0-001..012 as written, which settles
+each question below by the position the requirements take. The list is retained as history.
 
 1. Should V0 derive the input itself from `--flows DIR --map FILE...` (and an AMSP-V0 plan),
    instead of taking a caller-assembled document? Derivation removes agent judgement from the
