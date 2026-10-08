@@ -39,7 +39,7 @@ var aiNote = "src/main.rs\n" +
 
 func fixtureGit(t *testing.T, dir string, stdin []byte, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = dir
 	command.Env = append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,

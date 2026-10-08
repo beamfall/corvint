@@ -29,7 +29,7 @@ func initScratchRepo(t *testing.T) string {
 	root := t.TempDir()
 	run := func(args ...string) {
 		t.Helper()
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(),
 			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
@@ -105,7 +105,7 @@ func TestTreeChecksIgnoreAmbientGitEnvironment(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(other, "tracked.txt"), []byte("other\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	commit := exec.Command("git", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qam", "other")
+	commit := exec.Command("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qam", "other")
 	commit.Dir = other
 	if out, err := commit.CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, out)

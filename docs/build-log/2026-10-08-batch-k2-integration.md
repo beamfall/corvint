@@ -40,3 +40,16 @@ The batch CEM is bound against base `b5616037000a06e4719c759a555f7e393390e94f` a
 
 Revert the batch merge commit on `main`. Each lane can also be reverted on its own through its
 merge commit in the batch branch.
+
+## Main merge (38fcf067, batch I and V1-1028)
+
+origin/main 38fcf067 added V1-0859/V1-0431's record-data gate (TCP-V0-063) to
+`internal/contextindex/taskcontext.go`, beside this batch's cancellation boundaries (TCP-V0-064,
+V1-0485). The code merged cleanly. The spec keeps both requirements in number order. Line
+citations into `taskcontext.go` in `core-compatibility-freeze-v1.md` (14) and decision 0377 (1)
+were relocated to the unique span whose content anchor still matches, with no hash changed. Both
+sides had re-pinned the analyzer audit digest at schema `corvint-analyzer/112` without a schema
+bump, so the merged input set is the union of two audited changes; the pin is recomputed and the
+schema stays /112. The earlier seal is dropped and the batch is rebound against the new base.
+Focused checks: `internal/contextindex` (full), the `cmd/corvint` TaskContext, core, CEM,
+governance and MCP subset, `internal/mcp/...` and the doc gates pass.

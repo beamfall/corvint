@@ -19,7 +19,7 @@ func testDeltaInternalCLIExplicitImmutableNoOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	git := func(args ...string) string {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		c.Dir = root
 		c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 		raw, err := c.CombinedOutput()
@@ -90,7 +90,7 @@ func testDeltaCLIPreservesClosedRefusalCodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	git := func(args ...string) string {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		c.Dir = root
 		c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 		raw, err := c.CombinedOutput()

@@ -99,16 +99,25 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		}
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
-	payload := map[string]any{"ok": true, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "mutates": args[0] != "status", "policy": result, "claim": "caller-owned-selected-workflow-only"}
+	code := localCompletionExit(args[0], flags["--check"], result)
+	// ok mirrors the exit status (LCP-V0-017): a caller reading only ok never
+	// sees an unqualified selected check or an unsatisfied finish as success.
+	payload := map[string]any{"ok": code == 0, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "mutates": args[0] != "status", "policy": result, "claim": "caller-owned-selected-workflow-only"}
 	if err = emit(stdout, payload); err != nil {
 		return emitLocalCompletionFailure(stderr, "output-failed")
 	}
-	if args[0] == "finish" && !result.Satisfied {
+	return code
+}
+
+// localCompletionExit is 1 for an unsatisfied finish and for a verify whose
+// selected check is not qualified, and 0 otherwise.
+func localCompletionExit(action, checkID string, result localcompletion.Evaluation) int {
+	if action == "finish" && !result.Satisfied {
 		return 1
 	}
-	if args[0] == "verify" {
+	if action == "verify" {
 		for _, check := range result.Checks {
-			if check.ID == flags["--check"] && !check.Qualified {
+			if check.ID == checkID && !check.Qualified {
 				return 1
 			}
 		}
@@ -191,7 +200,7 @@ func runTransportAdaptedRecovery(ctx context.Context, root, key string, flags ma
 		}
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
-	payload := map[string]any{"ok": true, "profile": "corvint-local-completion/0", "tool": "dogfood-finish", "mutates": true, "policy": result, "claim": "caller-owned-selected-workflow-only", "transportAdaptedRecovery": provenance}
+	payload := map[string]any{"ok": result.Satisfied, "profile": "corvint-local-completion/0", "tool": "dogfood-finish", "mutates": true, "policy": result, "claim": "caller-owned-selected-workflow-only", "transportAdaptedRecovery": provenance}
 	if err = emit(stdout, payload); err != nil {
 		return emitLocalCompletionFailure(stderr, "output-failed")
 	}

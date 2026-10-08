@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -293,6 +293,16 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   Every other refusal, the envelope bytes and the context packet are unchanged. Measured in the
   fixture: four Git processes per event where `stop` took ten and an index-backed event
   thirteen. Rollback: revert the change; the two-probe path keeps no persistent state.
+- `LCP-V0-017`: (accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-completion/0`
+  envelope from `begin`, `status`, `verify`, `finish`, `review` or `cancel` MUST equal whether the
+  command exits 0. `verify` exits 1 with `ok:false` when its recorded observation is unqualified
+  (nonzero exit, timeout, overflow, dirty run or screened log; a refusal still exits 2), and
+  `finish`, including the transport-adapted recovery route, exits 1 with `ok:false` while the
+  policy is not satisfied. The emitted `policy` (its `checks[].qualified` and `exit`, `satisfied`,
+  `unmet` and `nextActions`) is unchanged and remains the detail; `ok` alone never reads a failed
+  check or an unsatisfied finish as success. `status` stays read-only with exit 0 and `ok:true`
+  whatever the policy state. Before this, a selected check that exited 1 produced exit 1 but
+  `ok:true`. Rollback: revert the change; no persisted state or other envelope member changes.
 
 ## Non-goals and simpler baseline
 
@@ -345,7 +355,7 @@ elsewhere are not repeated.
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go:322` | the evaluation's target is set and differs from the commit probed before the event |
 | `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:313` | the closing observation of the event's one bracket differs from the opening one (`gokernel.ErrRepositoryDrift`), or the commit differs from the expected target |
 | `dogfood-report-drift` | `internal/localcompletion/finish.go:485` | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
-| `duplicate-local-completion-option` | `cmd/corvint/local_completion.go:135` | a `local-completion` option is given twice |
+| `duplicate-local-completion-option` | `cmd/corvint/local_completion.go:158` | a `local-completion` option is given twice |
 | `enrollment-bound-exceeded` | `internal/localcompletion/storage.go:312` | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
 | `enrollment-cancelled` | `internal/localcompletion/finish.go:46` | the saved enrollment's lifecycle is `cancelled` |
 | `enrollment-drift` | `internal/localcompletion/storage.go:294` | saved state names another session, or its plan digest does not match its plan |
@@ -369,10 +379,10 @@ elsewhere are not repeated.
 | `invalid-execution-path` | `internal/localcompletion/storage.go:316` | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
 | `invalid-intent-scope` | `internal/localcompletion/storage.go:145` | a plan intent is not a valid path or is not strictly after the previous intent |
 | `invalid-lifecycle` | `internal/localcompletion/storage.go:309` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
-| `invalid-local-completion-action` | `cmd/corvint/local_completion.go:122` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
+| `invalid-local-completion-action` | `cmd/corvint/local_completion.go:146` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
 | `invalid-local-completion-json` | `internal/localcompletion/storage.go:50` | strict JSON input does not parse |
-| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:132`; `cmd/corvint/local_completion.go:156` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
-| `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:144` | an option value is empty or longer than 4096 bytes |
+| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:155`; `cmd/corvint/local_completion.go:176` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
+| `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:168` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:58` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:72`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:547` | the session's generation path exists and is not a directory |
 | `invalid-public-evidence-result` | `internal/localcompletion/finish.go:220` | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
@@ -384,9 +394,9 @@ elsewhere are not repeated.
 | `invalid-verification-observation` | `internal/localcompletion/storage.go:338` | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
 | `invalid-worktree-owner` | `internal/localcompletion/storage.go:414` | the worktree owner file does not hold a 64-hex key |
 | `local-completion-action-required` | `cmd/corvint/local_completion.go:57@df0e82dd` | `local-completion` is given no action argument |
-| `local-completion-failed` | `cmd/corvint/local_completion.go:224@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
-| `local-completion-option-required` | `cmd/corvint/local_completion.go:154` | the action's required option is missing |
-| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:144` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
+| `local-completion-failed` | `cmd/corvint/local_completion.go:233@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
+| `local-completion-option-required` | `cmd/corvint/local_completion.go:173` | the action's required option is missing |
+| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:163` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
 | `local-outcome-evidence-drift` | `internal/localcompletion/finish.go:489` | the local outcome artifact is unreadable or its digest differs from the report's |
 | `local-state-bound-exceeded` | `internal/localcompletion/storage.go:226` | a local state file is larger than its read bound |
 | `local-state-not-regular` | `internal/localcompletion/storage.go:210` | a local state file is not a regular file |
@@ -468,6 +478,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-014 | `TestDogfoodFinishRunsFromBinaryInForeignRepository` (built binary, non-Corvint repository with no `script/`, `VERSION` or `cmd/corvint`, poisoned `DOGFOOD_*`, `CORVINT_BIN` and `PATH`); `TestLocalCompletionRealEvidenceWorkflow` (in-tree) |
 | LCP-V0-015 | `storage.go` `runsDogfoodCheck` guard; `final-check-not-prerequisite` refusal row; `TestValidatePlanRefusesFinalCheckInAnyForm` (script name, make target, `dogfood check` and `dogfood seal` refused; `dogfood change` and a non-adjacent pair admitted) |
 | LCP-V0-016 | `localEventRead` in `cmd/corvint/local_completion_event.go` running its reads inside `gokernel.ProbeRepositoryAround` (`GPK-V0-076`), and `localEventContext` loading the snapshot through `contextindex.LoadSnapshotObserved` against the opening observation | `TestDogfoodEventSpawnsOneBracket` (`cmd/corvint/dogfood_event_bracket_test.go`), which counts four Git spawns through a PATH shim for `stop`, `user-prompt` and both `session-start` sources over clean and dirty snapshot-present fixtures; `TestDogfoodEventRefusesRepositoryDriftInsideTheBracket`, which writes a file during the miss build and pins the `dogfood-event-repository-drift` error and the native surface's refusal; `TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift` (`internal/gokernel/repository_around_test.go`); the before/after hook timings in `docs/build-log/2026-10-06-v1-0881-single-event-bracket.md` |
+| LCP-V0-017 | `localCompletionExit` and the shared envelope in `cmd/corvint/local_completion.go`; `TestLocalCompletionVerifyOKMirrorsCheckResult` (a selected check exiting 1 yields exit 1, `ok:false`, `qualified:false`, `exit:1`; a passing check yields exit 0 and `ok:true`); `TestDogfoodFinishRunsFromBinaryInForeignRepository` (pre-review finish exit 1 with `ok:false`, satisfied finish `ok:true`); the before/after envelopes in `docs/build-log/2026-10-08-v1-1012-verify-ok-mirrors-exit.md` |
 
 ## Rollout, rollback and remaining gates
 

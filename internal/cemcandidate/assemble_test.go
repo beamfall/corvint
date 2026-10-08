@@ -26,7 +26,7 @@ func realTemp(t *testing.T) string {
 }
 func git(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Candidate Proof", "GIT_AUTHOR_EMAIL=proof@example.invalid", "GIT_COMMITTER_NAME=Candidate Proof", "GIT_COMMITTER_EMAIL=proof@example.invalid", "GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
 	b, e := cmd.Output()
 	if e != nil {

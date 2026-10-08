@@ -215,7 +215,7 @@ func TestWorkflowContextActualCoreReplay(t *testing.T) {
 
 func contextGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	raw, err := cmd.CombinedOutput()
 	if err != nil {

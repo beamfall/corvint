@@ -366,7 +366,7 @@ func commitEnv(t *testing.T, author, timestamp string) []string {
 
 func gitManifest(t *testing.T, repo string, extraEnv []string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", repo}, args...)...)
 	cmd.Env = append(os.Environ(), append([]string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_OPTIONAL_LOCKS=0"}, extraEnv...)...)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
