@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -189,5 +190,102 @@ func TestBehaviorV2RefusesMalformedOrConflictingRecords(t *testing.T) {
 	raw, _ := Encode(BehaviorProviderRequestV2{Schema: BehaviorProviderRequestSchemaV2, ID: good.ID, Version: good.Version, Source: good.Source, Registry: *good.BehaviorContracts})
 	if _, err := BuildBehaviorProviderV2(raw); err == nil {
 		t.Fatal("producer silently re-signed a registry")
+	}
+}
+
+// legacyV1Member reads the legacy /1 member's quoted JSON key from its single
+// declaration, so tests never repeat the string (AFU-V1-056).
+func legacyV1Member(t *testing.T) string {
+	t.Helper()
+	field, ok := reflect.TypeFor[BehaviorRevisions]().FieldByName("E2E")
+	name := field.Tag.Get("json")
+	if !ok || name == "" || name == "e2e" {
+		t.Fatalf("legacy /1 member declaration changed: %q", name)
+	}
+	return `"` + name + `"`
+}
+
+func TestBehaviorProviderV1LegacyMemberDecodes(t *testing.T) {
+	// AFU-V1-054: /1 keeps the legacy member on both sides of the wire and gains no alias.
+	legacy := legacyV1Member(t)
+	want := v1BehaviorProviderLiteral()
+	data, err := Encode(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(data), legacy+":") != 1 || strings.Contains(string(data), `"e2e"`) {
+		t.Fatalf("/1 wire lost the legacy member: %s", data)
+	}
+	var decoded ProviderRecord
+	if err := decode(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Schema != BehaviorProviderSchema || decoded.BehaviorContracts.Revisions != want.BehaviorContracts.Revisions || decoded.BehaviorContracts.Revisions.E2E != want.Source {
+		t.Fatalf("/1 decode lost the legacy member: %+v", decoded.BehaviorContracts.Revisions)
+	}
+	renamed := strings.Replace(string(data), legacy+":", `"e2e":`, 1)
+	if err := decode([]byte(renamed), &ProviderRecord{}); err == nil {
+		t.Fatal("/1 accepted a neutral alias of the legacy member")
+	}
+}
+
+func TestBehaviorProviderV2EmitsNeutralMembersOnly(t *testing.T) {
+	// AFU-V1-055: the /2 record and its corpus report carry the end-to-end
+	// repository only as the neutral source and repositories members.
+	legacy := legacyV1Member(t)
+	root, m, provider := behaviorV2Fixture(t, nil, nil)
+	source := `"source":{"id":"` + m.Repository.ID + `","revision":"` + m.Repository.Revision + `"}`
+	member := `{"root_commit":"` + m.Repository.ID + `","revision":"` + m.Repository.Revision + `"}`
+	if strings.Contains(string(provider), legacy) || strings.Contains(string(provider), `"revisions"`) || !strings.Contains(string(provider), source) || !strings.Contains(string(provider), member) {
+		t.Fatalf("/2 provider wire: %s", provider)
+	}
+	artifact, err := Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := Encode(artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.BehaviorContracts) != 1 || artifact.BehaviorContracts[0].ProviderSchema != BehaviorProviderSchemaV2 || strings.Contains(string(data), legacy) || strings.Contains(string(data), `"revisions"`) {
+		t.Fatalf("/2 corpus report emitted a fixed /1 member: %s", data)
+	}
+}
+
+func TestBehaviorProviderV2RefusesLegacyMember(t *testing.T) {
+	// AFU-V1-056: a /2 request neither carries the legacy member nor a neutral alias of it.
+	legacy := legacyV1Member(t)
+	p := v1BehaviorProviderLiteral()
+	r := *p.BehaviorContracts
+	r.Revisions, r.ContractSHA256 = BehaviorRevisions{}, ""
+	r.Repositories = []BehaviorRepository{{p.Source.ID, p.Source.Revision}}
+	request := BehaviorProviderRequestV2{Schema: BehaviorProviderRequestSchemaV2, ID: "behavior", Version: "2", Source: p.Source, Registry: r}
+	raw, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	built, err := BuildBehaviorProviderV2(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := Encode(built); strings.Contains(string(data), legacy) {
+		t.Fatalf("/2 producer emitted the legacy member: %s", data)
+	}
+	withLegacy := request
+	withLegacy.Registry.Revisions = BehaviorRevisions{E2E: p.Source}
+	legacyRaw, err := Encode(withLegacy)
+	if err != nil || !strings.Contains(string(legacyRaw), legacy) {
+		t.Fatalf("fixture lacks the legacy member: %v", err)
+	}
+	if _, err := BuildBehaviorProviderV2(legacyRaw); err == nil {
+		t.Fatal("/2 producer accepted the legacy member")
+	}
+	alias := `"e2e":{"id":"` + p.Source.ID + `","revision":"` + p.Source.Revision + `"},"repositories":`
+	aliasRaw := strings.Replace(string(raw), `"repositories":`, alias, 1)
+	if aliasRaw == string(raw) {
+		t.Fatal("fixture lacks the repositories member")
+	}
+	if _, err := BuildBehaviorProviderV2([]byte(aliasRaw)); err == nil {
+		t.Fatal("/2 producer accepted a neutral alias of the legacy member")
 	}
 }
