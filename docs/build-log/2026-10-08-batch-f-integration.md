@@ -67,7 +67,14 @@ function name encoded a TRE ID.
   retired by its frozen identity. `TestRunContainedRetiringKeepsUnprovenOrphan` (Darwin) failed
   before the fix (`helper=true`, containment `Err:<nil>` with no survivors) and passes after,
   five repeated runs included; a run-time sampler seam (`sampleProcesses`) makes the missed sample
-  deterministic.
+  deterministic. A read-only re-review of that fix found one P1 on its failure path: a freeze that
+  failed after stopping a tokenless descendant recorded nothing, so the Retirer could still orphan it
+  and leave it suspended. `freezeOwned` now reports each individually stopped identity as it is
+  stopped, which is recorded for identity retirement, and an incomplete freeze or record (error or
+  identity bound) runs the structural pass before the Retirer, as `RunContained` does.
+  `TestFreezeOwnedReportsStoppedBeforeFailure` injects a table failure after one stop and requires
+  that identity to be reported and tracked; it is new API, so its before-state is a build failure,
+  not a behavioural failure.
 - Semantic test conflict: V1-0613's `TestExecuteRetiresDetachedDescendants` (`timeout-retire=false`)
   and the opt-in live `TestSwiftPMXCTestLiveDetachedTeardown/contained-only` asserted that detached
   descendants survive without the retirement flag. `TRE-V0-034` now retires them structurally on

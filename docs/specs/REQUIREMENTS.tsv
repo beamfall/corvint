@@ -2936,16 +2936,16 @@ TRE-V0-020	docs/specs/test-runner-execution-v0.md	461	The dedicated parser MUST 
 TRE-V0-021	docs/specs/test-runner-execution-v0.md	531	A request MAY carry `expectedSelection` `{version, matcher,
 TRE-V0-022	docs/specs/test-runner-execution-v0.md	537	Plan and run admission MUST refuse, before any launch, a
 TRE-V0-023	docs/specs/test-runner-execution-v0.md	544	After native observation, shared `Normalize` MUST project each
-TRE-V0-024	docs/specs/test-runner-execution-v0.md	596	For runner `mocha`, `Parse` MUST reconcile the native inventory
-TRE-V0-025	docs/specs/test-runner-execution-v0.md	607	Every concrete JavaScript/TypeScript affected runner ID MUST
-TRE-V0-026	docs/specs/test-runner-execution-v0.md	644	VSTest and MTP TRX parsing MUST admit only the qualified
-TRE-V0-027	docs/specs/test-runner-execution-v0.md	677	The MTP profiles MUST refuse at build time, before launch, any
-TRE-V0-028	docs/specs/test-runner-execution-v0.md	704	The companion MUST refuse a request, plan or tools document that
-TRE-V0-029	docs/specs/test-runner-execution-v0.md	734	SwiftPM XCTest execution evidence MUST come only from the
-TRE-V0-030	docs/specs/test-runner-execution-v0.md	742	A plan whose invocation sets `retireDetachedDescendants` MUST,
-TRE-V0-031	docs/specs/test-runner-execution-v0.md	803	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
-TRE-V0-032	docs/specs/test-runner-execution-v0.md	817	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
-TRE-V0-033	docs/specs/test-runner-execution-v0.md	830	When selectors are present, every reported spec file MUST be one of the
+TRE-V0-024	docs/specs/test-runner-execution-v0.md	597	For runner `mocha`, `Parse` MUST reconcile the native inventory
+TRE-V0-025	docs/specs/test-runner-execution-v0.md	608	Every concrete JavaScript/TypeScript affected runner ID MUST
+TRE-V0-026	docs/specs/test-runner-execution-v0.md	645	VSTest and MTP TRX parsing MUST admit only the qualified
+TRE-V0-027	docs/specs/test-runner-execution-v0.md	678	The MTP profiles MUST refuse at build time, before launch, any
+TRE-V0-028	docs/specs/test-runner-execution-v0.md	705	The companion MUST refuse a request, plan or tools document that
+TRE-V0-029	docs/specs/test-runner-execution-v0.md	735	SwiftPM XCTest execution evidence MUST come only from the
+TRE-V0-030	docs/specs/test-runner-execution-v0.md	743	A plan whose invocation sets `retireDetachedDescendants` MUST,
+TRE-V0-031	docs/specs/test-runner-execution-v0.md	804	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
+TRE-V0-032	docs/specs/test-runner-execution-v0.md	818	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
+TRE-V0-033	docs/specs/test-runner-execution-v0.md	831	When selectors are present, every reported spec file MUST be one of the
 TRE-V0-034	docs/specs/test-runner-execution-v0.md	556	The Unix executor MUST run every phase through `groupreap.RunContained`
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	112	`boost-test-junit` MUST execute the pinned test executable with
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	127	The dedicated parser MUST accept exactly one `boost-junit.xml`

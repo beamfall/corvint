@@ -557,7 +557,8 @@ part, and historical plan, receipt and identity bytes are unchanged.
   (`PGO-V0-007`; `RunContainedRetiring` when the plan also requests `TRE-V0-030`
   retirement, which then runs first while the exited leader is unreaped, after the owned tree
   is frozen and its escaped identities recorded, so a descendant that retirement cannot prove
-  and orphans is still retired by that identity), so a descendant that leaves the phase's process group (a detached
+  and orphans is still retired by that identity; an incomplete freeze or record runs the
+  structural pass first), so a descendant that leaves the phase's process group (a detached
   browser in its own session, for example) is retired when the phase ends normally,
   times out or is interrupted. A non-graceful timeout or interruption signals only the
   phase leader, leaving the remaining group and escaped descendants attached to it for
@@ -571,7 +572,7 @@ part, and historical plan, receipt and identity bytes are unchanged.
 | TRE-V0-021 | `selection.go`, `types.go`, `document.go`; `TestSelectionIsAdditiveToHistoricalBytes`, `TestHistoricalPlanAndReceiptBytesSurviveSelectionContract` | Frozen plan and receipt bytes generated at `0c94c66c` decode and re-encode byte-identically with an unchanged plan digest |
 | TRE-V0-022 | `AdmitSelection`, `registry.Build`; `TestSelectionAdmissionIsClosed`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Invalid selections refuse at `plan` and at `run` before the report directory exists |
 | TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs only: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch |
-| TRE-V0-034 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit); `TestRunContainedRetiringKeepsUnprovenOrphan` (batch F composition with `TRE-V0-030`) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
+| TRE-V0-034 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit); `TestRunContainedRetiringKeepsUnprovenOrphan`, `TestFreezeOwnedReportsStoppedBeforeFailure` (batch F composition with `TRE-V0-030`) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
 
 Recorded limits. A real pinned Nightwatch 3.16.0 browser run with fresh
 WebDriver sessions is NOT_RUN: no Nightwatch package or ChromeDriver was

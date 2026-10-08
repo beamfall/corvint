@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -463,6 +464,44 @@ func TestObserveSurvivorsUsesIdentity(t *testing.T) {
 	survivors, err = observeSurvivors(retired, nil)
 	if err != nil || len(survivors) != 1 || survivors[0].PID != 2001 || len(s.sent) != 0 {
 		t.Fatalf("survivors %v err %v signals %v", survivors, err, s.sent)
+	}
+}
+
+// A freeze that fails after stopping an escaped descendant still reports that
+// identity, so the composed retirement can retire it rather than leave it
+// suspended (batch F review).
+func TestFreezeOwnedReportsStoppedBeforeFailure(t *testing.T) {
+	const leader = 1000
+	if self := os.Getpid(); self >= leader && self <= 2001 {
+		t.Skipf("test process pid %d collides with the synthetic table, which ownedTree excludes it from", self)
+	}
+	running := table(
+		Process{PID: leader, PPID: os.Getpid(), PGID: leader, Start: 10, State: StateZombie},
+		Process{PID: 1001, PPID: 1, PGID: leader, Start: 11, State: StateStopped},  // worker
+		Process{PID: 2000, PPID: 1001, PGID: 2000, Start: 12, State: StateRunning}, // browser
+	)
+	var s fakeSignals
+	s.install(t, running)
+	calls := 0
+	snapshotProcesses = func() (map[int]Process, error) {
+		if calls++; calls > 1 {
+			return nil, errors.New("injected")
+		}
+		return running, nil
+	}
+	var got []string
+	_, _, err := freezeOwned(leader, func(p Process, depth int) {
+		got = append(got, fmt.Sprintf("%d@%d", p.PID, depth))
+	})
+	if err == nil {
+		t.Fatal("injected table failure not returned")
+	}
+	if strings.Join(got, " ") != "2000@1" || strings.Join(s.sent, " ") != "group-1000:STOP 2000:STOP group-1000:STOP" {
+		t.Fatalf("stopped %v signals %v", got, s.sent)
+	}
+	seen := map[int]sampled{}
+	if !trackEscaped(seen, running[2000], 1) || !seen[2000].same(running[2000]) {
+		t.Fatalf("stopped identity not tracked: %v", seen)
 	}
 }
 

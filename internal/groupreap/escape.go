@@ -164,6 +164,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		return c, err
 	}
 	var freezeErr error
+	retiredFirst := false
 	if r != nil {
 		// The token-owned record is taken first, while the exited leader is
 		// unreaped, so the structural pass cannot pre-empt it. The owned tree
@@ -171,15 +172,29 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		// descendant the Retirer cannot prove (no token, and no ancestry from
 		// the exited leader) is orphaned out of the structural tree when the
 		// Retirer kills its parent, and is then retired by that identity.
-		if table, _, err := freezeOwned(leader); err != nil {
+		// Each individually stopped identity is recorded as it is stopped, so
+		// a failed freeze leaves none suspended untracked; without a complete
+		// record the structural pass runs first, as in RunContained.
+		table, _, err := freezeOwned(leader, func(p Process, depth int) {
+			if !trackEscaped(seen, p, depth) {
+				overflow = true
+			}
+		})
+		switch {
+		case err != nil:
 			freezeErr = err
-		} else if !recordEscaped(seen, table, leader) {
+		case !recordEscaped(seen, table, leader):
 			overflow = true
+		case !overflow:
+			r.Retire()
+			retiredFirst = true
 		}
-		r.Retire()
 	}
 	c.Retired, c.Err = retireEscaped(leader)
 	c.Err = errors.Join(freezeErr, c.Err)
+	if r != nil && !retiredFirst {
+		r.Retire()
+	}
 	_ = signalGroup(-leader, syscall.SIGKILL)
 	// Orphans are retired before Wait: one holding the command's inherited
 	// output pipes would otherwise keep Wait's copy goroutines open.
@@ -216,13 +231,21 @@ func recordEscaped(seen map[int]sampled, table map[int]Process, leader int) bool
 	owned := ownedTree(table, leader)
 	complete := true
 	for _, p := range escapedOf(table, owned) {
-		if prev, ok := seen[p.PID]; (ok && prev.same(p)) || len(seen) < maxEscaped {
-			seen[p.PID] = sampled{p, owned[p.PID]}
-		} else {
+		if !trackEscaped(seen, p, owned[p.PID]) {
 			complete = false
 		}
 	}
 	return complete
+}
+
+// trackEscaped adds one escaped owned identity to seen. It reports false when
+// the bound left it untracked.
+func trackEscaped(seen map[int]sampled, p Process, depth int) bool {
+	if prev, ok := seen[p.PID]; (ok && prev.same(p)) || len(seen) < maxEscaped {
+		seen[p.PID] = sampled{p, depth}
+		return true
+	}
+	return false
 }
 
 // retireSampledOrphans SIGKILLs, deepest first, each sampled escaped identity
@@ -324,7 +347,7 @@ func escapedOf(table map[int]Process, owned map[int]int) []Process {
 // leads its own session is retired with one group signal, because every
 // member of that session's groups descends from it.
 func retireEscaped(leader int) ([]Process, error) {
-	table, owned, err := freezeOwned(leader)
+	table, owned, err := freezeOwned(leader, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -361,8 +384,9 @@ func retireEscaped(leader int) ([]Process, error) {
 
 // freezeOwned stops the leader's group and every owned descendant within the
 // bound and returns the stopped table and owned tree. A descendant is stopped
-// individually only while its owned parent is observed stopped.
-func freezeOwned(leader int) (map[int]Process, map[int]int, error) {
+// individually only while its owned parent is observed stopped; a non-nil
+// stopped is called with each such identity and its depth once signalled.
+func freezeOwned(leader int, stopped func(Process, int)) (map[int]Process, map[int]int, error) {
 	deadline := time.Now().Add(freezeBound)
 	var table map[int]Process
 	var owned map[int]int
@@ -384,8 +408,12 @@ func freezeOwned(leader int) (map[int]Process, map[int]int, error) {
 			}
 			running = true
 			if depth > 0 && stoppedOwnedParent(table, owned, p) {
-				if err := signalProcess(p, false, syscall.SIGSTOP); err != nil && !notSignalled(err) {
+				err := signalProcess(p, false, syscall.SIGSTOP)
+				if err != nil && !notSignalled(err) {
 					return nil, nil, fmt.Errorf("groupreap: stopping escaped descendant %s: %w", p, err)
+				}
+				if err == nil && stopped != nil {
+					stopped(p, depth)
 				}
 			}
 		}
