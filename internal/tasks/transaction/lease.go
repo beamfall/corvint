@@ -27,6 +27,8 @@ const (
 	LeasePoolSafe        = "POOL_CONFIRM_SAFE"
 	LeasePoolSweep       = "POOL_SWEEP"
 	LeasePoolSweepFinish = "POOL_SWEEP_FINISH"
+	LeasePoolAcquire     = "POOL_ACQUIRE"
+	LeasePoolRelease     = "POOL_RELEASE"
 	LeaseClaim           = "CLAIM"
 	LeaseClaimNext       = "CLAIM_NEXT"
 	LeaseRenew           = "RENEW"
@@ -129,6 +131,8 @@ type leaseShape struct{ required, allowed int }
 var leaseShapes = map[string]leaseShape{
 	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
 	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
+	LeasePoolAcquire:     {fieldAttempt | fieldGeneration | fieldPool, fieldAttempt | fieldGeneration | fieldPool | fieldExclusions | fieldAuthors},
+	LeasePoolRelease:     {fieldAttempt | fieldGeneration | fieldAllocation, fieldAttempt | fieldGeneration | fieldAllocation},
 	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
 	LeaseProgram:         {fieldEvidence, fieldEvidence},
 	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence | fieldTicket | fieldAuthors | fieldExclusions},
@@ -239,7 +243,13 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
 		return e
 	}
-	if e := CheckExcludeAuthors(l.ExcludeAuthors, l.Pool, l.Stage); e != nil {
+	// CAL-V0-199: an acquire takes its stage from the attempt, so the stage
+	// half of the author-exclusion check runs when the attempt is planned.
+	stage := l.Stage
+	if l.Verb == LeasePoolAcquire && l.ExcludeAuthors != "" {
+		stage = "review"
+	}
+	if e := CheckExcludeAuthors(l.ExcludeAuthors, l.Pool, stage); e != nil {
 		return e
 	}
 	if l.Verb == LeasePoolPrepare && (l.TicketID == "") != (l.ExcludeAuthors == "") {
@@ -436,6 +446,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Verb == LeasePoolSweepFinish {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
+	// CAL-V0-200: the returned allocation joins only the new verb's preimage.
+	if l.Verb == LeasePoolRelease {
+		v.Obj.Set("allocation", s(l.Allocation))
+	}
 	if l.LaneUntouched {
 		v.Obj.Set("laneUntouched", wire.Bool(true))
 		v.Obj.Set("laneUntouchedProfile", s(snapshot.ProfileLaneUntouched))
@@ -483,6 +497,8 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeaseSupervisor:      planSupervisor,
 	LeaseProgram:         planProgram,
 	LeasePoolSafe:        planPoolSafe,
+	LeasePoolAcquire:     planPoolAcquire,
+	LeasePoolRelease:     planPoolRelease,
 	LeasePoolPrepare:     planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
 	LeaseClaimNext: planClaimNext,

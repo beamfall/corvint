@@ -99,6 +99,16 @@ func poolFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			f.Pool.RunnerStarted = identity
 			f.Pool.Revision = rev
 		}
+		if l.Verb == transaction.LeasePoolAcquire {
+			p, e := intent.DecodePolicy(in.Policy)
+			if e != nil {
+				return f, e
+			}
+			// CAL-V0-198: the pooled-claim source and pin checks.
+			if e := poolAdmissionSource(leaseRoot(repo, choice), choice.pool.Observation, p, l.Pool); e != nil {
+				return f, e
+			}
+		}
 		if l.Verb == transaction.LeasePoolRecover {
 			state, e := snapshot.DecodePools(in.Pools)
 			if e != nil {
@@ -245,6 +255,19 @@ func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 }
 func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (*Report, error) {
 	report := initial
+	holder, stage := choice.Lease.Holder, choice.Lease.Stage
+	if choice.Lease.Verb == transaction.LeasePoolAcquire {
+		// CAL-V0-198: an acquire prepares for the attempt's own holder and stage.
+		proof, e := readLeaseProof(ctx, repo)
+		if e != nil {
+			return report, e
+		}
+		a, ok := lockedAttempt(proof, choice.Lease.AttemptID)
+		if !ok || a.Lease == nil {
+			return report, nil
+		}
+		holder, stage = a.Lease.Holder, a.Stage
+	}
 	for round := 0; round < intent.MaxPoolMembers; round++ {
 		p, state, e := poolSnapshot(ctx, repo)
 		if e != nil {
@@ -273,7 +296,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			excluded = authors.Excluded
 		}
 		member := ""
-		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, excluded) {
+		for _, m := range transaction.OrderedPoolMembers(pool, stage, excluded) {
 			if !busy[m] {
 				member = m
 				break
@@ -288,7 +311,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		}
 		prep := choice
 		prep.RequestID = poolChildID(choice.RequestID, member)
-		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: choice.Lease.Holder, Stage: choice.Lease.Stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
+		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: holder, Stage: stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
 		if authors != nil {
 			// CAL-V0-107: preparation covers an unrecorded generation only
 			// when the claim's caller supplied explicit members.
@@ -366,4 +389,31 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		}
 	}
 	return report, wire.Errorf(wire.CodeLimitExceeded, "pool", "member probe bound")
+}
+
+// poolAdmissionSource is the pooled-admission source check a claim and an
+// acquire share: a prepared observation still matches the command source,
+// and every member's pinned config is current.
+func poolAdmissionSource(root string, observation []byte, policy *intent.Policy, poolID string) error {
+	if len(observation) > 0 {
+		o, e := snapshot.DecodePoolObservation(observation)
+		if e != nil {
+			return e
+		}
+		rev, tree, e := poolSource(root)
+		if e != nil {
+			return e
+		}
+		if rev != o.Revision || tree != o.Tree {
+			return wire.Errorf(wire.CodeStaleTree, "pool claim", "command source changed before admission")
+		}
+	}
+	if pool := policy.Pool(poolID); pool != nil {
+		for _, member := range pool.Members {
+			if e := poolConfig(root, pool.MemberConfig[member].ConfigRef); e != nil {
+				return e
+			}
+		}
+	}
+	return nil
 }

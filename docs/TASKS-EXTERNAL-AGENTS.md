@@ -304,6 +304,21 @@ Retain the returned `poolAllocation` alongside attempt ID and generation. Replay
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
 
+An attempt claimed without `--pool` can take one member later and return it early, while it stays
+live (CAL-V0-197..203):
+
+```sh
+corvint-tasks pool acquire --attempt ATTEMPT --generation G --pool db --request-id acquire-0
+corvint-tasks pool release --attempt ATTEMPT --generation G --allocation ALLOCATION_SHA256 --request-id return-0
+```
+
+`pool acquire` admits for the attempt's own holder and stage by the pooled-claim rules, accepts
+`--exclude-member` and (review or integrate attempts) `--exclude-authors`, and reports
+`poolAllocation`, null when it is refused. `pool release` quarantines the exact current allocation and
+reports `releasedPoolAllocation`. Each generation takes at most one allocation, a shared allocation
+is not returned early, and an attempt that returned one cannot attach to a supervisor or be released
+lane-untouched. Ending an attempt that still holds an acquired allocation quarantines it as usual.
+
 Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
 `health`/`cleanup` commands. Each command has `argv`, `cwd`, declared `env` names and
 `timeoutSeconds` from 1 to 3600. `cwd` is `"REPOSITORY"` or a pinned external checkout

@@ -165,8 +165,11 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
-	DirectPoolAdmission      *DirectPoolAdmission
-	SharedAllocation         *SharedAllocation
+	DirectPoolAdmission *DirectPoolAdmission
+	SharedAllocation    *SharedAllocation
+	// ReleasedPoolAllocation is the allocation this generation returned
+	// early (CAL-V0-200); nil when it returned none.
+	ReleasedPoolAllocation   *ReleasedPoolAllocation
 	LaneUntouchedAttestation *LaneUntouchedAttestation
 	// OperatorNote pins the ticket's note reference at admission (ON-V0-007).
 	OperatorNote *ticket.OperatorNoteReference
@@ -466,7 +469,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	if err := wire.ProfileVersion("/profile", v, ProfileAttempt); err != nil {
 		return nil, err
 	}
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers", "sharedAllocation")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation", "operatorNote", "escalationAnswers", "sharedAllocation", "releasedPoolAllocation")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -482,6 +485,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "sharedAllocation") {
 		a.SharedAllocation = readSharedAllocation(r.Field("sharedAllocation"))
+	}
+	if wire.Has(v, "releasedPoolAllocation") {
+		a.ReleasedPoolAllocation = readReleasedPoolAllocation(r.Field("releasedPoolAllocation"))
 	}
 	// A nested refusal recorded above stands: return it before an
 	// independent decoder could replace it (CAL-V0-131).
@@ -599,6 +605,9 @@ func (a *Attempt) check() error {
 		return err
 	}
 	if err := a.checkSharedAllocation(); err != nil {
+		return err
+	}
+	if err := a.checkReleasedPoolAllocation(); err != nil {
 		return err
 	}
 	q, err := AttemptQueue(a.AttemptID)
@@ -768,6 +777,9 @@ func (a *Attempt) Encode() ([]byte, error) {
 	}
 	if a.PoolAllocation != nil {
 		o.Set("poolAllocation", PoolAllocationValue(a.PoolAllocation))
+	}
+	if a.ReleasedPoolAllocation != nil {
+		o.Set("releasedPoolAllocation", ReleasedPoolAllocationValue(a.ReleasedPoolAllocation))
 	}
 	o.Set("attemptId", wire.String(a.AttemptID))
 	o.Set("ticketId", wire.String(a.TicketID.Raw))

@@ -56,7 +56,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 	reapReceipts := []ReapReceipt{}
 	for round := 0; round <= wire.MaxActiveAttempts; round++ {
 		report, err := leaseOnce(ctx, repo, actor, choice, now)
-		if err == nil && (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext) && choice.Lease.Pool != "" && report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+		if err == nil && (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext || choice.Lease.Verb == transaction.LeasePoolAcquire) && choice.Lease.Pool != "" && report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
 			report, err = healthClaim(ctx, repo, actor, choice, report)
 		}
 		if err != nil || len(report.Expired) == 0 {
@@ -107,16 +107,54 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 // --next` did not name. An attempt's ticket never changes, so reading its
 // record after the commit is enough. root is the claimant's checkout, whose
 // HEAD the delivered know-how freshness is computed against (KHN-V0-006).
+// A pool acquire or release reports the allocation its receipt bound
+// (CAL-V0-203).
 func claimedTicket(repo *intent.Repository, root string, repos map[string]string, verb string, report *Report, err error) error {
-	if err != nil || report.AttemptID == "" || (verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext) {
+	if err != nil || report.AttemptID == "" {
 		return err
+	}
+	if verb == transaction.LeasePoolAcquire || verb == transaction.LeasePoolRelease {
+		return pooledAttempt(repo, report)
+	}
+	if verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext {
+		return nil
 	}
 	if report.Outcome.ReceiptSeq == nil {
 		return wire.Errorf(wire.CodeMissingEvidence, "claim", "receipt binding absent")
 	}
-	rc, err := readReceipt(repo, report.Outcome.ReceiptSeq.Uint64())
+	a, err := receiptAttempt(repo, report)
 	if err != nil {
 		return err
+	}
+	report.Ticket = a.TicketID.Raw
+	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
+	report.Delivery = claimDelivery(repo, a)
+	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw)
+	return nil
+}
+
+// pooledAttempt reports the allocation a completed pool acquire or release
+// bound in its receipt, fresh or replayed. A refusal or a recorded fence
+// posts no attempt and reports none.
+func pooledAttempt(repo *intent.Repository, report *Report) error {
+	if report.Outcome.Outcome != mutation.OutcomeCompleted || report.Outcome.ReceiptSeq == nil {
+		return nil
+	}
+	a, err := receiptAttempt(repo, report)
+	if err != nil {
+		return err
+	}
+	report.Ticket = a.TicketID.Raw
+	report.PoolAllocation, report.ReleasedPoolAllocation = a.PoolAllocation, a.ReleasedPoolAllocation
+	return nil
+}
+
+// receiptAttempt decodes the attempt record report's receipt posted, bound
+// to the receipt's digest, the attempt and its generation.
+func receiptAttempt(repo *intent.Repository, report *Report) (*snapshot.Attempt, error) {
+	rc, err := readReceipt(repo, report.Outcome.ReceiptSeq.Uint64())
+	if err != nil {
+		return nil, err
 	}
 	var raw []byte
 	for _, post := range rc.Post {
@@ -128,25 +166,21 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 		} else if post.BlobSha256 != nil {
 			raw, err = intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(*post.BlobSha256)), wire.MaxAttemptRecordBytes)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if post.Sha256 == nil || wire.Sum(raw) != *post.Sha256 {
-			return wire.Errorf(wire.CodeJournalForked, "claim", "receipt attempt digest differs")
+			return nil, wire.Errorf(wire.CodeJournalForked, "claim", "receipt attempt digest differs")
 		}
 	}
 	a, err := snapshot.DecodeAttempt(raw)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if a.AttemptID != report.AttemptID || a.Generation != report.Generation {
-		return wire.Errorf(wire.CodeFenced, "claim", "receipt generation differs")
+		return nil, wire.Errorf(wire.CodeFenced, "claim", "receipt generation differs")
 	}
-	report.Ticket = a.TicketID.Raw
-	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
-	report.Delivery = claimDelivery(repo, a)
-	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw)
-	return nil
+	return a, nil
 }
 
 // reapID is the deterministic request id of one reap, so a repeated reap of
@@ -264,29 +298,12 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 			return transaction.LeaseFacts{}, err
 		}
 		facts := transaction.LeaseFacts{AttemptID: id, BaseCommit: base, Pool: choice.pool}
-		if len(choice.pool.Observation) > 0 {
-			o, e := snapshot.DecodePoolObservation(choice.pool.Observation)
-			if e != nil {
-				return facts, e
-			}
-			rev, tree, e := poolSource(root)
-			if e != nil {
-				return facts, e
-			}
-			if rev != o.Revision || tree != o.Tree {
-				return facts, wire.Errorf(wire.CodeStaleTree, "pool claim", "command source changed before admission")
-			}
-		}
 		policy, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
 		if e != nil {
 			return facts, e
 		}
-		if pool := policy.Pool(choice.Lease.Pool); pool != nil {
-			for _, member := range pool.Members {
-				if e := poolConfig(root, pool.MemberConfig[member].ConfigRef); e != nil {
-					return facts, e
-				}
-			}
+		if e := poolAdmissionSource(root, choice.pool.Observation, policy, choice.Lease.Pool); e != nil {
+			return facts, e
 		}
 		rec := claimedRecord(proof, choice.Lease.TicketID)
 		if choice.Lease.Verb == transaction.LeaseClaimNext {
