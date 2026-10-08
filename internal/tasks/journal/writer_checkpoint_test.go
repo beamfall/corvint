@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -39,7 +42,8 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
 	cp := checkpointed(t, repo, r)
 	a, b := sha256.Sum256([]byte("a")), sha256.Sum256([]byte("b"))
-	digests := [][]byte{a[:], b[:]}
+	afterA, afterB := sha256.Sum256([]byte("request a")), sha256.Sum256([]byte("request b"))
+	digests := [][]byte{append(append([]byte(nil), a[:]...), afterA[:]...), append(append([]byte(nil), b[:]...), afterB[:]...)}
 	sort.Slice(digests, func(i, j int) bool { return bytes.Compare(digests[i], digests[j]) < 0 })
 	wc := &WriterCheckpoint{Checkpoint: *cp, FullSeq: 2, ReceiptBytes: 900, Cost: archive.FileSetCost{Files: 4, PayloadBytes: 1200, EntryBytes: 300, TarBytes: 4096}}
 	wc.requests = append(append([]byte(nil), digests[0]...), digests[1]...)
@@ -68,6 +72,13 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 	if !got.HasRequest(requestPathOf(a[:])) || !got.HasRequest(requestPathOf(b[:])) {
 		t.Fatal("retained request path not found")
+	}
+	// CAL-V0-190 (proposed): each request carries its afterimage digest.
+	if d, ok := got.RequestAfterimage(requestPathOf(a[:])); !ok || d != wire.Digest(hex.EncodeToString(afterA[:])) {
+		t.Fatalf("request a afterimage %q %v", d, ok)
+	}
+	if d, ok := got.RequestAfterimage(requestPathOf(b[:])); !ok || d != wire.Digest(hex.EncodeToString(afterB[:])) {
+		t.Fatalf("request b afterimage %q %v", d, ok)
 	}
 	changed := *ref
 	changed.Revision = "2"
@@ -109,14 +120,19 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	requestsAt := aggregates + 7*8
 	swapped := append([]byte(nil), body...)
 	copy(swapped[requestsAt:], digests[1])
-	copy(swapped[requestsAt+sha256.Size:], digests[0])
+	copy(swapped[requestsAt+writerRequestBytes:], digests[0])
 	repeated := append([]byte(nil), body...)
-	copy(repeated[requestsAt+sha256.Size:], digests[0])
+	copy(repeated[requestsAt+writerRequestBytes:], digests[0])
+	// The same path with another afterimage is still a repeated request.
+	repeatedPath := append([]byte(nil), body...)
+	copy(repeatedPath[requestsAt+writerRequestBytes:], digests[0][:sha256.Size])
 	foreign := append([]byte(nil), body...)
-	copy(foreign, strings.Replace(writerMagic, "/0", "/1", 1))
+	copy(foreign, strings.Replace(writerMagic, "/1", "/2", 1))
+	previous := append([]byte(nil), body...)
+	copy(previous, strings.Replace(writerMagic, "/1", "/0", 1))
 	longCP := append([]byte(nil), body...)
 	binary.BigEndian.PutUint64(longCP[len(writerMagic):], uint64(len(body)))
-	notesAt := requestsAt + 2*sha256.Size
+	notesAt := requestsAt + 2*writerRequestBytes
 	note := func(edit func(out []byte) []byte) []byte {
 		return sealWriter(edit(append([]byte(nil), body...)))
 	}
@@ -125,6 +141,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 	for name, bad := range map[string][]byte{
 		"foreign profile":         sealWriter(foreign),
+		"previous profile":        sealWriter(previous),
 		"embedded length":         sealWriter(longCP),
 		"truncated aggregates":    sealWriter(body[:aggregates+8]),
 		"request count":           field(6, 3),
@@ -134,6 +151,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		"receipt bytes > payload": field(1, 1201),
 		"unordered requests":      sealWriter(swapped),
 		"repeated request":        sealWriter(repeated),
+		"repeated request path":   sealWriter(repeatedPath),
 		"trailing digest bytes":   sealWriter(append(append([]byte(nil), body...), 1)),
 		"truncated notes":         sealWriter(body[:notesAt+4]),
 		"note count":              note(func(out []byte) []byte { binary.BigEndian.PutUint64(out[notesAt:], 2); return out }),
@@ -150,5 +168,132 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		if _, err := DecodeWriterCheckpoint(bad); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// TestCALV0189_WriterAuditReadsIntentOnce covers CAL-V0-189 (proposed): a
+// writer audit reads each intent file's bytes once, in its first capture.
+// The walk takes selected intent records from those bytes, and the second
+// capture reuses them for a file that is still the same file with the same
+// size and modification time; the bytes it returns are the bytes on disk.
+func TestCALV0189_WriterAuditReadsIntentOnce(t *testing.T) {
+	repo, r := setup(t)
+	for _, id := range []string{"A", "B"} {
+		appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
+	}
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil || full.Mode != ModeFull {
+		t.Fatalf("complete audit: %v", err)
+	}
+	wc, err := full.WriterCheckpoint(observed.Files)
+	if err != nil || wc == nil {
+		t.Fatalf("writer checkpoint: %v", err)
+	}
+	// One tail receipt, so the walk also projects a ticket posted after the
+	// checkpoint.
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("C"): fixture.Ticket("C").Encode()}, "", true, true, false)
+	reads := map[string]int{}
+	old := afterNativeRead
+	t.Cleanup(func() { afterNativeRead = old })
+	afterNativeRead = func(p string) { reads[p]++ }
+	for _, forMutation := range []bool{false, true} {
+		clear(reads)
+		res, _, err := r.AuditForWriter(wc, "", forMutation)
+		if err != nil || res.Mode != ModeWriter {
+			t.Fatalf("forMutation=%v: writer audit: %v", forMutation, err)
+		}
+		intents := 0
+		for p, n := range reads {
+			if strings.HasPrefix(p, "intent/") {
+				intents++
+				if n != 1 {
+					t.Fatalf("forMutation=%v: %s read %d times", forMutation, p, n)
+				}
+			}
+		}
+		if intents < 4 {
+			t.Fatalf("forMutation=%v: %d intent files read, want queue, policy and three tickets", forMutation, intents)
+		}
+		tk, ok := res.Records[ticketPath("C")]
+		if !ok || tk.Raw == nil || !bytes.Equal(tk.Raw, fixture.Ticket("C").Encode()) || tk.Sha256 == nil || *tk.Sha256 != wire.Sum(tk.Raw) {
+			t.Fatalf("forMutation=%v: selected ticket record %+v", forMutation, tk)
+		}
+	}
+}
+
+// TestCALV0190_WriterReplayKeyAndCloseFailure covers CAL-V0-190 (proposed)
+// in the journal: a request posted before the checkpoint is found under the
+// record keyed by the SHA-256 of its request ID (the name of its request
+// path) and replays its original entry; a failed native close while reading
+// it is returned as cleanup, with no replay, for each kind of handle.
+func TestCALV0190_WriterReplayKeyAndCloseFailure(t *testing.T) {
+	repo, r := setup(t)
+	rp, err := snapshot.RequestPath("R")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := requestBytes("R", 2, wire.Sum([]byte("R")), false)
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{rp: raw}, "R", true, true, false)
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil || full.Mode != ModeFull {
+		t.Fatalf("complete audit: %v", err)
+	}
+	wc, err := full.WriterCheckpoint(observed.Files)
+	if err != nil || wc == nil {
+		t.Fatalf("writer checkpoint: %v", err)
+	}
+	key := sha256.Sum256([]byte("R"))
+	if got, ok := wc.RequestAfterimage(requestPathOf(key[:])); !ok || got != wire.Sum(raw) {
+		t.Fatalf("record keyed by the request ID digest: %v %v", got, ok)
+	}
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
+	res, _, err := r.AuditForWriter(wc, "R", true)
+	if err != nil || res.Mode != ModeWriter {
+		t.Fatalf("writer audit: %v", err)
+	}
+	want, err := snapshot.DecodeRequest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, entry, _, cleanup, err := r.WriterReplay(res, "R")
+	if err != nil || cleanup != nil || !found || entry.RequestID != "R" || entry.Outcome.Outcome != want.Entry.Outcome.Outcome {
+		t.Fatalf("replay: found=%v entry=%+v cleanup=%v err=%v", found, entry, cleanup, err)
+	}
+	oldFile, oldRoot := closeReadFile, closeReadRoot
+	t.Cleanup(func() { closeReadFile, closeReadRoot = oldFile, oldRoot })
+	sentinel := errors.New("injected writer replay close")
+	for _, kind := range []string{"request-file", "receipt-file", "root"} {
+		injected := false
+		closeReadFile = func(f *os.File) error {
+			if err := f.Close(); err != nil {
+				return err
+			}
+			name := filepath.Base(f.Name())
+			hit := (kind == "request-file" && name == filepath.Base(rp)) || (kind == "receipt-file" && strings.HasPrefix(name, "000000"))
+			if hit && !injected {
+				injected = true
+				return sentinel
+			}
+			return nil
+		}
+		closeReadRoot = func(root *os.Root) error {
+			if err := root.Close(); err != nil {
+				return err
+			}
+			if kind == "root" && !injected {
+				injected = true
+				return sentinel
+			}
+			return nil
+		}
+		found, _, _, cleanup, err := r.WriterReplay(res, "R")
+		closeReadFile, closeReadRoot = oldFile, oldRoot
+		if !injected {
+			t.Fatalf("%s: close not reached", kind)
+		}
+		if found || !errors.Is(cleanup, sentinel) || err == nil || !strings.Contains(err.Error(), sentinel.Error()) {
+			t.Fatalf("%s: found=%v cleanup=%v err=%v", kind, found, cleanup, err)
+		}
+		requireCode(t, err, wire.CodeUnsupportedFilesystem)
 	}
 }
