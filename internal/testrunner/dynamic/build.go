@@ -174,9 +174,15 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 		v.ReportPatterns = []string{"cypress-*.json"}
 	case "jasmine":
-		// Jasmine reads an argument containing "=" as an environment assignment and a
-		// backslash as a glob escape, so neither names a literal spec file.
+		// Jasmine reads an argument containing "=" as an environment assignment, a
+		// backslash as a glob escape and any argument equal to a subcommand name as
+		// that subcommand (init and examples write project files), so none of them
+		// names a literal spec file.
 		for _, s := range r.Selectors {
+			switch s {
+			case "init", "examples", "help", "version", "enumerate":
+				return tr.Invocation{}, fmt.Errorf("Jasmine selector %q is a subcommand, not a spec file", s)
+			}
 			if strings.ContainsAny(s, "=\\") {
 				return tr.Invocation{}, fmt.Errorf("Jasmine selector %q is not a literal spec file", s)
 			}

@@ -485,7 +485,9 @@ into one report and decides no outcome. The Go parser owns every validation.
   directory, declares exactly one report, `jasmine.json`, and admits exit 0 as success and exit 3
   (failed) as the only failure exit; Jasmine's 1 (load error), 2 (incomplete) and 4 (premature exit)
   remain unadmitted. A selector containing `=` (which Jasmine reads as an environment assignment) or
-  a backslash (a glob escape) refuses, together with every shared dynamic selector refusal. The
+  a backslash (a glob escape), or equal to a Jasmine subcommand name (`init`, `examples`, `help`,
+  `version`, `enumerate`; `init` and `examples` write project files), refuses before launch, together
+  with every shared dynamic selector refusal. The
   acquisition pins are the npm registry tarballs `jasmine-7.0.0.tgz` (sha256 `9cc640c5…efafb`),
   `jasmine-core-7.0.2.tgz` (sha256 `b28b620d…136a5`) with their npm sha512 integrity values, the
   lockfile, the entry point and the shim hash, retained in

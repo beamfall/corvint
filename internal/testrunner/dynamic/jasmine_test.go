@@ -87,7 +87,7 @@ func TestJasmineBuildIsFixed(t *testing.T) {
 	if inv, err = Build(req); err != nil || !reflect.DeepEqual(inv.Argv, []string{"--reporter=/r/jasmine.cjs"}) {
 		t.Fatalf("%+v %v", inv, err)
 	}
-	for _, s := range []string{"A=b.spec.js", `a\*.spec.js`, "--parallel=2", "-x", "*.spec.js", "../a.spec.js", "", "a.spec.js\n"} {
+	for _, s := range []string{"A=b.spec.js", `a\*.spec.js`, "--parallel=2", "-x", "*.spec.js", "../a.spec.js", "", "a.spec.js\n", "init", "examples", "help", "version", "enumerate", "-h", "-v"} {
 		req.Selectors = []string{s}
 		if _, err := Build(req); err == nil {
 			t.Fatalf("selector %q admitted", s)

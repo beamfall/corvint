@@ -78,5 +78,11 @@ NOT_RUN:
 Corvint dogfood events were degraded in this session
 (`corvint-event-rejected:dogfood-event-deadline`), so no CEM bind was produced by this lane.
 
+Review. The independent Codex review found one P1: Jasmine 7 dispatches any argument equal to a
+subcommand name (`init`, `examples`, `help`, `version`, `enumerate`) as that subcommand. `init` and
+`examples` write project files, so a bare selector of that name would mutate the source tree before
+the missing report could refuse the run. Such selectors now refuse at Build, with regression cases
+in `TestJasmineBuildIsFixed`.
+
 Merge note. Inserting two lines in `parse.go` re-anchors existing `parse.go` citations by +2. A
 parallel Mocha lane shifts the same citations by +1, so whichever lands second re-anchors them.
