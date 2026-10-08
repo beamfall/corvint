@@ -850,8 +850,8 @@ func resolveClaimSelectors(claims []ocmClaim, selectors []string) ([]ocmClaim, e
 }
 
 // goCaseAnchorShapes names the only Go table shapes goTableCase extracts, so a
-// case miss on an unsupported shape (a map-keyed table, V1-0274) says why.
-const goCaseAnchorShapes = "; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a map key"
+// case miss on an unsupported shape (map key V1-0274, header-line anchor OCM-V0-018) says why.
+const goCaseAnchorShapes = "; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a map key, nor on its parent func header line"
 
 // A miss hint describes normalization only; selection remains exact and the
 // normalized fragment need not identify an existing or unique claim.

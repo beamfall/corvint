@@ -178,6 +178,17 @@ claim, and mutation ordering deltas below.
   and does not tighten `OCM-V0-010`'s default of visible unknowns. When at least one requirement is
   linked, `aggregate.findings` is absent, so the aggregate bytes of a linked change are unchanged.
   The `ocm/0.1-experimental` wire and the standalone `ocm status` envelope are unchanged.
+- `OCM-V0-018`: (proposed (V1-0520)) a Go case anchor's parent test is the last
+  `func Test...(` header that ends before the start of the line holding the anchor's opening
+  quote. A case anchor on the same line as its parent's `func Test...(` header, such as
+  `func TestX(t *testing.T) { t.Run("TM-V0-008 exact anchor", ...) }`, is therefore intentionally
+  unsupported syntax, not a missing extraction: it yields no case claim (its test function claim
+  remains), and a `/case:` selector for it is refused `claim-selector-out-of-range`. The same
+  source with the anchor on a later line than the header extracts. Native `link` MUST NOT record a
+  case claim the read-path verifier would reject, so admitting this layout needs a verifier
+  contract change with its own oracle/divergence adjudication, not an extractor-only change. Every
+  `/case:` miss hint appends `, nor on its parent func header line` to the `TCQ-V0-018` shape list.
+  The hint does not select, widen extraction, or change any verdict.
 
 ## Wire profile
 
@@ -467,6 +478,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
 | OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
 | OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
+| OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
