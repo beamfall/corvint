@@ -514,11 +514,16 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err != nil {
 		return nil, err
 	}
-	if drained == drainedStateProfile {
+	if drained != "" {
 		// The walk refused duplicates and aliases, so this is the only
-		// workers member the decoder will read.
+		// workers member the decoder will read. A missing or unreadable
+		// list proves nothing and refuses; a version 1 ledger must record
+		// none, and a version 2 ledger's workers must be proven gone below.
 		var workers []json.RawMessage
-		if json.Unmarshal(members["workers"], &workers) != nil || len(workers) > 0 {
+		if json.Unmarshal(members["workers"], &workers) != nil {
+			return nil, undrainedLedger(drained, program, "lacks a readable workers list")
+		}
+		if drained == drainedStateProfile && len(workers) > 0 {
 			return nil, undrainedLedger(drained, program, "records a worker")
 		}
 	}

@@ -22,7 +22,8 @@ to `docs/specs/corvint-tasks-agent-leases-v0.md`, pending owner acceptance.
   so the proof is conservative. A worker the old build would reap beside a live exempt supervisor
   refuses, and the old build clears it.
 - **Identities required.** A worker record without a leader PID above 1 and a leader identity, or
-  with a member lacking either, is unprovable and refuses. A process-table or identity read error,
+  with a member lacking either, is unprovable and refuses. A ledger without a readable workers
+  list refuses as before. A process-table or identity read error,
   or a platform without a process table, refuses too.
 - **Reap by the ordinary path.** The load keeps the workers as recorded, on a copy for the probe.
   `Open` already holds the single-dispatcher lock and emits `adopted`. Its first tick's `supervise`
@@ -36,6 +37,9 @@ to `docs/specs/corvint-tasks-agent-leases-v0.md`, pending owner acceptance.
   worker and leave the ledger undrained. `globalCap` cannot be 0. The ledger does not record the
   config path, so `CONFIG` stays a placeholder. That is also correct, since the operator must
   pass the held copy, not the live config.
+- **Review.** The independent review found that moving the workers check had let a `/2` ledger
+  without a workers list adopt as empty. The presence check is restored for both versions, and the
+  migrate test now covers the attempt hand-off and the budget history across a restart.
 - **Scope.** `/1` ledgers with workers still refuse; only the message changes. There is no new
   verb (issue option 2), as the coordinator decided.
 
@@ -44,10 +48,10 @@ to `docs/specs/corvint-tasks-agent-leases-v0.md`, pending owner acceptance.
 Focused tests in `internal/tasks/dispatch` with real worker processes the dispatcher launched:
 
 - `TestCALV0186_Version2LedgerWithGoneWorkersMigrates`: two dead workers. Load adopts `/3`.
-  `Open`+`Tick` emit `adopted` and `finished` for both, and the saved ledger is `/3` with no
-  workers.
+  `Open`+`Tick` emit `adopted` and `finished` for both, hand off the held attempt once, and charge
+  no new session. A restart repeats neither, and the saved ledger is `/3` with no workers.
 - `TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses`: one live worker, a missing
-  identity, an injected identity read failure, and a `/1` worker each refuse
+  identity, a missing workers list, an injected identity read failure, and a `/1` worker each refuse
   `UNSUPPORTED_VERSION` from both `LoadLedger` and `Open`. The ledger is left unchanged, the live
   worker untouched, and the message content is checked. Control: the same ledger once both
   workers are dead adopts.

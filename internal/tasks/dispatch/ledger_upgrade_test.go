@@ -88,7 +88,8 @@ func stopTree(t *testing.T, w Worker) {
 // TestCALV0186_Version2LedgerWithGoneWorkersMigrates: a version 2 ledger
 // whose every recorded worker is gone is adopted as version 3 with the
 // workers kept as recorded, and the first tick reaps them as it reaps any
-// adopted worker (adopted, then finished) and saves version 3 with none.
+// adopted worker (adopted, then finished, the held attempt handed off once
+// and no session charged again) and saves version 3 with none.
 func TestCALV0186_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
 	c, q, path, workers := version2Ledger(t, 2, `sleep 300`)
 	for _, w := range workers {
@@ -98,14 +99,33 @@ func TestCALV0186_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
 	if err != nil || l.Profile != StateProfile || len(l.Workers) != 2 || len(l.Workers[0].Members) == 0 {
 		t.Fatalf("LoadLedger %+v %v", l, err)
 	}
+	sessions := len(l.Budget.Sessions)
 	c.Backoff.CooldownSeconds = 3600 // nothing relaunches after the reap
+	q.obs.Attempts = []Attempt{{ID: "a1", Ticket: workers[0].Ticket, Holder: workers[0].ID, Phase: "RUNNING", Generation: "1", Live: true, LeaseExpires: time.Now().Add(time.Hour)}}
 	d, err := Open("prog", c, q, io.Discard)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// The held attempt is handed off once, the launch history keeps the
+	// two charged sessions without a new one, and a restart repeats neither.
+	if count(q.released, "a1") != 1 || sessions != 2 || len(d.ledger.Budget.Sessions) != sessions {
+		t.Fatalf("hand-off and accounting: released %v sessions %d then %d", q.released, sessions, len(d.ledger.Budget.Sessions))
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if d, err = Open("prog", c, q, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	defer d.Close()
 	if err := d.Tick(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	if count(q.released, "a1") != 1 || len(d.ledger.Budget.Sessions) != sessions {
+		t.Fatalf("after restart: released %v sessions %d", q.released, len(d.ledger.Budget.Sessions))
 	}
 	finished := 0
 	for _, e := range eventsOf(t, d, "finished") {
@@ -128,8 +148,8 @@ func TestCALV0186_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
 
 // TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses: a version 2
 // ledger with one worker still running, one whose record lacks a process
-// identity, or one whose identity cannot be read refuses
-// UNSUPPORTED_VERSION, unchanged and without touching the live worker; the
+// identity, one without a workers list, or one whose identity cannot be
+// read refuses UNSUPPORTED_VERSION, unchanged and without touching the live worker; the
 // refusal names the worker, the build that wrote the ledger and the
 // clearing command. A version 1 ledger with a worker names them too.
 func TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses(t *testing.T) {
@@ -176,6 +196,16 @@ func TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses(t *testing.T) {
 	}
 	refuses("no identity", noIdentity, drainedState2Profile, `records worker "`+workers[0].ID+`" (pid `+strconv.Itoa(workers[0].PID)+`) whose end cannot be proven: the record lacks a process identity`)
 	refuses("version 1 worker", version1, drainedStateProfile, `records a worker`)
+	var omitted map[string]json.RawMessage
+	if err := json.Unmarshal(live, &omitted); err != nil {
+		t.Fatal(err)
+	}
+	delete(omitted, "workers")
+	noWorkers, err := json.Marshal(omitted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refuses("no workers list", noWorkers, drainedState2Profile, `lacks a readable workers list`)
 	processIdentity = func(int) (string, error) { return "", errors.New("injected identity failure") }
 	refuses("unreadable identity", live, drainedState2Profile, `records worker "`+workers[0].ID+`" (pid `+strconv.Itoa(workers[0].PID)+`) whose end cannot be proven: injected identity failure`)
 	processIdentity = supervisor.ProcessIdentity
