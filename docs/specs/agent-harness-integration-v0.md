@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -882,9 +882,9 @@ do not reinterpret this Frontier result.
     kills earlier anyway sends `SIGKILL`, so the exit cleanup cannot run. The status scratch, any
     `.self-observations.*` temporary and running Git children can then remain. That consequence is
     inferred, not observed. The owner accepted this disposition on 2026-10-04 (decision 0430).
-  - Elapsed time and how long an abandoned Git child outlives the adapter are logged, not asserted,
-    because the parallel matrix runs under load (decision 0082). The watchdog bound itself stays
-    under AHI-017. Children outliving the adapter are tracked as V1-0734.
+  - Elapsed time is logged, not asserted, because the parallel matrix runs under load (decision
+    0082). The watchdog bound itself stays under AHI-017. How long a Git child outlives the adapter
+    is asserted under `AHI-048`.
   - Real hosts remain NOT_OBSERVED.
   Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
   plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
@@ -937,6 +937,40 @@ do not reinterpret this Frontier result.
   Rollback (`AHI-045` to `AHI-047`): revert `cmd/corvint/host_adapter_projection.go` and its call
   sites; adapters again inject the whole receipt with guidance on every context event. No store,
   ledger or wire format changes, so either side reads the other's evidence.
+- `AHI-048`: (proposed; V1-0734) When an adapter process exits through `exitProcess`, including
+  `os.Exit` after the `AHI-017` watchdog or a dogfood event deadline (`LCP-V0-008`) abandoned a
+  read, it MUST first SIGKILL every live child process group it started, synchronously. Exec's
+  context cancellation runs asynchronously and `os.Exit` used to win that race, leaving the Git
+  child and its descendants running for seconds (3.7-4.8 s observed in the codex Stop and
+  claude-code session-end slow-Git cases). `internal/groupreap` keeps a process-wide record. A
+  Setpgid child started through `StartLive` is recorded from its start until `Wait`, or an `Owner`,
+  releases it; `internal/contextindex` reaps through `WaitPipes`, which keeps its output-pipe
+  drain (`command.Wait` with `WaitDelay`) and leaves the rest of the group to its own cleanup.
+  That release happens while the exited leader is still unreaped. `KillLive` signals
+  every recorded group under an exclusive gate that starts and releases share. So it never
+  signals a group whose leader was reaped, never misses a started one, and refuses a start after
+  it. The Git spawns of `internal/gokernel`, `internal/contextindex` and `internal/cem/gitrun`,
+  and the `xcrun --find git` lookup of `internal/gitstatus`, start through `StartLive`. Groups are
+  recorded only on Darwin and Linux, where `waitid` leaves the exited leader unreaped. Elsewhere
+  `Wait` reaps before it could release, so nothing is recorded. The scratch removal of `AHI-044`
+  follows the kill.
+  Acceptance: `TestAHI048ExitProcessKillsLiveChildGroups` runs `exitProcess` in a helper process
+  holding a live recorded group and requires its leader and a sleeping member gone afterwards.
+  `TestAHI044HookAdaptersFailOpen` asserts, for every slow-Git case, that every Git child the
+  shims recorded is gone less than 100 ms after the adapter exits, across `-count=5`. Other cases
+  log that time only: a Git child that is running, not sleeping, can take longer to act on the
+  SIGKILL under host load (decision 0082). The `TestAHI048*` tests in `internal/groupreap` cover
+  the kill, the start refusal after it, release before reap, and concurrent starts and releases
+  against one kill under `-race`.
+  Non-goals: no daemon, no shell, and no change to hook exit status or stdout. A child in an owned
+  worker's inherited group stays the enclosing runner's to retire. A host `SIGKILL` of the adapter
+  still bypasses all exit cleanup (decision 0430).
+  Failure modes: a child started with plain `command.Start` instead of `StartLive` is not
+  recorded. A descendant of a `contextindex` Git call that still holds its output pipes after the
+  leader exits is unrecorded while `WaitPipes` drains them. A start that loses the race to the exit kill fails with `groupreap.ErrExiting`, which
+  callers report as a Git start failure.
+  Rollback: revert `internal/groupreap/live.go`, the `StartLive` call sites and the `KillLive`
+  call in `exitProcess`. Children again outlive an exiting adapter until their own deadline.
 
 ## Native platform profiles
 
@@ -1042,10 +1076,10 @@ there, which is the whole of what the row asserts.
 | `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
-| `repository-probe-too-large` | `internal/gokernel/repository.go:148` | "Git output exceeds its byte limit" |
-| `repository-profile-malformed` | `internal/gokernel/repository.go:268` | "Git profile path is not valid UTF-8" |
+| `repository-probe-too-large` | `internal/gokernel/repository.go:150` | "Git output exceeds its byte limit" |
+| `repository-profile-malformed` | `internal/gokernel/repository.go:270` | "Git profile path is not valid UTF-8" |
 | `repository-status-malformed` | `internal/gokernel/repository.go:215` | "Git status output is malformed" |
-| `repository-status-too-large` | `internal/gokernel/repository.go:238` | "Git status exceeds the <value>-path limit" |
+| `repository-status-too-large` | `internal/gokernel/repository.go:240` | "Git status exceeds the <value>-path limit" |
 | `unsupported-git-object-format` | `internal/gokernel/repository.go:192` | "unsupported Git object format: <value>" |
 
 ## Over-bound prompts
@@ -1148,6 +1182,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-043` | `cmd/corvint/host_adapter.go` Claude SessionStart/UserPromptSubmit output | `cmd/corvint/host_adapter_stability_test.go::TestAHI043ClaudeContextPacketsAreByteStableAcrossTime` (fake-clock 61 s and 25 h gaps, unchanged dirty fixture, full envelope required) |
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
+| `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `Contain`, `KillLive`), the release in `groupreap.Wait`, `WaitPipes` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `internal/contextindex/git.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048WaitPipesReleasesWithoutKillingTheGroup`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |

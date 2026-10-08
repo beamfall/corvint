@@ -188,6 +188,7 @@ AHI-044	docs/specs/agent-harness-integration-v0.md	851	Every shipped hook adapte
 AHI-045	docs/specs/agent-harness-integration-v0.md	891	(accepted by decision 0441; V1-0942) The Claude Code and Codex
 AHI-046	docs/specs/agent-harness-integration-v0.md	914	(accepted by decision 0441; V1-0942) Outside a main-thread
 AHI-047	docs/specs/agent-harness-integration-v0.md	924	(accepted by decision 0441; V1-0939) The Claude Code trusted
+AHI-048	docs/specs/agent-harness-integration-v0.md	940	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index

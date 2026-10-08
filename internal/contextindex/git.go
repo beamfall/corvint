@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 const (
@@ -263,7 +264,9 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	}
 	stderr := &boundedBuffer{limit: maxGitErrorBytes}
 	command.Stdout, command.Stderr = stdout, stderr
-	if err := command.Start(); err != nil {
+	// StartLive records the private group so an exit that abandons this read
+	// still retires it (AHI-048).
+	if err := groupreap.StartLive(command); err != nil {
 		if ctx.Err() != nil {
 			return nil, contextError(ctx)
 		}
@@ -274,7 +277,7 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	}
 	processID := command.Process.Pid
 	defer terminateProcessGroup(processID)
-	err := command.Wait()
+	err := groupreap.WaitPipes(command)
 	if ctx.Err() != nil {
 		return nil, contextError(ctx)
 	}

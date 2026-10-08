@@ -23,3 +23,7 @@ func leaderUnreaped(processID int) error {
 		}
 	}
 }
+
+// liveTracking is true: Wait releases a recorded group while its exited leader
+// is still unreaped (StartLive, KillLive).
+const liveTracking = true

@@ -1,6 +1,7 @@
 package gitstatus
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // appleGitShim is the xcrun shim macOS installs as `git`. It resolves the active
@@ -70,11 +73,18 @@ func resolveExecutable() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "/usr/bin/xcrun", "--find", "git").Output()
-	if err != nil {
+	// xcrun runs in its own recorded group, so an exit that abandons this lookup retires it (AHI-048).
+	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "--find", "git")
+	groupreap.Contain(command)
+	var output bytes.Buffer
+	command.Stdout = &output
+	if err := groupreap.StartLive(command); err != nil {
 		return resolved
 	}
-	target := strings.TrimSpace(string(output))
+	if err := groupreap.Wait(command); err != nil {
+		return resolved
+	}
+	target := strings.TrimSpace(output.String())
 	info, err := os.Stat(target)
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return resolved
