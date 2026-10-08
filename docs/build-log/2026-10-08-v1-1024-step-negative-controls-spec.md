@@ -64,3 +64,7 @@ and fixed:
   now derive no fault, and a marker that satisfies the expectation gives `fault-does-not-falsify`.
 - P2: marker generation was circular with the plan digest. The marker now comes from a
   pre-injection seed digest.
+
+The re-review of `8131a024` confirmed the four fixes. It raised one further P2: an empty
+denominator could yield `KILLED` vacuously. The fix requires at least one assertion-bearing
+inventory step.

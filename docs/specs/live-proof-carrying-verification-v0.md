@@ -748,7 +748,8 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   build must be qualified (`LPCV-V0-070`). After a join, the test's strength follows the
   `PTF-V0-006` aggregation over the retained `inventory` denominator:
   - `KILLED` (`step-controls-killed`) requires one `KILLED` entry for every inventory step with
-    assertions and `assertionsOutsideSteps` equal to zero;
+    assertions, at least one such step, and `assertionsOutsideSteps` equal to zero. An inventory
+    with no assertion-bearing step reads `NOT_MEASURED` (`step-controls-incomplete`);
   - any `SURVIVED` step gives `SURVIVED`;
   - otherwise the result is `NOT_MEASURED` (`step-controls-incomplete`), anchored to the unproven
     steps. Assertions outside every step also give `NOT_MEASURED` (`assertions-outside-steps`).
