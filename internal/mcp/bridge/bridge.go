@@ -476,6 +476,11 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 	if callErr != nil && (callErr.Code == "invalid-arguments" || callErr.Code == "cancelled") {
 		return Result{}, callErr
 	}
+	// MCPV0-034: a request whose context ended before its result is returned
+	// is cancelled, whatever the operation produced first.
+	if ctx.Err() != nil {
+		return Result{}, failure("cancelled")
+	}
 	if !registry.sameRoot() {
 		return abstained(name, "ROOT_IDENTITY_CHANGED", nil), nil
 	}

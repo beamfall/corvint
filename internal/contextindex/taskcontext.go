@@ -43,12 +43,20 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 		}
 	}
 	compiler := newTaskContextCompiler(index, task, subject)
+	compiler.ctx = ctx
 	compiler.slotWeights = weights
 	compiler.recency = startContextRecency(ctx, index)
 	if subject != "" {
 		compiler.startHistory(ctx)
 	}
+	defer compiler.join()
 	rows := compiler.compile(limit)
+	if compiler.cancelled != nil {
+		return nil, compiler.cancelled
+	}
+	// compile joins the history reader on every path that reaches here
+	// without a cancellation; reading historyErr is ordered after that join.
+	compiler.awaitHistory()
 	if compiler.historyErr != nil {
 		return nil, compiler.historyErr
 	}
@@ -62,6 +70,11 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 	compiler.attachSpans(packet, rows)
 	if err := index.SnapshotRefusal(); err != nil {
 		return nil, err
+	}
+	// The final guard (TCP-V0-064): a request cancelled after the last stage
+	// boundary still returns the cancellation, never a READY packet.
+	if compiler.stopped("packet") {
+		return nil, compiler.cancelled
 	}
 	return packet, nil
 }
@@ -80,6 +93,11 @@ type taskIdentifier struct {
 }
 
 type taskContextCompiler struct {
+	// ctx is the request context TaskContext observes at each stage boundary
+	// (TCP-V0-064); nil for a compiler that never runs compile.
+	ctx context.Context
+	// cancelled is the cancellation refusal once a boundary saw ctx end.
+	cancelled    error
 	index        *Index
 	task         string
 	subject      string
@@ -171,6 +189,33 @@ func (compiler *taskContextCompiler) startHistory(ctx context.Context) {
 		defer close(compiler.historyReady)
 		compiler.history, compiler.historyErr = readCoChangeHistory(ctx, compiler.index)
 	}()
+}
+
+// taskContextStage observes each cancellation boundary by name before it is
+// checked; nil outside tests.
+var taskContextStage func(stage string)
+
+// stopped reports whether the request context has ended, checked at the
+// compile's stage boundaries and per lexical term (TCP-V0-064). A slot
+// generator between two boundaries runs to completion; the boundary after it
+// discards its rows.
+func (compiler *taskContextCompiler) stopped(stage string) bool {
+	if taskContextStage != nil {
+		taskContextStage(stage)
+	}
+	if compiler.cancelled == nil && compiler.ctx != nil && compiler.ctx.Err() != nil {
+		compiler.cancelled = contextError(compiler.ctx)
+	}
+	return compiler.cancelled != nil
+}
+
+// join waits for the history and recency readers, so no work the request
+// started outlives TaskContext's return, cancelled or not.
+func (compiler *taskContextCompiler) join() {
+	compiler.awaitHistory()
+	if compiler.recency != nil {
+		compiler.recency.await()
+	}
 }
 
 func (compiler *taskContextCompiler) awaitHistory() {
@@ -295,6 +340,9 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	rows := make([]contextRow, 0, limit)
 	compiler.markRan("mentioned", "definition", "lexical", "documentation")
+	if compiler.stopped("pair") {
+		return nil
+	}
 	if compiler.subject != "" {
 		compiler.markRan("pair", "reverse-import", "reference", "cochange", "sibling")
 		compiler.markSubjectSymbols()
@@ -302,17 +350,23 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	} else {
 		compiler.markState("subject-absent", "pair", "reverse-import", "reference", "cochange", "sibling")
 	}
+	if compiler.stopped("mentioned") {
+		return nil
+	}
 	frames, frameActive := compiler.frameRelationRows()
 	if frameActive {
 		rows = compiler.takeSlot(rows, frames, contextMentionCap)
 	}
 	rows = compiler.takeSlot(rows, compiler.mentionRows(), contextMentionCap)
 	rows = compiler.takeSlot(rows, compiler.symbolRows(), contextSymbolCap)
+	if compiler.stopped("subject-slots") {
+		return nil
+	}
 	if compiler.subject != "" {
 		rows = compiler.takeSlot(rows, compiler.importerRows(), contextImporterCap)
 		rows = compiler.takeSlot(rows, compiler.referenceRows(), contextReferenceCap)
 		compiler.awaitHistory()
-		if compiler.historyErr != nil {
+		if compiler.historyErr != nil || compiler.stopped("cochange") {
 			return nil
 		}
 		compiler.historyFull = len(compiler.history) >= maxHistoryCommits
@@ -330,6 +384,9 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	// count the positions `reserve` prepends (TCP-V0-059).
 	compiler.reserved = compiler.reservedRows()
 	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows), limit)), limit)
+	if compiler.stopped("ordered") {
+		return nil
+	}
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
@@ -1240,6 +1297,9 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 		}
 	}
 	for _, term := range compiler.terms {
+		if compiler.stopped("lexical-term") {
+			return nil
+		}
 		if low, high, ok := table.Terms.find(term); ok {
 			idf := idfOf(high - low)
 			for index := low; index < high; index++ {
@@ -1346,6 +1406,9 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 // follow the deferred documentation.
 func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow {
 	hits := compiler.lexicalHits()
+	if compiler.stopped("lexical") {
+		return nil
+	}
 	held := compiler.heldPaths()
 	code := 0
 	compiler.lexicalCode = compiler.lexicalCode[:0]
