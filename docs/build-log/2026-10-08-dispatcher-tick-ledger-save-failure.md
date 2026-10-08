@@ -1,7 +1,7 @@
-# 2026-10-08 — A failed dispatcher tick ledger save fails the tick (V1-0672, CAL-V0-192)
+# 2026-10-08 — A failed dispatcher tick ledger save fails the tick (V1-0672, CAL-V0-194)
 
 Ticket: V1-0672 (Dispatcher tick silently ignores a failed private ledger save). Spec:
-`docs/specs/corvint-tasks-agent-leases-v0.md`, new proposed `CAL-V0-192`. Base
+`docs/specs/corvint-tasks-agent-leases-v0.md`, new proposed `CAL-V0-194`. Base
 `ecfff8e063914c9e59c83d1efada9e9b1119a30e`.
 
 ## Defect at the base
@@ -30,9 +30,9 @@ returns the error, so `dispatch --ticks N` reports `ERROR` with the cause as a w
 - Failing before (fix reverted, test sentinel shimmed in): both new tests fail at the base,
   `tick with an unwritable ledger returned <nil>, want ErrLedgerUnsaved` and `tick 0 returned <nil>,
   want ErrLedgerUnsaved`.
-- Passing after: `TestCALV0192_FailedTickSaveIsReportedAndRetried` (error and cause, in-memory vs
+- Passing after: `TestCALV0194_FailedTickSaveIsReportedAndRetried` (error and cause, in-memory vs
   persisted difference retained, `Run` alert, recovery save equals `ledgerBytes` of the current
-  ledger) and `TestCALV0192_UnsavedTickKeepsRunningWorkers` (a live worker stays recorded and
+  ledger) and `TestCALV0194_UnsavedTickKeepsRunningWorkers` (a live worker stays recorded and
   running across two unsaved ticks, no `killing`, the recovered save records it, a restart adopts it).
 - Four existing tests asserted the suppressed success and now require the surfaced error:
   `TestSERVICE500_UnsavedLaunchStaysUnrecorded`, `TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded`,

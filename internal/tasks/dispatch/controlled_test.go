@@ -121,7 +121,7 @@ func TestSERVICE500_UnsavedLaunchStaysUnrecorded(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	// CAL-V0-192: the run reports the failed final save.
+	// CAL-V0-194: the run reports the failed final save.
 	if err := d.Run(context.Background(), 1); !errors.Is(err, ErrLedgerUnsaved) {
 		t.Fatalf("unsaved launch run: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded(t *testing.T) {
 	defer d.Close()
 	t.Cleanup(func() { syncDir = syncDirectory })
 	f.onAdmit = func() { syncDir = func(string) error { return errors.New("injected directory sync failure") } }
-	// CAL-V0-192: the run reports the unsynced final save with its cause.
+	// CAL-V0-194: the run reports the unsynced final save with its cause.
 	if err := d.Run(context.Background(), 1); !errors.Is(err, ErrLedgerUnsaved) || !strings.Contains(err.Error(), "injected directory sync failure") || !strings.Contains(err.Error(), "not confirmed durable") {
 		t.Fatalf("unsynced save run: %v", err)
 	}

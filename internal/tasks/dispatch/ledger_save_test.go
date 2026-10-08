@@ -53,10 +53,10 @@ func stateBytes(t *testing.T, d *Dispatcher) []byte {
 	return raw
 }
 
-// CAL-V0-192: a tick whose final ledger save fails reports ErrLedgerUnsaved
+// CAL-V0-194: a tick whose final ledger save fails reports ErrLedgerUnsaved
 // with the original cause, while its state stays in memory and the event log;
 // the next tick saves the current ledger, never an older snapshot.
-func TestCALV0192_FailedTickSaveIsReportedAndRetried(t *testing.T) {
+func TestCALV0194_FailedTickSaveIsReportedAndRetried(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.Roles[0].Match = &Match{Labels: []string{"never"}}
 	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
@@ -131,9 +131,9 @@ func TestCALV0192_FailedTickSaveIsReportedAndRetried(t *testing.T) {
 	}
 }
 
-// CAL-V0-192: an unsaved tick keeps supervising the workers it holds; once a
+// CAL-V0-194: an unsaved tick keeps supervising the workers it holds; once a
 // save succeeds the ledger records them and a restart adopts them.
-func TestCALV0192_UnsavedTickKeepsRunningWorkers(t *testing.T) {
+func TestCALV0194_UnsavedTickKeepsRunningWorkers(t *testing.T) {
 	c := testConfig(t, "sleep 300")
 	c.GlobalCap = 1
 	c.Backoff.CooldownSeconds = 3600

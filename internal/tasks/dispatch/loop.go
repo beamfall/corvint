@@ -324,7 +324,7 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	return err
 }
 
-// ErrLedgerUnsaved marks a tick whose final ledger save failed (CAL-V0-192).
+// ErrLedgerUnsaved marks a tick whose final ledger save failed (CAL-V0-194).
 // The tick's decisions hold in memory and its events are already in the
 // event log, but state.json is not confirmed to hold them: it may still hold
 // the previous save, or (when only the directory sync failed) the new bytes
@@ -341,7 +341,7 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	}
 	// Admission publishes a new ledger only after its checked write. Resolve
 	// this receiver at return so an old pointer cannot overwrite that commit.
-	// CAL-V0-192: a failed save fails the tick with its cause; the in-memory
+	// CAL-V0-194: a failed save fails the tick with its cause; the in-memory
 	// ledger, workers included, stays authoritative and the next save
 	// writes it whole.
 	defer func() {

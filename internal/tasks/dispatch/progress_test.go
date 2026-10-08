@@ -269,7 +269,7 @@ func TestCALV0064_LaterSaveFailureCannotReviveGrantedParking(t *testing.T) {
 		return len(p), nil
 	})
 	writeProgress(t, source, "B")
-	// CAL-V0-192: the tick's own final save fails and says so.
+	// CAL-V0-194: the tick's own final save fails and says so.
 	if err := d.Tick(context.Background()); !errors.Is(err, ErrLedgerUnsaved) {
 		t.Fatalf("later save failure not reported: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestCALV0064_FirstSeedEndedWorkerAndLaterFailure(t *testing.T) {
 					return len(p), nil
 				})
 			}
-			// CAL-V0-192: with advance the tick's own final save fails and says so.
+			// CAL-V0-194: with advance the tick's own final save fails and says so.
 			if err := d.Tick(context.Background()); advance && !errors.Is(err, ErrLedgerUnsaved) || !advance && err != nil {
 				t.Fatalf("tick: %v", err)
 			}
