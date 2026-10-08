@@ -3436,5 +3436,20 @@
       "interop/cem01-go",
       "protocol/cem-1.0"
     ]
+  },
+  {
+    "path": "docs/specs/trial-replay-journal-v0.md",
+    "title": "Trial Replay Journal V0",
+    "reqPrefix": "TRJ-V0",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Both agent trial dispatchers replay a settled invocation only when a full pinned key matches and record where each replayed observation came from.",
+    "dependsOn": [
+      "docs/specs/confidently-wrong-trial-v0.md",
+      "docs/specs/cem-reviewer-trial-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
