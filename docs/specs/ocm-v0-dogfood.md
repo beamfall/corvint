@@ -308,7 +308,7 @@ what the row asserts.
 | `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:716` | "bootstrap intent hunk must remain unknown" |
 | `cem-map-digest-mismatch` | `internal/lrfrepo/ocm.go:424` | "CEM map digest does not match" |
 | `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:450` | "CEM patch digest does not match" |
-| `claim-conflict` | `internal/lrfrepo/ocm_write.go:979` | "claim ID has conflicting fields" |
+| `claim-conflict` | `internal/lrfrepo/ocm_write.go:983` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:866` | "claim selectors must be unique" |
 | `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:811` | "hunk selectors must be unique" |
@@ -322,10 +322,10 @@ what the row asserts.
 | `invalid-cem-digest` | `internal/lrfrepo/ocm.go:173` | "CEM binding digest is invalid" |
 | `invalid-claim-blob` | `internal/lrfrepo/ocm.go:266` | "claim blob OID is invalid" |
 | `invalid-claim-extractor` | `internal/lrfrepo/ocm.go:262` | "claim extractor is unsupported" |
-| `invalid-claim-references` | `internal/lrfrepo/ocm_write.go:926` | "claim references must be non-empty and unique" |
+| `invalid-claim-references` | `internal/lrfrepo/ocm_write.go:930` | "claim references must be non-empty and unique" |
 | `invalid-claims` | `internal/lrfrepo/ocm.go:239` | "claims must be a bounded array" |
 | `invalid-field` | `internal/lrfrepo/ocm.go:355` | "<value> must be a string" |
-| `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:919` | "hunk references must be non-empty and unique" |
+| `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:923` | "hunk references must be non-empty and unique" |
 | `invalid-integer` | `internal/lrfrepo/ocm.go:325` | "<value> must contain non-negative integers" |
 | `invalid-intent` | `internal/lrfrepo/ocm.go:557` | "intent scope must be UTF-8 Markdown" |
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
