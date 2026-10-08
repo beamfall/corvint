@@ -32,6 +32,9 @@ The ticket's 74 files were re-scanned on `origin/main` with a Go-token scan (str
 - Newly found by the package-level guard or the re-scan (not in the ticket list): `cmd/corvint/host_adapter_fail_open_test.go`
   (already set `GIT_CONFIG_PARAMETERS`; also given the flags on the real-git call), `internal/extevidence`
   (three call sites), and `internal/dogfoodflow/change_test.go` (shared `testGit`).
+- Review follow-up: `internal/worksource/source_test.go` and `internal/liveverify/mutate/mutate_test.go` take their
+  isolated Git environment from production helpers, so the scan cannot see them; both test helpers were guarded by hand.
+  The guard also recognises shell-form `git ... commit` literals.
 - `tools/corvint-pr-tests` fixtures go through the production `git()` helper, so the flags are added at the
   test call sites, not in `main.go`.
 
@@ -54,5 +57,6 @@ lands, its liveverify files already satisfy its literal rule. A requirement can 
 - The guard is package-level and literal-based: a package where one file is guarded can mask an unguarded sibling
   helper, and a `"commit"` literal in a non-Git sense is an over-approximation (none is exempted today).
 - `interop/cem01-go` is a separate module; it is scanned as text and verified with its own `go test`.
+- A fixture whose isolation (`GIT_CONFIG_GLOBAL`) lives only in a production file is invisible to the scan.
 - Fixtures that run Git only through a child process the test does not spell out (for example a built binary) are
   not detectable by this scan.

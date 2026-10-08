@@ -19,6 +19,27 @@ var autoMaintenanceSubcommands = map[string]bool{
 	"merge": true, "pull": true, "rebase": true, "revert": true,
 }
 
+// mutatingSubcommand returns the auto-maintenance subcommand a literal names,
+// either as the whole literal (an argument) or as a word of a shell command
+// that runs git ("git -C dir commit -m x").
+func mutatingSubcommand(value string) string {
+	if autoMaintenanceSubcommands[value] {
+		return value
+	}
+	words := strings.Fields(value)
+	for index, word := range words {
+		if word != "git" {
+			continue
+		}
+		for _, later := range words[index+1:] {
+			if autoMaintenanceSubcommands[later] {
+				return later
+			}
+		}
+	}
+	return ""
+}
+
 // packageFacts are the literal-token facts of one package's Go test files.
 type packageFacts struct {
 	isolates    bool   // hides the host's global Git config
@@ -51,8 +72,8 @@ func (facts *packageFacts) add(source []byte) error {
 			return err
 		}
 		facts.isolates = facts.isolates || strings.Contains(value, "GIT_CONFIG_GLOBAL") || strings.HasPrefix(value, "HOME=")
-		if facts.mutating == "" && autoMaintenanceSubcommands[value] {
-			facts.mutating = value
+		if facts.mutating == "" {
+			facts.mutating = mutatingSubcommand(value)
 		}
 		// Contains, not equality: a shell script literal carries the flags
 		// inside one string, and GIT_CONFIG_PARAMETERS quotes each key.
@@ -89,9 +110,10 @@ func TestUnguardedDetectsAMissingSafeguard(t *testing.T) {
 		{"home override merge", []string{`package p; var e, a = "HOME=/tmp/x", []string{"merge"}`}, true},
 		{"safeguard only in a comment", []string{"package p\n// \"maintenance.auto=false\" \"gc.auto=0\"\nvar e, a = \"GIT_CONFIG_GLOBAL=/dev/null\", []string{\"commit\"}"}, true},
 		{"commit in one file, safeguard in none of the package", []string{`package p; var e = "GIT_CONFIG_GLOBAL=/dev/null"`, `package p; var a = []string{"commit"}`}, true},
+		{"shell-only commit without safeguard", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", "git -C dir commit -qm x"`}, true},
 		{"both safeguards", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", []string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit"}`}, false},
 		{"helper in a sibling file", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", []string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}`, `package p; var a = []string{"commit"}`}, false},
-		{"script literal carries both", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", "git -c maintenance.auto=false -c gc.auto=0 commit"; var c = "commit"`}, false},
+		{"script literal carries both", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", "git -c maintenance.auto=false -c gc.auto=0 commit"`}, false},
 		{"parameters environment", []string{`package p; var e, a = "HOME=/x", "GIT_CONFIG_PARAMETERS='maintenance.auto'='false' 'gc.auto'='0'"; var c = "commit"`}, false},
 		{"commit under the host config", []string{`package p; var a = []string{"commit", "-m", "x"}`}, false},
 		{"isolated read only", []string{`package p; var e, a = "GIT_CONFIG_GLOBAL=/dev/null", []string{"status"}`}, false},
