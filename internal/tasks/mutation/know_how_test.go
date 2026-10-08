@@ -425,6 +425,12 @@ func TestKHNV0008_KnowHowNamesAttempt(t *testing.T) {
 		"attempt":         {mutation.OpKnowHowAdd, khnWithProvenance("att-home", ""), true},
 		"generation only": {mutation.OpKnowHowAdd, khnWithProvenance("", "3"), true},
 		"retract":         {mutation.OpKnowHowRetract, obj("note", str("1"), "reason", str("stale")), false},
+		"plain reconfirm": {mutation.OpKnowHowReconfirm, knowHowReconfirm("1", khCommit2, khAnchor("a.go", khBlobB)), false},
+		"reconfirm attempt": {mutation.OpKnowHowReconfirm, func() wire.Value {
+			p := knowHowReconfirm("1", khCommit2, khAnchor("a.go", khBlobB))
+			p.Obj.Set("attempt", str("att-home"))
+			return p
+		}(), true},
 	} {
 		env, err := mutation.Decode(envelope("n", owner, "AT-01", "1", c.op, c.p))
 		if err != nil {

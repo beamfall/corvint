@@ -21,7 +21,7 @@ import (
 // guards and §5.2 redo, models the envelope against the summarized inventory
 // and commits it as the complete route does. handled is false, with nothing
 // written, whenever the route declines: a request that may replay, a REOPEN,
-// review or attempt-naming KNOWHOW_ADD operation (they read attempt history), a model that needed an
+// review or attempt-naming know-how operation (they read attempt history), a model that needed an
 // elided path, and every refusal, which the complete route derives itself.
 func mutateWriter(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, refresh *bool) (handled bool, out *Report, err error) {
 	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) || mutation.KnowHowNamesAttempt(env) {

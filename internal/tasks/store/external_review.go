@@ -15,7 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// reviewAudit re-audits a REVIEW_* request, and a KNOWHOW_ADD that names an
+// reviewAudit re-audits a REVIEW_* request, and a KNOWHOW_ADD or RECONFIRM naming an
 // attempt or generation (KHN-V0-008), with every attempt record, so the model
 // judges leases, subject currency and provenance from journal-authoritative
 // bytes (ERG-V0-009). Other operations keep their read boundary unchanged.

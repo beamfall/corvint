@@ -36,11 +36,28 @@ type KnowHowNote struct {
 	Freshness string
 }
 
-// KnowHowPins resolves rev's commit and the blob each path names in that
-// commit with one `git cat-file --batch-check` in root (KHN-V0-001).
-// A path that is missing or is not a regular blob is refused: a note is never
-// pinned to something the writer's commit does not hold.
-func KnowHowPins(root, rev string, paths []string) (string, []string, error) {
+// KnowHowUnresolved prefixes the detail of a pin refused because an anchor
+// does not resolve at the writer's commit: its path is not a file there, or
+// its symbol is not exactly one declaration the index's extractor names in a
+// blob of at most 1 MiB (KHN-V0-016, KHN-V0-019).
+const KnowHowUnresolved = "KNOWHOW_UNRESOLVED"
+
+// KnowHowPinAnchors pins each anchor at rev with one `git cat-file
+// --batch-check` and, when any anchor names a symbol, one `git cat-file
+// --batch` over the blobs those anchors name: Blob is set for every anchor and
+// SymbolSha256 for every symbol anchor (KHN-V0-001, KHN-V0-016). It returns
+// rev's commit. An anchor that does not resolve is refused MALFORMED with the
+// KnowHowUnresolved prefix; a note is never pinned to something the writer's
+// commit does not hold. The anchors keep their order.
+func KnowHowPinAnchors(root, rev string, anchors []ticket.KnowHowAnchor) (string, []ticket.KnowHowAnchor, error) {
+	var paths []string
+	index := map[string]int{}
+	for _, a := range anchors {
+		if _, ok := index[a.Path]; !ok {
+			index[a.Path] = len(paths)
+			paths = append(paths, a.Path)
+		}
+	}
 	commit, objs, err := catFileAtCommit(root, rev, paths)
 	if err != nil {
 		return "", nil, err
@@ -48,20 +65,51 @@ func KnowHowPins(root, rev string, paths []string) (string, []string, error) {
 	if commit == "" {
 		return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/commit", "%s does not name a commit in this checkout", rev)
 	}
-	blobs := make([]string, len(paths))
-	for i, p := range paths {
-		if objs[i].kind != "blob" {
-			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "anchor %q is not a file in commit %s", p, commit)
+	var symbolBlobs []string
+	for _, a := range anchors {
+		o := objs[index[a.Path]]
+		if o.kind != "blob" {
+			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "%s: anchor %q is not a file in commit %s", KnowHowUnresolved, a.Path, commit)
 		}
-		blobs[i] = objs[i].oid
+		if a.Symbol != "" {
+			symbolBlobs = append(symbolBlobs, o.oid)
+		}
 	}
-	return commit, blobs, nil
+	contents, err := readKnowHowBlobs(root, symbolBlobs)
+	if err != nil {
+		return "", nil, err
+	}
+	tables := map[string]knowHowSymbols{}
+	out := make([]ticket.KnowHowAnchor, len(anchors))
+	for i, a := range anchors {
+		oid := objs[index[a.Path]].oid
+		out[i] = ticket.KnowHowAnchor{Path: a.Path, Blob: oid, Symbol: a.Symbol}
+		if a.Symbol == "" {
+			continue
+		}
+		data, ok := contents[oid]
+		if !ok {
+			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "%s: anchor %q is larger than 1 MiB in commit %s", KnowHowUnresolved, a.Path, commit)
+		}
+		t, ok := tables[a.Path]
+		if !ok {
+			t = knowHowSymbolTable(a.Path, data)
+			tables[a.Path] = t
+		}
+		digest, why := t.digest(a.Symbol)
+		if why != "" {
+			return "", nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "%s: %s in commit %s", KnowHowUnresolved, why, commit)
+		}
+		out[i].SymbolSha256 = digest
+	}
+	return commit, out, nil
 }
 
 // SelectKnowHow returns the active notes of every ticket in inv, or of home
 // alone when home is set, whose anchors intersect paths (all notes when paths
 // is empty). A path ending in "/" matches every anchor below it; any other
-// path matches one anchor exactly (KHN-V0-006).
+// path matches one anchor exactly (KHN-V0-006). Each note carries its
+// effective pins: those of its latest RECONFIRM, else its own (KHN-V0-018).
 func SelectKnowHow(inv *ticket.Inventory, paths []string, home string) []KnowHowNote {
 	var out []KnowHowNote
 	for _, id := range inv.IDs() {
@@ -72,7 +120,7 @@ func SelectKnowHow(inv *ticket.Inventory, paths []string, home string) []KnowHow
 		if !ok || len(rec.KnowHow) == 0 {
 			continue
 		}
-		for _, k := range ticket.ActiveKnowHow(rec.KnowHow) {
+		for _, k := range ticket.EffectiveKnowHow(rec.KnowHow) {
 			if len(paths) == 0 || knowHowIntersects(k.Anchors, paths) {
 				out = append(out, KnowHowNote{TicketID: id, Entry: k})
 			}
@@ -99,6 +147,14 @@ func knowHowIntersects(anchors []ticket.KnowHowAnchor, paths []string) bool {
 // non-blob or any Git failure is UNKNOWN, never CURRENT. A note is STALE when
 // any anchor is, else UNKNOWN when any anchor is, else CURRENT. It writes
 // nothing: the Git environment disables optional locks.
+//
+// A symbol anchor (KHN-V0-017) whose file blob equals its pin is CURRENT
+// without reading content. Otherwise one more `git cat-file --batch` reads
+// the changed blobs, each at most once: the anchor is CURRENT when its
+// declaration's digest equals the pin, STALE when it differs, and UNKNOWN
+// when the declaration no longer resolves to exactly one (deleted, renamed,
+// duplicated), the file is no longer admitted by an extractor or is larger
+// than 1 MiB, or the read fails.
 func ResolveKnowHowFreshness(root string, notes []KnowHowNote) string {
 	index := map[string]int{}
 	var paths []string
@@ -114,6 +170,7 @@ func ResolveKnowHowFreshness(root string, notes []KnowHowNote) string {
 	if err != nil {
 		head = ""
 	}
+	symbols := knowHowChangedSymbols(root, head, notes, objs, index)
 	for i := range notes {
 		n := &notes[i]
 		n.Anchors = make([]string, len(n.Entry.Anchors))
@@ -122,9 +179,20 @@ func ResolveKnowHowFreshness(root string, notes []KnowHowNote) string {
 			state := KnowHowUnknown
 			if head != "" {
 				if o := objs[index[a.Path]]; o.kind == "blob" {
-					state = KnowHowStale
-					if o.oid == a.Blob {
+					switch {
+					case o.oid == a.Blob:
 						state = KnowHowCurrent
+					case a.Symbol == "":
+						state = KnowHowStale
+					default:
+						if t, ok := symbols[a.Path]; ok {
+							if d, why := t.digest(a.Symbol); why == "" {
+								state = KnowHowStale
+								if d == a.SymbolSha256 {
+									state = KnowHowCurrent
+								}
+							}
+						}
 					}
 				}
 			}
@@ -163,14 +231,23 @@ func SortKnowHow(notes []KnowHowNote) {
 
 // KnowHowNoteValue encodes one note. The compact form a claim delivers keeps
 // the text, anchor paths with their states, routes and time; the full form
-// adds the pins, provenance and supersession a list reader audits.
+// adds the pins, provenance and supersession a list reader audits. A symbol
+// anchor adds its symbol, and the full form its digest pin (KHN-V0-016); a
+// re-confirmed note's full form adds the latest RECONFIRM's provenance and
+// shows its pins (KHN-V0-018). A note without either encodes as before.
 func KnowHowNoteValue(n KnowHowNote, compact bool) wire.Value {
 	k := n.Entry
 	anchors := make([]wire.Value, 0, len(k.Anchors))
 	for j, a := range k.Anchors {
 		o := wire.NewObject().Set("path", wire.String(a.Path)).Set("freshness", wire.String(n.Anchors[j]))
+		if a.Symbol != "" {
+			o.Set("symbol", wire.String(a.Symbol))
+		}
 		if !compact {
 			o.Set("blob", wire.String(a.Blob))
+			if a.Symbol != "" {
+				o.Set("symbolSha256", wire.String(a.SymbolSha256))
+			}
 		}
 		anchors = append(anchors, wire.ObjectValue(o))
 	}
@@ -188,6 +265,16 @@ func KnowHowNoteValue(n KnowHowNote, compact bool) wire.Value {
 		}
 		o.Set("generation", gen)
 		o.Set("actor", wire.ObjectValue(wire.NewObject().Set("id", wire.String(k.ActorID)).Set("role", wire.String(k.ActorRole))))
+		if r := k.Reconfirmed; r != nil {
+			c := wire.NewObject().Set("seq", wire.String(string(r.Seq)))
+			c.Set("actor", wire.ObjectValue(wire.NewObject().Set("id", wire.String(r.ActorID)).Set("role", wire.String(r.ActorRole))))
+			c.Set("recordedAt", wire.String(string(r.RecordedAt))).Set("attempt", strOrNull(r.Attempt))
+			gen := wire.Null()
+			if r.Generation != nil {
+				gen = wire.String(string(*r.Generation))
+			}
+			o.Set("reconfirmed", wire.ObjectValue(c.Set("generation", gen)))
+		}
 	}
 	return wire.ObjectValue(o)
 }

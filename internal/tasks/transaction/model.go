@@ -1296,9 +1296,9 @@ func importAttachedEvidence(post, pre *ticket.Record, where string) error {
 }
 
 // importKnowHow keeps an IMPORT batch from adding, rewriting or dropping
-// know-how entries (KHN-V0-003): only KNOWHOW_ADD and KNOWHOW_RETRACT write
-// them, so an imported record carries exactly the ledger of the record it
-// replaces.
+// know-how entries (KHN-V0-003): only KNOWHOW_ADD, KNOWHOW_RETRACT and
+// KNOWHOW_RECONFIRM write them, so an imported record carries exactly the
+// ledger of the record it replaces.
 func importKnowHow(post, pre *ticket.Record, where string) error {
 	var want []ticket.KnowHowEntry
 	if pre != nil {

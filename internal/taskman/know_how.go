@@ -9,26 +9,30 @@ import (
 )
 
 // knowHow validates the optional KHN-V0-002 ledger with the bounds and
-// relationships the Tasks codec enforces: 1..32 closed ADD or RETRACT entries
-// in append order, seq equal to the 1-based position, a superseding ADD or a
-// RETRACT naming an earlier still-active ADD, and a reason exactly when an
-// ADD supersedes. Absence is valid. The ledger is agent-authored data: this
-// reader admits it and nothing in Core ranks, cites or trusts it.
+// relationships the Tasks codec enforces: 1..32 closed ADD, RETRACT or
+// RECONFIRM entries in append order, seq equal to the 1-based position, a
+// superseding ADD, a RETRACT or a RECONFIRM naming an earlier still-active
+// ADD, a reason exactly when an ADD supersedes, and a RECONFIRM re-pinning
+// its note's anchors with at least one changed pin (KHN-V0-019). Absence is
+// valid. The ledger is agent-authored data: this reader admits it and nothing
+// in Core ranks, cites or trusts it.
 func knowHow(v wire.Value, _, _ uint64) error {
 	entries, e := array(v, taskswire.KnowHowMaxEntries)
 	if e != nil || len(entries) == 0 {
 		return errors.New("know-how entries")
 	}
 	active := map[uint64]bool{}
+	pins := map[uint64][]taskswire.KnowHowPin{}
 	for i, x := range entries {
 		op := value(x, "operation")
 		var target *uint64
+		var anchors []taskswire.KnowHowPin
 		switch {
 		case op.Kind == wire.KindString && op.Str == "ADD":
 			if e = object(x, "actor anchors attempt commit evidencePath generation operation reason recordedAt routes seq supersedes text"); e != nil {
 				return errors.New("know-how ADD entry")
 			}
-			if e = knowHowAdd(x); e != nil {
+			if anchors, e = knowHowAdd(x); e != nil {
 				return e
 			}
 			if s := value(x, "supersedes"); s.Kind != wire.KindNull {
@@ -53,11 +57,25 @@ func knowHow(v wire.Value, _, _ uint64) error {
 				return errors.New("know-how note")
 			}
 			target = &n
+		case op.Kind == wire.KindString && op.Str == "RECONFIRM":
+			if e = object(x, "actor anchors attempt commit generation note operation recordedAt seq"); e != nil {
+				return errors.New("know-how RECONFIRM entry")
+			}
+			if anchors, e = knowHowPins(x); e != nil {
+				return e
+			}
+			n, e := number(value(x, "note"), 2147483647)
+			if e != nil {
+				return errors.New("know-how note")
+			}
+			target = &n
 		default:
 			return errors.New("know-how operation")
 		}
-		if r := value(x, "reason"); r.Kind != wire.KindNull && !knowHowProse(r, taskswire.KnowHowMaxReasonBytes) {
-			return errors.New("know-how reason")
+		if op.Str != "RECONFIRM" {
+			if r := value(x, "reason"); r.Kind != wire.KindNull && !knowHowProse(r, taskswire.KnowHowMaxReasonBytes) {
+				return errors.New("know-how reason")
+			}
 		}
 		if seq, e := number(value(x, "seq"), 2147483647); e != nil || seq != uint64(i+1) {
 			return errors.New("know-how seq")
@@ -70,75 +88,120 @@ func knowHow(v wire.Value, _, _ uint64) error {
 		} else if _, e = taskswire.ParseTimestamp("recordedAt", t.Str); e != nil {
 			return errors.New("know-how time")
 		}
-		if target != nil {
-			if !active[*target] {
-				return errors.New("know-how entry names a note that is not an earlier active note")
+		if target != nil && !active[*target] {
+			return errors.New("know-how entry names a note that is not an earlier active note")
+		}
+		if op.Str == "RECONFIRM" {
+			if why := taskswire.KnowHowReconfirmRefusal(pins[*target], anchors); why != "" {
+				return errors.New("know-how " + why)
 			}
+			pins[*target] = anchors
+			continue
+		}
+		if target != nil {
 			delete(active, *target)
 		}
 		if op.Str == "ADD" {
 			active[uint64(i+1)] = true
+			pins[uint64(i+1)] = anchors
 		}
 	}
 	return nil
 }
 
-func knowHowAdd(x wire.Value) error {
+func knowHowAdd(x wire.Value) ([]taskswire.KnowHowPin, error) {
 	if !knowHowProse(value(x, "text"), taskswire.KnowHowMaxTextBytes) {
-		return errors.New("know-how text")
+		return nil, errors.New("know-how text")
 	}
-	if c := value(x, "commit"); c.Kind != wire.KindString {
-		return errors.New("know-how commit")
-	} else if _, e := taskswire.ParseOID("commit", c.Str); e != nil {
-		return errors.New("know-how commit")
-	}
-	anchors, e := array(value(x, "anchors"), taskswire.KnowHowMaxAnchors)
-	if e != nil || len(anchors) == 0 {
-		return errors.New("know-how anchors")
-	}
-	for i, a := range anchors {
-		if object(a, "blob path") != nil || !knowHowFile(value(a, "path")) {
-			return errors.New("know-how anchor")
-		}
-		if b := value(a, "blob"); b.Kind != wire.KindString {
-			return errors.New("know-how anchor blob")
-		} else if _, e := taskswire.ParseOID("blob", b.Str); e != nil {
-			return errors.New("know-how anchor blob")
-		}
-		if i > 0 && stringAt(anchors[i-1], "path") >= stringAt(a, "path") {
-			return errors.New("know-how anchors are sorted by path without duplicates")
-		}
+	pins, e := knowHowPins(x)
+	if e != nil {
+		return nil, e
 	}
 	routes, e := array(value(x, "routes"), taskswire.KnowHowMaxRoutes)
 	if e != nil {
-		return errors.New("know-how routes")
+		return nil, errors.New("know-how routes")
 	}
 	for i, r := range routes {
 		if r.Kind != wire.KindString || (i > 0 && routes[i-1].Str >= r.Str) {
-			return errors.New("know-how routes are a sorted set")
+			return nil, errors.New("know-how routes are a sorted set")
 		}
 		if _, e := taskswire.ParseToken("route", r.Str, taskswire.KnowHowMaxRouteBytes); e != nil {
-			return errors.New("know-how route")
+			return nil, errors.New("know-how route")
 		}
+	}
+	if p := value(x, "evidencePath"); p.Kind != wire.KindNull && !knowHowFile(p) {
+		return nil, errors.New("know-how evidence path")
+	}
+	return pins, nil
+}
+
+// knowHowPins validates the commit, anchors, attempt and generation an ADD
+// and a RECONFIRM share and returns the anchors' freshness identities. An
+// anchor is {blob, path} or, for a symbol anchor (KHN-V0-016), {blob, path,
+// symbol, symbolSha256}, in strictly ascending (path, symbol) order, and the
+// anchors of one path pin one blob.
+func knowHowPins(x wire.Value) ([]taskswire.KnowHowPin, error) {
+	if c := value(x, "commit"); c.Kind != wire.KindString {
+		return nil, errors.New("know-how commit")
+	} else if _, e := taskswire.ParseOID("commit", c.Str); e != nil {
+		return nil, errors.New("know-how commit")
+	}
+	anchors, e := array(value(x, "anchors"), taskswire.KnowHowMaxAnchors)
+	if e != nil || len(anchors) == 0 {
+		return nil, errors.New("know-how anchors")
+	}
+	pins := make([]taskswire.KnowHowPin, 0, len(anchors))
+	for i, a := range anchors {
+		symbol := object(a, "blob path symbol symbolSha256") == nil
+		if (!symbol && object(a, "blob path") != nil) || !knowHowFile(value(a, "path")) {
+			return nil, errors.New("know-how anchor")
+		}
+		b := value(a, "blob")
+		if b.Kind != wire.KindString {
+			return nil, errors.New("know-how anchor blob")
+		} else if _, e := taskswire.ParseOID("blob", b.Str); e != nil {
+			return nil, errors.New("know-how anchor blob")
+		}
+		pin := taskswire.KnowHowPin{Path: stringAt(a, "path"), Pin: b.Str}
+		if symbol {
+			s, d := value(a, "symbol"), value(a, "symbolSha256")
+			if s.Kind != wire.KindString || d.Kind != wire.KindString {
+				return nil, errors.New("know-how anchor symbol")
+			}
+			if _, e := taskswire.ParseKnowHowSymbol("symbol", s.Str); e != nil {
+				return nil, errors.New("know-how anchor symbol")
+			}
+			if _, e := taskswire.ParseDigest("symbolSha256", d.Str); e != nil {
+				return nil, errors.New("know-how anchor symbol digest")
+			}
+			pin.Symbol, pin.Pin = s.Str, d.Str
+		}
+		if i > 0 {
+			prev := pins[i-1]
+			if prev.Path > pin.Path || (prev.Path == pin.Path && prev.Symbol >= pin.Symbol) {
+				return nil, errors.New("know-how anchors are sorted by path and symbol without duplicates")
+			}
+			if prev.Path == pin.Path && stringAt(anchors[i-1], "blob") != b.Str {
+				return nil, errors.New("know-how anchors of one path pin one blob")
+			}
+		}
+		pins = append(pins, pin)
 	}
 	if a := value(x, "attempt"); a.Kind != wire.KindNull {
 		if a.Kind != wire.KindString {
-			return errors.New("know-how attempt")
+			return nil, errors.New("know-how attempt")
 		} else if _, e := taskswire.ParseIdentifier("attempt", a.Str); e != nil {
-			return errors.New("know-how attempt")
+			return nil, errors.New("know-how attempt")
 		}
 	}
 	if g := value(x, "generation"); g.Kind != wire.KindNull {
 		if g.Kind != wire.KindString {
-			return errors.New("know-how generation")
+			return nil, errors.New("know-how generation")
 		} else if _, e := taskswire.ParseSize("generation", g.Str); e != nil {
-			return errors.New("know-how generation")
+			return nil, errors.New("know-how generation")
 		}
 	}
-	if p := value(x, "evidencePath"); p.Kind != wire.KindNull && !knowHowFile(p) {
-		return errors.New("know-how evidence path")
-	}
-	return nil
+	return pins, nil
 }
 
 func knowHowActor(x wire.Value) error {

@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,9 +15,9 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); experimental; `ticket know-how add|retract|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
-- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT through Apply, write-time secret screen (`SECRET_DETECTED`) and blob pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from one batched Git call, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses.
-- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964); owner question 8 (V1-0962); durable qualification; Core packet delivery and a WORKER grant (V1-0987) are non-goals here.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses.
+- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964) and KHN-V0-016..020 (V1-0963); owner question 8 (V1-0962); durable qualification; Core packet delivery and a WORKER grant (V1-0987) are non-goals here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -172,6 +172,57 @@ yes; these requirements return to the owner for acceptance.
   are asked MUST NOT mix two commits into one pin set: the pin returns the earlier commit and that
   commit's blobs. Status: proposed (V1-0964).
 
+KHN-V0-016 to KHN-V0-020 add symbol anchors and an explicit re-confirm write (V1-0963, a
+follow-up of V1-0955 / GitHub #655). They are proposed and need the owner's acceptance; the
+implementation is experimental until then.
+
+- `KHN-V0-016`: `ticket know-how add` MUST accept `--symbol PATH#NAME`, repeatable and combinable
+  with `--anchor`, up to the 4-anchor cap. NAME is the part after the last `#`: 1..128 bytes of
+  printable ASCII without space or `#`. A symbol anchor is `{blob, path, symbol, symbolSha256}`.
+  `blob` is the file's pin as in KHN-V0-001. `symbolSha256` is the SHA-256 of the one declaration
+  of NAME that the context index's own extractor reports for that blob
+  (`contextindex.SymbolExtents`; no parser or language is added). A Go method is named
+  `Receiver.Method` and its extent runs from its doc comment to its closing brace; other languages
+  use the index extractor's reported extent. A file anchor keeps its exact `{blob, path}` form.
+  Anchors are sorted by (path, symbol) without duplicates, a file anchor before that path's
+  symbols, and all anchors of one path pin the same blob. A symbol that is missing, declared more
+  than once, in a file no extractor admits or that the extractor refuses, or in a blob over 1 MiB
+  is refused MALFORMED at `/payload/anchors` before any mutation, with the detail prefix
+  `KNOWHOW_UNRESOLVED:`, and nothing is written. Symbol names are screened like paths
+  (KHN-V0-004). The Tasks codec and the Core reader enforce the same anchor rules.
+- `KHN-V0-017`: Freshness of a symbol anchor MUST follow the declaration's digest. A blob equal to
+  the pin is CURRENT without reading content. Otherwise the reader reads each changed blob once
+  (one `git cat-file --batch` for all of them, each at most 1 MiB) and re-extracts the symbol: an
+  equal digest is CURRENT and a different one is STALE. A symbol that is missing, renamed,
+  duplicated, unsupported, oversize, or unreadable, and every anchor of a deleted file, is UNKNOWN,
+  never CURRENT. A file anchor keeps KHN-V0-005 unchanged, so a file anchor on the same path goes
+  STALE when any byte changes. Note precedence and ordering are KHN-V0-005 and KHN-V0-006.
+- `KHN-V0-018`: `ticket know-how reconfirm T --note N` MUST append one RECONFIRM entry
+  `{seq, operation, note, anchors, commit, attempt, generation, actor, recordedAt}` through the
+  ordinary receipt-backed mutation `KNOWHOW_RECONFIRM` (`{note, anchors, commit, attempt,
+  generation}`) with the KHN-V0-003 CAS, replay, live NATIVE home ticket, 32-entry cap and role
+  grant (OWNER by default, OPERATOR only through an explicit policy row). The CLI re-pins the
+  note's current anchors at `HEAD` or `--commit` with the KHN-V0-016 rules. The entry names an
+  earlier active note and carries exactly that note's anchor paths and symbols. It rewrites no
+  earlier entry, so the ADD's original pins and every earlier RECONFIRM stay in `ticket show`.
+  Reads use the latest RECONFIRM's anchors and commit as the note's effective pins; `list`'s full
+  form adds `reconfirmed {seq, actor, recordedAt, attempt, generation}`. A superseding ADD or a
+  RETRACT ends the note as before, and RECONFIRM is not a target of either. A RECONFIRM that names
+  `attempt` or `generation` passes the same `CheckKnowHowProvenance` check (KHN-V0-008) against
+  the audited attempt inventory (KHN-V0-009), and never takes the writer fast route.
+- `KHN-V0-019`: A re-confirm of a note that is not STALE MUST be refused, not treated as a no-op.
+  A re-pin in which no anchor's pin (the blob of a file anchor, the digest of a symbol anchor)
+  changed is VALIDATION_FAILED/MALFORMED with the detail prefix `KNOWHOW_NOT_STALE:`, enforced in
+  Apply, the Tasks codec and the Core reader. A re-confirm whose current pin cannot be resolved
+  (an UNKNOWN anchor) is refused with `KNOWHOW_UNRESOLVED:` before anything is submitted. A
+  note that is not active, or a re-pin that drops, adds or renames an anchor, is refused MALFORMED.
+- `KHN-V0-020`: The change MUST be wire-compatible. A record whose ledger holds only file anchors
+  and ADD and RETRACT entries decodes, re-encodes and projects byte-identically, and gains no
+  symbol or reconfirm key. The new anchor keys, the RECONFIRM operation and the
+  `KNOWHOW_RECONFIRM` mutation are additive within `taskman-ticket/0`; an older binary refuses a
+  record or receipt carrying them at its closed key sets, so it fails closed and never misreads
+  them.
+
 ## Failure modes and trust
 
 - **Note content is unverified.** Note text is a claim by the writing principal. Since V1-0964
@@ -179,6 +230,15 @@ yes; these requirements return to the owner for acceptance.
   evidence path is still writer-asserted.
 - **Freshness is a file-level signal, not a semantic check.** A CURRENT note can still be wrong,
   and a STALE note can still be right. STALE only means an anchored file changed since the pin.
+  A symbol anchor narrows this to one declaration's text: a change elsewhere that alters what the
+  declaration means (a callee, a constant) leaves it CURRENT.
+- **Symbol extraction limits.** The extent comes from the context index's extractor, whose
+  coverage differs by language. A symbol it cannot place exactly once reads UNKNOWN and cannot be
+  pinned or re-confirmed. Changing that extractor's extent rules can turn pinned symbols STALE;
+  that is visible and fail-closed, never a silent CURRENT.
+- **Re-confirm is a claim, not a review.** A RECONFIRM records that its writer checked the note
+  against new code. Like the note text it is unverified; only its `attempt` and `generation` are
+  checked against the audited attempt inventory, as for ADD (KHN-V0-008).
 - **Git unavailable.** A missing Git binary, no checkout, an unborn `HEAD` or a failed batch makes
   every note UNKNOWN. The claim still succeeds, and the delivered notes say UNKNOWN rather than
   CURRENT.
@@ -200,10 +260,11 @@ yes; these requirements return to the owner for acceptance.
 ## Non-goals and simpler baseline
 
 - No Core `corvint_query` or context-packet delivery. Only Tasks claim and list deliver notes.
-- No symbol-level or line-range anchors. Anchors are whole files.
+- No line-range anchors, and no new parser or language support for symbol anchors
+  (KHN-V0-016 reuses the index extractor). No symbol rename tracking: a renamed symbol is UNKNOWN.
 - No LTA-V0-006 skill export and no learning input of any kind.
-- No automatic re-confirmation or repinning. A STALE note is refreshed by an explicit superseding
-  ADD.
+- No automatic re-confirmation or repinning. A STALE note is refreshed by an explicit RECONFIRM
+  (KHN-V0-018) or a superseding ADD, and no read ever writes a pin.
 - No cross-ticket supersede or retract. No writes on COMPLETED or ARCHIVED home tickets.
 - No WORKER grant. Workers report know-how through their owner or operator in this slice. The
   grant is V1-0987; it reuses the KHN-V0-008 check and is not specified here.
@@ -228,6 +289,11 @@ yes; these requirements return to the owner for acceptance.
 | KHN-V0-014 | V1-0964 | `internal/tasks/cli` (claim delivery; unchanged) | `TestKHNV0014_UnreadableInventoryDeliversUnavailable` (replayed claim, UNAVAILABLE, MALFORMED code, null notes, trust label, warning; recovery delivers the note) | none |
 | KHN-V0-015 | V1-0964 | `internal/tasks/store` (pin batch; unchanged) | `TestKHNV0015_CommitRaceResolvesOneCommit` (a commit forced between the commit answer and the path questions through the `askAtCommit` writer seam) | none |
 | KHN-V0-007 | V1-0955 criterion 5 | `internal/tasks/cli` (labels); every reader file | `TestKHNV0007_KnowHowNeverReachesRankingEvidenceOrAuthority` (fixed reader set); the trust label asserted in `TestKHNV0006_KnowHowThroughTheCLI` and `TestKHNV0006_ClaimDeliveryIsCapped` | none |
+| KHN-V0-016 | V1-0963 criterion 1 | `internal/contextindex` (extents); `internal/tasks/store` (symbol pins); `internal/tasks/ticket`, `internal/tasks/wire`, `internal/taskman` (anchor codecs); `internal/tasks/cli` (`--symbol`); decision 0397 V1-0963 addendum | `TestKHNV0016_SymbolExtentsReuseTheIndexExtractors`; `TestKHNV0016_SymbolPinsReuseTheIndexExtractor` (Go function, method and Python def pinned; missing, bare method, duplicate, unsupported and missing file refused `KNOWHOW_UNRESOLVED`); `TestKHNV0016_SymbolAnchorsInPayloadAndRecord` (encoding, payload and record refusals, secret symbol name); `TestKHNV0020_ReaderKnowHowSymbolsAndReconfirm` (Core reader); `TestImportDirection` and the boundary controls (the one-file `internal/contextindex` edge) | durable qualification on a non-Go repository |
+| KHN-V0-017 | V1-0963 criterion 1 | `internal/tasks/store` (freshness) | `TestKHNV0017_SymbolFreshnessFollowsTheDeclaration` (other symbol edited or moved CURRENT; pinned symbol edited STALE; renamed, duplicated, deleted file, oversize file and no checkout UNKNOWN; file anchor on the same path STALE); `TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI`; `BenchmarkKnowHowFreshness32SymbolAnchors` | none |
+| KHN-V0-018 | V1-0963 criterion 2 | `internal/tasks/mutation` (payload, Apply); `internal/tasks/intent` (grant); `internal/tasks/ticket` (codec, effective pins); `internal/tasks/store` (projection); `internal/tasks/cli` (verb, help) | `TestKHNV0018_ReconfirmRepinsWithProvenance` (attempt and generation verified by `CheckKnowHowProvenance`, unobserved or unknown attempt PROVENANCE_UNVERIFIED, prior bytes kept, effective pins, cap, role grants); `TestKHNV0008_KnowHowNamesAttempt` (an attempt-naming reconfirm takes the audited route); `TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance`; `TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI` (claimed attempt verified, unknown attempt PROVENANCE_UNVERIFIED, STALE re-pinned to CURRENT, `ticket show` keeps both pins, receipt audit CONSISTENT) | concurrent two-process CAS; interrupted-commit redo of a reconfirm receipt |
+| KHN-V0-019 | V1-0963 criterion 2 | `internal/tasks/wire` (shared rule); `internal/tasks/mutation`; `internal/tasks/ticket`; `internal/taskman`; `internal/tasks/cli` | `TestKHNV0019_ReconfirmOfANoteThatIsNotStaleIsRefused`; `TestKHNV0020_ReaderKnowHowSymbolsAndReconfirm`; `TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI` (CURRENT and repeated reconfirm `KNOWHOW_NOT_STALE`, UNKNOWN `KNOWHOW_UNRESOLVED`) | none |
+| KHN-V0-020 | V1-0963 criterion 3 | `internal/tasks/ticket`; `internal/taskman`; `internal/tasks/store` | `TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore`; `TestIssue502_RecordEscalationsKey` and `TestKHNV0002_ReaderKnowHow` (unchanged legacy fixture); `TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance` (file-anchor note projects without new keys) | an older released binary refusing a RECONFIRM-bearing store |
 
 ## Resolved decisions
 
@@ -256,6 +322,19 @@ These are agent decisions, made fail-closed and accepted by the owner in decisio
    count says how much is left.
 8. **Computed at response time.** Claim delivery is not pinned at admission, so a replay shows
    current freshness instead of stale state.
+9. **Symbol digest is the declaration text (V1-0963, proposed).** The pin is the SHA-256 of the
+   extent text, so moving a declaration or editing a neighbour leaves it CURRENT, while any byte
+   inside it, including its doc comment, makes it STALE. A declaration named more than once is
+   UNKNOWN rather than an arbitrary choice.
+10. **Re-confirm of a note that is not STALE is refused, not a no-op (V1-0963, proposed).** A
+    no-op would still need a receipt or a special replay path, and an accepted entry would spend
+    one of the 32 ledger slots on a pin that says nothing new. Refusing tells the caller its
+    premise (the note is STALE) is wrong. The refusal reuses MALFORMED with a stable detail
+    prefix, so no §11 code is added for it (the codes KHN-V0-010 adds cover secret hits and
+    provenance only). UNKNOWN is refused because a pin needs
+    a resolvable target.
+11. **Re-confirm keeps the grant of ADD and RETRACT (V1-0963, proposed).** OWNER by default and
+    OPERATOR only through a policy row. No WORKER grant is added here (V1-0987 owns that).
 
 ## Owner questions
 
@@ -310,3 +389,10 @@ Rollback is reverting the change before any store holds a record with `knowHow`.
 write, an older binary refuses that record at its closed reader: the failure is closed and nothing
 is lost silently. Recovery is to run the newer binary, or to restore the store from a backup
 taken before the first note.
+
+The V1-0963 additions (KHN-V0-016 to KHN-V0-020) follow the same rule. A store with only file
+anchors and ADD and RETRACT entries is unchanged by them, so reverting the change is safe until a
+store holds a symbol anchor or a RECONFIRM entry. After that, a binary without V1-0963 refuses the
+record closed; recovery is the newer binary or a backup from before the first such write. The
+`internal/contextindex` import is one file (`internal/tasks/store/know_how_symbols.go`) and is
+reverted with it.

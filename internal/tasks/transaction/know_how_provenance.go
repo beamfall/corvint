@@ -5,7 +5,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 )
 
-// knowHowAttemptMutation reports a Mutate KNOWHOW_ADD request that names an
+// knowHowAttemptMutation reports a Mutate KNOWHOW_ADD/RECONFIRM request naming an
 // attempt or generation, whose provenance is checked against the complete
 // audited attempt inventory (KHN-V0-008).
 func knowHowAttemptMutation(r Request) bool {
