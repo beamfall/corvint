@@ -157,7 +157,7 @@ func TestCALV0167_SummaryShapes(t *testing.T) {
 		before := fixture.TreeSnapshot(t, root)
 
 		q := compactOK(t, root, "queue", "status", "--summary").res.Items[0]
-		if keysOf(q) != "attempts,barrier,blocked,byStatus,completions,headSeq,lastCompletion,liveAttempts,queueId,retriesExhausted,serialFallbackDeferred,tickets,writeBarrier" ||
+		if keysOf(q) != "attempts,barrier,blocked,byStatus,completions,headSeq,lastCompletion,liveAttempts,openWithoutMilestone,queueId,retriesExhausted,serialFallbackDeferred,tickets,writeBarrier" ||
 			field(q, "retriesExhausted").Str != "0" || field(q, "tickets").Str != "2" {
 			t.Fatalf("queue status summary: %s", wire.Encode(q))
 		}

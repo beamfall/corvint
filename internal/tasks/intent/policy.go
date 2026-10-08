@@ -133,7 +133,10 @@ type Policy struct {
 	// Obligations is the optional TOL-V0-015 obligation-ledger policy; nil
 	// (the key absent) keeps WORKER without OBLIGATIONS_WITNESS.
 	Obligations *ObligationsPolicy
-	Raw         []byte
+	// Milestones is the optional CAL-V0-195 milestone policy; nil (the key
+	// absent) keeps milestone optional on CREATE and REFINE.
+	Milestones *MilestonePolicy
+	Raw        []byte
 }
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
@@ -147,6 +150,20 @@ type ObligationsPolicy struct {
 // report witness (TOL-V0-015). Absent or false keeps the default refusal.
 func (p *Policy) WorkerObligationWitness() bool {
 	return p.Obligations != nil && p.Obligations.WorkerWitness
+}
+
+// MilestonePolicy is the CAL-V0-195 opt-in. Required makes CREATE without a
+// milestone, and REFINE that sets milestone to null, refuse
+// MILESTONE_REQUIRED. It never touches existing records.
+type MilestonePolicy struct {
+	Required bool
+}
+
+// MilestoneRequired reports whether policy requires a milestone on CREATE
+// and forbids REFINE from clearing one (CAL-V0-195). Absent or false keeps
+// the default.
+func (p *Policy) MilestoneRequired() bool {
+	return p != nil && p.Milestones != nil && p.Milestones.Required
 }
 
 // KnowHowPolicy is the KHN-V0-021 opt-in. WorkerAdd lets a WORKER issue
@@ -276,7 +293,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -466,6 +483,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		o := r.Field("obligations")
 		o.Closed("workerWitness")
 		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "milestones") {
+		m := r.Field("milestones")
+		m.Closed("required")
+		p.Milestones = &MilestonePolicy{Required: m.Field("required").Bool()}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

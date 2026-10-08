@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1093,7 +1094,9 @@ func roadmap(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
+	var unmilestoned int64
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+		unmilestoned = openWithoutMilestone(rc.store.Inventory)
 		ids := rc.store.Inventory.Sorted()
 		milestone := func(id string) (string, bool) {
 			rec, _ := rc.store.Inventory.Get(id)
@@ -1141,7 +1144,22 @@ func roadmap(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	if unmilestoned > 0 {
+		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
+	}
 	return res
+}
+
+// openWithoutMilestone counts OPEN tickets whose milestone is null
+// (CAL-V0-196), over the whole inventory, independent of paging.
+func openWithoutMilestone(inv *ticket.Inventory) int64 {
+	n := int64(0)
+	for _, id := range inv.IDs() {
+		if rec, ok := inv.Get(id); ok && rec.Status == ticket.StatusOpen && rec.Milestone == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // gateValue renders one policy gate definition with the §3.1 field names.
@@ -1394,6 +1412,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 		o.Set("byStatus", wire.ObjectValue(bo))
 		o.Set("intentChecksPassed", wire.String(string(wire.CountOf(int64(unknown)))))
 		o.Set("blocked", wire.String(string(wire.CountOf(int64(blocked)))))
+		o.Set("openWithoutMilestone", wire.String(string(wire.CountOf(openWithoutMilestone(st.Inventory)))))
 		last, completions := completionSummary(rc, observedAt)
 		o.Set("lastCompletion", last)
 		o.Set("completions", completions)

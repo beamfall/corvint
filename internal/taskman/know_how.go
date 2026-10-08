@@ -29,11 +29,33 @@ func knowHow(v wire.Value, _, _ uint64) error {
 		var anchors []taskswire.KnowHowPin
 		switch {
 		case op.Kind == wire.KindString && op.Str == "ADD":
-			if e = object(x, "actor anchors attempt commit evidencePath generation operation reason recordedAt routes seq supersedes text"); e != nil {
+			keys := "actor anchors attempt commit evidencePath generation operation reason recordedAt routes seq supersedes text"
+			_, qualified := x.Obj.Values["repository"]
+			if qualified {
+				keys += " repository"
+			}
+			if e = object(x, keys); e != nil {
 				return errors.New("know-how ADD entry")
 			}
 			if anchors, e = knowHowAdd(x); e != nil {
 				return e
+			}
+			if qualified {
+				// KHN-V0-025: an optional repository alias, and every anchor path
+				// below "<alias>/".
+				r := value(x, "repository")
+				if r.Kind != wire.KindString {
+					return errors.New("know-how repository")
+				} else if _, e = taskswire.ParseKnowHowRepository("repository", r.Str); e != nil {
+					return errors.New("know-how repository")
+				}
+				paths := make([]string, len(anchors))
+				for j, a := range anchors {
+					paths[j] = a.Path
+				}
+				if why := taskswire.KnowHowRepositoryRefusal(r.Str, paths); why != "" {
+					return errors.New("know-how " + why)
+				}
 			}
 			if s := value(x, "supersedes"); s.Kind != wire.KindNull {
 				n, e := number(s, 2147483647)

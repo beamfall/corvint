@@ -95,3 +95,34 @@ func KnowHowReconfirmRefusal(prior, next []KnowHowPin) string {
 	}
 	return ""
 }
+
+// KnowHowRepositoryDetail prefixes the refusal of a repository-qualified
+// know-how write or read whose repository is malformed, ambiguous or cannot be
+// resolved (KHN-V0-024, KHN-V0-025, KHN-V0-027).
+const KnowHowRepositoryDetail = "KNOWHOW_REPOSITORY"
+
+// KnowHowMaxRepositoryBytes bounds a know-how repository alias.
+const KnowHowMaxRepositoryBytes = 64
+
+// ParseKnowHowRepository validates a know-how repository alias (KHN-V0-025):
+// a token [A-Za-z0-9][A-Za-z0-9._-]* of at most KnowHowMaxRepositoryBytes, so
+// it is always one path segment and never "." or "..".
+func ParseKnowHowRepository(where, s string) (string, error) {
+	if _, err := ParseToken(where, s, KnowHowMaxRepositoryBytes); err != nil {
+		return "", Errorf(CodeMalformed, where, "%s: repository alias must be a token of at most %d bytes", KnowHowRepositoryDetail, KnowHowMaxRepositoryBytes)
+	}
+	return s, nil
+}
+
+// KnowHowRepositoryRefusal is "" when every anchor path of a note recorded in
+// repository lies below "<repository>/" (KHN-V0-025), and otherwise the reason
+// the note is refused. The native writer and codec and Core's read-only
+// planner all apply this one rule.
+func KnowHowRepositoryRefusal(repository string, paths []string) string {
+	for _, p := range paths {
+		if len(p) <= len(repository)+1 || p[:len(repository)+1] != repository+"/" {
+			return KnowHowRepositoryDetail + ": every anchor path of a repository note starts with the repository alias and '/'"
+		}
+	}
+	return ""
+}

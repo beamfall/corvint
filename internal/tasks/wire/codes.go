@@ -50,6 +50,10 @@ const CodeLockTimeout = "LOCK_TIMEOUT"
 // opt-in loopDetection policy (TCP-00 amendment A23).
 const CodeLoopDetected = "LOOP_DETECTED"
 const CodeMalformed = "MALFORMED"
+
+// CodeMilestoneRequired refuses a CREATE without a milestone, or a REFINE
+// that clears one, under the CAL-V0-195 policy opt-in.
+const CodeMilestoneRequired = "MILESTONE_REQUIRED"
 const CodeMissingEvidence = "MISSING_EVIDENCE"
 const CodeMissingGate = "MISSING_GATE"
 const CodeNoexec = "NOEXEC"
@@ -107,7 +111,7 @@ var Codes = []string{
 	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
-	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
+	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMilestoneRequired, CodeMissingEvidence, CodeMissingGate,
 	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied, CodeProvenanceUnverified,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,

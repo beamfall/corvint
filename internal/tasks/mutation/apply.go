@@ -371,6 +371,9 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	}
 	switch p := p.(type) {
 	case *RefinePayload:
+		if p.Has("milestone") && p.Milestone == nil && ctx.Policy.MilestoneRequired() {
+			return refuse(OutcomeValidationFailed, wire.CodeMilestoneRequired, "policy milestones.required forbids clearing milestone")
+		}
 		if p.Has("executionPrerequisites") {
 			work.ExecutionPrerequisites = copyPrerequisites(p.ExecutionPrerequisites)
 		}
@@ -743,6 +746,9 @@ func (ctx *Context) create(plan *Plan, p *CreatePayload) *Plan {
 		}
 	case "WORKER", "SYSTEM", "REVIEWER":
 		return plan.refused(refuse(OutcomeUnauthorized, "", "role %s may not CREATE", ctx.Binding.Role))
+	}
+	if p.Milestone == nil && ctx.Policy.MilestoneRequired() {
+		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMilestoneRequired, "policy milestones.required: CREATE must name a milestone"))
 	}
 	if ctx.Inventory.Len() >= wire.MaxTicketsPerQueue {
 		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeLimitExceeded, "queue already holds %d tickets, the §1 bound", wire.MaxTicketsPerQueue))
