@@ -218,7 +218,7 @@
     "path": "docs/specs/test-consolidation-planner-v0.md",
     "title": "Test Consolidation Planner V0",
     "reqPrefix": "TCN-V0",
-    "intent": "proposed",
+    "intent": "accepted (decision 0457; V1-1023)",
     "delivery": "not-started",
     "claim": "A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.",
     "dependsOn": [
@@ -822,7 +822,7 @@
     "path": "docs/specs/corvint-tasks-obligation-ledger-v0.md",
     "title": "Corvint Tasks obligation ledger V0",
     "reqPrefix": "TOL-V0",
-    "intent": "proposed",
+    "intent": "accepted (decision 0456; V1-1022)",
     "delivery": "not-started",
     "claim": "A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.",
     "dependsOn": [
@@ -1829,7 +1829,7 @@
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
-    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 proposed (V1-1024; GitHub #682)",
+    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)",
     "delivery": "not-started",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
