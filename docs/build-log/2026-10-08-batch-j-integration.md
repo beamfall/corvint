@@ -27,13 +27,20 @@ the owner's instruction.
   evidence exists.
 - Decision 0469 landed in the merge commit for V1-0520, so its rollback restores the requirement
   markers by hand.
+- The batch then merged `origin/main` `b5616037` (batch H, PR #692). TOL obligations and the
+  CAL-V0-195 milestone policy both extend the Tasks policy, so `intent/policy.go` keeps both
+  optional keys (`obligations`, `milestones`) and both types. `queue status` compact output picks
+  both `openWithoutMilestone` and `obligations`. `store/know_how.go` keeps both `FilesAtCommit`
+  (TOL-V0-012) and the KHN-V0-024 `--repo` helpers. The know-how usage lines take batch H's
+  `--repo ALIAS=ROOT` form, alongside the obligations usage lines.
 
 ## Evidence
 
 Each lane retains its own build-log entry, focused tests and independent review. On the merged
 tree, these all passed: the doc gates, `internal/specindex`, `go build ./...`, the focused
 `internal/tasks` and `internal/taskman` packages, and the focused checks in the batch dogfood plan.
-The batch CEM is bound against base `f33ea8efd0d8fb16a51e06d685bc38a8a7c35b35` and sealed.
+After the main merge, the focused `internal/tasks` packages (including `intent`) passed again. The
+batch CEM is bound against base `b5616037000a06e4719c759a555f7e393390e94f` and sealed.
 
 ## Rollback
 
