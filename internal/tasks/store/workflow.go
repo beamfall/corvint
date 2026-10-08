@@ -138,15 +138,21 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 }
 
 // reselected reports whether `run --role` for the attempt's stage selects it
-// again in its current phase; it mirrors the selection in cli/program.go.
-func reselected(a *snapshot.Attempt) bool {
-	switch a.Stage {
+// again in its current phase.
+func reselected(a *snapshot.Attempt) bool { return RoleSelects(a.Stage, a) }
+
+// RoleSelects reports whether `run --role` for stage selects attempt a in its
+// current phase. An answered WAITING attempt is selected only by the role of
+// its own stage (CAL-V0-197).
+func RoleSelects(stage string, a *snapshot.Attempt) bool {
+	answered := a.Phase == "WAITING" && a.Stage == stage && a.Supervision != nil && a.Supervision.Answer != ""
+	switch stage {
 	case "implement":
-		return !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED" || a.Phase == "WAITING" && a.Supervision != nil && a.Supervision.Answer != ""
+		return answered || !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED"
 	case "review":
-		return a.Phase == "BUILT"
+		return answered || a.Phase == "BUILT"
 	case "integrate":
-		return a.Phase == "READY_FOR_INTEGRATION"
+		return answered || a.Phase == "READY_FOR_INTEGRATION"
 	}
 	return false
 }

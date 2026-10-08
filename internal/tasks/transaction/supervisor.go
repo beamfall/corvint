@@ -438,6 +438,9 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		}
 	}
 	if next.Phase == "WAITING" && (a.Supervision == nil || a.Phase != "WAITING" || next.Supervision.Question != a.Supervision.Question) {
+		// A new question carries no answer: an answer left from the wait a
+		// stage resumed would make `run --role` reselect it (CAL-V0-197).
+		next.Supervision.Answer = ""
 		next.Supervision.QuestionRevision = a.TicketRevision
 		next.Supervision.QuestionID = string(wire.Sum([]byte(a.AttemptID + ":" + string(a.Generation) + ":" + string(a.TicketRevision) + ":" + string(c.seq) + ":" + next.Supervision.Question)))
 	}
