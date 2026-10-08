@@ -295,8 +295,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   thirteen. Rollback: revert the change; the two-probe path keeps no persistent state.
 - `LCP-V0-017`: (proposed; V1-1012) The top-level `ok` of a `corvint-local-completion/0`
   envelope from `begin`, `status`, `verify`, `finish`, `review` or `cancel` MUST equal whether the
-  command exits 0. `verify` exits 1 with `ok:false` when its selected check's observation is not
-  qualified (a nonzero exit, timeout, cancellation, overflow, dirty run or screened log), and
+  command exits 0. `verify` exits 1 with `ok:false` when its recorded observation is unqualified
+  (nonzero exit, timeout, overflow, dirty run or screened log; a refusal still exits 2), and
   `finish`, including the transport-adapted recovery route, exits 1 with `ok:false` while the
   policy is not satisfied. The emitted `policy` (its `checks[].qualified` and `exit`, `satisfied`,
   `unmet` and `nextActions`) is unchanged and remains the detail; `ok` alone never reads a failed
