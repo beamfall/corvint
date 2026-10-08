@@ -244,8 +244,9 @@ Every requirement below is (accepted by decision 0446; V1-0956).
 - `AMAP-V0-019`: Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
   only `--root`. An anchor with `repo` MUST read freshness `UNKNOWN` and print its `repo`, never
   `FRESH` or `STALE` from a same-named path in `--root`; router, flow and manifest anchors in
-  `--root` keep AMAP-V0-010. The scaffold prints `proposed_repo` when its closest spec comes from an
-  aliased root. RVN step anchors are router lineage and stay in `--root`.
+  `--root` keep AMAP-V0-010. `find` items, planner method and spec references and anchor views
+  print `repo` for evidence from an aliased root. The scaffold prints `proposed_repo` when its
+  closest spec comes from an aliased root. RVN step anchors are router lineage and stay in `--root`.
   (proposed (V1-0982; GitHub #669))
 
 ## Wire contract
@@ -366,7 +367,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-016 | `TestAMAPV0016TwoRootJoin`, `TestAMAPV0016RootUnavailable` |
+| AMAP-V0-016 | `TestAMAPV0016TwoRootJoin`, `TestAMAPV0016RootUnavailable`, `TestAMAPV0016RootPathKeepsTrailingSpace` |
 | AMAP-V0-017 | `TestAMAPV0016TwoRootJoin`, `TestAMAPV0017SingleRootUnchanged` |
 | AMAP-V0-018 | `TestAMAPV0016RootUnavailable`, `TestAMAPV0018DirtySecondRoot` |
 | AMAP-V0-019 | `TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown` |
@@ -399,7 +400,7 @@ and the `--repo`/`--manifest-repo` flags; `internal/rootalias` may stay as the M
 10. Let projections, `flows plan` and the corpus MCP map tools accept `--repo` so aliased anchors
     read `FRESH`/`STALE` instead of `UNKNOWN` (AMAP-V0-019).
 11. A per-root revision (`--repo-revision ALIAS=REV`) instead of `HEAD` only.
-12. Carry `repo` on scaffold and planner unknowns that cite aliased files.
+12. Carry `repo` on scaffold and planner unknowns and exploration refs that cite aliased files.
 
 ## Owner questions
 

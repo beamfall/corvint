@@ -283,4 +283,56 @@ func TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown(t *testing.T) {
 	if sc := decode(t, raw); sc["proposed_repo"] != "e2e" || sc["proposed_path"] != "e2e/specs/book-tee-time.spec.ts" {
 		t.Errorf("scaffold proposed %v in %v", sc["proposed_path"], sc["proposed_repo"])
 	}
+	// find names the root of every test-side reference.
+	if raw, err = ProjectFind(context.Background(), m, "teesheet", Options{Root: app, Full: true}); err != nil {
+		t.Fatal(err)
+	}
+	found := decode(t, raw)
+	for _, section := range []string{"files", "methods"} {
+		items, _ := found[section].([]any)
+		if len(items) == 0 {
+			t.Fatalf("find %s: none", section)
+		}
+		for _, it := range items {
+			if it.(map[string]any)["repo"] != "e2e" {
+				t.Errorf("find %s item %v", section, it)
+			}
+		}
+	}
+	// The planner reads aliased methods and specs UNKNOWN and names their root (AMSP-V0).
+	if raw, err = Plan(context.Background(), []*Map{m}, []string{"book a tee time"}, PlanOptions{Options: Options{Root: app}}); err != nil {
+		t.Fatal(err)
+	}
+	methods, specs := 0, 0
+	for _, st := range planSteps(t, decode(t, raw)) {
+		if sp, ok := st["spec"].(map[string]any); ok {
+			specs++
+			if sp["repo"] != "e2e" || sp["freshness"] != FreshUnknown {
+				t.Errorf("plan spec %v", sp)
+			}
+		}
+		for _, a := range actions(st) {
+			for _, me := range a["methods"].([]any) {
+				methods++
+				if v := me.(map[string]any); v["repo"] != "e2e" || v["freshness"] != FreshUnknown {
+					t.Errorf("plan method %v", v)
+				}
+			}
+		}
+	}
+	if methods == 0 || specs == 0 {
+		t.Fatalf("plan cites %d methods and %d specs", methods, specs)
+	}
+}
+
+// AMAP-V0-016: a root whose path ends in a space is a valid MCPV0-001 root and is not trimmed.
+func TestAMAPV0016RootPathKeepsTrailingSpace(t *testing.T) {
+	app, appRev, e2e, _ := twoRoots(t, false)
+	spaced := filepath.Join(t.TempDir(), "e2e ")
+	if err := os.Rename(e2e, spaced); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuildRoots(context.Background(), app, "appmap.json", appRev, Roots{Repos: map[string]string{"e2e": spaced}}); err != nil {
+		t.Fatalf("root with a trailing space refused: %v", err)
+	}
 }

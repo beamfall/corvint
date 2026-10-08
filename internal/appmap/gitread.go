@@ -66,7 +66,7 @@ func openRoot(ctx context.Context, primary, alias, root string) (repo, string, e
 	if err != nil {
 		return repo{}, "", rootUnavailable(alias, "is not a Git worktree")
 	}
-	if t, err := os.Stat(strings.TrimSpace(string(top))); err != nil || !os.SameFile(info, t) {
+	if t, err := os.Stat(strings.TrimSuffix(string(top), "\n")); err != nil || !os.SameFile(info, t) {
 		return repo{}, "", rootUnavailable(alias, "is not the top of a Git worktree")
 	}
 	rev, err := r.resolve("HEAD")

@@ -30,7 +30,11 @@ owner acceptance.
 
 - Maintained tests: `TestAMAPV0016TwoRootJoin`, `TestAMAPV0016RootUnavailable`,
   `TestAMAPV0018DirtySecondRoot`, `TestAMAPV0017SingleRootUnchanged`,
-  `TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown` (synthetic Git repositories).
+  `TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown`, `TestAMAPV0016RootPathKeepsTrailingSpace`
+  (synthetic Git repositories).
+- Independent review (Codex) found two issues, both fixed: `find` and planner references dropped
+  the root alias (now `repo` on find items, planner methods and spec), and the top-level check
+  trimmed a valid trailing space from a root path (now only Git's newline is removed).
 - Measured: the committed fixture's map is 20943 bytes, SHA-256 prefix `5ded12df5785afc6`, from
   both the base binary (`0b5096ca`) and this change, with and without an unused `--repo`. The same
   fixture split into two repositories joins all 9 test files with `repo: e2e`, pins the E2E `HEAD`,
