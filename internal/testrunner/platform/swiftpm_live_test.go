@@ -116,9 +116,11 @@ func liveStart(pid int) string {
 // TestSwiftPMXCTestLiveDetachedTeardown is the actual TRE-V0-030 witness.
 // testHang starts a Foundation Process helper, writes "xctestpid helperpid"
 // as its readiness marker and hangs. SwiftPM 6.4 runs xctest and the helper
-// outside swift-test's process group, so the group kill alone leaves both
-// ("contained-only"); the profile's retirement removes them on timeout and
-// on interruption.
+// outside swift-test's process group, so the group kill alone would leave
+// both; without the profile's flag ("contained-only") TRE-V0-034's structural
+// containment still retires them with no retirement report, and the
+// profile's retirement records and removes them on timeout and on
+// interruption.
 func TestSwiftPMXCTestLiveDetachedTeardown(t *testing.T) {
 	root, exe, sha, out, inputs := swiftPMLiveFixture(t)
 	for _, mode := range []string{"contained-only", "timeout", "interrupt"} {
@@ -197,8 +199,8 @@ func TestSwiftPMXCTestLiveDetachedTeardown(t *testing.T) {
 				t.Fatal("hung run produced a complete observation")
 			}
 			if mode == "contained-only" {
-				if len(survivors) != 2 || x.Retirement != nil {
-					t.Fatalf("baseline did not reproduce detached survivors: %v", survivors)
+				if len(survivors) != 0 || x.Retirement != nil {
+					t.Fatalf("structural containment left survivors=%v retirement=%+v", survivors, x.Retirement)
 				}
 				return
 			}

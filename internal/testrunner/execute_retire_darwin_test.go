@@ -52,7 +52,10 @@ func processStart(pid int) string {
 
 // TestExecuteRetiresDetachedDescendants is TRE-V0-030's executor witness:
 // a readiness-marked Setpgid child and setsid grandchild escape the group
-// kill on timeout and interruption unless the plan requests retirement.
+// kill on timeout and interruption. With retirement requested the plan's
+// Retirer records and retires them; without it TRE-V0-034's structural
+// containment still retires them, and the receipt keeps its pre-retirement
+// shape.
 func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 	for _, tc := range []struct {
 		mode   string
@@ -116,8 +119,8 @@ func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 			}
 			time.Sleep(50 * time.Millisecond)
 			for _, pid := range pids {
-				if (processStart(pid) == "") != tc.retire {
-					t.Fatalf("retire=%v: detached pid %d alive=%v", tc.retire, pid, processStart(pid) != "")
+				if processStart(pid) != "" {
+					t.Fatalf("retire=%v: detached pid %d survived", tc.retire, pid)
 				}
 			}
 			raw, _ := json.Marshal(out)
