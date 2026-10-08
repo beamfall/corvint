@@ -88,7 +88,7 @@ type Context struct {
 	// ExternalReview is the transaction layer's audited review result for
 	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
 	ExternalReview *ExternalReviewPost
-	// KnowHowAttempts is the audited attempt ledger for a KNOWHOW_ADD that
+	// KnowHowAttempts is the audited attempt ledger for a KNOWHOW_ADD or RECONFIRM that
 	// names an attempt or generation (KHN-V0-008); nil refuses such a write
 	// PROVENANCE_UNVERIFIED. Other operations ignore it.
 	KnowHowAttempts AttemptLedger
@@ -268,6 +268,9 @@ func (ctx *Context) permittedOps(role string) []string {
 	if ops, ok := ctx.Policy.Roles[role]; ok {
 		return ops
 	}
+	if role == "WORKER" && ctx.Policy.WorkerKnowHowAdd() {
+		return append(append([]string(nil), intent.DefaultRoleMatrix[role]...), OpKnowHowAdd)
+	}
 	return intent.DefaultRoleMatrix[role]
 }
 
@@ -316,6 +319,12 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	// §3.2 restrictions inside a permitted row.
 	switch ctx.Binding.Role {
 	case "WORKER":
+		if kp, ok := p.(*KnowHowAddPayload); ok {
+			if r := ctx.workerKnowHowScope(work, kp); r != nil {
+				return r
+			}
+			break
+		}
 		rp, ok := p.(*RefinePayload)
 		if !ok || len(rp.Present) != 1 || !rp.Has("body") {
 			return refuse(OutcomeUnauthorized, "", "WORKER may only REFINE body")
@@ -525,7 +534,7 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt:         ctx.Now,
 		}
 		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
-	case *KnowHowAddPayload, *KnowHowRetractPayload:
+	case *KnowHowAddPayload, *KnowHowRetractPayload, *KnowHowReconfirmPayload:
 		return ctx.knowHowStep(work, p)
 	case *GrantApprovalPayload:
 		if p.Actor != ctx.Binding.ID {

@@ -159,3 +159,20 @@ and for another Core package imported from the admitted file, and positive contr
 admitted edges. `internal/secretscreen` imports only the standard library. Rule 5 needs no change
 because it is already in the source-archive subset (V1-0456). Rollback is reverting the know-how
 writer and removing this two-file edge; the other edges stay.
+
+## V1-0963 addendum — know-how symbol extents
+
+Agent decision, 2026-10-07, made while delivering the native follow-up V1-0963 of GitHub issue
+beamfall/corvint#655; it is not a direct owner statement, and the owner's acceptance is an open
+question of the proposed KHN-V0-016..020. Symbol anchors
+(`docs/specs/corvint-tasks-know-how-notes-v0.md`, KHN-V0-016 and KHN-V0-017) must reuse Corvint's
+existing symbol extraction rather than add a parser, so the declaration extents come from
+`contextindex.SymbolExtents`. Rule 2 gains one more exact edge, limited to one file:
+`internal/tasks/store/know_how_symbols.go` may import `internal/contextindex`. The rest of
+`internal/tasks/store` and every other Tasks file stay refused (the CAL-V0-022 scopes edges are
+unchanged), and this file admits no other Core package. `TestImportViolationControls` keeps
+negative controls for `internal/tasks/store/know_how.go` importing `internal/contextindex` and for
+the admitted file importing `internal/gitstatus`, and a positive control for the admitted edge.
+Rule 5 needs no change because `internal/contextindex` and its closure are already in the
+source-archive subset (V1-0456, issue 443). Rollback is reverting the symbol-anchor change and
+removing this one-file edge; the other edges stay.

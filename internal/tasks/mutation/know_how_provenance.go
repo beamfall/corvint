@@ -6,27 +6,36 @@ import (
 
 // AttemptProvenance is one journal-audited attempt record as the know-how
 // provenance check sees it (KHN-V0-008): its home ticket, its current
-// generation, every prior generation it records, and whether it is live.
+// generation, every prior generation it records, whether it is live, and
+// the binding holding its unexpired lease, empty when unleased or expired
+// (KHN-V0-022).
 type AttemptProvenance struct {
 	TicketID   wire.TicketID
 	Generation wire.Size
 	Prior      []wire.Size
 	Live       bool
+	Holder     string
 }
 
 // AttemptLedger maps an attempt ID to its audited provenance. A nil ledger
 // means the attempt inventory was not observed; the check then refuses.
 type AttemptLedger map[string]AttemptProvenance
 
-// KnowHowNamesAttempt reports a KNOWHOW_ADD envelope that names an attempt or
-// a generation, so the writer must audit the complete attempt inventory and
-// hand the mutation an AttemptLedger (KHN-V0-008).
+// KnowHowNamesAttempt reports a KNOWHOW_ADD or KNOWHOW_RECONFIRM envelope
+// that names an attempt or a generation, so the writer must audit the
+// complete attempt inventory and hand the mutation an AttemptLedger
+// (KHN-V0-008, KHN-V0-018).
 func KnowHowNamesAttempt(env *Envelope) bool {
-	if env == nil || env.Operation != OpKnowHowAdd {
+	if env == nil {
 		return false
 	}
-	p, ok := env.Payload.(*KnowHowAddPayload)
-	return ok && (p.Attempt != nil || p.Generation != nil)
+	switch p := env.Payload.(type) {
+	case *KnowHowAddPayload:
+		return env.Operation == OpKnowHowAdd && (p.Attempt != nil || p.Generation != nil)
+	case *KnowHowReconfirmPayload:
+		return env.Operation == OpKnowHowReconfirm && (p.Attempt != nil || p.Generation != nil)
+	}
+	return false
 }
 
 // CheckKnowHowProvenance is the one reusable attempt and generation check

@@ -56,3 +56,7 @@ binary with the candidate binary.
 V1-0944 and V1-0947 each bumped the analyzer schema to `corvint-analyzer/110` independently. Batch C
 combines both changes as `corvint-analyzer/111`, with a new audited input SHA in
 `internal/contextindex/analyzer_schema_test.go`.
+
+Batch C: merging V1-0963 adds `internal/contextindex/symbol_extent.go`, a read-only helper for know-how symbol
+anchors that changes no pack facts or encoding. The batch keeps the unreleased `corvint-analyzer/111` and
+updates only the audited input SHA.

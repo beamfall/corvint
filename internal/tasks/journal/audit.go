@@ -120,6 +120,7 @@ type Reader struct {
 	handoffPolicy   *HandoffPolicySelector
 	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
 	writer          *WriterCheckpoint // AuditForWriter only
+	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -172,6 +173,9 @@ type observation struct {
 	stage         *snapshot.StageObservation
 	stageDigests  []stageDigest
 	stageErr      error
+	// intentRaw holds the intent bytes a writer capture read (AuditForWriter
+	// only), so the walk and the second capture do not read them again.
+	intentRaw map[string][]byte
 }
 
 // Audit checks all current projections and returns selected canonical bytes.
@@ -332,6 +336,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if result != nil && r.observedIntent {
 		result.selection = selected
 	}
+	if r.writer != nil {
+		r.writerBefore = before
+	}
 	after, e := r.capture(lim, cp != nil)
 	if e != nil {
 		return nil, e
@@ -385,6 +392,9 @@ func requiredRead(s Source, p string, max int) ([]byte, error) {
 
 func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	o := &observation{files: map[string]os.FileInfo{}, lite: lite, writer: r.writer != nil, intentDigests: map[string]wire.Digest{}}
+	if o.writer {
+		o.intentRaw = map[string][]byte{}
+	}
 	remaining := lim.scan
 	if err := r.scan(o, ".", &remaining, true); err != nil {
 		return nil, err
@@ -440,6 +450,9 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			}
 			raw, sum, shared := r.sharedIntent(p, info.Size())
 			if !shared {
+				raw, sum, shared = r.writerIntent(p, info)
+			}
+			if !shared {
 				raw, err = requiredRead(r.Source, p, max)
 				if err != nil {
 					return nil, err
@@ -454,6 +467,9 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			}
 			total += len(raw)
 			o.intentDigests[p] = sum
+			if o.writer {
+				o.intentRaw[p] = raw
+			}
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
 		}
 	}
@@ -487,6 +503,24 @@ func (r Reader) sharedIntent(p string, size int64) ([]byte, wire.Digest, bool) {
 		return nil, "", false
 	}
 	return files[i].Raw, files[i].Sha256, true
+}
+
+// writerIntent returns the bytes AuditForWriter's first capture read for
+// intent path p while p is still the same file with the same mode, size and
+// modification time (CAL-V0-189, proposed). This capture only confirms that
+// nothing moved during the walk; the writer route rechecks the intent tree's
+// content before any effect, so these stat stamps are never the evidence
+// that the modeled intent bytes are current.
+func (r Reader) writerIntent(p string, info os.FileInfo) ([]byte, wire.Digest, bool) {
+	if r.writerBefore == nil {
+		return nil, "", false
+	}
+	raw, ok := r.writerBefore.intentRaw[p]
+	old := r.writerBefore.files[p]
+	if !ok || old == nil || int64(len(raw)) != info.Size() || !os.SameFile(old, info) || old.Mode() != info.Mode() || old.Size() != info.Size() || !old.ModTime().Equal(info.ModTime()) {
+		return nil, "", false
+	}
+	return raw, r.writerBefore.intentDigests[p], true
 }
 
 func isTemp(p string) bool {

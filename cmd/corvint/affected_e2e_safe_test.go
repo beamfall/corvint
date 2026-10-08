@@ -33,7 +33,7 @@ func TestAFUV1024StrictAndCoverageBytesUnchanged(t *testing.T) {
 	sum := sha256.Sum256(body)
 	placeholders := strings.NewReplacer(record, "PROVIDER", hex.EncodeToString(sum[:]), "PROVIDER_SHA256", head, "HEAD_COMMIT", base, "BASE_COMMIT", origin, "ORIGIN_COMMIT")
 	for _, profile := range []string{"strict", "coverage"} {
-		_, got, stderr, code := runAffectedArguments(t, root, "--base", base, "--provider", record, "--selection-profile", profile)
+		_, got, stderr, code := runAffectedArguments(t, root, "--base", base, "--provider", record, "--selection-profile", profile, "--full")
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", profile, code, stderr)
 		}

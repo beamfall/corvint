@@ -66,7 +66,21 @@ func benchmarkHit(b *testing.B, open func() (*Index, error)) {
 		if _, err := json.Marshal(packet); err != nil {
 			b.Fatal(err)
 		}
+		index.Release()
 	}
+}
+
+// BenchmarkPackFirstReadOpenRankEmit is BenchmarkPackOpenRankEmit for a
+// process's first read of the pack: retention is reset before every open, so
+// each iteration maps the file and decodes it from scratch, as one CLI
+// invocation does (V1-0983).
+func BenchmarkPackFirstReadOpenRankEmit(b *testing.B) {
+	_, receipt, identity := packBenchIndex(b)
+	b.Cleanup(resetPackRetention)
+	benchmarkHit(b, func() (*Index, error) {
+		resetPackRetention()
+		return readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), loadContext)
+	})
 }
 
 func BenchmarkPackOpenRankEmit(b *testing.B) {

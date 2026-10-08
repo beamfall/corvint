@@ -68,7 +68,7 @@ func TestSectionedSnapshotDecodesEverySectionToTheGobValues(t *testing.T) {
 			if err != nil {
 				t.Fatalf("load %d: %v", load, err)
 			}
-			if !reflect.DeepEqual(gob, sectioned) {
+			if !equalIgnoringLease(gob, sectioned) {
 				t.Errorf("load %d: gob and sectioned snapshots differ", load)
 			}
 		}
@@ -77,7 +77,7 @@ func TestSectionedSnapshotDecodesEverySectionToTheGobValues(t *testing.T) {
 	if err != nil || !hit {
 		t.Fatalf("sectioned LoadSnapshot: hit=%v err=%v", hit, err)
 	}
-	if !reflect.DeepEqual(loaded, index) {
+	if !equalIgnoringLease(loaded, index) {
 		t.Fatal("sectioned LoadSnapshot differs from the built index")
 	}
 	compact, hit, err := LoadEventSnapshot(context.Background(), index.Root, true)
@@ -296,9 +296,7 @@ func retainedSectionedPaths() map[string]int {
 func TestSectionedRepeatedOpensRetainBoundedMappings(t *testing.T) {
 	index, receipt := sectionedFixture(t)
 	identity := fixtureIdentity(index)
-	sectionedCache.Lock()
-	sectionedCache.mapped, sectionedCache.ring, sectionedCache.next = map[packKey]*sectionedFile{}, [sectionedCacheCapacity]packKey{}, 0
-	sectionedCache.Unlock()
+	resetSectionedRetention()
 	const opens = 64
 	loaded := make([]*Index, 0, opens)
 	for open := 0; open < opens; open++ {
@@ -350,9 +348,7 @@ func TestSectionedRepeatedOpensRetainBoundedMappings(t *testing.T) {
 func TestSectionedConcurrentFirstReadsShareOneMapping(t *testing.T) {
 	index, receipt := sectionedFixture(t)
 	identity := fixtureIdentity(index)
-	sectionedCache.Lock()
-	sectionedCache.mapped, sectionedCache.ring, sectionedCache.next = map[packKey]*sectionedFile{}, [sectionedCacheCapacity]packKey{}, 0
-	sectionedCache.Unlock()
+	resetSectionedRetention()
 	const racers = 16
 	loaded := make([]*Index, racers)
 	failures := make([]error, racers)
@@ -385,4 +381,14 @@ func TestSectionedConcurrentFirstReadsShareOneMapping(t *testing.T) {
 			t.Fatalf("racer %d returned an index outside the retained mapping", racer)
 		}
 	}
+}
+
+// resetSectionedRetention is resetPackRetention for sectionedCache.
+func resetSectionedRetention() {
+	sectionedCache.Lock()
+	for _, file := range sectionedCache.mapped {
+		file.release()
+	}
+	sectionedCache.mapped, sectionedCache.ring, sectionedCache.next = map[packKey]*sectionedFile{}, [sectionedCacheCapacity]packKey{}, 0
+	sectionedCache.Unlock()
 }

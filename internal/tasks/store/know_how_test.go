@@ -45,11 +45,18 @@ func knowHowEntry(seq int64, at string, anchors ...ticket.KnowHowAnchor) ticket.
 // revision is refused, and no checkout is refused.
 func TestKHNV0001_PinsResolveTheWritersCommit(t *testing.T) {
 	root, head, blobs := knowHowRepo(t)
-	commit, got, err := store.KnowHowPins(root, "HEAD", []string{"a.go", "docs/x.md"})
-	if err != nil || commit != head || got[0] != blobs["a.go"] || got[1] != blobs["docs/x.md"] {
+	files := func(paths ...string) []ticket.KnowHowAnchor {
+		out := make([]ticket.KnowHowAnchor, len(paths))
+		for i, p := range paths {
+			out[i] = ticket.KnowHowAnchor{Path: p}
+		}
+		return out
+	}
+	commit, got, err := store.KnowHowPinAnchors(root, "HEAD", files("a.go", "docs/x.md"))
+	if err != nil || commit != head || got[0].Blob != blobs["a.go"] || got[1].Blob != blobs["docs/x.md"] || got[0].SymbolSha256 != "" {
 		t.Fatalf("pins: %s %v %v", commit, got, err)
 	}
-	if c, _, err := store.KnowHowPins(root, head, []string{"b.go"}); err != nil || c != head {
+	if c, _, err := store.KnowHowPinAnchors(root, head, files("b.go")); err != nil || c != head {
 		t.Fatalf("explicit commit: %s %v", c, err)
 	}
 	for name, c := range map[string]struct{ rev, path string }{
@@ -57,11 +64,11 @@ func TestKHNV0001_PinsResolveTheWritersCommit(t *testing.T) {
 		"directory":        {"HEAD", "docs"},
 		"unknown revision": {strings.Repeat("d", 40), "a.go"},
 	} {
-		if _, _, err := store.KnowHowPins(root, c.rev, []string{c.path}); err == nil {
+		if _, _, err := store.KnowHowPinAnchors(root, c.rev, files(c.path)); err == nil {
 			t.Fatalf("%s pinned", name)
 		}
 	}
-	if _, _, err := store.KnowHowPins("", "HEAD", []string{"a.go"}); err == nil {
+	if _, _, err := store.KnowHowPinAnchors("", "HEAD", files("a.go")); err == nil {
 		t.Fatal("pinned without a checkout")
 	}
 }

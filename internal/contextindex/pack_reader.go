@@ -17,26 +17,25 @@ import (
 )
 
 // packFile serves sections from a read-only private mapping of the file
-// (unix) or from ReadAt elsewhere. A successful read keeps the mapping for
-// the process's life because the returned Index aliases it, so packCache
-// retains it and every later read of the same pack reuses it; a refused read
-// releases the mapping it opened. A digest mismatch found in a retained
-// mapping, including a deferred body's, marks it refused, so every later read
-// of those bytes refuses at once instead of redoing the work the mismatch
-// discards.
+// (unix) or from ReadAt elsewhere. owner counts the mapping's references: the
+// opener's, which packCache takes over when it retains the file, and one per
+// Index handed out until that Index is released; the mapping is unmapped
+// after the last (snapshot_mapping.go). A refused read releases the mapping
+// it opened. A digest mismatch found in a retained mapping, including a
+// deferred body's, marks it refused, so every later read of those bytes
+// refuses at once instead of redoing the work the mismatch discards.
 type packFile struct {
 	at      io.ReaderAt
 	size    int64
 	mapping []byte
-	// adopted marks a mapping taken from packCache.mappings, which no read
-	// may release.
-	adopted bool
+	owner   *snapshotMapping
 	file    *os.File
 	key     packKey
 	refused atomic.Bool
 
 	mutex   sync.Mutex
 	history []historyEntry
+	strings *packStringTable
 }
 
 func openPackFile(path string) (*packFile, error) {
@@ -50,17 +49,42 @@ func openPackFile(path string) (*packFile, error) {
 		return nil, err
 	}
 	key := packKey{path: path, size: info.Size(), modified: info.ModTime().UnixNano()}
-	return &packFile{at: file, size: info.Size(), mapping: mapReadOnly(file, info.Size()), file: file, key: key}, nil
+	owner := mapSnapshot(file, info.Size())
+	return &packFile{at: file, size: info.Size(), mapping: owner.data(), owner: owner, file: file, key: key}, nil
 }
 
 func (f *packFile) close() { f.file.Close() }
 
-// release unmaps the file's own mapping after a refused or redundant read; an
-// adopted mapping stays, because indexes handed out earlier alias it.
-func (f *packFile) release() {
-	if !f.adopted {
-		unmapReadOnly(f.mapping)
+// release drops the opener's or the retention's reference to the mapping.
+func (f *packFile) release() { f.owner.release() }
+
+// adopt makes the file share its key's live mapping, if any, in place of the
+// fresh one it opened, or registers its own (V1-0947).
+func (f *packFile) adopt(key packKey) {
+	f.owner = packMappings.adopt(key, f.owner)
+	f.mapping = f.owner.data()
+}
+
+// heapStrings returns the verified string section as a table over a heap
+// copy, made once per file (proposed IDX-SNAP-V0-029). Every string a read
+// hands out (paths, blob hashes, modes, symbol fields, tracked and skipped
+// keys, vocabulary paths, co-change history) comes from this table, so none
+// of them aliases the mapping and each stays valid after it is unmapped.
+func (f *packFile) heapStrings(verified []byte) (packStringTable, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	if f.strings != nil {
+		return *f.strings, nil
 	}
+	if f.mapping != nil {
+		verified = bytes.Clone(verified)
+	}
+	table, err := viewStrings(verified)
+	if err != nil {
+		return packStringTable{}, err
+	}
+	f.strings = &table
+	return table, nil
 }
 
 // bytesAt returns the file bytes at offset without verifying them; every
@@ -520,57 +544,53 @@ type packKey struct {
 	digest   [sha256.Size]byte
 }
 
-// packCache retains the files of the last packCacheCapacity distinct packs
-// and evicts the oldest retention first. Eviction drops the file, with what it
-// decoded, but never unmaps: values copied out of an Index alias the mapping
-// without keeping any owner reachable. mappings therefore keeps every
-// mapping a successful read retained, for the process's life, and a later
-// read of an evicted pack with the same key adopts it instead of mapping the
-// file again, so live mappings are bounded by the distinct pack keys a
-// process reads, not by its cache misses. The key's header digest commits to
-// every section digest, and snapshots are only ever replaced by rename, so a
-// matching key names the same verified bytes.
+// packCache retains the mappings of the last packCacheCapacity distinct packs
+// and evicts the oldest retention first. Eviction releases the retention's
+// reference: the mapping is unmapped once every Index read from it has been
+// released too, and stays mapped while one has not (proposed
+// IDX-SNAP-V0-028). A later read of that pack adopts the mapping while it is
+// live in packMappings (V1-0947), and maps the file again once it is not.
 var packCache = struct {
 	sync.Mutex
-	mapped   map[packKey]*packFile
-	mappings map[packKey][]byte
-	ring     [packCacheCapacity]packKey
-	next     int
-}{mapped: map[packKey]*packFile{}, mappings: map[packKey][]byte{}}
+	mapped map[packKey]*packFile
+	ring   [packCacheCapacity]packKey
+	next   int
+}{mapped: map[packKey]*packFile{}}
 
-func retainedPack(key packKey) (*packFile, bool) {
+// retainedPack returns the retained file for key with a lease on its mapping,
+// taken under the lock so eviction cannot unmap it first.
+func retainedPack(key packKey) (*packFile, *snapshotLease, bool) {
 	packCache.Lock()
 	defer packCache.Unlock()
 	file, ok := packCache.mapped[key]
-	return file, ok
+	if !ok {
+		return nil, nil, false
+	}
+	return file, file.owner.lease(), true
 }
 
-// retainPack retains a mapped pack and returns the file holding the key's
-// retention: file, or the one a concurrent first read retained before it. An
-// unmapped read (a platform without mmap) copies its bytes and closes the
-// file, so there is nothing to reuse.
-func retainPack(key packKey, file *packFile) *packFile {
+// retainPack retains a mapped pack, taking over the opener's reference, and
+// returns nil; or, when a concurrent first read retained the key before it,
+// returns that file with a lease on its mapping and leaves file unretained.
+// An unmapped read (a platform without mmap) copies its bytes and closes the
+// file, so there is nothing to retain.
+func retainPack(key packKey, file *packFile) (*packFile, *snapshotLease) {
 	if file.mapping == nil {
-		return file
+		return nil, nil
 	}
 	packCache.Lock()
 	defer packCache.Unlock()
 	if retained, ok := packCache.mapped[key]; ok {
-		return retained
+		return retained, retained.owner.lease()
 	}
-	if kept, ok := packCache.mappings[key]; !ok {
-		packCache.mappings[key] = file.mapping
-	} else if &kept[0] != &file.mapping[0] {
-		// A concurrent first read kept a mapping that was evicted while
-		// this read decoded; retain that one so the key keeps one mapping,
-		// and the caller drops this read's index and decodes it again.
-		file = &packFile{at: file.at, size: file.size, mapping: kept, adopted: true, file: file.file, key: file.key}
+	if evicted, ok := packCache.mapped[packCache.ring[packCache.next]]; ok {
+		delete(packCache.mapped, packCache.ring[packCache.next])
+		evicted.release()
 	}
-	delete(packCache.mapped, packCache.ring[packCache.next])
 	packCache.mapped[key] = file
 	packCache.ring[packCache.next] = key
 	packCache.next = (packCache.next + 1) % packCacheCapacity
-	return file
+	return nil, nil
 }
 
 // readPackSnapshot maps the pack and builds the Index the load names,
@@ -589,47 +609,48 @@ func readPackSnapshot(path string, identity repositoryIdentity, engineID string,
 		file.release()
 		return nil, err
 	}
-	if retained, ok := retainedPack(key); ok {
+	if retained, lease, ok := retainedPack(key); ok {
 		file.close()
 		file.release()
-		return decodeRetainedPack(retained, identity, engineID, load)
+		return decodeRetainedPack(retained, lease, identity, engineID, load)
 	}
-	file.adoptMapping(key)
+	file.adopt(key)
 	defer file.close()
 	index, err := decodePackSnapshot(file, identity, engineID, load)
 	if err != nil {
 		file.release()
 		return nil, err
 	}
+	// The index's lease is taken before the retention, which an eviction
+	// could release as soon as retainPack returns.
+	lease := file.owner.lease()
 	// A concurrent first read retained this pack first. The index decoded
 	// here is not handed out, so its history registration and mapping are
 	// dropped and the retained mapping answers; one pack keeps one mapping.
-	if retained := retainPack(key, file); retained != file {
+	if retained, retainedLease := retainPack(key, file); retained != nil {
 		forgetPackHistory(index)
+		lease.release()
 		file.release()
-		return decodeRetainedPack(retained, identity, engineID, load)
+		return decodeRetainedPack(retained, retainedLease, identity, engineID, load)
 	}
+	attachLease(index, lease, load)
 	return index, nil
 }
 
-// adoptMapping swaps the file's fresh mapping for the one an evicted retention
-// of the same key left, releasing the fresh one, which only its header read.
-func (f *packFile) adoptMapping(key packKey) {
-	packCache.Lock()
-	mapping, ok := packCache.mappings[key]
-	packCache.Unlock()
-	if !ok || f.mapping == nil {
-		return
-	}
-	unmapReadOnly(f.mapping)
-	f.mapping, f.adopted = mapping, true
-}
-
-func decodeRetainedPack(retained *packFile, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
+// decodeRetainedPack decodes a retained file under lease, which the returned
+// Index takes and an error releases.
+func decodeRetainedPack(retained *packFile, lease *snapshotLease, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
 	if retained.refused.Load() {
+		lease.release()
 		return nil, errors.New("pack failed a digest check earlier in this process")
 	}
-	return decodePackSnapshot(retained, identity, engineID, load)
+	index, err := decodePackSnapshot(retained, identity, engineID, load)
+	if err != nil {
+		lease.release()
+		return nil, err
+	}
+	attachLease(index, lease, load)
+	return index, nil
 }
 
 func decodePackSnapshot(file *packFile, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
@@ -666,6 +687,9 @@ func decodePackSnapshot(file *packFile, identity repositoryIdentity, engineID st
 	}
 	if tables == loadCompact {
 		return &Index{ProfileID: packed.ProfileID}, nil
+	}
+	if reader.strings, err = file.heapStrings(reader.data(packSectionStrings)); err != nil {
+		return nil, err
 	}
 	index := &Index{
 		ObjectFormat: packed.ObjectFormat, CommitRevision: packed.CommitRevision, Revision: packed.Revision,
@@ -705,9 +729,6 @@ func (reader *packReader) data(name string) []byte { return reader.sections[name
 
 func (reader *packReader) eventTables(index *Index) error {
 	var err error
-	if reader.strings, err = viewStrings(reader.data(packSectionStrings)); err != nil {
-		return err
-	}
 	if index.Sources, err = decodeSources(reader.data(packSectionSources), reader.data(packSectionBodies), reader.deferred, reader.strings); err != nil {
 		return err
 	}
