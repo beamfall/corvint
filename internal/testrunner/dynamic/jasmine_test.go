@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -234,6 +236,7 @@ func TestJasmineParserRefusals(t *testing.T) {
 		"full name":       {"jasmine-identity-conflict", func(r map[string]any) { spec(r, "fails deliberately")["fullName"] = "fixture  fails deliberately" }, nil},
 		"unknown parent":  {"jasmine-identity-conflict", func(r map[string]any) { spec(r, "fails deliberately")["parentSuiteId"] = "suite9" }, nil},
 		"suite cycle":     {"jasmine-identity-conflict", func(r map[string]any) { suite(r, "suite1")["parentSuiteId"] = "suite2" }, nil},
+		"suite full name": {"jasmine-identity-conflict", func(r map[string]any) { suite(r, "suite2")["fullName"] = "fixture  nested" }, nil},
 		"outside root":    {"jasmine-file-outside-root", func(r map[string]any) { spec(r, "fails deliberately")["filename"] = "/elsewhere/fixture.spec.js" }, nil},
 		"unselected file": {"jasmine-unselected-file", func(r map[string]any) {
 			spec(r, "fails deliberately")["filename"] = filepath.Join(f.SourceRoot, "other.spec.js")
@@ -287,5 +290,40 @@ func TestJasmineParserRefusals(t *testing.T) {
 	in.ExitCode = 1
 	if o, err := Parse(in); err != nil || o.Complete || !problemCodes(o)["missing-report"] {
 		t.Fatalf("%v %+v", err, o)
+	}
+}
+
+// TRE-V0-032: identity validation compares reported names in place, so a bounded
+// report with a deep chain of long suite descriptions and many specs with
+// inconsistent names cannot amplify into joined copies of the whole chain.
+func TestJasmineIdentityValidationDoesNotAmplify(t *testing.T) {
+	const depth = 4000
+	long := strings.Repeat("d", 500)
+	suites := make([]map[string]any, 0, depth)
+	var parent any
+	for i := range depth {
+		id := "suite" + strconv.Itoa(i)
+		suites = append(suites, map[string]any{"id": id, "description": long, "fullName": "x", "parentSuiteId": parent, "filename": "/src/a.spec.js", "status": "passed", "failedExpectations": []any{}})
+		parent = id
+	}
+	specs := make([]map[string]any, 0, tr.MaxTests)
+	for i := range tr.MaxTests {
+		specs = append(specs, map[string]any{"id": "spec" + strconv.Itoa(i), "description": "y", "fullName": "x y" + strconv.Itoa(i), "parentSuiteId": parent, "filename": "/src/a.spec.js", "status": "passed", "failedExpectations": []any{}})
+	}
+	report, err := json.Marshal(map[string]any{"profile": jasmineProfile, "started": map[string]any{"totalSpecsDefined": tr.MaxTests, "parallel": false}, "suites": suites, "specs": specs, "done": map[string]any{"overallStatus": "passed", "failedExpectations": []any{}}})
+	if err != nil || len(report) > tr.MaxReportBytes {
+		t.Fatalf("report %d bytes: %v", len(report), err)
+	}
+	in := tr.Input{Runner: "jasmine", SourceRoot: "/src", SuccessExitCodes: []int{0}, FailureExitCodes: []int{3}, Reports: map[string][]byte{"jasmine.json": report}}
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	o, err := Parse(in)
+	runtime.ReadMemStats(&after)
+	if err != nil || o.Complete || !problemCodes(o)["jasmine-identity-conflict"] {
+		t.Fatalf("%v %v", err, problemCodes(o))
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 256<<20 {
+		t.Fatalf("identity validation allocated %d bytes for a %d-byte report", allocated, len(report))
 	}
 }

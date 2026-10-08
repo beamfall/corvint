@@ -2934,7 +2934,7 @@ TRE-V0-022	docs/specs/test-runner-execution-v0.md	434	Plan and run admission MUS
 TRE-V0-023	docs/specs/test-runner-execution-v0.md	441	After native observation, shared `Normalize` MUST project each
 TRE-V0-031	docs/specs/test-runner-execution-v0.md	481	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
 TRE-V0-032	docs/specs/test-runner-execution-v0.md	495	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
-TRE-V0-033	docs/specs/test-runner-execution-v0.md	505	When selectors are present, every reported spec file MUST be one of the
+TRE-V0-033	docs/specs/test-runner-execution-v0.md	508	When selectors are present, every reported spec file MUST be one of the
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

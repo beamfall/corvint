@@ -84,5 +84,13 @@ subcommand name (`init`, `examples`, `help`, `version`, `enumerate`) as that sub
 the missing report could refuse the run. Such selectors now refuse at Build, with regression cases
 in `TestJasmineBuildIsFixed`.
 
+The re-review confirmed the P1 fix and found one P2: identity validation joined the whole parent
+chain for every spec. A bounded 3.6 MB report with a long suite description and 4096 specs was
+calculated to allocate about 12 GiB. Each suite's and spec's reported fullName is now checked
+against its parent's reported fullName in place, so no joined name is built.
+`TestJasmineIdentityValidationDoesNotAmplify` bounds allocation for a deep 4000-suite chain with
+4096 specs at 256 MiB; it measured as passing in 0.04 s. The old code was not run against it
+(NOT_RUN: the expected multi-GiB allocation is unsafe on the shared host).
+
 Merge note. Inserting two lines in `parse.go` re-anchors existing `parse.go` citations by +2. A
 parallel Mocha lane shifts the same citations by +1, so whichever lands second re-anchors them.

@@ -209,7 +209,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `jasmine-count-mismatch` | Jasmine's jasmineStarted totalSpecsDefined differs from the number of reported specDone events. | `internal/testrunner/dynamic/jasmine.go:165@962a83f4` |
 | `jasmine-file-outside-root` | A Jasmine spec filename is empty, relative or outside the source root, or the source root is empty. | `internal/testrunner/dynamic/jasmine.go:135@33b872d5` |
 | `jasmine-global-error` | Jasmine's jasmineDone carries top-level failed expectations, such as a top-level afterAll error. | `internal/testrunner/dynamic/jasmine.go:169@80706a67` |
-| `jasmine-identity-conflict` | A Jasmine suite or spec has no reported parent chain (unknown parent or cycle), or a spec has an empty id or description or a fullName that is not its suite descriptions and description joined by single spaces. | `internal/testrunner/dynamic/jasmine.go:111@5629fbac`; `internal/testrunner/dynamic/jasmine.go:130@d6a5d62d` |
+| `jasmine-identity-conflict` | A Jasmine suite or spec has no consistent reported parent chain (unknown parent, cycle, empty suite description, or a suite fullName that is not its parent's fullName, one space and its description), or a spec has an empty id or description or a fullName that is not its parent suite's fullName, one space and its description. | `internal/testrunner/dynamic/jasmine.go:111@29130745`; `internal/testrunner/dynamic/jasmine.go:130@d6a5d62d` |
 | `jasmine-incomplete` | Jasmine's overallStatus is incomplete, for example for a focused run or no specs found. | `internal/testrunner/dynamic/jasmine.go:181@7713363c` |
 | `jasmine-outcome-conflict` | A Jasmine spec that is not failed retains failed expectations. | `internal/testrunner/dynamic/jasmine.go:151@205985f0` |
 | `jasmine-parallel-unqualified` | Jasmine reports parallel mode, which this profile has not qualified. | `internal/testrunner/dynamic/jasmine.go:78@087c3074` |
@@ -495,8 +495,11 @@ into one report and decides no outcome. The Go parser owns every validation.
 - `TRE-V0-032`: The parser MUST accept exactly the `corvint-jasmine/0` record with its started and
   done events, at most MaxTests specs and suites and unique non-empty suite IDs; anything else
   refuses. A test identity is the spec's source-root-relative file, `::`, and Jasmine's native
-  fullName, which MUST equal the reported parent-suite descriptions and the spec description joined
-  by single spaces (`jasmine-identity-conflict`). Only native `passed` maps to PASSED; `failed` maps
+  fullName, which MUST equal its parent suite's reported fullName, one space and the spec description
+  (the description alone at top level); each suite's fullName MUST relate to its parent's the same
+  way, so the chain spells the suite descriptions joined by single spaces
+  (`jasmine-identity-conflict`). Validation compares the reported strings in place and builds no
+  joined name. Only native `passed` maps to PASSED; `failed` maps
   to FAILED; `pending`, `notApplicable` and `excluded` map to SKIPPED; any other status is UNKNOWN.
   Retry information is NOT_APPLICABLE because Jasmine has no retries. A failed suite or suite error,
   a global error, parallel mode, a spec-count mismatch, an outcome or overall-status contradiction,
@@ -510,7 +513,7 @@ into one report and decides no outcome. The Go parser owns every validation.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-031 | `build.go`, `reporters/jasmine.cjs`; `TestJasmineBuildIsFixed`, opt-in `TestJasmineBuildExecuteParse` | `testdata/jasmine/provenance.json`: npm integrity values re-verified against the tarball bytes; shim hash checked by the fixture tests |
-| TRE-V0-032 | `jasmine.go`; `TestJasmineRunnerGeneratedReports`, `TestJasmineParserRefusals`, opt-in `TestJasmineBuildExecuteParse` | Seven runner-generated reports (mixed pass/fail/xit/pending/nested, passing, beforeAll/afterAll hooks, top-level afterAll, focused, empty, missing selector) from the pinned tuple; live common-executor run: exit 3, complete, 2 passed, 1 failed, 2 skipped; a load error refuses with no report |
+| TRE-V0-032 | `jasmine.go`; `TestJasmineRunnerGeneratedReports`, `TestJasmineParserRefusals`, `TestJasmineIdentityValidationDoesNotAmplify`, opt-in `TestJasmineBuildExecuteParse` | Seven runner-generated reports (mixed pass/fail/xit/pending/nested, passing, beforeAll/afterAll hooks, top-level afterAll, focused, empty, missing selector) from the pinned tuple; live common-executor run: exit 3, complete, 2 passed, 1 failed, 2 skipped; a load error refuses with no report |
 | TRE-V0-033 | `jasmine.go`; `TestJasmineRunnerGeneratedReports` (`missing.json`), `TestJasmineParserRefusals`, opt-in `TestJasmineBuildExecuteParse` | Live common-executor run with a missing selected file: exit 0, incomplete with `jasmine-selector-without-specs` |
 
 Recorded limits. One tuple only: other Jasmine, jasmine-core or Node versions and other operating

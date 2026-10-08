@@ -84,31 +84,31 @@ func parseJasmine(b []byte, o *tr.Observation, in tr.Input) error {
 		}
 		suites[s.ID] = s
 	}
-	paths := map[string][]string{}
-	var chain func(id *string, depth int) ([]string, bool)
-	chain = func(id *string, depth int) ([]string, bool) {
+	// A suite's identity is valid when its parent is valid (or it is top level) and
+	// its reported fullName is the parent's fullName, one space and its description.
+	// Validation compares the reported strings in place, so no joined name is built
+	// and a large description cannot be amplified across the suite tree.
+	valid := map[string]bool{}
+	var known func(id *string, depth int) bool
+	known = func(id *string, depth int) bool {
 		if id == nil {
-			return nil, true
+			return true
 		}
-		if p, ok := paths[*id]; ok {
-			return p, true
+		if ok, seen := valid[*id]; seen {
+			return ok
 		}
 		s, ok := suites[*id]
 		if !ok || depth > len(suites) {
-			return nil, false
+			return false
 		}
-		parent, ok := chain(s.ParentSuiteID, depth+1)
-		if !ok {
-			return nil, false
-		}
-		p := append(append([]string{}, parent...), s.Description)
-		paths[*id] = p
-		return p, true
+		ok = s.Description != "" && known(s.ParentSuiteID, depth+1) && jasmineJoins(s.FullName, jasmineParentName(suites, s.ParentSuiteID), s.ParentSuiteID != nil, s.Description)
+		valid[*id] = ok
+		return ok
 	}
 	suiteErrors := 0
 	for _, s := range r.Suites {
-		if _, ok := chain(&s.ID, 0); !ok {
-			problem(o, "jasmine-identity-conflict", "suite "+s.ID+" has no reported parent chain")
+		if !known(&s.ID, 0) {
+			problem(o, "jasmine-identity-conflict", "suite "+s.ID+" has no consistent reported parent chain")
 		}
 		if s.Status == "failed" || len(s.FailedExpectations) > 0 {
 			suiteErrors++
@@ -125,8 +125,8 @@ func parseJasmine(b []byte, o *tr.Observation, in tr.Input) error {
 	}
 	failed := 0
 	for _, s := range r.Specs {
-		parents, ok := chain(s.ParentSuiteID, 0)
-		if !ok || s.ID == "" || s.Description == "" || s.FullName != strings.Join(append(append([]string{}, parents...), s.Description), " ") {
+		suite := jasmineParentName(suites, s.ParentSuiteID)
+		if !known(s.ParentSuiteID, 0) || s.ID == "" || s.Description == "" || !jasmineJoins(s.FullName, suite, s.ParentSuiteID != nil, s.Description) {
 			problem(o, "jasmine-identity-conflict", "spec "+s.ID+": "+s.FullName)
 		}
 		file := s.Filename
@@ -143,7 +143,7 @@ func parseJasmine(b []byte, o *tr.Observation, in tr.Input) error {
 				problem(o, "jasmine-unselected-file", s.Filename)
 			}
 		}
-		t := tr.Test{ID: file + "::" + s.FullName, Name: s.Description, File: file, Suite: strings.Join(parents, " "), State: jasmineState(s.Status)}
+		t := tr.Test{ID: file + "::" + s.FullName, Name: s.Description, File: file, Suite: suite, State: jasmineState(s.Status)}
 		switch {
 		case t.State == tr.Failed:
 			failed++
@@ -183,6 +183,23 @@ func parseJasmine(b []byte, o *tr.Observation, in tr.Input) error {
 		problem(o, "jasmine-unknown-overall-status", r.Done.OverallStatus)
 	}
 	return nil
+}
+
+// jasmineParentName returns the reported fullName of a parent suite, or "" at top level.
+func jasmineParentName(suites map[string]jasmineNode, id *string) string {
+	if id == nil {
+		return ""
+	}
+	return suites[*id].FullName
+}
+
+// jasmineJoins reports whether full is parent + " " + description, or description
+// alone at top level, without allocating the joined string.
+func jasmineJoins(full, parent string, nested bool, description string) bool {
+	if !nested {
+		return full == description
+	}
+	return len(full) == len(parent)+1+len(description) && strings.HasPrefix(full, parent) && full[len(parent)] == ' ' && strings.HasSuffix(full, description)
 }
 
 func jasmineMessages(list []jasmineExpectation) string {
