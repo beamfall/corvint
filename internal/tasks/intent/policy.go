@@ -126,21 +126,21 @@ type Policy struct {
 	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
 	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
 	HolderLiveness *HolderLiveness
-	// KnowHow is the optional KHN-V0-016 know-how policy; nil (the key
+	// KnowHow is the optional KHN-V0-021 know-how policy; nil (the key
 	// absent) keeps WORKER without KNOWHOW_ADD.
 	KnowHow *KnowHowPolicy
 	Raw     []byte
 }
 
-// KnowHowPolicy is the KHN-V0-016 opt-in. WorkerAdd lets a WORKER issue
+// KnowHowPolicy is the KHN-V0-021 opt-in. WorkerAdd lets a WORKER issue
 // KNOWHOW_ADD on the ticket of the live attempt it holds, within the scope
-// KHN-V0-017 checks; it grants nothing else.
+// KHN-V0-022 checks; it grants nothing else.
 type KnowHowPolicy struct {
 	WorkerAdd bool
 }
 
 // WorkerKnowHowAdd reports whether policy opts WORKER into scoped
-// KNOWHOW_ADD (KHN-V0-016). Absent or false keeps the default refusal.
+// KNOWHOW_ADD (KHN-V0-021). Absent or false keeps the default refusal.
 func (p *Policy) WorkerKnowHowAdd() bool { return p.KnowHow != nil && p.KnowHow.WorkerAdd }
 
 // HolderLiveness sets the CAL-V0-120 heartbeat observation TTL. It changes

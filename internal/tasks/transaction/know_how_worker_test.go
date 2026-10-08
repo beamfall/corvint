@@ -9,12 +9,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestKHNV0017_WorkerAttemptObservation derives the observation a WORKER
+// TestKHNV0022_WorkerAttemptObservation derives the observation a WORKER
 // KNOWHOW_ADD is checked against from real attempt records: a lease is live
 // strictly before its expiry, a terminal phase is never live, a supervised
 // attempt's lease does not expire by time (as for every lease command), an
 // absent or unleased attempt observes nothing, and other roles get nil.
-func TestKHNV0017_WorkerAttemptObservation(t *testing.T) {
+func TestKHNV0022_WorkerAttemptObservation(t *testing.T) {
 	const now = wire.Timestamp("2026-10-07T12:00:00Z")
 	id := "att-1"
 	env := &mutation.Envelope{Operation: mutation.OpKnowHowAdd, Payload: &mutation.KnowHowAddPayload{Attempt: &id}}

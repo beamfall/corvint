@@ -53,12 +53,12 @@ func wantDetail(t *testing.T, plan *mutation.Plan, prefix string) {
 	}
 }
 
-// TestKHNV0016_WorkerAddIsPolicyOptIn: without knowHow.workerAdd, or with it
+// TestKHNV0021_WorkerAddIsPolicyOptIn: without knowHow.workerAdd, or with it
 // false, a WORKER KNOWHOW_ADD is refused exactly as before, even when it names
 // its own live attempt in scope; RETRACT and every other non-body write stay
 // refused with the key true; a WORKER roles row still outranks the key; OWNER
 // and OPERATOR behave as before.
-func TestKHNV0016_WorkerAddIsPolicyOptIn(t *testing.T) {
+func TestKHNV0021_WorkerAddIsPolicyOptIn(t *testing.T) {
 	off, on := false, true
 	good := workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA))
 	for name, policy := range map[string][]byte{"absent": workerKnowHowPolicy(nil), "false": workerKnowHowPolicy(&off)} {
@@ -85,12 +85,12 @@ func TestKHNV0016_WorkerAddIsPolicyOptIn(t *testing.T) {
 	want(t, apply(t, opCtx, envelope("p1", operator, "AT-01", string(scopedTicket().Revision), mutation.OpKnowHowAdd, good)), mutation.OutcomeUnauthorized, "")
 }
 
-// TestKHNV0017_WorkerAddScope: with knowHow.workerAdd true a WORKER adds a
+// TestKHNV0022_WorkerAddScope: with knowHow.workerAdd true a WORKER adds a
 // note on the ticket of the live attempt it holds, at that generation, with
 // every anchor inside effects.touchPaths; the entry records WORKER, the
 // attempt and the generation. Each scope failure has its own stable detail
 // prefix, and the ordinary cap and secret screen still apply.
-func TestKHNV0017_WorkerAddScope(t *testing.T) {
+func TestKHNV0022_WorkerAddScope(t *testing.T) {
 	on := true
 	enabled := workerKnowHowPolicy(&on)
 	inScope := []wire.Value{khAnchor("b.go", khBlobA), khAnchor("internal/a/x.go", khBlobB)}

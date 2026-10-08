@@ -4,8 +4,9 @@
 
 GitHub issue beamfall/corvint#671 (ticket V1-0987) asks that the agent holding a claim be able to
 record know-how on the ticket it is working, without an owner relaying it. The amendment is
-specified in `docs/specs/corvint-tasks-know-how-notes-v0.md` as KHN-V0-016..018, which are proposed
-and await owner acceptance. Delivery stays experimental.
+specified in `docs/specs/corvint-tasks-know-how-notes-v0.md` as KHN-V0-021..023, which are proposed
+and await owner acceptance. Delivery stays experimental. The IDs start at 021 because V1-0964
+holds KHN-V0-008..015 and V1-0963 holds KHN-V0-016..020.
 
 ## Decisions
 
@@ -35,7 +36,7 @@ and await owner acceptance. Delivery stays experimental.
 
 ## Decisions that need amending
 
-- Decision 0443 answered owner question 4 with "no WORKER grant". Accepting KHN-V0-016..018 needs
+- Decision 0443 answered owner question 4 with "no WORKER grant". Accepting KHN-V0-021..023 needs
   an amendment recording that WORKER may hold a scoped, policy-opt-in ADD and still never
   supersedes or retracts.
 - Decision 0444 assigns attempt/generation verification for every know-how writer to V1-0964.

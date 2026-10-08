@@ -9,11 +9,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestKHNV0016_PolicyKnowHowWorkerAddOptIn pins the optional knowHow policy
+// TestKHNV0021_PolicyKnowHowWorkerAddOptIn pins the optional knowHow policy
 // key: omission keeps the canonical bytes and no WORKER grant, a closed
 // boolean workerAdd sets the opt-in, and anything else refuses. The key never
 // lets a roles row name KNOWHOW_ADD for WORKER.
-func TestKHNV0016_PolicyKnowHowWorkerAddOptIn(t *testing.T) {
+func TestKHNV0021_PolicyKnowHowWorkerAddOptIn(t *testing.T) {
 	raw := fixture.PolicyBytes()
 	p, err := intent.DecodePolicy(raw)
 	if err != nil || p.KnowHow != nil || p.WorkerKnowHowAdd() || bytes.Contains(raw, []byte("knowHow")) {

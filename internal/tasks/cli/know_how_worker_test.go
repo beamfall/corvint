@@ -13,12 +13,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestKHNV0017_WorkerKnowHowThroughTheCLI: with policy knowHow.workerAdd the
+// TestKHNV0022_WorkerKnowHowThroughTheCLI: with policy knowHow.workerAdd the
 // claim holder, acting as WORKER, adds a note on its claimed ticket naming the
 // attempt and generation the claim returned, and the audited attempt record
 // refuses a stale generation, an anchor outside touchPaths, another ticket and
 // another actor, each with its stable detail prefix.
-func TestKHNV0017_WorkerKnowHowThroughTheCLI(t *testing.T) {
+func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 	r := exclusionCLIRepo(t)
 	policyPath := filepath.Join(r.IntentDir, "policy.json")
 	raw, err := os.ReadFile(policyPath)
@@ -96,10 +96,10 @@ func TestKHNV0017_WorkerKnowHowThroughTheCLI(t *testing.T) {
 	}
 }
 
-// TestKHNV0016_WorkerKnowHowRefusedWithoutPolicy: without knowHow.workerAdd
+// TestKHNV0021_WorkerKnowHowRefusedWithoutPolicy: without knowHow.workerAdd
 // the claim holder's WORKER add is refused UNAUTHORIZED with the same detail
 // an unadmitted role always received, and nothing is written.
-func TestKHNV0016_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
+func TestKHNV0021_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
 	r := knowHowCLIRepo(t)
 	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
 	home := planTicket(t, r.Root, "home", "P1", `["src/"]`)

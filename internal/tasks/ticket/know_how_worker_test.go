@@ -7,9 +7,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 )
 
-// TestKHNV0018_CodecWorkerEntry: the Tasks codec admits a WORKER entry only
+// TestKHNV0023_CodecWorkerEntry: the Tasks codec admits a WORKER entry only
 // as a non-superseding ADD that records its attempt and generation.
-func TestKHNV0018_CodecWorkerEntry(t *testing.T) {
+func TestKHNV0023_CodecWorkerEntry(t *testing.T) {
 	decode := func(edit func([]ticket.KnowHowEntry)) error {
 		rec := fixture.Ticket("AT-01")
 		rec.KnowHow = issue502KnowHow()
@@ -29,7 +29,7 @@ func TestKHNV0018_CodecWorkerEntry(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := decode(edit); err == nil {
-				t.Fatal("decoded a WORKER entry outside KHN-V0-018")
+				t.Fatal("decoded a WORKER entry outside KHN-V0-023")
 			}
 		})
 	}

@@ -114,7 +114,7 @@ func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 }
 
 // Stable detail prefixes of the WORKER KNOWHOW_ADD scope refusals
-// (KHN-V0-017). Each refusal reuses a closed §11 code; the prefix names the
+// (KHN-V0-022). Each refusal reuses a closed §11 code; the prefix names the
 // reason so a client can tell the cases apart without a new code.
 const (
 	KnowHowWorkerSupersede       = "KNOWHOW_WORKER_SUPERSEDE"
@@ -126,7 +126,7 @@ const (
 )
 
 // WorkerAttemptObservation is the transaction layer's read, under the store
-// lock, of the attempt a WORKER KNOWHOW_ADD names (KHN-V0-017). Live is true
+// lock, of the attempt a WORKER KNOWHOW_ADD names (KHN-V0-022). Live is true
 // only for a present attempt in a non-terminal phase whose lease is held and
 // unexpired; every other state, including an absent attempt, is not live.
 type WorkerAttemptObservation struct {
@@ -136,9 +136,9 @@ type WorkerAttemptObservation struct {
 	Holder     string
 }
 
-// workerKnowHowScope is the WORKER-only KNOWHOW_ADD scope (KHN-V0-017),
+// workerKnowHowScope is the WORKER-only KNOWHOW_ADD scope (KHN-V0-022),
 // reached only when policy knowHow.workerAdd granted the operation
-// (KHN-V0-016). The note must name the live attempt the binding holds on
+// (KHN-V0-021). The note must name the live attempt the binding holds on
 // this ticket at its current generation, and every anchor must lie inside
 // the ticket's effects.touchPaths, which cannot change while that attempt is
 // live. A worker cannot supersede. Details name payload fields, never their
