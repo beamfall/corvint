@@ -83,6 +83,21 @@ type PlanEntry struct {
 	// Loop is the CAL-V0-102 hold behind a LOOP_DETECTED blocker, nil
 	// otherwise, so plan and a claim-next refusal name its evidence.
 	Loop *ticket.LoopHold
+	// SerialFallback marks a DEFERRED RESOURCE_COLLISION entry deferred
+	// only by its WHOLE_REPOSITORY fallback scope (fallbackOnly, CAL-V0-193).
+	SerialFallback bool
+}
+
+// SerialFallbackDeferred is the ticket IDs, in plan order, of the entries
+// deferred only by the WHOLE_REPOSITORY serial fallback (CAL-V0-193).
+func (p TicketPlan) SerialFallbackDeferred() []string {
+	out := []string{}
+	for _, e := range p.Entries {
+		if e.SerialFallback {
+			out = append(out, e.Ticket.TicketID.Raw)
+		}
+	}
+	return out
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -423,13 +438,13 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	}
 	for _, en := range in.Reservations.Entries {
 		if ticket.Collide(e.Resources, en.Resources) {
-			e.Blockers = []string{en.TicketID.Raw}
+			e.Blockers, e.SerialFallback = []string{en.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}
 	}
 	for _, s := range selected {
 		if ticket.Collide(e.Resources, s.Resources) {
-			e.Blockers = []string{s.Ticket.TicketID.Raw}
+			e.Blockers, e.SerialFallback = []string{s.Ticket.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}
 	}
@@ -439,6 +454,33 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	}
 	e.State, e.Reason, e.Blockers = PlanSelected, wire.CodeDevelopmentMode, []string{}
 	return e
+}
+
+// fallbackOnly reports whether a RESOURCE_COLLISION deferral of e comes only
+// from its WHOLE_REPOSITORY fallback scope (CAL-V0-193): e declares no PATH
+// scope, no reserved or selected scope holds WHOLE_REPOSITORY, none collides
+// with the non-PATH resources e keeps when it declares a scope, and capacity
+// would admit one more attempt. A declared scope disjoint from every reserved
+// and selected PATH would then admit e.
+func fallbackOnly(in PlanInput, e PlanEntry, selected []PlanEntry) bool {
+	if e.ClosureComplete || e.Ticket == nil || int64(len(in.Reservations.Entries)+len(selected)) >= in.Policy.MaxActiveAttempts.Int() {
+		return false
+	}
+	other := declaredOther(e.Ticket)
+	blocks := func(rs []ticket.Resource) bool {
+		return slices.ContainsFunc(rs, func(r ticket.Resource) bool { return r.Class == "WHOLE_REPOSITORY" }) || ticket.Collide(other, rs)
+	}
+	for _, en := range in.Reservations.Entries {
+		if blocks(en.Resources) {
+			return false
+		}
+	}
+	for _, s := range selected {
+		if blocks(s.Resources) {
+			return false
+		}
+	}
+	return true
 }
 
 // lastAttemptOf is the ticket's attempt at the highest generation, or nil.
