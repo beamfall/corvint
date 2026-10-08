@@ -48,7 +48,7 @@ At `978b37b`:
   `internal/appflows/input.go:91-104@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:65-72@8ab13087`).
 - The `/1` behavior provider pins exactly three repositories, `app`, the legacy /1 member and `docs_corpus`
-  (`internal/doccorpus/behavior.go:46-50@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
+  (`internal/doccorpus/behavior.go:47-51@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
   (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
