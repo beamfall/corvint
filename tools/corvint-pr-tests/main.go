@@ -615,7 +615,7 @@ func plan(ctx context.Context, o options, id identity, merge bool) selection {
 	}
 	s.PlanSHA, _ = digestFile(path)
 	var r receipt
-	if err = json.Unmarshal([]byte(raw), &r); err != nil || r.Profile != "affected-plan/0" || r.Tool != "affected" || !r.OK || r.Mutates || r.Revision != o.target || r.Range.Base != o.base || r.Plan.Dirty == nil || r.Provider.Go.State == "" {
+	if err = json.Unmarshal([]byte(raw), &r); err != nil || (r.Profile != "affected-plan/1" && r.Profile != "affected-plan/0") || r.Tool != "affected" || !r.OK || r.Mutates || r.Revision != o.target || r.Range.Base != o.base || r.Plan.Dirty == nil || r.Provider.Go.State == "" {
 		s.Reason = "malformed or mismatched planner receipt"
 		return s
 	}

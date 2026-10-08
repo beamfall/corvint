@@ -270,6 +270,44 @@ func TestPSRBoundedProbes(t *testing.T) {
 		}
 	})
 }
+
+// CAL-V0-188 (V1-0989): the full process-table listing overruns its bound on
+// a loaded host, as `ps -axo` measured 0.7-2.4s at load 45-60. That must not
+// fail the cleanup proof of a group the kernel already reports empty, for the
+// health path and the captured sweep path alike; a group that still has a
+// member stays unproved and its listing failure is still uncertainty.
+func TestCALV0188_GroupListingOverrun(t *testing.T) {
+	original := poolProbe
+	t.Cleanup(func() { poolProbe = original })
+	listings := 0
+	poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
+		if len(argv) > 1 && argv[1] == "-axo" {
+			listings++
+			return nil, context.DeadlineExceeded
+		}
+		return original(ctx, argv...)
+	}
+	done := &intent.PoolCommand{Argv: []string{"/usr/bin/true"}, TimeoutSeconds: "3"}
+	if class, clean, _ := executePool(context.Background(), done, t.TempDir(), nil); class != "EXIT_ZERO" || !clean || listings != 0 {
+		t.Fatalf("retired group unproved: %s clean=%v listings=%d", class, clean, listings)
+	}
+	if r := executePoolCaptured(context.Background(), done, t.TempDir(), nil); r.Class != "EXIT_ZERO" || !r.Clean || listings != 0 {
+		t.Fatalf("retired captured group unproved: %s clean=%v listings=%d", r.Class, r.Clean, listings)
+	}
+	marker := filepath.Join(t.TempDir(), "child")
+	survivor := &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", "/bin/sleep 60 </dev/null >/dev/null 2>&1 & echo $! > " + marker}, TimeoutSeconds: "3"}
+	_, clean, _ := executePool(context.Background(), survivor, t.TempDir(), nil)
+	raw, e := os.ReadFile(marker)
+	if e != nil {
+		t.Fatal("survivor not started", e)
+	}
+	if pid, e := strconv.Atoi(strings.TrimSpace(string(raw))); e == nil {
+		t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	}
+	if clean || listings == 0 {
+		t.Fatalf("surviving member admitted: clean=%v listings=%d", clean, listings)
+	}
+}
 func TestPSRCapturedOutputLimit(t *testing.T) {
 	result := executePoolCaptured(context.Background(), &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", "while :; do printf 1234567890123456789012345678901234567890; done"}, TimeoutSeconds: "3"}, t.TempDir(), nil)
 	if result.Class != "OUTPUT_LIMIT" || len(result.Stdout)+len(result.Stderr) > 65536 {

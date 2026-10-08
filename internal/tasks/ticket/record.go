@@ -161,8 +161,8 @@ type Record struct {
 	AttachedEvidence []AttachedEvidence
 	// KnowHow is the optional append-only know-how note ledger (KHN-V0-002),
 	// omitted when empty. It is not acceptance-relevant, is changed only by
-	// KNOWHOW_ADD and KNOWHOW_RETRACT, and never feeds ranking, evidence or
-	// authority.
+	// KNOWHOW_ADD, KNOWHOW_RETRACT and KNOWHOW_RECONFIRM, and never feeds
+	// ranking, evidence or authority.
 	KnowHow []KnowHowEntry
 }
 

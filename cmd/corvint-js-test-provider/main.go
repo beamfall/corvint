@@ -195,6 +195,7 @@ func runE2E(args []string) error {
 	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation provider observation")
 	sensitiveInputRedaction := fs.Bool("sensitive-input-redaction", false, "select the /2 profile and retain only redacted browser input-action steps")
 	retainAttemptDetails := fs.Bool("retain-attempt-details", false, "select the /3 profile and retain each attempt's detail")
+	keepReporters := fs.Bool("keep-reporters", false, "external mode: append the provider reporter to the project's reporter list instead of replacing it; the receipt binds the kept entries and records their effects as unknown")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -274,6 +275,7 @@ func runE2E(args []string) error {
 		ApplicationAttestation: attestationProvider,
 		SensitiveInputPolicy:   sensitivePolicy,
 		RetainAttemptDetails:   *retainAttemptDetails,
+		KeepReporters:          *keepReporters,
 	}
 	if watch != nil {
 		if attestationProvider != nil {

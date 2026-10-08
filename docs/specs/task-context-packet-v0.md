@@ -1044,6 +1044,17 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   limit cut a reservation the task matched (the verdict withdraws no reservation, so that row is
   omitted by the limit) and in its place otherwise; the share line is absent. With nothing
   omitted the member is absent, so a packet that carried every hit keeps its bytes.
+- `TCP-V0-062`: (proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+  one positional argument after `context` is the task, so `corvint context TEXT` and `corvint
+  context --task TEXT` with the same other flags write byte-identical stdout, stderr and exit
+  status. A positional given with `--task`, or more than one positional, is refused before any read
+  with exit 2 and `invalid-arguments`; the message names `--task` and carries the copyable example
+  `corvint context --task "fix the parser"`. Neither form still refuses with the unchanged
+  `the following arguments are required: --task`. A first positional that names a lookup mode
+  (`grep`, `defs`, `refs`) stays the lookup surface, and a positional counts as a task for the
+  `--expand` exclusion. Under `--corpus` the positional is the corpus search query as `--task` is.
+  Compatibility: additive under CCF-V1-006, since `context` is not a `cli-parity-v0` output and the
+  change only accepts an input that was refused; no packet member, identifier or enumeration moves.
 
 ## Non-goals and authority
 
@@ -1347,6 +1358,12 @@ are development evidence for this amendment
 (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
 the held-out validation that V1-0859 and V1-0431 require is a repository frozen after this change.
 
+TCP-V0-062 (V1-0993): `TestTaskContextPositionalTaskMatchesTheFlagBytes`
+(`taskcontext_positional_test.go`) compares `context TEXT`, with the positional before and after
+`--limit`, byte for byte with `context --task TEXT`; `TestTaskContextRefusesAmbiguousPositionalTasks`
+pins the refusal for both forms in either order and for two positionals, and keeps the neither-form
+refusal unchanged (`docs/build-log/2026-10-07-v1-0993-context-positional-task.md`).
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -1399,6 +1416,11 @@ TCP-V0-059 to TCP-V0-061) roll back together: restore the unconditional two-row 
 fields and `taskcontext_documentation_test.go`, move the reservation back into `reserve`, then
 re-capture
 the recipe golden. No state persists.
+
+The positional task (TCP-V0-062) rolls back alone: delete the positional collection, the switch
+before `checkContextViewArguments` and `contextPositionalTaskRefusal` in `cmd/corvint/taskcontext.go`,
+the `context` query override in `runCorpusIntegration`, and `taskcontext_positional_test.go`; a
+positional is then `unrecognized arguments` again. No state persists and no packet changed.
 
 ## Traceability
 
@@ -1466,3 +1488,4 @@ the recipe golden. No state persists.
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
 | TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
 | TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
+| TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |

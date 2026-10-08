@@ -1,0 +1,84 @@
+{
+  "advice": {
+    "checks": [
+      {
+        "command": "GOTOOLCHAIN=local go test -count=1 'example.test/cli/pkg'",
+        "kind": "advisory",
+        "reason": "the plan selected 1 unit(s) over 5 dirty path(s), so these packages are the plausible first pass",
+        "source": "affected-plan"
+      }
+    ],
+    "note": "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says",
+    "status": "PLAN_ONLY",
+    "unknown": [
+      "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block",
+      "UNOWNED_DIRTY_PATH: go.mod",
+      "UNOWNED_DIRTY_PATH: testing/features.yaml",
+      "UNOWNED_DIRTY_PATH: testing/scenarios.yaml"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "plan": {
+    "dirty": [
+      "go.mod",
+      "pkg/main.go",
+      "pkg/main_test.go",
+      "testing/features.yaml",
+      "testing/scenarios.yaml"
+    ],
+    "excluded": [],
+    "graphDigest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
+    "scope": "UNKNOWN",
+    "selected": [
+      {
+        "tests": [
+          "pkg/main_test.go"
+        ],
+        "unitId": "go:example.test/cli/pkg",
+        "witness": {
+          "dirtyPath": "pkg/main.go",
+          "kind": "DIRECT_SOURCE_CHANGE",
+          "via": [
+            "go:example.test/cli/pkg"
+          ]
+        }
+      }
+    ],
+    "unknown": [
+      {
+        "detail": "go.mod",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/features.yaml",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/scenarios.yaml",
+        "reason": "UNOWNED_DIRTY_PATH"
+      }
+    ]
+  },
+  "profile": "affected-plan/0",
+  "provider": {
+    "go": {
+      "packages": [
+        "example.test/cli/pkg"
+      ],
+      "state": "RUNNABLE"
+    }
+  },
+  "range": {
+    "base": "<varies:string>",
+    "paths": [
+      "go.mod",
+      "pkg/main.go",
+      "pkg/main_test.go",
+      "testing/features.yaml",
+      "testing/scenarios.yaml"
+    ]
+  },
+  "revision": "<varies:string>",
+  "tool": "affected"
+}

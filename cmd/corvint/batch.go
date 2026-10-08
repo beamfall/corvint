@@ -305,7 +305,7 @@ func runBatchOperation(ctx context.Context, root string, index *contextindex.Ind
 	if err != nil {
 		return nil, err
 	}
-	return standaloneImpactContext(index, paths, operation.limit)
+	return standaloneImpactContext(index, paths, operation.limit, nil)
 }
 
 // batchImpactPaths applies the standalone impact adapter's own path admission,

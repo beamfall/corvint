@@ -250,9 +250,9 @@ type Index struct {
 	// tables on the build and packet paths and carried in the snapshot.
 	Vocabulary *TermTable
 	blobFacts  map[string]*blobFacts
-	// bodies is the deferred pack bodies section of a deferred load, whose
-	// first failed body read withholds the result (SnapshotRefusal).
+	// bodies: a deferred load's pack bodies (SnapshotRefusal); lease: a mapped read's reference, ended by Release.
 	bodies *packSection
+	lease  *snapshotLease
 }
 
 // vocabulary returns the term table, building it once for an index compiled

@@ -351,7 +351,7 @@ export function cockpitReadArguments(root, read) {
   if (read?.kind === "tasks-detail" && typeof read.ticketId === "string" && read.ticketId.length <= 128 && /^ticket:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(read.ticketId)) return { tasks: true, args: ["ticket", "show", read.ticketId] }
   if (read?.kind === "repository") return { git: true, args: ["-C", root, "rev-parse", "--show-toplevel", "--absolute-git-dir", "HEAD", "HEAD^{tree}"] }
   if (read?.kind === "resolve" && typeof read.ref === "string" && read.ref.length > 0 && read.ref.length <= 256 && !/[\x00-\x20\x7f]/u.test(read.ref)) return { git: true, args: ["-C", root, "rev-parse", "--verify", "--end-of-options", `${read.ref}^{commit}`] }
-  if (read?.kind === "affected" && oid(read.base)) return { args: ["--root", root, "affected", "--base", read.base] }
+  if (read?.kind === "affected" && oid(read.base)) return { args: ["--root", root, "affected", "--base", read.base, "--full"] }
   if (read?.kind === "completion" && /^[0-9a-f]{64}$/.test(read.key ?? "")) return { args: ["--root", root, "dogfood", "status", "--session-key", read.key] }
   return undefined
 }

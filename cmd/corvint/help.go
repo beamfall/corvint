@@ -226,165 +226,80 @@ func helpText(topic string) string {
 	}
 }
 
+// rootHelpMaxBytes bounds root help (CCF-V1-009): it is a verb index, and each verb's usage,
+// options and writes live in its own COMMAND --help topic.
+const rootHelpMaxBytes = 4096
+
 const rootHelp = `Corvint extraction alpha
 
 Usage:
-  corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
-    [--exclude-prefix PATH] [--full-receipt]
-  corvint [--root PATH] query --task TASK [--limit N] [--budget-bytes N]
-  corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]
-  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
-  corvint [--root PATH] impact [--limit N] [--working-tree-untracked] PATH...
-  corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
-    [--range-profile expanded-256]
-  corvint [--root PATH] harness event OPTIONS
-  corvint adapter COMMAND [OPTIONS]
-  corvint [--root PATH] dogfood COMMAND OPTIONS
-  corvint [--root PATH] dogfood (change | check | seal) BASE
-  corvint [--root PATH] dogfood-ocm status --expected-base REV --target REV
-  corvint [--root PATH] cem ACTION OPTIONS
-  corvint [--root PATH] ocm (status | verify | report) OPTIONS
-  corvint [--root PATH] lrf --cem MAP [OPTIONS]
-  corvint [--root PATH] frontier --cem MAP --ocm MAP --expected-base REV
-    --target REV [OPTIONS]
-  corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
-    (--verify COMMAND | --verify-argv-json JSON_ARRAY) --outcome (passed | failed | blocked)
-  corvint [--root PATH] migrate-traces (--dry-run | --apply) [--plan-digest SHA256]
-  corvint migration-ratchet --profile FILE
-  corvint [--root PATH] observations [--limit N]
-  corvint [--root PATH] index [--if-stale]
-  corvint [--root PATH] features | overview
-  corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
-  corvint [--root PATH] affected
-  corvint [--root PATH] delta --base FULL_SHA --head FULL_SHA [OPTIONS]
-  corvint obligations --cem FILE --impact FILE [--limit N]
-  corvint [--root PATH] step (snapshot | verify | env-check) --declaration FILE --host FILE
-    [--before FILE]
-  corvint [--root PATH] flows --manifest FILE [--evidence FILE]
-  corvint [--root PATH] docs (draft | consume) --source PATH --package DIRECTORY [--task TEXT]
-  corvint [--root PATH] batch < REQUEST
-  corvint [--root PATH] work observe
-  corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
-  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
-  corvint [--root PATH] work adapter snapshot|details|verify
-  corvint [--root PATH] prove --task TEXT [--limit N] [--budget-bytes N]
-  corvint [--root PATH] prove [--limit N] [--mutate] PATH...
-  corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
-  corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
-    [--attest | --attest-key PEM] [--attest-cem | --attest-cem-v1]
-  corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
-    [--cem MAP]
-  corvint [--root PATH] prove --checkpoint FILE
-  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
-  corvint [--root PATH] prove --replay-bundle FILE
-  corvint [--root PATH] prove-observe < PROOF
-  corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
-  corvint test-validity [--receipt FILE]
-  corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows|step|delta]
-  corvint help harness [event]
+  corvint [--root PATH] COMMAND [OPTIONS]
+  corvint COMMAND --help | corvint help COMMAND
   corvint --version
 
 Commands:
-  init           Compile the first mechanical repository inventory.
-  adopt          Compile the recoverable mechanical repository inventory.
-  query          Compile repository context or the narrow authority-start receipt.
-  feature        Compile bounded known or unknown feature context.
-  eval           Evaluate a frozen corpus, optionally with an explicit trace-fixture arm.
-  context        Compile the task-context packet: the files to read for one task.
-  impact         Compile path, untracked-file, or committed-range impact evidence.
-  breakage       Inspect experimental declared cross-repository API relationships.
-  harness event  Compile one supported agent-harness lifecycle event.
-  adapter        Run one bounded native host adapter.
-  dogfood        Enroll and complete an explicit local evidence workflow, or run
-                 the daily change, check and seal from this binary.
-  dogfood-ocm    Verify the private ordered set of dogfood OCM maps.
-  cem            Change Evidence Map producer/verifier: begin, prepare, cite,
-                 mark, status, verify, report, and export.
-  ocm            Obligation Closure Map producer/verifier: prepare, link, mark,
-                 status, verify, and report.
-  lrf            Verify repository authority and apply the lexical relevance floor.
-  frontier       Compile the deterministic Change Frontier V0 review queue.
-  record         Record one explicit local task outcome.
-  migrate-traces Plan or apply legacy tree-trace migration, or quarantine a
-                 trace whose commit is no longer reachable from HEAD.
-  migration-ratchet Compare immutable migration-evidence snapshots.
-  observations   Read the local self-observation digest; never writes.
-  features       Discover experimental inferred feature candidates.
-  overview       Compose experimental immutable repository guidance.
-  review         Compose experimental range advice and local branch overlaps.
-  affected       Compile the affected-test selection plan for the dirty worktree;
-                 runs no test and never writes.
-  flows          Report experimental application flows, assertion candidates and
-                 observed outcomes; record explicitly with the record subcommand.
-  obligations    Compose the external-obligations sidecar that joins a CEM's
-                 hunks to an impact receipt's external section; never writes.
-  prove          Compile the query packet and attach a falsifier verdict to
-                 every evidence row; never writes.
-  prove-observe  Record one prove document's verdict counts in the local
-                 self-observation ledger; the only thing it writes.
-  index          Write the committed tree's index snapshot to .git/corvint/index/
-                 for context to read; the only verb that writes there.
-  batch          Answer several independent query, context, and impact requests
-                 from one loaded index snapshot; never writes.
-  work           Validate a repository queue observation or compile a non-operative shadow wave.
-  docs           Compile or maintain the source-derived documentation set.
-  depsource      Cite pinned third-party Go module source, or abstain; never
-                 writes and never fetches. Experimental.
-  necessity      Label every task-context packet file necessary, supporting, or
-                 unjustified; never writes. Experimental.
-  surprise       Report how far the touched set departed from the delivered
-                 packet; never writes. Experimental.
-  answerability  Report whether the lexical and structural retrieval channels
-                 agree; never writes. Experimental.
-  kernel         Print the bounded compaction kernel, or verify one from stdin;
-                 never writes. Experimental.
-  lease          Hold, list, or release a local scope lease over declared paths.
-                 Experimental.
-  reads          Read the opt-in unplanned-read digest; never writes.
-                 Experimental.
-  calibrate      Compare recorded packet stances with recorded outcomes; never
-                 writes and never applies a threshold. Experimental.
-  skill-export   Export admitted learned traces as SKILL.md documents into an
-                 operator-named directory; never writes repository or trace state.
-                 Experimental.
-  witness        Compile the unwitnessed surface of one committed range without
-                 mutating repository or trace state.
-  test-validity  Project a live-test provider receipt through the shared
-                 five-axis test-validity shape; never writes. Experimental.
-  step           Verify experimental declared authoring scope with local read-only
-                 observations and citeable receipts; host enforcement is separate.
-  delta          Compile one source-content-free record for an explicit immutable
-                 change; never writes. Experimental.
+  init  first repository inventory
+  adopt  recoverable repository inventory
+  query  repository context or authority receipt
+  feature  bounded feature context
+  eval  evaluate a frozen corpus
+  context  task-context packet: files to read
+  impact  path, untracked-file or range impact
+  breakage  cross-repository API relations
+  harness event  one agent-harness lifecycle event
+  adapter  one native host adapter
+  dogfood  local evidence workflow; change, check, seal
+  dogfood-ocm  verify dogfood OCM maps
+  cem  Change Evidence Map producer/verifier
+  ocm  Obligation Closure Map producer/verifier
+  lrf  lexical relevance floor
+  frontier  Change Frontier review queue
+  record  record one local task outcome
+  migrate-traces  plan or apply trace migration
+  migration-ratchet  compare migration evidence
+  observations  self-observation digest
+  features  inferred feature candidates
+  overview  immutable repository guidance
+  review  range advice and branch overlaps
+  affected  affected-test plan for the worktree
+  flows  application flows and assertions
+  obligations  CEM external-obligations sidecar
+  prove  query packet with falsifier verdicts
+  prove-observe  record prove verdict counts
+  index  write the index snapshot
+  batch  many query, context, impact requests
+  work  queue observation or shadow wave
+  docs  source-derived documentation
+  depsource  cite pinned Go module source
+  necessity  label packet file necessity
+  surprise  touched set versus delivered packet
+  answerability  retrieval channel agreement
+  kernel  compaction kernel
+  lease  local scope lease over paths
+  reads  opt-in unplanned-read digest
+  calibrate  packet stances versus outcomes
+  skill-export  learned traces as SKILL.md
+  witness  unwitnessed surface of a range
+  test-validity  project a live-test receipt
+  step  declared authoring scope receipts
+  delta  source-free record of one change
 
 Global options:
-  --root PATH  Repository root (default: current directory). An explicit root is
-               made absolute, expands ~ or ~/, and resolves symlinks when
-               possible. Query validates all query options before resolving symlinks
-               or requiring .git; init, adopt, and impact require .git up front;
-               cem validates the repository at its frozen precedence stage.
+  --root PATH  Repository root (default: current directory).
   --version    Print the Corvint version and build number.
   --help       Print this help on stdout and exit 0.
 
 ` + commandMaturityHelp + `Support boundary:
-  This binary is the only Corvint runtime and implements only the slices listed
-  above; commands marked Experimental carry no stability promise. init, adopt, query, feature, and impact are qualified only on Darwin and
-  Linux. All commands are local-only and make no network or telemetry request.
-
-  init, adopt, query, impact, docs, harness, and lrf read without mutating repository or trace
-  state, except explicit docs flows generate materialization and docs maintain writes. impact, feature, docs, harness event, ocm, lrf, cem, dogfood-ocm, witness,
-  index, calibrate, frontier, and record best-effort append a bounded row to the local
-  self-observation ledger (.corvint/self-observations.jsonl) on an unsupported-* failure, and
-  harness event does so again on a successful session-start, user-prompt, or file-change
-  event; a ledger storage failure never alters the response. ocm status and verify are
-  otherwise read-only. record writes one atomic local trace row, and migrate-traces --dry-run
-  also reads without mutating; --apply rewrites the local trace store. cem begin, prepare, cite,
-  and mark write local CEM artifacts (the map and the patch cache), and cem
-  report writes the local review report. ocm prepare, link, and mark write local OCM maps, and ocm
-  report writes the local OCM review report. cem export writes only the new receipt-bundle
-  directory it is given outside the worktree; no other files are touched.
+  Local-only; no network or telemetry. init, adopt, query, feature and impact are
+  qualified on Darwin and Linux only.
+  init, adopt, query, impact, docs, harness, and lrf read without mutating
+  repository or trace state. impact, feature, docs, harness event, ocm, lrf, cem,
+  dogfood-ocm, witness, index, calibrate, frontier, and record best-effort append a
+  bounded row to the local self-observation ledger (.corvint/self-observations.jsonl)
+  on an unsupported-* failure (harness event also on success); a ledger storage
+  failure never alters the response. cem begin, prepare, cite, and mark write local
+  CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
+  flows and maintain write local state (detail in their COMMAND --help).
 `
 
 const adapterHelp = `Run one bounded native host adapter.
@@ -631,9 +546,10 @@ or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected
-  corvint [--root PATH] affected --snapshot RECEIPT [--playwright-config PATH]
-  corvint [--root PATH] affected --base FULL_COMMIT_ID
+  corvint [--root PATH] affected [--full]
+  corvint [--root PATH] affected [--full] --snapshot RECEIPT
+  corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
+  corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -643,10 +559,16 @@ Usage:
           --selection-profile e2e-safe [--playwright-discovery FILE]
 
 The command reads the Git worktree status, builds the multi-language unit graph
-from source text, and writes one affected-plan/0 document to stdout: the
-selector's plan (selected units with witnesses, exclusions, unknowns, scope) and
-provider.go.packages, the exact import paths an operator may copy into a Go
-live-test provider bundle. It runs no test, writes no repository state, and never claims
+from source text, and writes one affected-plan/1 document to stdout: the
+selector's plan (selected units with witnesses and test counts, an exclusion
+summary, unknowns, scope) and provider.go.packages, the exact import paths an
+operator may copy into a Go live-test provider bundle. plan.excluded is
+{count, digest, groups}: groups state each reason, universe and invalidation
+once with its count, and digest is the SHA-256 of the full exclusion list.
+An advisory check with arguments="provider.go.packages" runs its command with
+each of those packages appended, single-quoted.
+--full writes the affected-plan/0 document instead: every exclusion and every
+selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
 NO_AFFECTED_SELECTION_PROOF unknown.
 
@@ -1262,6 +1184,8 @@ Usage:
 Features are bounded heuristic candidates with immutable blob/line evidence, not
 accepted feature IDs. Overview includes inert suggested argv. Review composes
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
+review.affected is the compact affected-plan/1 document; review.affectedFull
+names the argv that prints the full affected-plan/0 plan and that plan's digest.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
@@ -1270,9 +1194,7 @@ CEM, OCM, frontier and mandatory test obligations remain open.
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
 // other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
 const commandMaturityHelp = `Command maturity:
-  Core (decision 0332, contract CCF-V1 in
-  docs/specs/core-compatibility-freeze-v1.md); only the modes and profiles that
-  contract lists are frozen:
+  Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
     init, adopt, index, query, context, impact, affected, prove, cem, ocm,
     frontier, dogfood
   Experimental, no stability promise; the owning spec prefix is in parentheses:

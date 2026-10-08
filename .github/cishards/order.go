@@ -9,7 +9,7 @@ import (
 // MaxPlanBytes bounds the advisory affected plan Order reads.
 const MaxPlanBytes = 8 << 20
 
-// Order returns packages with the Go units an affected-plan/0 document selected
+// Order returns packages with the Go units an affected-plan/1 (or N-1 /0) document selected
 // first: changed units and their dependents, then other bounded witnesses, then unbounded
 // readers, then every unselected package. It only permutes its input; a plan it
 // cannot read leaves the order unchanged and reports false.
@@ -26,7 +26,7 @@ func Order(packages []string, plan []byte) ([]string, bool) {
 			} `json:"selected"`
 		} `json:"plan"`
 	}
-	if len(plan) > MaxPlanBytes || json.Unmarshal(plan, &p) != nil || p.Profile != "affected-plan/0" || !p.OK {
+	if len(plan) > MaxPlanBytes || json.Unmarshal(plan, &p) != nil || (p.Profile != "affected-plan/1" && p.Profile != "affected-plan/0") || !p.OK {
 		return packages, false
 	}
 	const unselected = 3

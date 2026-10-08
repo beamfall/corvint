@@ -2,7 +2,8 @@
   "advice": {
     "checks": [
       {
-        "command": "GOTOOLCHAIN=local go test -count=1 'example.test/cli/pkg'",
+        "arguments": "provider.go.packages",
+        "command": "GOTOOLCHAIN=local go test -count=1",
         "kind": "advisory",
         "reason": "the plan selected 1 unit(s) over 5 dirty path(s), so these packages are the plausible first pass",
         "source": "affected-plan"
@@ -27,14 +28,16 @@
       "testing/features.yaml",
       "testing/scenarios.yaml"
     ],
-    "excluded": [],
+    "excluded": {
+      "count": 0,
+      "digest": "affected-excluded:sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "groups": []
+    },
     "graphDigest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
     "scope": "UNKNOWN",
     "selected": [
       {
-        "tests": [
-          "pkg/main_test.go"
-        ],
+        "testCount": 1,
         "unitId": "go:example.test/cli/pkg",
         "witness": {
           "dirtyPath": "pkg/main.go",
@@ -60,7 +63,7 @@
       }
     ]
   },
-  "profile": "affected-plan/0",
+  "profile": "affected-plan/1",
   "provider": {
     "go": {
       "packages": [

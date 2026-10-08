@@ -224,7 +224,7 @@ requirements below have evidence. File existence is not parity.
   Go module path MUST contain `/` when any changed path is `.go`, because only rule (a) resolves
   through the module path; `.py` and web paths are admitted in any Git repository, as the oracle
   admits them; decision 0015), and one or more normalized paths whose suffix the immutable index
-  admits, with only `--limit` as an impact option. The named reverse-import rules are exactly three:
+  admits, with only `--limit` as an impact option (proposed amendment 2026-10-07, `MCPV0-032`, V1-0944: path impact also accepts `--budget-bytes`; range and untracked impact still refuse it). The named reverse-import rules are exactly three:
   (a) `.go` — resolution to the containing Go package's import path, which for
   a root-package file is the module path itself (decision 0023; the oracle spells it `module/.`
   and so finds no importer, DR-0017); (b) `.py` —
@@ -244,8 +244,8 @@ requirements below have evidence. File existence is not parity.
   freshness, remain read-only/local-only, bound aggregate source admission to 128 MiB, and reject
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
-  `unsupported-impact-platform` and `--budget-bytes` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:298,310`). Every evidence array MUST be emitted in a deterministic total order derived
+  `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
+  (`cmd/corvint/main.go:299,311`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion

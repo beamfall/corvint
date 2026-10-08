@@ -19,12 +19,17 @@ import (
 // mutateWriter is mutateLocked's writer-checkpoint route (CAL-V0-116,
 // proposed). It runs under the caller's lock and session, after the writer
 // guards and §5.2 redo, models the envelope against the summarized inventory
-// and commits it as the complete route does. handled is false, with nothing
-// written, whenever the route declines: a request that may replay, a REOPEN
-// or review operation (they read attempt history), a model that needed an
-// elided path, and every refusal, which the complete route derives itself.
+// and commits it as the complete route does. A retained request replays
+// from its original entry, and a model result that plans no transaction is
+// reported without a write, as the complete route reports both (CAL-V0-190,
+// proposed). handled is false, with nothing written, whenever the route
+// declines: a REOPEN, review or attempt-naming know-how operation, including
+// every WORKER KNOWHOW_ADD that passes its scope (they read attempt history),
+// a request the route cannot bind, a model that needed an elided path, and
+// every refusal of the audit or the pre-effect checks, which the complete
+// route derives itself.
 func mutateWriter(ctx context.Context, repo *intent.Repository, session *authority.Session, headState *snapshot.Head, request transaction.Request, env *mutation.Envelope, now wire.Timestamp, report *Report, refresh *bool) (handled bool, out *Report, err error) {
-	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) {
+	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) || mutation.KnowHowNamesAttempt(env) {
 		return false, nil, nil
 	}
 	start := time.Now()
@@ -44,6 +49,15 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return declined(decline.Error())
 	}
 	at := writerStage(ctx, "observe", start)
+	if w.replay != nil {
+		result := replayResult(request, w.replay.entry)
+		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
+		if result.Kind == "Replay" {
+			report.Ticket = w.replay.ticket
+		}
+		writerStage(ctx, "replay", at)
+		return true, report, nil
+	}
 	paths := []string{"intent/queue.json", "intent/policy.json"}
 	for _, file := range w.inv.FilesUnder("intent/") {
 		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
@@ -95,9 +109,6 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if w.inv.Incomplete() {
 		return declined("model needed an elided path")
 	}
-	if result.Kind != "Transaction" || result.Plan == nil {
-		return declined("model did not plan a transaction")
-	}
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return declined(err.Error())
 	}
@@ -105,6 +116,12 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return declined(err.Error())
 	}
 	at = writerStage(ctx, "bind", at)
+	if result.Kind != "Transaction" || result.Plan == nil {
+		// The complete route reports such a result without a write.
+		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
+		writerStage(ctx, "refused", at)
+		return true, report, nil
+	}
 	// The lock is held and the head is the audited one: the read checkpoint
 	// advances with the writer's chain (CAL-V0-060, CAL-V0-119 proposed).
 	retainCheckpoint(repo, w.proof)
@@ -191,6 +208,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return false, false, nil, nil
 	}
 	validate := writerStage(ctx, "lease.observe", read)
+	if w.replay != nil {
+		// As prepareLease and commitLease do for a found request.
+		setLeaseReport(report, replayResult(request, w.replay.entry))
+		writerStage(ctx, "lease.replay", validate)
+		return true, false, w.proof, nil
+	}
 	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: w.inv, Head: w.head, HeadReceipt: w.headReceipt, Queue: w.proof.Records["intent/queue.json"].Raw, Policy: w.proof.Records["intent/policy.json"].Raw, Barrier: w.barrier, Reservations: w.reservations, Pools: w.proof.Records["pools.json"].Raw, Programs: w.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: w.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	for path, record := range w.proof.Records {
@@ -215,7 +238,10 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	result := transaction.Model(request, input)
 	timing.Validation += time.Since(validate)
 	modeled := writerStage(ctx, "lease.model", validate)
-	if w.inv.Incomplete() || result.Kind != "Transaction" || result.Plan == nil {
+	planned := result.Kind == "Transaction" && result.Plan != nil
+	// A STALE_POLICY refusal the complete route may convert through the
+	// handoff history keeps that route.
+	if w.inv.Incomplete() || (!planned && transaction.HandoffPolicyCandidate(request, input, result) != nil) {
 		return false, false, nil, nil
 	}
 	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
@@ -228,6 +254,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return false, false, nil, nil
 	}
 	bound := writerStage(ctx, "lease.bind", modeled)
+	if !planned {
+		// As commitLease reports a result that plans no transaction.
+		setLeaseReport(report, result)
+		writerStage(ctx, "lease.refused", bound)
+		return true, false, w.proof, nil
+	}
 	// As in commitLease: the lock is held and the head is the audited one
 	// (CAL-V0-060, CAL-V0-119 proposed).
 	retainCheckpoint(repo, w.proof)

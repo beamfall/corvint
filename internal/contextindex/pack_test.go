@@ -50,7 +50,7 @@ func TestPackSnapshotDecodesEverySectionToTheGobValues(t *testing.T) {
 		if err != nil {
 			t.Fatalf("load %d: %v", load, err)
 		}
-		if !reflect.DeepEqual(gob, packed) {
+		if !equalIgnoringLease(gob, packed) {
 			t.Fatalf("load %d: pack decode differs from the gob decode\n gob: %+v\npack: %+v", load, gob, packed)
 		}
 		history, ok := packHistory(packed)
@@ -478,10 +478,13 @@ func TestForgetPackHistoryReleasesRingSlot(t *testing.T) {
 }
 
 // resetPackRetention drops what earlier tests retained so a count belongs to
-// one test. Dropping the reference is what eviction does; the mapping stays
-// valid for the indexes that alias it.
+// one test. Releasing the retention's reference is what eviction does; the
+// mapping stays valid for every unreleased index that aliases it.
 func resetPackRetention() {
 	packCache.Lock()
+	for _, file := range packCache.mapped {
+		file.release()
+	}
 	packCache.mapped, packCache.ring, packCache.next = map[packKey]*packFile{}, [packCacheCapacity]packKey{}, 0
 	packCache.Unlock()
 	packHistories.mutex.Lock()

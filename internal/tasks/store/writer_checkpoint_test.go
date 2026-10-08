@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -492,10 +493,10 @@ func sameDecision(t *testing.T, got, want writerRun) {
 	}
 }
 
-// CAL-V0-116 (proposed): the route declines every request that may replay,
-// a request file no receipt posted, and a fork at or after the checkpoint
-// receipt; the complete route then decides exactly as it does with no
-// checkpoint, and a refusal publishes nothing.
+// CAL-V0-116 (proposed): the route declines a request file no receipt
+// posted and a fork at or after the checkpoint receipt; the complete route
+// then decides exactly as it does with no checkpoint, and a refusal publishes
+// nothing. Retained requests are CAL-V0-190's.
 func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "tail-request", nil); !run.completed() || !run.fast() {
@@ -513,9 +514,6 @@ func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
 		change func(t *testing.T) func()
 		refuse bool
 	}{
-		{"prefix-request-replay", writerEnvelope(repo, historyCreate("history-create-0", "history history-create-0"), WallClock()), nil, false},
-		{"prefix-request-conflict", writerCreate(repo, "history-create-1", WallClock()), nil, true},
-		{"tail-request-replay", writerCreate(repo, "tail-request", WallClock()), nil, false},
 		{"stray-own-request", writerCreate(repo, "stray-own-request", WallClock()), func(t *testing.T) func() {
 			p := filepath.Join(repo.StateDir, stray)
 			historyWrite(t, p, []byte("{}\n"))
@@ -553,6 +551,180 @@ func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
 			undo()
 		})
 	}
+}
+
+// servedWithoutWrite is the writer-route stage that answered a retained
+// request or a model result without a write, if one did (CAL-V0-190).
+func (r writerRun) servedWithoutWrite() string {
+	for _, s := range r.stages {
+		for _, stage := range []string{"fast.replay", "fast.refused", "fast.lease.replay", "fast.lease.refused"} {
+			if strings.HasPrefix(s, stage+"=") {
+				return stage
+			}
+		}
+	}
+	return ""
+}
+
+// retainedRequestSeq is the receipt sequence that posted request id.
+func retainedRequestSeq(t *testing.T, repo *intent.Repository, id string) uint64 {
+	t.Helper()
+	rp, _ := snapshot.RequestPath(id)
+	raw, err := os.ReadFile(filepath.Join(repo.StateDir, rp))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := snapshot.DecodeRequest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req.Seq.Uint64()
+}
+
+// CAL-V0-190 (proposed): the writer route answers a retained request, in the
+// walked tail or bound to the checkpoint before it, and a model result that
+// plans no transaction, without a write and as the complete route answers
+// it: the same outcome, kind, codes, ticket and attempt. A prefix request
+// whose afterimage or receipt chain no longer binds the checkpoint, or that
+// lies beyond MaxWriterTail receipts before it, is declined to the complete
+// route, which decides it as it does with no checkpoint.
+func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
+	repo := writerStore(t, 70)
+	holdLeasePolicy(t, repo)
+	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
+	holdGit(t, root, "init", "-q", "-b", "main")
+	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+	if run := writerMutate(t, repo, "tail-request", nil); !run.completed() || !run.fast() {
+		t.Fatalf("tail write: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	_, ticketFile := mutationBoundaryFiles(t, repo)
+	target := fixture.TicketID(strings.TrimSuffix(filepath.Base(ticketFile), ".json"))
+	lease := func(id string, l transaction.LeaseRequest) func(context.Context) (*Report, error) {
+		return func(ctx context.Context) (*Report, error) {
+			return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: root, Lease: l}, WallClock())
+		}
+	}
+	claimed := stagedWrite(lease("replay-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: target, Holder: "agent-1", LeaseMinutes: "60"}), nil)
+	if !claimed.completed() || !claimed.fast() {
+		t.Fatalf("claim: %+v %v %v", claimed.rep, claimed.err, claimed.stages)
+	}
+	heartbeat := transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claimed.rep.AttemptID, Generation: claimed.rep.Generation}
+	if run := stagedWrite(lease("replay-heartbeat", heartbeat), nil); !run.completed() || !run.fast() {
+		t.Fatalf("heartbeat: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	wcSeq := readWriterCheckpoint(repo).Seq.Uint64()
+	if seq := retainedRequestSeq(t, repo, "history-create-0"); seq >= wcSeq || retainedRequestSeq(t, repo, "tail-request") <= wcSeq {
+		t.Fatalf("fixture: prefix request at %d, tail request at %d, checkpoint %d", seq, retainedRequestSeq(t, repo, "tail-request"), wcSeq)
+	}
+	// A stale expectedRevision is refused by the model, which plans no
+	// transaction.
+	stale, err := wire.Parse(historyCreate("refused-stale-revision", "unused"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale.Obj.Set("operation", wire.String(mutation.OpPrioritize))
+	stale.Obj.Set("targetId", wire.String(string(target)))
+	stale.Obj.Set("expectedRevision", wire.String("999"))
+	payload := wire.NewObject()
+	payload.Set("order", wire.String("1"))
+	payload.Set("priority", wire.String("P1"))
+	stale.Obj.Set("payload", wire.ObjectValue(payload))
+	invalid := wire.EncodeFile(stale)
+	// A well-formed attempt ID the store has never seen is refused by the
+	// lease model without a transaction.
+	unknownAttempt, flip := claimed.rep.AttemptID[:len(claimed.rep.AttemptID)-1], "0"
+	if strings.HasSuffix(claimed.rep.AttemptID, "0") {
+		flip = "1"
+	}
+	unknownAttempt += flip
+	served := []struct {
+		name, stage string
+		write       func(context.Context) (*Report, error)
+		refuse      bool
+	}{
+		{"prefix-request-replay", "fast.replay", writerEnvelope(repo, historyCreate("history-create-0", "history history-create-0"), WallClock()), false},
+		{"prefix-request-conflict", "fast.replay", writerCreate(repo, "history-create-1", WallClock()), true},
+		{"padding-request-conflict", "fast.replay", writerCreate(repo, fmt.Sprintf("history-%d", wcSeq-1), WallClock()), true},
+		{"tail-request-replay", "fast.replay", writerCreate(repo, "tail-request", WallClock()), false},
+		{"tail-request-conflict", "fast.replay", writerEnvelope(repo, historyCreate("tail-request", "a different title"), WallClock()), true},
+		{"model-refusal", "fast.refused", writerEnvelope(repo, invalid, WallClock()), true},
+		{"lease-replay", "fast.lease.replay", lease("replay-heartbeat", heartbeat), false},
+		{"lease-replay-conflict", "fast.lease.replay", lease("replay-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claimed.rep.AttemptID, Generation: claimed.rep.Generation}), true},
+		{"lease-model-refusal", "fast.lease.refused", lease("refused-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: unknownAttempt, Generation: claimed.rep.Generation}), true},
+	}
+	for _, tc := range served {
+		t.Run(tc.name, func(t *testing.T) {
+			before := mutationPublished(t, repo)
+			run := stagedWrite(tc.write, nil)
+			if run.servedWithoutWrite() != tc.stage || run.fast() || run.declined() != "" || run.err != nil {
+				t.Fatalf("route: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if refused := run.rep.Outcome.Outcome != mutation.OutcomeCompleted; refused != tc.refuse {
+				t.Fatalf("refused %v, want %v: %+v", refused, tc.refuse, run.rep)
+			}
+			if after := mutationPublished(t, repo); after != before || run.rep.Receipt != "" {
+				t.Fatalf("published %s (receipt %q), before %s", after, run.rep.Receipt, before)
+			}
+			oracle := writerOracle(t, repo, tc.write)
+			sameDecision(t, run, oracle)
+			if run.rep.Ticket != oracle.rep.Ticket || run.rep.AttemptID != oracle.rep.AttemptID || run.rep.Generation != oracle.rep.Generation || run.rep.Detail != oracle.rep.Detail {
+				t.Fatalf("report %+v, complete route %+v", run.rep, oracle.rep)
+			}
+			t.Logf("%s: %s %v %s", run.servedWithoutWrite(), run.rep.Kind, run.rep.Outcome.Codes, run.rep.Ticket)
+		})
+	}
+	receipt := func(seq uint64) string {
+		name, _ := snapshot.ReceiptName(seq)
+		return filepath.Join(repo.StateDir, "receipts", name)
+	}
+	request := func(id string) string {
+		rp, _ := snapshot.RequestPath(id)
+		return filepath.Join(repo.StateDir, rp)
+	}
+	declined := []struct {
+		name, reason string
+		write        func(context.Context) (*Report, error)
+		change       func(t *testing.T) func()
+	}{
+		{"prefix-afterimage-tampered", "differs from the checkpoint", writerEnvelope(repo, historyCreate("history-create-2", "history history-create-2"), WallClock()), func(t *testing.T) func() {
+			return rewriteFile(t, request("history-create-2"), appendLF)
+		}},
+		{"prefix-receipt-forked", "not on the checkpoint's chain", writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
+			return forkReceipt(t, repo, retainedRequestSeq(t, repo, "history-create-3")+1)
+		}},
+		{"prefix-receipt-torn", "not on the checkpoint's chain", writerEnvelope(repo, historyCreate("history-create-3", "history history-create-3"), WallClock()), func(t *testing.T) func() {
+			return rewriteFile(t, receipt(retainedRequestSeq(t, repo, "history-create-3")), appendLF)
+		}},
+	}
+	for _, tc := range declined {
+		t.Run(tc.name, func(t *testing.T) {
+			undo := tc.change(t)
+			defer undo()
+			before := mutationPublished(t, repo)
+			run := stagedWrite(tc.write, nil)
+			if run.fast() || run.servedWithoutWrite() != "" || !strings.Contains(run.declined(), tc.reason) {
+				t.Fatalf("route: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if after := mutationPublished(t, repo); after != before {
+				t.Fatalf("published %s, before %s", after, before)
+			}
+			sameDecision(t, run, writerOracle(t, repo, tc.write))
+			t.Logf("declined %q; decided %v", run.declined(), run.err)
+		})
+	}
+}
+
+// CAL-V0-190 (proposed): a retained request more than MaxWriterTail receipts
+// before the checkpoint is not bound by the route; the complete route
+// replays it.
+func TestCALV0190_WriterReplayBeyondBoundDeclines(t *testing.T) {
+	repo := writerStore(t, journal.MaxWriterTail+40)
+	write := writerEnvelope(repo, historyCreate("history-create-0", "history history-create-0"), WallClock())
+	run := stagedWrite(write, nil)
+	if run.servedWithoutWrite() != "" || !strings.Contains(run.declined(), "not within the bound") || !run.completed() || run.rep.Kind != "Replay" {
+		t.Fatalf("route: %+v %v %v", run.rep, run.err, run.stages)
+	}
+	sameDecision(t, run, writerOracle(t, repo, write))
 }
 
 // CAL-V0-116 (proposed): the fast route's own tamper coverage, mirroring the
@@ -649,6 +821,88 @@ func TestCALV0116_WriterRouteTamperAtFastStages(t *testing.T) {
 	}
 	if proof, err := journalReader(repo, head).Audit(); err != nil || proof.StructuralConsistency != "CONSISTENT" {
 		t.Fatalf("final audit: %+v %v", proof, err)
+	}
+}
+
+// CAL-V0-189 (proposed): the writer audit reads each intent file once, so
+// the pre-effect recheck is what binds the modeled intent bytes, and it still
+// compares content, not stat stamps. An in-place edit after the observation
+// that keeps the ticket file's inode, size and modification time publishes
+// nothing on the fast route and is decided by the complete route.
+func TestCALV0189_FastWriteRechecksIntentContent(t *testing.T) {
+	repo := writerStore(t, 70)
+	holdLeasePolicy(t, repo)
+	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
+	holdGit(t, root, "init", "-q", "-b", "main")
+	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+	_, ticketFile := mutationBoundaryFiles(t, repo)
+	entries, err := os.ReadDir(filepath.Dir(ticketFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimTarget := fixture.TicketID(strings.TrimSuffix(entries[len(entries)-1].Name(), ".json"))
+	// flip toggles the case of the title's first letter in place and restores
+	// the modification time, so only the content differs.
+	flip := func(t *testing.T) func() {
+		before, err := os.Stat(ticketFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := os.ReadFile(ticketFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := bytes.Index(raw, []byte(`"title":"`)) + len(`"title":"`)
+		write := func(b byte) {
+			f, err := os.OpenFile(ticketFile, os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.WriteAt([]byte{b}, int64(i)); err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chtimes(ticketFile, before.ModTime(), before.ModTime()); err != nil {
+				t.Fatal(err)
+			}
+		}
+		write(raw[i] ^ 0x20)
+		after, err := os.Stat(ticketFile)
+		if err != nil || !os.SameFile(before, after) || after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {
+			t.Fatalf("edit changed the stat stamps: %v", err)
+		}
+		return func() { write(raw[i]) }
+	}
+	claim := func(ctx context.Context) (*Report, error) {
+		return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "content-lease", Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: claimTarget, Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
+	}
+	for _, tc := range []struct {
+		name, stage string
+		write       func(context.Context) (*Report, error)
+	}{
+		{"mutate", "fast.observe", writerCreate(repo, "content-mutate", WallClock())},
+		{"lease", "fast.lease.observe", claim},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if readWriterCheckpoint(repo) == nil {
+				if run := writerMutate(t, repo, fmt.Sprintf("reseed-%d", headSeqOf(t, repo)), nil); !run.completed() {
+					t.Fatalf("reseed: %+v %v", run.rep, run.err)
+				}
+			}
+			before := mutationPublished(t, repo)
+			undo := func() {}
+			run := stagedWrite(tc.write, at(tc.stage, func() { undo = flip(t) }))
+			defer undo()
+			if run.fast() || !strings.Contains(strings.Join(run.stages, "\n"), tc.stage+"=") || wire.CodeOf(run.err) != wire.CodeIntentDiverged {
+				t.Fatalf("write: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if after := mutationPublished(t, repo); after != before {
+				t.Fatalf("published %s, before %s", after, before)
+			}
+			sameDecision(t, run, writerOracle(t, repo, tc.write))
+		})
 	}
 }
 
