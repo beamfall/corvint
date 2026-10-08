@@ -189,7 +189,38 @@ func openRetention(worktree *os.Root, create bool) (*os.Root, error) {
 		}
 		parent = next
 	}
+	if create {
+		if err := ignoreRetention(parent); err != nil {
+			parent.Close()
+			return nil, err
+		}
+	}
 	return parent, nil
+}
+
+// retentionIgnore keeps the lock and retained files, and itself, out of `git
+// status`, so evidence never makes the test repository dirty that a later
+// negate run requires clean (LPCV-V0-059, LPCV-V0-067).
+const retentionIgnore = "*\n"
+
+// ignoreRetention creates the directory's .gitignore when it is missing; an
+// existing entry is left as it is.
+func ignoreRetention(directory *os.Root) error {
+	file, err := directory.OpenFile(".gitignore", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("retention .gitignore cannot be created: %w", err)
+	}
+	_, err = file.WriteString(retentionIgnore)
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return fmt.Errorf("retention .gitignore cannot be written: %w", err)
+	}
+	return nil
 }
 
 // openDirectory opens name only when it is a real directory, the same file

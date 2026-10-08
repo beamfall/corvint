@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -723,4 +724,47 @@ func TestRetentionMergeLockAndConfinement(t *testing.T) {
 			t.Fatalf("Load = %v, %v", document, err)
 		}
 	})
+}
+
+// LPCV-V0-059, LPCV-V0-067: the lock and retained files stay out of `git
+// status`, so evidence never makes the clean test repository that a later
+// negate run requires dirty.
+func TestRetentionStaysOutOfGitStatus(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("NOT_RUN: git is not installed")
+	}
+	worktree := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-C", worktree, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+		command.Env = []string{"HOME=" + worktree, "PATH=" + os.Getenv("PATH")}
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+		return string(output)
+	}
+	git("init", "-q")
+	if err := os.WriteFile(filepath.Join(worktree, "cart.spec.cjs"), []byte("// fixture\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "cart.spec.cjs")
+	git("commit", "-q", "-m", "fixture")
+	release, err := Lock(worktree, testKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := git("status", "--porcelain=v1", "--untracked-files=all"); status != "" {
+		t.Fatalf("a held lock makes the repository dirty:\n%s", status)
+	}
+	if err := Retain(worktree, sampleDocument()); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	if status := git("status", "--porcelain=v1", "--untracked-files=all"); status != "" {
+		t.Fatalf("retained evidence makes the repository dirty:\n%s", status)
+	}
+	if data, err := os.ReadFile(filepath.Join(worktree, EvidenceDirectory, ".gitignore")); err != nil || string(data) != retentionIgnore {
+		t.Fatalf(".gitignore = %q, %v", data, err)
+	}
 }

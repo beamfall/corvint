@@ -209,6 +209,11 @@ func TestStepNegationJoinConditions(t *testing.T) {
 			t.Fatal("a changed test revision joined")
 		}
 		atPublish.Revision = bound.Revision
+		atPublish.DirtyState = "dirty"
+		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
+			t.Fatal("a dirty test repository joined")
+		}
+		atPublish.DirtyState = "clean"
 		receipt.ApplicationAttestation.Before.Attestation.Instance.StartGeneration = "2"
 		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
 			t.Fatal("a restarted application instance joined")

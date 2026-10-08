@@ -73,6 +73,20 @@ following commit:
   digests only. A helper file outside those digests can change without breaking a `/0` join.
   That residual must be settled before the join gate is turned on.
 
+The re-review confirmed the selection and zero-repeat fixes. It reported two more findings:
+
+- **P1, fixed: evidence made the repository dirty.** The core's pre-run lock file and the
+  retained documents under `.corvint/strength-evidence` were untracked files. The clean
+  test-repository check therefore refused every later run, and every `/1` run. The retention
+  directory now creates its own `.gitignore` containing `*`. `TestRetentionStaysOutOfGitStatus`
+  asserts that `git status` stays empty with a held lock and a retained document. The
+  repository's own `.gitignore` also lists the directory.
+- **P2, partly fixed: incomplete repository binding in the join.**
+  - `/1` now also requires a clean test repository.
+  - `/0` keeps the digest-only test-side binding that `LPCV-V0-068` names. Making it abstain
+    would remove `/0` joins, which the requirement includes. The helper-file residual stays
+    open while the join is gated off and must be settled before the gate is turned on.
+
 ## Evidence
 
 All of the following pass with `GOMAXPROCS=3 go test -p 1 -count=1`:
