@@ -305,6 +305,24 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   every Index read from it has also been released; an unreleased Index keeps it mapped as before.
   The strings the read hands out, the co-change entries included, now come from one heap copy of
   the verified string section per retained file and no longer alias the mapping.
+- Amended 2026-10-07 (proposed, V1-0947; no GitHub issue), `IDX-SNAP-V0-014` and `IDX-SNAP-V0-015`
+  unchanged in scope: the four-slot bound limits retained files, not live mappings. Values copied
+  out of an Index (`Source.Data`, the `Source.Text` view, and before V1-0983 the string-table views
+  such as `Symbol.Path`) alias the mapping without keeping the Index or any owner object reachable,
+  so neither eviction nor the Index becoming unreachable proves the bytes unused. The process keeps
+  each live mapping in a per-format table, keyed like the retention (path, size, modification time
+  and header digest). A later read of an evicted file with the same key adopts that mapping and
+  releases its own fresh one, which only the header read touched, so live mappings are bounded by
+  the distinct keys a process reads, not by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`).
+  A read adopts or registers the key's mapping before it decodes, so a concurrent first read whose
+  retention is evicted during that decode shares the same mapping and the key never holds two
+  (`TestRetainKeepsOneMappingWhenEvictedDuringDecode`). The key is sound without inode or change
+  time: the header digest commits to every section digest, and every snapshot writer replaces the
+  file by rename, never in place. Unmapping on eviction, or from a runtime cleanup of the Index or of
+  the mapping owner, faults on those escaped values; `TestEvictedMappingsStayValidForEscapedAliases`
+  guards that. A mapping leaves the table and is unmapped only when its last reference is released
+  (V1-0983, `IDX-SNAP-V0-028` to `IDX-SNAP-V0-030`); while any Index read from it is unreleased, it
+  stays, and a file the store has since deleted or replaced keeps its blocks allocated.
 - Amended 2026-09-12, `IDX-SNAP-V0-015` narrowed for one verb: the task-packet `context` verb's
   read (`LoadContextSnapshotDeferred`) verifies every section except `bodies` before decoding, as
   above, and verifies a body's blocks when the packet first reads that body, before any byte of it

@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"os"
+	"sync"
 	"sync/atomic"
 )
 
@@ -17,6 +18,57 @@ import (
 type snapshotMapping struct {
 	bytes []byte
 	refs  atomic.Int64
+	// table and key name the identity table the mapping is live in, if any.
+	table *snapshotMappings
+	key   packKey
+}
+
+// snapshotMappings is one format's table of live mappings keyed by file
+// identity (V1-0947): path, size, modification time and header digest, which
+// commits to every section digest of a file only ever replaced by rename. A
+// read adopts the key's live mapping instead of keeping its own, so live
+// mappings are bounded by distinct files, not by cache misses. A mapping
+// leaves the table when its last reference is released, just before it is
+// unmapped. The table's lock is taken after, never before, a retention ring's
+// lock.
+type snapshotMappings struct {
+	mutex sync.Mutex
+	live  map[packKey]*snapshotMapping
+}
+
+var packMappings, sectionedMappings = newSnapshotMappings(), newSnapshotMappings()
+
+func newSnapshotMappings() *snapshotMappings {
+	return &snapshotMappings{live: map[packKey]*snapshotMapping{}}
+}
+
+// adopt returns the key's live mapping with a reference that replaces
+// fresh's, releasing fresh, which only its header read touched; or registers
+// fresh as the key's mapping and returns it. A mapping whose count reached
+// zero is being unmapped and is replaced, never revived.
+func (table *snapshotMappings) adopt(key packKey, fresh *snapshotMapping) *snapshotMapping {
+	if fresh == nil {
+		return nil
+	}
+	table.mutex.Lock()
+	if live, ok := table.live[key]; ok && live != fresh && live.acquire() {
+		table.mutex.Unlock()
+		fresh.release()
+		return live
+	}
+	fresh.table, fresh.key = table, key
+	table.live[key] = fresh
+	table.mutex.Unlock()
+	return fresh
+}
+
+// forget removes mapping from its key unless a newer mapping replaced it.
+func (table *snapshotMappings) forget(mapping *snapshotMapping) {
+	table.mutex.Lock()
+	defer table.mutex.Unlock()
+	if table.live[mapping.key] == mapping {
+		delete(table.live, mapping.key)
+	}
 }
 
 // liveSnapshotMappings counts the snapshot mappings mapped and not yet
@@ -55,13 +107,30 @@ func (mapping *snapshotMapping) lease() *snapshotLease {
 	return &snapshotLease{mapping: mapping}
 }
 
-// release drops one reference and unmaps on the last.
+// acquire adds a reference unless the count already reached zero.
+func (mapping *snapshotMapping) acquire() bool {
+	for {
+		refs := mapping.refs.Load()
+		if refs <= 0 {
+			return false
+		}
+		if mapping.refs.CompareAndSwap(refs, refs+1) {
+			return true
+		}
+	}
+}
+
+// release drops one reference and, on the last, leaves the identity table and
+// unmaps.
 func (mapping *snapshotMapping) release() {
 	if mapping == nil {
 		return
 	}
 	switch remaining := mapping.refs.Add(-1); {
 	case remaining == 0:
+		if mapping.table != nil {
+			mapping.table.forget(mapping)
+		}
 		unmapReadOnly(mapping.bytes)
 		liveSnapshotMappings.Add(-1)
 	case remaining < 0:

@@ -133,7 +133,14 @@ Each figure is the median of three runs, before (origin/main 0b5096ca) and after
   text, so releasing there first needs an escape audit, or a copy of the canonical bytes. Until
   then the bridge keeps the earlier behaviour: nothing is unmapped, and nothing can fault.
 - **CLI verbs.** These are one-shot processes and need no change.
-- **File-identity dedupe.** The process-wide mapping per file identity (V1-0947) is left to that
-  ticket. The owner type is the seam it can key by identity.
+- **File-identity dedupe (merged with V1-0947).** V1-0947's keep-forever table became a table of
+  live owners keyed by file identity (`snapshotMappings` in `snapshot_mapping.go`). A read that
+  misses the ring adopts the key's live owner before decode: it takes a reference unless the count
+  already reached zero, and releases its fresh mapping. Otherwise its fresh mapping becomes the
+  key's owner. At zero an owner leaves the table, and only then is it unmapped. A key never holds two
+  mappings, an unreleased Index keeps its mapping valid, and `Release` still unmaps once the ring has
+  evicted the mapping. Adoption before decode makes V1-0947's post-decode swap unnecessary. Lock
+  order: ring, then table. `TestAdoptedPackMappingUnmapsAfterLastRelease` covers the combination;
+  V1-0947's three tests pass unchanged in intent, including under `-race`.
 - **Rollback.** See the spec section. Removing the lease restores "eviction drops the reference
   without unmapping".

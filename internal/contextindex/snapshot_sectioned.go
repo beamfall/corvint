@@ -280,6 +280,12 @@ func openSectionedFile(path string) (*sectionedFile, error) {
 // (snapshot_mapping.go); every other field is decoded to the heap.
 func (f *sectionedFile) release() { f.owner.release() }
 
+// adopt is packFile.adopt for a sectioned file.
+func (f *sectionedFile) adopt(key packKey) {
+	f.owner = sectionedMappings.adopt(key, f.owner)
+	f.mapping = f.owner.data()
+}
+
 // withinBounds reports whether [offset, offset+length) lies inside size
 // without computing offset+length, which a corrupt table can make wrap.
 func withinBounds(offset, length, size uint64) bool {
@@ -362,7 +368,8 @@ const sectionedCacheCapacity = packCacheCapacity
 // sectionedCache retains the mappings of the last sectionedCacheCapacity
 // distinct sectioned files and evicts the oldest retention first. Eviction
 // releases the retention's reference, as packCache does (proposed
-// IDX-SNAP-V0-028), and a later read of that file maps it again.
+// IDX-SNAP-V0-028), and a later read of that file adopts the mapping while it
+// is live in sectionedMappings (V1-0947), mapping the file again once not.
 var sectionedCache = struct {
 	sync.Mutex
 	mapped map[packKey]*sectionedFile
@@ -460,6 +467,7 @@ func readSectionedSnapshot(path string, identity repositoryIdentity, engineID st
 		file.release()
 		return decodeRetainedSectioned(retained, lease, identity, engineID, load)
 	}
+	file.adopt(key)
 	defer file.close()
 	index, err := decodeSectionedSnapshot(file, identity, engineID, load)
 	if err != nil {

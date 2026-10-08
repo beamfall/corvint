@@ -58,6 +58,13 @@ func (f *packFile) close() { f.file.Close() }
 // release drops the opener's or the retention's reference to the mapping.
 func (f *packFile) release() { f.owner.release() }
 
+// adopt makes the file share its key's live mapping, if any, in place of the
+// fresh one it opened, or registers its own (V1-0947).
+func (f *packFile) adopt(key packKey) {
+	f.owner = packMappings.adopt(key, f.owner)
+	f.mapping = f.owner.data()
+}
+
 // heapStrings returns the verified string section as a table over a heap
 // copy, made once per file (proposed IDX-SNAP-V0-029). Every string a read
 // hands out (paths, blob hashes, modes, symbol fields, tracked and skipped
@@ -541,7 +548,8 @@ type packKey struct {
 // and evicts the oldest retention first. Eviction releases the retention's
 // reference: the mapping is unmapped once every Index read from it has been
 // released too, and stays mapped while one has not (proposed
-// IDX-SNAP-V0-028). A later read of that pack maps it again.
+// IDX-SNAP-V0-028). A later read of that pack adopts the mapping while it is
+// live in packMappings (V1-0947), and maps the file again once it is not.
 var packCache = struct {
 	sync.Mutex
 	mapped map[packKey]*packFile
@@ -606,6 +614,7 @@ func readPackSnapshot(path string, identity repositoryIdentity, engineID string,
 		file.release()
 		return decodeRetainedPack(retained, lease, identity, engineID, load)
 	}
+	file.adopt(key)
 	defer file.close()
 	index, err := decodePackSnapshot(file, identity, engineID, load)
 	if err != nil {

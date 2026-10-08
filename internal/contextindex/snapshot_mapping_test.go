@@ -13,20 +13,20 @@ import (
 	"testing"
 )
 
-// escapedAliases holds the values a caller can keep after it drops an Index:
+// leaseAliases holds the values a caller can keep after it drops an Index:
 // symbol strings, source strings, a Source value as internal/doccorpus keeps
 // one, the text a body read returned, a Tracked key and a vocabulary path.
-type escapedAliases struct {
+type leaseAliases struct {
 	symbolPath, symbolName, symbolKind, symbolBlob string
 	source                                         Source
 	text                                           string
 	tracked, vocabularyPath                        string
 }
 
-// keepAliases takes escapedAliases from index and the heap copies they must
+// keepAliases takes leaseAliases from index and the heap copies they must
 // still equal later. The aliases are taken exactly as callers take them, so
 // on a mapped read they point into the mapping unless the reader copied them.
-func keepAliases(t *testing.T, index *Index) (escapedAliases, escapedAliases) {
+func keepAliases(t *testing.T, index *Index) (leaseAliases, leaseAliases) {
 	t.Helper()
 	symbol := index.Symbols[slices.IndexFunc(index.Symbols, func(symbol Symbol) bool { return symbol.Name != "" })]
 	paths := slices.Sorted(func(yield func(string) bool) {
@@ -52,11 +52,11 @@ func keepAliases(t *testing.T, index *Index) (escapedAliases, escapedAliases) {
 		tracked = path
 		break
 	}
-	kept := escapedAliases{
+	kept := leaseAliases{
 		symbolPath: symbol.Path, symbolName: symbol.Name, symbolKind: symbol.Kind, symbolBlob: symbol.BlobHash,
 		source: source, text: text, tracked: tracked, vocabularyPath: index.Vocabulary.Paths[0],
 	}
-	want := escapedAliases{
+	want := leaseAliases{
 		symbolPath: strings.Clone(symbol.Path), symbolName: strings.Clone(symbol.Name), symbolKind: strings.Clone(symbol.Kind),
 		symbolBlob: strings.Clone(symbol.BlobHash), text: strings.Clone(text), tracked: strings.Clone(tracked),
 		vocabularyPath: strings.Clone(index.Vocabulary.Paths[0]),
@@ -67,7 +67,7 @@ func keepAliases(t *testing.T, index *Index) (escapedAliases, escapedAliases) {
 
 // checkAliases reads every kept alias byte by byte; a dangling alias faults
 // or reads different bytes.
-func checkAliases(t *testing.T, kept, want escapedAliases, withText bool) {
+func checkAliases(t *testing.T, kept, want leaseAliases, withText bool) {
 	t.Helper()
 	pairs := [][2]string{
 		{kept.symbolPath, want.symbolPath}, {kept.symbolName, want.symbolName}, {kept.symbolKind, want.symbolKind},
@@ -339,4 +339,45 @@ func equalIgnoringLease(want, got *Index) bool {
 	want.lease, got.lease = nil, nil
 	defer func() { want.lease, got.lease = wantLease, gotLease }()
 	return reflect.DeepEqual(want, got)
+}
+
+// TestAdoptedPackMappingUnmapsAfterLastRelease joins V1-0947 and V1-0983: a
+// read that misses the ring while an unreleased Index keeps the file's mapping
+// live adopts that mapping instead of mapping the file again, and once every
+// Index and the ring release it, the mapping leaves the identity table and is
+// unmapped (IDX-SNAP-V0-028, IDX-SNAP-V0-030).
+func TestAdoptedPackMappingUnmapsAfterLastRelease(t *testing.T) {
+	index, receipt := packFixture(t)
+	identity := fixtureIdentity(index)
+	resetPackRetention()
+	defer resetPackRetention()
+	resetPackMappings()
+	defer resetPackMappings()
+	first, err := readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), loadFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := retainedOwner(t, receipt.PackPath)
+	resetPackRetention()
+	second, err := readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), loadFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retainedOwner(t, receipt.PackPath) != owner {
+		t.Fatal("a read of a live mapping's file mapped it again")
+	}
+	if refs := owner.refs.Load(); refs != 3 {
+		t.Fatalf("the adopted mapping holds %d references, want the ring's and two reads'", refs)
+	}
+	first.Release()
+	second.Release()
+	resetPackRetention()
+	if refs := owner.refs.Load(); refs != 0 {
+		t.Fatalf("the released mapping holds %d references, want 0 (unmapped)", refs)
+	}
+	for key := range packMappings.mappings() {
+		if key.path == receipt.PackPath {
+			t.Fatal("an unmapped mapping stayed in the identity table")
+		}
+	}
 }
