@@ -587,7 +587,7 @@ interrupt it (V1-0624). Admission now refuses such a path before a blocking open
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-028 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`, `openPinnedRegular`, `openCheckedRegular`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, `TestOpenPinnedRegularRefusesFIFOAndFinalSymlink`, `TestOpenCheckedRegularRefusesSwapAfterCheck` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
+| TRE-V0-028 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`, `regularAbsolutePath`, `openCheckedRegular`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, `TestCheckPinnedFileRefusesFIFOAndFinalSymlink`, `TestOpenCheckedRegularRefusesSwapAfterCheck` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
 
 Recorded limits. A swap between the no-follow check and the open is tested by
 replacing the path between a recorded `Lstat` and the open helper, not by racing

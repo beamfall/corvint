@@ -350,6 +350,33 @@ func regularPath(root *os.Root, n string) error {
 	}
 	return nil
 }
+
+// regularAbsolutePath is regularPath for an absolute pinned file: each prefix
+// takes a no-follow Lstat and the final one is returned for the open. A root
+// opened at "/" would contain nothing and needs read access to "/" itself,
+// which a sandbox such as Landlock denies (V1-0624). The open then goes through
+// openCheckedRegular, because os.Root follows a final symlink even with
+// O_NOFOLLOW.
+func regularAbsolutePath(name string) (os.FileInfo, error) {
+	parts := strings.Split(strings.TrimPrefix(name, string(filepath.Separator)), string(filepath.Separator))
+	var s os.FileInfo
+	for i := range parts {
+		var e error
+		if s, e = os.Lstat(string(filepath.Separator) + filepath.Join(parts[:i+1]...)); e != nil {
+			return nil, e
+		}
+		if s.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("symlink input refused")
+		}
+		if i < len(parts)-1 && !s.IsDir() {
+			return nil, fmt.Errorf("non-directory segment")
+		}
+		if i == len(parts)-1 && !s.Mode().IsRegular() {
+			return nil, fmt.Errorf("nonregular file refused")
+		}
+	}
+	return s, nil
+}
 func checkInputs(root *os.Root, files map[string]string) error {
 	for n, h := range files {
 		if e := relative(n); e != nil {
@@ -429,17 +456,6 @@ func declaredPath(r Request) string {
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
 
-// openPinnedRegular binds the opened descriptor to a no-follow Lstat. The open
-// goes through the absolute path with O_NOFOLLOW because os.Root follows a final
-// symlink even with that flag (V1-0624).
-func openPinnedRegular(root *os.Root, rel string) (*os.File, os.FileInfo, error) {
-	before, err := root.Lstat(rel)
-	if err != nil {
-		return nil, nil, err
-	}
-	return openCheckedRegular(filepath.Join(root.Name(), rel), before)
-}
-
 // openCheckedRegular opens a path whose no-follow check saw before. O_NONBLOCK
 // keeps a FIFO swapped in after that check from blocking admission, O_NOFOLLOW
 // refuses a final symlink swapped in, and the same-file check refuses any other
@@ -472,19 +488,15 @@ func checkPinnedFile(base, name, digest string) error {
 		}
 		name = filepath.Join(base, filepath.FromSlash(name))
 	}
-	root, err := os.OpenRoot(string(filepath.Separator))
+	name = filepath.Clean(name)
+	if err := relative(strings.TrimPrefix(name, string(filepath.Separator))); err != nil {
+		return err
+	}
+	before, err := regularAbsolutePath(name)
 	if err != nil {
 		return err
 	}
-	defer root.Close()
-	rel := strings.TrimPrefix(filepath.Clean(name), string(filepath.Separator))
-	if err = relative(rel); err != nil {
-		return err
-	}
-	if err = regularPath(root, rel); err != nil {
-		return err
-	}
-	f, st, err := openPinnedRegular(root, rel)
+	f, st, err := openCheckedRegular(name, before)
 	if err != nil {
 		return err
 	}
