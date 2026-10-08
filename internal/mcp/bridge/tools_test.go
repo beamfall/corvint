@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -56,12 +57,27 @@ func TestContextToolReturnsBoundPacketWithoutWrites(t *testing.T) {
 
 // TestCEMReportToolPreviewsCLIReportWithoutPublishing covers MCPV0-025: the
 // preview's markdown is byte-identical to the report `corvint cem report`
-// publishes, and the preview itself writes nothing.
+// publishes, including the hunk review projection, and the preview itself
+// writes nothing. An invalid map keeps that parity and stays not-ok (V1-0529).
 func TestCEMReportToolPreviewsCLIReportWithoutPublishing(t *testing.T) {
 	if runtimeUnsupported() {
 		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
 	}
-	root, base, target := cemRepository(t)
+	for name, invalid := range map[string]bool{"valid map": false, "invalid map": true} {
+		t.Run(name, func(t *testing.T) {
+			root, base, target := cemRepository(t)
+			if invalid {
+				dropMapHunks(t, filepath.Join(root, ".corvint", "change.cem.json"))
+			}
+			assertPreviewMatchesPublishedReport(t, root, base, target, !invalid)
+		})
+	}
+}
+
+// assertPreviewMatchesPublishedReport previews the report over MCP, checks it
+// wrote nothing, then publishes it through the CLI workflow and compares both.
+func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string, wantValid bool) {
+	t.Helper()
 	registry, err := NewTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +121,30 @@ func TestCEMReportToolPreviewsCLIReportWithoutPublishing(t *testing.T) {
 			t.Fatalf("field %s differs: cli=%#v mcp=%#v", field, published[field], result.Receipt[field])
 		}
 	}
+	verification, _ := result.Receipt["verification"].(map[string]any)
+	if verification["valid"] != wantValid || (!wantValid && result.Receipt["ok"] != false) ||
+		!strings.Contains(markdown, "\n## Hunk review projection\n") {
+		t.Fatalf("preview lost map validity, uncertainty or the review projection: valid=%v ok=%v", verification["valid"], result.Receipt["ok"])
+	}
+}
+
+// dropMapHunks removes every mapped hunk, so the derived patch keeps hunks the
+// map no longer explains and the map is invalid.
+func dropMapHunks(t *testing.T, path string) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	document["hunks"] = []any{}
+	if raw, err = json.Marshal(document); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, string(raw))
 }
 
 // TestCEMReportToolRefusesMapsOutsideTheRoot: a symlinked map or ancestor is
