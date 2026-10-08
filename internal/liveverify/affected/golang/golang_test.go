@@ -136,7 +136,10 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 
 func runGit(t *testing.T, gitExecutable, root string, arguments ...string) {
 	t.Helper()
-	command := exec.Command(gitExecutable, append([]string{"-C", root}, arguments...)...)
+	// GIT_CONFIG_GLOBAL=/dev/null hides the host's maintenance settings, so disable
+	// auto maintenance here: a detached `git maintenance` outliving a commit races
+	// the TempDir cleanup (V1-0662).
+	command := exec.Command(gitExecutable, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 	command.Env = append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",

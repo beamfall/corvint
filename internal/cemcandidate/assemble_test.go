@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -314,5 +315,29 @@ func TestAssemblyCancellationAndInputSymlinks(t *testing.T) {
 	r.RunnerPlan.Path = link
 	if _, e := Assemble(context.Background(), r, out); e == nil {
 		t.Fatal("symlink accepted")
+	}
+}
+
+// TestRunnerBindingAdmitsKilledRunReceipt covers V1-1025: a runner-killed
+// phase (exitCode -1) binds, but never with a complete observation.
+func TestRunnerBindingAdmitsKilledRunReceipt(t *testing.T) {
+	plan := tr.PlanDocument{Profile: "corvint-test-runner-plan/0", Request: tr.Request{Runner: "go-test", InputFiles: map[string]string{"app.txt": tr.Digest([]byte("after\n"))}}, Invocation: tr.Invocation{Argv: []string{"not-executed"}}}
+	phase := tr.PhaseResult{Kind: "TEST", ExitCode: tr.KilledExitCode, TimedOut: true}
+	receipt := tr.ReceiptDocument{Profile: "corvint-test-runner-receipt/0", PlanSha256: tr.Identity(plan), Execution: tr.Execution{Profile: "corvint-test-runner-execution/0", Runner: plan.Request.Runner, InputSha256: tr.Identity(plan.Request.InputFiles), InvocationSha256: tr.Identity(plan.Invocation), Phases: []tr.PhaseResult{phase}, ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}, Observation: tr.Observation{Runner: plan.Request.Runner, Tests: []tr.Test{{ID: "fixture", State: tr.Unknown}}, Problems: []tr.Problem{{Code: "timeout", Detail: "runner did not finish within its admitted duration"}}}}
+	raw := encode(t, receipt)
+	if !bytes.Contains(raw, []byte(`"exitCode":-1`)) {
+		t.Fatal("fixture lacks killed-run exit code")
+	}
+	if _, e := runnerBinding(encode(t, plan), raw); e != nil {
+		t.Fatalf("killed-run receipt refused: %v", e)
+	}
+	receipt.Observation.Complete = true
+	if _, e := runnerBinding(encode(t, plan), encode(t, receipt)); !errors.Is(e, tr.ErrKilledRunComplete) {
+		t.Fatalf("complete killed run admitted: %v", e)
+	}
+	receipt.Observation.Complete = false
+	receipt.Execution.Phases[0].ExitCode = -9
+	if _, e := runnerBinding(encode(t, plan), encode(t, receipt)); !errors.Is(e, tr.ErrNegativeInteger) {
+		t.Fatalf("unadmitted negative exit code: %v", e)
 	}
 }

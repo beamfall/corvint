@@ -142,8 +142,11 @@ if [ -n "$original" ]; then
   cmp -s "$test_root/status-diagnostic.original" "$bad/receipts/resume-1-status.stderr" || fail status-diagnostic-overwritten
   pass status-diagnostic-retained
   # Every planned output is admitted before the first receipt is created.
+  # Regular files and symlinks are both refused; neither the symlink target nor an
+  # existing receipt may change (PT-V0-008, V1-0519).
+  for collision_kind in symlink regular; do
   for collision_name in ack.txt tool-identity.txt ready.stderr; do
-    collision=$test_root/collision-$collision_name
+    collision=$test_root/collision-$collision_kind-$collision_name
     mkdir -p "$collision/receipts" "$collision/tools"
     cp -R "$original/fixture" "$collision/fixture" || fail collision-fixture-copy
     cp "$original/review-request.txt" "$collision/review-request.txt"
@@ -151,13 +154,32 @@ if [ -n "$original" ]; then
     cp "$original/tools/cem01-go" "$collision/tools/cem01-go"
     printf 'PRESERVE_SENTINEL_%s\n' "$collision_name" > "$collision/sentinel.txt"
     cp "$collision/sentinel.txt" "$collision/sentinel.original"
-    ln -s "$collision/sentinel.txt" "$collision/receipts/resume-1-$collision_name"
-    run_expected 2 "collision-$collision_name" "$tour" --resume "$collision" --ack "$test_root/rejected-ack.txt"
-    grep -F 'reason=resume-output-collision' "$test_root/collision-$collision_name.out" >/dev/null || fail collision-not-preflighted
-    cmp -s "$collision/sentinel.original" "$collision/sentinel.txt" || fail sentinel-overwritten
+    if [ "$collision_kind" = symlink ]; then
+      ln -s "$collision/sentinel.txt" "$collision/receipts/resume-1-$collision_name"
+      preserved=$collision/sentinel.txt
+    else
+      cp "$collision/sentinel.txt" "$collision/receipts/resume-1-$collision_name"
+      preserved=$collision/receipts/resume-1-$collision_name
+    fi
+    run_expected 2 "collision-$collision_kind-$collision_name" "$tour" --resume "$collision" --ack "$test_root/rejected-ack.txt"
+    grep -F 'reason=resume-output-collision' "$test_root/collision-$collision_kind-$collision_name.out" >/dev/null || fail collision-not-preflighted
+    cmp -s "$collision/sentinel.original" "$preserved" || fail "$collision_kind-collision-overwritten"
+    [ "$collision_kind" = regular ] || [ -L "$collision/receipts/resume-1-$collision_name" ] || fail collision-symlink-replaced
     [ ! -e "$collision/receipts/resume-1-patch.out" ] || fail partial-write-before-collision-refusal
   done
+  done
   pass all-resume-output-collisions-preflighted
+  # A clean copy passes the same preflight and reaches ACK admission.
+  clean=$test_root/clean-resume
+  mkdir -p "$clean/receipts" "$clean/tools"
+  cp -R "$original/fixture" "$clean/fixture" || fail clean-fixture-copy
+  cp "$original/review-request.txt" "$clean/review-request.txt"
+  cp "$original/change.patch" "$clean/change.patch"
+  cp "$original/tools/cem01-go" "$clean/tools/cem01-go"
+  run_expected 3 clean-resume-preflight "$tour" --resume "$clean" --ack "$test_root/rejected-ack.txt"
+  grep -F 'reason=review-not-accepted' "$test_root/clean-resume-preflight.out" >/dev/null || fail clean-resume-blocked-before-ack
+  [ -f "$clean/receipts/resume-1-patch.out" ] && [ ! -e "$clean/receipts/resume-1-ack.txt" ] || fail clean-resume-receipts
+  pass clean-resume-admitted
   [ "$(cat "$original/receipts/missing-witness.exit")" -eq 1 ] || fail original-refusal-lost
   pass original-refusal-retained
 else
