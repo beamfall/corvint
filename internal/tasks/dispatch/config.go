@@ -208,6 +208,10 @@ type Role struct {
 	Prompt      string `json:"prompt"`
 	IdleSeconds int    `json:"idleSeconds"`
 	WallSeconds int    `json:"wallSeconds"`
+	// ExpiredLeaseGraceSeconds (CAL-V0-191, optional, 0..86400, absent is
+	// 600) is how long a running worker's attempt may stay past its lease
+	// expiry before heal.reap reaps it and stops the worker.
+	ExpiredLeaseGraceSeconds *int `json:"expiredLeaseGraceSeconds,omitempty"`
 	// Model, Escalate and DeescalateOnProgress are the CAL-V0-057
 	// escalation ladder. The role's host must render {model}.
 	Model                string `json:"model,omitempty"`
@@ -223,6 +227,22 @@ type Role struct {
 	UsageFormat string `json:"usageFormat,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
+}
+
+// defaultExpiredLeaseGrace and maxExpiredLeaseGrace bound CAL-V0-191.
+const (
+	defaultExpiredLeaseGrace = 600
+	maxExpiredLeaseGrace     = 86400
+)
+
+// ExpiredLeaseGrace is how long the role's running worker may hold an
+// expired lease before the dispatcher reaps it (CAL-V0-191). A nil role
+// (removed by a reload) has the default.
+func (r *Role) ExpiredLeaseGrace() time.Duration {
+	if r == nil || r.ExpiredLeaseGraceSeconds == nil {
+		return defaultExpiredLeaseGrace * time.Second
+	}
+	return time.Duration(*r.ExpiredLeaseGraceSeconds) * time.Second
 }
 
 // Tier is one escalation step: from After consecutive no-progress sessions
@@ -500,6 +520,9 @@ func (c *Config) validate() error {
 		// CAL-V0-128: cap 0 keeps a configured role but launches nothing.
 		if r.Cap < 0 || r.Cap > 64 || r.Priority < 0 || r.Priority > 1000 || r.IdleSeconds < 30 || r.IdleSeconds > 86400 || r.WallSeconds < 60 || r.WallSeconds > 7*86400 {
 			return fail("role %s needs cap 0..64, priority 0..1000, idleSeconds 30..86400 and wallSeconds 60..604800", r.Name)
+		}
+		if g := r.ExpiredLeaseGraceSeconds; g != nil && (*g < 0 || *g > maxExpiredLeaseGrace) {
+			return fail("role %s expiredLeaseGraceSeconds must be 0..%d", r.Name, maxExpiredLeaseGrace)
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)
