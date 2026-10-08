@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/flowcoverage/testfixture"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -165,6 +166,68 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 			}
 			if strings.HasPrefix(call.tool, "corvint.flows.") && (callErr == nil || callErr.Code == "") {
 				t.Fatalf("drops guard %v: %s served flows whose intent blob is missing: %#v", dropsLazyFetchGuard, call.tool, callErr)
+			}
+		}
+	}
+}
+
+// V1-0349: corvint.flows.coverage, which reads the denominator's committed intents, refuses with a
+// coded error and never reaches the promisor remote when a blob:none sparse clone left the intent
+// blob there, including through a Git that ignores GIT_NO_LAZY_FETCH. A full blob:none clone of the
+// same source is the control: it serves the page, so the sparse refusal is the missing blob's. The
+// remote's upload-pack touches a sentinel first, so a fetch attempt leaves it even though the
+// removed source cannot serve one. It sets PATH, so it is not parallel.
+func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	arguments := []byte(`{"denominator":"denominator.json","receipts":"runs.json","offset":0,"limit":1}`)
+	for _, dropsLazyFetchGuard := range []bool{false, true} {
+		source := testfixture.Repository(t)
+		gitOutput(t, source, "config", "uploadpack.allowFilter", "true")
+		sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+		clone := func(flags ...string) string {
+			root, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			gitOutput(t, source, append(append([]string{"clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none"}, flags...), "file://"+source, root)...)
+			gitOutput(t, root, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+			return root
+		}
+		sparse, full := clone("--sparse"), clone()
+		if err := os.RemoveAll(source); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(filepath.Join(sparse, "flows")); !os.IsNotExist(err) {
+			t.Fatalf("the sparse clone checked out flows/, so its intent blob is local (stat: %v)", err)
+		}
+		if dropsLazyFetchGuard {
+			shim := t.TempDir()
+			writeFile(t, filepath.Join(shim, "git"), "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '"+realGit+"' \"$@\"\n")
+			if err := os.Chmod(filepath.Join(shim, "git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		}
+		for _, test := range []struct {
+			name, root string
+			refused    bool
+		}{{"full", full, false}, {"sparse", sparse, true}} {
+			registry, callErr := NewFlows(test.root)
+			if callErr != nil {
+				t.Fatal(callErr)
+			}
+			_, callErr = registry.Call(context.Background(), ToolFlowsCoverage, arguments)
+			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+				t.Fatalf("drops guard %v: coverage over the %s clone reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, test.name, err)
+			}
+			if test.refused && (callErr == nil || callErr.Code != "flows-refused") {
+				t.Fatalf("drops guard %v: coverage served a denominator whose intent blob is missing: %#v", dropsLazyFetchGuard, callErr)
+			}
+			if !test.refused && callErr != nil {
+				t.Fatalf("drops guard %v: control coverage over a clone holding every HEAD blob refused: %#v", dropsLazyFetchGuard, callErr)
 			}
 		}
 	}

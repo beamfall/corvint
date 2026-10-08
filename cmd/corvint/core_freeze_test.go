@@ -567,6 +567,21 @@ func checkPromisorObjectRefusals(t *testing.T) {
 			t.Errorf("%v: envelope %v, want repository-object-unavailable naming one of %v with git.fetch-promisor-objects", test.arguments, envelope, test.objects)
 		}
 	}
+	// affected reads only tree-level Git data and the checked-out files, never a blob, so it plans
+	// rather than refuses (V1-0349). The sparse clone has no pkg/ checked out, so its plan stays
+	// UNKNOWN instead of claiming a selection.
+	for root, scope := range map[string]string{sparse: "UNKNOWN", full: ""} {
+		code, stdout, stderr := runCLI(t, "--root", root, "affected", "--base", base)
+		var report struct {
+			OK   bool `json:"ok"`
+			Plan struct {
+				Scope string `json:"scope"`
+			} `json:"plan"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &report); err != nil || code != 0 || !report.OK || scope != "" && report.Plan.Scope != scope {
+			t.Errorf("affected over %s: exit %d stdout %s stderr %s, want a plan with scope %q", root, code, stdout, stderr, scope)
+		}
+	}
 	lazyRead := func(environment ...string) {
 		command := exec.Command("git", "-C", full, "cat-file", "-p", baseBlob[0])
 		command.Env = append(os.Environ(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
