@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0468-v1-0653-governance-refused-register-accepted-2026-10-08.md`](0468-v1-0653-governance-refused-register-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Registers the `relation`, `trust` and `warnings` values of `context` `coverage.governance_refused` under CCF-V1-007 (d) as a CCF-V1-006 additive amendment, with a frozen mode and an N-1 skip (V1-0653). |
 | [`0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md`](0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts LPCV-V0-057..070 step-level negative controls by fault injection; intent only, delivery stays not-started. |
 | [`0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md`](0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCN-V0-001..012 test consolidation planner; intent only, delivery stays not-started. |
 | [`0456-v1-1022-tasks-obligation-ledger-accepted-2026-10-08.md`](0456-v1-1022-tasks-obligation-ledger-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TOL-V0-001..021 Tasks obligation ledger and resolves its eight unresolved decisions as the spec states; intent only, delivery stays not-started. |
