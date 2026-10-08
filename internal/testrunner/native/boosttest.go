@@ -103,6 +103,7 @@ type boostNode struct {
 	name     string
 	attrs    map[string]string
 	text     string
+	buf      strings.Builder
 	children []*boostNode
 }
 
@@ -155,6 +156,9 @@ func boostXML(data []byte) (*boostNode, error) {
 			if len(stack) == 0 {
 				return nil, fmt.Errorf("unbalanced boost.test XML")
 			}
+			n := stack[len(stack)-1]
+			n.text = n.buf.String()
+			n.buf = strings.Builder{}
 			stack = stack[:len(stack)-1]
 		case xml.CharData:
 			if len(stack) == 0 {
@@ -162,7 +166,8 @@ func boostXML(data []byte) (*boostNode, error) {
 					return nil, fmt.Errorf("trailing boost.test XML text")
 				}
 			} else {
-				stack[len(stack)-1].text += string(t)
+				// Amortized append: fragmented CDATA must not copy quadratically.
+				stack[len(stack)-1].buf.Write(t)
 			}
 		case xml.ProcInst:
 			if root != nil || declaration || t.Target != "xml" {

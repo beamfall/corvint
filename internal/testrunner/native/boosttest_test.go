@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -265,6 +266,29 @@ func TestBoostTestBoundaryContradictions(t *testing.T) {
 				t.Fatalf("%s exposed %s for %s", name, v.State, v.ID)
 			}
 		}
+	}
+}
+
+// TestBoostTestFragmentedTextLinear traces TRE-V0-037: a report at the byte
+// bound made of many CDATA fragments decodes in linear time.
+func TestBoostTestFragmentedTextLinear(t *testing.T) {
+	_, cases := boostRecorded(t)
+	in := boostInput(t, cases["pass-fail-disabled"])
+	frag := "<![CDATA[x]]>"
+	room := (tr.MaxReportBytes - len(in.Reports[boostReport])) / len(frag)
+	s := string(in.Reports[boostReport])
+	old := "<system-err><![CDATA[Failures detected in:"
+	if !strings.Contains(s, old) || room < 250000 {
+		t.Fatalf("fixture lacks room for fragments: %d", room)
+	}
+	in.Reports[boostReport] = []byte(strings.Replace(s, old, "<system-err>"+strings.Repeat(frag, room)+"<![CDATA[Failures detected in:", 1))
+	start := time.Now()
+	o, err := Parse(in)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("fragmented report took %s", elapsed)
+	}
+	if err != nil || !o.Complete || boostStates(o)[boostID("math/fails")] != tr.Failed {
+		t.Fatalf("fragmented report: %v %+v", err, o.Problems)
 	}
 }
 

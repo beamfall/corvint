@@ -62,7 +62,10 @@ was refused, because Boost writes one `failure` per assertion. Second, a failed
 `BOOST_REQUIRE` raised a counter mismatch, because Boost counts it as aborted in
 `errors`. Both were confirmed live and fixed. The parser now accepts several
 outcome entries per row and counts aborted rows, and new native fixtures cover
-both cases.
+both cases. A re-review found one more P2: the decoder appended text by string
+concatenation, so a report under the 4 MiB bound made of many CDATA fragments
+copied quadratically. `TestBoostTestFragmentedTextLinear` failed before the fix
+(12.4 s against a 10 s bound) and takes 0.16 s with an amortized buffer.
 
 ## Non-goals
 
