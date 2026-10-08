@@ -38,6 +38,7 @@ type BehaviorMigration struct {
 	SourceRevision        string            `json:"source_revision"`
 	DocumentationRevision string            `json:"documentation_revision"`
 }
+
 // BehaviorRevisions is the fixed /1 repository triple, shared by the /1
 // provider registry and its migration, discovery, runtime, adapter and corpus
 // manifest wires. The E2E member keeps the legacy /1 member name because the
