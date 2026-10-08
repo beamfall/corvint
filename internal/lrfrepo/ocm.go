@@ -1324,6 +1324,26 @@ func containsExactRequirement(anchor []byte, identity string) bool {
 	return false
 }
 
+// requirementBoundaryHint explains why an anchor that contains identity as a
+// substring still lacks it as an exact token: every occurrence adjoins a byte
+// that continues the token. It names only that ASCII byte and its side, never
+// anchor text, and is empty when the ID is exact or absent (OCM-V0-017).
+func requirementBoundaryHint(anchor []byte, identity string) string {
+	start := bytes.Index(anchor, []byte(identity))
+	if start < 0 || containsExactRequirement(anchor, identity) {
+		return ""
+	}
+	adjoining, side := byte(0), "after"
+	if start > 0 && requirementAdjacent(anchor[start-1]) {
+		adjoining, side = anchor[start-1], "before"
+	} else if end := start + len(identity); end < len(anchor) {
+		adjoining = anchor[end]
+	}
+	return "; " + identity + " occurs only inside a longer token ('" + string(adjoining) + "' " + side +
+		" it): a requirement token continues through A-Z, a-z, 0-9, '_' and '-', so separate the exact ID" +
+		" with a space or the anchor edge, for example t.Run(\"" + identity + " case name\", ...)"
+}
+
 func requirementAdjacent(value byte) bool {
 	return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' ||
 		value >= '0' && value <= '9' || value == '_' || value == '-'
