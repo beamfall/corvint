@@ -88,7 +88,8 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if role == "" {
 		role = "implementer"
 	}
-	if role != "implementer" && role != "reviewer" && role != "integrator" {
+	stage := map[string]string{"implementer": "implement", "reviewer": "review", "integrator": "integrate"}[role]
+	if stage == "" {
 		return usage(cmd, "unknown role")
 	}
 	allItems := []wire.Value{}
@@ -119,14 +120,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 			}
 			eligible := verb != "run" && verb != "admit" && a.Live()
 			if verb == "run" || verb == "admit" {
-				switch role {
-				case "implementer":
-					eligible = eligible || !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED" || (a.Phase == "WAITING" && a.Supervision.Answer != "")
-				case "reviewer":
-					eligible = eligible || a.Phase == "BUILT"
-				case "integrator":
-					eligible = eligible || a.Phase == "READY_FOR_INTEGRATION"
-				}
+				eligible = store.RoleSelects(stage, a)
 			}
 			if verb == "answer" {
 				eligible = a.Phase == "WAITING" && a.Supervision.QuestionID == values["--question"]

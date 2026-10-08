@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0467-v1-0827-role-stage-selection-accepted-2026-10-08.md`](0467-v1-0827-role-stage-selection-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts CAL-V0-197: run/admit --role select an answered wait only for the role's stage; intent only, delivery stays experimental. |
 | [`0465-v1-1012-local-completion-ok-mirrors-exit-accepted-2026-10-08.md`](0465-v1-1012-local-completion-ok-mirrors-exit-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts LCP-V0-017 local-completion ok mirroring; intent only, delivery stays experimental. |
 | [`0464-v1-0967-web-dot-specifier-alias-accepted-2026-10-08.md`](0464-v1-0967-web-dot-specifier-alias-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts GPK-V0-082 dot-specifier web imports; intent only, delivery stays experimental. |
 | [`0463-v1-0651-sandbox-launcher-refusal-accepted-2026-10-08.md`](0463-v1-0651-sandbox-launcher-refusal-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCQ-V0-059 sandbox launcher refusal; intent only, delivery stays experimental. |
