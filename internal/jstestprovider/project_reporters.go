@@ -15,6 +15,14 @@ const (
 	keepReportersOption     = ", keepReporters:true"
 	projectReportersInvalid = "project-reporters-invalid"
 	maxProjectReporters     = 32
+	// keptReportersAfterProvider places the kept entries after the provider
+	// reporter (PWP-V0-014), so the provider observes each callback first.
+	keptReportersAfterProvider = ", ...keptReporters(original.reporter)"
+	// legacyKeptConfigSuffix closes the retired provider-last form
+	// (PWP-V0-010 as first proposed); its retained receipts stay readable and
+	// never project passing.
+	legacyKeptConfigSuffix = keepReportersOption + "}]]};\n"
+	keptConfigSuffix       = keepReportersOption + "}]" + keptReportersAfterProvider + "]};\n"
 )
 
 // builtinPlaywrightReporters is the closed set Playwright resolves by name
@@ -54,6 +62,9 @@ func bindProjectReporters(r *Receipt, reported []reportedProjectReporter) error 
 		return errors.New("project-reporters-unobserved")
 	}
 	binding := &ProjectReporters{Entries: make([]ProjectReporter, 0, len(reported)), Effects: "unknown"}
+	if r.External.ProjectReporters != nil {
+		binding.Qualification = r.External.ProjectReporters.Qualification
+	}
 	if len(reported) > maxProjectReporters {
 		return errors.New(projectReportersInvalid)
 	}
@@ -78,9 +89,15 @@ func bindProjectReporters(r *Receipt, reported []reportedProjectReporter) error 
 }
 
 // keptConfig reports whether a retained controlled config was generated in
-// keep-reporters mode: the provider reporter's closing options are fixed.
+// keep-reporters mode, in either order: the closing bytes are fixed.
 func keptConfig(override string) bool {
-	return strings.HasSuffix(override, keepReportersOption+"}]]};\n")
+	return providerFirstConfig(override) || strings.HasSuffix(override, legacyKeptConfigSuffix)
+}
+
+// providerFirstConfig reports the keep-reporters config whose provider
+// reporter runs before every kept entry (PWP-V0-014).
+func providerFirstConfig(override string) bool {
+	return strings.HasSuffix(override, keptConfigSuffix)
 }
 
 func builtinReporter(name string) bool {
@@ -110,6 +127,12 @@ func projectReportersShapeError(r Receipt) error {
 	if !kept || !isExternalProfile(r.Profile) || p.Effects != "unknown" || len(p.Entries) > maxProjectReporters {
 		return errors.New(projectReportersInvalid)
 	}
+	// A carried qualification is a closed qualified record and only beside the
+	// provider-first config (PWP-V0-016); whether it matches is a projection
+	// question, never a shape question.
+	if q := p.Qualification; q != nil && (q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil || !providerFirstConfig(x.ConfigOverride)) {
+		return errors.New(projectReportersInvalid)
+	}
 	if p.Entries == nil {
 		// Unobserved entries are retained only beside a run-level infrastructure failure.
 		if r.Infrastructure == nil {
@@ -118,37 +141,40 @@ func projectReportersShapeError(r Receipt) error {
 		return nil
 	}
 	for _, entry := range p.Entries {
-		if entry.Name == "" || len(entry.Name) > 4096 {
-			return errors.New(projectReportersInvalid)
-		}
-		switch entry.Module {
-		case "builtin":
-			if !builtinReporter(entry.Name) || entry.ModuleDigest != "" {
-				return errors.New(projectReportersInvalid)
-			}
-		case "bound":
-			if builtinReporter(entry.Name) || entry.ModuleDigest == "" || entry.ModuleDigest != r.Identity.ConfigInputDigests[entry.Name] {
-				return errors.New(projectReportersInvalid)
-			}
-		case "unknown":
-			if builtinReporter(entry.Name) || entry.ModuleDigest != "" {
-				return errors.New(projectReportersInvalid)
-			}
-		default:
-			return errors.New(projectReportersInvalid)
-		}
-		switch entry.Options {
-		case "bound":
-			if !reporterDigestPattern.MatchString(entry.OptionsDigest) {
-				return errors.New(projectReportersInvalid)
-			}
-		case "absent", "unknown":
-			if entry.OptionsDigest != "" {
-				return errors.New(projectReportersInvalid)
-			}
-		default:
+		if !validProjectReporter(entry) || (entry.Module == "bound" && entry.ModuleDigest != r.Identity.ConfigInputDigests[entry.Name]) {
 			return errors.New(projectReportersInvalid)
 		}
 	}
 	return nil
+}
+
+// validProjectReporter checks one entry's closed shape. A bound module's digest
+// must additionally equal its config input where the receipt binds one.
+func validProjectReporter(entry ProjectReporter) bool {
+	if entry.Name == "" || len(entry.Name) > 4096 {
+		return false
+	}
+	switch entry.Module {
+	case "builtin":
+		if !builtinReporter(entry.Name) || entry.ModuleDigest != "" {
+			return false
+		}
+	case "bound":
+		if builtinReporter(entry.Name) || !reporterDigestPattern.MatchString(entry.ModuleDigest) {
+			return false
+		}
+	case "unknown":
+		if builtinReporter(entry.Name) || entry.ModuleDigest != "" {
+			return false
+		}
+	default:
+		return false
+	}
+	switch entry.Options {
+	case "bound":
+		return reporterDigestPattern.MatchString(entry.OptionsDigest)
+	case "absent", "unknown":
+		return entry.OptionsDigest == ""
+	}
+	return false
 }
