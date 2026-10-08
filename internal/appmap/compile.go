@@ -15,7 +15,7 @@ import (
 
 var webSuffix = map[string]bool{".ts": true, ".tsx": true, ".js": true, ".jsx": true, ".mjs": true, ".cjs": true}
 
-// Roots binds manifest root aliases to operator-declared roots (AMAP-V0-016): Repos maps each
+// Roots binds manifest root aliases to operator-declared roots (AMAP-V0-017): Repos maps each
 // alias to its ABSOLUTE_ROOT, and ManifestRepo names the alias whose HEAD holds the manifest
 // (empty: --root at the evaluated revision).
 type Roots struct {
@@ -29,7 +29,7 @@ func Build(ctx context.Context, root, manifestPath, revision string) (*Map, erro
 	return BuildRoots(ctx, root, manifestPath, revision, Roots{})
 }
 
-// BuildRoots is Build with aliased roots (AMAP-V0-016, AMAP-V0-017). Routers and flows are read
+// BuildRoots is Build with aliased roots (AMAP-V0-017, AMAP-V0-018). Routers and flows are read
 // from root at revision; the manifest and the tests may each come from an aliased root at its
 // pinned HEAD. Without aliases it is Build byte for byte.
 func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots Roots) (*Map, error) {
@@ -102,7 +102,7 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}
 	// An aliased root is read at HEAD, so an uncommitted change under what the map reads from it
-	// would make the map silently disagree with that checkout (AMAP-V0-018).
+	// would make the map silently disagree with that checkout (AMAP-V0-019).
 	for _, alias := range sortedKeys(aliased) {
 		o, paths := aliased[alias], []string{}
 		for _, name := range sortedKeys(o.inputs) {

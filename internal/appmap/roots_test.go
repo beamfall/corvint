@@ -86,10 +86,10 @@ func withoutRepo(t *testing.T, v any) any {
 	return out
 }
 
-// AMAP-V0-016 AMAP-V0-017: routers in one repository and tests in a second, aliased one join
+// AMAP-V0-017 AMAP-V0-018: routers in one repository and tests in a second, aliased one join
 // exactly as when both live in one repository; the map pins the second root's HEAD and names it on
 // every test-side anchor and unknown.
-func TestAMAPV0016TwoRootJoin(t *testing.T) {
+func TestAMAPV0017TwoRootJoin(t *testing.T) {
 	singleRoot, singleRev := fixtureRepo(t)
 	single := build(t, singleRoot, singleRev)
 	app, appRev, e2e, e2eRev := twoRoots(t, false)
@@ -167,9 +167,9 @@ func TestAMAPV0016TwoRootJoin(t *testing.T) {
 	}
 }
 
-// AMAP-V0-016: an undeclared alias, a root that is not the top of a Git worktree, a relative or
+// AMAP-V0-017: an undeclared alias, a root that is not the top of a Git worktree, a relative or
 // missing path, --root itself under an alias, or an invalid alias refuses; nothing is joined.
-func TestAMAPV0016RootUnavailable(t *testing.T) {
+func TestAMAPV0017RootUnavailable(t *testing.T) {
 	app, appRev, e2e, _ := twoRoots(t, false)
 	plain := t.TempDir()
 	for name, repos := range map[string]map[string]string{
@@ -197,10 +197,10 @@ func TestAMAPV0016RootUnavailable(t *testing.T) {
 	}
 }
 
-// AMAP-V0-018: the aliased root is read at HEAD, so a staged, unstaged or untracked change under
+// AMAP-V0-019: the aliased root is read at HEAD, so a staged, unstaged or untracked change under
 // what the map reads from it refuses instead of joining a tree that differs from the checkout; a
 // change elsewhere in that root does not.
-func TestAMAPV0018DirtySecondRoot(t *testing.T) {
+func TestAMAPV0019DirtySecondRoot(t *testing.T) {
 	app, appRev, e2e, _ := twoRoots(t, false)
 	roots := Roots{Repos: map[string]string{"e2e": e2e}}
 	writeFile(t, e2e, "README.md", "outside the tests root\n")
@@ -229,9 +229,9 @@ func TestAMAPV0018DirtySecondRoot(t *testing.T) {
 	}
 }
 
-// AMAP-V0-017: a single-root manifest compiles to the same bytes with or without declared roots,
+// AMAP-V0-018: a single-root manifest compiles to the same bytes with or without declared roots,
 // and its map carries no roots or repo member.
-func TestAMAPV0017SingleRootUnchanged(t *testing.T) {
+func TestAMAPV0018SingleRootUnchanged(t *testing.T) {
 	root, rev := fixtureRepo(t)
 	want, err := Encode(build(t, root, rev))
 	if err != nil {
@@ -250,10 +250,10 @@ func TestAMAPV0017SingleRootUnchanged(t *testing.T) {
 	}
 }
 
-// AMAP-V0-019: projections read only --root, so an anchor from the aliased root reads UNKNOWN (never
+// AMAP-V0-020: projections read only --root, so an anchor from the aliased root reads UNKNOWN (never
 // another repository's same path) and is printed with its repo; router anchors stay FRESH, and the
 // scaffold names the root its proposed file belongs in.
-func TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown(t *testing.T) {
+func TestAMAPV0020ProjectionsReadAliasedAnchorsUnknown(t *testing.T) {
 	app, appRev, e2e, _ := twoRoots(t, false)
 	m, err := BuildRoots(context.Background(), app, "appmap.json", appRev, Roots{Repos: map[string]string{"e2e": e2e}})
 	if err != nil {
@@ -325,8 +325,8 @@ func TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown(t *testing.T) {
 	}
 }
 
-// AMAP-V0-016: a root whose path ends in a space is a valid MCPV0-001 root and is not trimmed.
-func TestAMAPV0016RootPathKeepsTrailingSpace(t *testing.T) {
+// AMAP-V0-017: a root whose path ends in a space is a valid MCPV0-001 root and is not trimmed.
+func TestAMAPV0017RootPathKeepsTrailingSpace(t *testing.T) {
 	app, appRev, e2e, _ := twoRoots(t, false)
 	spaced := filepath.Join(t.TempDir(), "e2e ")
 	if err := os.Rename(e2e, spaced); err != nil {

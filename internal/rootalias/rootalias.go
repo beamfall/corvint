@@ -1,6 +1,6 @@
 // Package rootalias holds the operator-declared repository root spelling shared by multi-root
 // commands: `ALIAS=ABSOLUTE_ROOT` (docs/specs/mcp-multi-root-v0.md, MMR-V0-001, MMR-V0-002) and the
-// MCPV0-001 bounds every declared root keeps. The application map's second root (AMAP-V0-016)
+// MCPV0-001 bounds every declared root keeps. The application map's second root (AMAP-V0-017)
 // reuses it unchanged.
 package rootalias
 

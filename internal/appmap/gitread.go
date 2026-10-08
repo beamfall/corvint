@@ -29,7 +29,7 @@ type blobEntry struct {
 }
 
 // repo reads committed objects only: never the working tree, never the network (AMAP-V0-015).
-// alias names an operator-declared second root (AMAP-V0-016); empty is --root.
+// alias names an operator-declared second root (AMAP-V0-017); empty is --root.
 type repo struct {
 	ctx   context.Context
 	root  string
@@ -41,7 +41,7 @@ func rootUnavailable(alias, why string) error {
 }
 
 // openRoot binds a manifest alias to its operator-declared root and pins that root's HEAD commit
-// (AMAP-V0-016). The root keeps the MCPV0-001 bounds the multi-root MCP server applies
+// (AMAP-V0-017). The root keeps the MCPV0-001 bounds the multi-root MCP server applies
 // (MMR-V0-002), must be the top of a Git worktree, and must not be --root itself (MMR-V0-003).
 func openRoot(ctx context.Context, primary, alias, root string) (repo, string, error) {
 	if root == "" {

@@ -5,7 +5,7 @@
 [Issue 669](https://github.com/beamfall/corvint/issues/669) part 2 (native V1-0982): many
 applications keep routers in one repository and the E2E suite in another. The map must join them
 without a silent partial join, pin every root's revision, and say which root each piece of evidence
-comes from. Contract: proposed AMAP-V0-016..019 in `docs/specs/application-map-v0.md`, each pending
+comes from. Contract: proposed AMAP-V0-017..019 in `docs/specs/application-map-v0.md`, each pending
 owner acceptance.
 
 ## Decisions
@@ -28,9 +28,9 @@ owner acceptance.
 
 ## Evidence
 
-- Maintained tests: `TestAMAPV0016TwoRootJoin`, `TestAMAPV0016RootUnavailable`,
-  `TestAMAPV0018DirtySecondRoot`, `TestAMAPV0017SingleRootUnchanged`,
-  `TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown`, `TestAMAPV0016RootPathKeepsTrailingSpace`
+- Maintained tests: `TestAMAPV0017TwoRootJoin`, `TestAMAPV0017RootUnavailable`,
+  `TestAMAPV0019DirtySecondRoot`, `TestAMAPV0018SingleRootUnchanged`,
+  `TestAMAPV0020ProjectionsReadAliasedAnchorsUnknown`, `TestAMAPV0017RootPathKeepsTrailingSpace`
   (synthetic Git repositories).
 - Independent review (Codex) found two issues, both fixed: `find` and planner references dropped
   the root alias (now `repo` on find items, planner methods and spec), and the top-level check

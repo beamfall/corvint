@@ -210,7 +210,7 @@ func resolve(text string, flows []*planFlow, idf func(string) float64) resolutio
 type methodRef struct {
 	ID  string `json:"id"`
 	Ref string `json:"ref"`
-	// Repo names the aliased root Ref is read from (AMAP-V0-019); empty means --root.
+	// Repo names the aliased root Ref is read from (AMAP-V0-020); empty means --root.
 	Repo         string `json:"repo,omitempty"`
 	Freshness    string `json:"freshness"`
 	Verification string `json:"verification"`
@@ -246,7 +246,7 @@ type exploration struct {
 type specRef struct {
 	File string `json:"file"`
 	Ref  string `json:"ref"`
-	// Repo names the aliased root File is read from (AMAP-V0-019); empty means --root.
+	// Repo names the aliased root File is read from (AMAP-V0-020); empty means --root.
 	Repo      string `json:"repo,omitempty"`
 	Freshness string `json:"freshness"`
 }

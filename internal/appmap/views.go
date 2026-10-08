@@ -423,7 +423,7 @@ type findItem struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Ref   string `json:"ref,omitempty"`
-	// Repo names the aliased root Ref is read from (AMAP-V0-019); empty means --root.
+	// Repo names the aliased root Ref is read from (AMAP-V0-020); empty means --root.
 	Repo string `json:"repo,omitempty"`
 }
 

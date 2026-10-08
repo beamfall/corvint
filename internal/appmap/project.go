@@ -169,7 +169,7 @@ func newFreshness(ctx context.Context, o Options, anchors []Anchor) *freshness {
 // of is FRESH when the anchored lines are byte-identical at the evaluated revision, STALE when the
 // path is gone or the lines differ, and UNKNOWN when Git could not answer. An anchor read from an
 // aliased root is UNKNOWN: projections read only --root, never another repository's same path
-// (AMAP-V0-019).
+// (AMAP-V0-020).
 func (f *freshness) of(a Anchor) string {
 	if f.failed || a.Repo != "" {
 		return FreshUnknown

@@ -12,11 +12,11 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 [issue 658](https://github.com/beamfall/corvint/issues/658) (V1-0957, run-verified steps) and
 [issue 660](https://github.com/beamfall/corvint/issues/660) (V1-0959, scenario planner), and
 [issue 669](https://github.com/beamfall/corvint/issues/669) part 2 (V1-0982, tests in a second
-repository; AMAP-V0-016..019 proposed).
+repository; AMAP-V0-017..019 proposed).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016..019 (tests in a second, aliased repository; V1-0982) are proposed and implemented over synthetic repositories.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-017..019 (tests in a second, aliased repository; V1-0982) are proposed and implemented over synthetic repositories.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -220,7 +220,7 @@ Every requirement below is (accepted by decision 0446; V1-0956).
   bounded (64 router files, 4 MiB per router, 20000 states and test files, 1 MiB per test file,
   128 MiB of test source, 64 MiB map) and a breach refuses with `appmap-bound-exceeded`.
   (accepted by decision 0446; V1-0956)
-- `AMAP-V0-016`: A manifest MAY name the repository that holds its tests with `tests.repo`, a root
+- `AMAP-V0-017`: A manifest MAY name the repository that holds its tests with `tests.repo`, a root
   alias matching `^[a-z][a-z0-9-]{0,31}$` (otherwise `appmap-invalid-manifest`). `build` binds
   aliases with repeatable `--repo ALIAS=ABSOLUTE_ROOT`, the MMR-V0-001/002 spelling and bounds
   (shared code `internal/rootalias`), and MAY read the manifest itself from an aliased root with
@@ -229,19 +229,19 @@ Every requirement below is (accepted by decision 0446; V1-0956).
   commit. The join, unknowns and strengths are the same as when both trees share one repository.
   A single-root manifest compiles to the same bytes whether or not `--repo` is passed.
   (proposed (V1-0982; GitHub #669))
-- `AMAP-V0-017`: A map built with an aliased root MUST pin it in `roots`
+- `AMAP-V0-018`: A map built with an aliased root MUST pin it in `roots`
   (`{repo, revision, inputs}`, sorted by alias; `inputs` names `manifest` and/or `tests`) and MUST
   name the root on every anchor and unknown read from it with `repo`; an anchor or unknown without
   `repo` comes from `--root`. A single-root map carries neither member, so its bytes and digest are
   unchanged. (proposed (V1-0982; GitHub #669))
-- `AMAP-V0-018`: A build MUST refuse rather than join part of a tree when an alias the manifest
+- `AMAP-V0-019`: A build MUST refuse rather than join part of a tree when an alias the manifest
   needs is not declared, or its root is not absolute and clean, does not exist, is not the top of a
   Git worktree, has no `HEAD` commit, is the `--root` repository, or its worktree status cannot be
   read (`appmap-root-unavailable`); or when it has staged, unstaged or untracked changes under the
   manifest or `tests.root` it is read for (`appmap-root-dirty`), because `HEAD` would then differ
   from the checkout an agent edits. Changes elsewhere in that root do not refuse. Status is read
   with `--no-optional-locks` and nothing is written. (proposed (V1-0982; GitHub #669))
-- `AMAP-V0-019`: Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+- `AMAP-V0-020`: Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
   only `--root`. An anchor with `repo` MUST read freshness `UNKNOWN` and print its `repo`, never
   `FRESH` or `STALE` from a same-named path in `--root`; router, flow and manifest anchors in
   `--root` keep AMAP-V0-010. `find` items, planner method and spec references and anchor views
@@ -254,7 +254,7 @@ Every requirement below is (accepted by decision 0446; V1-0956).
 `corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
 [--manifest-repo ALIAS]` writes `application-map/0` to stdout. With an aliased tests root the map
 adds `roots: [{repo, revision, inputs}]` after `revision`, and `repo` as the first member of each
-anchor and unknown read from that root (AMAP-V0-016/017); projections print `repo` on
+anchor and unknown read from that root (AMAP-V0-017/017); projections print `repo` on
 those anchors.
 `corvint flows appmap screen|flow|find|scaffold --map FILE --screen|--flow|--text VALUE
 [--budget N | --full] [--revision REV]` writes `application-map-screen/0`,
@@ -272,8 +272,8 @@ with one coded JSON error on stderr and nothing on stdout.
 | `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, or a `find` query is not 2..128 bytes. |
 | `appmap-budget-too-small` | The budget cannot hold the projection head. |
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
-| `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-018). |
-| `appmap-root-dirty` | An aliased root has staged, unstaged or untracked changes under the manifest or `tests.root` read from it (AMAP-V0-018). |
+| `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-019). |
+| `appmap-root-dirty` | An aliased root has staged, unstaged or untracked changes under the manifest or `tests.root` read from it (AMAP-V0-019). |
 
 ### Unknown reasons
 
@@ -305,7 +305,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 - No TypeScript `paths`/`baseUrl` alias resolution (V1-0958 owns it).
 - No MCP tools, documentation-corpus records or persisted index; the map is an explicit file.
 - No revision other than `HEAD` for an aliased root, and no projection, planner or run-verification
-  read of an aliased root (its anchors read `UNKNOWN`, AMAP-V0-019); routers and flows never come
+  read of an aliased root (its anchors read `UNKNOWN`, AMAP-V0-020); routers and flows never come
   from an aliased root.
 - No ranking or learning; overlays are advisory. Run verification is RVN-V0, opt-in per call.
 - No browser execution and no write of the scaffold.
@@ -342,7 +342,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   partial copy), a scheme URL whose query names a path (the root), a regular expression after a
   control-statement condition (no selector), and a router file truncated inside a state call
   (non-literal, no panic).
-- Second repository (AMAP-V0-016..019): an undeclared alias or an unusable root refuses with
+- Second repository (AMAP-V0-017..019): an undeclared alias or an unusable root refuses with
   `appmap-root-unavailable`; uncommitted changes under what the map reads from it refuse with
   `appmap-root-dirty`; a same-named path in `--root` never makes an aliased anchor `FRESH`.
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
@@ -367,13 +367,13 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
-| AMAP-V0-016 | `TestAMAPV0016TwoRootJoin`, `TestAMAPV0016RootUnavailable`, `TestAMAPV0016RootPathKeepsTrailingSpace` |
-| AMAP-V0-017 | `TestAMAPV0016TwoRootJoin`, `TestAMAPV0017SingleRootUnchanged` |
-| AMAP-V0-018 | `TestAMAPV0016RootUnavailable`, `TestAMAPV0018DirtySecondRoot` |
-| AMAP-V0-019 | `TestAMAPV0019ProjectionsReadAliasedAnchorsUnknown` |
+| AMAP-V0-017 | `TestAMAPV0017TwoRootJoin`, `TestAMAPV0017RootUnavailable`, `TestAMAPV0017RootPathKeepsTrailingSpace` |
+| AMAP-V0-018 | `TestAMAPV0017TwoRootJoin`, `TestAMAPV0018SingleRootUnchanged` |
+| AMAP-V0-019 | `TestAMAPV0017RootUnavailable`, `TestAMAPV0019DirtySecondRoot` |
+| AMAP-V0-020 | `TestAMAPV0020ProjectionsReadAliasedAnchorsUnknown` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
-`cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-016). Build logs:
+`cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
 `docs/build-log/2026-10-07-application-map.md`, `docs/build-log/2026-10-07-appmap-second-root.md`.
 
 ## Rollout, rollback and compatibility
@@ -382,7 +382,7 @@ The slice is additive and experimental: a new package, one exported read-only co
 wrapper and one `flows` subcommand. Rollback removes `internal/appmap`,
 `cmd/corvint/flows_appmap.go`, `internal/contextindex/webimport_api.go`, the `flowsAppmapHelp`
 reference in `cmd/corvint/help.go` and this spec's index rows; no stored state, schema or ledger
-needs migration. Map files are explicit outputs and may be discarded. AMAP-V0-016..019 are
+needs migration. Map files are explicit outputs and may be discarded. AMAP-V0-017..019 are
 additive: rolling them back removes the `repo`/`roots` members, `BuildRoots`, the two refusal codes
 and the `--repo`/`--manifest-repo` flags; `internal/rootalias` may stay as the MMR-V0 helper.
 
@@ -398,7 +398,7 @@ and the `--repo`/`--manifest-repo` flags; `internal/rootalias` may stay as the M
 8. Re-test alias-imported specs once V1-0958 lands.
 9. Fall back to the next reuse candidate when the first page object's binding collides.
 10. Let projections, `flows plan` and the corpus MCP map tools accept `--repo` so aliased anchors
-    read `FRESH`/`STALE` instead of `UNKNOWN` (AMAP-V0-019).
+    read `FRESH`/`STALE` instead of `UNKNOWN` (AMAP-V0-020).
 11. A per-root revision (`--repo-revision ALIAS=REV`) instead of `HEAD` only.
 12. Carry `repo` on scaffold and planner unknowns and exploration refs that cite aliased files.
 
