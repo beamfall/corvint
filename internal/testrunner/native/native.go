@@ -19,7 +19,7 @@ import (
 )
 
 func Runners() []string {
-	return []string{"cmocka-xml", "ginkgo-v2", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
+	return []string{"cmocka-xml", "boost-test-junit", "ginkgo-v2", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
 }
 func known(r string) bool {
 	for _, v := range Runners() {
@@ -46,6 +46,8 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	switch r.Runner {
 	case cmockaRunner:
 		return buildCMocka(r)
+	case boostRunner:
+		return buildBoostTest(r)
 	case ginkgoRunner:
 		return buildGinkgo(r)
 	case "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit":
@@ -171,6 +173,8 @@ func failureExits(runner string) []int {
 			exits[i] = i + 1
 		}
 		return exits
+	case boostRunner:
+		return []int{boostFailureExit}
 	case "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit":
 		return []int{2}
 	case "ctest":
@@ -218,6 +222,8 @@ func Parse(in tr.Input) (tr.Observation, error) {
 	switch in.Runner {
 	case cmockaRunner:
 		return parseCMocka(in)
+	case boostRunner:
+		return parseBoostTest(in)
 	case "go-test":
 		err = parseGo(in.Stdout, &o)
 	case "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin":

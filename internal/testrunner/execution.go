@@ -1,6 +1,10 @@
 package testrunner
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
+)
 
 // ExecutionTempDir is the private TMPDIR the executor gives every phase of a
 // request; profiles whose native tools derive paths from TMPDIR bound it here.
@@ -27,4 +31,6 @@ type Execution struct {
 	Input              Input             `json:"-"`
 	ExecutionAuthority string            `json:"executionAuthority"`
 	DependencyClosure  string            `json:"dependencyClosure"`
+	// Retirement is present only for plans that request detached retirement.
+	Retirement *groupreap.Retirement `json:"retirement,omitempty"`
 }

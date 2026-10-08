@@ -442,6 +442,27 @@ func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
 	return v, nil
 }
 
+// PayloadEffects is the effects a valid CREATE or SET_EFFECTS payload
+// declares; ok is false for any other operation or an invalid payload. It
+// lets a caller describe committed effects without re-reading the store
+// (CAL-V0-192).
+func PayloadEffects(op string, v wire.Value) (ticket.Effects, bool) {
+	if op != OpCreate && op != OpSetEffects {
+		return ticket.Effects{}, false
+	}
+	p, err := decodePayload(op, wire.NewReader(v, "/payload"))
+	if err != nil {
+		return ticket.Effects{}, false
+	}
+	switch x := p.(type) {
+	case *CreatePayload:
+		return x.Effects, true
+	case *SetEffectsPayload:
+		return x.Effects, true
+	}
+	return ticket.Effects{}, false
+}
+
 // readRequestID validates an Identifier bounded to the §1 requestId limit.
 func readRequestID(r *wire.Reader) string {
 	s := r.Identifier()

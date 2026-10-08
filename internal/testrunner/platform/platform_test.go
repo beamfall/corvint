@@ -229,7 +229,7 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 	if err := json.Unmarshal(raw, &inventory); err != nil {
 		t.Fatal(err)
 	}
-	if len(inventory) != 25 {
+	if len(inventory) != 27 {
 		t.Fatalf("unexpected report inventory: %d", len(inventory))
 	}
 	for name := range inventory {

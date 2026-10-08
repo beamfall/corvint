@@ -289,7 +289,7 @@ func pickArray(v wire.Value, keys ...string) wire.Value {
 // queueStatusSummary is the CAL-V0-167 queue status summary, carrying the
 // CAL-V0-184 lastCompletion and completion windows.
 func queueStatusSummary(item wire.Value) wire.Value {
-	out := pick(item, "queueId", "tickets", "byStatus", "blocked", "headSeq", "writeBarrier", "barrier", "attempts", "lastCompletion", "completions")
+	out := pick(item, "queueId", "tickets", "byStatus", "blocked", "headSeq", "writeBarrier", "barrier", "attempts", "lastCompletion", "completions", "serialFallbackDeferred")
 	if live, ok := item.Obj.Get("liveAttempts"); ok {
 		out.Obj.Set("liveAttempts", pickArray(live, "attemptId", "ticketId", "phase", "holder", "expiresAt", "holderStatus"))
 	}
@@ -371,10 +371,10 @@ func ticketSummary(item wire.Value) wire.Value {
 
 // planSummary is the CAL-V0-167 plan preview summary.
 func planSummary(item wire.Value) wire.Value {
-	out := pick(item, "planningProfile", "queueId", "headSeq", "mutationAuthority")
+	out := pick(item, "planningProfile", "queueId", "headSeq", "mutationAuthority", "serialFallbackDeferred")
 	out.Obj.Set("profile", wire.String("taskman-plan-summary/0"))
 	if entries, ok := item.Obj.Get("entries"); ok {
-		out.Obj.Set("entries", pickArray(entries, "ticketId", "state", "reason", "nextStage", "nextAction"))
+		out.Obj.Set("entries", pickArray(entries, "ticketId", "state", "reason", "nextStage", "nextAction", "serialFallback"))
 	}
 	return out
 }

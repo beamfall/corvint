@@ -1428,13 +1428,16 @@ func queueStatus(env Env, args []string) *wire.Result {
 			o.Set("pools", occupancy)
 		}
 		attempts := map[string]*snapshot.Attempt{}
+		fallback := wire.Null()
 		if !rc.journalAbsent {
 			in, _, e := planInput(rc)
 			if e != nil {
 				return e
 			}
 			attempts = in.Attempts
+			fallback = serialFallbackDeferredValue(in)
 		}
+		o.Set("serialFallbackDeferred", fallback)
 		// The per-ticket retry map dominates the bytes on a large queue, so
 		// it is opt-in (CAL-V0-169); the attempt audit above still runs.
 		if withRetries {
@@ -1461,6 +1464,21 @@ func queueStatus(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// serialFallbackDeferredValue is the CAL-V0-193 queue-status list of the
+// tickets the default plan defers only by the WHOLE_REPOSITORY serial
+// fallback, in plan order. It plans only when some OPEN or HELD ticket has
+// unbounded effects, so a queue whose tickets all declare a scope reads no
+// plan and reports an empty list.
+func serialFallbackDeferredValue(in transaction.PlanInput) wire.Value {
+	for _, id := range in.Tickets.IDs() {
+		rec, _ := in.Tickets.Get(id)
+		if (rec.Status == ticket.StatusOpen || rec.Status == ticket.StatusHeld) && transaction.UnboundedEffects(rec.Effects) {
+			return wire.Strings(transaction.PriorityFirst(in).SerialFallbackDeferred())
+		}
+	}
+	return wire.Strings([]string{})
 }
 
 // completionSummary is the CAL-V0-184 queue-status throughput view, derived

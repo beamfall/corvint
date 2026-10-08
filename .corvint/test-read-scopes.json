@@ -296,7 +296,9 @@
     "internal/tasks/store": [
       "go.mod"
     ],
-    "internal/tcq": [],
+    "internal/tcq": [
+      "internal/testrunner/platform/testdata/native-report-fixtures.json"
+    ],
     "internal/testacceptance": [],
     "internal/testevidence": [],
     "internal/testrunner/dynamic": [],

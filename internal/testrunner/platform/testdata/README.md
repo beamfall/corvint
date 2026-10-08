@@ -49,7 +49,12 @@ qualification. Existing emulator applications and the SystemUI ANR are preserved
 The swift-xctest-* fixtures are original SwiftPM 6.4/macOS serial XCTest stdout,
 including multiple assertions in one method, thrown error, skip, setup failure,
 empty no-match output and empty compiler-failure stdout. Scratch path prefixes
-are replaced with /fixture. Robolectric fixtures come from Robolectric 4.16.1,
+are replaced with /fixture. `swift-xctest-three.txt` is the shared-executor stdout
+of Swift 6.4 (swiftlang-6.4.0.34.1, macOS 26.6.2 25G83, arm64) for exact pass,
+XCTAssertEqual failure and XCTSkip selectors, exit 1. `swiftpm-xunit-parallel.xml`
+is the unmodified `swift test --enable-xctest --disable-swift-testing --parallel
+--xunit-output` file from the same package and toolchain, exit 1: it reports the
+skip as a pass and is retained only as a negative witness (V1-0597). Robolectric fixtures come from Robolectric 4.16.1,
 API 35 and Console 6.1.3 Vintage: four native cases, missing Android runtime
 initialization failure, and zero selected tests. JVM properties/host identifiers
 are removed; native identities, outcomes, counts and diagnostics are retained.
