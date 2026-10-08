@@ -213,26 +213,29 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
-AMAP-V0-001	docs/specs/application-map-v0.md	71	The map MUST be compiled from a closed `application-map-manifest/0` document
-AMAP-V0-002	docs/specs/application-map-v0.md	80	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
-AMAP-V0-003	docs/specs/application-map-v0.md	92	Screens MUST be keyed by app plus template. Two resolved screens with the same
-AMAP-V0-004	docs/specs/application-map-v0.md	100	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
-AMAP-V0-005	docs/specs/application-map-v0.md	107	Test files MUST be joined to screens through the contextindex import graph:
-AMAP-V0-006	docs/specs/application-map-v0.md	122	Each screen MUST aggregate permissions and flags (inherited from the nearest
-AMAP-V0-007	docs/specs/application-map-v0.md	126	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
-AMAP-V0-008	docs/specs/application-map-v0.md	145	Edges MUST come only from evidence: `flow-step` edges between adjacent
-AMAP-V0-009	docs/specs/application-map-v0.md	150	The map MUST be deterministic for one revision: sorted nodes, edges, files and
-AMAP-V0-010	docs/specs/application-map-v0.md	154	Every element MUST be pinned to the anchor it was read from. A projection MUST
-AMAP-V0-011	docs/specs/application-map-v0.md	169	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
-AMAP-V0-012	docs/specs/application-map-v0.md	179	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
-AMAP-V0-013	docs/specs/application-map-v0.md	184	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
-AMAP-V0-014	docs/specs/application-map-v0.md	210	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
-AMAP-V0-015	docs/specs/application-map-v0.md	219	Building and projecting MUST NOT write to the repository, the index, or any
-AMAP-V0-016	docs/specs/application-map-v0.md	224	A `.state()` name (positional or `name:`) or `parent` written as a member
-AMAP-V0-017	docs/specs/application-map-v0.md	243	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo
-AMAP-V0-018	docs/specs/application-map-v0.md	252	A map built with an aliased root MUST pin it in `roots`
-AMAP-V0-019	docs/specs/application-map-v0.md	257	A build MUST refuse rather than join part of a tree when an alias the manifest
-AMAP-V0-020	docs/specs/application-map-v0.md	264	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+AMAP-V0-001	docs/specs/application-map-v0.md	74	The map MUST be compiled from a closed `application-map-manifest/0` document
+AMAP-V0-002	docs/specs/application-map-v0.md	83	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
+AMAP-V0-003	docs/specs/application-map-v0.md	95	Screens MUST be keyed by app plus template. Two resolved screens with the same
+AMAP-V0-004	docs/specs/application-map-v0.md	103	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
+AMAP-V0-005	docs/specs/application-map-v0.md	110	Test files MUST be joined to screens through the contextindex import graph:
+AMAP-V0-006	docs/specs/application-map-v0.md	125	Each screen MUST aggregate permissions and flags (inherited from the nearest
+AMAP-V0-007	docs/specs/application-map-v0.md	129	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
+AMAP-V0-008	docs/specs/application-map-v0.md	148	Edges MUST come only from evidence: `flow-step` edges between adjacent
+AMAP-V0-009	docs/specs/application-map-v0.md	153	The map MUST be deterministic for one revision: sorted nodes, edges, files and
+AMAP-V0-010	docs/specs/application-map-v0.md	157	Every element MUST be pinned to the anchor it was read from. A projection MUST
+AMAP-V0-011	docs/specs/application-map-v0.md	172	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
+AMAP-V0-012	docs/specs/application-map-v0.md	182	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
+AMAP-V0-013	docs/specs/application-map-v0.md	187	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
+AMAP-V0-014	docs/specs/application-map-v0.md	213	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
+AMAP-V0-015	docs/specs/application-map-v0.md	222	Building and projecting MUST NOT write to the repository, the index, or any
+AMAP-V0-016	docs/specs/application-map-v0.md	227	A `.state()` name (positional or `name:`) or `parent` written as a member
+AMAP-V0-017	docs/specs/application-map-v0.md	246	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo
+AMAP-V0-018	docs/specs/application-map-v0.md	255	A map built with an aliased root MUST pin it in `roots`
+AMAP-V0-019	docs/specs/application-map-v0.md	260	A build MUST refuse rather than join part of a tree when an alias the manifest
+AMAP-V0-020	docs/specs/application-map-v0.md	267	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+AMAP-V0-021	docs/specs/application-map-v0.md	274	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths
+AMAP-V0-022	docs/specs/application-map-v0.md	284	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
+AMAP-V0-023	docs/specs/application-map-v0.md	302	A name or parent the injection path cannot prove MUST stay `UNKNOWN`
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read

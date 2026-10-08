@@ -77,6 +77,16 @@ func decodeManifest(raw []byte) (Manifest, error) {
 		}
 		bound[p.Path] = true
 	}
+	if m.DIConstants != nil && (len(m.DIConstants) == 0 || len(m.DIConstants) > maxDIScopePaths) {
+		return m, invalidManifest("manifest di_constants must list 1 to %d paths", maxDIScopePaths)
+	}
+	scoped := map[string]bool{}
+	for _, p := range m.DIConstants {
+		if !safeRelative(p) || scoped[p] {
+			return m, invalidManifest("di_constants path %q is not a unique repository-relative path", p)
+		}
+		scoped[p] = true
+	}
 	return m, nil
 }
 

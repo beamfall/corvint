@@ -25,10 +25,10 @@ type rawState struct {
 	nameFrom, parentFrom []Anchor
 }
 
-// constLookup resolves a member expression `X.Y` to the string literal a constant table declares
-// for it, with the declaration's anchor and, for an imported table, the import binding's
-// (AMAP-V0-016); ok is false when it cannot.
-type constLookup func(ref string) (value string, at []Anchor, ok bool)
+// constLookup resolves a member expression `X.Y`, read at token index tok, to the string literal a
+// constant table declares for it, with the declaration's anchor and, for an imported table, the
+// import binding's (AMAP-V0-016), or the injection's (AMAP-V0-022); ok is false when it cannot.
+type constLookup func(ref string, tok int) (value string, at []Anchor, ok bool)
 
 // literalName reads a name or parent: a string literal, or a member expression a constant table
 // resolves. Anything else reads "".
@@ -37,7 +37,7 @@ func literalName(v jsValue, lookup constLookup) (string, []Anchor) {
 	case v.kind == "string":
 		return v.str, nil
 	case v.kind == "member" && lookup != nil:
-		if s, at, ok := lookup(v.str); ok {
+		if s, at, ok := lookup(v.str, v.tok); ok {
 			return s, at
 		}
 	}
