@@ -94,3 +94,12 @@ and dogfood/CEM binding for the batch.
 Revert the reconciliation commits `55cd68b9` and `73323682`, then the merge commits in reverse
 order (`c0b23006`, `dcba9f80`, `a29f6b7c`) with `git revert -m 1`. No stored state, wire format or
 pack encoding changes beyond the analyzer schema ID (`/113`), which a revert returns to `/112`.
+
+## Merge with main a4acc6f6 (after batch K2)
+
+Batch K2 re-pinned the analyzer audit digest at `corvint-analyzer/112`, and this batch had bumped the
+schema to the unreleased `corvint-analyzer/113`. The merge keeps `/113` and pins the merged input
+digest `e6432008…`; `TestAnalyzerSchemaInputs` and the full `internal/contextindex` package pass.
+The `core-compatibility-freeze-v1.md` register takes main's rows (including the K2
+`governance_refused` rows), with the `git.go` citation moved to line 437 for this batch's edit.
+`line-citations-check` and the other doc gates pass.
