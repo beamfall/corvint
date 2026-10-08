@@ -273,7 +273,9 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 			gitFailure: &GitFailure{Arguments: arguments, ExitCode: -1, StartError: err},
 		}
 	}
-	// The group sweep follows the pipe drain and precedes the reap (V1-0373).
+	// The group sweep follows the pipe drain and precedes the reap (V1-0373);
+	// Drain records the group from start until that reap, so an exit that
+	// abandons this read still retires it (AHI-048).
 	err = wait()
 	if ctx.Err() != nil {
 		return nil, contextError(ctx)

@@ -56,7 +56,8 @@ func pinGitObjects(ctx context.Context, root string, entries []treeEntry) ([]pin
 // process group (none for an owned worker): the group sweep follows the pipe
 // drain and precedes the reap, so a descendant still holding a pipe past
 // pipeDrainDelay is incomplete capture (exec.ErrWaitDelay) and no group signal
-// is sent after the reap (V1-0373).
+// is sent after the reap (V1-0373). The group stays recorded for
+// groupreap.KillLive from the start until just before that reap (AHI-048).
 func startDrained(ctx context.Context, command *exec.Cmd) (func() error, error) {
 	return groupreap.Drain(ctx, command, pipeDrainDelay)
 }

@@ -20,13 +20,18 @@ import (
 // sweeps the group as soon as the leader's exit is observed. Where waitid is
 // available every group signal is sent while the leader is held unreaped.
 //
+// Drain starts command as StartLive does: a group it leads is recorded from
+// the start until after the drain and the sweep, and released just before the
+// reap, so KillLive retires a descendant that still holds a pipe (AHI-048). A
+// start after KillLive is refused with ErrExiting.
+//
 // Stdout and Stderr must be distinct writers (or nil, or *os.File, which are
 // passed through untracked as os/exec does). A command without its own new
 // process group (Setpgid with Pgid 0) is started and waited plainly.
 func Drain(ctx context.Context, command *exec.Cmd, delay time.Duration) (func() error, error) {
 	attributes := command.SysProcAttr
 	if attributes == nil || !attributes.Setpgid || attributes.Pgid != 0 {
-		if err := command.Start(); err != nil {
+		if err := liveGroups.start(command); err != nil {
 			return nil, err
 		}
 		return command.Wait, nil
@@ -60,7 +65,7 @@ func Drain(ctx context.Context, command *exec.Cmd, delay time.Duration) (func() 
 			copies <- err
 		}()
 	}
-	err := command.Start()
+	err := liveGroups.start(command)
 	closeAll(writeEnds)
 	if err != nil {
 		closeAll(pipes)
@@ -95,8 +100,10 @@ func Drain(ctx context.Context, command *exec.Cmd, delay time.Duration) (func() 
 		}
 		var waitErr error
 		if observed != nil {
-			// The leader cannot be held unreaped: reap it now and send no
-			// group signal after it, except the legacy one below.
+			// The leader cannot be held unreaped: release its record, reap
+			// it now and send no group signal after it, except the legacy
+			// one below.
+			liveGroups.release(processID)
 			waitErr = command.Wait()
 		}
 		timedOut, copyErr := false, error(nil)
@@ -127,6 +134,7 @@ func Drain(ctx context.Context, command *exec.Cmd, delay time.Duration) (func() 
 			<-drained
 		}
 		if observed == nil {
+			liveGroups.release(processID)
 			waitErr = command.Wait()
 		}
 		switch {

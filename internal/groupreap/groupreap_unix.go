@@ -15,13 +15,19 @@ var signalGroup = syscall.Kill
 // observeExit is leaderUnreaped; tests inject an exit-observation failure.
 var observeExit = leaderUnreaped
 
+func setpgid(attributes *syscall.SysProcAttr) bool { return attributes.Setpgid && attributes.Pgid == 0 }
+
+func signalLiveGroup(group int, signal syscall.Signal) error { return syscall.Kill(group, signal) }
+
 // Wait reaps a started Setpgid command and SIGKILLs any process left in its
 // group. Where waitid is available the group is signalled while the exited
 // leader is still unreaped; elsewhere it is signalled after Wait.
 func Wait(command *exec.Cmd) error { return wait(command, nil) }
 
 // wait runs exited after the group signal and before the reap where waitid
-// allows, so detached-descendant retirement precedes any output-pipe wait.
+// allows, so detached-descendant retirement precedes any output-pipe wait. A
+// group recorded by StartLive is released after that signal and before the
+// reap, so KillLive never names a reaped leader's group (AHI-048).
 //
 // A failed exit observation on a waitid platform (for example ECHILD because
 // another reaper collected the leader) sends no group signal: the leader may
@@ -32,11 +38,13 @@ func wait(command *exec.Cmd, exited func()) error {
 	observed := observeExit(processID)
 	if observed == nil {
 		_ = signalGroup(-processID, syscall.SIGKILL)
+		liveGroups.release(processID)
 		if exited != nil {
 			exited()
 		}
 		return command.Wait()
 	}
+	liveGroups.release(processID)
 	err := command.Wait()
 	if errors.Is(observed, errors.ErrUnsupported) {
 		_ = signalGroup(-processID, syscall.SIGKILL)
@@ -48,7 +56,8 @@ func wait(command *exec.Cmd, exited func()) error {
 }
 
 // Contain places command in its own process group and makes its context
-// cancellation use Stop.
+// cancellation use Stop. Started through StartLive or Drain, the group is also
+// recorded for KillLive until its pre-reap release (AHI-048).
 func Contain(command *exec.Cmd) {
 	if command.SysProcAttr == nil {
 		command.SysProcAttr = &syscall.SysProcAttr{}
