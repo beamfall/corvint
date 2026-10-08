@@ -28,6 +28,9 @@ type packFile struct {
 	at      io.ReaderAt
 	size    int64
 	mapping []byte
+	// adopted marks a mapping taken from packCache.mappings, which no read
+	// may release.
+	adopted bool
 	file    *os.File
 	key     packKey
 	refused atomic.Bool
@@ -50,8 +53,15 @@ func openPackFile(path string) (*packFile, error) {
 	return &packFile{at: file, size: info.Size(), mapping: mapReadOnly(file, info.Size()), file: file, key: key}, nil
 }
 
-func (f *packFile) close()   { f.file.Close() }
-func (f *packFile) release() { unmapReadOnly(f.mapping) }
+func (f *packFile) close() { f.file.Close() }
+
+// release unmaps the file's own mapping after a refused or redundant read; an
+// adopted mapping stays, because indexes handed out earlier alias it.
+func (f *packFile) release() {
+	if !f.adopted {
+		unmapReadOnly(f.mapping)
+	}
+}
 
 // bytesAt returns the file bytes at offset without verifying them; every
 // caller verifies before decoding.
@@ -510,16 +520,23 @@ type packKey struct {
 	digest   [sha256.Size]byte
 }
 
-// packCache retains the mappings of the last packCacheCapacity distinct packs
-// and evicts the oldest retention first. Eviction drops the reference without
-// unmapping: an Index handed out earlier still aliases those bytes, and a
-// later read of that pack maps it again.
+// packCache retains the files of the last packCacheCapacity distinct packs
+// and evicts the oldest retention first. Eviction drops the file, with what it
+// decoded, but never unmaps: values copied out of an Index alias the mapping
+// without keeping any owner reachable. mappings therefore keeps every
+// mapping a successful read retained, for the process's life, and a later
+// read of an evicted pack with the same key adopts it instead of mapping the
+// file again, so live mappings are bounded by the distinct pack keys a
+// process reads, not by its cache misses. The key's header digest commits to
+// every section digest, and snapshots are only ever replaced by rename, so a
+// matching key names the same verified bytes.
 var packCache = struct {
 	sync.Mutex
-	mapped map[packKey]*packFile
-	ring   [packCacheCapacity]packKey
-	next   int
-}{mapped: map[packKey]*packFile{}}
+	mapped   map[packKey]*packFile
+	mappings map[packKey][]byte
+	ring     [packCacheCapacity]packKey
+	next     int
+}{mapped: map[packKey]*packFile{}, mappings: map[packKey][]byte{}}
 
 func retainedPack(key packKey) (*packFile, bool) {
 	packCache.Lock()
@@ -540,6 +557,14 @@ func retainPack(key packKey, file *packFile) *packFile {
 	defer packCache.Unlock()
 	if retained, ok := packCache.mapped[key]; ok {
 		return retained
+	}
+	if kept, ok := packCache.mappings[key]; !ok {
+		packCache.mappings[key] = file.mapping
+	} else if &kept[0] != &file.mapping[0] {
+		// A concurrent first read kept a mapping that was evicted while
+		// this read decoded; retain that one so the key keeps one mapping,
+		// and the caller drops this read's index and decodes it again.
+		file = &packFile{at: file.at, size: file.size, mapping: kept, adopted: true, file: file.file, key: file.key}
 	}
 	delete(packCache.mapped, packCache.ring[packCache.next])
 	packCache.mapped[key] = file
@@ -569,6 +594,7 @@ func readPackSnapshot(path string, identity repositoryIdentity, engineID string,
 		file.release()
 		return decodeRetainedPack(retained, identity, engineID, load)
 	}
+	file.adoptMapping(key)
 	defer file.close()
 	index, err := decodePackSnapshot(file, identity, engineID, load)
 	if err != nil {
@@ -584,6 +610,19 @@ func readPackSnapshot(path string, identity repositoryIdentity, engineID string,
 		return decodeRetainedPack(retained, identity, engineID, load)
 	}
 	return index, nil
+}
+
+// adoptMapping swaps the file's fresh mapping for the one an evicted retention
+// of the same key left, releasing the fresh one, which only its header read.
+func (f *packFile) adoptMapping(key packKey) {
+	packCache.Lock()
+	mapping, ok := packCache.mappings[key]
+	packCache.Unlock()
+	if !ok || f.mapping == nil {
+		return
+	}
+	unmapReadOnly(f.mapping)
+	f.mapping, f.adopted = mapping, true
 }
 
 func decodeRetainedPack(retained *packFile, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {

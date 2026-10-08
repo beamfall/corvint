@@ -254,6 +254,9 @@ type sectionedFile struct {
 	at      io.ReaderAt
 	size    int64
 	mapping []byte
+	// adopted marks a mapping taken from sectionedCache.mappings, which no
+	// read may release.
+	adopted bool
 	close   func()
 	key     packKey
 }
@@ -273,10 +276,15 @@ func openSectionedFile(path string) (*sectionedFile, error) {
 	return &sectionedFile{at: file, size: info.Size(), mapping: mapping, close: func() { file.Close() }, key: key}, nil
 }
 
-// release drops the mapping after a refused read. A successful read keeps
-// it: the returned Sources alias the mapped bodies for the process's life,
-// so sectionedCache retains it and later reads of the same file reuse it.
-func (f *sectionedFile) release() { unmapReadOnly(f.mapping) }
+// release drops the mapping after a refused or redundant read. A successful
+// read keeps it: the returned Sources alias the mapped bodies for the
+// process's life, so sectionedCache retains it and later reads of the same
+// file reuse it. An adopted mapping is never released.
+func (f *sectionedFile) release() {
+	if !f.adopted {
+		unmapReadOnly(f.mapping)
+	}
+}
 
 // withinBounds reports whether [offset, offset+length) lies inside size
 // without computing offset+length, which a corrupt table can make wrap.
@@ -357,16 +365,17 @@ func (f *sectionedFile) identity() (packKey, error) {
 // for the same reason and at the same size as packCacheCapacity.
 const sectionedCacheCapacity = packCacheCapacity
 
-// sectionedCache retains the mappings of the last sectionedCacheCapacity
-// distinct sectioned files and evicts the oldest retention first. Eviction
-// drops the reference without unmapping: an Index handed out earlier still
-// aliases those bytes, and a later read of that file maps it again.
+// sectionedCache retains the files of the last sectionedCacheCapacity
+// distinct sectioned files and evicts the oldest retention first, keeping
+// every retained mapping in mappings for the process's life, for the same
+// reasons and under the same key soundness as packCache.
 var sectionedCache = struct {
 	sync.Mutex
-	mapped map[packKey]*sectionedFile
-	ring   [sectionedCacheCapacity]packKey
-	next   int
-}{mapped: map[packKey]*sectionedFile{}}
+	mapped   map[packKey]*sectionedFile
+	mappings map[packKey][]byte
+	ring     [sectionedCacheCapacity]packKey
+	next     int
+}{mapped: map[packKey]*sectionedFile{}, mappings: map[packKey][]byte{}}
 
 func retainedSectioned(key packKey) (*sectionedFile, bool) {
 	sectionedCache.Lock()
@@ -387,11 +396,30 @@ func retainSectioned(key packKey, file *sectionedFile) *sectionedFile {
 	if retained, ok := sectionedCache.mapped[key]; ok {
 		return retained
 	}
+	if kept, ok := sectionedCache.mappings[key]; !ok {
+		sectionedCache.mappings[key] = file.mapping
+	} else if &kept[0] != &file.mapping[0] {
+		// As in retainPack: keep the mapping an evicted concurrent read kept.
+		file = &sectionedFile{at: file.at, size: file.size, mapping: kept, adopted: true, close: file.close, key: file.key}
+	}
 	delete(sectionedCache.mapped, sectionedCache.ring[sectionedCache.next])
 	sectionedCache.mapped[key] = file
 	sectionedCache.ring[sectionedCache.next] = key
 	sectionedCache.next = (sectionedCache.next + 1) % sectionedCacheCapacity
 	return file
+}
+
+// adoptMapping swaps the file's fresh mapping for the one an evicted
+// retention of the same key left, as packFile.adoptMapping does.
+func (f *sectionedFile) adoptMapping(key packKey) {
+	sectionedCache.Lock()
+	mapping, ok := sectionedCache.mappings[key]
+	sectionedCache.Unlock()
+	if !ok || f.mapping == nil {
+		return
+	}
+	unmapReadOnly(f.mapping)
+	f.mapping, f.adopted = mapping, true
 }
 
 func (header sectionedHeader) entry(name string) (sectionEntry, error) {
@@ -450,6 +478,7 @@ func readSectionedSnapshot(path string, identity repositoryIdentity, engineID st
 		file.release()
 		return decodeSectionedSnapshot(retained, identity, engineID, load)
 	}
+	file.adoptMapping(key)
 	defer file.close()
 	index, err := decodeSectionedSnapshot(file, identity, engineID, load)
 	if err != nil {
