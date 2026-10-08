@@ -319,11 +319,16 @@ func checkTool(t Tool) error {
 	if e != nil || !s.Mode().IsRegular() || s.Size() > 256<<20 {
 		return fmt.Errorf("tool must be bounded regular file")
 	}
-	f, e := os.Open(t.Executable)
+	// Nonblocking open plus same-file check: a FIFO swapped in after Lstat is
+	// refused instead of blocking admission (V1-0624).
+	f, e := os.OpenFile(t.Executable, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if e != nil {
 		return e
 	}
 	defer f.Close()
+	if o, e := f.Stat(); e != nil || !o.Mode().IsRegular() || !os.SameFile(s, o) {
+		return fmt.Errorf("tool must be bounded regular file")
+	}
 	b, e := io.ReadAll(io.LimitReader(f, (256<<20)+1))
 	if e != nil || len(b) > 256<<20 || Digest(b) != t.Sha256 {
 		return fmt.Errorf("tool identity changed")
@@ -452,7 +457,7 @@ func checkPinnedFile(base, name, digest string) error {
 	if err = regularPath(root, rel); err != nil {
 		return err
 	}
-	f, err := root.Open(rel)
+	f, err := root.OpenFile(rel, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return err
 	}

@@ -452,3 +452,31 @@ including WebdriverIO, need their own matcher version.
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
 Plans without the field are unaffected, and plans that carry it then refuse as
 unknown fields.
+
+## Nonregular runner document admission (experimental)
+
+A runner request, plan or tools document that named a FIFO without a writer
+blocked `os.Open` before any validation, and the signal context could not
+interrupt it (V1-0624). Admission now refuses such a path before a blocking open.
+
+- `TRE-V0-024`: The companion MUST refuse a request, plan or tools document that
+  is not a regular file before any blocking open, document validation or runner
+  execution, with the stable refusal `runner refused: regular document required`
+  and exit 1. Admission stats the path, opens it nonblocking and requires the
+  opened descriptor to be the same regular file. The executor's independently
+  pinned tools and configuration/reporter files, including the Gradle build
+  manifest, MUST open nonblocking without following a final symlink after their
+  no-follow regular-file checks, so a FIFO swapped in after the check refuses
+  instead of blocking. Regular documents, historical bytes and approved-plan
+  semantics are unchanged. Status: proposed (V1-0624).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-024 | `cmd/corvint-test-runner` `read`; `execute_unix.go` `checkTool`, `checkPinnedFile`; `TestNonregularRunnerDocumentsRefusedBeforeBlockingOpen`, `TestPinnedGradleManifestFIFORefusedBeforeExecution` | Process-level child runs with a 20-second deadline; the base companion blocked on a FIFO request and tools document and stayed blocked after SIGINT (`docs/build-log/2026-10-08-runner-fifo-admission.md`) |
+
+Recorded limits. The swap between the pinned-file check and its open is closed
+by the nonblocking open but has no deterministic regression test. Parent
+directories of a document path are trusted, as before. This is not hostile
+filesystem authority.
+
+Rollback restores the blocking opens; no wire, plan or receipt bytes change.
