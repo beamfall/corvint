@@ -673,7 +673,7 @@ build refuses `/2`, so drain before rolling back. The ledger moved from `/2` to 
 gained the per-ticket stall counts (CAL-V0-185, proposed): a build that writes `/3` adopts a
 drained `/1` or `/2` ledger and an earlier build refuses `/3`. It also adopts a `/2` ledger whose
 recorded workers are all gone, proven by the same process check the `/2` build reaps by, and its
-first tick reaps them as usual (CAL-V0-186, proposed). If a recorded worker is still running or
+first tick reaps them as usual (CAL-V0-187, proposed). If a recorded worker is still running or
 cannot be proven gone, the refusal names it and the clearing step: with the `/2` build, set every
 role `cap` and escalate tier `cap` to 0 in a copy of the configuration and run
 `corvint-tasks dispatch --program P --config COPY --once` until `dispatch status` lists no worker. A store `VERSION` another

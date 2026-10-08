@@ -6,7 +6,7 @@ Issue 668 (ticket V1-0980) records an upgrade from `main-0b45b05` (dispatch stat
 `main-0b5096c` (`/3`, V1-0966) that left a program down. The dispatcher received SIGTERM before its
 last tick reaped one ended worker, and the new build refused the ledger with
 `UNSUPPORTED_VERSION` because it still recorded that worker, although the process was gone.
-Recovery needed the old binary, run once with launches held. The change adds proposed CAL-V0-186
+Recovery needed the old binary, run once with launches held. The change adds proposed CAL-V0-187
 to `docs/specs/corvint-tasks-agent-leases-v0.md`, pending owner acceptance.
 
 ## Decisions
@@ -47,15 +47,15 @@ to `docs/specs/corvint-tasks-agent-leases-v0.md`, pending owner acceptance.
 
 Focused tests in `internal/tasks/dispatch` with real worker processes the dispatcher launched:
 
-- `TestCALV0186_Version2LedgerWithGoneWorkersMigrates`: two dead workers. Load adopts `/3`.
+- `TestCALV0187_Version2LedgerWithGoneWorkersMigrates`: two dead workers. Load adopts `/3`.
   `Open`+`Tick` emit `adopted` and `finished` for both, hand off the held attempt once, and charge
   no new session. A restart repeats neither, and the saved ledger is `/3` with no workers.
-- `TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses`: one live worker, a missing
+- `TestCALV0187_Version2LedgerWithLiveOrUnprovenWorkerRefuses`: one live worker, a missing
   identity, a missing workers list, an injected identity read failure, and a `/1` worker each refuse
   `UNSUPPORTED_VERSION` from both `LoadLedger` and `Open`. The ledger is left unchanged, the live
   worker untouched, and the message content is checked. Control: the same ledger once both
   workers are dead adopts.
-- `TestCALV0186_Version2LedgerWithOrphanedProcessRefuses`: leader killed with its background
+- `TestCALV0187_Version2LedgerWithOrphanedProcessRefuses`: leader killed with its background
   child alive refuses as still running.
 
 Rollback: revert the code and the spec amendment. Ledgers already adopted are `/3` and follow the

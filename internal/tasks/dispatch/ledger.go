@@ -300,7 +300,7 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // The one exception (proposed amendment) is a version 1 or 2 ledger:
 // drained names its version, and the caller adopts it as this one once it
 // is drained (CAL-V0-132) or, for version 2, once every worker it records
-// is proven gone (CAL-V0-186).
+// is proven gone (CAL-V0-187).
 func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained string, err error) {
 	// The profile is found under any spelling the struct decoder would
 	// read, so an aliased older profile meets its own version's rules.
@@ -643,7 +643,7 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	return &l, nil
 }
 
-// provenGone is the CAL-V0-186 adoption proof for the workers a version 2
+// provenGone is the CAL-V0-187 adoption proof for the workers a version 2
 // ledger records. Each worker's tree must be empty under refreshTree, the
 // check by which the build that wrote the ledger reaps a worker: every
 // recorded process is absent or carries another start identity, and no
@@ -682,7 +682,7 @@ func provenGone(workers []*Worker, drained, program string) error {
 	return nil
 }
 
-// undrainedLedger is the CAL-V0-132 and CAL-V0-186 refusal of an older
+// undrainedLedger is the CAL-V0-132 and CAL-V0-187 refusal of an older
 // ledger this build cannot adopt. It names the build that can clear it and
 // the command that does, with launches held so the tick that reaps the
 // ended workers launches no new one.

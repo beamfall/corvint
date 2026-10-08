@@ -85,12 +85,12 @@ func stopTree(t *testing.T, w Worker) {
 	}
 }
 
-// TestCALV0186_Version2LedgerWithGoneWorkersMigrates: a version 2 ledger
+// TestCALV0187_Version2LedgerWithGoneWorkersMigrates: a version 2 ledger
 // whose every recorded worker is gone is adopted as version 3 with the
 // workers kept as recorded, and the first tick reaps them as it reaps any
 // adopted worker (adopted, then finished, the held attempt handed off once
 // and no session charged again) and saves version 3 with none.
-func TestCALV0186_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
+func TestCALV0187_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
 	c, q, path, workers := version2Ledger(t, 2, `sleep 300`)
 	for _, w := range workers {
 		stopTree(t, w)
@@ -146,13 +146,13 @@ func TestCALV0186_Version2LedgerWithGoneWorkersMigrates(t *testing.T) {
 	}
 }
 
-// TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses: a version 2
+// TestCALV0187_Version2LedgerWithLiveOrUnprovenWorkerRefuses: a version 2
 // ledger with one worker still running, one whose record lacks a process
 // identity, one without a workers list, or one whose identity cannot be
 // read refuses UNSUPPORTED_VERSION, unchanged and without touching the live worker; the
 // refusal names the worker, the build that wrote the ledger and the
 // clearing command. A version 1 ledger with a worker names them too.
-func TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses(t *testing.T) {
+func TestCALV0187_Version2LedgerWithLiveOrUnprovenWorkerRefuses(t *testing.T) {
 	c, q, path, workers := version2Ledger(t, 2, `sleep 300`)
 	command := "`corvint-tasks dispatch --program prog --config CONFIG --once`"
 	refuses := func(name string, raw []byte, profile, want string) {
@@ -218,11 +218,11 @@ func TestCALV0186_Version2LedgerWithLiveOrUnprovenWorkerRefuses(t *testing.T) {
 	}
 }
 
-// TestCALV0186_Version2LedgerWithOrphanedProcessRefuses: a worker whose
+// TestCALV0187_Version2LedgerWithOrphanedProcessRefuses: a worker whose
 // leader has exited is not proven gone while a process it left in its
 // group or session still runs; the old build would stop that process
 // first (ORPHANED), so the ledger refuses.
-func TestCALV0186_Version2LedgerWithOrphanedProcessRefuses(t *testing.T) {
+func TestCALV0187_Version2LedgerWithOrphanedProcessRefuses(t *testing.T) {
 	c, _, _, workers := version2Ledger(t, 1, `sleep 300 & echo "$!" > "$CORVINT_DISPATCH_WORKER.child"; wait`)
 	w := workers[0]
 	var child int
