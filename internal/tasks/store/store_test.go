@@ -263,7 +263,7 @@ func TestObserveSourceIgnoresAmbientConfigurationAndReplaceRefs(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid"}, args...)...)
+		command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid"}, args...)...)
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		output, err := command.CombinedOutput()
 		if err != nil {

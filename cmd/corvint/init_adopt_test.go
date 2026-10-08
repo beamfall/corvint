@@ -282,7 +282,7 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 	if objectFormat == "sha256" {
 		initArguments = append(initArguments, "--object-format=sha256")
 	}
-	command := exec.Command("git", initArguments...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, initArguments...)...)
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		if objectFormat == "sha256" {
@@ -310,7 +310,7 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 
 func gitCommand(t *testing.T, directory string, environment []string, arguments ...string) {
 	t.Helper()
-	command := exec.Command("git", arguments...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 	if directory != "" {
 		command.Dir = directory
 	}

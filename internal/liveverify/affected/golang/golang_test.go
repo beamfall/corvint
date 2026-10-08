@@ -136,7 +136,7 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 
 func runGit(t *testing.T, gitExecutable, root string, arguments ...string) {
 	t.Helper()
-	command := exec.Command(gitExecutable, append([]string{"-C", root}, arguments...)...)
+	command := exec.Command(gitExecutable, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, arguments...)...)
 	command.Env = append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",

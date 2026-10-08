@@ -11,7 +11,7 @@ import (
 
 func canonicalCreateGitInput(t *testing.T, root, stdin string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = root
 	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+t.TempDir(), "XDG_CONFIG_HOME="+t.TempDir())
 	command.Stdin = strings.NewReader(stdin)

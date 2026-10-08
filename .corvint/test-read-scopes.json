@@ -333,6 +333,13 @@
     "tools/cw-trial": [
       "benchmarks/results/"
     ],
+    "tools/fixture-maintenance-check": [
+      "cmd/",
+      "conformance/",
+      "internal/",
+      "interop/",
+      "tools/"
+    ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
       "tools/gate-affected-select/main.go",

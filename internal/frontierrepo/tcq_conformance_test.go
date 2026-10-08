@@ -34,7 +34,7 @@ func TestFrozenTCQConformanceVectors(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_AUTHOR_NAME=TCQ Conformance", "GIT_AUTHOR_EMAIL=tcq@example.invalid", "GIT_COMMITTER_NAME=TCQ Conformance", "GIT_COMMITTER_EMAIL=tcq@example.invalid", "GIT_AUTHOR_DATE=2000-01-01T00:00:00+0000", "GIT_COMMITTER_DATE=2000-01-01T00:00:00+0000")
 		var stdout, stderr bytes.Buffer

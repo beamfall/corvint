@@ -369,7 +369,7 @@ func writeFailOpenRepository(t *testing.T, realGit, repository, home string) {
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command(realGit, arguments...)
+		command := exec.Command(realGit, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = repository
 		// The explicit Env drops TestMain's GIT_CONFIG_PARAMETERS, so the fixture restores it:
 		// detached auto maintenance after the commit races failOpenTree's walk of .git (V1-0351).
