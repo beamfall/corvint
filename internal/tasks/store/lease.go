@@ -37,8 +37,11 @@ type LeaseChoice struct {
 	QueueID, RequestID, Root string
 	Lease                    transaction.LeaseRequest
 	Derive                   ScopeDeriver
-	gate                     *gateRun
-	pool                     transaction.PoolFacts
+	// KnowHowRepos maps the repository aliases a claim resolves know-how
+	// freshness against (KHN-V0-027); it never enters the lease request.
+	KnowHowRepos map[string]string
+	gate         *gateRun
+	pool         transaction.PoolFacts
 }
 
 // claimObserver computes claim facts from the guarded audit before locking.
@@ -59,7 +62,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
 			report.ReapReceipts = reapReceipts
-			return report, claimedTicket(repo, choice.Root, choice.Lease.Verb, report, err)
+			return report, claimedTicket(repo, choice.Root, choice.KnowHowRepos, choice.Lease.Verb, report, err)
 		}
 		for _, x := range report.Expired {
 			child, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
@@ -104,7 +107,7 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 // --next` did not name. An attempt's ticket never changes, so reading its
 // record after the commit is enough. root is the claimant's checkout, whose
 // HEAD the delivered know-how freshness is computed against (KHN-V0-006).
-func claimedTicket(repo *intent.Repository, root, verb string, report *Report, err error) error {
+func claimedTicket(repo *intent.Repository, root string, repos map[string]string, verb string, report *Report, err error) error {
 	if err != nil || report.AttemptID == "" || (verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext) {
 		return err
 	}
@@ -142,7 +145,7 @@ func claimedTicket(repo *intent.Repository, root, verb string, report *Report, e
 	report.Ticket = a.TicketID.Raw
 	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
 	report.Delivery = claimDelivery(repo, a)
-	report.Delivery.KnowHow = claimKnowHow(repo, root, a.TicketID.Raw)
+	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw)
 	return nil
 }
 
