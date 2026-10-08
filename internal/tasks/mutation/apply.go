@@ -88,6 +88,10 @@ type Context struct {
 	// ExternalReview is the transaction layer's audited review result for
 	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
 	ExternalReview *ExternalReviewPost
+	// KnowHowAttempts is the audited attempt ledger for a KNOWHOW_ADD that
+	// names an attempt or generation (KHN-V0-008); nil refuses such a write
+	// PROVENANCE_UNVERIFIED. Other operations ignore it.
+	KnowHowAttempts AttemptLedger
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
