@@ -5,7 +5,10 @@ Date: 2026-10-08. Status: accepted by the owner. Authority: owner approval in ch
 
 ## Context
 
-V1-0651 makes a mutation run whose whole runner output is a macOS sandbox launcher refusal report `ErrSandboxUnavailable` (an inconclusive, unavailable result) instead of a surviving or killed mutant, without echoing the refusal text. The proposed requirement is `TCQ-V0-059` in `docs/specs/test-claim-qualification-v0.md`. AGENTS.md invariant 8 keeps acceptance
+V1-0651 makes a mutation run whose whole runner output is the macOS sandbox launcher's refusal
+name the fixed error `mutate.ErrSandboxUnavailable` in its witness `detail` instead of the generic
+`mutate: run ended without a verdict`, without echoing the refusal text. Only the error detail
+changes: such runs were already `not-run` with zero counts and exit 2. The proposed requirement is `TCQ-V0-059` in `docs/specs/test-claim-qualification-v0.md`. AGENTS.md invariant 8 keeps acceptance
 human-owned.
 
 ## Decision
