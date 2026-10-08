@@ -147,6 +147,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	directories, owners := groupByDirectory(files, modules)
 	units := make([]affected.Unit, 0, len(directories))
 	unitDirectories := make([]string, 0, len(directories))
+	commands := make(map[string]string)
 	imports := make(map[string]map[string]bool, len(directories))
 	testImports := make(map[string]map[string]bool, len(directories))
 	ordered := sortedKeys(directories)
@@ -165,11 +166,15 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 		units = append(units, unit)
 		unitDirectories = append(unitDirectories, directory)
+		if observation.command {
+			commands[directory] = unit.ID
+		}
 		imports[unit.ID] = importPaths
 		testImports[unit.ID] = testImportPaths
 	}
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units, unitDirectories, frontier)
+	applyBinaryExecs(root, units, unitDirectories, owners, commands, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -179,6 +184,7 @@ type directoryObservation struct {
 	unit                 affected.Unit
 	imports, testImports map[string]bool
 	frontier             map[string]bool
+	command              bool
 	err                  error
 }
 
@@ -192,7 +198,7 @@ func (language Language) observeDirectories(root *affected.Source, owners map[st
 		directory := ordered[offset]
 		observation := &observations[offset]
 		observation.frontier = map[string]bool{}
-		observation.unit, observation.imports, observation.testImports, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], observation.frontier)
+		observation.unit, observation.imports, observation.testImports, observation.command, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], observation.frontier)
 	}
 	workers := min(runtime.GOMAXPROCS(0), observeWorkers, len(ordered))
 	if !root.ConcurrentReads() || workers < 2 {
@@ -220,14 +226,15 @@ func (language Language) observeDirectories(root *affected.Source, owners map[st
 const observeWorkers = 8
 
 // observeDirectory turns one directory of Go files into one unit plus the raw
-// import path sets its non-test files and its test files declare.
-func (Language) observeDirectory(root *affected.Source, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, error) {
+// import path sets its non-test files and its test files declare, and reports
+// whether a non-test file declares package main (a command, AFP-V0-037).
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, bool, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
-	embeds, constrained := false, false
+	embeds, constrained, command := false, false, false
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
@@ -243,6 +250,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			continue
 		}
 		isTest := strings.HasSuffix(relative, "_test.go")
+		command = command || (!isTest && file.Name.Name == "main")
 		embeds = embeds || (!isTest && bytes.Contains(body, []byte("//go:embed")))
 		declared := importPaths
 		if isTest {
@@ -282,7 +290,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		sources = append(sources, relative)
 	}
 	if len(sources) == 0 && len(tests) == 0 {
-		return affected.Unit{}, nil, nil, nil
+		return affected.Unit{}, nil, nil, false, nil
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
@@ -294,7 +302,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, command, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package

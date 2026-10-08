@@ -30,7 +30,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
 
 - **AFP-V0-001:** The command MUST be read-only: one bounded `git status`, one HEAD identity read,
   one source walk, at most two bounded advice-declaration reads (AFP-V0-009), one bounded
-  read-scope declaration read (AFP-V0-023), with `--base` one
+  read-scope declaration read (AFP-V0-023), one bounded binary-exec declaration read
+  (AFP-V0-037), with `--base` one
   bounded base identity read and one bounded `git diff --name-only` (AFP-V0-010), no test
   execution, no index, trace, cache, or ledger write, and no `observeUnsupported` call on failure.
 - **AFP-V0-002:** The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
@@ -90,9 +91,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
   names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
   `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
-  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023) and `frontier`, every member always present
-  except `readScoped` and `readScope`, which appear only for a declared unit so that an undeclared
-  graph keeps its digest (`digestBody` and `digestUnit` in
+  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023), `execs` (AFP-V0-037) and `frontier`, every
+  member always present except `readScoped` and `readScope`, which appear only for a declared unit,
+  and `execs`, which appears only when non-empty, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
   `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
   `Unit` struct, so a new internal field changes the digest only when it is added to the
   projection, and a unit field left out of it fails the test. The value is an identity, not a
@@ -732,6 +733,36 @@ and container qualification; full fallback remains available.
   bound that is read. Rollback: delete `read_unix.go` and `read_other.go` and restore the
   `Lstat` body of `ReadSource` in `walk.go`.
 
+- **AFP-V0-037:** (proposed (V1-0991); no GitHub issue) A package whose code or tests run the built
+  binary of a command, a `package main` of the root module, depends on that command's whole build
+  though no import edge says so. The Go plugin MUST record such a command edge as the unit's
+  `execs` member (sorted command unit ids, part of the AFP-V0-005 projection when non-empty) from
+  either source: a path token of the unit (AFP-V0-021) that names a command's directory exactly,
+  resolved against the module root when anchored or plain (`go build ./cmd/corvint` runs there)
+  and against the unit's directory when climbing, never the unit itself; or the project-owned
+  declaration `.corvint/test-binary-execs.json`, the closed object
+  `{"profile":"corvint-test-binary-execs/0","packages":{DIR:[COMMAND_DIR...]}}`, at most 1 MiB,
+  4096 packages and 1 to 256 strictly ascending entries per package, for a package that runs a
+  binary it is handed (a `--corvint` flag) and so names no literal. Every `DIR` must hold an observed
+  Go package and every entry an observed command other than `DIR`. A declaration that is present but
+  unreadable, oversized, not a regular file or invalid in any member keeps no declared edge and
+  raises the module-level frontier `go:test-binary-execs-invalid`; literal edges stay. Selection
+  MUST then select, with witness `BINARY_EXEC` and `via` ending in the command then the consumer,
+  every consumer of a command that the dirty set reaches through the dependency closure
+  (traverse) or the enclosing-package rule, before the read-path rules; the consumer is selected
+  one edge past the command and not traversed further, like `testUsersOf`. A command reached only
+  as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
+  names a command directory as data over-selects; a command at the module root (`.`) is never a
+  literal target; an exec consumer's importers are not selected through it; a dirty
+  `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
+  `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
+  missed `conformance/host-lifecycle-v1` on a `cmd/corvint/help.go` change, with no import edge and
+  no stated uncertainty (`docs/build-log/2026-10-07-v1-0991-affected-binary-readers.md`).
+  Falsifier: a package that runs a command's binary and is excluded on a change the command's build
+  reaches, or a `BINARY_EXEC` selection on a change that reaches no command. Rollback: delete
+  `execs.go`, `golang/binaryexecs.go` and `.corvint/test-binary-execs.json`, the `Execs` member and
+  its digest field, the `execUsersOf` call in `reach`, and the gate tool's frontier entry.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -763,7 +794,7 @@ compilation: `unsupported-affected-drift`. A `--base` that is not a full commit 
 `invalid-arguments`; one that is not a commit here: `unsupported-affected-revision`; a range diff
 over its bound: `unsupported-affected-status`. In the fast tier every one of these, a plan the
 script cannot read, a module-level Go frontier (including an invalid AFP-V0-023 read-scope
-declaration), a dirty root module definition, or an empty
+declaration or AFP-V0-037 binary-exec declaration), a dirty root module definition, or an empty
 selection over a non-empty diff, or a repository the selector cannot index (AFP-V0-012) runs the
 full `./...` command instead of a narrowed one, so the
 worst case of `make gate-affected` is the cost of `make go-test`, never a skipped package.
@@ -803,6 +834,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 | AFP-V0-034 | `readSourceFile` (`internal/liveverify/affected/read_unix.go`, `read_other.go`), `ReadSource` (`walk.go`) | `TestReadSourceRefusesNonRegularFilesOnOpenDescriptor` (regular file read; symlink, directory, FIFO, unix socket and mode-0 directory refused as `ErrInvalidUnit` without blocking; a sparse body over `MaxSourceBytes` refused as `ErrWalkLimit`; a missing path reports `fs.ErrNotExist`) |
+| AFP-V0-037 | `Unit.Execs`, `Graph.execUsers`, `Graph.builtCommands`, `Graph.execUsersOf`, `WitnessBinaryExec`, `BinaryExecsPath` in `internal/liveverify/affected` (`unit.go`, `graph.go`, `execs.go`, `select.go`); `applyBinaryExecs`, `literalExecs`, `commandDirectory`, `readBinaryExecs`, `matchBinaryExecs`, `FrontierBinaryExecsInvalid` in `internal/liveverify/affected/golang/binaryexecs.go`; `moduleLevelFrontiers` in `tools/gate-affected-select/main.go`; `.corvint/test-binary-execs.json` | `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` (anchored, plain, climbing and module-path literals and a declared runner become `execs`; a change to the command or a package it imports selects every consumer as `BINARY_EXEC` through the command; a literal naming a file under the command directory is no edge; an unrelated change selects no consumer; byte-identical plans), `TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037` (nine invalid declarations raise only the frontier, drop declared edges and keep literal ones; a missing one raises nothing) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
