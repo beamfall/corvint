@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0470-v1-0485-late-cancellation-accepted-2026-10-08.md`](0470-v1-0485-late-cancellation-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCP-V0-064 (`TaskContext` cancellation boundaries never return a packet) and MCPV0-034 (`Registry.Call` rechecks the request context after the operation) (V1-0485). |
 | [`0468-v1-0653-governance-refused-register-accepted-2026-10-08.md`](0468-v1-0653-governance-refused-register-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Registers the `relation`, `trust` and `warnings` values of `context` `coverage.governance_refused` under CCF-V1-007 (d) as a CCF-V1-006 additive amendment, with a frozen mode and an N-1 skip (V1-0653). |
 | [`0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md`](0462-v1-1029-repository-qualified-know-how-notes-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts KHN-V0-024..027 repository-qualified know-how notes; intent only, delivery stays experimental. |
 | [`0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md`](0460-v1-1027-angularjs-injected-state-names-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts AMAP-V0-021..023 AngularJS injected state-name constants; intent only, delivery stays experimental. |
