@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`).
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, proposed).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -709,6 +709,21 @@ its tests; a surviving mutant is a change the cited tests cannot tell from the o
   is rendering only: dispositions, counts, the worklist, the exit status, and the
   `status`/`verify` envelopes are unchanged, so a surviving mutant never fails the build and is
   never silent.
+- `TCQ-V0-059`: (proposed 2026-10-08, ticket V1-0651) a runner failure whose whole output is
+  the macOS sandbox launcher's own refusal to apply its profile, exactly one line
+  `sandbox-exec: sandbox_apply: ` followed by non-empty printable ASCII errno text and a newline,
+  at most 160 bytes, as `/usr/bin/sandbox-exec` writes (exit 71) before `go test` starts when an
+  enclosing sandbox forbids nesting, MUST surface as the fixed error
+  `mutate.ErrSandboxUnavailable`, whose text is
+  `mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile`, so the
+  witness `detail` names it instead of `mutate: run ended without a verdict`. Neither error
+  echoes any output byte, including the errno text. Any other output, including the refusal
+  line preceded or followed by other bytes or carried inside a test event, stays the generic
+  error, so repository-controlled output can at most move a not-run reason between these two
+  fixed texts and never reach a verdict. Only the error text changes: the witness stays
+  `not-run` with zero counts, `prove --mutate` still exits 2 `unsupported-prove-mutation`
+  with its fixed message, and every other not-run, downgrade, and verdict path is unchanged.
+  Linux `bwrap` launcher failures are not classified.
 
 Measured cost (this host, macOS `sandbox-exec`, `TestDiscriminateRecordsWitnessAndReportDowngrades`
 fixture: one Go module, one selected hunk, 4 mutants, `--max-mutants 6`, `--wall-time 5m`): one
@@ -804,7 +819,9 @@ removing the `cem discriminate` action, the `discriminates` hunk member from the
 validator, and the mutation note from the `## Test claims` lines; `prove --mutate` output is
 unchanged by their presence or removal because the runner's additive `Report.Survivors` field is
 read only by `discriminate`, every map written without `discriminate` is unchanged, and a map
-that carries the member fails closed as `unknown-field` rather than being read as discriminated.
+that carries the member fails closed as `unknown-field` rather than being read as discriminated. `TCQ-V0-059`
+rolls back by removing `ErrSandboxUnavailable` and `launcherRefused`; the refusal then reads as
+`mutate: run ended without a verdict` again and no wire, state, or exit status changes.
 
 ## Traceability
 
@@ -831,6 +848,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-056` | `internal/cem/wire/discriminate.go`, `internal/cem/wire/map.go`, `internal/cemdiscriminate/cemdiscriminate.go` | `TestSpec03DiscriminationWitness` |
 | `TCQ-V0-057` | `internal/cem/workflow/discriminate.go`, `internal/cem/workflow/workflow.go`, `internal/cemdiscriminate/cemdiscriminate.go`, `internal/liveverify/mutate/mutate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
 | `TCQ-V0-058` | `internal/cem/workflow/read.go`, `internal/cemdiscriminate/cemdiscriminate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
+| `TCQ-V0-059` | `internal/liveverify/mutate/gotest.go` (`inconclusive`, `launcherRefused`, `ErrSandboxUnavailable`) | `TestInconclusiveNamesALauncherRefusalWithoutEchoingIt`, `TestRunReportsASandboxLauncherRefusalAsUnavailable`, `TestInconclusiveDoesNotExposeTestOutput`, `TestRunRefusesToJudgeARunWithoutAVerdict`; measured 2026-10-08 inside a deny-default outer `sandbox-exec` profile: `TestDiscriminateRecordsWitnessAndReportDowngrades` witness detail `mutation runner failed for pkg/calc/calc_test.go: mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile` |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

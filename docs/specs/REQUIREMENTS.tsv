@@ -2920,6 +2920,7 @@ TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	673	`corvint cem discrimina
 TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one optional hunk member `discriminates` admitted only on
 TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a
 TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a
+TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(proposed 2026-10-08, ticket V1-0651) a runner failure whose whole output is
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
