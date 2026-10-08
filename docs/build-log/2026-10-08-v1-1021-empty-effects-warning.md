@@ -71,6 +71,12 @@ Focused tests in `internal/tasks/cli`: `TestCALV0192_UnboundedEffectsWarn`,
   - `plan preview --summary` marked AT-0005 `RESOURCE_COLLISION` with
     `"serialFallback":"WHOLE_REPOSITORY"`.
 
+- After the review fix, `internal/tasks/transaction` passed. The first `internal/tasks/cli` rerun
+  failed in `TestTMV0008_ProbedTreeReadParity/diverged-ticket`, and the only difference was
+  `completions.observedAt` (12:50:29Z against 12:50:28Z). That is the CAL-V0-184 wall-clock
+  second crossing a boundary between the two parity runs, a pre-existing flake unrelated to this
+  change. The immediate rerun of `internal/tasks/cli` passed.
+
 ## Non-goals
 
 - `ticket create --effects-from` or any other effects derivation (out of scope per issue 679).
