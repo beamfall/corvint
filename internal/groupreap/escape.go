@@ -98,8 +98,10 @@ const (
 // true) only while p's PID still names p's start time.
 var (
 	snapshotProcesses = readProcessTable
-	signalProcess     = signalPinned
-	sessionOf         = processSession
+	// sampleProcesses is the run-time sampler's table read.
+	sampleProcesses = func() (map[int]Process, error) { return snapshotProcesses() }
+	signalProcess   = signalPinned
+	sessionOf       = processSession
 )
 
 // RunContained is Run plus bounded retirement of escaped owned descendants.
@@ -136,7 +138,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 				return
 			case <-ticker.C:
 			}
-			table, err := snapshotProcesses()
+			table, err := sampleProcesses()
 			if err != nil {
 				sampleErr = err
 				continue
@@ -161,12 +163,23 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		c.Err = errors.Join(errors.New("groupreap: leader exit observation unavailable"), exitErr)
 		return c, err
 	}
+	var freezeErr error
 	if r != nil {
 		// The token-owned record is taken first, while the exited leader is
-		// unreaped, so the structural pass cannot pre-empt it.
+		// unreaped, so the structural pass cannot pre-empt it. The owned tree
+		// is frozen and its escaped identities recorded beforehand: a
+		// descendant the Retirer cannot prove (no token, and no ancestry from
+		// the exited leader) is orphaned out of the structural tree when the
+		// Retirer kills its parent, and is then retired by that identity.
+		if table, _, err := freezeOwned(leader); err != nil {
+			freezeErr = err
+		} else if !recordEscaped(seen, table, leader) {
+			overflow = true
+		}
 		r.Retire()
 	}
 	c.Retired, c.Err = retireEscaped(leader)
+	c.Err = errors.Join(freezeErr, c.Err)
 	_ = signalGroup(-leader, syscall.SIGKILL)
 	// Orphans are retired before Wait: one holding the command's inherited
 	// output pipes would otherwise keep Wait's copy goroutines open.
@@ -311,39 +324,9 @@ func escapedOf(table map[int]Process, owned map[int]int) []Process {
 // leads its own session is retired with one group signal, because every
 // member of that session's groups descends from it.
 func retireEscaped(leader int) ([]Process, error) {
-	deadline := time.Now().Add(freezeBound)
-	var table map[int]Process
-	var owned map[int]int
-	for {
-		// The exited leader is unreaped, so its group ID is still ours.
-		if err := signalGroup(-leader, syscall.SIGSTOP); err != nil && err != syscall.ESRCH && err != syscall.EPERM {
-			return nil, fmt.Errorf("groupreap: stopping the owned group: %w", err)
-		}
-		var err error
-		if table, err = snapshotProcesses(); err != nil {
-			return nil, err
-		}
-		owned = ownedTree(table, leader)
-		running := false
-		for pid, depth := range owned {
-			p := table[pid]
-			if p.State != StateRunning {
-				continue
-			}
-			running = true
-			if depth > 0 && stoppedOwnedParent(table, owned, p) {
-				if err := signalProcess(p, false, syscall.SIGSTOP); err != nil && !notSignalled(err) {
-					return nil, fmt.Errorf("groupreap: stopping escaped descendant %s: %w", p, err)
-				}
-			}
-		}
-		if !running {
-			break
-		}
-		if time.Now().After(deadline) {
-			return nil, errors.New("groupreap: owned descendants did not stop within the bound")
-		}
-		time.Sleep(sweepPoll)
+	table, owned, err := freezeOwned(leader)
+	if err != nil {
+		return nil, err
 	}
 	escaped := escapedOf(table, owned)
 	sort.Slice(escaped, func(i, j int) bool {
@@ -374,6 +357,46 @@ func retireEscaped(leader int) ([]Process, error) {
 		retired = append(retired, p)
 	}
 	return retired, errs
+}
+
+// freezeOwned stops the leader's group and every owned descendant within the
+// bound and returns the stopped table and owned tree. A descendant is stopped
+// individually only while its owned parent is observed stopped.
+func freezeOwned(leader int) (map[int]Process, map[int]int, error) {
+	deadline := time.Now().Add(freezeBound)
+	var table map[int]Process
+	var owned map[int]int
+	for {
+		// The exited leader is unreaped, so its group ID is still ours.
+		if err := signalGroup(-leader, syscall.SIGSTOP); err != nil && err != syscall.ESRCH && err != syscall.EPERM {
+			return nil, nil, fmt.Errorf("groupreap: stopping the owned group: %w", err)
+		}
+		var err error
+		if table, err = snapshotProcesses(); err != nil {
+			return nil, nil, err
+		}
+		owned = ownedTree(table, leader)
+		running := false
+		for pid, depth := range owned {
+			p := table[pid]
+			if p.State != StateRunning {
+				continue
+			}
+			running = true
+			if depth > 0 && stoppedOwnedParent(table, owned, p) {
+				if err := signalProcess(p, false, syscall.SIGSTOP); err != nil && !notSignalled(err) {
+					return nil, nil, fmt.Errorf("groupreap: stopping escaped descendant %s: %w", p, err)
+				}
+			}
+		}
+		if !running {
+			return table, owned, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, nil, errors.New("groupreap: owned descendants did not stop within the bound")
+		}
+		time.Sleep(sweepPoll)
+	}
 }
 
 func stoppedOwnedParent(table map[int]Process, owned map[int]int, p Process) bool {

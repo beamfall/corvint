@@ -27,7 +27,17 @@ func TestEscapeHelper(t *testing.T) {
 	spawn := func(role string, setsid bool) *exec.Cmd {
 		exe, _ := os.Executable()
 		child := exec.Command(exe, "-test.run=^TestEscapeHelper$")
-		child.Env = append(os.Environ(), "CORVINT_ESCAPE_ROLE="+role)
+		env := os.Environ()
+		if role == "helper" && os.Getenv("CORVINT_ESCAPE_STRIP_OWNER") != "" {
+			// A child launched with a cleared environment carries no owner token.
+			env = env[:0:0]
+			for _, e := range os.Environ() {
+				if !strings.HasPrefix(e, OwnerEnvironmentKey+"=") {
+					env = append(env, e)
+				}
+			}
+		}
+		child.Env = append(env, "CORVINT_ESCAPE_ROLE="+role)
 		// Inherit the leader's output, as a native browser does.
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if setsid {

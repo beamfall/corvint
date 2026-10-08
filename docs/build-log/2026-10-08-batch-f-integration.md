@@ -59,6 +59,15 @@ function name encoded a TRE ID.
   `Retire` after the leader exits and before it is reaped, ahead of the structural pass, so the
   `TRE-V0-030` record is taken first. Non-graceful cancellation runs `Retire` while the leader is
   live, then signals only the leader as `TRE-V0-034` requires. `RunRetiring` stays for its tests.
+- Independent review (Codex, read-only) found one P1 in that composition: after a normal leader
+  exit the Retirer could kill a token-bearing parent whose child had no token and had started after
+  the last 200 ms sample, orphaning the child out of the structural tree while containment still
+  reported complete. `RunContainedRetiring` now freezes the owned tree (`freezeOwned`, extracted
+  from `retireEscaped`) and records its escaped identities before `Retire`, so such an orphan is
+  retired by its frozen identity. `TestRunContainedRetiringKeepsUnprovenOrphan` (Darwin) failed
+  before the fix (`helper=true`, containment `Err:<nil>` with no survivors) and passes after,
+  five repeated runs included; a run-time sampler seam (`sampleProcesses`) makes the missed sample
+  deterministic.
 - Semantic test conflict: V1-0613's `TestExecuteRetiresDetachedDescendants` (`timeout-retire=false`)
   and the opt-in live `TestSwiftPMXCTestLiveDetachedTeardown/contained-only` asserted that detached
   descendants survive without the retirement flag. `TRE-V0-034` now retires them structurally on
@@ -71,6 +80,8 @@ function name encoded a TRE ID.
 - Focused packages (Darwin arm64, `-p 1 -count=1`): `cmd/corvint-test-runner`, `internal/groupreap`,
   `internal/tcq`, `internal/testrunner/...`, `internal/tasks/{cli,mutation,snapshot,transaction}` pass
   after the semantic test fix; `internal/testrunner` failed before it as recorded above.
+- After the review fix, `internal/groupreap`, `internal/testrunner` and `cmd/corvint-test-runner`
+  pass again, and the live SwiftPM witnesses below pass again.
 - Live SwiftPM 6.4 (`/usr/bin/swift`, lane fixture copy): `TestSwiftPMXCTestLiveThreeOutcomes` and
   `TestSwiftPMXCTestLiveDetachedTeardown` (contained-only, timeout, interrupt) pass on the integrated
   tree; contained-only left no survivors, and timeout and interrupt each retired xctest and helper by
