@@ -65,4 +65,22 @@ Main at `ecfff8e0` had no `CAL-V0-192`, so every rewritten occurrence was lane-o
 
 ## Verification
 
-Recorded in the batch G final report and the bind plan's focused checks.
+Darwin, Go 1.27.1 (`GOTOOLCHAIN=local`), shared loaded host, `GOMAXPROCS=3 go test -p 1 -count=1
+-timeout 30m`: 36 packages `ok`, none failed: `internal/testrunner/...`, `internal/cemcandidate`,
+`cmd/corvint-test-runner`, `cmd/corvint-cem-candidate`, `internal/tasks/dispatch`,
+`internal/tasks/service`, `internal/tasks/cli`, `internal/tasks/store`, `internal/tasks/transaction`,
+`internal/liveverify/...`, `internal/companionrelease`, `internal/specindex`. `go vet` on the same
+packages and `gofmt -l` on the changed Go files are clean. The doc gates
+(`spec-requirements-check`, `requirement-definitions-check`, `traceability-tests-check`,
+`decision-numbers-check`, `line-citations-check`, `error-code-ownership-check`,
+`unbounded-readers-check`, `use-case-receipts-check`, `diagnostic-coverage-check`) pass.
+`script/proof-tour-test.sh` with a freshly built `interop/cem01-go` verifier and a copy of the
+V1-0519 lane's paused synthetic tour prints 31 PASS lines and exits 0.
+
+Independent review: Codex (`gpt-6-astra`, read-only) over `b9d8bc40..8e77f8d1` reported no P0 to P2
+findings; it could not run Go tests in its sandbox.
+
+NOT_RUN: `go test ./...`, `make gate`, the `interop/cem01-go` test suite, live dispatcher
+qualification for `CAL-V0-191` and `CAL-V0-194`, the opt-in live Mocha, Jasmine, SwiftPM and
+release-smoke qualifications, and owner acceptance of the proposed requirements (`PT-V0-008`,
+`AFP-V0-039`, `CAL-V0-191`, `CAL-V0-194`, `TRE-V0-040..041`).
