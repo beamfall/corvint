@@ -129,7 +129,24 @@ type Policy struct {
 	// KnowHow is the optional KHN-V0-021 know-how policy; nil (the key
 	// absent) keeps WORKER without KNOWHOW_ADD.
 	KnowHow *KnowHowPolicy
-	Raw     []byte
+	// Milestones is the optional CAL-V0-195 milestone policy; nil (the key
+	// absent) keeps milestone optional on CREATE and REFINE.
+	Milestones *MilestonePolicy
+	Raw        []byte
+}
+
+// MilestonePolicy is the CAL-V0-195 opt-in. Required makes CREATE without a
+// milestone, and REFINE that sets milestone to null, refuse
+// MILESTONE_REQUIRED. It never touches existing records.
+type MilestonePolicy struct {
+	Required bool
+}
+
+// MilestoneRequired reports whether policy requires a milestone on CREATE
+// and forbids REFINE from clearing one (CAL-V0-195). Absent or false keeps
+// the default.
+func (p *Policy) MilestoneRequired() bool {
+	return p != nil && p.Milestones != nil && p.Milestones.Required
 }
 
 // KnowHowPolicy is the KHN-V0-021 opt-in. WorkerAdd lets a WORKER issue
@@ -259,7 +276,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "milestones")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -441,6 +458,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		k := r.Field("knowHow")
 		k.Closed("workerAdd")
 		p.KnowHow = &KnowHowPolicy{WorkerAdd: k.Field("workerAdd").Bool()}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "milestones") {
+		m := r.Field("milestones")
+		m.Closed("required")
+		p.Milestones = &MilestonePolicy{Required: m.Field("required").Bool()}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

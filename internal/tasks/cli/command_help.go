@@ -112,6 +112,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
 	}
+	if name == "ticket create" || name == "ticket refine" {
+		o.Set("milestoneRule", wire.String("When policy sets milestones.required true, CREATE without a milestone and REFINE that sets milestone to null refuse VALIDATION_FAILED MILESTONE_REQUIRED (CAL-V0-195); existing records are never rewritten. Absent or false keeps milestone optional."))
+	}
+	if name == "queue status" || name == "roadmap" {
+		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
+	}
 	if name == "attempt heartbeat" {
 		o.Set("note", wire.String("Generation-fenced recorded signal. Reads classify it against the policy holderLiveness.heartbeatTTLSeconds (300..86400, default 600 when omitted). Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
 	}

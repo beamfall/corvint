@@ -289,7 +289,7 @@ func pickArray(v wire.Value, keys ...string) wire.Value {
 // queueStatusSummary is the CAL-V0-167 queue status summary, carrying the
 // CAL-V0-184 lastCompletion and completion windows.
 func queueStatusSummary(item wire.Value) wire.Value {
-	out := pick(item, "queueId", "tickets", "byStatus", "blocked", "headSeq", "writeBarrier", "barrier", "attempts", "lastCompletion", "completions")
+	out := pick(item, "queueId", "tickets", "byStatus", "blocked", "openWithoutMilestone", "headSeq", "writeBarrier", "barrier", "attempts", "lastCompletion", "completions")
 	if live, ok := item.Obj.Get("liveAttempts"); ok {
 		out.Obj.Set("liveAttempts", pickArray(live, "attemptId", "ticketId", "phase", "holder", "expiresAt", "holderStatus"))
 	}

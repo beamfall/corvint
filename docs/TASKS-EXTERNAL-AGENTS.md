@@ -134,6 +134,12 @@ separators=(',', ':')`, then add one LF; sort only fields documented as sets. Ea
 `--help` lists its closed payload keys. `ticket create --template` prints a canonical CREATE payload for
 this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
 fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
+A queue whose policy sets `{"milestones":{"required":true}}` refuses CREATE without a milestone,
+and REFINE that sets `milestone` to null, `VALIDATION_FAILED` `MILESTONE_REQUIRED` (CAL-V0-195);
+the template then lists `milestone` in `fill`. Absent or false keeps milestone optional, and existing
+unmilestoned tickets stay valid. `queue status` reports `openWithoutMilestone` and `roadmap` warns
+with the same count (CAL-V0-196) on every policy. Adding the key is a policy change and fences live
+evidence handoffs `STALE_POLICY`.
 
 A ticket that only some stages must wait for carries optional `executionPrerequisites`, set with
 `ticket refine` (for example `{"executionPrerequisites":[{"gateId":null,"obligation":"COMPLETED",
