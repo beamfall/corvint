@@ -288,7 +288,7 @@ func sharedProviderRepository(t *testing.T, gitExecutable string) string {
 			return
 		}
 		for _, arguments := range [][]string{{"init", "-q"}, {"add", "go.mod", "cli_test.go"}, {"-c", "user.name=Corvint Test", "-c", "user.email=corvint@example.invalid", "commit", "-qm", "fixture"}} {
-			command := exec.Command(gitExecutable, append([]string{"-C", providerRepositoryFixture.repository}, arguments...)...)
+			command := exec.Command(gitExecutable, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", providerRepositoryFixture.repository}, arguments...)...)
 			command.Env = []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "LC_ALL=C"}
 			providerRepositoryFixture.output, providerRepositoryFixture.err = command.CombinedOutput()
 			if providerRepositoryFixture.err != nil {
@@ -542,7 +542,7 @@ func resolvedPath(t *testing.T, path string) string {
 
 func runFixtureGit(t *testing.T, executable, repository string, arguments ...string) {
 	t.Helper()
-	command := exec.Command(executable, append([]string{"-C", repository}, arguments...)...)
+	command := exec.Command(executable, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", repository}, arguments...)...)
 	command.Env = []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "LC_ALL=C"}
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %q: %v: %s", arguments, err, output)

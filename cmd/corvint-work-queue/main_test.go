@@ -231,7 +231,7 @@ func git(root string, arguments ...string) ([]byte, error) {
 		return nil, err
 	}
 	source := &worksource.Source{Root: root, GitPath: executable, GitEnvironment: []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull}}
-	return source.Git(context.Background(), 4<<20, arguments...)
+	return source.Git(context.Background(), 4<<20, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 }
 
 // qualifiedGitExecutable mirrors the production fixed-path selection in

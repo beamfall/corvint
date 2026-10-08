@@ -33,7 +33,7 @@ func TestCALV0022_CLIUsesOptInPack(t *testing.T) {
 				r := fixture.TempRepo(t)
 				git := func(args ...string) {
 					t.Helper()
-					c := exec.Command("git", args...)
+					c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 					c.Dir = r.Root
 					c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 					if out, err := c.CombinedOutput(); err != nil {

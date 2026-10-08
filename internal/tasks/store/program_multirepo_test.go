@@ -20,7 +20,7 @@ import (
 
 func multiGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", args...)
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	c.Dir = dir
 	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()

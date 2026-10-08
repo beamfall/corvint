@@ -644,7 +644,7 @@ func sharedArchiveTestRepository(t *testing.T) string {
 			return
 		}
 		for _, arguments := range commands {
-			command := exec.Command("git", arguments...)
+			command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 			command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 			archiveRepositoryFixture.output, archiveRepositoryFixture.err = command.CombinedOutput()
 			if archiveRepositoryFixture.err != nil {
@@ -667,7 +667,7 @@ func mustWrite(t *testing.T, path, content string) {
 
 func runGitTest(t *testing.T, root string, arguments ...string) {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, arguments...)...)
 	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v: %s", strings.Join(arguments, " "), err, output)
