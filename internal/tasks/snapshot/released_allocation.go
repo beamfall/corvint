@@ -3,9 +3,9 @@ package snapshot
 import "github.com/Beamfall/corvint/internal/tasks/wire"
 
 // ReleasedPoolAllocation records the allocation a live external-agent
-// generation returned early with POOL_RELEASE (CAL-V0-200). It is binding
+// generation returned early with POOL_RELEASE (CAL-V0-201). It is binding
 // history: pools.json quarantines the member, and the generation's author
-// history still names it (CAL-V0-202). Omitted when nothing was returned, so
+// history still names it (CAL-V0-203). Omitted when nothing was returned, so
 // every earlier attempt keeps its bytes.
 type ReleasedPoolAllocation struct {
 	Allocation  PoolAllocation

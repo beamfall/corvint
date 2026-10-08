@@ -8,12 +8,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-200: releasedPoolAllocation is additive. An attempt without it
+// CAL-V0-201: releasedPoolAllocation is additive. An attempt without it
 // encodes exactly as before; one with it round-trips; a record that still
 // holds an allocation, returned it before it was allocated, or is not an
 // external-agent attempt refuses MALFORMED, as does the key under a binary
 // that predates it (an unknown key).
-func TestCALV0200_ReleasedAllocationCodec(t *testing.T) {
+func TestCALV0201_ReleasedAllocationCodec(t *testing.T) {
 	a := accountingAttempt()
 	legacy, err := a.Encode()
 	if err != nil || bytes.Contains(legacy, []byte(`"releasedPoolAllocation"`)) {

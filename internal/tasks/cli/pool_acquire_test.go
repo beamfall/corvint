@@ -7,10 +7,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-197, CAL-V0-200, CAL-V0-203: pool acquire and pool release on a live
+// CAL-V0-198, CAL-V0-201, CAL-V0-204: pool acquire and pool release on a live
 // attempt claimed without a pool report their allocation keys, replay the
 // receipt-bound result, and a refused acquire still names poolAllocation.
-func TestCALV0203_CLIAcquireAndReleaseResults(t *testing.T) {
+func TestCALV0204_CLIAcquireAndReleaseResults(t *testing.T) {
 	r := shareRepo(t)
 	id := planTicket(t, r.Root, "one", "P1", `["one"]`)
 	claim := atm(t, r.Root, nil, "claim", id, "--holder", "builder", "--request-id", "claim-1", "--stage", "implement")

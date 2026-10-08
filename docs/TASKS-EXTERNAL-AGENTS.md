@@ -305,7 +305,7 @@ receipt-bound allocation, including after a retry has acquired a successor. Rele
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
 
 An attempt claimed without `--pool` can take one member later and return it early, while it stays
-live (CAL-V0-197..203):
+live (CAL-V0-198..204):
 
 ```sh
 corvint-tasks pool acquire --attempt ATTEMPT --generation G --pool db --request-id acquire-0

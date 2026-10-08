@@ -40,7 +40,7 @@ type Report struct {
 	// SharedAllocation is a claimed attempt's PSR-V0-016 binding, nil otherwise.
 	SharedAllocation *snapshot.SharedAllocation
 	// ReleasedPoolAllocation is the allocation a completed pool release
-	// returned (CAL-V0-200), nil otherwise.
+	// returned (CAL-V0-201), nil otherwise.
 	ReleasedPoolAllocation *snapshot.ReleasedPoolAllocation
 	// Delivery is what a claim or claim-next delivers from its admission.
 	Delivery *ClaimDelivery

@@ -85,7 +85,7 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		if c.sharesAllocation(a) {
 			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt on a shared allocation cannot attach to a supervisor"))
 		}
-		// CAL-V0-202: a supervised generation records no member history, so
+		// CAL-V0-203: a supervised generation records no member history, so
 		// one that returned an allocation early stays external.
 		if a.ReleasedPoolAllocation != nil {
 			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt that returned its allocation early cannot attach to a supervisor"))

@@ -125,10 +125,10 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("note", wire.String("Pure read, no lock, no probe and no writes: each configured member's state, current allocation, holder/attempt/generation, quarantine reason with its journal changedSeq, and the last health or cleanup outcome retained with the allocation. The journal records no wall-clock time, so since and observedAt are NOT_OBSERVED, as is any outcome pool state no longer retains. An unknown --pool or --member refuses MALFORMED."))
 	}
 	if name == "pool acquire" {
-		o.Set("note", wire.String("Allocates one member to the named live external-agent attempt that holds none, for the attempt's own holder and stage, by the pooled-claim rules: priority yield, --exclude-member and --exclude-authors (review or integrate attempts only), health preparation, and a RESOURCE_COLLISION refusal when no eligible member is free. One allocation per generation: an attempt that returned one cannot acquire again. Generation-fenced; a request-id replay returns the original receipt's allocation (CAL-V0-197..199, CAL-V0-203)."))
+		o.Set("note", wire.String("Allocates one member to the named live external-agent attempt that holds none, for the attempt's own holder and stage, by the pooled-claim rules: priority yield, --exclude-member and --exclude-authors (review or integrate attempts only), health preparation, and a RESOURCE_COLLISION refusal when no eligible member is free. One allocation per generation: an attempt that returned one cannot acquire again. Generation-fenced; a request-id replay returns the original receipt's allocation (CAL-V0-198..200, CAL-V0-204)."))
 	}
 	if name == "pool release" {
-		o.Set("note", wire.String("Returns the attempt's exact current allocation early: the member is quarantined until pool cleanup and confirm-safe, exactly as when an attempt ends, and the attempt stays live with no allocation. A shared allocation is refused. Lane-untouched release is unavailable afterwards (CAL-V0-200, CAL-V0-201)."))
+		o.Set("note", wire.String("Returns the attempt's exact current allocation early: the member is quarantined until pool cleanup and confirm-safe, exactly as when an attempt ends, and the attempt stays live with no allocation. A shared allocation is refused. Lane-untouched release is unavailable afterwards (CAL-V0-201, CAL-V0-202)."))
 	}
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))

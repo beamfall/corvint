@@ -552,13 +552,13 @@ CAL-V0-193	docs/specs/corvint-tasks-agent-leases-v0.md	5201	(proposed (V1-1021, 
 CAL-V0-194	docs/specs/corvint-tasks-agent-leases-v0.md	5302	(proposed; V1-0672) When a tick's final ledger save fails (any step of the write
 CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5244	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke
 CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5258	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles
-CAL-V0-197	docs/specs/corvint-tasks-agent-leases-v0.md	5361	(proposed (V1-1042)) `corvint-tasks pool acquire --attempt ID --generation G --p
-CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5372	(proposed (V1-1042)) Acquire MUST admit a member by the pooled-claim steps, with
-CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5382	(proposed (V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-
-CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5386	(proposed (V1-1042)) `corvint-tasks pool release --attempt ID --generation G
-CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5400	(proposed (V1-1042)) The lifecycle verbs (renew, heartbeat, run, gate run, submi
-CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5406	(proposed (V1-1042)) An ended generation that returned its allocation early MUST
-CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5410	(proposed (V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null w
+CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5361	(proposed (V1-1042)) `corvint-tasks pool acquire --attempt ID --generation G --p
+CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5372	(proposed (V1-1042)) Acquire MUST admit a member by the pooled-claim steps, with
+CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5382	(proposed (V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-
+CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5386	(proposed (V1-1042)) `corvint-tasks pool release --attempt ID --generation G
+CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5400	(proposed (V1-1042)) The lifecycle verbs (renew, heartbeat, run, gate run, submi
+CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5406	(proposed (V1-1042)) An ended generation that returned its allocation early MUST
+CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5410	(proposed (V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null w
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

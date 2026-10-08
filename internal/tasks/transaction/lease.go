@@ -243,7 +243,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
 		return e
 	}
-	// CAL-V0-199: an acquire takes its stage from the attempt, so the stage
+	// CAL-V0-200: an acquire takes its stage from the attempt, so the stage
 	// half of the author-exclusion check runs when the attempt is planned.
 	stage := l.Stage
 	if l.Verb == LeasePoolAcquire && l.ExcludeAuthors != "" {
@@ -446,7 +446,7 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Verb == LeasePoolSweepFinish {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
-	// CAL-V0-200: the returned allocation joins only the new verb's preimage.
+	// CAL-V0-201: the returned allocation joins only the new verb's preimage.
 	if l.Verb == LeasePoolRelease {
 		v.Obj.Set("allocation", s(l.Allocation))
 	}

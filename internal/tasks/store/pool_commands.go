@@ -104,7 +104,7 @@ func poolFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			if e != nil {
 				return f, e
 			}
-			// CAL-V0-198: the pooled-claim source and pin checks.
+			// CAL-V0-199: the pooled-claim source and pin checks.
 			if e := poolAdmissionSource(leaseRoot(repo, choice), choice.pool.Observation, p, l.Pool); e != nil {
 				return f, e
 			}
@@ -257,7 +257,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 	report := initial
 	holder, stage := choice.Lease.Holder, choice.Lease.Stage
 	if choice.Lease.Verb == transaction.LeasePoolAcquire {
-		// CAL-V0-198: an acquire prepares for the attempt's own holder and stage.
+		// CAL-V0-199: an acquire prepares for the attempt's own holder and stage.
 		proof, e := readLeaseProof(ctx, repo)
 		if e != nil {
 			return report, e

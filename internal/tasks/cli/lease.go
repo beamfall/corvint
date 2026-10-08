@@ -24,7 +24,7 @@ import (
 // CAL-V0-013, CAL-V0-025).
 var leaseVerbs = map[string]string{
 	"pool confirm-safe": transaction.LeasePoolSafe,
-	// CAL-V0-197..201: a live attempt acquires or returns one member.
+	// CAL-V0-198..202: a live attempt acquires or returns one member.
 	"pool acquire": transaction.LeasePoolAcquire, "pool release": transaction.LeasePoolRelease,
 	"pool cleanup": transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
 	"claim":             transaction.LeaseClaim,
@@ -337,11 +337,11 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
 	} else if cmd[0] == "claim" || strings.Join(cmd, " ") == "pool acquire" {
 		// CAL-V0-096: every claim result, a refusal included, names its
-		// allocation; so does every acquire (CAL-V0-203).
+		// allocation; so does every acquire (CAL-V0-204).
 		o.Set("poolAllocation", wire.Null())
 	}
 	if strings.Join(cmd, " ") == "pool release" {
-		// CAL-V0-203: the returned allocation, null unless one was returned.
+		// CAL-V0-204: the returned allocation, null unless one was returned.
 		released := wire.Null()
 		if report.ReleasedPoolAllocation != nil {
 			released = snapshot.ReleasedPoolAllocationValue(report.ReleasedPoolAllocation)

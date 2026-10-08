@@ -168,7 +168,7 @@ type Attempt struct {
 	DirectPoolAdmission *DirectPoolAdmission
 	SharedAllocation    *SharedAllocation
 	// ReleasedPoolAllocation is the allocation this generation returned
-	// early (CAL-V0-200); nil when it returned none.
+	// early (CAL-V0-201); nil when it returned none.
 	ReleasedPoolAllocation   *ReleasedPoolAllocation
 	LaneUntouchedAttestation *LaneUntouchedAttestation
 	// OperatorNote pins the ticket's note reference at admission (ON-V0-007).

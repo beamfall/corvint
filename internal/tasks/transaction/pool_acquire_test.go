@@ -10,9 +10,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-202: an attempt that returned its allocation early cannot attach to
+// CAL-V0-203: an attempt that returned its allocation early cannot attach to
 // a supervisor, whose generation records no member history.
-func TestCALV0202_ReturnedAllocationAttachRefused(t *testing.T) {
+func TestCALV0203_ReturnedAllocationAttachRefused(t *testing.T) {
 	c, a, _ := untouchedContext(t)
 	a.ReleasedPoolAllocation = &snapshot.ReleasedPoolAllocation{Allocation: *a.PoolAllocation, ReleasedSeq: wire.SizeOf(a.PoolAllocation.AllocatedSeq.Uint64() + 1)}
 	a.PoolAllocation, a.DirectPoolAdmission = nil, nil

@@ -291,7 +291,7 @@ func endedHistory(prior *snapshot.Attempt) *snapshot.GenerationHistory {
 		stage := prior.Stage
 		h.Stage = &stage
 	}
-	// CAL-V0-202: a generation that returned its allocation early still
+	// CAL-V0-203: a generation that returned its allocation early still
 	// records the member it held.
 	x := prior.PoolAllocation
 	if x == nil && prior.ReleasedPoolAllocation != nil {

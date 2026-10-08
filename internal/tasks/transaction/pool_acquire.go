@@ -7,7 +7,7 @@ import (
 )
 
 // planPoolAcquire allocates one pool member to a live external-agent attempt
-// that holds none (CAL-V0-197..199). It is fenced like every attempt verb,
+// that holds none (CAL-V0-198..200). It is fenced like every attempt verb,
 // takes the holder and stage from the attempt, and then admits the member by
 // the pooled-claim steps: priority yield (CAL-V0-101), author exclusion
 // (CAL-V0-098), health preparation and the free-member scan (CAL-V0-028).
@@ -70,7 +70,7 @@ func planPoolAcquire(c leaseContext) leaseOutcome {
 
 // planPoolRelease returns the attempt's exact current allocation early and
 // quarantines it as an attempt release does; the attempt stays live
-// (CAL-V0-200, CAL-V0-201).
+// (CAL-V0-201, CAL-V0-202).
 func planPoolRelease(c leaseContext) leaseOutcome {
 	a, e := c.named()
 	if e != nil {

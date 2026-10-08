@@ -6,10 +6,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 )
 
-// TestCALV0198_SupervisedAcquireIsNotPrepared pins that a supervised
+// TestCALV0199_SupervisedAcquireIsNotPrepared pins that a supervised
 // attempt's QUIESCENCE_UNPROVED acquire refusal starts no health preparation,
 // so a repeated refused acquire cannot probe and quarantine pool members.
-func TestCALV0198_SupervisedAcquireIsNotPrepared(t *testing.T) {
+func TestCALV0199_SupervisedAcquireIsNotPrepared(t *testing.T) {
 	live := &snapshot.Attempt{Lease: &snapshot.Lease{}}
 	if !acquirePreparable(live) {
 		t.Fatal("an unsupervised live attempt must be preparable")

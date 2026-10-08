@@ -73,11 +73,11 @@ func (s *leaseStore) poolEntries(t *testing.T) map[string]snapshot.PoolEntry {
 	return out
 }
 
-// CAL-V0-197, CAL-V0-200, CAL-V0-201, CAL-V0-203: a live attempt claimed
+// CAL-V0-198, CAL-V0-201, CAL-V0-202, CAL-V0-204: a live attempt claimed
 // without a pool acquires one member, replays it, is fenced and refused a
 // second member, returns the exact allocation into quarantine while staying
 // live, cannot acquire again in that generation, and completes holding none.
-func TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
+func TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
 	s := acquireStore(t, nil)
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
@@ -95,7 +95,7 @@ func TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
 	if en := s.poolEntries(t)["a"]; en.State != "ALLOCATED" || en.AttemptID != claim.AttemptID || en.Generation != claim.Generation || en.Holder != "agent-1" {
 		t.Fatalf("entry %+v", en)
 	}
-	// CAL-V0-203: a replay returns the receipt-bound allocation.
+	// CAL-V0-204: a replay returns the receipt-bound allocation.
 	if again := s.lease(t, "acquire-1", acquireOf(claim, "db"), 3, nil); again.Kind != "Replay" || again.PoolAllocation == nil || *again.PoolAllocation != *got.PoolAllocation {
 		t.Fatalf("replay %+v", again)
 	}
@@ -149,9 +149,9 @@ func TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-201: completing, releasing or reaping an attempt that holds an
+// CAL-V0-202: completing, releasing or reaping an attempt that holds an
 // acquired allocation quarantines it exactly as a claimed one.
-func TestCALV0201_EndingQuarantinesAcquiredAllocation(t *testing.T) {
+func TestCALV0202_EndingQuarantinesAcquiredAllocation(t *testing.T) {
 	for _, end := range []string{"complete", "release", "reap"} {
 		t.Run(end, func(t *testing.T) {
 			s := acquireStore(t, nil)
@@ -181,9 +181,9 @@ func TestCALV0201_EndingQuarantinesAcquiredAllocation(t *testing.T) {
 	}
 }
 
-// CAL-V0-198: acquire runs the pooled-claim health preparation for the
+// CAL-V0-199: acquire runs the pooled-claim health preparation for the
 // attempt's holder and stage, skipping a failing member.
-func TestCALV0198_AcquirePreparesHealth(t *testing.T) {
+func TestCALV0199_AcquirePreparesHealth(t *testing.T) {
 	s := acquireStore(t, map[string]string{"a": "1", "b": "0"})
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
 	got := s.lease(t, "acquire-1", acquireOf(claim, "db"), 1, nil)
@@ -200,10 +200,10 @@ func TestCALV0198_AcquirePreparesHealth(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-199, CAL-V0-202: a review attempt acquiring with author exclusion
+// CAL-V0-200, CAL-V0-203: a review attempt acquiring with author exclusion
 // skips the member that implemented the ticket, including one an implement
 // attempt acquired and returned early; an implement attempt cannot ask.
-func TestCALV0199_AcquireExcludesAuthors(t *testing.T) {
+func TestCALV0200_AcquireExcludesAuthors(t *testing.T) {
 	s := acquireStore(t, nil)
 	id := s.ticket(t, "one")
 	implement := claimOf(id, "src/")
@@ -247,9 +247,9 @@ func TestCALV0199_AcquireExcludesAuthors(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
-// CAL-V0-198, CAL-V0-200: an admission barrier pauses acquire but not the
+// CAL-V0-199, CAL-V0-201: an admission barrier pauses acquire but not the
 // early return of an allocation.
-func TestCALV0198_BarrierPausesAcquireNotRelease(t *testing.T) {
+func TestCALV0199_BarrierPausesAcquireNotRelease(t *testing.T) {
 	s := acquireStore(t, nil)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	first := s.claim(t, "claim-1", one, 0, "src/")

@@ -134,7 +134,7 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 // pooledAttempt reports the allocation a completed pool acquire or release
 // bound in its receipt, fresh or replayed. A refusal or a recorded fence
 // posts no attempt and reports none, but still names the attempt's ticket
-// (CAL-V0-203).
+// (CAL-V0-204).
 func pooledAttempt(ctx context.Context, repo *intent.Repository, attemptID string, report *Report) error {
 	if report.Outcome.Outcome != mutation.OutcomeCompleted || report.Outcome.ReceiptSeq == nil {
 		proof, err := readLeaseProof(ctx, repo)
