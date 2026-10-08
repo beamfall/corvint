@@ -37,7 +37,9 @@ func TestMochaActualSelectionQualification(t *testing.T) {
 	write(t, root, "tests/unrelated.test.cjs", `const {it}=require("mocha");it("unrelated",()=>{throw Error("must remain excluded")});`)
 	git := func(args ...string) string {
 		t.Helper()
-		cmd := exec.Command("git", args...)
+		// GIT_CONFIG_GLOBAL hides the host's maintenance settings; a detached
+		// `git maintenance` outliving a commit would race the evidence cleanup (V1-0662).
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 		b, e := cmd.CombinedOutput()
