@@ -46,19 +46,27 @@ func boundTestID(identity jstestprovider.Identity, test jstestprovider.TestOutco
 // receipt carrying a matching qualification and recomputes a passing
 // projection; the same receipt without it abstains.
 func TestKeepReportersQualifiedReceiptProjects(t *testing.T) {
+	// Real reporter-observed config inputs carry hex digests.
+	hexConfig := func(r *jstestprovider.Receipt) {
+		digest := strings.Repeat("a", 64)
+		r.Identity.ConfigDigest, r.Identity.ConfigInputDigests["/repo/config.cjs"], r.Tests[0].Project.ConfigDigest = digest, digest, digest
+		r.Tests[0].ID = boundTestID(r.Identity, r.Tests[0])
+	}
 	keep := keptReceipt()
+	hexConfig(&keep)
 	keep.External.ConfigOverride = "controlled-fixture-config, keepReporters:true}], ...keptReporters(original.reporter)]};\n"
 	keep.External.ProjectReporters.Entries = keep.External.ProjectReporters.Entries[:2]
 	control := keptReceipt()
 	control.External.ConfigOverride, control.External.ProjectReporters = "controlled-fixture-config", nil
 	control.Identity.ConfigInputDigests = map[string]string{"/repo/config.cjs": "config"}
-	control.Tests[0].ID = boundTestID(control.Identity, control.Tests[0])
+	hexConfig(&control)
 	record := jstestprovider.QualifyKeepReporters(control, nil, keep, nil)
 	if record.Verdict != jstestprovider.KeepReportersQualified {
 		t.Fatalf("fixture pair not qualified: %v", record.Reasons)
 	}
 	for _, carried := range []bool{false, true} {
 		r := keptReceipt()
+		hexConfig(&r)
 		r.External.ConfigOverride, r.External.ProjectReporters.Entries = keep.External.ConfigOverride, keep.External.ProjectReporters.Entries
 		if carried {
 			r.External.ProjectReporters.Qualification = &record

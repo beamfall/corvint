@@ -21,8 +21,12 @@ Requirements `PWP-V0-014` to `PWP-V0-018` are proposed, pending owner acceptance
   never adds a Node or Playwright tuple, so it stays inside decision 0448. Whether that matches 0448's
   intent is an owner question.
 - **Exact match to project.** `e2e --keep-reporters --keep-reporters-qualification FILE` carries the
-  decoded record in `projectReporters.qualification`. A receipt passes only when its profile, runner
-  and Node versions, entries and reporter-loaded file digests equal the record's. Any change abstains.
+  decoded record in `projectReporters.qualification`. The record binds every config input of the keep
+  run as `configInputs`. A receipt passes only when its profile, runner and Node versions, entries and
+  config inputs exactly equal the record's; a changed, added or removed input abstains. A run with more
+  than 256 inputs or an input that cannot be bound (not absolute, not a 64-hex digest) is incomplete.
+- **Experimental.** While `PWP-V0-014` to `PWP-V0-018` are proposed, the command, the flag and the
+  passing projection are labelled experimental and are not promoted or advertised as delivered.
 - **Missing evidence is `not-run`.** Missing Playwright and other control-run failures, a refused or
   failing kept reporter, unobserved entries and cancelled or partial runs give named `not-run`
   reasons. The keep run is not started after an incomplete control run. The command exits nonzero
@@ -39,6 +43,18 @@ Requirements `PWP-V0-014` to `PWP-V0-018` are proposed, pending owner acceptance
 - Suites that are not repeatable fail closed. ESM, `node_modules` or other reporters whose module is
   `unknown` cannot qualify. Kept reporters' effects stay `unknown`.
 - The record is local, unsigned evidence with the same trust as a retained receipt.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) reviewed `origin/main..HEAD`:
+
+- P1, accepted: drift in a file loaded by both the config and a kept reporter, or a newly loaded input,
+  did not invalidate a record. Fixed by binding all keep-run config inputs and requiring exact equality.
+- P3, accepted: a kept reporter module also imported by the config produced a `qualified` record that
+  failed its own encoder. Fixed by the same change, with a regression test.
+- P1, not accepted as written: the passing projection is enabled before owner acceptance and a live run.
+  The record is itself the per-host live qualification the issue asks for, and projection needs an
+  exact match. The surface is labelled experimental and acceptance stays an owner question.
 
 ## Evidence
 

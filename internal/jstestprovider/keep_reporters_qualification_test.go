@@ -11,6 +11,18 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
+// hexInputs gives a fixture the hex config-input digests a real reporter
+// observes, plus a helper loaded by the config.
+func hexInputs(r *Receipt) {
+	digest := strings.Repeat("a", 64)
+	r.Identity.ConfigDigest = digest
+	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: digest, "/repo/helper.cjs": strings.Repeat("d", 64)}
+	for i := range r.Tests {
+		r.Tests[i].Project.ConfigDigest = digest
+		r.Tests[i].ID = qualifiedTestID(r.Identity, r.Tests[i])
+	}
+}
+
 // keepQualificationPair is a replace-only control receipt and a provider-first
 // keep-reporters receipt of the same configuration whose kept entries are all
 // known.
@@ -18,6 +30,8 @@ func keepQualificationPair(t *testing.T) (Receipt, Receipt) {
 	t.Helper()
 	control := qualifiedFixture(t)
 	keep := qualifiedFixture(t)
+	hexInputs(&control)
+	hexInputs(&keep)
 	keep.External.ConfigOverride = "controlled-fixture-config" + keptConfigSuffix
 	keep.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("b", 64)
 	keep.Tests[0].ID = qualifiedTestID(keep.Identity, keep.Tests[0])
@@ -30,16 +44,30 @@ func keepQualificationPair(t *testing.T) (Receipt, Receipt) {
 	return control, keep
 }
 
-// PWP-V0-015: two complete, matching runs qualify the kept entries and name
-// only the files the kept reporters loaded.
+// PWP-V0-015: two complete, matching runs qualify the kept entries and bind
+// every config input of the keep run, including files the config also loads.
 func TestQualifyKeepReportersQualified(t *testing.T) {
 	control, keep := keepQualificationPair(t)
 	q := QualifyKeepReporters(control, nil, keep, nil)
 	if q.Verdict != KeepReportersQualified || len(q.Reasons) != 0 || q.Tests != 1 {
 		t.Fatalf("matching runs not qualified: %+v", q)
 	}
-	if !reflect.DeepEqual(q.ReporterInputs, map[string]string{"/repo/project-reporter.cjs": strings.Repeat("b", 64)}) {
-		t.Fatalf("reporter inputs %v", q.ReporterInputs)
+	if !reflect.DeepEqual(q.ConfigInputs, keep.Identity.ConfigInputDigests) || q.ConfigInputs["/repo/helper.cjs"] == "" {
+		t.Fatalf("config inputs %v", q.ConfigInputs)
+	}
+	// A reporter module the original config also imports is a control input
+	// too; the record still binds it and encodes.
+	shared := control
+	shared.Identity.ConfigInputDigests = map[string]string{}
+	for path, digest := range keep.Identity.ConfigInputDigests {
+		shared.Identity.ConfigInputDigests[path] = digest
+	}
+	shared.Tests = []TestOutcome{control.Tests[0]}
+	shared.Tests[0].ID = qualifiedTestID(shared.Identity, shared.Tests[0])
+	if sharedRecord := QualifyKeepReporters(shared, nil, keep, nil); sharedRecord.Verdict != KeepReportersQualified {
+		t.Fatalf("config-imported reporter not qualified: %v", sharedRecord.Reasons)
+	} else if _, err := EncodeKeepReportersQualification(sharedRecord); err != nil {
+		t.Fatalf("config-imported reporter record refused: %v", err)
 	}
 	if q.ReceiptProfile != ExternalProfile || q.RunnerVersion != "1.60.0" || q.NodeVersion != "v22" || len(q.ControlReceiptSHA256) != 64 || len(q.KeepReceiptSHA256) != 64 || q.ControlReceiptSHA256 == q.KeepReceiptSHA256 {
 		t.Fatalf("record identity %+v", q)
@@ -77,13 +105,14 @@ func TestQualifyKeepReportersReasons(t *testing.T) {
 		}, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-partial":      {func(c, k *run) { k.r.Cancelled = true }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-error":        {func(c, k *run) { k.err = errors.New("keep-reporters-unsupported-mode") }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
+		"unbindable-input":  {func(c, k *run) { k.r.Identity.ConfigInputDigests["/repo/helper.cjs"] = "short" }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-without-mode": {func(c, k *run) { k.r = c.r }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"control-with-mode": {func(c, k *run) { c.r = k.r }, KeepReportersNotRun, "keep-reporters-control-run-incomplete"},
 		"legacy-order":      {func(c, k *run) { k.r.External.ConfigOverride = "controlled-fixture-config" + legacyKeptConfigSuffix }, KeepReportersNotQualified, "keep-reporters-order-unsupported"},
 		"unknown-entry": {func(c, k *run) {
 			k.r.External.ProjectReporters.Entries[1] = ProjectReporter{Name: "/outside/reporter.mjs", Module: "unknown", Options: "unknown"}
 		}, KeepReportersNotQualified, "keep-reporters-entries-unknown"},
-		"inputs-differ":   {func(c, k *run) { k.r.Identity.ConfigInputDigests[k.r.Identity.ConfigFile] = "other" }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
+		"inputs-differ":   {func(c, k *run) { k.r.Identity.ConfigInputDigests["/repo/helper.cjs"] = strings.Repeat("f", 64) }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
 		"runner-differs":  {func(c, k *run) { k.r.Identity.RunnerVersion = "1.61.0" }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
 		"outcome-differs": {func(c, k *run) { k.r.Tests[0].State, k.r.Tests[0].Attempts[0].State = StateFailed, StateFailed }, KeepReportersNotQualified, "keep-reporters-observation-differs"},
 		"retries-differ":  {func(c, k *run) { k.r.Tests[0].Retries = 1 }, KeepReportersNotQualified, "keep-reporters-observation-differs"},
@@ -153,14 +182,14 @@ func TestKeepReportersQualificationRecordClosed(t *testing.T) {
 			q.Reasons, q.Verdict = []string{"keep-reporters-trusted"}, KeepReportersNotQualified
 		},
 		"nil-reasons":               func(q *KeepReportersQualification) { q.Reasons = nil },
-		"nil-inputs":                func(q *KeepReportersQualification) { q.ReporterInputs = nil },
-		"relative-input":            func(q *KeepReportersQualification) { q.ReporterInputs["reporter.cjs"] = strings.Repeat("b", 64) },
-		"input-digest-shape":        func(q *KeepReportersQualification) { q.ReporterInputs["/repo/project-reporter.cjs"] = "short" },
+		"nil-inputs":                func(q *KeepReportersQualification) { q.ConfigInputs = nil },
+		"relative-input":            func(q *KeepReportersQualification) { q.ConfigInputs["reporter.cjs"] = strings.Repeat("b", 64) },
+		"input-digest-shape":        func(q *KeepReportersQualification) { q.ConfigInputs["/repo/project-reporter.cjs"] = "short" },
 		"receipt-digest-shape":      func(q *KeepReportersQualification) { q.KeepReceiptSHA256 = "short" },
 		"qualified-without-digest":  func(q *KeepReportersQualification) { q.ControlReceiptSHA256 = "" },
 		"qualified-without-tests":   func(q *KeepReportersQualification) { q.Tests = 0 },
 		"qualified-unknown-entry":   func(q *KeepReportersQualification) { q.Entries[1].Module, q.Entries[1].ModuleDigest = "unknown", "" },
-		"qualified-module-unbound":  func(q *KeepReportersQualification) { delete(q.ReporterInputs, "/repo/project-reporter.cjs") },
+		"qualified-module-unbound":  func(q *KeepReportersQualification) { delete(q.ConfigInputs, "/repo/project-reporter.cjs") },
 		"qualified-nil-entries":     func(q *KeepReportersQualification) { q.Entries = nil },
 		"qualified-default-profile": func(q *KeepReportersQualification) { q.ReceiptProfile = "" },
 		"qualified-no-runner":       func(q *KeepReportersQualification) { q.RunnerVersion = "" },
@@ -192,9 +221,9 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 		reporters := *keep.External.ProjectReporters
 		record := q
 		record.Entries = append([]ProjectReporter{}, q.Entries...)
-		record.ReporterInputs = map[string]string{}
-		for path, digest := range q.ReporterInputs {
-			record.ReporterInputs[path] = digest
+		record.ConfigInputs = map[string]string{}
+		for path, digest := range q.ConfigInputs {
+			record.ConfigInputs[path] = digest
 		}
 		reporters.Qualification = &record
 		reporters.Entries = append([]ProjectReporter{}, keep.External.ProjectReporters.Entries...)
@@ -236,9 +265,11 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 			r.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("e", 64)
 			r.External.ProjectReporters.Entries[1].ModuleDigest = strings.Repeat("e", 64)
 		},
-		"reporter-input-missing": func(r *Receipt) {
-			r.External.ProjectReporters.Qualification.ReporterInputs["/repo/helper.cjs"] = strings.Repeat("f", 64)
+		"input-missing": func(r *Receipt) {
+			r.External.ProjectReporters.Qualification.ConfigInputs["/repo/other.cjs"] = strings.Repeat("f", 64)
 		},
+		"shared-helper-drift": func(r *Receipt) { r.Identity.ConfigInputDigests["/repo/helper.cjs"] = strings.Repeat("e", 64) },
+		"new-input-loaded":    func(r *Receipt) { r.Identity.ConfigInputDigests["/repo/new.cjs"] = strings.Repeat("e", 64) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := carried(t)

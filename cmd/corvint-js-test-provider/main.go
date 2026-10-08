@@ -8,7 +8,8 @@
 // failure must surface, not abort the run. With --retain the same document
 // bytes are also retained under .corvint/test-evidence of the enclosing Git
 // worktree (LPCV-V0-055); a retention failure is reported on stderr and exits
-// nonzero after the document is emitted. `qualify-keep-reporters` runs the
+// nonzero after the document is emitted. The experimental (proposed
+// PWP-V0-015) `qualify-keep-reporters` runs the
 // same external e2e configuration replace-only and then with the project's
 // reporters kept, and prints the canonical qualification record
 // (PWP-V0-015); it exits zero only when the record is qualified.
@@ -218,7 +219,7 @@ func runE2EMode(mode string, args []string) error {
 	sensitiveInputRedaction := fs.Bool("sensitive-input-redaction", false, "select the /2 profile and retain only redacted browser input-action steps")
 	retainAttemptDetails := fs.Bool("retain-attempt-details", false, "select the /3 profile and retain each attempt's detail")
 	keepReporters := fs.Bool("keep-reporters", false, "external mode: keep the project's reporters after the provider reporter instead of replacing them; the receipt binds the kept entries and records their effects as unknown")
-	keepReportersQualification := fs.String("keep-reporters-qualification", "", "with --keep-reporters: a qualified record from qualify-keep-reporters; the receipt carries it and projects only when it matches exactly")
+	keepReportersQualification := fs.String("keep-reporters-qualification", "", "experimental (proposed PWP-V0-016), with --keep-reporters: a qualified record from qualify-keep-reporters; the receipt carries it and projects only when it matches exactly")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")

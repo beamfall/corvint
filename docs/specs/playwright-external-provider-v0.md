@@ -78,12 +78,14 @@ keep-reporters receipt on that exact runtime and reporter set.
   `controlReceiptSha256` and `keepReceiptSha256` are the SHA-256 of those bytes. The verdict is `qualified`
   only when all of these hold:
   - Both runs are complete: no error, no run-level infrastructure failure, not cancelled, an external
-    lifecycle, and project reporters bound only in the keep run.
+    lifecycle, project reporters bound only in the keep run, and at most 256 config inputs, each an absolute
+    path with a 64-hex digest.
   - The keep run's config is provider-first and every kept entry is observed with neither `module` nor
     `options` `unknown`.
   - Profile, runner and Node versions, config file and digest, test-file digests, package digest and declared
-    environment are equal. Every control config input has the same digest in the keep run. The inputs only the
-    keep run observed are recorded as `reporterInputs`.
+    environment are equal. Every control config input has the same digest in the keep run. Every config input
+    of the keep run is recorded as `configInputs`, including the kept reporter modules and any file that both
+    the config and a kept reporter load.
   - Every control outcome is fully qualified and every keep outcome meets every prerequisite except the
     keep-reporters one.
   - At least one outcome exists, and the outcomes correspond one to one by project name, full name and anchor.
@@ -97,20 +99,20 @@ keep-reporters receipt on that exact runtime and reporter set.
   record must be valid and qualified and sit beside a provider-first config, or encoding refuses
   `project-reporters-invalid`. A keep-reporters receipt projects passing only when it carries a qualification
   that matches it exactly and every existing prerequisite holds. "Matches exactly" means the same receipt
-  profile, runner version and Node version, entries equal in order, and every `reporterInputs` path present
-  among the receipt's config inputs at the same digest. Any other change to the runtime, the reporter set,
-  options or a reporter-loaded file abstains until the adopter qualifies again. The record never admits a
+  profile, runner version and Node version, entries equal in order, and config inputs exactly equal to
+  `configInputs`: no input changed, added or removed. Any change to the runtime, the reporter set, options, the
+  config or any file it or a kept reporter loads abstains until the adopter qualifies again. The record never admits a
   runtime tuple: `PWP-V0-008` and `PWP-V0-009` still decide which runtimes are qualified (decision 0448).
 - `PWP-V0-017`: (proposed (V1-1028; GitHub #686)) The record is closed. It has exactly these members:
   `profile`, `verdict`, `reasons`, `receiptProfile`, `runnerVersion`, `nodeVersion`, `entries`,
-  `reporterInputs`, `tests`, `controlReceiptSha256` and `keepReceiptSha256`, in that order.
+  `configInputs`, `tests`, `controlReceiptSha256` and `keepReceiptSha256`, in that order.
   - `reasons` is a sorted, unique array from the closed set below, and it is empty exactly when the verdict
     is `qualified`. A `not-run` reason makes the verdict `not-run`; otherwise any reason makes it
     `not-qualified`.
   - `entries` uses the `PWP-V0-011` entry shape, or is `null` when the keep run did not observe it.
-  - `reporterInputs` holds at most 256 absolute paths, each with a 64-hex digest.
+  - `configInputs` holds at most 256 absolute paths, each with a 64-hex digest.
   - A `qualified` record additionally needs an external receipt profile, both versions, at least one test,
-    both receipt digests, no `unknown` entry, and each `bound` module's digest equal to its `reporterInputs`
+    both receipt digests, no `unknown` entry, and each `bound` module's digest equal to its `configInputs`
     value.
   - Encoding refuses a secret-shaped record. Decoding accepts only the exact canonical bytes with one
     trailing newline, and every refusal is the value-free `keep-reporters-qualification-invalid`.
@@ -124,7 +126,7 @@ keep-reporters receipt on that exact runtime and reporter set.
   - missing Playwright, an unqualified runtime or any other control-run failure (the keep run is then not
     started and is reported as `keep-reporters-keep-run-skipped`)
   - a kept reporter that refuses to load or makes the keep run fail
-  - unobserved entries
+  - unobserved entries, or config inputs the record cannot bind
   - a cancelled, interrupted or partial run
 
   A mismatch is `not-qualified`. The command never retries, never infers a missing run and never signals
@@ -144,6 +146,9 @@ Known limits:
 - Suites whose outcomes are not repeatable fail closed as `keep-reporters-observation-differs`.
 - The record is local evidence with the same trust as a retained receipt. It proves that one pair of runs
   matched, not that a kept reporter can never interfere.
+- The command, the flag and the passing keep-reporters projection are experimental while these requirements
+  are proposed; they are not promoted or advertised as delivered until owner acceptance and a live
+  `qualified` record on a qualified tuple.
 - Live Playwright qualification of the command is `NOT_RUN` (`docs/build-log/2026-10-08-gh686-playwright-keep-reporters-qualification.md`).
 
 Owner questions:
