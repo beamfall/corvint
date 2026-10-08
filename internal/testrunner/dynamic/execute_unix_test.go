@@ -99,3 +99,99 @@ func TestMochaBuildExecuteParse(t *testing.T) {
 		t.Fatal(counts)
 	}
 }
+
+// TestJasmineBuildExecuteParse runs an explicitly admitted pinned Jasmine
+// (CORVINT_TEST_JASMINE names its bin/jasmine.js) through the common executor:
+// TRE-V0-031, TRE-V0-032 and TRE-V0-033.
+func TestJasmineBuildExecuteParse(t *testing.T) {
+	exe := os.Getenv("CORVINT_TEST_JASMINE")
+	if exe == "" {
+		t.Skip("explicit installed Jasmine not admitted")
+	}
+	exe, e := filepath.EvalSymlinks(exe)
+	if e != nil {
+		t.Fatal(e)
+	}
+	tool, e := os.ReadFile(exe)
+	if e != nil {
+		t.Fatal(e)
+	}
+	node, e := exec.LookPath("node")
+	if e != nil {
+		t.Fatal(e)
+	}
+	node, e = filepath.EvalSymlinks(node)
+	if e != nil {
+		t.Fatal(e)
+	}
+	nodeBytes, e := os.ReadFile(node)
+	if e != nil {
+		t.Fatal(e)
+	}
+	run := func(t *testing.T, sources map[string]string, selectors []string) (tr.Observation, int, error) {
+		root, e := filepath.EvalSymlinks(t.TempDir())
+		if e != nil {
+			t.Fatal(e)
+		}
+		inputs := map[string]string{}
+		for name, body := range sources {
+			if e = os.WriteFile(filepath.Join(root, name), []byte(body), 0600); e != nil {
+				t.Fatal(e)
+			}
+			inputs[name] = tr.Digest([]byte(body))
+		}
+		req := tr.Request{Runner: "jasmine", Root: root, Executable: exe, ExecutableSha256: tr.Digest(tool), Tools: map[string]tr.Tool{"node": {Executable: node, Sha256: tr.Digest(nodeBytes)}}, InputFiles: inputs, Selectors: selectors, ReportDir: filepath.Join(root, "reports"), TimeoutSeconds: 60}
+		inv, e := Build(req)
+		if e != nil {
+			t.Fatal(e)
+		}
+		result, e := tr.Execute(context.Background(), req, inv)
+		if e != nil {
+			// A declared report the runner never wrote refuses the whole run.
+			return tr.Observation{}, result.Input.ExitCode, e
+		}
+		o, e := Parse(result.Input)
+		if e != nil {
+			t.Fatalf("%v stderr=%s", e, result.Input.Stderr)
+		}
+		return tr.Normalize(result.Input, o), result.Input.ExitCode, nil
+	}
+	t.Run("mixed", func(t *testing.T) {
+		source := `describe('fixture', function () {
+  it('passes', function () { expect(1 + 1).toBe(2); });
+  it('fails deliberately', function () { expect(1).toBe(2); });
+  xit('is skipped with xit', function () {});
+  it('is pending', function () { pending('fixture'); });
+  describe('nested', function () { it('passes too', function () { expect(true).toBeTrue(); }); });
+});
+`
+		o, code, e := run(t, map[string]string{"fixture.spec.js": source}, []string{"fixture.spec.js"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		counts := map[string]int{}
+		ids := map[string]string{}
+		for _, x := range o.Tests {
+			counts[x.State]++
+			ids[x.ID] = x.State
+		}
+		if code != 3 || !o.Complete || len(o.Tests) != 5 || counts[tr.Passed] != 2 || counts[tr.Failed] != 1 || counts[tr.Skipped] != 2 || o.RetryInformation != tr.NotApplicable {
+			t.Fatalf("exit=%d counts=%v %+v", code, counts, o)
+		}
+		if ids["fixture.spec.js::fixture fails deliberately"] != tr.Failed || ids["fixture.spec.js::fixture nested passes too"] != tr.Passed || ids["fixture.spec.js::fixture is skipped with xit"] != tr.Skipped {
+			t.Fatal(ids)
+		}
+	})
+	t.Run("missing selector", func(t *testing.T) {
+		o, code, e := run(t, map[string]string{"ok.spec.js": `describe('ok', function () { it('passes', function () { expect(1).toBe(1); }); });`}, []string{"ok.spec.js", "missing.spec.js"})
+		if e != nil || code != 0 || o.Complete || !problemCodes(o)["jasmine-selector-without-specs"] {
+			t.Fatalf("exit=%d %+v", code, o)
+		}
+	})
+	t.Run("load error", func(t *testing.T) {
+		o, code, e := run(t, map[string]string{"bad.spec.js": `describe('bad', function () { it('x', function () {}); }); throw new Error('load');`}, []string{"bad.spec.js"})
+		if e == nil || code != 1 || o.Complete || len(o.Tests) != 0 {
+			t.Fatalf("exit=%d err=%v %+v", code, e, o)
+		}
+	})
+}

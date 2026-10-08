@@ -10,7 +10,7 @@ Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 ## Agent digest
 - Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
 - Status: proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620); technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
-- Exists: 57 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
+- Exists: 58 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.
 
@@ -62,14 +62,16 @@ analyzer families need explicit runtime/domain disposition; their presence is no
 
 The dynamic lane covers the fifteen JS/TS affected registrations: Vitest, Jest, AVA, Mocha, node:test,
 Playwright, Bun, Deno, Cypress, WebdriverIO, TestCafe, Nightwatch, Detox and both Storybook runners;
-Python pytest/unittest; Ruby RSpec/Minitest/Test::Unit/Rails. The native lane covers Go, Cargo/nextest
+Python pytest/unittest; Ruby RSpec/Minitest/Test::Unit/Rails. Jasmine, accepted as an addition by
+decision 0437, is one further fixed dynamic profile without an affected registration (see Jasmine
+(experimental)). The native lane covers Go, Cargo/nextest
 and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2, CMocka and Ginkgo v2.
 The platform lane covers Java JUnit/TestNG/Gradle/Maven, Kotlin kotlin-test/Kotest/Android families,
 Swift Testing/XCTest/SwiftPM/Xcode, Bats/ShellSpec and remaining domain runner inventory. Analyzer
 candidates never imply that SQL/shader/data compilation is assertion testing. Additional main-runner
 ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion. Decision 0437 closes the CEM 1.0 main-framework set.
 
-The concrete count is 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android profiles. The registry also
+The concrete count is 22 dynamic, 17 native, 16 platform, two SQL and one Appium Android profiles. The registry also
 lists six unavailable IDs: `appium`, `pgtap`, `sqllogictest`, `shader-behavior`, `html-behavior` and
 `structured-data-behavior`. The two SQL profiles use the explicit IDs `sql-pgtap` and
 `sql-sqllogictest-sqlite`; the older unqualified names do not silently alias them. SQL coverage does
@@ -193,17 +195,29 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `attempt-outcome-conflict` | Playwright result statuses contradict its expected/unexpected/flaky/skipped category, or retained attempts contradict the final state (including a flaky result without at least two attempts ending in pass). | `internal/testrunner/dynamic/native.go:394@21e82322`; `internal/testrunner/dynamic/native.go:398@21e82322`; `internal/testrunner/dynamic/native.go:402@21e82322`; `internal/testrunner/dynamic/native.go:406@21e82322`; `internal/testrunner/dynamic/validation.go:158@24bd514f` |
 | `attempt-sequence` | A Playwright result retry number differs from its zero-based result position. | `internal/testrunner/dynamic/native.go:364@93e0a03b` |
 | `case-error-conflict` | WDIO reports a native error for a nonfailed case, or Node reports a non-TODO pass event with an error. | `internal/testrunner/dynamic/native.go:166@7456805d`; `internal/testrunner/dynamic/browser.go:139@89d45ae9` |
-| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:261@11da83fa` |
+| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:263@11da83fa` |
 | `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:298@e3eaf1ea` |
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:75@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
-| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:99@9a0a1c7f`; `internal/testrunner/dynamic/native.go:103@74f3bece`; `internal/testrunner/dynamic/native.go:200@b6957ba2`; `internal/testrunner/dynamic/native.go:226@ad1ded29`; `internal/testrunner/dynamic/native.go:424@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:272@6144e481`; `internal/testrunner/dynamic/parse.go:279@9b100a65`; `internal/testrunner/dynamic/parse.go:332@c89d4e2d`; `internal/testrunner/dynamic/parse.go:352@5e2333a0`; `internal/testrunner/dynamic/parse.go:376@a3fc5178` |
-| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:347@3ad339db` |
-| `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:148@a9d4d7aa` |
+| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:99@9a0a1c7f`; `internal/testrunner/dynamic/native.go:103@74f3bece`; `internal/testrunner/dynamic/native.go:200@b6957ba2`; `internal/testrunner/dynamic/native.go:226@ad1ded29`; `internal/testrunner/dynamic/native.go:424@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:274@6144e481`; `internal/testrunner/dynamic/parse.go:281@9b100a65`; `internal/testrunner/dynamic/parse.go:334@c89d4e2d`; `internal/testrunner/dynamic/parse.go:354@5e2333a0`; `internal/testrunner/dynamic/parse.go:378@a3fc5178` |
+| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:349@3ad339db` |
+| `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
 | `hook-or-unmatched-result` | The Cypress/Mocha result-status identity count differs from the collected test-row count. | `internal/testrunner/dynamic/browser.go:105@7ff4ce18` |
 | `invalid-exit-profile` | Exit-code lists exceed their bound, contain values outside 0..255, or repeat a value within or across lists. | `internal/testrunner/validate.go:101@0b03b013` |
 | `invalid-prior-attempt` | A retained nonfinal attempt is neither FAILED nor TIMED_OUT. | `internal/testrunner/dynamic/validation.go:162@71956e90` |
+| `jasmine-count-mismatch` | Jasmine's jasmineStarted totalSpecsDefined differs from the number of reported specDone events. | `internal/testrunner/dynamic/jasmine.go:165@962a83f4` |
+| `jasmine-file-outside-root` | A Jasmine spec filename is empty, relative or outside the source root, or the source root is empty. | `internal/testrunner/dynamic/jasmine.go:135@33b872d5` |
+| `jasmine-global-error` | Jasmine's jasmineDone carries top-level failed expectations, such as a top-level afterAll error. | `internal/testrunner/dynamic/jasmine.go:169@80706a67` |
+| `jasmine-identity-conflict` | A Jasmine suite or spec has no reported parent chain (unknown parent or cycle), or a spec has an empty id or description or a fullName that is not its suite descriptions and description joined by single spaces. | `internal/testrunner/dynamic/jasmine.go:111@5629fbac`; `internal/testrunner/dynamic/jasmine.go:130@d6a5d62d` |
+| `jasmine-incomplete` | Jasmine's overallStatus is incomplete, for example for a focused run or no specs found. | `internal/testrunner/dynamic/jasmine.go:181@7713363c` |
+| `jasmine-outcome-conflict` | A Jasmine spec that is not failed retains failed expectations. | `internal/testrunner/dynamic/jasmine.go:151@205985f0` |
+| `jasmine-parallel-unqualified` | Jasmine reports parallel mode, which this profile has not qualified. | `internal/testrunner/dynamic/jasmine.go:78@087c3074` |
+| `jasmine-selector-without-specs` | A Jasmine spec-file selector names a file with no reported spec, including a missing path Jasmine silently ignores. | `internal/testrunner/dynamic/jasmine.go:161@4416642f` |
+| `jasmine-status-conflict` | Jasmine's overallStatus is passed with a failed spec, suite or global error, or failed without any of them. | `internal/testrunner/dynamic/jasmine.go:174@c13e083e`; `internal/testrunner/dynamic/jasmine.go:178@fb40e1ea` |
+| `jasmine-suite-error` | A Jasmine suite is failed or retains failed expectations, such as a beforeAll or afterAll error. | `internal/testrunner/dynamic/jasmine.go:115@e24ba611` |
+| `jasmine-unknown-overall-status` | Jasmine's overallStatus is not passed, failed or incomplete. | `internal/testrunner/dynamic/jasmine.go:183@cacab051` |
+| `jasmine-unselected-file` | A Jasmine run with spec-file selectors reports a spec from a file outside their root-joined paths. | `internal/testrunner/dynamic/jasmine.go:143@cddb7713` |
 | `missing-attempt` | A non-skipped Playwright test has no results, or a test passed to retained-attempt validation has no attempts. | `internal/testrunner/dynamic/native.go:411@92208046`; `internal/testrunner/dynamic/validation.go:153@a1b5f038` |
 | `missing-count` | An XML suite containing direct testcase rows omits its tests count. | `internal/testrunner/dynamic/native.go:57@e722f2b9` |
 | `missing-name` | An XML testcase has an empty name. | `internal/testrunner/dynamic/native.go:72@e3950df9` |
@@ -219,26 +233,26 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:211@5e6d82cd` |
 | `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:176@40fd52ec` |
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:149@7e3f3a32` |
-| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:335@503ba44e` |
+| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:337@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:334@7d964fc3` |
-| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:251@7bb3fc94`; `internal/testrunner/dynamic/parse.go:255@7bb3fc94` |
+| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:253@7bb3fc94`; `internal/testrunner/dynamic/parse.go:257@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
-| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:293@4b70a549` |
-| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:285@be9d02c7` |
+| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:295@4b70a549` |
+| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:287@be9d02c7` |
 | `section-test-conflict` | Nightwatch completed-section and completed-test records map to different states for the same name. | `internal/testrunner/dynamic/browser.go:211@7936fd1f` |
 | `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:69@b1ab2b72` |
-| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:276@04a1c2a9` |
+| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:278@04a1c2a9` |
 | `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:250@b75d2c79` |
 | `test-bound` | Observed inventory exceeds MaxTests at the shared boundary. | `internal/testrunner/validate.go:41@e88d43a4` |
 | `unclassified-exit` | An admitted shared-boundary failure exit has no observed FAILED test. | `internal/testrunner/validate.go:125@94987f7f` |
-| `unexplained-exit` | A dynamic runner exits nonzero without failed/timed-out/interrupted tests or any previously recorded observation problem. | `internal/testrunner/dynamic/parse.go:145@67d7a680` |
+| `unexplained-exit` | A dynamic runner exits nonzero without failed/timed-out/interrupted tests or any previously recorded observation problem. | `internal/testrunner/dynamic/parse.go:147@67d7a680` |
 | `unknown-attempt-state` | A Playwright attempt status maps to UNKNOWN, or the shared boundary sees an attempt state outside its admitted state enumeration. | `internal/testrunner/validate.go:86@94ec202d`; `internal/testrunner/dynamic/native.go:376@4a8c35e3` |
 | `unknown-expected-status` | A Playwright test with results has an expectedStatus that maps to UNKNOWN. | `internal/testrunner/dynamic/native.go:383@07ce9705` |
 | `unknown-granularity` | A shared-boundary granularity is neither empty, CASE nor SUITE_ONLY. | `internal/testrunner/validate.go:47@50f6c9dd` |
 | `unknown-node-event-kind` | A Node pass/fail event is neither a suite nor a test in its details.type. | `internal/testrunner/dynamic/native.go:155@9933433d` |
 | `unknown-retry-information` | RetryInformation is not RETAINED, NOT_REPORTED or NOT_APPLICABLE. | `internal/testrunner/validate.go:128@b82d5be8` |
-| `unknown-state` | A dynamic parsed test has state UNKNOWN. | `internal/testrunner/dynamic/parse.go:135@53bac795` |
-| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:264@045a51e8` |
+| `unknown-state` | A dynamic parsed test has state UNKNOWN. | `internal/testrunner/dynamic/parse.go:137@53bac795` |
+| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:266@045a51e8` |
 | `unknown-test-state` | A shared-boundary test state is outside its admitted state enumeration. | `internal/testrunner/validate.go:73@8c1af2e1` |
 | `unresolved-test-state` | A shared-boundary test state is UNKNOWN, INTERRUPTED or TIMED_OUT. | `internal/testrunner/validate.go:79@80befa5b` |
 
@@ -452,3 +466,57 @@ including WebdriverIO, need their own matcher version.
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
 Plans without the field are unaffected, and plans that carry it then refuse as
 unknown fields.
+
+## Jasmine (experimental)
+
+Decision 0437 accepted Jasmine as an addition to the CEM 1.0 main-framework set under V1-0592.
+This slice adds the fixed experimental dynamic profile `jasmine` (V1-0860) for one pinned tuple:
+the `jasmine` 7.0.0 CLI with `jasmine-core` 7.0.2 on Node 22.23.3, macOS 26.6.2 arm64. Jasmine 7
+ships no machine-readable file reporter; the only official reporter package,
+`@jasminejs/reporters` 1.1.0, contains a console reporter alone. The profile therefore embeds one
+closed, pinned reporter shim, `internal/testrunner/dynamic/reporters/jasmine.cjs`, that copies named
+fields of Jasmine's own reporter events (`jasmineStarted`, `suiteDone`, `specDone`, `jasmineDone`)
+into one report and decides no outcome. The Go parser owns every validation.
+
+- `TRE-V0-031`: The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry point
+  (`node_modules/jasmine/bin/jasmine.js`, run by the pinned `node` tool) with the fixed argv
+  `--reporter=<ReportDir>/jasmine.cjs`, then `--config=<Config>` only when a configuration is
+  supplied, then the literal spec-file selectors. It writes the embedded shim into the fresh report
+  directory, declares exactly one report, `jasmine.json`, and admits exit 0 as success and exit 3
+  (failed) as the only failure exit; Jasmine's 1 (load error), 2 (incomplete) and 4 (premature exit)
+  remain unadmitted. A selector containing `=` (which Jasmine reads as an environment assignment) or
+  a backslash (a glob escape) refuses, together with every shared dynamic selector refusal. The
+  acquisition pins are the npm registry tarballs `jasmine-7.0.0.tgz` (sha256 `9cc640c5…efafb`),
+  `jasmine-core-7.0.2.tgz` (sha256 `b28b620d…136a5`) with their npm sha512 integrity values, the
+  lockfile, the entry point and the shim hash, retained in
+  `internal/testrunner/dynamic/testdata/jasmine/provenance.json`. Status: proposed (V1-0860).
+- `TRE-V0-032`: The parser MUST accept exactly the `corvint-jasmine/0` record with its started and
+  done events, at most MaxTests specs and suites and unique non-empty suite IDs; anything else
+  refuses. A test identity is the spec's source-root-relative file, `::`, and Jasmine's native
+  fullName, which MUST equal the reported parent-suite descriptions and the spec description joined
+  by single spaces (`jasmine-identity-conflict`). Only native `passed` maps to PASSED; `failed` maps
+  to FAILED; `pending`, `notApplicable` and `excluded` map to SKIPPED; any other status is UNKNOWN.
+  Retry information is NOT_APPLICABLE because Jasmine has no retries. A failed suite or suite error,
+  a global error, parallel mode, a spec-count mismatch, an outcome or overall-status contradiction,
+  an incomplete or unknown overall status, a file outside the root, or a missing report makes the
+  observation incomplete, so no PASSED state survives. Status: proposed (V1-0860).
+- `TRE-V0-033`: When selectors are present, every reported spec file MUST be one of the
+  root-joined selected files (`jasmine-unselected-file`) and every selected file MUST report at least
+  one spec (`jasmine-selector-without-specs`), because Jasmine silently ignores a missing file and
+  exits 0. Without selectors no reconciliation applies. Status: proposed (V1-0860).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-031 | `build.go`, `reporters/jasmine.cjs`; `TestJasmineBuildIsFixed`, opt-in `TestJasmineBuildExecuteParse` | `testdata/jasmine/provenance.json`: npm integrity values re-verified against the tarball bytes; shim hash checked by the fixture tests |
+| TRE-V0-032 | `jasmine.go`; `TestJasmineRunnerGeneratedReports`, `TestJasmineParserRefusals`, opt-in `TestJasmineBuildExecuteParse` | Seven runner-generated reports (mixed pass/fail/xit/pending/nested, passing, beforeAll/afterAll hooks, top-level afterAll, focused, empty, missing selector) from the pinned tuple; live common-executor run: exit 3, complete, 2 passed, 1 failed, 2 skipped; a load error refuses with no report |
+| TRE-V0-033 | `jasmine.go`; `TestJasmineRunnerGeneratedReports` (`missing.json`), `TestJasmineParserRefusals`, opt-in `TestJasmineBuildExecuteParse` | Live common-executor run with a missing selected file: exit 0, incomplete with `jasmine-selector-without-specs` |
+
+Recorded limits. One tuple only: other Jasmine, jasmine-core or Node versions and other operating
+systems are NOT_RUN. Parallel mode refuses as unqualified and is NOT_RUN. ESM `.mjs` specs,
+TypeScript loaders, helpers and `spec/support` default-config discovery in a configured project are
+NOT_OBSERVED. The shim and entry point are hashed, but the transitive dependency closure of the
+installed tree is not proven. Jasmine affected-test selection is not added. A spec in a file
+outside the root keeps its absolute filename as an identity and is incomplete.
+
+Rollback removes the additive `jasmine` profile, the embedded shim, `jasmine.go`, its tests and
+`testdata/jasmine`. No shared executor, other profile, queue, store or frozen wire changes.

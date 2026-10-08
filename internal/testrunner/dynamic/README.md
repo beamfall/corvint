@@ -11,6 +11,7 @@ requirement, a verified mutation kill, browser/application identity or release q
 | Runner ID | Execution/report profile | Locally observed evidence (2026-10-01, macOS arm64) |
 |---|---|---|
 | `mocha` | fixed Mocha event reporter, `--posix-exit-codes` | Mocha 12.0.3 pass/fail/skip/retry through common executor |
+| `jasmine` | Jasmine CLI `--reporter=` fixed event-recorder shim (Jasmine 7 has no file reporter), selector reconciliation | Jasmine 7.0.0 / jasmine-core 7.0.2 on Node 22.23.3 (2026-10-08): pass/fail/xit/pending, hook, global, focused, empty and missing-selector reports; live pass/fail/skip, missing selector and load-error refusal through common executor; parallel **NOT_RUN** |
 | `node-test` | Node `--test`, fixed native event reporter | Node 22.23.3 pass/fail/skip through common executor and reporter live test |
 | `jest` | explicit Jest binary, `--json --runTestsByPath` | Jest 30.5.2 pass/fail/skip, collection error and retry |
 | `vitest` | explicit Vitest binary, `run --reporter=json` | Vitest 5.0.3 pass/fail/skip, collection error and retry gap |
@@ -86,7 +87,9 @@ cardinality. A final passing report never retroactively erases process errors.
 - [Storybook test runner CLI](https://github.com/storybookjs/test-runner/blob/next/README.md)
 
 Context7 verified the applicable official API docs during implementation. Ruby reporter hook
-APIs were also checked against the exact installed framework source. Mocha execution support
+APIs were also checked against the exact installed framework source. The Jasmine shim
+`reporters/jasmine.cjs` copies native reporter-event fields only; its hash and the npm acquisition
+pins are in `testdata/jasmine/provenance.json`, read from the installed 7.0.0 package source. Mocha execution support
 does not imply Mocha affected-analysis routing: that separate capability remains unimplemented. Tests retain actual raw
 runner reports in `testdata`; browser schema cases are explicitly labelled synthetic contract
 tests. `TestProfileOwnedReportersLive` runs disposable source only and reports a skipped test

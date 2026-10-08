@@ -16,7 +16,7 @@ import (
 var reporters embed.FS
 
 func Runners() []string {
-	return []string{"mocha", "node-test", "jest", "vitest", "ava", "bun-test", "deno-test", "playwright", "cypress", "webdriverio", "testcafe", "nightwatch", "detox", "storybook-test-runner", "storybook-vitest", "pytest", "unittest", "rspec", "minitest", "test-unit", "rails-test"}
+	return []string{"mocha", "jasmine", "node-test", "jest", "vitest", "ava", "bun-test", "deno-test", "playwright", "cypress", "webdriverio", "testcafe", "nightwatch", "detox", "storybook-test-runner", "storybook-vitest", "pytest", "unittest", "rspec", "minitest", "test-unit", "rails-test"}
 }
 
 func known(r string) bool {
@@ -173,6 +173,21 @@ func Build(r tr.Request) (tr.Invocation, error) {
 			add("--browser", r.Project)
 		}
 		v.ReportPatterns = []string{"cypress-*.json"}
+	case "jasmine":
+		// Jasmine reads an argument containing "=" as an environment assignment and a
+		// backslash as a glob escape, so neither names a literal spec file.
+		for _, s := range r.Selectors {
+			if strings.ContainsAny(s, "=\\") {
+				return tr.Invocation{}, fmt.Errorf("Jasmine selector %q is not a literal spec file", s)
+			}
+		}
+		v.FailureExitCodes = []int{3}
+		add("--reporter=" + plugin("jasmine.cjs"))
+		report("jasmine.json")
+		if r.Config != "" {
+			add("--config=" + r.Config)
+		}
+		add(r.Selectors...)
 	case "webdriverio":
 		if r.Config == "" || len(r.ReportFiles) == 0 {
 			return tr.Invocation{}, fmt.Errorf("WebdriverIO needs pinned JSON reporter configuration and explicit report shard manifest")
