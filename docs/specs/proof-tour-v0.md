@@ -98,6 +98,12 @@ accepted fabricated review. Resume keeps the original fixture and every prior re
   stale ACK, failed Git status with its retained diagnostic across a retry, output collisions or
   changed original fixture without regeneration. The actual positive tour MUST
   use a fresh independently supplied ACK; fabricated test ACKs cannot qualify semantic review.
+- `PT-V0-008`: Before writing any resume receipt (proposed, V1-0519), resume MUST admit every
+  planned destination of the round, including the retained ACK copy and tool-identity receipt,
+  and refuse with operational `resume-output-collision` when any already exists as a regular
+  file, directory or symlink (dangling or not). The ACK and identity writes MUST additionally
+  refuse to clobber (`retain-ack-failed`/`retain-identity-failed`). A refusal MUST leave existing
+  receipts and symlink targets byte-identical; a collision-free resume MUST proceed unchanged.
 
 ## Qualification limits and failure modes
 
@@ -127,6 +133,7 @@ hostile daemonization/session escape. Tool binary identity and verifier pin stay
 | PT-V0-004,007 | original review-request bindings; negative resume tests; independent operator-supplied ACK |
 | PT-V0-005 | checksum before execution and resumed structural CI receipt after actual review |
 | PT-V0-006 | mock ordinary-process lifecycle tests, explicitly not semantic/reviewer evidence |
+| PT-V0-008 | focused symlink and regular-file collision tests preserving bytes, clean-resume admission test; the no-clobber write clause has only scratch mock-ACK evidence (no maintained test fabricates an accepted ACK), which is mechanical only |
 
 Root integration records the actual tour directory, independent findings, ACK author and
 bindings, final receipts, uncertainty and source review in the common build log. No unit test

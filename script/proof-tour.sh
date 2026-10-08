@@ -188,12 +188,13 @@ if [ -n "$resume" ]; then
   reviewer=$(sed -n '7s/^reviewer=//p' "$ack")
   case "$reviewer" in ''|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-]*) incomplete invalid-reviewer;; esac
   printf 'proof-tour-ack/0\nbase=%s\nhead=%s\nmap_sha256=%s\npatch_sha256=%s\nverdict=ACCEPT\nreviewer=%s\n' "$base" "$head" "$map_sha" "$patch_sha" "$reviewer" | cmp -s - "$ack" || incomplete noncanonical-review-ack
-  cp "$ack" "$out/receipts/$prefix-ack.txt" || operational retain-ack-failed
+  # noclobber keeps the preflight's guarantee if a destination appears after it.
+  (set -C; cat "$ack" > "$out/receipts/$prefix-ack.txt") || operational retain-ack-failed
   copied=$out/tools/cem01-go
   regular_path "$copied" && [ -f "$copied" ] && [ -x "$copied" ] || incomplete copied-verifier-missing
   [ "$(sha256_of "$copied")" = "$verifier_sha" ] || incomplete copied-verifier-digest-mismatch
   required_step "$prefix-core-version" "$core" --version
-  printf 'core_path=%s\ncore_sha256=%s\nverifier_sha256=%s\n' "$core" "$(sha256_of "$core")" "$verifier_sha" > "$out/receipts/$prefix-tool-identity.txt"
+  (set -C; printf 'core_path=%s\ncore_sha256=%s\nverifier_sha256=%s\n' "$core" "$(sha256_of "$core")" "$verifier_sha" > "$out/receipts/$prefix-tool-identity.txt") || operational retain-identity-failed
   required_step "$prefix-ready" "$core" --root "$fixture" cem status --map .corvint/change.cem.json --patch "$out/change.patch" --max-unknown 0 --max-mechanical 0
   required_step "$prefix-go-revalidated" env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE="${GOCACHE:-$out/go-cache}" go -C "$fixture" test -count=1 -timeout 30m ./...
   required_step "$prefix-portable" "$copied" ci --repository "$fixture" --base "$base" --head "$head" --map .corvint/change.cem.json

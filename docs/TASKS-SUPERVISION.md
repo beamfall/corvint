@@ -185,7 +185,13 @@ Each tick observes the queue, supervises workers (whole-tree kill on wall cap, i
 orphaned tree), hands off live attempts of ended workers, reaps expired leases, accounts progress,
 and launches the roster. A refused hand-off is retried a bounded number of times with backoff and the
 attempt is reaped once its lease expires; only when both fail is it reported as `needs-owner`
-(`heal.exitRecovery`, default true; CAL-V0-104). A run that changes no durable ticket state cools the ticket down; after
+(`heal.exitRecovery`, default true; CAL-V0-104). With `heal.reap`, a worker that is still running
+but whose attempt's lease has been expired for longer than its role's `expiredLeaseGraceSeconds`
+(0..86400, default 600) has that attempt reaped, fenced on the lease expiry it observed, which frees
+its pool member through the usual quarantine and cleanup; only when the store reports that reap is
+the worker stopped like a wall-capped worker, with a `lease-expired` event. A running worker whose
+attempt the store holds as reaped is stopped on every tick, so a restart does not lose the stop
+(CAL-V0-191, proposed). A run that changes no durable ticket state cools the ticket down; after
 `parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
