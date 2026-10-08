@@ -164,6 +164,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		return c, err
 	}
 	var freezeErr error
+	var stopped func(Process, int)
 	retiredFirst := false
 	if r != nil {
 		// The token-owned record is taken first, while the exited leader is
@@ -172,14 +173,12 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		// descendant the Retirer cannot prove (no token, and no ancestry from
 		// the exited leader) is orphaned out of the structural tree when the
 		// Retirer kills its parent, and is then retired by that identity.
-		// Each individually stopped identity is recorded as it is stopped, so
-		// a failed freeze leaves none suspended untracked; without a complete
-		// record the structural pass runs first, as in RunContained.
-		table, _, err := freezeOwned(leader, func(p Process, depth int) {
-			if !trackEscaped(seen, p, depth) {
-				overflow = true
-			}
-		})
+		// Every identity either freeze stops individually is recorded as it
+		// is stopped, outside the sampling bound, so a failed freeze leaves
+		// none suspended untracked; without a complete record the structural
+		// pass runs first, as in RunContained.
+		stopped = func(p Process, depth int) { seen[p.PID] = sampled{p, depth} }
+		table, _, err := freezeOwned(leader, stopped)
 		switch {
 		case err != nil:
 			freezeErr = err
@@ -190,7 +189,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 			retiredFirst = true
 		}
 	}
-	c.Retired, c.Err = retireEscaped(leader)
+	c.Retired, c.Err = retireEscaped(leader, stopped)
 	c.Err = errors.Join(freezeErr, c.Err)
 	if r != nil && !retiredFirst {
 		r.Retire()
@@ -346,8 +345,8 @@ func escapedOf(table map[int]Process, owned map[int]int) []Process {
 // so its PID cannot be reaped and reused before the signal; a descendant that
 // leads its own session is retired with one group signal, because every
 // member of that session's groups descends from it.
-func retireEscaped(leader int) ([]Process, error) {
-	table, owned, err := freezeOwned(leader, nil)
+func retireEscaped(leader int, stopped func(Process, int)) ([]Process, error) {
+	table, owned, err := freezeOwned(leader, stopped)
 	if err != nil {
 		return nil, err
 	}

@@ -74,7 +74,12 @@ function name encoded a TRE ID.
   identity bound) runs the structural pass before the Retirer, as `RunContained` does.
   `TestFreezeOwnedReportsStoppedBeforeFailure` injects a table failure after one stop and requires
   that identity to be reported and tracked; it is new API, so its before-state is a build failure,
-  not a behavioural failure.
+  not a behavioural failure. A second re-review found the same gap one step later: the structural
+  retry after a failed freeze could stop a tokenless descendant and fail again before recording it.
+  Every individual stop by either freeze is now recorded in the identity set, outside the sampling
+  bound. `TestRunContainedRetiringRetiresHelperStoppedByFailedFreezes` (Darwin, real processes,
+  injected table failures on the second and fourth post-exit reads) failed before that change
+  (`helper=true`, left stopped) and passes after, five repeated runs included.
 - Semantic test conflict: V1-0613's `TestExecuteRetiresDetachedDescendants` (`timeout-retire=false`)
   and the opt-in live `TestSwiftPMXCTestLiveDetachedTeardown/contained-only` asserted that detached
   descendants survive without the retirement flag. `TRE-V0-034` now retires them structurally on

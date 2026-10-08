@@ -61,7 +61,12 @@ func TestEscapeHelper(t *testing.T) {
 	case "leader":
 		spawn("worker", false)
 		ready()
-		if os.Getenv("CORVINT_ESCAPE_LEADER") == "exit" {
+		switch os.Getenv("CORVINT_ESCAPE_LEADER") {
+		case "exit":
+			os.Exit(0)
+		case "exit-late":
+			// Leaves the test time to read the escaped identities first.
+			time.Sleep(500 * time.Millisecond)
 			os.Exit(0)
 		}
 	case "orphan-leader":
@@ -407,7 +412,7 @@ func TestRetireEscapedIdentityBoundary(t *testing.T) {
 	)
 	var s fakeSignals
 	s.install(t, stoppedTree)
-	retired, err := retireEscaped(leader)
+	retired, err := retireEscaped(leader, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +433,7 @@ func TestRetireEscapedIdentityBoundary(t *testing.T) {
 	)
 	s = fakeSignals{}
 	s.install(t, running)
-	if _, err := retireEscaped(leader); err == nil {
+	if _, err := retireEscaped(leader, nil); err == nil {
 		t.Fatal("unstopped owned tree reported retired")
 	}
 	for _, sent := range s.sent {
@@ -441,7 +446,7 @@ func TestRetireEscapedIdentityBoundary(t *testing.T) {
 	s = fakeSignals{}
 	s.install(t, stoppedTree)
 	sessionOf = func(int) (int, error) { return 1, nil }
-	if _, err := retireEscaped(leader); err != nil {
+	if _, err := retireEscaped(leader, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.Join(s.sent, " "); got != "group-1000:STOP 2001:KILL 2000:KILL" {
