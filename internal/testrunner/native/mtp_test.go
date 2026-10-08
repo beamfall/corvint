@@ -119,3 +119,31 @@ func mtpTestRequest(r *tr.Request) {
 		r.InputFiles = map[string]string{"Probe.dll": "sha", "Probe.runtimeconfig.json": "sha", "Probe.deps.json": "sha"}
 	}
 }
+
+// V1-0601 (TRE-V0-025): MTP pipe sockets live under the executor TMPDIR, so a
+// report directory whose longest native pipe path exceeds the Unix socket limit
+// is refused before launch instead of aborting the host without a report.
+func TestMTPSocketPathAdmission(t *testing.T) {
+	const original = "/private/tmp/cem10-build/mtp/executor-evidence-1428139223/xunit-skip"
+	for _, c := range []struct {
+		dir   string
+		admit bool
+	}{
+		{"/r", true},
+		{"/" + strings.Repeat("d", 50), true},  // TMPDIR 56 + "/" + 46 = 103
+		{"/" + strings.Repeat("d", 51), false}, // 104
+		{original, false},                      // reproduced 106-byte 32-hex pipe; 120 for MONITORTOHOST
+	} {
+		for _, f := range []string{"nunit", "mstest", "xunit"} {
+			r := tr.Request{Runner: "dotnet-mtp-" + f, Executable: "/sdk/dotnet", ReportDir: c.dir}
+			mtpTestRequest(&r)
+			_, e := Build(r)
+			if (e == nil) != c.admit {
+				t.Fatalf("%s %d-byte report dir: admit=%v err=%v", f, len(c.dir), c.admit, e)
+			}
+			if e != nil && !strings.Contains(e.Error(), "native pipe path") {
+				t.Fatalf("unexplained refusal: %v", e)
+			}
+		}
+	}
+}

@@ -478,7 +478,36 @@ could disappear. These checks keep such evidence from becoming a pass.
 
 Recorded limits. The four originally reproduced false passes were already
 refused at `722904f9`; V1-0600 adds the cross-framework and alias regression
-matrix and live requalification, not a parser change. MTP live requalification
-of this requirement is NOT_RUN (no .NET 10 runtime locally). Other TRX producers
+matrix and live requalification, not a parser change. MTP live pass/fail/skip
+classification was requalified on net9.0 under `TRE-V0-025`; the net10.0
+fixture build was not rerun (no .NET 10 runtime locally). Other TRX producers
 and VSTest/MTP versions remain unqualified and refuse on unknown structure.
 Rollback removes the test matrix and this section; parsers are unchanged.
+
+## MTP native socket path admission (experimental)
+
+Microsoft.Testing.Platform 2.4.1 creates Unix-domain-socket pipes named
+`TMPDIR/<name>`; the executor sets `TMPDIR` to `<reportDir>/.tmp`. When the
+socket path exceeds the native limit, the test host aborts (exit 134) before it
+writes any report, so a long report directory made every MTP profile unusable.
+
+- `TRE-V0-025`: The MTP profiles MUST refuse at build time, before launch, any
+  report directory for which `len(<reportDir>/.tmp) + 1 + 46` exceeds 103 bytes.
+  Here 46 bytes is the longest observed pipe name, `MONITORTOHOST_` plus 32 hex
+  digits, and 103 bytes is the macOS limit that MTP enforces. The refusal MUST
+  name the computed and maximum lengths. The same bound applies on Linux, so
+  admission is never looser than on the qualified host. The profile MUST NOT set
+  `TESTINGPLATFORM_PIPE_DIRECTORY`; doing so would change the identity of every
+  existing invocation. A native socket abort that bypasses admission MUST NOT
+  produce a complete observation. Status: proposed (V1-0601).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-025 | `native/mtp.go` `buildMTP`, `testrunner.ExecutionTempDir`; `TestMTPSocketPathAdmission`, opt-in `TestMTPLiveExecution` (`long-report-dir`) | Boundary (51-byte report directory) admitted and 52 bytes refused; the reproduced 68-byte directory is refused. Live net9.0 NUnit, MSTest and xUnit pass/fail/skip/zero/infra runs complete at 49 to 51 bytes. Forced long paths abort natively, with no report and no observation |
+
+Recorded limits. The bound was measured directly on macOS with SDK 9.0.316
+and runtime 9.0.18. A `TMPDIR` of 56 bytes runs; 57 bytes aborts on the
+`MONITORTOHOST_` pipe. Other MTP versions may use other pipe names and are
+unqualified. Linux and .NET 10 are NOT_RUN. Callers needing longer report
+directories must choose a shorter report root. Rollback removes the admission
+check and this section; the executor `TMPDIR` value is unchanged.

@@ -192,7 +192,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		phaseCtx, phaseCancel := context.WithCancel(limited)
 		cmd := exec.CommandContext(phaseCtx, t.Executable, p.Argv...)
 		cmd.Dir = r.Root
-		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": filepath.Join(r.ReportDir, ".tmp"), "LANG": "C.UTF-8", "TZ": "UTC"}
+		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": ExecutionTempDir(r.ReportDir), "LANG": "C.UTF-8", "TZ": "UTC"}
 		for k, v := range p.Environment {
 			if k == "" || strings.ContainsAny(k, "=\x00") || strings.ContainsRune(v, 0) {
 				phaseCancel()
