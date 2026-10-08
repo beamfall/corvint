@@ -20,6 +20,7 @@ type Graph struct {
 	owner      map[string]string
 	dependents map[string][]string
 	testUsers  map[string][]string
+	execUsers  map[string][]string
 	testReach  map[string]bool
 	unbounded  []string
 	claimants  map[string]Language
@@ -43,14 +44,16 @@ type digestBody struct {
 }
 
 // digestUnit projects one Unit; every member is always present except the
-// declared read scope, which appears only for a declared unit so that graphs
-// without a declaration keep their digest.
+// declared read scope, which appears only for a declared unit, and the
+// command edges, which appear only for a unit that runs a command, so that
+// graphs without either keep their digest.
 type digestUnit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
 	Tests             []string `json:"tests"`
 	Imports           []string `json:"imports"`
 	TestImports       []string `json:"testImports"`
+	Execs             []string `json:"execs,omitempty"`
 	PathTokens        []string `json:"pathTokens"`
 	PathTokensBounded bool     `json:"pathTokensBounded"`
 	Embeds            bool     `json:"embeds"`
@@ -106,6 +109,7 @@ func build(languages []Language, observe func(Language) (Result, error)) (*Graph
 		owner:      make(map[string]string),
 		dependents: make(map[string][]string),
 		testUsers:  make(map[string][]string),
+		execUsers:  make(map[string][]string),
 		claimants:  make(map[string]Language),
 		frontierBy: make(map[string][]string),
 	}
@@ -179,6 +183,7 @@ func (graph *Graph) finish() {
 	sort.Strings(graph.order)
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
+	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
 	graph.testReach = graph.unitsReachingTests()
 	graph.unbounded = graph.unboundedReaders()
 }
@@ -315,6 +320,7 @@ func projectUnit(unit Unit) digestUnit {
 		Tests:             unit.Tests,
 		Imports:           unit.Imports,
 		TestImports:       unit.TestImports,
+		Execs:             unit.Execs,
 		PathTokens:        unit.PathTokens,
 		PathTokensBounded: unit.PathTokensBounded,
 		Embeds:            unit.Embeds,

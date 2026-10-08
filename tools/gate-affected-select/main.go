@@ -62,6 +62,7 @@ var moduleLevelFrontiers = map[string]bool{
 	"go:unparsed-source":                 true,
 	"go:cgo-frontier":                    true,
 	"go:test-read-scopes-invalid":        true,
+	"go:test-binary-execs-invalid":       true,
 }
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
