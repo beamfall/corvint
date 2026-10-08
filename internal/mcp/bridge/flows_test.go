@@ -219,15 +219,15 @@ func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing
 			if callErr != nil {
 				t.Fatal(callErr)
 			}
-			_, callErr = registry.Call(context.Background(), ToolFlowsCoverage, arguments)
+			result, callErr := registry.Call(context.Background(), ToolFlowsCoverage, arguments)
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 				t.Fatalf("drops guard %v: coverage over the %s clone reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, test.name, err)
 			}
 			if test.refused && (callErr == nil || callErr.Code != "flows-refused") {
 				t.Fatalf("drops guard %v: coverage served a denominator whose intent blob is missing: %#v", dropsLazyFetchGuard, callErr)
 			}
-			if !test.refused && callErr != nil {
-				t.Fatalf("drops guard %v: control coverage over a clone holding every HEAD blob refused: %#v", dropsLazyFetchGuard, callErr)
+			if !test.refused && (callErr != nil || result.State != "READY") {
+				t.Fatalf("drops guard %v: control coverage over a clone holding every HEAD blob did not serve READY: %#v %#v", dropsLazyFetchGuard, callErr, result)
 			}
 		}
 	}

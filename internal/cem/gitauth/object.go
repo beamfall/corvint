@@ -41,7 +41,9 @@ func (r *Repository) pinnedArgs() []string {
 	return args
 }
 
-// scrubbedEnv is the frozen allowlist environment for Git children.
+// scrubbedEnv is the frozen allowlist environment for Git children. An empty
+// GIT_ALLOW_PROTOCOL refuses every transport, so a Git that ignores
+// GIT_NO_LAZY_FETCH still cannot fetch a missing promisor object (V1-0349).
 func scrubbedEnv() []string {
 	result := make([]string, 0, 17)
 	for _, key := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
@@ -53,7 +55,7 @@ func scrubbedEnv() []string {
 		"LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0",
 		"GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE="+os.DevNull, "GIT_ASKPASS=",
-		"GIT_ATTR_NOSYSTEM=1", "GCM_INTERACTIVE=never",
+		"GIT_ATTR_NOSYSTEM=1", "GCM_INTERACTIVE=never", "GIT_ALLOW_PROTOCOL=",
 	)
 }
 
@@ -71,9 +73,6 @@ func (r *Repository) gitInput(ctx context.Context, limit int, stdin []byte, args
 
 func (r *Repository) gitOptions(limit int, stdin []byte) gitrun.Options {
 	env := scrubbedEnv()
-	if r.gitBinary != "" {
-		env = append(env, "GIT_ALLOW_PROTOCOL=")
-	}
 	if r.objectView != nil {
 		env = append(env, "GIT_OBJECT_DIRECTORY="+filepath.Join(r.objectView.CommonDir, "objects"), "GIT_ALTERNATE_OBJECT_DIRECTORIES=")
 	}

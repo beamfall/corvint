@@ -600,6 +600,50 @@ func checkPromisorObjectRefusals(t *testing.T) {
 	}
 }
 
+// TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching extends V1-0349 to the map-first reads,
+// whose object reads go through internal/cem/gitauth rather than the kernel: cem status and verify
+// over a blob:none clone missing the base blob refuse with repository-object-unavailable, and no
+// fetch reaches the promisor remote, also through a Git that drops GIT_NO_LAZY_FETCH. It sets
+// PATH, so it cannot run in parallel.
+func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, base, target := cemRepo(t)
+	completionCandidate(t, source, base, target)
+	cemGit(t, source, "config", "uploadpack.allowFilter", "true")
+	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+	clone, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "file://"+source, clone)
+	cemGit(t, clone, "config", "remote.origin.uploadpack", "touch '"+strings.ReplaceAll(sentinel, "'", `'\''`)+"' && git-upload-pack")
+	if err := os.RemoveAll(source); err != nil {
+		t.Fatal(err)
+	}
+	for _, dropsLazyFetchGuard := range []bool{false, true} {
+		if dropsLazyFetchGuard {
+			shim := t.TempDir()
+			script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
+			if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		}
+		for _, verb := range []string{"status", "verify"} {
+			code, stdout, stderr := runCLI(t, "--root", clone, "cem", verb, "--map", completionMap, "--expected-base", base, "--target", "HEAD")
+			if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("drops guard %v: cem %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, verb, err)
+			}
+			if code != 2 || stdout != "" || !strings.Contains(stderr, "repository-object-unavailable") {
+				t.Errorf("drops guard %v: cem %s exit %d stdout %q stderr %s, want 2 with repository-object-unavailable", dropsLazyFetchGuard, verb, code, stdout, stderr)
+			}
+		}
+	}
+}
+
 var maturityLabel = regexp.MustCompile(`([a-z][a-z-]*) \(([A-Z][A-Z0-9-]*)\)`)
 
 // TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008: root help names exactly the
