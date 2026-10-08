@@ -719,6 +719,7 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 			}
 		}
 	}
+	d.stopReapedWorkers(obs)
 	if d.Config.Heal.Reap {
 		now := d.Now()
 		for _, a := range obs.Attempts {
@@ -750,27 +751,66 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 }
 
 // reapRunningExpired reaps the live attempt a of the still-running worker w
-// once its lease has been expired for longer than the role's grace, then
-// marks w for the same TERM-then-KILL stop as the wall-time cap
-// (CAL-V0-191). It reports whether it attempted a store write.
+// once its lease has been expired for longer than the role's grace
+// (CAL-V0-191). The reap is fenced on the lease expiry observed here, and w
+// is stopped with the wall-time cap's TERM-then-KILL only when the store
+// reports that this request reaped the attempt: a worker that released,
+// completed or renewed first keeps running. It reports whether it attempted
+// a store write.
 func (d *Dispatcher) reapRunningExpired(ctx context.Context, obs *Observation, w *Worker, a Attempt, now time.Time) bool {
 	grace := d.launchConfig(w).roleNamed(w.Role).ExpiredLeaseGrace()
 	if now.Sub(a.LeaseExpires) <= grace {
 		return false
 	}
 	local := d.local(obs, a.Ticket)
-	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": a.Holder, "phase": a.Phase, "leaseExpires": a.LeaseExpires.UTC().Format(time.RFC3339), "graceSeconds": strconv.Itoa(int(grace / time.Second))}
-	if err := d.Queue.Reap(ctx, a, requestID("reap", a.ID, a.Generation, "lease-expired")); err != nil {
+	expires := a.LeaseExpires.UTC().Format(time.RFC3339)
+	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": a.Holder, "phase": a.Phase, "leaseExpires": expires, "graceSeconds": strconv.Itoa(int(grace / time.Second))}
+	reaped, err := d.Queue.ReapExpired(ctx, a, requestID("reap", a.ID, a.Generation, "lease-expired", expires))
+	if err != nil {
 		detail["error"] = err.Error()
 		d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not reap the expired lease of %s held by running worker %s: %v", local, w.ID, err), Detail: detail})
 		return true
 	}
-	d.emit(Event{Kind: "lease-expired", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("reaped attempt %s on %s: its lease expired at %s, more than %s ago, while %s still ran; stopping the worker", a.ID, local, detail["leaseExpires"], grace, w.ID), Detail: detail})
-	if w.State != "KILLING" {
-		w.State, w.KillReason = "KILLING", "LEASE_EXPIRED"
-		d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText["LEASE_EXPIRED"]), Detail: map[string]string{"reason": "LEASE_EXPIRED", "processes": strconv.Itoa(len(w.Members))}})
+	if !reaped {
+		return true
 	}
+	d.emit(Event{Kind: "lease-expired", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("reaped attempt %s on %s: its lease expired at %s, more than %ds ago, while %s still ran; stopping the worker", a.ID, local, expires, int(grace/time.Second), w.ID), Detail: detail})
+	d.stopLeaseExpired(w)
 	return true
+}
+
+// stopReapedWorkers stops every running worker of this dispatcher whose
+// attempt the store holds as reaped (FAILED, cause LEASE_EXPIRED) while it
+// holds no live attempt (CAL-V0-191). The store is the durable record of a
+// reap, so a stop lost to a dispatcher that ended after the reap but before
+// its ledger recorded KILLING is recovered on the next tick, whatever the
+// reap switch now says.
+func (d *Dispatcher) stopReapedWorkers(obs *Observation) {
+	reaped, live := map[string]bool{}, map[string]bool{}
+	for _, a := range obs.Attempts {
+		switch {
+		case a.Holder == "":
+		case a.Live:
+			live[a.Holder] = true
+		case a.Phase == "FAILED" && a.Cause == "LEASE_EXPIRED":
+			reaped[a.Holder] = true
+		}
+	}
+	for _, w := range d.ledger.Workers {
+		if len(w.Members) > 0 && w.State != "KILLING" && reaped[w.ID] && !live[w.ID] {
+			d.stopLeaseExpired(w)
+		}
+	}
+}
+
+// stopLeaseExpired marks w KILLING with reason LEASE_EXPIRED, so the next
+// supervision pass stops it as the wall-time cap does.
+func (d *Dispatcher) stopLeaseExpired(w *Worker) {
+	if w.State == "KILLING" {
+		return
+	}
+	w.State, w.KillReason = "KILLING", "LEASE_EXPIRED"
+	d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText["LEASE_EXPIRED"]), Detail: map[string]string{"reason": "LEASE_EXPIRED", "processes": strconv.Itoa(len(w.Members))}})
 }
 
 // handoff releases the live attempt a of the ended worker through the

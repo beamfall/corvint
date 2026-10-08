@@ -5,6 +5,8 @@ package dispatch
 import (
 	"encoding/json"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -56,7 +58,7 @@ func TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped(t *testing.T) {
 	}
 	now = now.Add(time.Second)
 	tick(t, d)
-	if !reflect.DeepEqual(q.reaped, []string{"a1"}) || !reflect.DeepEqual(q.requests, []string{requestID("reap", "a1", "3", "lease-expired")}) {
+	if !reflect.DeepEqual(q.reaped, []string{"a1"}) || !reflect.DeepEqual(q.requests, []string{requestID("reap", "a1", "3", "lease-expired", lease.Format(time.RFC3339))}) {
 		t.Fatalf("reaped %v requests %v", q.reaped, q.requests)
 	}
 	if w.State != "KILLING" || w.KillReason != "LEASE_EXPIRED" {
@@ -126,6 +128,117 @@ func TestCALV0191_RefusedReapKeepsTheWorker(t *testing.T) {
 	tick(t, d) // the next pass retries with the same request ID
 	if len(q.requests) != 2 || q.requests[0] != q.requests[1] || w.State != "KILLING" {
 		t.Fatalf("requests %v state %q", q.requests, w.State)
+	}
+}
+
+// TestCALV0191_WorkerThatWinsTheRaceKeepsRunning: a release or a renewal
+// that lands between the observation and the reap leaves the worker
+// running; only a reap the store reports as made stops it.
+func TestCALV0191_WorkerThatWinsTheRaceKeepsRunning(t *testing.T) {
+	start := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+	lease := start.Add(time.Minute)
+	renewed := lease.Add(time.Hour)
+	for name, race := range map[string]func(q *refusingQueue) func(Attempt){
+		"released": func(q *refusingQueue) func(Attempt) { return func(a Attempt) { q.end(a.ID) } },
+		"renewed": func(q *refusingQueue) func(Attempt) {
+			return func(Attempt) { q.obs.Attempts[0].LeaseExpires = renewed }
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			now := start
+			q := &refusingQueue{fakeQueue: &fakeQueue{}}
+			d, w := leaseRig(t, q, &now, lease, nil)
+			q.beforeReap = race(q)
+			now = lease.Add(601 * time.Second)
+			tick(t, d)
+			q.beforeReap = nil
+			got := kinds(t, d)
+			if len(q.requests) != 1 || len(q.reaped) != 0 || w.State == "KILLING" || has(got, "lease-expired") || has(got, "killing") {
+				t.Fatalf("requests %v reaped %v state %q events %v", q.requests, q.reaped, w.State, got)
+			}
+			if has(got, "alert") != (name == "renewed") {
+				t.Fatalf("events %v", got)
+			}
+			tick(t, d)
+			if len(q.requests) != 1 || d.Running() != 1 || w.State == "KILLING" {
+				t.Fatalf("after the race: requests %v running %d state %q", q.requests, d.Running(), w.State)
+			}
+		})
+	}
+}
+
+// TestCALV0191_StopAfterReapIsRecoveredAfterRestart: a dispatcher that
+// ends after the store reaped but before its ledger recorded the stop
+// restarts with the worker RUNNING; the store's reaped attempt stops it
+// without a second reap.
+func TestCALV0191_StopAfterReapIsRecoveredAfterRestart(t *testing.T) {
+	now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+	lease := now.Add(time.Minute)
+	q := &refusingQueue{fakeQueue: &fakeQueue{}}
+	d, w := leaseRig(t, q, &now, lease, nil)
+	var crashed []byte
+	q.afterReap = func(Attempt) {
+		raw, err := os.ReadFile(filepath.Join(d.dir, "state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		crashed = raw
+	}
+	now = lease.Add(601 * time.Second)
+	tick(t, d)
+	q.afterReap = nil
+	var l struct {
+		Workers []struct {
+			State string `json:"state"`
+		} `json:"workers"`
+	}
+	if err := json.Unmarshal(crashed, &l); err != nil || len(l.Workers) != 1 || l.Workers[0].State != "RUNNING" {
+		t.Fatalf("ledger at the store write: %v %s", err, crashed)
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.dir, "state.json"), crashed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := Open("lease", d.Config, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { restarted.Close() })
+	restarted.Now = func() time.Time { return now }
+	tick(t, restarted)
+	if len(restarted.ledger.Workers) != 1 {
+		t.Fatalf("workers after restart: %d", len(restarted.ledger.Workers))
+	}
+	again := restarted.ledger.Workers[0]
+	if len(q.requests) != 1 || len(q.reaped) != 1 {
+		t.Fatalf("requests %v reaped %v", q.requests, q.reaped)
+	}
+	if again.ID != w.ID || again.State != "KILLING" || again.KillReason != "LEASE_EXPIRED" {
+		t.Fatalf("restarted worker %+v", again)
+	}
+	tick(t, restarted)
+	if !gone(w.PID) || restarted.Running() != 0 {
+		t.Fatalf("the worker survived the restart: running %d", restarted.Running())
+	}
+}
+
+// TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne: a reaped attempt
+// stops its running holder only while that worker holds no live attempt.
+func TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne(t *testing.T) {
+	now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+	q := &refusingQueue{fakeQueue: &fakeQueue{}}
+	d, w := leaseRig(t, q, &now, now.Add(time.Hour), nil)
+	q.obs.Attempts = append(q.obs.Attempts, Attempt{ID: "a0", Ticket: w.Ticket, Holder: w.ID, Phase: "FAILED", Cause: "LEASE_EXPIRED", Generation: "1", LeaseExpires: now.Add(-time.Hour)})
+	tick(t, d)
+	if w.State == "KILLING" || len(q.requests) != 0 {
+		t.Fatalf("state %q requests %v with a live attempt", w.State, q.requests)
+	}
+	q.obs.Attempts[0].Live, q.obs.Attempts[0].Phase, q.obs.Attempts[0].Cause = false, "FAILED", "LEASE_EXPIRED" // reaped by another writer
+	tick(t, d)
+	if w.State != "KILLING" || w.KillReason != "LEASE_EXPIRED" || len(q.requests) != 0 {
+		t.Fatalf("state %q reason %q requests %v", w.State, w.KillReason, q.requests)
 	}
 }
 

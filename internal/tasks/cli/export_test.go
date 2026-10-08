@@ -76,6 +76,11 @@ func ObserveTickets(cwd string) ([]dispatch.Ticket, error) {
 	return o.Tickets, nil
 }
 
+// DispatchQueueForTest is the dispatcher's native store boundary at cwd.
+func DispatchQueueForTest(cwd string) dispatch.Queue {
+	return dispatchQueue{env: Env{Cwd: cwd, Stdout: io.Discard, Stderr: io.Discard}}
+}
+
 // DecodeRunRecord exposes the run-record decoder to the CAL-V0-131 format
 // table.
 func DecodeRunRecord(raw []byte) error {

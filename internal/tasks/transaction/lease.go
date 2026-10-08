@@ -63,7 +63,10 @@ type LeaseRequest struct {
 	WholeRepository bool
 	AttemptID       string
 	Generation      wire.Size
-	Reason          string
+	// LeaseExpiresAt fences a REAP on the lease expiry the caller observed:
+	// a renewal since then refuses it (CAL-V0-191). Empty otherwise.
+	LeaseExpiresAt wire.Timestamp
+	Reason         string
 	// HandoffTo and HandoffReason are the CAL-V0-082/083 recorded next
 	// stage of a clean RELEASE; empty when not requested.
 	HandoffTo, HandoffReason string
@@ -118,6 +121,7 @@ const (
 	fieldHandoff
 	fieldAuthors
 	fieldShare
+	fieldExpiry
 )
 
 type leaseShape struct{ required, allowed int }
@@ -137,7 +141,7 @@ var leaseShapes = map[string]leaseShape{
 	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched | fieldHandoff},
-	LeaseReap:            {0, fieldAttempt | fieldGeneration},
+	LeaseReap:            {0, fieldAttempt | fieldGeneration | fieldExpiry},
 	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
 	LeaseSubmit:          {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
 	LeaseGateRun:         {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
@@ -148,7 +152,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -167,8 +171,8 @@ func checkShape(l *LeaseRequest) error {
 	if bits&shape.required != shape.required || bits&^shape.allowed != 0 {
 		return malformed("lease arguments do not fit " + l.Verb)
 	}
-	if l.Verb == LeaseReap && bits != 0 && bits != fieldAttempt|fieldGeneration {
-		return malformed("REAP names an attempt and its generation together or neither")
+	if l.Verb == LeaseReap && bits != 0 && bits != fieldAttempt|fieldGeneration && bits != fieldAttempt|fieldGeneration|fieldExpiry {
+		return malformed("REAP names an attempt and its generation together or neither, and a lease expiry only with them")
 	}
 	if l.Verb == LeaseWiden && (bits&fieldScope != 0) == (bits&fieldWhole != 0) {
 		return malformed("WIDEN takes paths or the whole repository, exactly one")
@@ -313,6 +317,11 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return e
 		}
 	}
+	if l.LeaseExpiresAt != "" {
+		if _, e := wire.ParseTimestamp("leaseExpiresAt", string(l.LeaseExpiresAt)); e != nil {
+			return e
+		}
+	}
 	if l.Reason != "" && l.Verb != LeasePoolSafe && l.Verb != LeasePoolRecover && !wire.IsCode(l.Reason) {
 		return malformed("release reason is not a closed code")
 	}
@@ -400,6 +409,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	// PSR-V0-016: omitted when absent, so every earlier CLAIM keeps its digest.
 	if l.ShareAllocation != "" {
 		v.Obj.Set("shareAllocation", s(l.ShareAllocation))
+	}
+	// CAL-V0-191: likewise omitted, so every earlier REAP keeps its digest.
+	if l.LeaseExpiresAt != "" {
+		v.Obj.Set("leaseExpiresAt", s(string(l.LeaseExpiresAt)))
 	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
@@ -687,6 +700,13 @@ func planReap(c leaseContext) leaseOutcome {
 	}
 	if a.Generation.Uint64() != c.l.Generation.Uint64() {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "generation "+string(c.l.Generation)+" is not the attempt's current generation "+string(a.Generation))
+	}
+	if c.l.LeaseExpiresAt != "" && (a.Lease == nil || a.Lease.ExpiresAt != c.l.LeaseExpiresAt) {
+		now := "no lease"
+		if a.Lease != nil {
+			now = "a lease until " + string(a.Lease.ExpiresAt)
+		}
+		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "the attempt now has "+now+", not the observed lease until "+string(c.l.LeaseExpiresAt))
 	}
 	if !expired(a, c.in.RecordedAt) {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "the lease is live until "+string(a.Lease.ExpiresAt))

@@ -423,7 +423,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	559	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1421	`store.Mutate` MUST take its request lookup and its canonical intent records fro
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1820	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1838	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	5401	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	5420	`corvint-tasks ticket create --template` MUST return, in one
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2000	The optional policy `supervision` object MAY carry `host`, whose admitted
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2076	A `claude-code` stage MUST invoke the pinned executable with the prompt on
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2210	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
@@ -450,7 +450,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2895	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2929	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3053	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3109	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	5584	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	5603	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3150	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3196	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1321	On macOS the memory signal MUST be the kernel memory-pressure level

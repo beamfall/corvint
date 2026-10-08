@@ -18,11 +18,20 @@ wall-time cap does, and record a `lease-expired` event.
 - `internal/tasks/dispatch/loop.go`: the `heal.reap` pass no longer skips running holders outright.
   For a live attempt held by a running worker of this dispatcher, `reapRunningExpired` reaps it once
   the lease has been expired for longer than the grace of the role the worker launched under. The
-  request ID is deterministic (`reap`, attempt, generation, `lease-expired`). A successful reap
-  emits `lease-expired` and marks the worker `KILLING` with reason `LEASE_EXPIRED`, so the next
-  supervision pass stops the whole tree with SIGTERM, then SIGKILL after `killGraceSeconds`. A
-  refused reap emits `alert` and leaves the worker running for the next tick's retry.
-- `internal/tasks/dispatch/ledger.go`: `lease-expired` joins `EventKinds`.
+  request ID is deterministic (`reap`, attempt, generation, `lease-expired`, observed expiry). A
+  reap the store reports as done (fresh receipt or replay) emits `lease-expired` and marks the worker `KILLING`
+  with reason `LEASE_EXPIRED`, so the next supervision pass stops the whole tree with SIGTERM, then
+  SIGKILL after `killGraceSeconds`. A completed reap that changed nothing (the worker ended the
+  attempt first) leaves the worker running silently. A refused reap emits `alert` and leaves the
+  worker running for the next tick's retry. Every heal pass also stops a running worker that holds
+  no live attempt but holds a `FAILED` `LEASE_EXPIRED` attempt (`stopReapedWorkers`).
+- `internal/tasks/dispatch/ledger.go`: `lease-expired` joins `EventKinds`. The ledger shape is
+  unchanged.
+- `internal/tasks/dispatch/roster.go`, `internal/tasks/cli/dispatch.go`: `Queue.ReapExpired`
+  reports whether this request moved the attempt; an observed `Attempt` carries its native cause.
+- `internal/tasks/transaction/lease.go`, `internal/tasks/cli/lease.go`: `reap` accepts an optional
+  `--lease-expires-at` with `--attempt` and `--generation`, joins the preimage only when present,
+  and refuses `FENCED` when the current lease expiry differs.
 - Spec `docs/specs/corvint-tasks-agent-leases-v0.md`: new proposed `CAL-V0-191` (V1-1016 section),
   status, inputs, slice table and traceability rows; `docs/specs/INDEX.json` and `README.md` carry
   the same status. `docs/TASKS-SUPERVISION.md` gains one paragraph.
@@ -35,8 +44,20 @@ wall-time cap does, and record a `lease-expired` event.
   past expiry can never become valid again. The grace only absorbs clock and observation lag and
   gives a worker time to release by itself. It does not decide whether the attempt survives.
 - Reap first, then stop. A reap frees the member even if the stop is slow or a process survives
-  SIGKILL. The stop reuses the wall-cap path, so a restart finishes it from the recorded `KILLING`
-  state. The issue says "KILL after idleSeconds", but the wall cap actually waits
+  SIGKILL. The stop reuses the wall-cap path.
+- Independent review (Codex, of b9210faf) found three races, each fixed in a follow-up commit:
+  a completed no-op reap (worker released first) still stopped the worker, so the stop now needs
+  the store's evidence of an actual reap; the grace was checked against an observed expiry the
+  transaction did not fence, so a renewal followed by a late dispatcher could still reap, now
+  refused by the `--lease-expires-at` fence; and `KILLING` lived only in memory until the tick-exit
+  save, so a crash after the reap left a running worker with a terminal attempt that heal ignores.
+  The store's reaped attempt (`FAILED`, cause `LEASE_EXPIRED`, holder kept) is now the durable
+  record: each heal pass stops a running holder of one that has no live attempt. A pending-reap
+  ledger member was tried first and dropped, because any ledger member moves
+  `taskman-dispatch-state` (CAL-V0-131) and so would force a drain to install this fix. Saving
+  `KILLING` before the reap was rejected because it would stop a worker whose reap is then refused
+  or finds the attempt already ended.
+- The issue says "KILL after idleSeconds", but the wall cap actually waits
   `killGraceSeconds`. The requirement follows the actual wall-cap behavior, because the issue asks
   for "the same as the wall-time limit".
 - The grace is read from the configuration the worker launched under, like `idleSeconds` and
@@ -55,6 +76,19 @@ wall-time cap does, and record a `lease-expired` event.
   lease, and `heal.reap` off all make no store write and leave the worker running.
 - `TestCALV0191_RefusedReapKeepsTheWorker`: a refused reap alerts, keeps the worker and retries
   with the same request ID.
+- `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`: a release, or a renewal, between observation
+  and reap leaves the worker running with no event, and the next tick sends no further reap.
+- `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`: a ledger captured after the store reap but
+  before the outcome is recorded reopens with the worker `RUNNING`; the first tick stops it from
+  the store's reaped attempt with no second reap.
+- `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`: a reaped attempt does not stop a worker
+  that holds a live one; a reap by another writer stops it once it holds none.
+- `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`): a stale expiry is
+  `FENCED` and changes nothing; the current expiry reaps and replays; a released attempt is a
+  receiptless no-change; an expiry without attempt, on another verb, or malformed is `MALFORMED`.
+- `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap` (`internal/tasks/cli`): the native
+  adapter reports a fresh reap and its replay as reaped, a fence as an error, and a released
+  attempt as not reaped.
 - `TestCALV0191_ExpiredLeaseGraceConfig`: an absent value is not serialized and defaults to 600;
   0, 1 and 86400 are accepted; -1 and 86401 are refused; an unknown role key is refused.
 - The focused `internal/tasks/dispatch` package, the dispatch-related `internal/tasks/cli` tests,
@@ -64,5 +98,7 @@ wall-time cap does, and record a `lease-expired` event.
 ## Rollback
 
 Revert the commit. A configuration that sets `expiredLeaseGraceSeconds` is then refused as an
-unknown member. Events already written stay readable. A worker recorded `KILLING` with reason
-`LEASE_EXPIRED` is still stopped by the old supervisor, which replays the recorded reason.
+unknown member. Events already written stay readable, and store records keep their shape (a reap
+without the new flag keeps its digest). A worker recorded `KILLING` with reason `LEASE_EXPIRED` is
+still stopped by the old supervisor, which replays the recorded reason. The ledger keeps
+`taskman-dispatch-state/3`, so either direction needs no drain.
