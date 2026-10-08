@@ -47,6 +47,25 @@ material ones:
 Reuse is therefore proven only through synthetic projections. This is retained for a follow-up
 ticket.
 
+## Review
+
+One independent Codex review (`gpt-6-astra`, read-only) reported three P1 and three P2 findings:
+
+- P1, a direct `git status` could run a repository-defined clean or process filter. Fixed: status
+  runs through `gitstatus.Status` on private metadata (`TestBoundFreshnessIndexFlagsAndFilters`).
+- P1, a fact value holding a newline or NUL could merge two different duplicate classes. Fixed:
+  the class key is an unambiguous JSON encoding (`TestDuplicateClasses`).
+- P1, MCP root confinement checked a pathname that was reopened later. Fixed: `tests` and `maps`
+  are read through an `os.Root` (`Request.Within`, `TestRunWithinConfinesReads`).
+- P2, assume-unchanged or skip-worktree entries hid edits from status. Fixed: `ls-files -v` tags
+  read `retained-bound-path-uncommitted`.
+- P2, a FIFO `--input` or `--plan` blocked the open. Fixed: opened non-blocking
+  (`TestTestPlanRefusesFIFO`).
+- P2, witness rejections omit the project. Kept: TCN-V0-009 fixes the members as
+  `{variation_id, test_id, reason}`; the implementation note claiming otherwise was corrected.
+
+The freshness and duplicate tests were run against the reviewed code and failed there. The FIFO and rooted-read tests fail by construction (a blocking open; a reopened pathname).
+
 ## Evidence
 
 Focused tests passed under `GOMAXPROCS=3 go test -p 1 -count=1`:

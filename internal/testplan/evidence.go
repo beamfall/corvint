@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/Beamfall/corvint/internal/appmap"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -17,13 +20,15 @@ import (
 // MaxEvidenceFiles bounds --tests and --map each (TCN-V0-003, TCN-V0-004).
 const MaxEvidenceFiles = 8
 
-// Request is one consolidation request. Tests and Maps are file paths as the caller resolved them;
-// Root is the repository Git is read from. MaxSteps 0 is the default.
+// Request is one consolidation request. Tests and Maps are file paths as the caller resolved them,
+// or, when Within is set, local names opened through it so that no path can leave it while it is
+// read. Root is the repository Git is read from. MaxSteps 0 is the default.
 type Request struct {
 	Root     string
 	Input    []byte
 	Tests    []string
 	Maps     []string
+	Within   *os.Root
 	Revision string
 	MaxSteps int
 }
@@ -64,7 +69,17 @@ func gather(ctx context.Context, req Request, in *Input) (Evidence, error) {
 	maps := make([]*appmap.Map, 0, len(req.Maps))
 	apps := map[string]bool{}
 	for _, name := range req.Maps {
-		m, err := appmap.LoadMap(name)
+		var m *appmap.Map
+		var err error
+		if req.Within != nil {
+			var raw []byte
+			if raw, err = readWithin(req.Within, name, appmap.MaxMapBytes); err != nil {
+				return Evidence{}, &gokernel.Error{Code: "appmap-invalid-map", Message: "--map must name a readable regular file"}
+			}
+			m, err = appmap.ParseMap(raw)
+		} else {
+			m, err = appmap.LoadMap(name)
+		}
 		if err != nil {
 			return Evidence{}, err
 		}
@@ -80,7 +95,15 @@ func gather(ctx context.Context, req Request, in *Input) (Evidence, error) {
 	}
 	providers := []providerFile{}
 	for _, name := range req.Tests {
-		data, err := readProvider(name)
+		var data []byte
+		var err error
+		if req.Within != nil {
+			if data, err = readWithin(req.Within, name, testvaliditydoc.MaxInputBytes); err != nil {
+				err = invalidReceipt()
+			}
+		} else {
+			data, err = readProvider(name)
+		}
 		if err != nil {
 			return Evidence{}, err
 		}
@@ -228,6 +251,24 @@ func uniqueSorted(sorted []string) []string {
 
 func invalidReceipt() error {
 	return &gokernel.Error{Code: "invalid-test-validity-receipt", Message: "--tests must name one bounded provider document test-validity accepts"}
+}
+
+// readWithin reads one regular file of at most limit bytes through root, which refuses any path
+// or symbolic link leaving it at the moment of the open. O_NONBLOCK keeps a FIFO from blocking.
+func readWithin(root *os.Root, name string, limit int) ([]byte, error) {
+	file, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("not a regular file")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+	if err != nil || len(data) > limit {
+		return nil, errors.New("unreadable or over the bound")
+	}
+	return data, nil
 }
 
 // readProvider reads one --tests file through the test-validity safe reader and bound.

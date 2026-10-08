@@ -107,6 +107,10 @@ func TestDuplicateClasses(t *testing.T) {
 		variation("V8", append(same("V1"), set("changes", []any{"k=1"}))...),
 		variation("V9", append(same("V1"), set("destructive", true))...),
 		variation("W1", append(same("V1"), set("action", []any{"element:V1.act", "element:V1.act"}))...),
+		// A separator inside one fact value never makes two different fact sets collide.
+		variation("X1", append(same("X1"), set("requires", []any{"a=b\nc=d"}))...),
+		variation("X2", append(same("X1"), set("requires", []any{"a=b", "c=d"}))...),
+		variation("X3", append(same("X1"), set("requires", []any{"a=b\u0000c=d"}))...),
 	)
 	want := []Duplicate{{"V2", "V1"}, {"V3", "V4"}, {"V5", "V4"}}
 	if !reflect.DeepEqual(p.Duplicates, want) {
@@ -121,7 +125,7 @@ func TestDuplicateClasses(t *testing.T) {
 			placed[s.VariationID] = true
 		}
 	}
-	for _, id := range []string{"V1", "V6", "V7", "V8", "V9", "W1"} {
+	for _, id := range []string{"V1", "V6", "V7", "V8", "V9", "W1", "X1", "X2", "X3"} {
 		if !placed[id] {
 			t.Fatalf("%s was not planned: %s", id, p.Table())
 		}

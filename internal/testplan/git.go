@@ -38,17 +38,42 @@ type repo struct {
 var errGit = errors.New("Git source unavailable")
 
 func (r repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
+	return gitIn(r.ctx, r.root, limit, stdin, args...)
+}
+
+// gitIn runs one bounded Git read in dir with frozen hooks and credentials.
+func gitIn(ctx context.Context, dir string, limit int, stdin []byte, args ...string) ([]byte, error) {
 	gitPath := gitstatus.Executable()
 	if !filepath.IsAbs(gitPath) {
 		return nil, errGit
 	}
-	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=", "-C", r.root}, args...)
-	o := procgroup.Run(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
+	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=", "-C", dir}, args...)
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
 		Timeout: 60 * time.Second, OutputLimit: limit})
 	if o.Err != nil || o.ExitStatus != 0 {
 		return nil, errGit
 	}
 	return o.Stdout, nil
+}
+
+// uncommitted names every path Git reports as changed or untracked in the worktree. The status
+// runs through gitstatus.Status on private metadata, so no repository-defined clean or process
+// filter can execute; a refusal there is a coded refusal here.
+func (r repo) uncommitted() (map[string]bool, error) {
+	run := func(ctx context.Context, dir string, limit int, args ...string) ([]byte, error) {
+		return gitIn(ctx, dir, limit, nil, args...)
+	}
+	status, err := gitstatus.Status(r.ctx, r.root, 16<<20, run, "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all")
+	if err != nil {
+		return nil, invalidArguments("%s", "Git status of the bound sources failed: "+gitstatus.RefusalMessage(err))
+	}
+	changed := map[string]bool{}
+	for _, entry := range bytes.Split(status, []byte{0}) {
+		if len(entry) > 3 {
+			changed[string(entry[3:])] = true
+		}
+	}
+	return changed, nil
 }
 
 // top is the resolved top of the worktree holding root.
@@ -94,16 +119,27 @@ func (r repo) boundSources(rev string, paths []string) (map[string]boundSource, 
 		size int
 	}
 	listed := map[string]entry{}
+	changed, err := r.uncommitted()
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		if changed[path] {
+			out[path] = boundSource{reason: reasonUncommitted}
+		}
+	}
 	for start := 0; start < len(paths); start += pathChunk {
 		chunk := paths[start:min(start+pathChunk, len(paths))]
-		args := append([]string{"--literal-pathspecs", "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all", "--"}, chunk...)
-		status, err := r.git(16<<20, nil, args...)
+		// Status cannot see an edit to an entry marked assume-unchanged (a lowercase tag) or
+		// skip-worktree (S), so such an entry is unverifiable too. ls-files reads the index only.
+		args := append([]string{"--literal-pathspecs", "ls-files", "-v", "-z", "--"}, chunk...)
+		tagged, err := r.git(16<<20, nil, args...)
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range bytes.Split(status, []byte{0}) {
-			if len(entry) > 3 {
-				out[string(entry[3:])] = boundSource{reason: reasonUncommitted}
+		for _, entry := range bytes.Split(tagged, []byte{0}) {
+			if len(entry) > 2 && entry[0] != 'H' {
+				out[string(entry[2:])] = boundSource{reason: reasonUncommitted}
 			}
 		}
 		args = append([]string{"--literal-pathspecs", "ls-tree", "-z", "-l", "--full-tree", rev, "--"}, chunk...)

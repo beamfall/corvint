@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"os"
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -126,7 +127,9 @@ func decodeConsolidateArguments(raw []byte) (consolidateArguments, bool) {
 	return a, true
 }
 
-// confine resolves a repository-relative path, after symbolic links, to a file inside the root.
+// confine refuses early, with the tool's own code, a name that does not resolve inside the root.
+// It is a diagnostic only: the read itself goes through an os.Root, which refuses an escape at the
+// moment of the open, so a path replaced after this check still cannot leave the root.
 func (c *consolidator) confine(name string) (string, error) {
 	refuse := &gokernel.Error{Code: "test-plan-invalid-arguments", Message: "tests and maps must be repository-relative paths inside the root"}
 	if !filepath.IsLocal(name) {
@@ -143,7 +146,7 @@ func (c *consolidator) confine(name string) (string, error) {
 	if rel, err := filepath.Rel(resolvedRoot, resolved); err != nil || !filepath.IsLocal(rel) {
 		return "", refuse
 	}
-	return resolved, nil
+	return filepath.Clean(name), nil
 }
 
 // call returns the CLI's exact output bytes and the plan object, or a coded failure; ok is false
@@ -153,7 +156,12 @@ func (c *consolidator) call(ctx context.Context, raw []byte) (text string, plan 
 	if !valid {
 		return "", nil, "", "", false
 	}
-	request := testplan.Request{Root: c.root, Input: []byte(a.input), MaxSteps: a.maxSteps}
+	within, err := os.OpenRoot(c.root)
+	if err != nil {
+		return failure(&gokernel.Error{Code: "test-plan-invalid-arguments", Message: "the server root is unreadable"})
+	}
+	defer within.Close()
+	request := testplan.Request{Root: c.root, Input: []byte(a.input), MaxSteps: a.maxSteps, Within: within}
 	for _, group := range []struct {
 		names []string
 		into  *[]string

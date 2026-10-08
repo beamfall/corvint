@@ -1,6 +1,7 @@
 package testplan
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -451,13 +452,13 @@ func contextOf(v *Variation) Context {
 	return Context{Spec: *v.Spec, App: *v.App, Setup: *v.Setup, Screen: *v.Screen, User: *v.User, Org: *v.Org}
 }
 
-// duplicateKey joins every TCN-V0-005 class member with separators no identifier, path or fact
-// can hold unescaped in this position (NUL and newline are refused by TCN-V0-002).
+// duplicateKey encodes every TCN-V0-005 class member as one JSON array, so no separator inside a
+// fact value (TCN-V0-002 bounds only the key) can make two different variations collide.
 func duplicateKey(v *Variation) string {
 	c := contextOf(v)
-	parts := []string{c.Spec, c.App, c.Setup, c.Screen, c.User, c.Org, strings.Join(v.Requires, "\n"),
-		strings.Join(v.Changes, "\n"), fmt.Sprint(*v.Destructive), strings.Join(v.Action, "\n"), strings.Join(v.Assertion, "\n")}
-	return strings.Join(parts, "\x00")
+	key, _ := json.Marshal([]any{c.Spec, c.App, c.Setup, c.Screen, c.User, c.Org, v.Requires, v.Changes,
+		*v.Destructive, v.Action, v.Assertion})
+	return string(key)
 }
 
 // differentUser is TCN-V0-006: another new test's variation shares spec, app, setup and screen

@@ -347,18 +347,18 @@ Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/co
 
 | Requirement | Evidence |
 | --- | --- |
-| TCN-V0-001 | `TestTestPlanConsolidateIsReadOnly` (every repository byte, the Git index and `.corvint/` unchanged; stdout equals the library plan; `authority: candidate`), `TestTestPlanRefusesInvalidUse` (exit 2, empty stdout, coded refusal), `TestRunArgumentRefusals`, `TestTestPlanHelp`. No network: the package opens no socket by construction; not exercised dynamically. |
+| TCN-V0-001 | `TestTestPlanConsolidateIsReadOnly` (every repository byte, the Git index and `.corvint/` unchanged; stdout equals the library plan; `authority: candidate`), `TestTestPlanRefusesInvalidUse` (exit 2, empty stdout, coded refusal), `TestTestPlanRefusesFIFO` (a FIFO input or plan is refused, not waited on), `TestRunArgumentRefusals`, `TestTestPlanHelp`. No network: the package opens no socket by construction; not exercised dynamically. |
 | TCN-V0-002 | `TestDecodeInputRefusals` (every refusal and bound, a malformed fact, one key twice, duplicate members, depth), `TestDecodeInputMissingAnchorsAreNotRefusals`, `TestInputOrderDoesNotChangeOutput` (25 permutations and a re-encoded document). |
 | TCN-V0-003 | `TestMapValidationAbstains` (placed, `route-mismatch`, `unresolved-screen`, `missing-anchor`, `stale-anchor` at `HEAD` and placed at the older revision), `TestMapUnknownLineageAbstains`, `TestAnchorsNotRunWithoutMap`, `TestMapRefusals`. |
-| TCN-V0-004 | `TestWitnessVerdicts` (every rejection reason, a Go session and a JavaScript unit document as `witness-preview`, a conflicting pair), `TestWitnessesKeptSorted`, `TestBoundFreshnessAtRevision` (CURRENT, STALE, older revision, absent, outside the worktree, `.git`, relative, symlink, uncommitted and untracked bound paths), `TestProviderDocumentRefusals` (a `corvint-test-validity/0` output document and file-order independence). |
-| TCN-V0-005 | `TestDuplicateClasses`. |
+| TCN-V0-004 | `TestWitnessVerdicts` (every rejection reason, a Go session and a JavaScript unit document as `witness-preview`, a conflicting pair), `TestWitnessesKeptSorted`, `TestBoundFreshnessAtRevision` (CURRENT, STALE, older revision, absent, outside the worktree, `.git`, relative, symlink, uncommitted and untracked bound paths), `TestBoundFreshnessIndexFlagsAndFilters` (assume-unchanged and skip-worktree edits read `UNKNOWN`; a configured clean filter never runs), `TestProviderDocumentRefusals` (a `corvint-test-validity/0` output document and file-order independence). |
+| TCN-V0-005 | `TestDuplicateClasses` (including fact values that hold a newline or NUL). |
 | TCN-V0-006 | `TestIsolationReasons`. |
 | TCN-V0-007 | `TestPrecedenceOrderAndSets` (`x=0`, `x=1`, `x=1` give two tests), `TestCycleReplanned`, `TestEdgeBoundRefuses`. |
 | TCN-V0-008 | `TestMaxStepsCutAndNumbering`, `TestInputOrderDoesNotChangeOutput`. |
 | TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
 | TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above). |
 | TCN-V0-011 | `TestCheck` (exact table inside Markdown; edited, reordered, added, dropped and changed rows; edited header; missing and doubled header; max-steps, revision and map disagreement; `INCOMPLETE`), `TestTestPlanCheckExitCodes`. |
-| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
+| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
 
 Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
 (issue 681 cites 3,614 core rows over 133 flows) and record new tests versus
@@ -377,20 +377,32 @@ Choices the requirements left open, made by the implementation and open to owner
 - `witness-preview` applies to any matching document that is not a JavaScript `e2e` document (a
   Go session or a JavaScript unit document).
 - An abstract or unresolvable map screen abstains `unresolved-screen`.
-- A witness rejection reports the declared project; `witness_rejections` is sorted by variation,
-  `test_id` and project, and witnesses of reused and duplicate variations are still evaluated.
+- `witness_rejections` carries exactly the TCN-V0-009 members `{variation_id, test_id, reason}`. It
+  is sorted by variation, `test_id` and then the declared project, which is not serialized, so two
+  rejections of one test ID under different projects differ only in order. Witnesses of reused and
+  duplicate variations are still evaluated.
 - `evaluated_revision` is set only with `--map` or `--tests`; `--revision` alone is refused.
 - Bound-path freshness compares each bound digest with the blob at the evaluated revision. A bound
   path outside the worktree (`retained-bound-path-outside-worktree`), with uncommitted or untracked
   changes (`retained-bound-path-uncommitted`), or not a readable regular blob reads `UNKNOWN`; a
-  path absent at the revision or with a different digest is `STALE`, and `STALE` wins.
+  path absent at the revision or with a different digest is `STALE`, and `STALE` wins. An index
+  entry marked assume-unchanged or skip-worktree also reads `retained-bound-path-uncommitted`,
+  because status cannot see its edits. The worktree status runs through `gitstatus.Status` on
+  private metadata, so no repository-defined clean or process filter runs; a repository that
+  status refuses to observe (for example one configuring such a filter) refuses
+  `test-plan-invalid-arguments`. Duplicate classes compare an unambiguous encoding of every
+  member, so a fact value holding a separator cannot merge two different fact sets.
+- `--input` and `--plan` are opened non-blocking, so a FIFO is refused as not a regular file.
 - `witnesses: null` is refused, so an absent list (none) and a null one are never conflated.
 - `conflicting-state` is a variation alone in its compatible set while its context has more
   than one member.
 - A passing `check` prints the recomputed table on stdout; the MCP tool's check mode returns the
   same bytes.
 - The MCP tool takes `input` and `plan` as JSON strings, so the input document is decoded strictly
-  byte for byte; `tests` and `maps` resolve, after symbolic links, inside the server root. It takes
+  byte for byte; `tests` and `maps` are local names read through an `os.Root` on the server root,
+  which refuses any path or symbolic link leaving the root at the moment of the open (a link inside
+  the root is followed). A pre-check gives a name that does not resolve inside the root the code
+  `test-plan-invalid-arguments`. It takes
   no revision (always `HEAD`), and refuses with `test-plan-bound-exceeded` when the framed text and
   its structured copy exceed one MCP message less 4 KiB for the JSON-RPC envelope.
 - Only the JSON output bound is reachable in practice; the table is always smaller than the input.

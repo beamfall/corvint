@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/testplan"
@@ -132,7 +133,9 @@ func readTestPlanFile(path string) ([]byte, error) {
 	refuse := func(message string) error {
 		return &gokernel.Error{Code: "test-plan-invalid-input", Message: message}
 	}
-	file, err := os.Open(path)
+	// O_NONBLOCK keeps a FIFO without a writer from blocking the open; the regular-file check
+	// below then refuses it.
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return nil, refuse("cannot open " + path)
 	}

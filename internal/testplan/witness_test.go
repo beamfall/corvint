@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
@@ -201,6 +202,47 @@ func TestBoundFreshnessAtRevision(t *testing.T) {
 	if status := git(t, root, "status", "--porcelain"); !strings.Contains(status, "book.spec.ts") || strings.Contains(status, ".corvint") {
 		t.Fatalf("status %q", status)
 	}
+}
+
+// TestBoundFreshnessIndexFlagsAndFilters: an edit hidden from status by assume-unchanged or
+// skip-worktree is still UNKNOWN, and observing a dirty bound path never runs a repository-defined
+// clean filter (TCN-V0-001, TCN-V0-004).
+func TestBoundFreshnessIndexFlagsAndFilters(t *testing.T) {
+	const content = "test('books', () => {})\n"
+	root := gitRepo(t, map[string]string{"assumed.spec.ts": content, "skipped.spec.ts": content, "filtered.spec.ts": content,
+		".gitattributes": "filtered.spec.ts filter=probe\n"})
+	git(t, root, "update-index", "--assume-unchanged", "assumed.spec.ts")
+	git(t, root, "update-index", "--skip-worktree", "skipped.spec.ts")
+	writeFiles(t, root, map[string]string{"assumed.spec.ts": "edited\n", "skipped.spec.ts": "edited\n"})
+	if status := git(t, root, "status", "--porcelain"); status != "" {
+		t.Fatalf("the index flags did not hide the edits: %q", status)
+	}
+	for _, name := range []string{"assumed.spec.ts", "skipped.spec.ts"} {
+		req := Request{Root: root, Tests: []string{writeTemp(t, "receipt.json", receipt("e2e", map[string]string{filepath.Join(root, name): digestOf(content)}))}}
+		if got := freshness(t, req); got.State != testvalidity.FreshnessUnknown || got.Reason != reasonUncommitted {
+			t.Errorf("%s: %s/%s", name, got.State, got.Reason)
+		}
+	}
+
+	// Same bytes with a new mtime make status hash the file, which would run the clean filter.
+	marker := filepath.Join(t.TempDir(), "filter-ran")
+	git(t, root, "config", "filter.probe.clean", "touch '"+marker+"'; cat")
+	git(t, root, "config", "filter.probe.process", "touch '"+marker+"'")
+	filtered := filepath.Join(root, "filtered.spec.ts")
+	writeFiles(t, root, map[string]string{"filtered.spec.ts": content})
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(filtered, later, later); err != nil {
+		t.Fatal(err)
+	}
+	req := Request{Root: root, Tests: []string{writeTemp(t, "receipt.json", receipt("e2e", map[string]string{filtered: digestOf(content)}))}}
+	_, err := gather(context.Background(), req, decode(t, inputJSON(t, variation("V1"))))
+	if err != nil && code(err) != "test-plan-invalid-arguments" {
+		t.Fatalf("gather: %v", err)
+	}
+	if _, statErr := os.Lstat(marker); statErr == nil {
+		t.Fatal("observing freshness ran a repository-defined filter")
+	}
+	t.Logf("filter repository: %v", err)
 }
 
 // TestProviderDocumentRefusals: a corvint-test-validity/0 output document, undecodable input,
