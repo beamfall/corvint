@@ -15,12 +15,11 @@ adds proposed TRE-V0-024 to `docs/specs/test-runner-execution-v0.md`.
   nonregular documents that did open. `os.Stat` keeps the historical symlink-following behaviour
   for document paths.
 - **Executor pins open nonblocking.** `checkTool` and `checkPinnedFile` already refused a FIFO
-  through their no-follow `Lstat` checks. `checkTool` now opens with
-  `O_NONBLOCK|O_NOFOLLOW|O_CLOEXEC` and requires the opened file to be the checked one. The pinned
-  file goes through `openPinnedRegular`, which opens nonblocking through `os.Root` and requires the
-  descriptor to match a no-follow `Lstat`, because `os.Root` follows a final symlink even with
-  `O_NOFOLLOW` (independent review finding). A FIFO or symlink swapped in after the check refuses
-  instead of blocking or being followed. This covers the independently pinned Gradle build manifest
+  through their no-follow `Lstat` checks. Both now open through `openCheckedRegular`: an
+  absolute-path open with `O_NONBLOCK|O_NOFOLLOW|O_CLOEXEC` whose descriptor must be the regular
+  file the `Lstat` saw. The pinned file no longer opens through `os.Root`, which follows a final
+  symlink even with `O_NOFOLLOW` (independent review findings). A FIFO or symlink swapped in
+  after the check refuses instead of blocking or being followed. This covers the independently pinned Gradle build manifest
   (`Config`/`ConfigSha256`) and the pinned Gradle and Java tools. The private
   `checkGradleToolchain` reader named in the ticket is not on `origin/main`; the reader that
   exists is `checkPinnedFile`.
@@ -44,6 +43,10 @@ Base `2a93b5a1`, Go 1.27.1, macOS arm64. Scratch under `/private/tmp/claude-501/
 - Failing before (pinned open): `TestOpenPinnedRegularRefusesFIFOAndFinalSymlink` run against the
   base open semantics (`root.Open`, regular-file `Stat` only) accepted a final symlink
   ("link.gradle: got <nil>, want nonregular file refused"); it passes with `openPinnedRegular`.
+- Failing before (swap): `TestOpenCheckedRegularRefusesSwapAfterCheck` replaces a checked file by
+  a symlink to the same inode, or by a FIFO, between `Lstat` and the open. With `O_NOFOLLOW`
+  removed from the helper (the first-review-fix semantics), the symlink swap was accepted and the
+  test failed; with it, both swaps refuse without blocking.
 - Passing after: the fixed companion refuses both FIFO documents immediately with
   `runner refused: regular document required`, exit 1. The new tests pass in under 0.1 s each.
   `go test` over `./cmd/corvint-test-runner ./internal/testrunner/...` passes; `go vet` passes for
@@ -59,7 +62,9 @@ Gradle profile integration status. SDK retirement is not granted.
 
 Independent Codex review of `1fd76055` found two P2 issues, both fixed: the `os.Root` open still
 followed a swapped final symlink, and the manifest test was refused by the input inventory before
-reaching the pinned-file reader. No P0/P1 findings.
+reaching the pinned-file reader. The re-review of `0668e710` found one P2, fixed: a rename plus a
+symlink to the same inode still passed the same-file check, so the open now uses a real
+final-component `O_NOFOLLOW`. No P0/P1 findings.
 
 ## Failure modes
 
@@ -74,7 +79,7 @@ Revert the commit. The blocking opens return; no stored state or wire bytes chan
 
 ## NOT_RUN
 
-- No live race test of a swap between the pinned-file check and its open; the open helper is
-  tested directly.
+- No live race test of a concurrent swap; the interleaving is replayed deterministically between
+  a recorded `Lstat` and the open helper. Swapped parent directories remain trusted.
 - No live Gradle execution; the manifest test uses stand-in pinned tools and refuses before launch.
 - `make gate` and `go test ./...` were not run (shared host; lane policy).

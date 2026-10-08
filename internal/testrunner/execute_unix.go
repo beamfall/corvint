@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -319,16 +320,11 @@ func checkTool(t Tool) error {
 	if e != nil || !s.Mode().IsRegular() || s.Size() > 256<<20 {
 		return fmt.Errorf("tool must be bounded regular file")
 	}
-	// Nonblocking open plus same-file check: a FIFO swapped in after Lstat is
-	// refused instead of blocking admission (V1-0624).
-	f, e := os.OpenFile(t.Executable, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	f, _, e := openCheckedRegular(t.Executable, s)
 	if e != nil {
 		return e
 	}
 	defer f.Close()
-	if o, e := f.Stat(); e != nil || !o.Mode().IsRegular() || !os.SameFile(s, o) {
-		return fmt.Errorf("tool must be bounded regular file")
-	}
 	b, e := io.ReadAll(io.LimitReader(f, (256<<20)+1))
 	if e != nil || len(b) > 256<<20 || Digest(b) != t.Sha256 {
 		return fmt.Errorf("tool identity changed")
@@ -433,20 +429,31 @@ func declaredPath(r Request) string {
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
 
-// openPinnedRegular binds the opened descriptor to a no-follow Lstat, because
-// os.Root follows a final symlink even with O_NOFOLLOW. O_NONBLOCK keeps a FIFO
-// swapped in after the path checks from blocking admission (V1-0624).
+// openPinnedRegular binds the opened descriptor to a no-follow Lstat. The open
+// goes through the absolute path with O_NOFOLLOW because os.Root follows a final
+// symlink even with that flag (V1-0624).
 func openPinnedRegular(root *os.Root, rel string) (*os.File, os.FileInfo, error) {
 	before, err := root.Lstat(rel)
 	if err != nil {
 		return nil, nil, err
 	}
-	f, err := root.OpenFile(rel, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	return openCheckedRegular(filepath.Join(root.Name(), rel), before)
+}
+
+// openCheckedRegular opens a path whose no-follow check saw before. O_NONBLOCK
+// keeps a FIFO swapped in after that check from blocking admission, O_NOFOLLOW
+// refuses a final symlink swapped in, and the same-file check refuses any other
+// replacement (V1-0624).
+func openCheckedRegular(name string, before os.FileInfo) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
 	if err != nil {
 		return nil, nil, err
 	}
 	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || !os.SameFile(before, st) {
+	if err != nil || !st.Mode().IsRegular() || !before.Mode().IsRegular() || !os.SameFile(before, st) {
 		f.Close()
 		return nil, nil, fmt.Errorf("nonregular file refused")
 	}
