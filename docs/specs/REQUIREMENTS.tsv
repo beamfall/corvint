@@ -575,8 +575,8 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	99	A Core refusal MUST exi
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	153	The admission, freshness, omission and abstention members MUST keep their names,
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	172	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	182	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	318	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
-CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	325	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	316	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	323	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -671,18 +671,19 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	142	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	145	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	148	when prepare refuses an existing map under `CEM-PILOT-002`, the
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	156	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	201	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	207	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	213	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	222	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	230	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	236	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	239	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	245	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	206	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	212	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	218	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	227	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	235	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	241	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	244	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	250	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
 CEM-PILOT-028	docs/specs/cem-pilot-kit.md	170	`cem report --format json` MUST emit a read-only `cem-review/0` projection
 CEM-PILOT-029	docs/specs/cem-pilot-kit.md	177	An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader
 CEM-PILOT-030	docs/specs/cem-pilot-kit.md	185	JSON and the published Markdown report MUST bind the same `recordSetSha256`,
 CEM-PILOT-031	docs/specs/cem-pilot-kit.md	193	A missing coverage witness MUST state `NOT_PRODUCED` /
+CEM-PILOT-032	docs/specs/cem-pilot-kit.md	198	(proposed 2026-10-08, V1-0513, not accepted) When a supplied OCM is invalid,
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
@@ -2047,6 +2048,7 @@ MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	577	An explicitly requested gop
 MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	587	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
 MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	594	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
 MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	602	proposed (V1-0944; no GitHub issue). When a successful tool result carries
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	612	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -2880,6 +2882,7 @@ TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-04
 TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
 TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
 TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat
+TCP-V0-064	docs/specs/task-context-packet-v0.md	1082	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
