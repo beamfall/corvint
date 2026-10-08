@@ -34,7 +34,7 @@
     },
     {
       "path": "cmd/corvint/local_completion.go",
-      "sha256": "ab9fdce71e259973122f0b3739c6c97c777f06948abb1b6ff67108989a14ee77"
+      "sha256": "07118929329921c8fd7dbfe1cde97fe1ad32b3d84495622f1c9b14b8c8dc5272"
     }
   ],
   "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION"

@@ -535,6 +535,7 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 	run.ok(t, root, append([]string{"dogfood", "verify", "--check", "actual-test"}, session...)...)
 	run.ok(t, root, "ocm", "link", "--map", ".corvint/change.ocm.001.json", "--cem", ".corvint/change.cem.json", "--obligation", "FIXTURE-LCP-001", "--hunk", "1", "--test-path", "fixture/fixture_test.go", "--claim", "test:TestAnswer/case:fixture-lcp", "--expected-base", base, "--target", target)
 	var inspected, finished struct {
+		OK     bool `json:"ok"`
 		Policy struct {
 			Lifecycle       string `json:"lifecycle"`
 			Satisfied       bool   `json:"satisfied"`
@@ -542,14 +543,14 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 		} `json:"policy"`
 	}
 	// Before review, finish runs the coordinator and the final check, then
-	// exits 1 naming the report set to review.
+	// exits 1 naming the report set to review; ok mirrors that exit (LCP-V0-017).
 	code, output, stderr := run.exec(t, root, nil, append([]string{"dogfood", "finish"}, session...)...)
-	if err := json.Unmarshal([]byte(output), &inspected); err != nil || code != 1 || inspected.Policy.ReportSetDigest == "" {
+	if err := json.Unmarshal([]byte(output), &inspected); err != nil || code != 1 || inspected.OK || inspected.Policy.ReportSetDigest == "" {
 		t.Fatalf("finish before review exit=%d stdout=%s stderr=%s %v", code, output, stderr, err)
 	}
 	run.ok(t, root, append([]string{"dogfood", "review", "--report-set", inspected.Policy.ReportSetDigest}, session...)...)
 	output = run.ok(t, root, append([]string{"dogfood", "finish"}, session...)...)
-	if err := json.Unmarshal([]byte(output), &finished); err != nil || !finished.Policy.Satisfied || finished.Policy.Lifecycle != "satisfied" {
+	if err := json.Unmarshal([]byte(output), &finished); err != nil || !finished.OK || !finished.Policy.Satisfied || finished.Policy.Lifecycle != "satisfied" {
 		t.Fatalf("finish: %s %v", output, err)
 	}
 	if ignoreRules {

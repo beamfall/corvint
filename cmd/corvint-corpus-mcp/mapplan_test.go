@@ -44,7 +44,7 @@ func mapPlanRoot(t *testing.T) (string, []*appmap.Map) {
 		}
 	}
 	for _, args := range [][]string{{"add", "-A", ":!corpus.json"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "maps"}} {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		c.Dir, c.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
 		if out, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)

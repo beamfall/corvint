@@ -181,9 +181,12 @@ func (compiler *taskContextCompiler) recencyLexical(rows []contextRow) []context
 		rows[index].reason += fmt.Sprintf("; %s; %s; rank bm25 x %.2f",
 			recency.reason(candidate), recency.blameReason(candidate), factor[candidate])
 	}
-	for _, kind := range []string{"lexical", "documentation"} {
-		reorderKind(rows, kind, func(candidate string) float64 { return bm25[candidate] * factor[candidate] })
-	}
+	key := func(candidate string) float64 { return bm25[candidate] * factor[candidate] }
+	// Record data reorders inside the positions the TCP-V0-063 gate gave
+	// it, so a recent record cannot climb past the code it was gated behind.
+	reorderClass(rows, func(row contextRow) bool { return row.kind == "lexical" && !isRecordDataSuffix(row.path) }, key)
+	reorderClass(rows, func(row contextRow) bool { return row.kind == "lexical" && isRecordDataSuffix(row.path) }, key)
+	reorderClass(rows, func(row contextRow) bool { return row.kind == "documentation" }, key)
 	return rows
 }
 
@@ -203,13 +206,13 @@ func (compiler *taskContextCompiler) unchosen(rows []contextRow) []contextRow {
 	return open
 }
 
-// reorderKind stable-sorts the rows of one kind by key, descending, inside
-// the positions that kind already holds.
-func reorderKind(rows []contextRow, kind string, key func(string) float64) {
+// reorderClass stable-sorts the rows of one class by key, descending, inside
+// the positions that class already holds.
+func reorderClass(rows []contextRow, member func(contextRow) bool, key func(string) float64) {
 	positions := make([]int, 0, len(rows))
 	group := make([]contextRow, 0, len(rows))
 	for index, row := range rows {
-		if row.kind == kind {
+		if member(row) {
 			positions = append(positions, index)
 			group = append(group, row)
 		}

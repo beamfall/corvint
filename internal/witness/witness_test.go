@@ -392,7 +392,7 @@ func TestReadCEMSourceNonBlobAtMapPathIsInvalidNotAbsent(t *testing.T) {
 		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--quiet", "-m", "tree at map path"},
 		{"rev-parse", "HEAD^{tree}"},
 	} {
-		command := exec.Command(git, arguments...)
+		command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		command.Env = gitEnvironment()
 		output, err := command.Output()
@@ -459,7 +459,7 @@ func initTestRepo(t *testing.T, git string) string {
 		{"init", "--quiet"},
 		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--quiet", "--allow-empty", "-m", "fixture"},
 	} {
-		command := exec.Command(git, arguments...)
+		command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		command.Env = gitEnvironment()
 		if output, err := command.CombinedOutput(); err != nil {
@@ -480,7 +480,7 @@ func TestBaseTreeIgnoresGraftedAncestry(t *testing.T) {
 			fixtureGit := func(args ...string) string {
 				t.Helper()
 				argv := append([]string{"-c", "advice.graftFileDeprecated=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test"}, args...)
-				command := exec.Command(git, argv...)
+				command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, argv...)...)
 				command.Dir, command.Env = root, gitEnvironment()
 				raw, err := command.CombinedOutput()
 				if err != nil {
@@ -628,7 +628,7 @@ func packetFixture(t *testing.T, module string) (*contextindex.Index, string) {
 	root := initTestRepo(t, git)
 	fixtureGit := func(args ...string) string {
 		t.Helper()
-		command := exec.Command(git, append([]string{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.test"}, args...)...)
+		command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test"}, args...)...)
 		command.Dir, command.Env = root, gitEnvironment()
 		raw, err := command.CombinedOutput()
 		if err != nil {

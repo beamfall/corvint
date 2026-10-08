@@ -28,7 +28,7 @@ func gitRun(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	argv := []string{"-c", "user.name=Metrics Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"}
 	argv = append(argv, args...)
-	cmd := exec.Command("git", argv...)
+	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, argv...)...)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + root, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "LC_ALL=C"}
 	b, e := cmd.CombinedOutput()

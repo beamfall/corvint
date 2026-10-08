@@ -48,7 +48,7 @@ func runGit(t *testing.T, root string, args ...string) []byte {
 	}
 	defer source.Close()
 	source.Root = root
-	raw, err := source.Git(context.Background(), 32<<20, args...)
+	raw, err := source.Git(context.Background(), 32<<20, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	if err != nil {
 		t.Fatal(err)
 	}

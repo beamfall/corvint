@@ -46,7 +46,7 @@ func readFixture(t *testing.T, parts ...string) []byte {
 
 func gitAt(t *testing.T, dir, author, email, date string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = dir
 	command.Env = append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1", "HOME="+os.TempDir(), "XDG_CONFIG_HOME="+os.TempDir(),
@@ -97,7 +97,7 @@ func buildRepo(t *testing.T, baseDir, objectFormat, author, email, date, message
 	if objectFormat == "sha256" {
 		initArgs = append(initArgs, "--object-format=sha256")
 	}
-	command := exec.Command("git", initArgs...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, initArgs...)...)
 	command.Dir = root
 	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+os.TempDir())
 	if out, initErr := command.CombinedOutput(); initErr != nil {

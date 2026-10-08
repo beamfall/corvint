@@ -46,3 +46,17 @@ batch CEM is bound against base `b5616037000a06e4719c759a555f7e393390e94f` and s
 
 Revert the batch merge commit on `main`. Each lane can also be reverted on its own through its
 merge commit in the batch branch.
+
+## Second main merge (38fcf067, batch I and V1-1028)
+
+Merging origin/main 38fcf067 brought V1-1028's keep-reporters qualification into
+`internal/jstestprovider` beside this batch's negation run (LPCV-V0-058). Both sides are kept:
+the e2e config line takes V1-1028's `kept` reporter form, wrapped by the negation prelude and
+override; the provider usage lists `negate` and `qualify-keep-reporters`; `E2EConfig` carries
+both `negation` and `KeepReportersQualification`. The two sides each declared a package-level
+`observation` (this batch's type in `negate.go`, V1-1028's function); the function is renamed
+`outcomeObservation`, with no behavior change. The UC-EVIDENCE-CARRYING-COMPLETION receipt
+carries both sides' subject repins, so the ledger pins the merged receipt bytes. One legacy
+unanchored citation in `js-live-test-provider-v0.md` was repinned with an anchor. The earlier
+seal is dropped and the batch is rebound against the new base. Focused checks:
+`internal/jstestprovider` and `cmd/corvint-js-test-provider` pass; the doc gates pass.

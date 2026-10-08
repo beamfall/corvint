@@ -15,7 +15,7 @@ import (
 
 func genesisGit(t *testing.T, git, root string, args ...string) {
 	t.Helper()
-	command := exec.Command(git, append([]string{"-C", root}, args...)...)
+	command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
 	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 	if raw, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", args, err, raw)
