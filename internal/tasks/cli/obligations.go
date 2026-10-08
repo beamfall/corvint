@@ -279,6 +279,7 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 	}
 	var rec *ticket.Record
 	var ledger *ticket.ObligationLedger
+	var recorded bool
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ferr error
 		rec, ledger, ferr = obligationTarget(rc, f.target)
@@ -295,6 +296,7 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		if ferr != nil {
 			return ferr
 		}
+		recorded = found
 		if found && before != nil {
 			ledger = before
 		}
@@ -362,6 +364,11 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		w.Credits = check.ExpectedCredits(ledger)
 		lists = witnessLists{credited: res.Credited, alreadyWitnessed: res.AlreadyWitnessed, conflicting: res.Conflicting,
 			failed: res.Failed, unknown: res.Unknown, unknownTruncated: res.UnknownTruncated, unbound: res.Unbound, unmatched: res.Unmatched}
+	}
+	if len(w.Credits) == 0 && recorded {
+		// A recorded witness always carries credits, so a request that
+		// derives none from the ledger before it cannot be that request.
+		return errorResult(cmd, wire.Errorf(wire.CodeRequestIDConflict, "--request-id", "request %s is retained on ticket %s with different inputs", f.requestID, rec.TicketID.Raw))
 	}
 	if len(w.Credits) == 0 {
 		out := success(cmd, rc)

@@ -434,7 +434,8 @@ func TestTOLV0008_DeclaredWitness(t *testing.T) {
 // TestTOLV0014_WitnessReplay: a witness retried with the same request id
 // and issuedAt replays its receipt even though its credits are now
 // WITNESSED (TM-V0-006), for both sources; the same id with other bytes is
-// refused rather than reported as written:false.
+// refused rather than reported as written:false, including bytes that
+// derive no credit from the ledger before the recorded request.
 func TestTOLV0014_WitnessReplay(t *testing.T) {
 	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
 	r, id, head := obligationRepo(t)
@@ -462,6 +463,16 @@ func TestTOLV0014_WitnessReplay(t *testing.T) {
 	}
 	if x := atm(t, r.Root, nil, reported...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
 		t.Fatalf("report retry did not replay: %s", x.stdout)
+	}
+	// The report witnessed AC-1; w-late then witnesses AC-6. Reusing
+	// w-late for AC-1 derives no credit from the ledger before w-late,
+	// which is still a conflict rather than written:false.
+	rev = obligationRevision(t, r.Root, id)
+	if x := atm(t, r.Root, nil, declareArgs(id, "w-late", rev, head, "AC-6")...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
+		t.Fatalf("AC-6 witness: %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, declareArgs(id, "w-late", rev, head, "AC-1")...); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), wire.CodeRequestIDConflict) {
+		t.Fatalf("reused request id deriving no credit was not a conflict: %s", x.stdout)
 	}
 	if !auditConsistent(t, r.Root) {
 		t.Fatal("replayed witnesses do not audit")

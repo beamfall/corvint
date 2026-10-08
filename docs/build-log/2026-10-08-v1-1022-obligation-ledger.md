@@ -89,6 +89,12 @@ CAL-V0-131 newer-version table, and the plan decoder now refuses a newer profile
 `UNSUPPORTED_VERSION`. The ON-V0-006 derived-event slot test now counts the obligation operations
 among the declaring operations.
 
+The re-review (one round) found one more P2: a reused request id whose new bytes derive no credit
+from the ledger before the recorded request returned `written:false` instead of a conflict. A
+recorded witness always carries credits, so the command now refuses that case with
+`REQUEST_ID_CONFLICT`. `TestTOLV0014_WitnessReplay` covers it, and it fails with the guard
+disabled.
+
 ## NOT_RUN and limits
 
 - **Per-id match bound (retained limit).** One credited id holds at most 16 distinct matches in an
