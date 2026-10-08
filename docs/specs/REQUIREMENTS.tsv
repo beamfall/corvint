@@ -1701,6 +1701,11 @@ KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	87	Before an entry is a
 KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	91	Freshness MUST be computed at read time against the reader's committed `HEAD`,
 KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	100	`claim` and `claim --next` MUST add a `knowHow` member to their result.
 KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	117	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	127	`ticket know-how add` MUST accept `--symbol PATH#NAME`, repeatable and combinabl
+KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	141	Freshness of a symbol anchor MUST follow the declaration's digest. A blob equal
+KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	148	`ticket know-how reconfirm T --note N` MUST append one RECONFIRM entry
+KHN-V0-011	docs/specs/corvint-tasks-know-how-notes-v0.md	159	A re-confirm of a note that is not STALE MUST be refused, not treated as a no-op
+KHN-V0-012	docs/specs/corvint-tasks-know-how-notes-v0.md	165	The change MUST be wire-compatible. A record whose ledger holds only file anchor
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation
