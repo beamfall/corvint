@@ -324,7 +324,14 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	return err
 }
 
-func (d *Dispatcher) tick(ctx context.Context) error {
+// ErrLedgerUnsaved marks a tick whose final ledger save failed (CAL-V0-194).
+// The tick's decisions hold in memory and its events are already in the
+// event log, but state.json is not confirmed to hold them: it may still hold
+// the previous save, or (when only the directory sync failed) the new bytes
+// without proven durability, until a later save of the current ledger succeeds.
+var ErrLedgerUnsaved = errors.New("dispatcher ledger not saved")
+
+func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	d.tickSaved = false
 	if d.readerErr != nil {
 		return d.readerErr
@@ -334,10 +341,18 @@ func (d *Dispatcher) tick(ctx context.Context) error {
 	}
 	// Admission publishes a new ledger only after its checked write. Resolve
 	// this receiver at return so an old pointer cannot overwrite that commit.
+	// CAL-V0-194: a failed save fails the tick with its cause; the in-memory
+	// ledger, workers included, stays authoritative and the next save
+	// writes it whole.
 	defer func() {
-		if d.readerErr == nil {
-			d.tickSaved = d.ledger.save(d.dir) == nil
+		if d.readerErr != nil {
+			return
 		}
+		if serr := d.ledger.save(d.dir); serr != nil {
+			err = errors.Join(err, fmt.Errorf("%w: %s is not confirmed durable and may still hold the previous save; this tick's state is held in memory until a later save succeeds: %w", ErrLedgerUnsaved, filepath.Join(d.dir, "state.json"), serr))
+			return
+		}
+		d.tickSaved = true
 	}()
 	// CAL-V0-127: a changed configuration applies before this tick acts.
 	d.reloadConfig()
