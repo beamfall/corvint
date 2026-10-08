@@ -302,3 +302,49 @@ func TestCapturedReportBundle(t *testing.T) {
 		t.Fatal("bundle shadowed physical report")
 	}
 }
+
+// TestNightwatchSelectionAcrossFreshSessions replays the runner-generated
+// Nightwatch module report under two different WebDriver session IDs. The
+// fixture predates a live browser session, so the session bytes are synthetic.
+func TestNightwatchSelectionAcrossFreshSessions(t *testing.T) {
+	const module = "/private/tmp/cem10-build/dynamic/browser-npm/nw/sample.js::sample::default::"
+	selection := &tr.Selection{Version: tr.SelectionVersion, Matcher: tr.NightwatchSessionElided, Tests: []string{module + "fail", module + "pass", module + "skip"}}
+	request := tr.Request{Runner: "nightwatch", Executable: "/x/nightwatch", ReportDir: "/x/reports", ReportFiles: []string{"sample.json"}, ExpectedSelection: selection}
+	inv, e := Build(request)
+	if e != nil || tr.AdmitSelection(request) != nil {
+		t.Fatal("selection not pre-admitted", e)
+	}
+	run := func(session string, s *tr.Selection) tr.Observation {
+		b := strings.Replace(string(fixture(t, "nightwatch.json")), `"sessionId":""`, `"sessionId":"`+session+`"`, 1)
+		in := tr.Input{Runner: "nightwatch", ExitCode: 5, SuccessExitCodes: inv.SuccessExitCodes, FailureExitCodes: inv.FailureExitCodes, Reports: map[string][]byte{"sample.json": []byte(b)}, ExpectedSelection: s}
+		o, e := Parse(in)
+		if e != nil {
+			t.Fatal(e)
+		}
+		return tr.Normalize(in, o)
+	}
+	ids := map[string]bool{}
+	for _, session := range []string{"6b0f1a5e9c2d4e7f", "d83a0c71f4e2b956"} {
+		o := run(session, selection)
+		if !o.Complete || len(o.Tests) != 3 {
+			t.Fatalf("session %s: complete=%v problems=%+v", session, o.Complete, o.Problems)
+		}
+		for _, x := range o.Tests {
+			if !strings.Contains(x.ID, "::default::"+session+"::") {
+				t.Fatalf("native session identity rewritten: %s", x.ID)
+			}
+			ids[x.ID] = true
+		}
+	}
+	if len(ids) != 6 {
+		t.Fatalf("fresh sessions must keep distinct native identities: %v", ids)
+	}
+	wrong := *selection
+	wrong.Tests = []string{module + "fail", module + "pass", module + "other"}
+	if o := run("6b0f1a5e9c2d4e7f", &wrong); o.Complete {
+		t.Fatal("wrong expected selection completed")
+	}
+	if o := run("", selection); o.Complete {
+		t.Fatal("session-free native identity matched a session-elided selection")
+	}
+}
