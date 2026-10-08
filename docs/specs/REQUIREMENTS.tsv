@@ -2903,6 +2903,26 @@ TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	133	Project 
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	137	Per-file commands require a matching complete caller-owned discovery receipt.
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	144	The profile MUST be read-only and bounded by the shared source-walk and source-r
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	152	Qualification requires a fixture with Chromium plus Angular/React project varian
+TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	54	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
+TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	62	The ledger content MUST be an immutable canonical snapshot document with profile
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	69	An obligation entry MUST be the closed object `{id, title, core, state, reason,
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	75	Witness evidence MUST be the closed object `{source, manifestSha256, testId,
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	84	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	90	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	95	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	102	`corvint-tasks ticket obligations witness` MUST apply operation
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	109	`witness --from-playwright-report FILE --commit SHA` MUST read at most 64 MiB of
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	122	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	131	Every match of an id in the report MUST pass for the id to be credited. If one
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	136	Each credited match MUST pass a source presence check: its `spec.file` (relative
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	142	The writer MUST re-derive `credits` from the stored extract and refuse with outc
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	149	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation: the
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	157	Roles: OWNER by default for all three operations. OPERATOR only through an
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	165	`highWater` MUST be monotone within one acceptance revision: after each write it
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	170	For a ticket carrying `obligations`, the CAL-V0-057 per-ticket fingerprint line
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	179	While a policy carries CAL-V0-102 `loopDetection`, the claim that records an end
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	184	`queue status` and `queue status --summary` MUST add the key `obligations`
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	191	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed
