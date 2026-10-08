@@ -18,7 +18,9 @@ adds proposed TRE-V0-028 to `docs/specs/test-runner-execution-v0.md`.
   through their no-follow `Lstat` checks. Both now open through `openCheckedRegular`: an
   absolute-path open with `O_NONBLOCK|O_NOFOLLOW|O_CLOEXEC` whose descriptor must be the regular
   file the `Lstat` saw. The pinned file no longer opens through `os.Root`, which follows a final
-  symlink even with `O_NOFOLLOW` (independent review findings). A FIFO or symlink swapped in
+  symlink even with `O_NOFOLLOW` (independent review findings), and its no-follow path walk is a
+  plain `Lstat` of each absolute prefix rather than `os.OpenRoot("/")`, which contained nothing
+  and needed read access to `/` (Linux CI follow-up below). A FIFO or symlink swapped in
   after the check refuses instead of blocking or being followed. This covers the independently pinned Gradle build manifest
   (`Config`/`ConfigSha256`) and the pinned Gradle and Java tools. The private
   `checkGradleToolchain` reader named in the ticket is not on `origin/main`; the reader that
@@ -40,9 +42,10 @@ Base `2a93b5a1`, Go 1.27.1, macOS arm64. Scratch under `/private/tmp/claude-501/
   passed on the base too, because the no-follow `Lstat` already refused; it is a regression
   guard for the manifest path. Its manifest is pinned only through `Config`, so the refusal is
   `config: nonregular file refused` from the pinned-file reader, not from the source inventory.
-- Failing before (pinned open): `TestOpenPinnedRegularRefusesFIFOAndFinalSymlink` run against the
-  base open semantics (`root.Open`, regular-file `Stat` only) accepted a final symlink
-  ("link.gradle: got <nil>, want nonregular file refused"); it passes with `openPinnedRegular`.
+- Failing before (pinned open): the first pinned-open test, run against the base open semantics
+  (`root.Open`, regular-file `Stat` only), accepted a final symlink ("link.gradle: got <nil>,
+  want nonregular file refused"). It is now `TestCheckPinnedFileRefusesFIFOAndFinalSymlink`,
+  which drives `checkPinnedFile` itself (Linux CI follow-up below).
 - Failing before (swap): `TestOpenCheckedRegularRefusesSwapAfterCheck` replaces a checked file by
   a symlink to the same inode, or by a FIFO, between `Lstat` and the open. With `O_NOFOLLOW`
   removed from the helper (the first-review-fix semantics), the symlink swap was accepted and the
@@ -51,6 +54,28 @@ Base `2a93b5a1`, Go 1.27.1, macOS arm64. Scratch under `/private/tmp/claude-501/
   `runner refused: regular document required`, exit 1. The new tests pass in under 0.1 s each.
   `go test` over `./cmd/corvint-test-runner ./internal/testrunner/...` passes; `go vet` passes for
   the touched packages and for the companion under `GOOS=windows`.
+
+## Linux CI follow-up
+
+Batch E CI (ubuntu, run 37781586179) failed `TestPinnedGradleManifestFIFORefusedBeforeExecution`
+with `config: open /: permission denied`. CI runs `cmd/corvint-test-runner`, a package declared in
+`.corvint/test-read-scopes.json`, under the Landlock `test-confine` wrapper (AFP-V0-023), which
+grants the siblings of each repository ancestor but not `/` itself; `checkPinnedFile` began with
+`os.OpenRoot("/")`, an `O_RDONLY|O_DIRECTORY` open of `/`. Reproduced in a `golang:1.27.1`
+container as a non-root user with the CI-built wrapper (Landlock ABI 4): same message; the test
+passes unconfined. `internal/testrunner` is undeclared, so its tests ran unconfined and passed.
+
+`checkPinnedFile` now walks the absolute path with `os.Lstat` per prefix (`regularAbsolutePath`,
+the same symlink, non-directory and nonregular refusals as `regularPath`) and opens through
+`openCheckedRegular` bound to the final `Lstat`. A root at `/` gave no containment, so path
+semantics are unchanged; `openPinnedRegular` is removed. `TestCheckPinnedFileRefusesFIFOAndFinalSymlink`
+puts the files below a search-only (`0100`) directory as a portable stand-in for the sandbox: the
+previous code failed it on macOS (`statat …/build.gradle: permission denied`, because `os.Root`
+opens each intermediate directory for reading) and the fix passes. After the fix both packages
+pass on macOS and under the Landlock wrapper on Linux. Review of the fix found that a linked
+`TMPDIR` (macOS `/var/folders`) is refused as a symlink prefix, as it already was through
+`os.Root`; both pinned-file tests now resolve `t.TempDir()` first and pass with the default
+macOS `TMPDIR`.
 
 ## Non-goals
 

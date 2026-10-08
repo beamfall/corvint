@@ -87,6 +87,9 @@ func (q *issue502Queue) Observe(context.Context) (*dispatch.Observation, error) 
 }
 func (q *issue502Queue) Release(context.Context, dispatch.Attempt, string, string) error { return nil }
 func (q *issue502Queue) Reap(context.Context, dispatch.Attempt, string) error            { return nil }
+func (q *issue502Queue) ReapExpired(context.Context, dispatch.Attempt, string) (bool, error) {
+	return false, nil
+}
 
 func issue502DispatchConfig(t *testing.T) *dispatch.Config {
 	root := t.TempDir()

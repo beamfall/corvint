@@ -188,6 +188,8 @@ type fakeQueue struct {
 	released []string
 	evidence []string
 	reaped   []string
+	// reapedBy records each CAL-V0-191 request that reaped, for replay.
+	reapedBy map[string]bool
 }
 
 func (q *fakeQueue) Observe(context.Context) (*Observation, error) {
@@ -210,6 +212,35 @@ func (q *fakeQueue) Reap(_ context.Context, a Attempt, _ string) error {
 	q.reaped = append(q.reaped, a.ID)
 	q.end(a.ID)
 	return nil
+}
+
+// ReapExpired models the native fenced reap (CAL-V0-191): a replayed
+// request answers as its original did, an attempt no longer live changes
+// nothing, and a moved generation or lease expiry refuses.
+func (q *fakeQueue) ReapExpired(_ context.Context, a Attempt, request string) (bool, error) {
+	if q.reapedBy[request] {
+		return true, nil
+	}
+	for i := range q.obs.Attempts {
+		x := &q.obs.Attempts[i]
+		if x.ID != a.ID {
+			continue
+		}
+		if !x.Live {
+			return false, nil
+		}
+		if x.Generation != a.Generation || !x.LeaseExpires.Equal(a.LeaseExpires) {
+			return false, errors.New("REVISION_CONFLICT FENCED")
+		}
+		q.reaped = append(q.reaped, a.ID)
+		x.Live, x.Phase, x.Cause = false, "FAILED", "LEASE_EXPIRED"
+		if q.reapedBy == nil {
+			q.reapedBy = map[string]bool{}
+		}
+		q.reapedBy[request] = true
+		return true, nil
+	}
+	return false, nil
 }
 
 func (q *fakeQueue) end(id string) {
