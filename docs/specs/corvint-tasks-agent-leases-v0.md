@@ -5576,3 +5576,37 @@ receipt state depends on the batch form.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-106 | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |
+
+## V1-0989 pool group cleanup proof under load amendment
+
+Authoritative input: native ticket V1-0989 (a `TestCALV0065_NativeFixture` flake under host load),
+filed under the load-sensitive umbrella V1-0849. Root cause, on base `0b5096ca`: after a pool
+health or sweep command exits, the owned process-group check listed the whole process table with
+`/bin/ps -axo pgid=,stat=` under a fixed 1-second bound. At load average 45 to 60 on a 12-core
+Darwin host that listing took 0.7 to 2.4 s (8 of 15 samples over 1 s). The overrun is an
+unproved cleanup, so CAL-V0-033 correctly refused admission: the health observation was
+`EXIT_ZERO` with the group cleanup unproved, the eligible member was quarantined, and the claim
+was refused `RESOURCE_COLLISION`. The refusal was correct; the cleanup proof was unobtainable
+for a group that was already empty. This amendment changes no wire profile, observation codec,
+request preimage, receipt or replay rule.
+
+- `CAL-V0-187`: (proposed; V1-0989) Before listing processes, the owned process-group check after
+  a pool health, cleanup or sweep command MUST ask the kernel with `kill(-group, 0)`. `ESRCH` MUST
+  count as proof that the group has no member, including no zombie, and no listing runs. Every
+  other answer, including `EPERM` (Darwin answers it for a group whose only member is an unreaped
+  zombie) and success, MUST fall back to the existing bounded `/bin/ps` listing with unchanged
+  rules: a listing that fails or overruns its bound remains unproved cleanup and refuses
+  admission (CAL-V0-033, PSR-V0-010). The kernel check MUST NOT be used for group 0 or 1.
+
+Non-goals: a ps-free runner identity (`ps -p PID -o lstart=` keeps its 1-second bound and can still
+fail a preparation on a heavily loaded host); retrying a failed listing; killing a group whose
+listing failed; any change to the 1-second listing bound or the cleanup allowance.
+
+Failure modes: a reused group ID that names an unrelated live group answers success and falls back
+to the listing, exactly as before this amendment. A group whose listing fails while a member still
+lives stays unproved and quarantined. Rollback removes the kernel check; nothing persisted depends
+on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-187 | `TestCALV0187_GroupListingOverrun` (`internal/tasks/store`); `TestCALV0065_NativeFixture` (`internal/tasks/cli`) under load; `docs/build-log/2026-10-07-v1-0989-calv0065-flake.md` |

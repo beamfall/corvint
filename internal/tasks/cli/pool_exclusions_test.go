@@ -133,7 +133,8 @@ func TestCALV0065_NativeFixture(t *testing.T) {
 	args := []string{"claim", id, "--holder", "builder", "--request-id", "native-claim", "--scope", "native", "--pool", "db", "--stage", "review", "--exclude-member", "review", "--exclude-member", "a", "--exclude-member", "review"}
 	claim := call(args...)
 	if claim.res.Outcome != wire.OutcomeOK {
-		t.Fatalf("native claim %+v", claim.res)
+		pools, _ := os.ReadFile(filepath.Join(r.StateDir, "pools.json"))
+		t.Fatalf("native claim %+v pools %s", claim.res, pools)
 	}
 	item := claim.res.Items[0]
 	allocation := field(item, "poolAllocation")

@@ -37,6 +37,13 @@ func poolGroupLive(pid int) (bool, error) {
 	return poolGroupLiveContext(ctx, pid)
 }
 func poolGroupLiveContext(ctx context.Context, pid int) (bool, error) {
+	// CAL-V0-187: ESRCH from kill(-group, 0) proves the group has no member,
+	// not even a zombie, without the full process-table listing whose fixed
+	// bound a loaded host overruns (V1-0989). Any other answer, including
+	// Darwin's EPERM for a zombie-only group, still needs the listing.
+	if pid > 1 && syscall.Kill(-pid, 0) == syscall.ESRCH {
+		return false, nil
+	}
 	raw, e := poolProbe(ctx, "/bin/ps", "-axo", "pgid=,stat=")
 	if e != nil {
 		return true, e
