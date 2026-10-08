@@ -65,9 +65,14 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   The slot holds at most one event of at most `MaxDerivedEventBytes` (65,536 bytes;
   `internal/tasks/snapshot/stage.go`). The event is stored by digest before the receipt that
   references it, exactly as ON-V0-002 stores note events. Its closed shape is `{profile, ticketId,
-  revision, previous, kind, body}`. `previous` is the prior head or null. `kind` is `SEED`, `SET`
-  or `WITNESS`, and `body` is the kind's closed object (TOL-V0-005, -007, -008). The current ledger
-  is the fold of the chain from the first event to `head`. A write whose event would exceed the
+  revision, previous, requestSha256, request}`.
+  - `previous` is the prior head or null.
+  - `request` is the canonical mutation envelope that wrote it, retained whole as the operator note
+    event retains its request (`internal/tasks/journal/operator_note.go`). `requestSha256` is its
+    digest, which MUST equal the receipt's `mutationSha256`.
+  - The operation, payload, actor, `issuedAt` and, for a WORKER witness, `attempt` and `generation`
+    are read from the retained request, so the fold and audit never depend on a discarded envelope.
+  - The current ledger is the fold of the chain from the first event to `head`. A write whose event would exceed the
   slot refuses `LIMIT_EXCEEDED` with the detail prefix `OBLIGATION_EVENT_TOO_LARGE:` and writes
   nothing; the caller splits the work into several writes. An event no receipt references is
   orphaned and never CURRENT. The canonical JSON, Count and limit rules of `internal/tasks/wire`
@@ -78,7 +83,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - `title` is 1..256 bytes of nonblank prose, and `core` is a boolean.
   - `state` is one of `OPEN`, `WITNESSED`, `DEFECT`, `BLOCKED` or `DEFERRED`.
   - `reason` is null or 1..512 bytes. `evidence` is null unless `state` is `WITNESSED`.
-  - `updatedAt` is the envelope `issuedAt`, and `updatedBy` is the writing actor.
+  - `updatedAt` is the retained request's `issuedAt`, and `updatedBy` is its actor.
 
   A ledger holds at most 256 entries. A duplicate `id` refuses `DUPLICATE_ID`.
 - `TOL-V0-004`: Witness evidence MUST be the closed object `{source, eventSha256, commit,
@@ -97,7 +102,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
     1..512 bytes.
 - `TOL-V0-005`: `corvint-tasks ticket obligations seed --target T --expected-revision N --payload P`
   MUST apply operation `OBLIGATIONS_SEED` with the closed payload `{prefix, obligations}` (1..256
-  sorted unique `{id, title, core}`), which is also the SEED event body.
+  sorted unique `{id, title, core}`).
   - The first seed declares `prefix`. It refuses `DUPLICATE_ID` when a non-archived native ticket
     already declares that prefix.
   - A later seed MUST repeat the same prefix (`MALFORMED` otherwise). It refuses `DUPLICATE_ID`
@@ -109,7 +114,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   is missing from the evidence store, fails its digest or breaks the `previous` link, the ledger is
   `UNKNOWN` with a typed diagnostic, never an empty or partial ledger.
 - `TOL-V0-007`: `corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` with
-  the closed payload `{changes}`, which is also the SET event body.
+  the closed payload `{changes}`.
   - `changes` is 1..64 entries `{id, state, core, reason}`, sorted by unique `id`.
   - `state` is null or one of `OPEN`, `DEFECT`, `BLOCKED`, `DEFERRED`. `core` is null or a
     boolean. At least one of them is non-null, and `reason` is required.
@@ -119,8 +124,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - An unknown id refuses `MALFORMED` with the detail prefix `OBLIGATION_UNKNOWN:`.
 - `TOL-V0-008`: `corvint-tasks ticket obligations witness` MUST apply operation
   `OBLIGATIONS_WITNESS` with the closed payload `{source, commit, reportSha256, playwrightVersion,
-  credits, declaration, attempt, generation}`. The same object without `attempt` and `generation`
-  is the WITNESS event body.
+  credits, declaration, attempt, generation}`.
   - `credits` is 1..256 entries sorted by unique `id`. Each is `{id, matches}` for
     `PLAYWRIGHT_REPORT`, or `{id}` for `DECLARED`.
   - `attempt` and `generation` are required for a WORKER (TOL-V0-015) and null otherwise.
@@ -172,8 +176,12 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - For `PLAYWRIGHT_REPORT`, the writer MUST recompute TOL-V0-010..012 from the report and refuse
     any payload that differs. The refusal has outcome `VALIDATION_FAILED`, code `MALFORMED` and
     the detail prefix `OBLIGATION_CREDIT_MISMATCH:`.
-  - `receipt audit` MUST re-verify each WITNESS event from its stored content alone:
+  - `receipt audit` MUST re-verify each ledger event from its stored content alone:
     - the event digest, the `previous` link and the fold;
+    - that the retained request decodes, that its digest equals the receipt's `mutationSha256`,
+      and that its request ID and queue ID match the receipt (the operator-note audit binding);
+    - for a WORKER witness, that the retained `attempt` and `generation` named a live attempt
+      held by that actor at the receipt's prior state;
     - that every credited id has at least one match;
     - that each match's `path` holds the id at `commit` (TOL-V0-012).
   - A missing or failing event is `INCONSISTENT`. The audit cannot prove that the discarded report
@@ -309,9 +317,9 @@ marked `(PLANNED)` because none exists yet.
 
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| TOL-V0-001..004 | V1-1022 | `internal/tasks/wire` (optional key), `internal/tasks/ticket` (record codec), `internal/taskman` (Core reader), `internal/tasks/snapshot` (derived-event slot) | none | `TestTOLV0001_RecordMemberRoundTrip` (PLANNED), `TestTOLV0001_ReaderAdmitsObligations` (PLANNED), `TestTOLV0002_EventCanonicalAndChained` (PLANNED), `TestTOLV0002_EventSlotBound` (PLANNED) (65,536-byte boundary, one event per MUTATE), `TestTOLV0003_EntryCodecRefusals` (PLANNED), `TestTOLV0004_EvidenceCodec` (PLANNED); legacy byte-identity fixture |
+| TOL-V0-001..004 | V1-1022 | `internal/tasks/wire` (optional key), `internal/tasks/ticket` (record codec), `internal/taskman` (Core reader), `internal/tasks/snapshot` (derived-event slot) | none | `TestTOLV0001_RecordMemberRoundTrip` (PLANNED), `TestTOLV0001_ReaderAdmitsObligations` (PLANNED), `TestTOLV0002_EventCanonicalAndChained` (PLANNED), `TestTOLV0002_EventSlotBound` (PLANNED) (65,536-byte boundary, one event per MUTATE), `TestTOLV0002_FoldFromRetainedRequestsAfterRestart` (PLANNED), `TestTOLV0003_UpdatedAtIsIssuedAtNotRecordedAt` (PLANNED), `TestTOLV0003_EntryCodecRefusals` (PLANNED), `TestTOLV0004_EvidenceCodec` (PLANNED); legacy byte-identity fixture |
 | TOL-V0-005..008, 014, 015 | V1-1022 | `internal/tasks/mutation` (payloads, Apply), `internal/tasks/intent` (grants, policy key), `internal/tasks/transaction` (adopt/import guards, claim checks), `internal/tasks/cli` | none | `TestTOLV0005_SeedPrefixAndDuplicates` (PLANNED), `TestTOLV0006_ShowIsReadOnly` (PLANNED), `TestTOLV0007_SetTransitions` (PLANNED), `TestTOLV0008_DeclaredWitness` (PLANNED), `TestTOLV0014_RevisionOnlyWrite` (PLANNED), `TestTOLV0015_RoleMatrix` (PLANNED), `TestTOLV0015_WorkerStaleGenerationFenced` (PLANNED) (same actor after reclamation); native archive round trip; two-process CAS; interrupted-commit redo |
-| TOL-V0-009..013 | V1-1022 | new report reader under `internal/tasks` (no Node dependency), secret screen, receipt audit | none | `TestTOLV0009_ReportAdmissionAndRetention` (PLANNED) (version, shape, size, no report or stdout retained, secret screen), `TestTOLV0010_StepOwnErrorCredits` (PLANNED) (soft sibling, nested parent, hard failure, soft outside steps), `TestTOLV0010_Retry0Only` (PLANNED), `TestTOLV0011_ConflictingMatches` (PLANNED), `TestTOLV0012_SourcePresence` (PLANNED) (forged title, wrong commit, outside repository), `TestTOLV0013_CreditMismatchAndAudit` (PLANNED), `TestTOLV0013_AuditAfterReportDeleted` (PLANNED), `TestTOLV0013_DeclaredWitnessAudit` (PLANNED); live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case |
+| TOL-V0-009..013 | V1-1022 | new report reader under `internal/tasks` (no Node dependency), secret screen, receipt audit | none | `TestTOLV0009_ReportAdmissionAndRetention` (PLANNED) (version, shape, size, no report or stdout retained, secret screen), `TestTOLV0010_StepOwnErrorCredits` (PLANNED) (soft sibling, nested parent, hard failure, soft outside steps), `TestTOLV0010_Retry0Only` (PLANNED), `TestTOLV0011_ConflictingMatches` (PLANNED), `TestTOLV0012_SourcePresence` (PLANNED) (forged title, wrong commit, outside repository), `TestTOLV0013_CreditMismatchAndAudit` (PLANNED), `TestTOLV0013_AuditAfterReportDeleted` (PLANNED), `TestTOLV0013_DeclaredWitnessAudit` (PLANNED), `TestTOLV0013_TamperedWorkerGenerationInconsistent` (PLANNED); live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case |
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | none | `TestTOLV0016_HighWaterMonotone` (PLANNED), `TestTOLV0017_FingerprintLegacyIdentity` (PLANNED), `TestTOLV0017_LedgerChurnIsNotProgress` (PLANNED), `TestTOLV0017_HighWaterRaiseIsProgress` (PLANNED), `TestTOLV0018_LastRaiseEndsNoProgressRun` (PLANNED) (claim admission at the loop threshold), `TestTOLV0021_StallRestartsOnRaise` (PLANNED) (mid-session and across restart), `TestTOLV0021_PreviousLedgerVersionAdopted` (PLANNED) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | none | `TestTOLV0019_QueueStatusLegacyIdentity` (PLANNED), `TestTOLV0019_ObligationSummary` (PLANNED), `TestTOLV0020_PlanCheck` (PLANNED) (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) |
 

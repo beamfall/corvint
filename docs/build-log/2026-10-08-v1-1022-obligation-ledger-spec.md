@@ -46,7 +46,7 @@ count proven obligations instead of sessions. This change adds only the proposed
   - A retry-1 pass yields test status `flaky`.
   - `config.metadata` holds only `actualWorkers`.
   - `spec.file` is relative to `config.rootDir`.
-- Doc gates passed: spec-requirements, requirement-definitions, traceability-tests (34 planned
+- Doc gates passed: spec-requirements, requirement-definitions, traceability-tests (37 planned
   tests), decision-numbers, line-citations, error-code-ownership, unbounded-readers,
   use-case-receipts and diagnostic-coverage. `go test ./internal/specindex` passed.
 - Failing-before/passing-after: not applicable. This is a document-only proposal and changes no
@@ -69,6 +69,12 @@ and 4 P2 findings. Each one was checked against the code and fixed in the follow
   stored in the event.
 - P2: the stall reset had no persisted baseline. TOL-V0-021 adds one and requires the next
   `taskman-dispatch-state` version, under the CAL-V0-131/132 rules.
+
+A second review of 70b8749a confirmed all six fixes and raised one new P1: events could not
+reconstruct `issuedAt` or the WORKER fence once the envelope was gone, because request records
+retain only its digest (`receipt.go`). This was fixed by retaining the canonical request whole in
+each ledger event and binding it to the receipt, as `journal/operator_note.go` does. Audit now
+also re-checks the WORKER generation. This last fix was not reviewed a third time.
 
 ## Non-goals, failure modes and rollback
 

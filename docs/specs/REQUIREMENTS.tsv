@@ -2905,25 +2905,25 @@ TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	144	The prof
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	152	Qualification requires a fixture with Chromium plus Angular/React project varian
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	54	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	63	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
-TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	75	A folded obligation entry MUST be the closed object `{id, title, core, state,
-TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	84	Witness evidence MUST be the closed object `{source, eventSha256, commit,
-TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	98	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
-TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	106	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
-TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	111	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
-TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	120	`corvint-tasks ticket obligations witness` MUST apply operation
-TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	132	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at
-TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	146	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
-TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	158	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th
-TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	165	Each match MUST pass a source presence check. Its `spec.file` (relative to
-TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	171	Validation and audit are source-specific.
-TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	185	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses
-TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	196	Roles are as follows.
-TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	211	`highWater` MUST be monotone within one acceptance revision.
-TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	217	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l
-TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	227	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its
-TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	238	`queue status` and `queue status --summary` MUST add the key `obligations`
-TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	246	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
-TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	257	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	80	A folded obligation entry MUST be the closed object `{id, title, core, state,
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	89	Witness evidence MUST be the closed object `{source, eventSha256, commit,
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	103	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	111	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	116	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	125	`corvint-tasks ticket obligations witness` MUST apply operation
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	136	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	150	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	162	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	169	Each match MUST pass a source presence check. Its `spec.file` (relative to
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	175	Validation and audit are source-specific.
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	193	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	204	Roles are as follows.
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	219	`highWater` MUST be monotone within one acceptance revision.
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	225	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	235	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	246	`queue status` and `queue status --summary` MUST add the key `obligations`
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	254	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
+TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	265	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed
