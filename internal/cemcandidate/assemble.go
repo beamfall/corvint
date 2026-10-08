@@ -178,7 +178,16 @@ func runnerBinding(planRaw, receiptRaw []byte) (tr.PlanDocument, error) {
 	if e := Decode(planRaw, &p); e != nil {
 		return p, e
 	}
-	if e := Decode(receiptRaw, &r); e != nil {
+	// A runner-killed phase records exitCode -1 (TRE-V0-040); the receipt is
+	// still closed-field checked and may never claim a complete observation.
+	structural, e := tr.StructuralBytes(receiptRaw)
+	if e != nil {
+		return p, e
+	}
+	if e = decode(structural, receiptRaw, &r); e != nil {
+		return p, e
+	}
+	if e = tr.CheckReceipt(r); e != nil {
 		return p, e
 	}
 	if p.Profile != "corvint-test-runner-plan/0" || r.Profile != "corvint-test-runner-receipt/0" || r.Execution.Profile != "corvint-test-runner-execution/0" || p.Request.Runner == "" || r.Execution.Runner != p.Request.Runner || r.Observation.Runner != p.Request.Runner || r.PlanSha256 != tr.Identity(p) || r.Execution.InputSha256 != tr.Identity(p.Request.InputFiles) || r.Execution.InvocationSha256 != tr.Identity(p.Invocation) || r.Execution.ExecutionAuthority != "CALLER_OBSERVED" || r.Execution.DependencyClosure != "NOT_OBSERVED" {

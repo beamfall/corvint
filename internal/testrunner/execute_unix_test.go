@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -566,5 +567,64 @@ func TestExecuteExplicitPrimaryTestWithoutArguments(t *testing.T) {
 				t.Fatal(result, err)
 			}
 		})
+	}
+}
+
+// TestKilledRunReceiptRoundTrip covers V1-1025: a runner-killed TEST phase
+// records exitCode -1, its receipt decodes and re-encodes byte-identically,
+// and the decoded observation can never be complete.
+func TestKilledRunReceiptRoundTrip(t *testing.T) {
+	r, inv := executorRequest(t)
+	r.TimeoutSeconds = 1
+	inv.Environment["CORVINT_EXEC_MODE"] = "parent"
+	inv.Environment["CORVINT_EXEC_TARGET"] = filepath.Join(r.Root, "heartbeat")
+	x, err := Execute(context.Background(), r, inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(x.Phases) != 1 || x.Phases[0].ExitCode != KilledExitCode || !x.Phases[0].TimedOut || x.Input.ExitCode != KilledExitCode {
+		t.Fatalf("killed phase not retained: %+v", x.Phases)
+	}
+	o := Normalize(x.Input, Observation{Tests: []Test{{ID: "probe", State: Passed}}})
+	if o.Complete {
+		t.Fatal("killed run normalized as complete")
+	}
+	raw, err := json.Marshal(ReceiptDocument{Profile: "corvint-test-runner-receipt/0", PlanSha256: Digest([]byte("plan")), Execution: x, Observation: o})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got ReceiptDocument
+	if err = DecodeDocument(raw, &got); err != nil {
+		t.Fatalf("killed-run receipt refused: %v", err)
+	}
+	again, _ := json.Marshal(got)
+	if !bytes.Equal(again, raw) || got.Execution.Phases[0].ExitCode != KilledExitCode || got.Observation.Complete {
+		t.Fatalf("killed-run receipt did not round-trip:\n%s\n%s", again, raw)
+	}
+	// Only the killed-run sentinel is admitted, only as an exitCode member, and
+	// never alongside a complete observation.
+	killed := bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":-2`), 1)
+	for name, c := range map[string]struct {
+		raw  []byte
+		want error
+	}{
+		"below sentinel":    {killed, ErrNegativeInteger},
+		"other member":      {bytes.Replace(raw, []byte(`"id":"probe"`), []byte(`"executedCount":-1,"id":"probe"`), 1), ErrNegativeInteger},
+		"fraction":          {bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":-1.0`), 1), ErrNegativeInteger},
+		"complete claim":    {bytes.Replace(raw, []byte(`"complete":false`), []byte(`"complete":true`), 1), ErrKilledRunComplete},
+		"array element":     {bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":[-1]`), 1), ErrNegativeInteger},
+		"timeout no killed": {bytes.Replace(bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":0`), 1), []byte(`"complete":false`), []byte(`"complete":true`), 1), ErrKilledRunComplete},
+	} {
+		if !bytes.Equal(c.raw, raw) {
+			if e := DecodeDocument(c.raw, new(ReceiptDocument)); !errors.Is(e, c.want) {
+				t.Errorf("%s: got %v, want %v", name, e, c.want)
+			}
+		} else {
+			t.Errorf("%s: mutation did not apply", name)
+		}
+	}
+	// A string containing the sentinel text is data, not a number.
+	if e := DecodeDocument([]byte(`{"profile":"\"exitCode\":-1","planSha256":"","execution":{},"observation":{},"error":"-1"}`), new(ReceiptDocument)); e != nil {
+		t.Fatal(e)
 	}
 }
