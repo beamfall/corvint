@@ -2,7 +2,8 @@
   "advice": {
     "checks": [
       {
-        "command": "GOTOOLCHAIN=local go test -count=1 'example.test/cli/pkg'",
+        "arguments": "provider.go.packages",
+        "command": "GOTOOLCHAIN=local go test -count=1",
         "kind": "advisory",
         "reason": "the plan selected 1 unit(s) over 5 dirty path(s), so these packages are the plausible first pass",
         "source": "affected-plan"

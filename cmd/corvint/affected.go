@@ -124,6 +124,7 @@ const (
 	adviceKindMandatory      = "mandatory"
 	adviceKindAdvisory       = "advisory"
 	adviceSourcePlan         = "affected-plan"
+	adviceAdvisoryGoTest     = "GOTOOLCHAIN=local go test -count=1"
 	adviceMakefileName       = "Makefile"
 	adviceAgentsName         = "AGENTS.md"
 	adviceMaxSourceBytes     = 256 << 10
@@ -695,7 +696,7 @@ func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]
 	if provider.State != providerStateRunnable {
 		return nil, []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is " + provider.State}
 	}
-	command := "GOTOOLCHAIN=local go test -count=1 " + shellQuoteJoin(provider.Packages)
+	command := adviceAdvisoryGoTest + " " + shellQuoteJoin(provider.Packages)
 	reason := fmt.Sprintf("the plan selected %d unit(s) over %d dirty path(s), so these packages are the plausible first pass", len(plan.Selected), len(plan.Dirty))
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }
