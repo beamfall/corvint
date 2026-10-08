@@ -139,6 +139,12 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	query := flagValue(original, "--task")
+	if command == "context" {
+		// TCP-V0-062: a positional task searches the corpus exactly as --task does.
+		if options, ok, err := parseTaskContextInvocation(original); ok && err == nil {
+			query = options.task
+		}
+	}
 	request := doccorpus.Request{Operation: "info"}
 	if command == "query" || command == "context" {
 		request.Operation = "search"

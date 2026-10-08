@@ -36,7 +36,7 @@ type taskContextOptions struct {
 
 const taskContextDefaultLimit = 20
 
-// parseTaskContextInvocation recognises `[--root PATH] context --task TEXT
+// parseTaskContextInvocation recognises `[--root PATH] context (--task TEXT | TEXT)
 // [--subject PATH] [--limit N] [--summary [--summary-bytes N]]` and
 // `[--root PATH] context --expand HANDLE [--max-bytes N]`; any other shape is
 // not a context invocation.
@@ -56,9 +56,14 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 		}
 		options.root = strings.TrimPrefix(arguments[index], "--root=")
 	}
-	taskSet := false
+	taskSet, flagTaskSet := false, false
+	positionals := []string{}
 	rest := arguments[position+1:]
 	for index := 0; index < len(rest); index++ {
+		if !argparseOptionLike(rest[index]) {
+			positionals = append(positionals, rest[index])
+			continue
+		}
 		if rest[index] == "--summary" {
 			options.summary, options.summarySet = true, true
 			continue
@@ -95,7 +100,7 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			}
 			options.lsp, options.lspSet = value, true
 		case "--task":
-			options.task, taskSet = value, true
+			options.task, taskSet, flagTaskSet = value, true, true
 		case "--subject":
 			options.subject = value
 		case "--limit":
@@ -123,6 +128,15 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			return options, true, argumentError("unrecognized arguments: " + rest[index])
 		}
 	}
+	// TCP-V0-062 (V1-0993): one positional is the task when --task is absent.
+	switch {
+	case len(positionals) > 1:
+		return options, true, argumentError(contextPositionalTaskRefusal("context accepts at most one positional task"))
+	case len(positionals) == 1 && flagTaskSet:
+		return options, true, argumentError(contextPositionalTaskRefusal("argument --task: not allowed with a positional task"))
+	case len(positionals) == 1:
+		options.task, taskSet = positionals[0], true
+	}
 	if err := checkContextViewArguments(options, taskSet); err != nil {
 		return options, true, err
 	}
@@ -132,6 +146,12 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	}
 	options.root = resolved
 	return options, true, nil
+}
+
+// contextPositionalTaskRefusal appends the one copyable form to a refused
+// positional-task shape (TCP-V0-062).
+func contextPositionalTaskRefusal(reason string) string {
+	return reason + "; quote the task once or pass --task, for example: corvint context --task \"fix the parser\""
 }
 
 // checkContextViewArguments refuses mixed or orphaned view flags: --expand
