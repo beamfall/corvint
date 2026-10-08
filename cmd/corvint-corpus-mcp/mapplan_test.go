@@ -85,7 +85,7 @@ func TestAMSPV0010CorpusMCPMapPlan(t *testing.T) {
 		{[]string{"--root", root, "--artifact", "corpus.json", "--maps", "a.json"}, false, 0},
 		{append([]string{"--root", root, "--artifact", "corpus.json"}, strings.Split(strings.Repeat("--map x ", 9), " ")[:18]...), false, 0},
 	} {
-		_, _, got, _, ok := parseArguments(c.args)
+		_, _, got, _, _, ok := parseArguments(c.args)
 		if ok != c.ok || len(got) != c.maps {
 			t.Errorf("parseArguments(%q) = %v %v", c.args, got, ok)
 		}

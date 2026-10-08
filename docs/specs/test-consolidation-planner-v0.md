@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-08
 Requirement prefix: `TCN-V0`
 Intent status: accepted (decision 0457; V1-1023)
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-map-v0.md` (AMAP-V0 screens, element
@@ -15,10 +15,10 @@ declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-
 
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
-- Status: accepted (decision 0457; V1-1023; GitHub #681); not-started. Acceptance settles intent only.
-- Exists: nothing. AMAP-V0 knows screens and routes, AMSP-V0 knows sessions and setup scenarios, AFU-V1 knows variations and declared test keys, and `corvint test-validity` projects per-test execution; no surface turns a set of variations into a consolidated test plan.
-- Blocked on: implementation; all acceptance evidence.
-- Read next: Requirements; Grouping algorithm; Table and check; Owner questions (resolved).
+- Status: accepted (decision 0457; V1-1023; GitHub #681); experimental. Acceptance settles intent only.
+- Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..012 each have passing focused tests (Deterministic acceptance and traceability).
+- Blocked on: owner-run qualification on a real labelled variation set (`NOT_RUN`); `REUSED` is not reachable from real provider documents in V0 (Implementation notes).
+- Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.
 
 ## User and measurable job
 
@@ -342,22 +342,23 @@ own inputs.
 
 ## Deterministic acceptance and traceability
 
-All evidence is planned; none exists. Each row is `NOT_RUN` until implemented.
+Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/corvint-corpus-mcp`,
+2026-10-08). Every input is synthetic or the committed AMAP-V0 fixture.
 
-| Requirement | Planned evidence |
+| Requirement | Evidence |
 | --- | --- |
-| TCN-V0-001 | CLI test: read-only (repository status and `.corvint/` unchanged), no network, exit codes, `authority: candidate`. |
-| TCN-V0-002 | Decoder table test over every refusal and bound, including a malformed fact and one key twice in `requires`; permutation test proving input order does not change output bytes. |
-| TCN-V0-003 | Fixture over the committed AMAP-V0 map: missing anchor (including absent `changes` or `destructive`), unknown screen, route mismatch, STALE and UNKNOWN freshness each abstain; `NOT_RUN` without `--map`. |
-| TCN-V0-004 | Synthetic `corvint-js-test-provider` documents for each witness rejection reason, a conflicting pair across two documents, a completed Go session (preview), a refused `corvint-test-validity/0` output document, a receipt whose bound digests no longer match the evaluated revision (`witness-stale`) or cannot be recomputed (`witness-unbound`), several qualifying witnesses in permuted order, and a reuse that keeps all five axes and `NOT_MEASURED` strength. |
-| TCN-V0-005 | Duplicate classes with and without a reused member; same action and assertion under a different user, `requires`, `changes` or `destructive` stay distinct. |
-| TCN-V0-006 | Destructive, conflicting, different-user-or-org and unique-context reasons on one fixture, including a destructive variation whose context is shared only by other users (it keeps `destructive-change`). |
-| TCN-V0-007 | Precedence ordering; requires `x=0`, `x=1`, `x=1` giving two tests, not three; a three-node cycle re-planned; the edge bound refusal. |
-| TCN-V0-008 | `--max-steps` cuts preserving order; numbering; byte-identical output on repeated runs. |
-| TCN-V0-009 | Golden JSON; every variation accounted for exactly once; output bound refusal. |
-| TCN-V0-010 | Golden table, including the worked example above. |
-| TCN-V0-011 | Check passes on the exact table inside surrounding Markdown; fails on an edited, reordered, added and dropped row, on a missing and a doubled header, on a max-steps disagreement, on a changed map or revision with unchanged rows, and on an `INCOMPLETE` plan. |
-| TCN-V0-012 | MCP strict decoding, listing gated by `--consolidation`, byte parity with the CLI, `corvint-mcp` tool list unchanged. |
+| TCN-V0-001 | `TestTestPlanConsolidateIsReadOnly` (every repository byte, the Git index and `.corvint/` unchanged; stdout equals the library plan; `authority: candidate`), `TestTestPlanRefusesInvalidUse` (exit 2, empty stdout, coded refusal), `TestTestPlanRefusesFIFO` (a FIFO input or plan is refused, not waited on), `TestRunArgumentRefusals`, `TestTestPlanHelp`. No network: the package opens no socket by construction; not exercised dynamically. |
+| TCN-V0-002 | `TestDecodeInputRefusals` (every refusal and bound, a malformed fact, one key twice, duplicate members, depth), `TestDecodeInputMissingAnchorsAreNotRefusals`, `TestInputOrderDoesNotChangeOutput` (25 permutations and a re-encoded document). |
+| TCN-V0-003 | `TestMapValidationAbstains` (placed, `route-mismatch`, `unresolved-screen`, `missing-anchor`, `stale-anchor` at `HEAD` and placed at the older revision), `TestMapUnknownLineageAbstains`, `TestAnchorsNotRunWithoutMap`, `TestMapRefusals`. |
+| TCN-V0-004 | `TestWitnessVerdicts` (every rejection reason, a Go session and a JavaScript unit document as `witness-preview`, a conflicting pair), `TestWitnessesKeptSorted`, `TestBoundFreshnessAtRevision` (CURRENT, STALE, older revision, absent, outside the worktree, `.git`, relative, symlink, uncommitted and untracked bound paths), `TestBoundFreshnessIndexFlagsAndFilters` (assume-unchanged and skip-worktree edits read `UNKNOWN`; a configured clean filter never runs), `TestProviderDocumentRefusals` (a `corvint-test-validity/0` output document and file-order independence). |
+| TCN-V0-005 | `TestDuplicateClasses` (including fact values that hold a newline or NUL). |
+| TCN-V0-006 | `TestIsolationReasons`. |
+| TCN-V0-007 | `TestPrecedenceOrderAndSets` (`x=0`, `x=1`, `x=1` give two tests), `TestCycleReplanned`, `TestEdgeBoundRefuses`. |
+| TCN-V0-008 | `TestMaxStepsCutAndNumbering`, `TestInputOrderDoesNotChangeOutput`. |
+| TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
+| TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above). |
+| TCN-V0-011 | `TestCheck` (exact table inside Markdown; edited, reordered, added, dropped and changed rows; edited header; missing and doubled header; max-steps, revision and map disagreement; `INCOMPLETE`), `TestTestPlanCheckExitCodes`. |
+| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
 
 Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
 (issue 681 cites 3,614 core rows over 133 flows) and record new tests versus
@@ -366,6 +367,51 @@ the test-level `corvint test-validity` projection plus per-variation outcome evi
 `flows coverage` report (AFU-V1-049..051), with the written test declared as each grouped variation's test.
 `corvint test-validity` alone is test-level and cannot show that each step's assertion ran. Until
 that run it stays `NOT_RUN`.
+
+### Implementation notes (V1-1023, 2026-10-08)
+
+Choices the requirements left open, made by the implementation and open to owner review:
+
+- The edge bound counts every precedence edge examined for one input, including re-examination
+  after cycle removal.
+- `witness-preview` applies to any matching document that is not a JavaScript `e2e` document (a
+  Go session or a JavaScript unit document).
+- An abstract or unresolvable map screen abstains `unresolved-screen`.
+- `witness_rejections` carries exactly the TCN-V0-009 members `{variation_id, test_id, reason}`. It
+  is sorted by variation, `test_id` and then the declared project, which is not serialized, so two
+  rejections of one test ID under different projects differ only in order. Witnesses of reused and
+  duplicate variations are still evaluated.
+- `evaluated_revision` is set only with `--map` or `--tests`; `--revision` alone is refused.
+- Bound-path freshness compares each bound digest with the blob at the evaluated revision. A bound
+  path outside the worktree (`retained-bound-path-outside-worktree`), with uncommitted or untracked
+  changes (`retained-bound-path-uncommitted`), or not a readable regular blob reads `UNKNOWN`; a
+  path absent at the revision or with a different digest is `STALE`, and `STALE` wins. An index
+  entry marked assume-unchanged or skip-worktree also reads `retained-bound-path-uncommitted`,
+  because status cannot see its edits. The worktree status runs through `gitstatus.Status` on
+  private metadata, so no repository-defined clean or process filter runs; a repository that
+  status refuses to observe (for example one configuring such a filter) refuses
+  `test-plan-invalid-arguments`. Duplicate classes compare an unambiguous encoding of every
+  member, so a fact value holding a separator cannot merge two different fact sets.
+- `--input` and `--plan` are opened non-blocking, so a FIFO is refused as not a regular file.
+- `witnesses: null` is refused, so an absent list (none) and a null one are never conflated.
+- `conflicting-state` is a variation alone in its compatible set while its context has more
+  than one member.
+- A passing `check` prints the recomputed table on stdout; the MCP tool's check mode returns the
+  same bytes.
+- The MCP tool takes `input` and `plan` as JSON strings, so the input document is decoded strictly
+  byte for byte; `tests` and `maps` are local names resolved, after symbolic links, to a target
+  inside the server root (else `test-plan-invalid-arguments`), and that target is read through an
+  `os.Root`, which refuses any path leaving the root at the moment of the open. It takes
+  no revision (always `HEAD`), and refuses with `test-plan-bound-exceeded` when the framed text and
+  its structured copy exceed one MCP message less 4 KiB for the JSON-RPC envelope.
+- Only the JSON output bound is reachable in practice; the table is always smaller than the input.
+
+Known limit: `REUSED` is not reachable end to end from real provider documents in V0. A qualified
+external JavaScript profile always reads freshness `UNKNOWN`
+(`retained-external-app-lifecycle-unverifiable`) and needs a full Playwright tuple; Go tests carry
+no `id`; and an unprofiled receipt with an `id` is refused. Reuse is exercised only through
+synthetic projections in `TestWitnessVerdicts`. A follow-up must decide how a real witness can
+reach `CURRENT`.
 
 ## Rollout, rollback and compatibility
 

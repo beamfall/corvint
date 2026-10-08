@@ -219,7 +219,7 @@
     "title": "Test Consolidation Planner V0",
     "reqPrefix": "TCN-V0",
     "intent": "accepted (decision 0457; V1-1023)",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md",
@@ -229,7 +229,11 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/testplan",
+      "cmd/corvint",
+      "cmd/corvint-corpus-mcp"
+    ]
   },
   {
     "path": "docs/specs/application-map-v0.md",

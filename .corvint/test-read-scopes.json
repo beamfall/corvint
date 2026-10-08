@@ -301,6 +301,9 @@
     ],
     "internal/testacceptance": [],
     "internal/testevidence": [],
+    "internal/testplan": [
+      "internal/appmap/testdata/"
+    ],
     "internal/testrunner/dynamic": [],
     "internal/testrunner/mobile": [],
     "internal/testrunner/native": [],
