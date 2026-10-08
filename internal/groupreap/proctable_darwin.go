@@ -24,6 +24,7 @@ const (
 	ctlKern         = 1
 	kernProc        = 14
 	kernProcAll     = 0
+	kernProcPID     = 1
 	// maxDarwinProcBytes bounds one process-table read (about 25000 entries).
 	maxDarwinProcBytes = 16 << 20
 )
@@ -95,3 +96,40 @@ func parseKinfoProcs(data []byte) (map[int]Process, error) {
 }
 
 func processSession(pid int) (int, error) { return syscall.Getsid(pid) }
+
+// signalPinned signals p (its group when group is true) only when a fresh
+// read still shows p's PID with p's start time. Darwin has no pidfd, so the
+// window between that read and the signal remains; PGO-V0-007 records it.
+func signalPinned(p Process, group bool, sig syscall.Signal) error {
+	q, err := currentIdentity(p.PID)
+	if err != nil {
+		return err
+	}
+	if !q.same(p) {
+		return errIdentityChanged
+	}
+	target := p.PID
+	if group {
+		target = -p.PID
+	}
+	return syscall.Kill(target, sig)
+}
+
+// currentIdentity reads one process from sysctl kern.proc.pid.
+func currentIdentity(pid int) (Process, error) {
+	mib := [4]int32{ctlKern, kernProc, kernProcPID, int32(pid)}
+	buf := make([]byte, kinfoProcSize)
+	n := uintptr(len(buf))
+	if err := sysctlRaw(mib[:], &buf[0], &n); err != nil {
+		return Process{}, err
+	}
+	table, err := parseKinfoProcs(buf[:n])
+	if err != nil {
+		return Process{}, err
+	}
+	q, ok := table[pid]
+	if !ok {
+		return Process{}, syscall.ESRCH
+	}
+	return q, nil
+}

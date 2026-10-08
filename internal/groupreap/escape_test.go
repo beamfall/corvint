@@ -352,8 +352,12 @@ func (s *fakeSignals) install(t *testing.T, tables ...map[int]Process) {
 		i++
 		return table, nil
 	}
-	signalProcess = func(pid int, sig syscall.Signal) error {
-		s.sent = append(s.sent, strconv.Itoa(pid)+":"+signalName(sig))
+	signalProcess = func(p Process, group bool, sig syscall.Signal) error {
+		target := p.PID
+		if group {
+			target = -p.PID
+		}
+		s.sent = append(s.sent, strconv.Itoa(target)+":"+signalName(sig))
 		return nil
 	}
 	signalGroup = func(pid int, sig syscall.Signal) error {
@@ -375,6 +379,9 @@ func table(ps ...Process) map[int]Process {
 // the stopped owned group through stopped owned parents are signalled.
 func TestRetireEscapedIdentityBoundary(t *testing.T) {
 	const leader = 1000
+	if self := os.Getpid(); self >= leader && self <= 3002 {
+		t.Skipf("test process pid %d collides with the synthetic table, which ownedTree excludes it from", self)
+	}
 	stoppedTree := table(
 		Process{PID: leader, PPID: os.Getpid(), PGID: leader, Start: 10, State: StateZombie},
 		Process{PID: 1001, PPID: 1, PGID: leader, Start: 11, State: StateStopped},  // worker
@@ -459,34 +466,97 @@ func TestRunContainedPropagatesTableFailure(t *testing.T) {
 	}
 }
 
-// A zombie thread-group leader with a live thread is still live, so it stays
-// retirable and observable; a single-threaded zombie is not.
-func TestReadProcTableThreadAwareZombie(t *testing.T) {
+// /proc/<pid>/stat reports only the leader thread, so a stopped or zombie
+// leader is classified from every task: stopped only when every live task is
+// group-stopped, a zombie only when no task is live. A tracing stop is not a
+// stop.
+func TestReadProcTableThreadAwareState(t *testing.T) {
 	f := newFakeProc(t)
-	stat := func(pid int, state string, threads int) {
-		rest := " 1 " + strconv.Itoa(pid) + " " + strconv.Itoa(pid) + strings.Repeat(" 0", 15) + " 777 0\n"
-		f.write(filepath.Join(strconv.Itoa(pid), "stat"), strconv.Itoa(pid)+" (x) "+state+rest)
-		f.write(filepath.Join(strconv.Itoa(pid), "status"), "Name:\tx\nThreads:\t"+strconv.Itoa(threads)+"\n")
+	line := func(id int, state string) string {
+		return strconv.Itoa(id) + " (x) " + state + " 1 9 9" + strings.Repeat(" 0", 15) + " 777 0\n"
 	}
-	stat(200, "Z", 2)
-	stat(201, "Z", 1)
-	stat(202, "T", 1)
+	proc := func(pid int, leader string, tasks map[int]string) {
+		f.write(filepath.Join(strconv.Itoa(pid), "stat"), line(pid, leader))
+		for tid, state := range tasks {
+			f.write(filepath.Join(strconv.Itoa(pid), "task", strconv.Itoa(tid), "stat"), line(tid, state))
+		}
+	}
+	proc(200, "Z", map[int]string{200: "Z", 210: "S"}) // live thread: running
+	proc(201, "Z", map[int]string{201: "Z"})           // dead
+	proc(202, "T", map[int]string{202: "T", 212: "T"}) // whole group stopped
+	proc(203, "T", map[int]string{203: "T", 213: "R"}) // partial stop: running
+	proc(204, "Z", map[int]string{204: "Z", 214: "T"}) // exited leader, stopped thread
+	proc(205, "t", map[int]string{205: "t"})           // tracing stop: running
+	proc(206, "S", nil)                                // running leader needs no task read
 	got, err := readProcTable(f.root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[200].State != StateRunning || got[201].State != StateZombie || got[202].State != StateStopped || got[200].Start != 777 || got[200].PGID != 200 {
-		t.Fatalf("table %+v", got)
+	want := map[int]ProcState{200: StateRunning, 201: StateZombie, 202: StateStopped, 203: StateRunning, 204: StateStopped, 205: StateRunning, 206: StateRunning}
+	for pid, state := range want {
+		if got[pid].State != state || got[pid].Start != 777 || got[pid].PGID != 9 {
+			t.Errorf("pid %d: %+v, want state %d", pid, got[pid], state)
+		}
+	}
+}
+
+// Identity-pinned signalling: a PID whose start time no longer matches (a
+// reused PID, as after an auto-reaping parent released it) is never
+// signalled; the matching identity is.
+func TestSignalPinnedIdentity(t *testing.T) {
+	cmd := exec.Command("/bin/sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(done)
+	}()
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		<-done
+	})
+	table, err := readProcessTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := table[cmd.Process.Pid]
+	if !ok {
+		t.Fatal("started process missing from the table")
+	}
+	reused := p
+	reused.Start--
+	if err := signalPinned(reused, false, syscall.SIGKILL); !errors.Is(err, errIdentityChanged) {
+		t.Fatalf("reused identity: %v", err)
+	}
+	select {
+	case <-done:
+		t.Fatal("a changed identity was signalled")
+	case <-time.After(200 * time.Millisecond):
+	}
+	if err := signalPinned(p, false, syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("pinned identity was not signalled")
+	}
+	if err := signalPinned(p, false, syscall.SIGKILL); !notSignalled(err) {
+		t.Fatalf("reaped identity: %v", err)
 	}
 }
 
 // Identities beyond the bound make sampling incomplete; a known identity
 // still updates.
 func TestRecordEscapedBound(t *testing.T) {
-	const leader = 1000
+	// Synthetic PIDs above Linux's pid_max never collide with this process,
+	// which ownedTree excludes.
+	const leader = 1 << 23
 	tbl := table(Process{PID: leader, PPID: os.Getpid(), PGID: leader, Start: 1, State: StateRunning})
 	for i := 0; i <= maxEscaped; i++ {
-		pid := 2000 + i
+		pid := leader + 1 + i
 		tbl[pid] = Process{PID: pid, PPID: leader, PGID: pid, Start: 2, State: StateRunning}
 	}
 	seen := map[int]sampled{}

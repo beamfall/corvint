@@ -24,6 +24,12 @@ import (
 // the same PID with the same kernel start time. That last step has a residual
 // window between the table read and the signal that the structural sweep does
 // not have; it is documented in PGO-V0-007.
+//
+// A stopped parent does not hold its child's PID when the parent auto-reaps
+// (SIGCHLD ignored or SA_NOCLDWAIT), so every individual signal is also pinned
+// to the target's identity (signalPinned): on Linux through a pidfd checked
+// against the start time, on Darwin by a fresh identity read just before the
+// signal.
 
 // ProcState is a process-table state.
 type ProcState int
@@ -66,6 +72,15 @@ func (c Containment) Complete() bool { return c.Err == nil && len(c.Survivors) =
 
 var errProcessTable = errors.New("groupreap: process table unavailable")
 
+// errIdentityChanged reports that a PID no longer names the identity the
+// caller proved owned; nothing was signalled.
+var errIdentityChanged = errors.New("groupreap: process identity changed")
+
+// notSignalled reports a target that was gone or replaced before the signal.
+func notSignalled(err error) bool {
+	return errors.Is(err, syscall.ESRCH) || errors.Is(err, errIdentityChanged)
+}
+
 const (
 	// sampleInterval separates run-time observations of escaped descendants.
 	sampleInterval = 200 * time.Millisecond
@@ -78,10 +93,12 @@ const (
 	maxEscaped = 4096
 )
 
-// Test hooks: the process table, single-process and group signals.
+// Test hooks: the process table, identity-pinned signals and sessions.
+// signalProcess(p, group, sig) signals p (its process group when group is
+// true) only while p's PID still names p's start time.
 var (
 	snapshotProcesses = readProcessTable
-	signalProcess     = syscall.Kill
+	signalProcess     = signalPinned
 	sessionOf         = processSession
 )
 
@@ -209,8 +226,8 @@ func retireSampledOrphans(seen map[int]sampled, retired []Process) ([]Process, e
 	var out []Process
 	var errs error
 	for _, p := range candidates {
-		if err := signalProcess(p.PID, syscall.SIGKILL); err != nil {
-			if err != syscall.ESRCH {
+		if err := signalProcess(p.Process, false, syscall.SIGKILL); err != nil {
+			if !notSignalled(err) {
 				errs = errors.Join(errs, fmt.Errorf("groupreap: retiring orphaned escaped descendant %s: %w", p.Process, err))
 			}
 			continue
@@ -296,7 +313,7 @@ func retireEscaped(leader int) ([]Process, error) {
 			}
 			running = true
 			if depth > 0 && stoppedOwnedParent(table, owned, p) {
-				if err := signalProcess(pid, syscall.SIGSTOP); err != nil && err != syscall.ESRCH {
+				if err := signalProcess(p, false, syscall.SIGSTOP); err != nil && !notSignalled(err) {
 					return nil, fmt.Errorf("groupreap: stopping escaped descendant %s: %w", p, err)
 				}
 			}
@@ -323,14 +340,16 @@ func retireEscaped(leader int) ([]Process, error) {
 			errs = errors.Join(errs, fmt.Errorf("groupreap: escaped descendant %s lost its stopped owned parent", p))
 			continue
 		}
-		target := p.PID
+		group := false
 		if p.PGID == p.PID {
 			if sid, err := sessionOf(p.PID); err == nil && sid == p.PID {
-				target = -p.PID
+				group = true
 			}
 		}
-		if err := signalProcess(target, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
-			errs = errors.Join(errs, fmt.Errorf("groupreap: retiring escaped descendant %s: %w", p, err))
+		if err := signalProcess(p, group, syscall.SIGKILL); err != nil {
+			if !notSignalled(err) {
+				errs = errors.Join(errs, fmt.Errorf("groupreap: retiring escaped descendant %s: %w", p, err))
+			}
 			continue
 		}
 		retired = append(retired, p)
