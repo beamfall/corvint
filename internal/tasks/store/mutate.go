@@ -178,6 +178,9 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if paths, canonical, err = reviewAudit(reader, inv, env, paths, canonical); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	if paths, canonical, err = workerAttemptAudit(reader, inv, request.Actor, env, paths, canonical); err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	queue := canonical.Records["intent/queue.json"].Raw
 	policy := canonical.Records["intent/policy.json"].Raw
 	q, err := intent.DecodeQueue(queue)

@@ -237,13 +237,17 @@ func canonical(raw []byte) error {
 // model. OWNER and OPERATOR may; REVIEWER and WORKER may only for a
 // REVIEW_RECORD or REVIEW_RESUBMIT mutation, whose authority is the external
 // review reducer's recorder roles and live leases, never the role matrix
-// (ERG-V0-001).
+// (ERG-V0-001). WORKER may also enter for KNOWHOW_ADD, which Model refuses
+// exactly as an unadmitted actor unless policy knowHow.workerAdd is true
+// (KHN-V0-008).
 func ActorAdmitted(r Request) bool {
 	switch r.Actor.Role {
 	case "OWNER", "OPERATOR":
 		return true
-	case "REVIEWER", "WORKER":
+	case "REVIEWER":
 		return reviewMutation(r)
+	case "WORKER":
+		return reviewMutation(r) || workerKnowHowMutation(r)
 	}
 	return false
 }
@@ -526,6 +530,11 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
+	if workerKnowHowMutation(r) && !state.policy.WorkerKnowHowAdd() {
+		// KHN-V0-008: without the policy opt-in the WORKER write is refused
+		// as it was before the key existed.
+		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
+	}
 	if r.Operation == Init && state.head != nil {
 		return refused(r.RequestID, mutation.OutcomeBlocked, "", "already initialized")
 	}
@@ -645,6 +654,7 @@ func Model(r Request, in Input) Result {
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
 		}
+		ctx.WorkerAttempt = workerKnowHowAttempt(r, state, env, in.RecordedAt)
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
@@ -960,13 +970,44 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r)) && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || workerKnowHowMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
 		st.pools, e = loadPools(r, in, st)
 	}
 	return st, e
+}
+
+// workerKnowHowMutation reports a WORKER KNOWHOW_ADD, whose scope check
+// (KHN-V0-009) needs the audited attempt records.
+func workerKnowHowMutation(r Request) bool {
+	if r.Operation != Mutate || r.Actor.Role != "WORKER" {
+		return false
+	}
+	env, err := mutation.Decode(r.Envelope)
+	return err == nil && env.Operation == mutation.OpKnowHowAdd
+}
+
+// workerKnowHowAttempt observes, from the audited attempt records, the
+// attempt a WORKER KNOWHOW_ADD names (KHN-V0-009). Any other request gets
+// nil. An absent, ended, unleased or expired attempt is not live.
+func workerKnowHowAttempt(r Request, st inputState, env *mutation.Envelope, now wire.Timestamp) *mutation.WorkerAttemptObservation {
+	p, ok := env.Payload.(*mutation.KnowHowAddPayload)
+	if !ok || r.Actor.Role != "WORKER" {
+		return nil
+	}
+	o := &mutation.WorkerAttemptObservation{}
+	if p.Attempt == nil {
+		return o
+	}
+	a := st.attempts[*p.Attempt]
+	if a == nil || a.Lease == nil {
+		return o
+	}
+	o.TicketID, o.Generation, o.Holder = a.TicketID.Raw, a.Generation, a.Lease.Holder
+	o.Live = a.Live() && !expired(a, now)
+	return o
 }
 
 func cloneRequest(r Request) Request {

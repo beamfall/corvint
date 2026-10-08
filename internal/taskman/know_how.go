@@ -65,6 +65,11 @@ func knowHow(v wire.Value, _, _ uint64) error {
 		if e = knowHowActor(x); e != nil {
 			return e
 		}
+		if value(value(x, "actor"), "role").Str == "WORKER" && (op.Str != "ADD" || target != nil || value(x, "attempt").Kind == wire.KindNull || value(x, "generation").Kind == wire.KindNull) {
+			// KHN-V0-010: a WORKER entry is a non-superseding ADD that records
+			// its attempt and generation.
+			return errors.New("know-how WORKER entry")
+		}
 		if t := value(x, "recordedAt"); t.Kind != wire.KindString {
 			return errors.New("know-how time")
 		} else if _, e = taskswire.ParseTimestamp("recordedAt", t.Str); e != nil {
@@ -147,7 +152,7 @@ func knowHowActor(x wire.Value) error {
 		return errors.New("know-how actor")
 	}
 	id, role := value(a, "id"), value(a, "role")
-	if id.Kind != wire.KindString || role.Kind != wire.KindString || (role.Str != "OWNER" && role.Str != "OPERATOR") {
+	if id.Kind != wire.KindString || role.Kind != wire.KindString || (role.Str != "OWNER" && role.Str != "OPERATOR" && role.Str != "WORKER") {
 		return errors.New("know-how actor")
 	}
 	if _, e := taskswire.ParseLabel("actor", id.Str); e != nil {

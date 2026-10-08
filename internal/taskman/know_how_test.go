@@ -62,3 +62,36 @@ func TestKHNV0002_ReaderKnowHow(t *testing.T) {
 		})
 	}
 }
+
+// TestKHNV0010_ReaderWorkerEntry: Core's reader admits a WORKER entry only as
+// a non-superseding ADD that records its attempt and generation, mirroring
+// the Tasks codec.
+func TestKHNV0010_ReaderWorkerEntry(t *testing.T) {
+	entry := func(v wire.Value, i int) wire.Value { return value(v, "knowHow").Arr[i] }
+	worker := func(v wire.Value, i int) { setMember(value(entry(v, i), "actor"), "role", str502("WORKER")) }
+	v := issue502Record(t)
+	worker(v, 2)
+	if _, e := decodeTicket(v); e != nil {
+		t.Fatalf("WORKER ADD with attempt and generation: %v", e)
+	}
+	for name, edit := range map[string]func(wire.Value){
+		"superseding ADD": func(v wire.Value) { worker(v, 1) },
+		"RETRACT":         func(v wire.Value) { worker(v, 3) },
+		"no attempt": func(v wire.Value) {
+			worker(v, 2)
+			setMember(entry(v, 2), "attempt", wire.Value{Kind: wire.KindNull})
+		},
+		"no generation": func(v wire.Value) {
+			worker(v, 2)
+			setMember(entry(v, 2), "generation", wire.Value{Kind: wire.KindNull})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := issue502Record(t)
+			edit(v)
+			if _, e := decodeTicket(v); e == nil {
+				t.Fatal("decoded a WORKER entry outside KHN-V0-010")
+			}
+		})
+	}
+}

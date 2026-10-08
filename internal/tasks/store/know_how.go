@@ -10,9 +10,35 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
+
+// workerAttemptAudit re-audits a WORKER KNOWHOW_ADD with every attempt
+// record, so the model checks the named attempt, its holder and generation
+// from journal-authoritative bytes (KHN-V0-009). Other requests keep their
+// read boundary unchanged.
+func workerAttemptAudit(reader journal.Reader, inv *transaction.Inventory, actor mutation.Binding, env *mutation.Envelope, paths []string, canonical *journal.Result) ([]string, *journal.Result, error) {
+	if actor.Role != "WORKER" || env.Operation != mutation.OpKnowHowAdd {
+		return paths, canonical, nil
+	}
+	for _, file := range inv.Files() {
+		if strings.HasPrefix(file.Path, "attempts/") {
+			paths = append(paths, file.Path)
+		}
+	}
+	canonical, err := reader.Audit(paths...)
+	if err != nil {
+		return paths, nil, err
+	}
+	if canonical.StagingPresent {
+		return paths, nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
+	}
+	return paths, canonical, nil
+}
 
 // Know-how freshness states (KHN-V0-005). They are computed at read time
 // against the reader's committed HEAD and never stored.

@@ -126,8 +126,22 @@ type Policy struct {
 	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
 	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
 	HolderLiveness *HolderLiveness
-	Raw            []byte
+	// KnowHow is the optional KHN-V0-008 know-how policy; nil (the key
+	// absent) keeps WORKER without KNOWHOW_ADD.
+	KnowHow *KnowHowPolicy
+	Raw     []byte
 }
+
+// KnowHowPolicy is the KHN-V0-008 opt-in. WorkerAdd lets a WORKER issue
+// KNOWHOW_ADD on the ticket of the live attempt it holds, within the scope
+// KHN-V0-009 checks; it grants nothing else.
+type KnowHowPolicy struct {
+	WorkerAdd bool
+}
+
+// WorkerKnowHowAdd reports whether policy opts WORKER into scoped
+// KNOWHOW_ADD (KHN-V0-008). Absent or false keeps the default refusal.
+func (p *Policy) WorkerKnowHowAdd() bool { return p.KnowHow != nil && p.KnowHow.WorkerAdd }
 
 // HolderLiveness sets the CAL-V0-120 heartbeat observation TTL. It changes
 // only how reads classify a recorded heartbeat; it never fences, renews,
@@ -245,7 +259,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -419,6 +433,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		h := r.Field("holderLiveness")
 		h.Closed("heartbeatTTLSeconds")
 		p.HolderLiveness = &HolderLiveness{HeartbeatTTLSeconds: boundCount(h.Field("heartbeatTTLSeconds"), MinHeartbeatTTLSeconds, MaxHeartbeatTTLSeconds)}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "knowHow") {
+		k := r.Field("knowHow")
+		k.Closed("workerAdd")
+		p.KnowHow = &KnowHowPolicy{WorkerAdd: k.Field("workerAdd").Bool()}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

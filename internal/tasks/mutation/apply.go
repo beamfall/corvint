@@ -88,6 +88,9 @@ type Context struct {
 	// ExternalReview is the transaction layer's audited review result for
 	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
 	ExternalReview *ExternalReviewPost
+	// WorkerAttempt is the transaction layer's observation of the attempt a
+	// WORKER KNOWHOW_ADD names (KHN-V0-009); nil refuses that write.
+	WorkerAttempt *WorkerAttemptObservation
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -264,6 +267,9 @@ func (ctx *Context) permittedOps(role string) []string {
 	if ops, ok := ctx.Policy.Roles[role]; ok {
 		return ops
 	}
+	if role == "WORKER" && ctx.Policy.WorkerKnowHowAdd() {
+		return append(append([]string(nil), intent.DefaultRoleMatrix[role]...), OpKnowHowAdd)
+	}
 	return intent.DefaultRoleMatrix[role]
 }
 
@@ -312,6 +318,12 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	// §3.2 restrictions inside a permitted row.
 	switch ctx.Binding.Role {
 	case "WORKER":
+		if kp, ok := p.(*KnowHowAddPayload); ok {
+			if r := ctx.workerKnowHowScope(work, kp); r != nil {
+				return r
+			}
+			break
+		}
 		rp, ok := p.(*RefinePayload)
 		if !ok || len(rp.Present) != 1 || !rp.Has("body") {
 			return refuse(OutcomeUnauthorized, "", "WORKER may only REFINE body")

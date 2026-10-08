@@ -89,7 +89,7 @@ func ReadKnowHow(r *wire.Reader) []KnowHowEntry {
 		a := e.Field("actor")
 		a.Closed("id", "role")
 		k.ActorID = a.Field("id").Label()
-		k.ActorRole = a.Field("role").Enum("OWNER", "OPERATOR")
+		k.ActorRole = a.Field("role").Enum("OWNER", "OPERATOR", "WORKER")
 		k.RecordedAt = e.Field("recordedAt").Timestamp()
 		out = append(out, k)
 	}
@@ -259,7 +259,8 @@ func ActiveKnowHow(entries []KnowHowEntry) []KnowHowEntry {
 // validateKnowHow enforces the KHN-V0-002 relationships a closed type check
 // cannot: seq is the 1-based position, a superseding ADD and a RETRACT name
 // an earlier ADD that is still active, and an ADD carries a reason exactly
-// when it supersedes.
+// when it supersedes. A WORKER entry (KHN-V0-010) is only a non-superseding
+// ADD that records its attempt and generation.
 func (rec *Record) validateKnowHow() error {
 	active := map[wire.Count]bool{}
 	for i, k := range rec.KnowHow {
@@ -273,6 +274,9 @@ func (rec *Record) validateKnowHow() error {
 		}
 		if target != nil && !active[*target] {
 			return wire.Errorf(wire.CodeMalformed, where, "entry names note %s, which is not an earlier active note", *target)
+		}
+		if k.ActorRole == "WORKER" && (k.Operation != KnowHowAdd || k.Supersedes != nil || k.Attempt == nil || k.Generation == nil) {
+			return wire.Errorf(wire.CodeMalformed, where+"/actor/role", "a WORKER entry is a non-superseding ADD that records its attempt and generation")
 		}
 		if k.Operation == KnowHowAdd && (k.Supersedes == nil) != (k.Reason == nil) {
 			return wire.Errorf(wire.CodeMalformed, where+"/reason", "an ADD carries a reason exactly when it supersedes")
