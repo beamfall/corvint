@@ -14,7 +14,7 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669).
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -63,7 +63,8 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 ## Requirements
 
-Every requirement below is (accepted by decision 0446; V1-0956).
+AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
+(V1-0981; GitHub #669) and awaits owner acceptance.
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -218,6 +219,25 @@ Every requirement below is (accepted by decision 0446; V1-0956).
   bounded (64 router files, 4 MiB per router, 20000 states and test files, 1 MiB per test file,
   128 MiB of test source, 64 MiB map) and a breach refuses with `appmap-bound-exceeded`.
   (accepted by decision 0446; V1-0956)
+- `AMAP-V0-016`: A `.state()` name (positional or `name:`) or `parent` written as a member
+  expression `X.Y` MUST resolve to the string literal `Y` holds when `X` is a constant table the map
+  reads whole: a top-level `const X = {Y: '...'}` (optionally `as const` or wrapped in
+  `Object.freeze(...)`) or `enum X {Y = '...'}`, declared in the router file itself or exported
+  from the tracked file that a static ES `import` of `X` (named, aliased, or default via
+  `export default {...}` / `export default X`) resolves to at the map revision through the
+  contextindex web import resolver (relative paths and tsconfig/jsconfig `baseUrl`/`paths`). The
+  screen MUST carry the declaring line, then the import statement for an imported table, as
+  `name_from` / `parent_from` (AMAP-V0-010 anchors at the map revision, omitted for literals, so
+  literal-only maps are byte-identical), and those anchors join the screen's lineage freshness. Anything the map cannot prove MUST stay `UNKNOWN`
+  `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: a computed key,
+  spread or repeated key in the table; a non-string or missing member; a `let`/`var`, typed or
+  non-literal initializer; a duplicate declaration of `X` (including a merged enum); `X` both
+  declared and imported; any use of `X` in the router or declaring file other than an unassigned
+  member read, `typeof X`, `export default X` or `export { X }` (an assignment, `delete`, `++`, or
+  passing `X` along could change it); a type-only, namespace, CommonJS or re-exported binding; and
+  an import that resolves to no tracked, indexed and readable file. Each declaring file is lexed at
+  most once per build and only when a router references it. Mutation from a third module is not
+  read. Status: proposed (V1-0981; GitHub #669).
 
 ## Wire contract
 
@@ -302,7 +322,9 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   outside the class body (not callable), an import statement over 8 lines (`unread-statement`, no
   partial copy), a scheme URL whose query names a path (the root), a regular expression after a
   control-statement condition (no selector), and a router file truncated inside a state call
-  (non-literal, no panic).
+  (non-literal, no panic), and a state name or parent read through a constant table the map cannot
+  prove whole (AMAP-V0-016; `non-literal-name` / `non-literal-value`), or one another module
+  mutates at run time (not read; a static map cannot see it).
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -325,6 +347,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
+| AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`. Build log: `docs/build-log/2026-10-07-application-map.md`.
@@ -336,6 +359,10 @@ wrapper and one `flows` subcommand. Rollback removes `internal/appmap`,
 `cmd/corvint/flows_appmap.go`, `internal/contextindex/webimport_api.go`, the `flowsAppmapHelp`
 reference in `cmd/corvint/help.go` and this spec's index rows; no stored state, schema or ledger
 needs migration. Map files are explicit outputs and may be discarded.
+AMAP-V0-016 adds two optional screen members (`name_from`, `parent_from`) that literal-only maps
+omit; rolling it back removes `internal/appmap/stateconst.go`, the `member` value kind in
+`internal/appmap/jslex.go` and the lookup argument of `parseRouter`, after which those names read
+`non-literal-name` again and a map that carries the members still decodes in a build with them.
 
 ## Follow-ups (proposed tickets)
 
@@ -348,6 +375,8 @@ needs migration. Map files are explicit outputs and may be discarded.
 7. A precomputed find index for maps beyond fixture size.
 8. Re-test alias-imported specs once V1-0958 lands.
 9. Fall back to the next reuse candidate when the first page object's binding collides.
+10. AMAP-V0-016 extensions: CommonJS `require` bindings, re-exports, namespace imports
+    (`C.X.Y`), and a table reached through AngularJS dependency injection rather than an import.
 
 ## Owner questions
 

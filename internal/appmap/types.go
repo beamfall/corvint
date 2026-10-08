@@ -96,28 +96,33 @@ type Map struct {
 
 // Screen is one router state: a node of the screen graph (AMAP-V0-002, AMAP-V0-003, AMAP-V0-006).
 type Screen struct {
-	ID              string        `json:"id"`
-	State           string        `json:"state"`
-	Status          string        `json:"status"`
-	Reason          string        `json:"reason,omitempty"`
-	Template        string        `json:"template,omitempty"`
-	Key             string        `json:"key,omitempty"`
-	Parent          string        `json:"parent,omitempty"`
-	Abstract        bool          `json:"abstract,omitempty"`
-	Params          []string      `json:"params"`
-	Query           []string      `json:"query"`
-	Permissions     []string      `json:"permissions"`
-	PermissionsFrom string        `json:"permissions_from,omitempty"`
-	Flags           []string      `json:"flags"`
-	FlagsFrom       string        `json:"flags_from,omitempty"`
-	Anchor          Anchor        `json:"anchor"`
-	PageObjects     []string      `json:"page_objects"`
-	Workflows       []string      `json:"workflows"`
-	Scenarios       []string      `json:"scenarios"`
-	Specs           []Attribution `json:"specs"`
-	Flows           []string      `json:"flows"`
-	Steps           []string      `json:"steps"`
-	Preconditions   []Requirement `json:"preconditions"`
+	ID              string   `json:"id"`
+	State           string   `json:"state"`
+	Status          string   `json:"status"`
+	Reason          string   `json:"reason,omitempty"`
+	Template        string   `json:"template,omitempty"`
+	Key             string   `json:"key,omitempty"`
+	Parent          string   `json:"parent,omitempty"`
+	Abstract        bool     `json:"abstract,omitempty"`
+	Params          []string `json:"params"`
+	Query           []string `json:"query"`
+	Permissions     []string `json:"permissions"`
+	PermissionsFrom string   `json:"permissions_from,omitempty"`
+	Flags           []string `json:"flags"`
+	FlagsFrom       string   `json:"flags_from,omitempty"`
+	Anchor          Anchor   `json:"anchor"`
+	// NameFrom and ParentFrom anchor a state name or parent read through a constant table
+	// (AMAP-V0-016): the declaring line, then the import binding when the table is imported;
+	// absent for a literal.
+	NameFrom      []Anchor      `json:"name_from,omitempty"`
+	ParentFrom    []Anchor      `json:"parent_from,omitempty"`
+	PageObjects   []string      `json:"page_objects"`
+	Workflows     []string      `json:"workflows"`
+	Scenarios     []string      `json:"scenarios"`
+	Specs         []Attribution `json:"specs"`
+	Flows         []string      `json:"flows"`
+	Steps         []string      `json:"steps"`
+	Preconditions []Requirement `json:"preconditions"`
 }
 
 // Attribution says why a spec covers a screen: an import chain to a bound page object or a
