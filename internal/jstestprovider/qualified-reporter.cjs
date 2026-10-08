@@ -382,11 +382,41 @@ function effectiveUse(test, project, version, freshnessProfile = false) {
   return resolved;
 }
 
+// canonicalReporterOptions renders plain JSON data with sorted keys; anything
+// else (functions, class instances, cycles, non-finite numbers) is unknown.
+function canonicalReporterOptions(value, depth = 0, seen = new Set()) {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
+  if (typeof value !== 'object' || depth >= 32 || seen.has(value)) throw new Error('reporter-options-unknown');
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) return '[' + Array.from(value, item => canonicalReporterOptions(item, depth + 1, seen)).join(',') + ']';
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error('reporter-options-unknown');
+    return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonicalReporterOptions(value[key], depth + 1, seen)).join(',') + '}';
+  } finally { seen.delete(value); }
+}
+
+// keptReporterEntries reports every reporter Playwright received before this
+// provider entry, which must be last and carry this run's private output path.
+function keptReporterEntries(reporters, output) {
+  const own = Array.isArray(reporters) ? reporters[reporters.length - 1] : undefined;
+  if (!Array.isArray(own) || own[1]?.output !== output) return undefined;
+  return reporters.slice(0, -1).map(entry => {
+    const [name, options] = Array.isArray(entry) ? entry : [entry];
+    if (typeof name !== 'string') return {name: '', options: 'unknown'};
+    if (options === undefined) return {name, options: 'absent'};
+    try { return {name, options: 'bound', optionsDigest: crypto.createHash('sha256').update(canonicalReporterOptions(options)).digest('hex')}; }
+    catch { return {name, options: 'unknown'}; }
+  });
+}
+
 // The config supplies only a private output path. Nothing is read from stdout.
 class Reporter {
-  constructor(options) { this.freshnessProfile = options.freshnessProfile === true; this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
+  constructor(options) { this.keepReporters = options.keepReporters === true; this.freshnessProfile = options.freshnessProfile === true; this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
   onBegin(config, suite) {
 	this.schedule = {workers: config.workers, starts: []};
+    if (this.keepReporters) this.projectReporters = keptReporterEntries(config.reporter, this.path);
     this.version = config.version;
     this.files = {};
     this.configFiles = {};
@@ -465,7 +495,7 @@ class Reporter {
       if (test.state === 'passed' && test.attempts.some(a => a.state !== 'passed')) test.state = 'flaky';
     }
     if (this.hasSensitiveInput) this.errors = this.errors.map(() => redactionMarker);
-    const report = {version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {})};
+    const report = {version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {}), ...(this.keepReporters && this.projectReporters ? {projectReporters: this.projectReporters} : {})};
     fs.writeFileSync(this.path, JSON.stringify(scrubReportRiskFields(report, this.sensitiveValues)));
   }
 }

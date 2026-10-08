@@ -71,6 +71,9 @@ func qualifiedProfileShapeError(r Receipt) error {
 	if r.Freshness != nil || r.Profile == FreshnessProfile {
 		return errors.New("freshness-requires-separate-codec")
 	}
+	if err := projectReportersShapeError(r); err != nil {
+		return err
+	}
 	if r.Profile != "" && r.Profile != AttemptExternalProfile && hasAttemptDetails(r) {
 		return errors.New("external-profile-has-attempt-details")
 	}

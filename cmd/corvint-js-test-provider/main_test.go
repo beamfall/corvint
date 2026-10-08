@@ -70,6 +70,14 @@ func TestSensitiveInputPolicyRequiresExplicitProfileSelection(t *testing.T) {
 	})
 }
 
+// PWP-V0-010: the CLI option reaches RunE2E, which refuses it outside
+// external-server mode.
+func TestKeepReportersFlagRequiresExternalServer(t *testing.T) {
+	if err := runE2E([]string{"--keep-reporters"}); err == nil || !strings.Contains(err.Error(), "keep-reporters-unsupported-mode") {
+		t.Fatalf("keep-reporters without external mode err=%v", err)
+	}
+}
+
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit
 // subcommand's default --dir "." (and any other relative --dir) is resolved
 // to an absolute clean path before it reaches procgroup, which rejects a
