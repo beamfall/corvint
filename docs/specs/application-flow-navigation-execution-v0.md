@@ -6,8 +6,8 @@ Delivery status: experimental; qualification pending
 ## Agent digest
 - Claim: An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.
 - Status: proposed technical profile under AFU-V1-029; experimental; qualification pending; no API observation or per-test evidence authority.
-- Exists: immutable navigation packets, committed origin admission, bounded observer process ownership.
-- Blocked on: implementation and live safety/cleanup qualification.
+- Exists: immutable navigation packets, committed origin admission, bounded observer process ownership; `internal/appflows/navigation_execution.go` and `tools/web-flows/navigation.mjs` implement NEX-V0-001..007, locally qualified by `script/web-flows-gate` (2026-10-08 build log).
+- Blocked on: owner acceptance of this profile; external/hosted qualification is not observed.
 - Read next: Requirements; Contract; Acceptance; Rollback.
 
 ## User and scope
@@ -81,6 +81,16 @@ Execution uses the existing process-group and browser lifecycle. Maximum duratio
 the companion (default five minutes, caller may lower it); no persistent state or service is added.
 An `application-navigation-execution-receipt/0` has CALLER_REPORTED authority, passed/incomplete
 status, closed per-step outcomes, method-only traffic and cleanup facts. Recovery remains visible.
+
+Refusal codes owned by this profile (`internal/appflows/navigation_execution.go`):
+`navigation-input-refused` (flags, packet, execution input, origins or HEAD do not bind,
+NEX-V0-001/002); `navigation-execution-refused` (unmapped, duplicate or unsupported step, route,
+locator, readiness or observation, NEX-V0-002); `navigation-effect-not-granted` (effect above the
+independent maximum or not granted, NEX-V0-003); `navigation-fixture-unavailable` (missing or
+oversized input fixture, NEX-V0-002); `navigation-timeout-invalid` (non-positive or above five
+minutes); `navigation-source-drift`, `navigation-input-drift` and `navigation-provider-drift`
+(bindings changed across execution, NEX-V0-005); `navigation-receipt-invalid` (receipt does not
+bind the run or carries unclosed content, NEX-V0-005/006).
 
 ## Non-goals and failure modes
 
