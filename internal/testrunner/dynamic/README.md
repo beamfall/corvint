@@ -86,8 +86,9 @@ cardinality. A final passing report never retroactively erases process errors.
 - [Storybook test runner CLI](https://github.com/storybookjs/test-runner/blob/next/README.md)
 
 Context7 verified the applicable official API docs during implementation. Ruby reporter hook
-APIs were also checked against the exact installed framework source. Mocha execution support
-does not imply Mocha affected-analysis routing: that separate capability remains unimplemented. Tests retain actual raw
+APIs were also checked against the exact installed framework source. Mocha affected units use the same
+`mocha` runner ID; a Mocha run with file selectors is incomplete unless every observed test is in a
+selected file and every selector observed a test (`TRE-V0-024`). Tests retain actual raw
 runner reports in `testdata`; browser schema cases are explicitly labelled synthetic contract
 tests. `TestProfileOwnedReportersLive` runs disposable source only and reports a skipped test
 when an optional runtime/framework is absent. It does not silently claim qualification.

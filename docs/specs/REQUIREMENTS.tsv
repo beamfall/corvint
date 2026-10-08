@@ -2923,15 +2923,17 @@ TRE-V0-011	docs/specs/test-runner-execution-v0.md	133	SQL assertion/suite profil
 TRE-V0-012	docs/specs/test-runner-execution-v0.md	134	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
 TRE-V0-013	docs/specs/test-runner-execution-v0.md	153	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
 TRE-V0-014	docs/specs/test-runner-execution-v0.md	154	Native observations MUST contain exactly the declared device and one canonical s
-TRE-V0-015	docs/specs/test-runner-execution-v0.md	254	An argument-free invocation MUST use exactly one explicitly
-TRE-V0-016	docs/specs/test-runner-execution-v0.md	266	`cmocka-xml` MUST execute one caller-prepared, independently pinned
-TRE-V0-017	docs/specs/test-runner-execution-v0.md	274	The dedicated parser MUST validate the native group against
-TRE-V0-018	docs/specs/test-runner-execution-v0.md	321	`ginkgo-v2` MUST execute one independently pinned suite binary
-TRE-V0-019	docs/specs/test-runner-execution-v0.md	336	Selection MUST add exactly one 18th element,
-TRE-V0-020	docs/specs/test-runner-execution-v0.md	344	The dedicated parser MUST accept exactly one `ginkgo.json`
-TRE-V0-021	docs/specs/test-runner-execution-v0.md	414	A request MAY carry `expectedSelection` `{version, matcher,
-TRE-V0-022	docs/specs/test-runner-execution-v0.md	420	Plan and run admission MUST refuse, before any launch, a
-TRE-V0-023	docs/specs/test-runner-execution-v0.md	427	After native observation, shared `Normalize` MUST project each
+TRE-V0-015	docs/specs/test-runner-execution-v0.md	257	An argument-free invocation MUST use exactly one explicitly
+TRE-V0-016	docs/specs/test-runner-execution-v0.md	269	`cmocka-xml` MUST execute one caller-prepared, independently pinned
+TRE-V0-017	docs/specs/test-runner-execution-v0.md	277	The dedicated parser MUST validate the native group against
+TRE-V0-018	docs/specs/test-runner-execution-v0.md	324	`ginkgo-v2` MUST execute one independently pinned suite binary
+TRE-V0-019	docs/specs/test-runner-execution-v0.md	339	Selection MUST add exactly one 18th element,
+TRE-V0-020	docs/specs/test-runner-execution-v0.md	347	The dedicated parser MUST accept exactly one `ginkgo.json`
+TRE-V0-021	docs/specs/test-runner-execution-v0.md	417	A request MAY carry `expectedSelection` `{version, matcher,
+TRE-V0-022	docs/specs/test-runner-execution-v0.md	423	Plan and run admission MUST refuse, before any launch, a
+TRE-V0-023	docs/specs/test-runner-execution-v0.md	430	After native observation, shared `Normalize` MUST project each
+TRE-V0-024	docs/specs/test-runner-execution-v0.md	468	For runner `mocha`, `Parse` MUST reconcile the native inventory
+TRE-V0-025	docs/specs/test-runner-execution-v0.md	478	Every concrete JavaScript/TypeScript affected runner ID MUST
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

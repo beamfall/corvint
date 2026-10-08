@@ -193,12 +193,12 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `attempt-outcome-conflict` | Playwright result statuses contradict its expected/unexpected/flaky/skipped category, or retained attempts contradict the final state (including a flaky result without at least two attempts ending in pass). | `internal/testrunner/dynamic/native.go:394@21e82322`; `internal/testrunner/dynamic/native.go:398@21e82322`; `internal/testrunner/dynamic/native.go:402@21e82322`; `internal/testrunner/dynamic/native.go:406@21e82322`; `internal/testrunner/dynamic/validation.go:158@24bd514f` |
 | `attempt-sequence` | A Playwright result retry number differs from its zero-based result position. | `internal/testrunner/dynamic/native.go:364@93e0a03b` |
 | `case-error-conflict` | WDIO reports a native error for a nonfailed case, or Node reports a non-TODO pass event with an error. | `internal/testrunner/dynamic/native.go:166@7456805d`; `internal/testrunner/dynamic/browser.go:139@89d45ae9` |
-| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:261@11da83fa` |
+| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:262@11da83fa` |
 | `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:298@e3eaf1ea` |
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:75@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
-| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:99@9a0a1c7f`; `internal/testrunner/dynamic/native.go:103@74f3bece`; `internal/testrunner/dynamic/native.go:200@b6957ba2`; `internal/testrunner/dynamic/native.go:226@ad1ded29`; `internal/testrunner/dynamic/native.go:424@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:272@6144e481`; `internal/testrunner/dynamic/parse.go:279@9b100a65`; `internal/testrunner/dynamic/parse.go:332@c89d4e2d`; `internal/testrunner/dynamic/parse.go:352@5e2333a0`; `internal/testrunner/dynamic/parse.go:376@a3fc5178` |
-| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:347@3ad339db` |
+| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:99@9a0a1c7f`; `internal/testrunner/dynamic/native.go:103@74f3bece`; `internal/testrunner/dynamic/native.go:200@b6957ba2`; `internal/testrunner/dynamic/native.go:226@ad1ded29`; `internal/testrunner/dynamic/native.go:424@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:273@6144e481`; `internal/testrunner/dynamic/parse.go:280@9b100a65`; `internal/testrunner/dynamic/parse.go:333@c89d4e2d`; `internal/testrunner/dynamic/parse.go:353@5e2333a0`; `internal/testrunner/dynamic/parse.go:377@a3fc5178` |
+| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:348@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:148@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
 | `hook-or-unmatched-result` | The Cypress/Mocha result-status identity count differs from the collected test-row count. | `internal/testrunner/dynamic/browser.go:105@7ff4ce18` |
@@ -219,18 +219,20 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:211@5e6d82cd` |
 | `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:176@40fd52ec` |
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:149@7e3f3a32` |
-| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:335@503ba44e` |
+| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:336@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:334@7d964fc3` |
-| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:251@7bb3fc94`; `internal/testrunner/dynamic/parse.go:255@7bb3fc94` |
+| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:252@7bb3fc94`; `internal/testrunner/dynamic/parse.go:256@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
-| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:293@4b70a549` |
-| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:285@be9d02c7` |
+| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:294@4b70a549` |
+| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:286@be9d02c7` |
 | `section-test-conflict` | Nightwatch completed-section and completed-test records map to different states for the same name. | `internal/testrunner/dynamic/browser.go:211@7936fd1f` |
+| `selector-without-tests` | A Mocha file selector names a file with no observed test, including a missing path Mocha only warns about. | `internal/testrunner/dynamic/mocha_selection.go:47@1584fa21` |
 | `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:69@b1ab2b72` |
-| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:276@04a1c2a9` |
+| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:277@04a1c2a9` |
 | `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:250@b75d2c79` |
 | `test-bound` | Observed inventory exceeds MaxTests at the shared boundary. | `internal/testrunner/validate.go:41@e88d43a4` |
 | `unclassified-exit` | An admitted shared-boundary failure exit has no observed FAILED test. | `internal/testrunner/validate.go:125@94987f7f` |
+| `unexpected-observed-test` | A Mocha run with expected identities observes a test outside them. | `internal/testrunner/dynamic/mocha_selection.go:42@4ac5bca8` |
 | `unexplained-exit` | A dynamic runner exits nonzero without failed/timed-out/interrupted tests or any previously recorded observation problem. | `internal/testrunner/dynamic/parse.go:145@67d7a680` |
 | `unknown-attempt-state` | A Playwright attempt status maps to UNKNOWN, or the shared boundary sees an attempt state outside its admitted state enumeration. | `internal/testrunner/validate.go:86@94ec202d`; `internal/testrunner/dynamic/native.go:376@4a8c35e3` |
 | `unknown-expected-status` | A Playwright test with results has an expectedStatus that maps to UNKNOWN. | `internal/testrunner/dynamic/native.go:383@07ce9705` |
@@ -238,9 +240,10 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `unknown-node-event-kind` | A Node pass/fail event is neither a suite nor a test in its details.type. | `internal/testrunner/dynamic/native.go:155@9933433d` |
 | `unknown-retry-information` | RetryInformation is not RETAINED, NOT_REPORTED or NOT_APPLICABLE. | `internal/testrunner/validate.go:128@b82d5be8` |
 | `unknown-state` | A dynamic parsed test has state UNKNOWN. | `internal/testrunner/dynamic/parse.go:135@53bac795` |
-| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:264@045a51e8` |
+| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:265@045a51e8` |
 | `unknown-test-state` | A shared-boundary test state is outside its admitted state enumeration. | `internal/testrunner/validate.go:73@8c1af2e1` |
 | `unresolved-test-state` | A shared-boundary test state is UNKNOWN, INTERRUPTED or TIMED_OUT. | `internal/testrunner/validate.go:79@80befa5b` |
+| `unselected-test-file` | A Mocha test with file selectors reports a native file outside their lexical root-joined paths. | `internal/testrunner/dynamic/mocha_selection.go:38@b034c3f6` |
 
 ## Explicit argument-free TEST phases and CMocka (experimental)
 
@@ -452,3 +455,52 @@ including WebdriverIO, need their own matcher version.
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
 Plans without the field are unaffected, and plans that carry it then refuse as
 unknown fields.
+
+## Mocha affected selection reconciliation (experimental)
+
+The TypeScript affected adapter already registers Mocha units as
+`typescript:mocha:PATH`, and the dynamic lane has a `mocha` profile with the same
+runner ID. Mocha 12.0.3 still exits zero in two cases that break an exact
+selection: it merges configured `spec` files with positional file selectors, and
+it only warns about a positional selector that matches no file. Before this
+slice both runs produced complete observations.
+
+- `TRE-V0-024`: For runner `mocha`, `Parse` MUST reconcile the native inventory
+  with the run's literal selectors and expected identities. Each selector is
+  joined lexically to `SourceRoot` unless absolute; no path is resolved, so
+  `Parse` stays pure. A test whose native file is outside those paths
+  (`unselected-test-file`), a selector with no observed test
+  (`selector-without-tests`) and, when expected identities are present, an
+  observed identity outside them (`unexpected-observed-test`) make the
+  observation incomplete. A non-canonical root, a directory selector or a
+  subset of expected identities therefore stays incomplete. A run without
+  selectors keeps its earlier inventory behaviour. Status: proposed (V1-0598).
+- `TRE-V0-025`: Every concrete JavaScript/TypeScript affected runner ID MUST
+  name a dynamic execution profile with the same ID, and the affected `unknown`
+  runner MUST NOT name one. Status: proposed (V1-0598).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-024 | `mocha_selection.go`, `Parse`; `TestMochaSelectionReconciliation`, `TestMochaSelectionLeavesOtherRunnersUnchanged`, `TestMochaActualSelectionQualification`, `TestMochaBuildExecuteParse` | Synthetic profile-owned reports, plus an opt-in run of real Mocha 12.0.3 on Node 22.23.3 over six Git fixtures |
+| TRE-V0-025 | `TestRunnerRegistrationsHaveExecutionProfiles` | The fifteen runner constants in the TypeScript adapter against `dynamic.Runners()` |
+
+The opt-in qualification derives Mocha selectors from the affected plan only
+when the plan is `BOUNDED` and every selected unit is Mocha-owned. Its six
+fixtures are: an exact selection, which reconciles selected file, expected
+identity and observed identity; a no-match selector beside a real one; a
+selected file with no tests; a change no test reaches; a `.mocharc.json` whose
+`spec` adds another file; and Mocha plus Jest configuration. The last three
+plans are `UNKNOWN` and yield no selectors. The configured-spec fixture also
+runs the narrowed selector anyway, and its receipt is incomplete. The fixture
+worktrees are unchanged after each run.
+
+Recorded limits. One local tuple was run: Mocha 12.0.3 installed with npm under
+a scratch directory, Node 22.23.3, macOS arm64. ESM, TypeScript loaders,
+parallel mode, root hooks and `--recursive` directory selection are NOT_RUN.
+Configured Mocha discovery stays a selection unknown, not a resolved spec list.
+Full dependency closure stays NOT_OBSERVED. The plan-to-selector derivation is
+qualification code, not a shipped command.
+
+Rollback removes `mocha_selection.go`, its call in `Parse` and the tests above.
+Mocha observations then return to their earlier completeness, and no wire,
+plan or receipt field changes.

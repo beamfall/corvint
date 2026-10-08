@@ -72,7 +72,11 @@ func TestMochaBuildExecuteParse(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	root := t.TempDir()
+	// Mocha reports resolved native paths, and selector reconciliation is lexical.
+	root, e := filepath.EvalSymlinks(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
 	source := []byte(`const assert=require('node:assert/strict');describe('fixture',function(){it('pass',()=>{});it('fail',()=>assert.equal(1,2));it.skip('skip',()=>{});it('retry',function(){this.retries(1);assert.equal(this.test.currentRetry(),1)});});`)
 	if e = os.WriteFile(filepath.Join(root, "sample.cjs"), source, 0600); e != nil {
 		t.Fatal(e)
