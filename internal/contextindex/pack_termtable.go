@@ -138,8 +138,10 @@ func u64View(data []byte) []uint64 {
 	return values
 }
 
-// stringView aliases data as a string. The mapping is read-only and lives
-// for the process, so the alias is never written and never dangles.
+// stringView aliases data as a string. Over the string section the data is
+// the file's heap copy (packFile.heapStrings), so the alias outlives the
+// mapping. Over a mapped term table key run it is valid only until the
+// Index's lease is released; those keys never leave the term table.
 func stringView(data []byte) string {
 	if len(data) == 0 {
 		return ""

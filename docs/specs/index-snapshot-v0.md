@@ -236,6 +236,9 @@ sectioned file exists only behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=s
   fallback are unchanged. Amended 2026-09-13 (decision 0210): when two first reads of one file race,
   the one that loses the retention releases its own mapping and decodes from the retained one. One
   file therefore keeps one mapping under concurrency too.
+  Amended 2026-10-07 (proposed, V1-0983, `IDX-SNAP-V0-028`): eviction releases the retention's
+  reference instead of only dropping it; the mapping is unmapped once every Index read from it has
+  also been released, and stays mapped while one has not.
 - Amended 2026-09-12 (second), `IDX-SNAP-V0-014` unchanged in scope: the section table and the
   source table are self-attested, so a matching digest does not bound their offsets. The read
   refuses the whole file as the `IDX-SNAP-V0-003` miss when a section's offset and length, or a
@@ -297,26 +300,29 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   registration, releases its own mapping, and decodes from the retained one. Amended 2026-09-13
   (bug hunt): dropping the registration also clears its ring slot, so the index the loser never
   handed out is not kept reachable until a later registration reuses that slot.
+  Amended 2026-10-07 (proposed, V1-0983, `IDX-SNAP-V0-028` to `IDX-SNAP-V0-030`): eviction
+  releases the retention's reference rather than only dropping it, and the mapping is unmapped once
+  every Index read from it has also been released; an unreleased Index keeps it mapped as before.
+  The strings the read hands out, the co-change entries included, now come from one heap copy of
+  the verified string section per retained file and no longer alias the mapping.
 - Amended 2026-10-07 (proposed, V1-0947; no GitHub issue), `IDX-SNAP-V0-014` and `IDX-SNAP-V0-015`
   unchanged in scope: the four-slot bound limits retained files, not live mappings. Values copied
-  out of an Index (string-table views such as `Symbol.Path`, `Source.Data`, the `Source.Text`
-  view) alias the mapping without keeping the Index or any owner object reachable, so neither
-  eviction nor the Index becoming unreachable proves the bytes unused. A mapping a successful read
-  retained is therefore never unmapped; the process keeps it in a per-format table, keyed like the
-  retention (path, size, modification time and header digest), until it exits. A later read of an
-  evicted file with the same key adopts that mapping and releases its own fresh one, which only
-  the header read touched, so live mappings are bounded by the distinct keys a process reads, not
-  by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`); a read whose concurrent first read
-  kept a mapping that was evicted during its decode retains the kept one and decodes again
-  (`TestRetainKeepsOneMappingWhenEvictedDuringDecode`). The key is sound without inode or
-  change time: the header digest commits to every section digest, and every snapshot writer
-  replaces the file by rename, never in place. A file the store has since deleted or replaced keeps
-  its blocks allocated while its old mapping lives. Unmapping on eviction, or from a runtime cleanup
-  of the Index or of the mapping owner, faults on those escaped values;
-  `TestEvictedMappingsStayValidForEscapedAliases` guards that. Bounding live mappings by lifetime is
-  deferred to a follow-up: it needs either an explicit lease or `Close` for every value that
-  aliases a mapping, with copy-out at each boundary that can outlive it, or heap-backed bytes,
-  which this clause's 8 MB heap row excludes.
+  out of an Index (`Source.Data`, the `Source.Text` view, and before V1-0983 the string-table views
+  such as `Symbol.Path`) alias the mapping without keeping the Index or any owner object reachable,
+  so neither eviction nor the Index becoming unreachable proves the bytes unused. The process keeps
+  each live mapping in a per-format table, keyed like the retention (path, size, modification time
+  and header digest). A later read of an evicted file with the same key adopts that mapping and
+  releases its own fresh one, which only the header read touched, so live mappings are bounded by
+  the distinct keys a process reads, not by its cache misses (`TestEvictedReadsAdoptOneMappingPerFile`).
+  A read adopts or registers the key's mapping before it decodes, so a concurrent first read whose
+  retention is evicted during that decode shares the same mapping and the key never holds two
+  (`TestRetainKeepsOneMappingWhenEvictedDuringDecode`). The key is sound without inode or change
+  time: the header digest commits to every section digest, and every snapshot writer replaces the
+  file by rename, never in place. Unmapping on eviction, or from a runtime cleanup of the Index or of
+  the mapping owner, faults on those escaped values; `TestEvictedMappingsStayValidForEscapedAliases`
+  guards that. A mapping leaves the table and is unmapped only when its last reference is released
+  (V1-0983, `IDX-SNAP-V0-028` to `IDX-SNAP-V0-030`); while any Index read from it is unreleased, it
+  stays, and a file the store has since deleted or replaced keeps its blocks allocated.
 - Amended 2026-09-12, `IDX-SNAP-V0-015` narrowed for one verb: the task-packet `context` verb's
   read (`LoadContextSnapshotDeferred`) verifies every section except `bodies` before decoding, as
   above, and verifies a body's blocks when the packet first reads that body, before any byte of it
@@ -632,6 +638,57 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   `internal/contextindex/legacy_store.go`, the `sweepLegacyStore` call in `WriteSnapshot`, the
   three receipt fields and `legacyLeftPayload`; the legacy directory is then kept as before and
   can be removed by hand (it is disposable derived state).
+
+### Proposed (2026-10-07, V1-0983, not accepted): bounded snapshot mapping lifetime
+
+Pack and sectioned mappings were never unmapped: eviction dropped the ring's reference, and every
+earlier Index, and every string or slice a caller took from it, could still alias the bytes. A
+long-lived reader that opens more distinct snapshot files than the ring holds therefore kept every
+mapping, and a deleted snapshot file's blocks stayed allocated until the process exited. Unmapping
+on eviction, or from a collector cleanup when the Index became unreachable, faults on such an
+alias, because a Go string or slice into a mapping keeps no Go object alive. Both were reproduced
+as a SIGSEGV by `TestEvictedPackMappingKeepsEscapedAliasesValid`
+(`docs/build-log/2026-10-07-v1-0983-snapshot-mapping-lifetime.md`).
+
+- `IDX-SNAP-V0-028`: (proposed (V1-0983)) each pack or sectioned mapping MUST carry an explicit
+  reference count: one reference for the opener, which the retention ring takes over when it
+  retains the file, and one for each non-compact Index a read hands out, taken before the file is
+  retained or, on a retained hit, under the ring's lock. Eviction, a lost retention race and a
+  refused read release their reference, and `(*Index).Release` releases the Index's, once for the
+  Index and every copy of it. The mapping is unmapped only when the count reaches zero, never on
+  eviction alone and never because an Index became unreachable. Release is optional: an Index never
+  released keeps its mapping valid for the process's life, exactly as before. A compact read
+  copies its one field and takes no reference. Falsifier: an unreleased Index's aliases fault or
+  change after eviction and collection, a released and evicted mapping keeps a reference, or the
+  counts race. Tests: `TestEvictedPackMappingKeepsEscapedAliasesValid`,
+  `TestReleasedEvictedPackMappingUnmaps`, `TestCompactPackReadTakesNoLease`,
+  `TestConcurrentSnapshotReadReleaseEvict` (also under `-race`).
+- `IDX-SNAP-V0-029`: (proposed (V1-0983)) every string a pack read hands out (Source `Path`,
+  `BlobHash` and `Mode`, Symbol fields, `Tracked` and `Skipped` keys, `Vocabulary.Paths`, and the
+  co-change history) MUST be heap-backed, served from one copy of the verified string section made
+  once per mapped file, so it stays valid after the mapping is unmapped. The values that alias the
+  mapping are lease-scoped: after `Release`, the caller MUST NOT read the Index's `Source.Data`,
+  any `Source.Text` result, its `Vocabulary` term postings, or a value derived from them without
+  copying. A sectioned read maps only `Source.Data`; its other fields are gob-decoded to the heap.
+  `internal/doccorpus` already copies a source's text before keeping it. Falsifier: a released,
+  evicted, unmapped read's strings fault or change. Test: `TestReleasedEvictedPackMappingUnmaps`
+  (its negative control, serving strings from the mapping, faults).
+- `IDX-SNAP-V0-030`: (proposed (V1-0983)) a process that reads and releases more distinct pack or
+  sectioned files than its ring holds MUST keep at most the ring capacity (four) of that format
+  mapped, and once a deleted file's retention is evicted and its reads released, nothing in the
+  process may hold the file: the descriptor is closed when the read returns and the mapping is
+  unmapped, so its blocks are freed. Falsifier: more live mappings than the capacity, or a mapping
+  of a deleted, evicted, released file still live. Test:
+  `TestDistinctSnapshotReadsKeepBoundedMappings`.
+
+Callers wired: the analyzer pack probe (`probeAnalyzerPack`) releases the index it discards.
+Unwired: the MCP bridge's `context` call returns a Result whose packet is serialized after the
+call, and that packet may hold body text, so releasing there needs an escape audit first; until
+then it keeps the earlier behaviour. One-shot CLI verbs exit instead. Non-goals: a process-wide
+mapping per file identity (V1-0947) and any change to the file bytes, the refusal rules or the gob
+fallback. Rollback: delete `internal/contextindex/snapshot_mapping.go` and the `owner`, `strings`
+and `lease` fields, restore `retainedPack`/`retainPack`/`retainedSectioned`/`retainSectioned` and
+`viewStrings` in `eventTables`; eviction then drops references without unmapping again.
 
 ## Non-goals and authority
 

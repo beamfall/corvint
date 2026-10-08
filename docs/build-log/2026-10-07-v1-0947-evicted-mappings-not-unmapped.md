@@ -71,3 +71,12 @@ Lifetime-bounded unmapping is deferred to a follow-up, which needs an owner choi
 V1-0944 and V1-0947 each bumped the analyzer schema to `corvint-analyzer/110` independently. Batch C
 combines both changes as `corvint-analyzer/111`, with a new audited input SHA in
 `internal/contextindex/analyzer_schema_test.go`.
+
+## Merge with V1-0983
+
+V1-0983 chose the explicit lifetime: a refcounted owner, an `Index.Release` lease, and heap copies of
+handed-out strings. When the two branches merged, this table became that ticket's table of live
+owners keyed by the same identity, so adoption and the one-mapping-per-key bound remain. A mapping
+now leaves the table and is unmapped only after its last reference is released. An Index that is
+never released still keeps its mapping valid. See
+`docs/build-log/2026-10-07-v1-0983-snapshot-mapping-lifetime.md`.
