@@ -219,6 +219,10 @@ type ExternalLifecycle struct {
 type ProjectReporters struct {
 	Entries []ProjectReporter `json:"entries"`
 	Effects string            `json:"effects"`
+	// Qualification is the caller-supplied keep-reporters qualification
+	// record (PWP-V0-016). It is present only when the run was given one, and
+	// the projection recomputes whether it matches this receipt.
+	Qualification *KeepReportersQualification `json:"qualification,omitempty"`
 }
 
 // ProjectReporter is one kept entry as Playwright received it. Module is

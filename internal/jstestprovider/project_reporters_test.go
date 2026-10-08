@@ -18,7 +18,7 @@ import (
 func keptFixture(t *testing.T) Receipt {
 	t.Helper()
 	r := qualifiedFixture(t)
-	r.External.ConfigOverride = "controlled-fixture-config" + keepReportersOption + "}]]};\n"
+	r.External.ConfigOverride = "controlled-fixture-config" + keptConfigSuffix
 	r.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("b", 64)
 	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
 	if err := bindProjectReporters(&r, []reportedProjectReporter{
@@ -61,8 +61,8 @@ func evaluateReporters(t *testing.T, config string) (string, error) {
 	return string(out), err
 }
 
-// PWP-V0-010: keep mode appends the provider reporter after every project
-// reporter, resolving module paths and built-in output paths from the
+// PWP-V0-010, PWP-V0-014: keep mode places the provider reporter before every
+// project reporter, resolving module paths and built-in output paths from the
 // original config directory.
 func TestKeptReporterListResolution(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -115,9 +115,13 @@ func TestKeptReporterListResolution(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%v\n%s", err, out)
 			}
-			provider := `["` + filepath.Join(scratch, "reporter.cjs") + `",{"output":"` + reportPath + `","sensitiveInputPolicy":null,"keepReporters":true}]]`
-			if out != test.want+provider {
-				t.Fatalf("kept list:\n got %s\nwant %s", out, test.want+provider)
+			want := `[["` + filepath.Join(scratch, "reporter.cjs") + `",{"output":"` + reportPath + `","sensitiveInputPolicy":null,"keepReporters":true}]`
+			if entries := strings.TrimSuffix(strings.TrimPrefix(test.want, "["), ","); entries != "" {
+				want += "," + entries
+			}
+			want += "]"
+			if out != want {
+				t.Fatalf("kept list:\n got %s\nwant %s", out, want)
 			}
 		})
 	}
