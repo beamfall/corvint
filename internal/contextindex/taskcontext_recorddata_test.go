@@ -153,3 +153,40 @@ func TestIsRecordDataSuffix(t *testing.T) {
 		}
 	})
 }
+
+// TestTaskContextRecencyKeepsTheRecordDataGate is the review finding against
+// TCP-V0-063 with TCP-V0-035 on: a recent deferred record must reorder inside
+// the record-data positions the gate gave it, not climb past the code it was
+// gated behind. data/f.json is the only recent file; before the fix the
+// recency reorder sorted it with the code rows into the head.
+func TestTaskContextRecencyKeepsTheRecordDataGate(t *testing.T) {
+	t.Run("TCP-V0-063 TCP-V0-035 a recent record stays inside the record-data positions", func(t *testing.T) {
+		root := recencyRepository(t)
+		writeTestFile(t, root, "code/01.go", "package code\n\n// needle signal\n")
+		for index := 2; index <= 6; index++ {
+			writeTestFile(t, root, fmt.Sprintf("code/%02d.go", index), "package code\n\n// needle signal alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu\n")
+		}
+		for index := range 5 {
+			writeTestFile(t, root, fmt.Sprintf("data/%c.json", 'a'+index), "{\"needle\": \"signal\", \"one\": \"two three four\"}\n")
+		}
+		recencyCommit(t, root, recencyOldDate, "old sources")
+		writeTestFile(t, root, "data/f.json", "{\"needle\": \"signal\", \"one\": \"two three four\"}\n")
+		recencyCommit(t, root, recencyNewDate, "new record")
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, got, lines := recordDataPacket(t, index, "needle signal", 8)
+		want := []string{
+			"lexical code/01.go", "lexical code/02.go", "lexical code/03.go", "lexical code/04.go",
+			"lexical data/f.json", "lexical data/a.json", "lexical code/05.go", "lexical code/06.go",
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("packet = %v, want the recent record promoted only inside the record-data positions: %v", got, want)
+		}
+		if len(lines) != 2 || !strings.HasPrefix(lines[1], "4 record-data rows that outscore a carried code row are omitted by the record-data gate (2 admitted below the strongest code row); the strongest is `data/b.json` (bm25 ") {
+			t.Fatalf("coverage.uncertainty = %q, want the gate line read from the carried rows", lines)
+		}
+	})
+}

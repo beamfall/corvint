@@ -64,8 +64,16 @@ difference.
 A record-data hit takes no head position and no documentation share position. It joins the merged
 order when it outscores every other code hit competing for the fill, or as one of the first two
 that do not (`contextRecordDataQuota`); the rest follow every code hit and every deferred
-documentation hit. `coverage.uncertainty` gains one line when deferred record-data hits the packet
-does not carry outscore a carried code hit, naming the count and the strongest.
+documentation hit. `coverage.uncertainty` gains one line when record-data hits the packet does not
+carry outscore a carried code hit, naming the count and the strongest.
+
+Independent review (Codex, read-only) found that with `CORVINT_CONTEXT_RECENCY=on` the TCP-V0-035
+reorder sorted every `lexical` row together, so a recent deferred record climbed past the code it
+was gated behind (reproduced: `data/f.json` moved to the first position at limit 8). Fixed:
+`recencyLexical` reorders record data inside its own positions, and the gate line reads every
+record-data hit against the carried rows, as the share line does for documentation; pinned by
+`TestTaskContextRecencyKeepsTheRecordDataGate`, which fails against the unfixed reorder. Recency is
+off by default, so the measured numbers below are unchanged.
 
 ## Measured before and after (development evidence)
 
@@ -110,11 +118,12 @@ rule and cannot validate it.
   `taskcontext.go` is a pinned input. The change is query-time ranking and alters no pack fact or
   encoding, so by the 2026-10-07 precedent (`8208764d`) the schema stays `corvint-analyzer/112` and
   only the audited input SHA moves, to
-  `e1baefa630de206d4a85d94b6371c09d2bfb48400f4196b7487c5ddad1d98a34`. This lane's attempt to repin
+  `ebbf9b01c1b0d73be9ef700e4d99ea20e4eae23e1331769411ec72f473104026`. This lane's attempt to repin
   it was refused by the session's permission policy, so the repin is an owner step.
 
 ## Rollback
 
-Delete `isRecordDataSuffix`, `contextRecordDataQuota`, the `data` field, the `lexicalCode` and
-`lexicalData` fields, the record-data branch and lead in `lexicalRows`, the record-data line in
-`lexicalCoverage` and `taskcontext_recorddata_test.go`. No state persists; no golden changed.
+Delete `isRecordDataSuffix`, `contextRecordDataQuota`, the `data` field, the `lexicalCode`,
+`lexicalData` and `lexicalRecords` fields, the record-data branch and lead in `lexicalRows`, the
+record-data line in `lexicalCoverage`, the record-data class in `recencyLexical` and
+`taskcontext_recorddata_test.go`. No state persists; no golden changed.

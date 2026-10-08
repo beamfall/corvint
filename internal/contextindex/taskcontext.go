@@ -135,10 +135,13 @@ type taskContextCompiler struct {
 	// lexicalCode is the code hits that competed for the lexical fill's
 	// positions (neither documentation, record data nor held) and
 	// lexicalData the record-data hits the gate deferred past every code
-	// and deferred documentation hit (TCP-V0-063), in strength order, for
-	// the record-data line of the coverage statement.
-	lexicalCode []string
-	lexicalData []lexicalHit
+	// and deferred documentation hit (TCP-V0-063), in strength order, and
+	// lexicalRecords every record-data hit that competed for the fill, which
+	// the record-data line of the coverage statement reads against the
+	// carried rows, so a recency reorder (TCP-V0-035) cannot hide one.
+	lexicalCode    []string
+	lexicalData    []lexicalHit
+	lexicalRecords []lexicalHit
 	// lexicalFill and lexicalShare are the positions the lexical fill could
 	// take and the documentation share of them, for TCP-V0-061's statement.
 	lexicalFill, lexicalShare int
@@ -1360,6 +1363,7 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 	deferred := make([]lexicalHit, 0)
 	compiler.lexicalDocumentation = compiler.lexicalDocumentation[:0]
 	compiler.lexicalData = compiler.lexicalData[:0]
+	compiler.lexicalRecords = compiler.lexicalRecords[:0]
 	headTaken, documentation := 0, 0
 	for _, item := range hits {
 		if !item.documentation && !item.data && !held[item.path] && headTaken < head {
@@ -1399,6 +1403,7 @@ func (compiler *taskContextCompiler) lexicalRows(taken, limit int) []contextRow 
 		switch {
 		case held[item.path]:
 		case item.data:
+			compiler.lexicalRecords = append(compiler.lexicalRecords, item)
 			if item.score <= dataLead {
 				if dataTrailing == contextRecordDataQuota {
 					compiler.lexicalData = append(compiler.lexicalData, item)
@@ -1599,9 +1604,9 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 		lines = append(lines, fmt.Sprintf("%d documentation rows that outscore a carried code row are omitted by the documentation share (%d of %d lexical positions); the strongest is `%s` (bm25 %.2f)",
 			stronger, compiler.lexicalShare, compiler.lexicalFill, strongest.path, strongest.score))
 	}
-	// TCP-V0-063: the record-data hits the gate deferred that the packet does
-	// not carry and that outscore the weakest code hit it carries, which the
-	// gate rather than their strength omitted.
+	// TCP-V0-063: the record-data hits the packet does not carry that
+	// outscore the weakest code hit it carries, which the gate rather than
+	// their strength omitted.
 	weakestCarried, carriedCode := 0.0, false
 	for _, path := range compiler.lexicalCode {
 		if _, ok := carried[path]; !ok {
@@ -1613,7 +1618,7 @@ func (compiler *taskContextCompiler) lexicalCoverage(coverage map[string]any, ro
 		carriedCode = true
 	}
 	gated, strongestData := 0, lexicalHit{}
-	for _, hit := range compiler.lexicalData {
+	for _, hit := range compiler.lexicalRecords {
 		if _, ok := carried[hit.path]; ok || withheld || !carriedCode || hit.score <= weakestCarried {
 			continue
 		}

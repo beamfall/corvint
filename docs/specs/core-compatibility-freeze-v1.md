@@ -211,8 +211,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
   | Member | `tool` | Values | Status | Source |
   |---|---|---|---|---|
-  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:2487@3f21cab9` |
-  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:2252@9847248b` |
+  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:2492@3f21cab9` |
+  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:2257@9847248b` |
   | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
   | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
   | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |
@@ -226,7 +226,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:123@7320d4cb` |
   | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:144@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1730@b984fed9` |
-  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3349@c020e4b8` |
+  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3354@c020e4b8` |
   | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:201@56442382` |
   | `context.intent.confidence` | `query` | `default`, `high` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:497@1f684e46` |
   | `context.learning.local_trace_state` | `query` | `absent`, `ready`, `blocked-mixed-worktree` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:62@4b83d4fe` |
@@ -243,8 +243,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:48@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:684@f6741c9b`, `internal/liveverify/affected/select.go:58@884d7796` |
   | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:435@56698a09`, `internal/contextindex/index.go:1314@f6b4c05b`, `internal/contextindex/index.go:1318@14914a09`, `internal/contextindex/index.go:1321@f91f4e9c`, `internal/contextindex/index.go:510@4b59a221`, `internal/contextindex/index.go:696@e27ec283`, `internal/contextindex/index.go:35@b7c4315f` |
-  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2334@f3806eef`, `internal/contextindex/taskcontext.go:252@7b32d74a`, `internal/contextindex/taskcontext.go:253@4da20476`, `internal/contextindex/taskcontext.go:254@73a4650c` |
-  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2334@f3806eef`, `internal/contextindex/taskcontext.go:253@4da20476`, `internal/contextindex/taskcontext.go:254@73a4650c` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2339@f3806eef`, `internal/contextindex/taskcontext.go:255@7b32d74a`, `internal/contextindex/taskcontext.go:256@4da20476`, `internal/contextindex/taskcontext.go:257@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2339@f3806eef`, `internal/contextindex/taskcontext.go:256@4da20476`, `internal/contextindex/taskcontext.go:257@73a4650c` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -278,16 +278,16 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   With subject ancestors, additional `governing` rows can be missing at that limit (V1-0411).
   Both relation rows remain `open`: a reader decides on
   `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
-  no `trust` member (`internal/contextindex/taskcontext.go:2334@f3806eef`). Commit 53c02369 (panel B9,
+  no `trust` member (`internal/contextindex/taskcontext.go:2339@f3806eef`). Commit 53c02369 (panel B9,
   IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
   a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
   addition is compatible. NOT_PRODUCED: the `relation` and `trust` of `coverage.governance_refused`,
   because no generator writes such a row. `compiler.reserved` is set only from `reservedRows`
-  (`internal/contextindex/taskcontext.go:328@fa0fd17b`), whose rows carry the authorities
+  (`internal/contextindex/taskcontext.go:331@fa0fd17b`), whose rows carry the authorities
   `project-instructions`, `instruction-reference` and `repository-spec`
-  (`internal/contextindex/taskcontext.go:1801@63777acc`,
-  `internal/contextindex/taskcontext.go:1926@311e8949`,
-  `internal/contextindex/taskcontext.go:2105@fb467aad`).
+  (`internal/contextindex/taskcontext.go:1806@63777acc`,
+  `internal/contextindex/taskcontext.go:1931@311e8949`,
+  `internal/contextindex/taskcontext.go:2110@fb467aad`).
   `trustByAuthority` maps all three to `project-authority`
   (`internal/contextindex/trust.go:30@85e0d739`, `internal/contextindex/trust.go:31@cf0b32e7`,
   `internal/contextindex/trust.go:32@5fc23f25`), which is not

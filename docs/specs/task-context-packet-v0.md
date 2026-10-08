@@ -1073,8 +1073,9 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   after the share line, states `K record-data rows that outscore a carried code row are omitted
   by the record-data gate (Q admitted below the strongest code row); the strongest is \`path\`
   (bm25 X)`, `Q` being the quota; it is absent when TCP-V0-016 withholds the ordinary rows. The
-  gate reads no new input, widens no walk and changes no slot other than the lexical fill.
-  Falsifier: a held-out orientation run whose gold record-data file the gate defers while a
+  gate reads no new input, widens no walk and changes no slot other than the lexical fill. Under
+  TCP-V0-035 record data reorders only inside the positions the gate gave it, and the line reads
+  every record-data hit against the carried rows. Falsifier: a held-out orientation run whose gold record-data file the gate defers while a
   weaker code row is carried, or whose critical rows carried fall against the TCP-V0-059 packet.
   The development replay already shows one such deferral at limit 50 (`docs/specs/INDEX.json` in
   pull request 557, behind two task-store records) against two code rows gained.
@@ -1391,7 +1392,9 @@ TCP-V0-063 (V1-0859, V1-0431): `TestTaskContextRecordDataIsGatedLikeDocumentatio
 and its gate line, a record-data hit that outscores every code hit keeping its position without
 spending the quota, deferred record data following the deferred documentation, YAML staying code,
 a held record-data path spending no quota, record data without competing code ranked by strength,
-and the gate line absent under TCP-V0-016's verdict; `TestIsRecordDataSuffix` pins the class.
+and the gate line absent under TCP-V0-016's verdict; `TestTaskContextRecencyKeepsTheRecordDataGate`
+pins a recent record reordered only inside the record-data positions under TCP-V0-035, with the
+gate line read from the carried rows; `TestIsRecordDataSuffix` pins the class.
 Measured development evidence (rc.2 cases and the five-PR replay, before and after) is in
 `docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`; held-out validation is not run.
 
@@ -1455,10 +1458,10 @@ re-capture
 the recipe golden. No state persists.
 
 The record-data gate (TCP-V0-063) rolls back alone: delete `isRecordDataSuffix`,
-`contextRecordDataQuota`, the `data` field of `lexicalHit`, the `lexicalCode` and `lexicalData`
-fields, the record-data branch and lead in `lexicalRows`, the record-data line in
-`lexicalCoverage` and `taskcontext_recorddata_test.go`, and restore the `!item.documentation`
-head and count conditions. No state persists.
+`contextRecordDataQuota`, the `data` field of `lexicalHit`, the `lexicalCode`, `lexicalData` and
+`lexicalRecords` fields, the record-data branch and lead in `lexicalRows`, the record-data line in
+`lexicalCoverage`, the record-data class in `recencyLexical` and `taskcontext_recorddata_test.go`,
+and restore the `!item.documentation` head and count conditions. No state persists.
 
 The positional task (TCP-V0-062) rolls back alone: delete the positional collection, the switch
 before `checkContextViewArguments` and `contextPositionalTaskRefusal` in `cmd/corvint/taskcontext.go`,
@@ -1507,7 +1510,7 @@ positional is then `unrecognized arguments` again. No state persists and no pack
 | TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
 | TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
 | TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
-| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderClass`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
@@ -1531,5 +1534,5 @@ positional is then `unrecognized arguments` again. No state persists and no pack
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
 | TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
 | TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
-| TCP-V0-063 | `isRecordDataSuffix`, `lexicalRows` (`contextRecordDataQuota`, `lexicalData`), `lexicalCoverage` (`lexicalCode`) | `TestTaskContextRecordDataIsGatedLikeDocumentation`, `TestIsRecordDataSuffix` |
+| TCP-V0-063 | `isRecordDataSuffix`, `lexicalRows` (`contextRecordDataQuota`, `lexicalData`, `lexicalRecords`), `lexicalCoverage` (`lexicalCode`), `recencyLexical` (`internal/contextindex/recency.go`) | `TestTaskContextRecordDataIsGatedLikeDocumentation`, `TestTaskContextRecencyKeepsTheRecordDataGate`, `TestIsRecordDataSuffix` |
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
