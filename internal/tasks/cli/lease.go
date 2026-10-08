@@ -57,7 +57,7 @@ var leaseValueFlags = map[string]bool{
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
 	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
-	"--lock-wait": true,
+	"--lock-wait": true, "--lease-expires-at": true,
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait.
@@ -175,7 +175,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -210,6 +210,10 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	}
 	if value, supplied := parsed.values["--share-allocation"]; supplied && value == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--share-allocation needs an allocation id"))
+	}
+	// CAL-V0-191: an empty expiry must not read as an unfenced reap.
+	if value, supplied := parsed.values["--lease-expires-at"]; supplied && (name != "reap" || value == "") {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--lease-expires-at belongs to reap and needs a timestamp"))
 	}
 	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
 		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {

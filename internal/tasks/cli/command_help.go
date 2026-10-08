@@ -196,7 +196,7 @@ var commandUsage = map[string]string{
 	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--timing] [--role ROLE]",
 	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
 	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
-	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
+	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]] [--role ROLE]",
 	"widen":              "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"attempt show":       "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",

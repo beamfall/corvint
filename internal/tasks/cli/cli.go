@@ -381,7 +381,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
-		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
+		"corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
