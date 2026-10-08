@@ -120,7 +120,7 @@ func ReadKnowHow(r *wire.Reader) []KnowHowEntry {
 		a := e.Field("actor")
 		a.Closed("id", "role")
 		k.ActorID = a.Field("id").Label()
-		k.ActorRole = a.Field("role").Enum("OWNER", "OPERATOR")
+		k.ActorRole = a.Field("role").Enum("OWNER", "OPERATOR", "WORKER")
 		k.RecordedAt = e.Field("recordedAt").Timestamp()
 		out = append(out, k)
 	}
@@ -376,7 +376,9 @@ func KnowHowPins(anchors []KnowHowAnchor) []wire.KnowHowPin {
 // cannot: seq is the 1-based position, a superseding ADD, a RETRACT and a
 // RECONFIRM name an earlier ADD that is still active, an ADD carries a
 // reason exactly when it supersedes, and a RECONFIRM re-pins the note's
-// effective anchors with at least one STALE change (KHN-V0-019).
+// effective anchors with at least one STALE change (KHN-V0-019). A WORKER
+// entry (KHN-V0-023) is only a non-superseding ADD that records its attempt
+// and generation.
 func (rec *Record) validateKnowHow() error {
 	active := map[wire.Count]bool{}
 	pins := map[wire.Count][]KnowHowAnchor{}
@@ -391,6 +393,9 @@ func (rec *Record) validateKnowHow() error {
 		}
 		if target != nil && !active[*target] {
 			return wire.Errorf(wire.CodeMalformed, where, "entry names note %s, which is not an earlier active note", *target)
+		}
+		if k.ActorRole == "WORKER" && (k.Operation != KnowHowAdd || k.Supersedes != nil || k.Attempt == nil || k.Generation == nil) {
+			return wire.Errorf(wire.CodeMalformed, where+"/actor/role", "a WORKER entry is a non-superseding ADD that records its attempt and generation")
 		}
 		if k.Operation == KnowHowReconfirm {
 			if why := KnowHowReconfirmRefusal(pins[k.Note], k.Anchors); why != "" {

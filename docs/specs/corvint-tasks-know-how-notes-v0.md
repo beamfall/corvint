@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,9 +15,9 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
-- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses.
-- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964) and KHN-V0-016..020 (V1-0963); owner question 8 (V1-0962); durable qualification; Core packet delivery and a WORKER grant (V1-0987) are non-goals here.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023).
+- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963) and KHN-V0-021..023 (V1-0987); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -64,8 +64,9 @@ screen and no audited history, and it does not reach a claim.
   - `seq` is the 1-based position.
   - A superseding ADD and every RETRACT name an earlier ADD that is still active, and carry a
     nonblank reason of 1..512 bytes. A non-superseding ADD carries no reason.
-  - `actor` is `{id, role}`, with role OWNER or OPERATOR.
-  - `attempt`, `generation` and `evidencePath` are optional writer-asserted provenance.
+  - `actor` is `{id, role}`, with role OWNER or OPERATOR, or WORKER under KHN-V0-023.
+  - `attempt`, `generation` and `evidencePath` are optional writer-asserted provenance, except
+    that a WORKER entry's attempt and generation are verified (KHN-V0-022).
 
   The Tasks codec and the Core ticket reader MUST both enforce these rules and refuse anything
   else.
@@ -81,7 +82,8 @@ screen and no audited history, and it does not reach a claim.
   - Supersede and retract only target an active ADD on the same home ticket.
   - A 33rd entry is VALIDATION_FAILED/LIMIT_EXCEEDED.
   - OWNER holds both operations by default. OPERATOR holds them only through an explicit
-    `policy.roles.OPERATOR` row, and no other role can be granted them.
+    `policy.roles.OPERATOR` row, and no policy roles row can grant them to any other role.
+    WORKER may hold `KNOWHOW_ADD` only through KHN-V0-021.
   - ADOPT_FILE refuses `knowHow` as a protected field, and IMPORT_APPLY refuses an imported
     record that adds, rewrites or drops entries.
 - `KHN-V0-004`: Before an entry is appended, the writer MUST screen the text, the reason, the
@@ -223,11 +225,62 @@ implementation is experimental until then.
   record or receipt carrying them at its closed key sets, so it fails closed and never misreads
   them.
 
+The WORKER grant, KHN-V0-021 to KHN-V0-023, is proposed (V1-0987; GitHub #671). It reuses the
+KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKER-specific checks.
+
+- `KHN-V0-021`: Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
+  Absent or `false`, a WORKER `KNOWHOW_ADD` MUST stay refused exactly as before the key existed:
+  UNAUTHORIZED with no code and the detail `outside hypothetical role subset`, with nothing
+  written. `true` adds `KNOWHOW_ADD`, and nothing else, to WORKER's default row; a
+  `policy.roles.WORKER` row still limits WORKER and then outranks the key. `KNOWHOW_RETRACT`,
+  every other WORKER write and every OWNER, OPERATOR, REVIEWER, IMPORTER and SYSTEM behaviour are
+  unchanged. A policy roles row naming `KNOWHOW_ADD` for WORKER stays refused at policy load. An
+  unknown member, a missing or non-boolean `workerAdd`, or a non-object value is MALFORMED.
+  Policy-declared anchor prefixes are not part of this key. The store screens a WORKER
+  `KNOWHOW_ADD` before the lock against the policy in the committed intent tree, so with the key
+  absent or false the refusal still precedes the store checks and §5.2 recovery; an opted-in tree
+  is checked again under the lock against the canonical policy record. After the key is removed,
+  an identical retry of a committed WORKER add is therefore refused rather than replayed; the note
+  stays. Status: proposed (V1-0987; GitHub #671).
+- `KHN-V0-022`: A WORKER `KNOWHOW_ADD` admitted by KHN-V0-021 MUST be checked, after request
+  replay and before the KHN-V0-003 status, entry-cap and KHN-V0-004 secret checks, against the
+  attempt inventory audited under the store lock (KHN-V0-009). In order:
+  - a non-null `supersedes`: UNAUTHORIZED, `KNOWHOW_WORKER_SUPERSEDE:`;
+  - a null `attempt` or `generation`: VALIDATION_FAILED/MALFORMED,
+    `KNOWHOW_WORKER_ATTEMPT_REQUIRED:`;
+  - the shared `mutation.CheckKnowHowProvenance` (KHN-V0-008): an unobserved inventory, an
+    unknown attempt, another ticket's attempt or an unrecorded generation is
+    VALIDATION_FAILED/`PROVENANCE_UNVERIFIED`;
+  - a terminal phase, no lease, an expired lease or a recorded prior generation instead of the
+    attempt's current one: REVISION_CONFLICT/FENCED, `KNOWHOW_WORKER_ATTEMPT_STALE:`;
+  - a lease holder other than the binding id (the claim `--holder` must equal
+    `CORVINT_TASKS_ACTOR`): UNAUTHORIZED, `KNOWHOW_WORKER_ATTEMPT_FOREIGN:`;
+  - an anchor, file or symbol, whose path no entry of the target's `effects.touchPaths` covers,
+    by the KHN-V0-006 match: BLOCKED/OUT_OF_SCOPE, `KNOWHOW_WORKER_ANCHOR_OUT_OF_SCOPE:`.
+
+  The WORKER-only refusals carry a stable detail prefix and reuse a closed §11 code.
+
+  Because `effects` is acceptance-relevant, the touchPaths cannot change while the attempt is
+  live. As for every lease command, a supervised attempt's lease does not expire by time. The
+  writer-checkpoint route, which models without attempt records, declines the request, so the
+  complete route always decides it. The details name payload fields, never their values. The 1024-byte text, 4-anchor,
+  32-entry and secret-screen bounds apply unchanged. Status: proposed (V1-0987; GitHub #671).
+- `KHN-V0-023`: An entry written under KHN-V0-022 MUST record actor role WORKER together with the
+  verified `attempt` and `generation`. The Tasks codec and the Core ticket reader MUST admit role
+  WORKER only on a non-superseding ADD whose `attempt` and `generation` are non-null, and refuse
+  it on a superseding ADD, a RETRACT, a RECONFIRM or an ADD without them. Status: proposed (V1-0987; GitHub
+  #671).
+
 ## Failure modes and trust
 
 - **Note content is unverified.** Note text is a claim by the writing principal. Since V1-0964
   the attempt and generation are checked against the audited attempt inventory (KHN-V0-008); the
   evidence path is still writer-asserted.
+- **WORKER notes.** With `knowHow.workerAdd`, the claim holder can write notes that the next claim
+  on the same files receives. The scope limits where a note is anchored and which ticket holds
+  it, not what it says. The text stays untrusted data (KHN-V0-007), and OWNER or an operator with
+  the grant can RETRACT it. The holder check trusts the local actor binding (decision 0003), which
+  is a recorded claim, not an authentication.
 - **Freshness is a file-level signal, not a semantic check.** A CURRENT note can still be wrong,
   and a STALE note can still be right. STALE only means an anchored file changed since the pin.
   A symbol anchor narrows this to one declaration's text: a change elsewhere that alters what the
@@ -266,8 +319,9 @@ implementation is experimental until then.
 - No automatic re-confirmation or repinning. A STALE note is refreshed by an explicit RECONFIRM
   (KHN-V0-018) or a superseding ADD, and no read ever writes a pin.
 - No cross-ticket supersede or retract. No writes on COMPLETED or ARCHIVED home tickets.
-- No WORKER grant. Workers report know-how through their owner or operator in this slice. The
-  grant is V1-0987; it reuses the KHN-V0-008 check and is not specified here.
+- No WORKER grant by default. KHN-V0-021 is opt-in and grants only a scoped ADD on top of the
+  KHN-V0-008 check; WORKER never supersedes, retracts or reconfirms, and no policy-declared anchor
+  prefixes widen the touchPaths scope.
 - No foreign-import carrier. The `ticket import` closed key set still refuses the member.
 
 ## Acceptance evidence and traceability
@@ -294,6 +348,9 @@ implementation is experimental until then.
 | KHN-V0-018 | V1-0963 criterion 2 | `internal/tasks/mutation` (payload, Apply); `internal/tasks/intent` (grant); `internal/tasks/ticket` (codec, effective pins); `internal/tasks/store` (projection); `internal/tasks/cli` (verb, help) | `TestKHNV0018_ReconfirmRepinsWithProvenance` (attempt and generation verified by `CheckKnowHowProvenance`, unobserved or unknown attempt PROVENANCE_UNVERIFIED, prior bytes kept, effective pins, cap, role grants); `TestKHNV0008_KnowHowNamesAttempt` (an attempt-naming reconfirm takes the audited route); `TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance`; `TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI` (claimed attempt verified, unknown attempt PROVENANCE_UNVERIFIED, STALE re-pinned to CURRENT, `ticket show` keeps both pins, receipt audit CONSISTENT) | concurrent two-process CAS; interrupted-commit redo of a reconfirm receipt |
 | KHN-V0-019 | V1-0963 criterion 2 | `internal/tasks/wire` (shared rule); `internal/tasks/mutation`; `internal/tasks/ticket`; `internal/taskman`; `internal/tasks/cli` | `TestKHNV0019_ReconfirmOfANoteThatIsNotStaleIsRefused`; `TestKHNV0020_ReaderKnowHowSymbolsAndReconfirm`; `TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI` (CURRENT and repeated reconfirm `KNOWHOW_NOT_STALE`, UNKNOWN `KNOWHOW_UNRESOLVED`) | none |
 | KHN-V0-020 | V1-0963 criterion 3 | `internal/tasks/ticket`; `internal/taskman`; `internal/tasks/store` | `TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore`; `TestIssue502_RecordEscalationsKey` and `TestKHNV0002_ReaderKnowHow` (unchanged legacy fixture); `TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance` (file-anchor note projects without new keys) | an older released binary refusing a RECONFIRM-bearing store |
+| KHN-V0-021 | V1-0987 (GitHub #671) | `internal/tasks/intent` (policy key); `internal/tasks/mutation` (role row); `internal/tasks/transaction` (admission) | `TestKHNV0021_PolicyKnowHowWorkerAddOptIn`; `TestKHNV0021_WorkerAddIsPolicyOptIn` (absent and false refuse; RETRACT, non-body REFINE and a WORKER roles row still refuse; OWNER and OPERATOR unchanged); `TestKHNV0021_WorkerKnowHowRefusedWithoutPolicy` (CLI: same detail, state unchanged; refused before the store checks when no store exists) | none |
+| KHN-V0-022 | V1-0987 (GitHub #671) | `internal/tasks/mutation` (scope); `internal/tasks/transaction` (ledger holder and lease expiry); `internal/tasks/store` (pre-lock screen; attempt audit and writer-route decline through KHN-V0-009) | `TestKHNV0022_WorkerAddScope` (success; each WORKER refusal with its prefix; provenance refusals PROVENANCE_UNVERIFIED; cap and `SECRET_DETECTED` still apply); `TestKHNV0022_WorkerKnowHowThroughTheCLI` (claim holder adds; unrecorded generation and other ticket PROVENANCE_UNVERIFIED, out-of-scope anchor and foreign actor refused; WORKER retract refused; after release a new add is fenced and the committed one replays); `TestKHNV0022_WorkerAttemptLedger` (real attempt records: expiry boundary, terminal phases, supervision, unleased, unloaded inventory) | concurrent lease expiry during a WORKER add |
+| KHN-V0-023 | V1-0987 (GitHub #671) | `internal/tasks/ticket` (codec); `internal/taskman` (Core reader) | `TestKHNV0023_CodecWorkerEntry`; `TestKHNV0023_ReaderWorkerEntry`; `TestKHNV0022_WorkerAddScope` (the entry round-trips) | none |
 
 ## Resolved decisions
 
@@ -347,7 +404,8 @@ work and its requirements are V1-0964 (5, 6) and V1-0962 (8).
 2. Should COMPLETED home tickets accept notes, given the release digest binding (decision 2)?
 3. Should supersede or retract be allowed across home tickets, and by which role?
 4. Should WORKER be grantable, for example to the claim holder, perhaps writing to the claimed
-   ticket only?
+   ticket only? GitHub #671 reopens this; KHN-V0-021..023 propose an opt-in, attempt-scoped ADD
+   and need an amendment of decision 0443's answer before acceptance.
 5. Should a dedicated §11 code (for example `SECRET_DETECTED`) replace the MALFORMED detail
    prefix?
 6. Should `attempt` and `generation` be verified against the attempt ledger instead of being
@@ -378,7 +436,7 @@ only, and a replay of a committed request is never checked again.
 ## Rollout and rollback
 
 Rollout is additive. A record without notes keeps its exact legacy bytes, existing policies do not
-grant OPERATOR the operations, and a claim of a ticket with no intersecting notes adds an empty
+grant OPERATOR the operations or WORKER `KNOWHOW_ADD`, and a claim of a ticket with no intersecting notes adds an empty
 `knowHow` member.
 
 Rolling back V1-0964 alone restores the MALFORMED code and writer-asserted provenance; it
@@ -396,3 +454,9 @@ store holds a symbol anchor or a RECONFIRM entry. After that, a binary without V
 record closed; recovery is the newer binary or a backup from before the first such write. The
 `internal/contextindex` import is one file (`internal/tasks/store/know_how_symbols.go`) and is
 reverted with it.
+
+The WORKER grant (KHN-V0-021..023) rolls back by removing `knowHow` from policy, which restores the refusal at once.
+An older binary refuses a policy carrying the `knowHow` key and a record holding a WORKER entry,
+both closed; a stored WORKER entry stays in history and can be retracted by OWNER. A
+`knowHow` policy change is not handoff-neutral: like any other policy change it fences an
+open handoff.

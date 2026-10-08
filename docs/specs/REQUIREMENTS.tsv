@@ -1714,24 +1714,27 @@ KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	45	Unparsed source, dynamic
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	48	Fixed inputs MUST reproduce byte-identical graph and selection bodies
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	46	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	56	A ticket record MAY carry the optional member `knowHow`. When present it is a
-KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	72	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
-KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	87	Before an entry is appended, the writer MUST screen the text, the reason, the
-KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	93	Freshness MUST be computed at read time against the reader's committed `HEAD`,
-KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	102	`claim` and `claim --next` MUST add a `knowHow` member to their result.
-KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	119	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
-KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	128	A `KNOWHOW_ADD` that names `attempt` or `generation` MUST be verified against th
-KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	139	The writer MUST load and audit the complete attempt inventory for any
-KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	145	A secret hit in a know-how argument or payload MUST be refused with the owned §1
-KHN-V0-011	docs/specs/corvint-tasks-know-how-notes-v0.md	151	The transition MUST keep the detail prefix `KNOWHOW_SECRET_DETECTED:` on every
-KHN-V0-012	docs/specs/corvint-tasks-know-how-notes-v0.md	158	A native archive export of a store whose tickets carry know-how ledgers MUST
-KHN-V0-013	docs/specs/corvint-tasks-know-how-notes-v0.md	161	Competing know-how writers MUST resolve through the writer lock and the
-KHN-V0-014	docs/specs/corvint-tasks-know-how-notes-v0.md	167	When the inventory cannot be loaded while a claim response is built, the claim
-KHN-V0-015	docs/specs/corvint-tasks-know-how-notes-v0.md	171	A commit that moves `HEAD` after a pin's commit was resolved and before its path
-KHN-V0-016	docs/specs/corvint-tasks-know-how-notes-v0.md	179	`ticket know-how add` MUST accept `--symbol PATH#NAME`, repeatable and combinabl
-KHN-V0-017	docs/specs/corvint-tasks-know-how-notes-v0.md	193	Freshness of a symbol anchor MUST follow the declaration's digest. A blob equal
-KHN-V0-018	docs/specs/corvint-tasks-know-how-notes-v0.md	200	`ticket know-how reconfirm T --note N` MUST append one RECONFIRM entry
-KHN-V0-019	docs/specs/corvint-tasks-know-how-notes-v0.md	213	A re-confirm of a note that is not STALE MUST be refused, not treated as a no-op
-KHN-V0-020	docs/specs/corvint-tasks-know-how-notes-v0.md	219	The change MUST be wire-compatible. A record whose ledger holds only file anchor
+KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	73	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
+KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	89	Before an entry is appended, the writer MUST screen the text, the reason, the
+KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	95	Freshness MUST be computed at read time against the reader's committed `HEAD`,
+KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	104	`claim` and `claim --next` MUST add a `knowHow` member to their result.
+KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	121	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	130	A `KNOWHOW_ADD` that names `attempt` or `generation` MUST be verified against th
+KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	141	The writer MUST load and audit the complete attempt inventory for any
+KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	147	A secret hit in a know-how argument or payload MUST be refused with the owned §1
+KHN-V0-011	docs/specs/corvint-tasks-know-how-notes-v0.md	153	The transition MUST keep the detail prefix `KNOWHOW_SECRET_DETECTED:` on every
+KHN-V0-012	docs/specs/corvint-tasks-know-how-notes-v0.md	160	A native archive export of a store whose tickets carry know-how ledgers MUST
+KHN-V0-013	docs/specs/corvint-tasks-know-how-notes-v0.md	163	Competing know-how writers MUST resolve through the writer lock and the
+KHN-V0-014	docs/specs/corvint-tasks-know-how-notes-v0.md	169	When the inventory cannot be loaded while a claim response is built, the claim
+KHN-V0-015	docs/specs/corvint-tasks-know-how-notes-v0.md	173	A commit that moves `HEAD` after a pin's commit was resolved and before its path
+KHN-V0-016	docs/specs/corvint-tasks-know-how-notes-v0.md	181	`ticket know-how add` MUST accept `--symbol PATH#NAME`, repeatable and combinabl
+KHN-V0-017	docs/specs/corvint-tasks-know-how-notes-v0.md	195	Freshness of a symbol anchor MUST follow the declaration's digest. A blob equal
+KHN-V0-018	docs/specs/corvint-tasks-know-how-notes-v0.md	202	`ticket know-how reconfirm T --note N` MUST append one RECONFIRM entry
+KHN-V0-019	docs/specs/corvint-tasks-know-how-notes-v0.md	215	A re-confirm of a note that is not STALE MUST be refused, not treated as a no-op
+KHN-V0-020	docs/specs/corvint-tasks-know-how-notes-v0.md	221	The change MUST be wire-compatible. A record whose ledger holds only file anchor
+KHN-V0-021	docs/specs/corvint-tasks-know-how-notes-v0.md	231	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
+KHN-V0-022	docs/specs/corvint-tasks-know-how-notes-v0.md	245	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-021 MUST be checked, after request
+KHN-V0-023	docs/specs/corvint-tasks-know-how-notes-v0.md	268	An entry written under KHN-V0-022 MUST record actor role WORKER together with th
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation

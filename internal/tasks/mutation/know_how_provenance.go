@@ -6,12 +6,15 @@ import (
 
 // AttemptProvenance is one journal-audited attempt record as the know-how
 // provenance check sees it (KHN-V0-008): its home ticket, its current
-// generation, every prior generation it records, and whether it is live.
+// generation, every prior generation it records, whether it is live, and
+// the binding holding its unexpired lease, empty when unleased or expired
+// (KHN-V0-022).
 type AttemptProvenance struct {
 	TicketID   wire.TicketID
 	Generation wire.Size
 	Prior      []wire.Size
 	Live       bool
+	Holder     string
 }
 
 // AttemptLedger maps an attempt ID to its audited provenance. A nil ledger

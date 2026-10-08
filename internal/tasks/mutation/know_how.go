@@ -157,3 +157,57 @@ func screenKnowHowPaths(anchors []ticket.KnowHowAnchor, routes []string, evidenc
 	}
 	return nil
 }
+
+// Stable detail prefixes of the WORKER KNOWHOW_ADD scope refusals
+// (KHN-V0-022). Each refusal reuses a closed §11 code; the prefix names the
+// reason so a client can tell the cases apart without a new code.
+const (
+	KnowHowWorkerSupersede       = "KNOWHOW_WORKER_SUPERSEDE"
+	KnowHowWorkerAttemptRequired = "KNOWHOW_WORKER_ATTEMPT_REQUIRED"
+	KnowHowWorkerAttemptStale    = "KNOWHOW_WORKER_ATTEMPT_STALE"
+	KnowHowWorkerAttemptForeign  = "KNOWHOW_WORKER_ATTEMPT_FOREIGN"
+	KnowHowWorkerAnchorScope     = "KNOWHOW_WORKER_ANCHOR_OUT_OF_SCOPE"
+)
+
+// workerKnowHowScope is the WORKER-only KNOWHOW_ADD scope (KHN-V0-022),
+// reached only when policy knowHow.workerAdd granted the operation
+// (KHN-V0-021). A worker cannot supersede and must name its attempt and
+// generation. The shared provenance check (KHN-V0-008) then verifies the
+// attempt belongs to this ticket at a recorded generation; this scope adds
+// only what is WORKER-specific: the generation is current, the attempt is
+// live under an unexpired lease the binding holds, and every anchor lies
+// inside the ticket's effects.touchPaths, which cannot change while that
+// attempt is live. Details name payload fields, never their values, because
+// the secret screen has not run yet. The ordinary knowHowStep checks
+// (status, entry cap, secret screen) still run afterwards.
+func (ctx *Context) workerKnowHowScope(work *ticket.Record, p *KnowHowAddPayload) *refusal {
+	if p.Supersedes != nil {
+		return refuse(OutcomeUnauthorized, "", "%s: WORKER may not supersede a know-how note", KnowHowWorkerSupersede)
+	}
+	if p.Attempt == nil || p.Generation == nil {
+		return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: WORKER KNOWHOW_ADD must name its live attempt and generation", KnowHowWorkerAttemptRequired)
+	}
+	if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
+		return refuseErr(err)
+	}
+	a := ctx.KnowHowAttempts[*p.Attempt]
+	if !a.Live || a.Holder == "" || a.Generation != *p.Generation {
+		return refuse(OutcomeRevisionConflict, wire.CodeFenced, "%s: /payload/attempt and /payload/generation do not name a live attempt generation", KnowHowWorkerAttemptStale)
+	}
+	if a.Holder != ctx.Binding.ID {
+		return refuse(OutcomeUnauthorized, "", "%s: /payload/attempt is not held by the acting binding", KnowHowWorkerAttemptForeign)
+	}
+	for i, an := range p.Anchors {
+		covered := false
+		for _, tp := range work.Effects.TouchPaths {
+			if ticket.PathCovers(tp, an.Path) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			return refuse(OutcomeBlocked, wire.CodeOutOfScope, "%s: /payload/anchors/%d is outside the ticket's effects.touchPaths", KnowHowWorkerAnchorScope, i)
+		}
+	}
+	return nil
+}
