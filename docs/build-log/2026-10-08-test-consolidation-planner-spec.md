@@ -48,6 +48,12 @@ kept and ordered (P2); the table header binds map digests and the evaluated revi
 (P2); qualification uses AFU-V1 per-variation outcome evidence, because `corvint test-validity` is
 test-level only (P2).
 
+A second Codex pass confirmed those fixes and found 1 P1 and 2 P2, all fixed: witness freshness is
+recomputed against the evaluated revision by the LPCV-V0-053 binding rule, never taken from the
+receipt (P1, new reason `witness-unbound`); absent `requires`, `changes`, `destructive` or `org`
+abstain instead of defaulting (P2); facts are parsed as `key=value` and a set naming one key twice
+refuses (P2).
+
 ## Evidence
 
 Doc gates and `go test ./internal/specindex` are the only executable checks for a spec-only

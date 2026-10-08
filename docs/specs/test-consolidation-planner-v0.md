@@ -110,15 +110,21 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   (1..64 ordered element IDs), `assertion` (1..64 element IDs, a set), `requires` and `changes`
   (0..64 facts each, sets), `destructive` (boolean) and `witnesses` (0..16 objects
   `{test_id, project?, basis}` with `basis` `declared` or `reviewed`). Identifiers MUST match
-  `[A-Za-z0-9._:/@{}=+-]{1,256}`; `spec` MUST be a canonical repository-relative path with no
-  empty, `.` or `..` segment and no whitespace or `|`. An unknown or duplicate member, trailing
-  data, a repeated `variation_id`, an identifier outside the charset, a `basis` of `inferred`, or a
-  bound overrun MUST refuse with `test-plan-invalid-input`. A member that is absent or `null` is a
-  missing anchor (TCN-V0-003), not a refusal, except `variation_id`. Input order MUST NOT affect
-  any output byte. (proposed; V1-1023)
+  `[A-Za-z0-9._:/@{}=+-]{1,256}`, except that `org` may also be the empty string (an application
+  with one organisation); `spec` MUST be a canonical repository-relative path with no empty, `.` or
+  `..` segment and no whitespace or `|`. A fact MUST be `<key>=<value>`, split at its first `=`,
+  with a non-empty key of at most 128 bytes; one `requires` or `changes` set naming the same key
+  twice is contradictory. An unknown or duplicate member, trailing data, a repeated
+  `variation_id`, an identifier outside the charset, a malformed or contradictory fact set, a
+  `basis` of `inferred`, or a bound overrun MUST refuse with `test-plan-invalid-input`. Of the
+  other members, `flow_id` and `route` are optional, an absent `witnesses` means none, and any
+  other member that is absent or `null` is a missing anchor (TCN-V0-003), not a refusal. Empty
+  `requires` and `changes` arrays and `destructive: false` are explicit declarations, never
+  defaults. Input order MUST NOT affect any output byte. (proposed; V1-1023)
 - `TCN-V0-003`: A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
-  when any of `spec`, `app`, `screen`, `setup`, `user`, `action` or `assertion` is missing
-  (reason `missing-anchor`, naming each missing member). With `--map` (1..8 AMAP-V0 maps, decoded
+  when any of `spec`, `app`, `screen`, `setup`, `user`, `org`, `action`, `assertion`,
+  `requires`, `changes` or `destructive` is missing (reason `missing-anchor`, naming each missing
+  member), so an undeclared effect is never treated as no effect. With `--map` (1..8 AMAP-V0 maps, decoded
   and refused as `appmap-invalid-map`), the `screen` MUST be a screen of the map whose app equals
   the variation's `app` and, when `route` is present, its template MUST equal `route`; otherwise
   the variation is abstained `unresolved-screen` or `route-mismatch`. Each such screen's lineage
@@ -132,13 +138,18 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   never trusting a carried projection. A `corvint-test-validity/0` output document carries no
   provider observations and MUST be refused, as any undecodable input is, with
   `invalid-test-validity-receipt`. A witness `{test_id, project}` matches a projected test whose
-  `id` equals `test_id` and, when `project` is given, whose project name equals it. A variation is
+  `id` equals `test_id` and, when `project` is given, whose project name equals it. Freshness MUST
+  NOT be taken from the receipt's own currency: it MUST be recomputed by the LPCV-V0-053 binding
+  rule, comparing the document's bound digests with the content at the evaluated revision
+  (default `HEAD`; uncommitted changes to a bound path make it `UNKNOWN`). A variation is
   `REUSED` only when at least one declared witness matches, every matching test across all
-  documents reads association `ASSOCIATED`, hygiene `ELIGIBLE`, freshness `CURRENT` and execution
-  `PASSED`, and each matching document is an `e2e` JavaScript document (a completed Go session is
+  documents reads association `ASSOCIATED`, hygiene `ELIGIBLE`, recomputed freshness `CURRENT` and
+  execution `PASSED`, and each matching document is an `e2e` JavaScript document (a completed Go session is
   `tier:"preview"` and never witnesses). Otherwise each witness is reported with one of
-  `witness-not-found`, `witness-not-passed`, `witness-stale`, `witness-not-associated`,
-  `witness-ineligible`, `witness-conflicting` (matching tests disagree) or `witness-preview`, and
+  `witness-not-found`, `witness-not-passed`, `witness-stale` (recomputed `STALE`),
+  `witness-unbound` (recomputed `UNKNOWN`, or a bound identity that cannot be recomputed),
+  `witness-not-associated`, `witness-ineligible`, `witness-conflicting` (matching tests disagree)
+  or `witness-preview`, and
   the variation continues to planning. A reused variation MUST keep every qualifying witness,
   sorted by `test_id` then project, each with its unchanged five-axis projection (LPCV-V0-047);
   the first is the one the table names. Reuse states that a passing witness exists, not that the
@@ -183,7 +194,8 @@ Every requirement below is proposed (V1-1023; GitHub #681); none is accepted.
   `input_digest` (`sha256:` of the canonical input: variations sorted by ID, set members sorted,
   compact JSON), `tests_digest` (`sha256:` over the sorted SHA-256 digests of the `--tests` files,
   or `none`), `maps_digest` (`sha256:` over the sorted AMAP-V0 map digests, or `none`),
-  `maps[]{app, map_digest}`, `evaluated_revision` (the full object ID, or `none` without `--map`),
+  `maps[]{app, map_digest}`, `evaluated_revision` (the full object ID whenever `--map` or
+  `--tests` is given, else `none`),
   `anchor_validation` (`VALIDATED`|`NOT_RUN`), `authority` (`candidate`), `status`, `max_steps`,
   `counts{variations, new_tests, grouped, isolated, reused, duplicates, abstained,
   baseline_one_per_row}`, `tests[]{test, spec, context, steps[]{order, variation_id}, reason}`,
@@ -294,7 +306,8 @@ source today and are caller-declared. A later requirement may derive the whole d
   - a step that fails at run time stops the later steps of a Playwright test, so their variations
     are unobserved in that run, though never wrongly passed; the planner caps steps per test
     (`--max-steps`) to bound this;
-  - a failing, stale, ineligible or conflicting witness: no reuse, reason reported;
+  - a failing, stale, unbound, ineligible or conflicting witness: no reuse, reason reported; an
+    old passing receipt never witnesses a changed test or application;
   - a provider document of an unrecognised kind, a `corvint-test-validity/0` output document, or
     one over its bound: refused as by LPCV-V0-051;
   - two requires on one key with different values: the later variation opens or joins another
@@ -334,9 +347,9 @@ All evidence is planned; none exists. Each row is `NOT_RUN` until implemented.
 | Requirement | Planned evidence |
 | --- | --- |
 | TCN-V0-001 | CLI test: read-only (repository status and `.corvint/` unchanged), no network, exit codes, `authority: candidate`. |
-| TCN-V0-002 | Decoder table test over every refusal and bound; permutation test proving input order does not change output bytes. |
-| TCN-V0-003 | Fixture over the committed AMAP-V0 map: missing anchor, unknown screen, route mismatch, STALE and UNKNOWN freshness each abstain; `NOT_RUN` without `--map`. |
-| TCN-V0-004 | Synthetic `corvint-js-test-provider` documents for each witness rejection reason, a conflicting pair across two documents, a completed Go session (preview), a refused `corvint-test-validity/0` output document, several qualifying witnesses in permuted order, and a reuse that keeps all five axes and `NOT_MEASURED` strength. |
+| TCN-V0-002 | Decoder table test over every refusal and bound, including a malformed fact and one key twice in `requires`; permutation test proving input order does not change output bytes. |
+| TCN-V0-003 | Fixture over the committed AMAP-V0 map: missing anchor (including absent `changes` or `destructive`), unknown screen, route mismatch, STALE and UNKNOWN freshness each abstain; `NOT_RUN` without `--map`. |
+| TCN-V0-004 | Synthetic `corvint-js-test-provider` documents for each witness rejection reason, a conflicting pair across two documents, a completed Go session (preview), a refused `corvint-test-validity/0` output document, a receipt whose bound digests no longer match the evaluated revision (`witness-stale`) or cannot be recomputed (`witness-unbound`), several qualifying witnesses in permuted order, and a reuse that keeps all five axes and `NOT_MEASURED` strength. |
 | TCN-V0-005 | Duplicate classes with and without a reused member; same action and assertion under a different user, `requires`, `changes` or `destructive` stay distinct. |
 | TCN-V0-006 | Destructive, conflicting, different-user-or-org and unique-context reasons on one fixture, including a destructive variation whose context is shared only by other users (it keeps `destructive-change`). |
 | TCN-V0-007 | Precedence ordering; requires `x=0`, `x=1`, `x=1` giving two tests, not three; a three-node cycle re-planned; the edge bound refusal. |

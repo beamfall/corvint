@@ -2767,16 +2767,16 @@ TCB-V0-005	docs/specs/tasks-criterion-binding-v0.md	29	The CEM companion MUST us
 TCB-V0-006	docs/specs/tasks-criterion-binding-v0.md	33	Unknown/repeated arguments, malformed/trailing/oversize payloads, nonregular exe
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo
-TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	119	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
-TCN-V0-004	docs/specs/test-consolidation-planner-v0.md	129	Reuse MUST be decided only from `--tests` files (0..8), each one original provid
-TCN-V0-005	docs/specs/test-consolidation-planner-v0.md	147	Among non-abstained variations, duplicates MUST be classed by equal context, equ
-TCN-V0-006	docs/specs/test-consolidation-planner-v0.md	155	The remaining variations (not abstained, reused or duplicate) MUST be partitione
-TCN-V0-007	docs/specs/test-consolidation-planner-v0.md	163	Within one context the variations MUST be split into compatible sets, each with
-TCN-V0-008	docs/specs/test-consolidation-planner-v0.md	176	Each set's ordered steps MUST be cut into consecutive tests of at most `--max-st
-TCN-V0-009	docs/specs/test-consolidation-planner-v0.md	182	`--format json` MUST print one closed `test-consolidation-plan/0` document: `sch
-TCN-V0-010	docs/specs/test-consolidation-planner-v0.md	196	`--format table` MUST print exactly: one header line `<!-- corvint
-TCN-V0-011	docs/specs/test-consolidation-planner-v0.md	208	`corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]
-TCN-V0-012	docs/specs/test-consolidation-planner-v0.md	221	When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
+TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
+TCN-V0-004	docs/specs/test-consolidation-planner-v0.md	135	Reuse MUST be decided only from `--tests` files (0..8), each one original provid
+TCN-V0-005	docs/specs/test-consolidation-planner-v0.md	158	Among non-abstained variations, duplicates MUST be classed by equal context, equ
+TCN-V0-006	docs/specs/test-consolidation-planner-v0.md	166	The remaining variations (not abstained, reused or duplicate) MUST be partitione
+TCN-V0-007	docs/specs/test-consolidation-planner-v0.md	174	Within one context the variations MUST be split into compatible sets, each with
+TCN-V0-008	docs/specs/test-consolidation-planner-v0.md	187	Each set's ordered steps MUST be cut into consecutive tests of at most `--max-st
+TCN-V0-009	docs/specs/test-consolidation-planner-v0.md	193	`--format json` MUST print one closed `test-consolidation-plan/0` document: `sch
+TCN-V0-010	docs/specs/test-consolidation-planner-v0.md	208	`--format table` MUST print exactly: one header line `<!-- corvint
+TCN-V0-011	docs/specs/test-consolidation-planner-v0.md	220	`corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]
+TCN-V0-012	docs/specs/test-consolidation-planner-v0.md	233	When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
