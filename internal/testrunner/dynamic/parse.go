@@ -94,6 +94,8 @@ func Parse(in tr.Input) (tr.Observation, error) {
 				err = parseWDIO(b, &o)
 			case "nightwatch":
 				err = parseNightwatch(b, &o)
+			case "jasmine":
+				err = parseJasmine(b, &o, in)
 			}
 			if err != nil {
 				return o, fmt.Errorf("%s: %w", n, err)
