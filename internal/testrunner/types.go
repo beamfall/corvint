@@ -46,6 +46,9 @@ type Request struct {
 	Tools            map[string]Tool   `json:"tools"`
 	ReportDir        string            `json:"reportDir"`
 	TimeoutSeconds   int               `json:"timeoutSeconds"`
+	// ExpectedSelection is omitted when absent so historical plan bytes and
+	// identities are unchanged.
+	ExpectedSelection *Selection `json:"expectedSelection,omitempty"`
 }
 type Phase struct {
 	StdoutReport string            `json:"stdoutReport"`
@@ -85,6 +88,7 @@ type Input struct {
 	Interrupted             bool              `json:"interrupted"`
 	Overflow                bool              `json:"overflow"`
 	Expected                []string          `json:"expected"`
+	ExpectedSelection       *Selection        `json:"expectedSelection,omitempty"`
 }
 type Attempt struct {
 	State       string `json:"state"`

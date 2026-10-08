@@ -242,3 +242,125 @@ func TestGinkgoPlanBindsTargetAndFixedArgv(t *testing.T) {
 		})
 	}
 }
+
+// Frozen bytes produced by the companion at origin/main 0c94c66c, before the
+// additive expectedSelection field existed (V1-0620).
+const (
+	historicalNightwatchPlan    = `{"profile":"corvint-test-runner-plan/0","request":{"expectedTests":["tests/sample.js::sample::default::wd-1::pass"],"target":"","inputFiles":{"tests/sample.js":"bb"},"runner":"nightwatch","root":"/src","executable":"/x/nightwatch","executableSha256":"aa","selectors":null,"project":"","config":"","configSha256":"","reporter":"","reporterSha256":"","reportFiles":["sample.json"],"tools":null,"reportDir":"/r","timeoutSeconds":60},"invocation":{"outcomeNeutralExitCodes":null,"successExitCodes":[0],"failureExitCodes":[5],"argv":["--reporter=json","--output","/r"],"phases":null,"files":{},"reportPaths":["sample.json"],"reportPatterns":null,"environment":{},"format":"nightwatch"}}`
+	historicalNightwatchReceipt = `{"profile":"corvint-test-runner-receipt/0","planSha256":"7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a","execution":{"profile":"corvint-test-runner-execution/0","runner":"nightwatch","inputSha256":"","invocationSha256":"","phases":null,"reportSha256":null,"executionAuthority":"","dependencyClosure":""},"observation":{"runner":"nightwatch","tests":[{"failureKind":"","message":"","id":"tests/sample.js::sample::default::wd-1::pass","name":"pass","file":"tests/sample.js","suite":"sample","state":"PASSED","attempts":[{"state":"PASSED","failureKind":"","message":""}]}],"problems":null,"complete":true,"retryInformation":"RETAINED"},"error":""}`
+)
+
+func TestHistoricalPlanAndReceiptBytesSurviveSelectionContract(t *testing.T) {
+	for _, c := range []struct {
+		raw string
+		dst any
+	}{{historicalNightwatchPlan, new(plan)}, {historicalNightwatchReceipt, new(receipt)}} {
+		if e := tr.DecodeDocument([]byte(c.raw), c.dst); e != nil {
+			t.Fatal(e)
+		}
+		b, e := json.Marshal(c.dst)
+		if e != nil || string(b) != c.raw || tr.Identity(c.dst) != tr.Digest([]byte(c.raw)) {
+			t.Fatalf("historical bytes or identity changed:\n%s\n%s", b, c.raw)
+		}
+	}
+	var p plan
+	tr.DecodeDocument([]byte(historicalNightwatchPlan), &p)
+	if p.Request.ExpectedSelection != nil || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
+		t.Fatal("historical plan identity moved")
+	}
+	if _, e := registry.Build(p.Request); e != nil {
+		t.Fatal("historical exact ExpectedTests plan no longer admitted", e)
+	}
+}
+
+// TestNightwatchSelectionPreAdmittedAcrossFreshSessions drives plan and run
+// with a pinned stand-in executable that writes the Nightwatch 3 module report
+// shape with a WebDriver session ID chosen only at launch. No real browser or
+// Nightwatch runs here; that live qualification is NOT_RUN.
+func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "nightwatch")
+	script := "#!/bin/sh\nprintf '{\"name\":\"sample\",\"systemerr\":\"\",\"report\":{\"modulePath\":\"tests/sample.js\",\"sessionId\":\"wd-%s\",\"testEnv\":\"default\",\"testsCount\":1,\"errorsCount\":0,\"completed\":{\"pass\":{\"status\":\"pass\"}},\"skipped\":[\"skip\"]}}' \"$$\" > \"$3/sample.json\"\n"
+	if e := os.WriteFile(bin, []byte(script), 0700); e != nil {
+		t.Fatal(e)
+	}
+	identity := []string{"--executable", bin, "--executable-sha256", tr.Digest([]byte(script))}
+	root := t.TempDir()
+	source := []byte("module.exports = {};\n")
+	if e := os.WriteFile(filepath.Join(root, "sample.js"), source, 0600); e != nil {
+		t.Fatal(e)
+	}
+	const module = "tests/sample.js::sample::default::"
+	request := func(keys ...string) tr.Request {
+		return tr.Request{Runner: "nightwatch", Root: root, ReportDir: filepath.Join(t.TempDir(), "reports"), ReportFiles: []string{"sample.json"}, TimeoutSeconds: 60, InputFiles: map[string]string{"sample.js": tr.Digest(source)}, ExpectedSelection: &tr.Selection{Version: tr.SelectionVersion, Matcher: tr.NightwatchSessionElided, Tests: keys}}
+	}
+	planned := func(r tr.Request) (string, plan, int, string) {
+		path := filepath.Join(t.TempDir(), "request.json")
+		b, _ := json.Marshal(r)
+		os.WriteFile(path, b, 0600)
+		var out, errout bytes.Buffer
+		code := command(context.Background(), append([]string{"plan", "--request", path}, identity...), &out, &errout)
+		var p plan
+		if code == 0 {
+			if e := tr.DecodeDocument(out.Bytes(), &p); e != nil {
+				t.Fatal(e)
+			}
+			path = filepath.Join(t.TempDir(), "plan.json")
+			os.WriteFile(path, out.Bytes(), 0600)
+		}
+		return path, p, code, errout.String()
+	}
+	run := func(path string, p plan) (int, receipt) {
+		out := filepath.Join(t.TempDir(), "receipt.json")
+		var stdout, errout bytes.Buffer
+		code := command(context.Background(), append([]string{"run", "--plan", path, "--approve", tr.Identity(p), "--out", out, "--experimental", "--trusted-local"}, identity...), &stdout, &errout)
+		var r receipt
+		b, e := os.ReadFile(out)
+		if e != nil || json.Unmarshal(b, &r) != nil {
+			t.Fatalf("missing receipt: %v %s", e, errout.String())
+		}
+		return code, r
+	}
+	sessions := map[string]bool{}
+	for i := 0; i < 2; i++ {
+		path, p, code, msg := planned(request(module+"pass", module+"skip"))
+		if code != 0 || p.Request.ExpectedSelection == nil || p.Request.ExpectedSelection.Matcher != tr.NightwatchSessionElided {
+			t.Fatalf("selection not admitted into the plan: %d %s", code, msg)
+		}
+		code, r := run(path, p)
+		if code != 0 || !r.Observation.Complete || r.Error != "" || len(r.Observation.Tests) != 2 {
+			t.Fatalf("run %d: exit=%d %+v", i, code, r)
+		}
+		for _, x := range r.Observation.Tests {
+			parts := strings.Split(x.ID, "::")
+			if len(parts) != 5 || !strings.HasPrefix(parts[3], "wd-") {
+				t.Fatalf("native session identity not retained: %s", x.ID)
+			}
+			sessions[parts[3]] = true
+		}
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("fresh launches did not produce differing sessions: %v", sessions)
+	}
+	path, p, _, _ := planned(request(module+"pass", module+"other"))
+	if code, r := run(path, p); code != 1 || r.Observation.Complete {
+		t.Fatalf("wrong expected selection completed: %d %+v", code, r.Observation)
+	}
+	for name, r := range map[string]tr.Request{"duplicate": request(module+"pass", module+"pass"), "session-bearing": request("tests/sample.js::sample::default::wd-1::pass")} {
+		if _, _, code, msg := planned(r); code != 1 || !strings.Contains(msg, "selection") {
+			t.Fatalf("%s selection planned: %d %s", name, code, msg)
+		}
+		// A hand-made plan carrying the invalid selection must refuse before launch.
+		p := plan{Profile: profile, Request: r}
+		p.Request.Executable, p.Request.ExecutableSha256 = bin, tr.Digest([]byte(script))
+		file := filepath.Join(t.TempDir(), "plan.json")
+		b, _ := json.Marshal(p)
+		os.WriteFile(file, b, 0600)
+		var out, errout bytes.Buffer
+		if command(context.Background(), append([]string{"run", "--plan", file, "--approve", tr.Identity(p), "--out", filepath.Join(t.TempDir(), "receipt.json"), "--experimental", "--trusted-local"}, identity...), &out, &errout) != 1 || !strings.Contains(errout.String(), "selection") {
+			t.Fatalf("%s selection ran: %s", name, errout.String())
+		}
+		if _, e := os.Stat(r.ReportDir); !os.IsNotExist(e) {
+			t.Fatalf("%s selection launched", name)
+		}
+	}
+}

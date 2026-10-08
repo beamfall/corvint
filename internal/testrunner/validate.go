@@ -127,6 +127,11 @@ func Normalize(in Input, o Observation) Observation {
 	if o.RetryInformation != Retained && o.RetryInformation != NotReported && o.RetryInformation != NotApplicable {
 		problem("unknown-retry-information", "retry observability was not declared")
 	}
+	if in.ExpectedSelection != nil {
+		for _, p := range selectionProblems(in, o.Tests) {
+			problem(p.Code, p.Detail)
+		}
+	}
 	if len(o.Problems) > 0 {
 		o.Complete = false
 		// Keep identities and native diagnostics, but do not expose a resolved
