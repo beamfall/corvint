@@ -609,7 +609,7 @@ Each row cites the first emitting site and states only the condition checked the
   SHOULD that a structured result also returns its serialized JSON as text; a text-only client
   sees the ranked rows but not their evidence. A client that validates the text block MUST also
   admit the full framed object, which servers predating this requirement emit.
-- `MCPV0-034`: proposed (V1-0485; no GitHub issue). `Registry.Call` checks the request context
+- `MCPV0-034`: accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` checks the request context
   again after the tool operation returns and before the root-identity check: a call whose context
   ended at any point before that check returns the `cancelled` failure and no result, never a
   READY receipt or an abstention built before the cancellation was observed. `invalid-arguments`

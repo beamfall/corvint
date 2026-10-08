@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0470-v1-0485-late-cancellation-accepted-2026-10-08.md`](0470-v1-0485-late-cancellation-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCP-V0-064 (`TaskContext` cancellation boundaries never return a packet) and MCPV0-034 (`Registry.Call` rechecks the request context after the operation) (V1-0485). |
 | [`0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md`](0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts LPCV-V0-057..070 step-level negative controls by fault injection; intent only, delivery stays not-started. |
 | [`0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md`](0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCN-V0-001..012 test consolidation planner; intent only, delivery stays not-started. |
 | [`0456-v1-1022-tasks-obligation-ledger-accepted-2026-10-08.md`](0456-v1-1022-tasks-obligation-ledger-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TOL-V0-001..021 Tasks obligation ledger and resolves its eight unresolved decisions as the spec states; intent only, delivery stays not-started. |
