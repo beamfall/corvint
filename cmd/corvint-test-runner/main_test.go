@@ -265,7 +265,7 @@ func TestHistoricalPlanAndReceiptBytesSurviveSelectionContract(t *testing.T) {
 	}
 	var p plan
 	tr.DecodeDocument([]byte(historicalNightwatchPlan), &p)
-	// Detached retirement (TRE-V0-025) is additive: historical plans keep
+	// Detached retirement (TRE-V0-030) is additive: historical plans keep
 	// their bytes and are executed without it.
 	if p.Request.ExpectedSelection != nil || p.Invocation.RetireDetachedDescendants || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
 		t.Fatal("historical plan identity moved")
@@ -367,7 +367,7 @@ func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
 	}
 }
 
-// TestPreRetirementXCTestPlanRefusedForExecution binds TRE-V0-025's
+// TestPreRetirementXCTestPlanRefusedForExecution binds TRE-V0-030's
 // compatibility rule: a historical swift-xctest plan keeps its identity but is
 // refused for new execution with a re-plan diagnosis, a current plan runs with
 // retirement, and no plan can add retirement where its profile does not.

@@ -50,7 +50,7 @@ func processStart(pid int) string {
 	return line[strings.IndexByte(line, ' ')+1:]
 }
 
-// TestExecuteRetiresDetachedDescendants is TRE-V0-025's executor witness:
+// TestExecuteRetiresDetachedDescendants is TRE-V0-030's executor witness:
 // a readiness-marked Setpgid child and setsid grandchild escape the group
 // kill on timeout and interruption unless the plan requests retirement.
 func TestExecuteRetiresDetachedDescendants(t *testing.T) {

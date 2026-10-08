@@ -73,7 +73,7 @@ func retainSwiftPMLive(t *testing.T, out, name string, r tr.Request, v tr.Invoca
 	}
 }
 
-// TestSwiftPMXCTestLiveThreeOutcomes is the actual TRE-V0-024 witness: the
+// TestSwiftPMXCTestLiveThreeOutcomes is the actual TRE-V0-029 witness: the
 // serial native transport keeps pass, assertion failure and XCTSkip distinct
 // through the shared executor, where SwiftPM's xUnit writer reports the skip
 // as an ordinary pass.
@@ -113,7 +113,7 @@ func liveStart(pid int) string {
 	return line[strings.IndexByte(line, ' ')+1:]
 }
 
-// TestSwiftPMXCTestLiveDetachedTeardown is the actual TRE-V0-025 witness.
+// TestSwiftPMXCTestLiveDetachedTeardown is the actual TRE-V0-030 witness.
 // testHang starts a Foundation Process helper, writes "xctestpid helperpid"
 // as its readiness marker and hangs. SwiftPM 6.4 runs xctest and the helper
 // outside swift-test's process group, so the group kill alone leaves both

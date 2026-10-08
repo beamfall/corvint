@@ -623,7 +623,7 @@ func TestExecuteExplicitPrimaryTestWithoutArguments(t *testing.T) {
 	}
 }
 
-// TestExecuteRefusesUnprovenRetirement keeps TRE-V0-025 closed off Darwin:
+// TestExecuteRefusesUnprovenRetirement keeps TRE-V0-030 closed off Darwin:
 // a plan requesting detached retirement is refused before launch.
 func TestExecuteRefusesUnprovenRetirement(t *testing.T) {
 	if groupreap.RetirementSupported {

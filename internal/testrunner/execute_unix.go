@@ -237,7 +237,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		var retireErr error
 		if retirer != nil {
 			// Retain the record before any fallible post-processing, so a
-			// later binding or write failure cannot discard it (TRE-V0-025).
+			// later binding or write failure cannot discard it (TRE-V0-030).
 			got := retirer.Result()
 			out.Retirement.Merge(got)
 			if !got.Clean() {
@@ -280,7 +280,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		}
 		if retireErr != nil {
 			// A cleanup failure is an execution problem, so no complete or
-			// passing observation can hide it (TRE-V0-025).
+			// passing observation can hide it (TRE-V0-030).
 			return out, retireErr
 		}
 		if result.TimedOut || result.Interrupted || result.Overflow || code < 0 || (p.Kind != "TEST" && runErr != nil) {

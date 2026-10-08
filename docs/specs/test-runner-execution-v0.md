@@ -459,7 +459,7 @@ Swift 6.4 (swiftlang-6.4.0.34.1) on macOS 26.6.2 (25G83) arm64 is the only
 qualified tuple. Linux, other Swift versions and Swift Testing in this profile
 remain NOT_OBSERVED.
 
-- `TRE-V0-024`: SwiftPM XCTest execution evidence MUST come only from the
+- `TRE-V0-029`: SwiftPM XCTest execution evidence MUST come only from the
   serial native text profile `swift-xctest`, which keeps pass, assertion failure
   and XCTSkip distinct. That profile MUST NOT request `--parallel` or
   `--xunit-output` and MUST refuse any report file. The actual parallel xUnit
@@ -467,7 +467,7 @@ remain NOT_OBSERVED.
   attribute, is retained only as a negative witness. TCQ JUnit import MUST leave
   its rows unkeyed, so they cannot key criterion evidence. Status: proposed
   (V1-0597).
-- `TRE-V0-025`: A plan whose invocation sets `retireDetachedDescendants` MUST,
+- `TRE-V0-030`: A plan whose invocation sets `retireDetachedDescendants` MUST,
   on timeout, interruption and normal leader exit, retire every process the
   phase owns that left the leader's process group, before the leader is reaped.
   Ownership MUST be proved only by ppid ancestry from the identity-verified live
@@ -495,8 +495,8 @@ remain NOT_OBSERVED.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-024 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
-| TRE-V0-025 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRefusedForExecution`, `TestRetirementSurvivesLaterExecutionFailure`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption |
+| TRE-V0-029 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
+| TRE-V0-030 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRefusedForExecution`, `TestRetirementSurvivesLaterExecutionFailure`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption |
 
 Recorded limits. The shared executor admits only a regular-file executable, so
 the live witness uses the `/usr/bin/swift` shim; the toolchain `swift` symlink is
@@ -513,6 +513,6 @@ kill remains containment only; `retirement` is the durable cleanup record.
 
 Rollback removes the two fixtures, their tests and this section. The
 `swift-xctest` profile and historical plan and receipt bytes are unchanged.
-Rolling back `TRE-V0-025` removes the flag from `buildXCTest`, the
+Rolling back `TRE-V0-030` removes the flag from `buildXCTest`, the
 `retirement` field and `internal/groupreap/retire*.go`; plans that set the
 flag would then be refused as unknown fields rather than run uncleaned.

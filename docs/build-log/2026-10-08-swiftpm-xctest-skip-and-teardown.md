@@ -4,8 +4,8 @@
 
 V1-0597 records that SwiftPM 6.4's parallel xUnit file reports an XCTSkip as an ordinary pass.
 This entry retains that witness, binds the serial native transport as the only SwiftPM XCTest
-execution path, and adds proposed `TRE-V0-024` to `docs/specs/test-runner-execution-v0.md`.
-V1-0613 adds proposed `TRE-V0-025`: bounded, ownership-proved retirement of the detached
+execution path, and adds proposed `TRE-V0-029` to `docs/specs/test-runner-execution-v0.md`.
+V1-0613 adds proposed `TRE-V0-030`: bounded, ownership-proved retirement of the detached
 xctest and helper processes SwiftPM leaves outside the runner's process group.
 The tuple is Swift 6.4 (swiftlang-6.4.0.34.1, swift-driver 1.168.6), macOS 26.6.2 (25G83),
 arm64. Owner acceptance is pending.

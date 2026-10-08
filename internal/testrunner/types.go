@@ -70,7 +70,7 @@ type Invocation struct {
 	Format                  string            `json:"format"`
 	GracefulInterrupt       bool              `json:"gracefulInterrupt,omitempty"`
 	// RetireDetachedDescendants proves and retires processes that left the
-	// leader's group (TRE-V0-025); omitted when false, so older plans keep
+	// leader's group (TRE-V0-030); omitted when false, so older plans keep
 	// their bytes.
 	RetireDetachedDescendants bool `json:"retireDetachedDescendants,omitempty"`
 }

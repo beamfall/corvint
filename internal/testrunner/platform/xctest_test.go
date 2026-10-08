@@ -52,7 +52,7 @@ func TestSwiftPMXCTestBuildPinsPackageAndExactSelector(t *testing.T) {
 		t.Fatalf("%+v %v", v, e)
 	}
 	if !v.RetireDetachedDescendants || v.GracefulInterrupt {
-		t.Fatal("SwiftPM XCTest plan does not request detached descendant retirement (TRE-V0-025)")
+		t.Fatal("SwiftPM XCTest plan does not request detached descendant retirement (TRE-V0-030)")
 	}
 	r.Selectors = []string{"Proof/testPass"}
 	if _, e = Build(r); e == nil {
@@ -71,7 +71,7 @@ func TestSwiftPMSetupAndBuildFailures(t *testing.T) {
 	}
 }
 
-// TestSwiftPMXUnitSkipLossCannotSatisfyExecution binds TRE-V0-024: the actual
+// TestSwiftPMXUnitSkipLossCannotSatisfyExecution binds TRE-V0-029: the actual
 // SwiftPM 6.4 parallel xUnit file reports XCTSkip as an ordinary passing case,
 // so only the serial native transport may carry the three outcomes.
 func TestSwiftPMXUnitSkipLossCannotSatisfyExecution(t *testing.T) {

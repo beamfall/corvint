@@ -174,7 +174,7 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 }
 
 // admittedInvocation rebuilds the fixed profile and requires the plan to match
-// it exactly. A plan from before TRE-V0-025 keeps its identity, so its
+// it exactly. A plan from before TRE-V0-030 keeps its identity, so its
 // receipts still bind, but it is refused for new execution: running it
 // without retirement could hide a detached-process leak, and running it with
 // retirement would break its receipt's invocation binding. Re-plan instead.

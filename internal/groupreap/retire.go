@@ -14,7 +14,7 @@ import (
 
 // OwnerEnvironmentKey carries a fresh random per-phase token. A process that
 // still holds it in its initial environment was started by that phase, even
-// after it left the leader's process group and was reparented (TRE-V0-025).
+// after it left the leader's process group and was reparented (TRE-V0-030).
 const OwnerEnvironmentKey = "CORVINT_TEST_RUNNER_OWNER"
 
 const (

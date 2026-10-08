@@ -45,7 +45,7 @@ func (f *fakeTable) primitives() retirePrimitives {
 	}
 }
 
-// TestRetirerProvesOwnershipBeforeSignalling binds TRE-V0-025's identity
+// TestRetirerProvesOwnershipBeforeSignalling binds TRE-V0-030's identity
 // rules with an injected process table: unrelated and reused identities are
 // never signalled; foreign-uid and surviving owned processes stay unretired.
 func TestRetirerProvesOwnershipBeforeSignalling(t *testing.T) {
@@ -120,7 +120,7 @@ func TestRetirerReportsUnconvergedForkStorm(t *testing.T) {
 	}
 }
 
-// TestRetirerKeepsReadFailuresAsUncertainty binds TRE-V0-025's failure path:
+// TestRetirerKeepsReadFailuresAsUncertainty binds TRE-V0-030's failure path:
 // unreadable identities or owner tokens never count as retired, and a failed
 // later snapshot still kills processes the first snapshot stopped.
 func TestRetirerKeepsReadFailuresAsUncertainty(t *testing.T) {

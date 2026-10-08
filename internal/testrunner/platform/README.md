@@ -86,7 +86,7 @@ setup exception can mark a body skipped while the method still fails with an
 infrastructure error. Linux output, retries and arbitrary custom observers remain
 unqualified. The Swift 6.4 --skip-update option is deprecated.
 
-TRE-V0-024 (V1-0597) retains the actual skip loss: `swiftpm-xunit-parallel.xml` is
+TRE-V0-029 (V1-0597) retains the actual skip loss: `swiftpm-xunit-parallel.xml` is
 Swift 6.4 (swiftlang-6.4.0.34.1), macOS 26.6.2 arm64, `--parallel --xunit-output`,
 where XCTSkip is an ordinary passing testcase without a `file` attribute. The
 swift-xctest profile never requests that transport and refuses any report file;
@@ -98,7 +98,7 @@ symlink, which executor admission refuses. A caller-pinned wrapper that writes t
 XML under a generic JUnit profile (bun-test, deno-test, pytest) would still decode
 it as complete: that is the trusted-local-executable limit of TRE-V0-004.
 
-TRE-V0-025 (V1-0613): SwiftPM 6.4 runs the xctest child and Foundation `Process`
+TRE-V0-030 (V1-0613): SwiftPM 6.4 runs the xctest child and Foundation `Process`
 helpers outside swift-test's process group, so the group kill alone leaves them.
 New swift-xctest plans set `retireDetachedDescendants`; the executor then stops and
 kills owned processes proved by ancestry or the per-phase owner token, and records

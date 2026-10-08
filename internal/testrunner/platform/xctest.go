@@ -47,7 +47,7 @@ func buildXCTest(r tr.Request, i *tr.Invocation) error {
 		i.Argv = append(i.Argv, "--filter", "^"+regexp.QuoteMeta(s)+"$")
 	}
 	// The xctest child and Foundation Process helpers leave swift-test's
-	// group; new plans retire them by proven ownership (TRE-V0-025).
+	// group; new plans retire them by proven ownership (TRE-V0-030).
 	i.RetireDetachedDescendants = true
 	return nil
 }

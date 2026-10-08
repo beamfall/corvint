@@ -113,7 +113,7 @@ func alive(pid int) bool {
 	return err == nil && ok && !r.zombie
 }
 
-// TestRetirerRetiresDetachedDescendants binds TRE-V0-025 on the actual
+// TestRetirerRetiresDetachedDescendants binds TRE-V0-030 on the actual
 // process table: a Setpgid child escapes the group kill and a setsid
 // grandchild escapes both; without the retirer they survive.
 func TestRetirerRetiresDetachedDescendants(t *testing.T) {

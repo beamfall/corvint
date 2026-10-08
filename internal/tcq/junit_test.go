@@ -204,7 +204,7 @@ func requireCode(t *testing.T, err error, code string) {
 	}
 }
 
-// TestSwiftPMXUnitRowsStayUnkeyed binds TRE-V0-024 on the import side: the
+// TestSwiftPMXUnitRowsStayUnkeyed binds TRE-V0-029 on the import side: the
 // actual SwiftPM 6.4 parallel xUnit rows carry no file attribute, so the
 // skip reported as pass can never key criterion evidence.
 func TestSwiftPMXUnitRowsStayUnkeyed(t *testing.T) {
