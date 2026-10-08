@@ -59,6 +59,9 @@ func TestEscapeHelper(t *testing.T) {
 	}
 	switch role {
 	case "leader":
+		// The test reads the leader's PID here, not from the running Cmd,
+		// whose Process field RunContained writes on another goroutine.
+		_ = os.WriteFile(filepath.Join(dir, "leader.pid"), []byte(strconv.Itoa(os.Getpid())), 0600)
 		spawn("worker", false)
 		ready()
 		switch os.Getenv("CORVINT_ESCAPE_LEADER") {
@@ -107,6 +110,21 @@ func (f escapeFixture) command(ctx context.Context, role, leaderMode string) *ex
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return cmd.Process.Kill() }
 	return cmd
+}
+
+// pid reads name.pid, which the child wrote before the identities the
+// caller already waited for.
+func (f escapeFixture) pid(name string) int {
+	f.t.Helper()
+	data, err := os.ReadFile(filepath.Join(f.dir, name+".pid"))
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return pid
 }
 
 // identity waits for name.pid and returns that process's table identity.
@@ -235,8 +253,9 @@ func TestRunContainedRetiresEscapedSessionWithoutCollateral(t *testing.T) {
 			cmd := f.command(ctx, "leader", leaderMode)
 			done := runContainedAsync(cmd)
 			browser, helper := f.identity("browser"), f.identity("helper")
-			if browser.PGID != browser.PID || helper.PGID != browser.PID || browser.PGID == cmd.Process.Pid {
-				t.Fatalf("fixture did not escape the leader group: browser %v helper %v leader %d", browser, helper, cmd.Process.Pid)
+			leader := f.pid("leader")
+			if browser.PGID != browser.PID || helper.PGID != browser.PID || browser.PGID == leader {
+				t.Fatalf("fixture did not escape the leader group: browser %v helper %v leader %d", browser, helper, leader)
 			}
 			if mode == "cancel" {
 				cancel()
