@@ -1594,18 +1594,20 @@ receipt or trace needs migration.
 
 Source: V1-0958 review finding P2 (native V1-0967). `GPK-V0-077` excludes `.`-relative specifiers
 from the alias arm, and the implementation read that as any specifier whose first character is
-`.`. TypeScript reads a specifier as relative only when it matches `^\.\.?($|/)`, so a `paths` key
-such as `.api/*` claims `.api/client` as a bare name; Corvint skipped it, `impact` missed the
-importer, and nothing was disclosed.
+`.`. TypeScript reads a specifier as relative only when it matches `^\.\.?($|[\\/])`, so a
+`paths` key such as `.api/*` claims `.api/client` as a bare name; Corvint skipped it, `impact`
+missed the importer, and nothing was disclosed.
 
 - `GPK-V0-082`: (proposed 2026-10-08, not accepted; V1-0967) In `GPK-V0-077` and
   `NewWebImportResolver(index).Resolve`, a web specifier is relative only when it is `.` or `..`
-  or starts with `./` or `../`. Every other specifier that starts with a dot is bare: it goes
-  through `paths`, `baseUrl` and the `GPK-V0-080` package test, a resolved importer is a
-  `reverse-import` row, and an unresolved one is counted in the `GPK-V0-080` disclosure. The
-  rule (c) oracle arm (`webSpecifierAdmitted`, `GPK-V0-027`) is unchanged and still admits any
-  leading dot, because its rows are the frozen parity corpus's bytes; the two arms' rows are
-  merged by importer path, so an importer both arms find appears once. Evidence:
+  alone or followed by `/` or `\`, as TypeScript's `pathIsRelative` reads it. Every other
+  specifier that starts with a dot is bare: it goes through `paths`, `baseUrl` and the
+  `GPK-V0-080` package test, a resolved importer is a `reverse-import` row, and an unresolved
+  one is counted in the `GPK-V0-080` disclosure. The rule (c) oracle arm
+  (`webSpecifierAdmitted`, `GPK-V0-027`) is unchanged and still admits any leading dot, because
+  its rows are the frozen parity corpus's bytes; the two arms' rows are merged by importer path,
+  so an importer both arms find appears once. Evidence:
   `TestImpactResolvesDotPrefixedAliasImporters` (`internal/contextindex/webresolve_test.go`),
-  which FAILS without the whole-segment rule. Rollback: restore the leading-dot test in
-  `Resolve` and `buildWebImportGraph`; no index, snapshot, receipt or trace changes.
+  which FAILS without the whole-segment rule and, on the disclosure count, with a rule that
+  accepts only `/`. Rollback: restore the leading-dot test in `Resolve` and
+  `buildWebImportGraph`; no index, snapshot, receipt or trace changes.

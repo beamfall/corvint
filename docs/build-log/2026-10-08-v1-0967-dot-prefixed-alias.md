@@ -4,17 +4,19 @@
 
 Ticket V1-0967 (V1-0958 review finding P2) records that `Resolve` and `buildWebImportGraph` in
 `internal/contextindex/webresolve.go` read every specifier starting with `.` as relative.
-TypeScript reads a specifier as relative only when it matches `^\.\.?($|/)`, so a tsconfig
-`paths` key such as `.api/*` claims `.api/client` as a bare name. Corvint skipped it in the alias
-arm and resolved it as a missing relative path, so `impact` on the target missed the importer and
-added no `GPK-V0-080` disclosure. The change adds proposed `GPK-V0-082` to
-`docs/specs/go-production-kernel-migration-v0.md`.
+TypeScript reads a specifier as relative only when it matches `^\.\.?($|[\\/])`
+(`pathIsRelative`), so a tsconfig `paths` key such as `.api/*` claims `.api/client` as a bare
+name. Corvint skipped it in the alias arm and resolved it as a missing relative path, so `impact`
+on the target missed the importer and added no `GPK-V0-080` disclosure.
+The change adds proposed `GPK-V0-082` to `docs/specs/go-production-kernel-migration-v0.md`.
 
 ## Decisions
 
-- **One whole-segment predicate in both places.** `webRelativeSpecifier` accepts `.`, `..`,
-  `./...` and `../...` only. `Resolve` and `buildWebImportGraph` both call it, so the exported
-  resolver and the `impact` alias arm agree.
+- **One whole-segment predicate in both places.** `webRelativeSpecifier` accepts `.` or `..`
+  alone or followed by `/` or `\`, nothing else. The backslash form was added after the
+  independent review (P2): a first version accepted only `/` and so counted a missing
+  `..\x` import as an unresolved bare specifier. `Resolve` and `buildWebImportGraph` both call
+  it, so the exported resolver and the `impact` alias arm agree.
 - **The rule (c) oracle arm is unchanged.** `webSpecifierAdmitted` in `reverseimports.go` still
   admits any leading dot, because its rows are the frozen `impact-web` parity corpus's bytes
   (`GPK-V0-027`, `GPK-V0-033`). A dot-prefixed bare specifier now reaches both arms. The oracle
@@ -39,9 +41,11 @@ reverse importers = map[src/relative.ts:map[imports ./api/client:true]], want sr
 uncertainty = [no language-specific verification command is known for this repository], want "... 1 bare import specifiers in 1 sources ..."
 ```
 
-It passes with the fix. The existing `TestWebImportResolverFixture`,
-`TestImpactResolvesTSConfigPathAliasImporters`, `TestImpactSyntaxReportsBareImportUnresolved`
-and `TestImpactKeepsFrozenBareReadingWithoutManifest` are unchanged and pass.
+It passes with the fix. With the predicate restricted to `/`, the same test fails on the
+disclosure (`2 bare import specifiers`), so the backslash case is covered too. The existing
+`TestWebImportResolverFixture`, `TestImpactResolvesTSConfigPathAliasImporters`,
+`TestImpactSyntaxReportsBareImportUnresolved` and
+`TestImpactKeepsFrozenBareReadingWithoutManifest` are unchanged and pass.
 
 ## Rollback
 

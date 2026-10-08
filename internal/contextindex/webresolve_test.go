@@ -173,10 +173,10 @@ func TestImpactKeepsFrozenBareReadingWithoutManifest(t *testing.T) {
 
 // TestImpactResolvesDotPrefixedAliasImporters is GPK-V0-082 (proposed;
 // V1-0967): TypeScript reads a specifier as relative only when it is `.` or
-// `..` or starts with `./` or `../`, so `.api/client` is a bare name its
-// `paths` key claims. Before the whole-segment rule both the resolver and the
-// alias arm read it as relative, so impact missed the importer and disclosed
-// nothing.
+// `..` alone or followed by a slash or backslash, so `.api/client` is a bare
+// name its `paths` key claims. Before the whole-segment rule both the resolver
+// and the alias arm read it as relative, so impact missed the importer and
+// disclosed nothing.
 func TestImpactResolvesDotPrefixedAliasImporters(t *testing.T) {
 	index, resolver := webResolverFor(t, map[string]string{
 		"package.json":      `{"name": "dot-alias"}`,
@@ -184,7 +184,7 @@ func TestImpactResolvesDotPrefixedAliasImporters(t *testing.T) {
 		"src/api/client.ts": "export const client = 1;\n",
 		"src/app.ts":        "import { client } from \".api/client\";\nexport const app = client;\n",
 		"src/relative.ts":   "import { client } from \"./api/client\";\nexport const relative = client;\n",
-		"src/stray.ts":      "import { thing } from \".nowhere/thing\";\nexport const stray = thing;\n",
+		"src/stray.ts":      "import { thing } from \".nowhere/thing\";\nimport { other } from \"..\\\\nowhere\";\nexport const stray = thing + other;\n",
 	})
 	for _, test := range []struct {
 		importer, specifier string
@@ -198,6 +198,9 @@ func TestImpactResolvesDotPrefixedAliasImporters(t *testing.T) {
 		if got := resolver.Resolve(test.importer, test.specifier); got != test.want {
 			t.Errorf("Resolve(%s, %s) = %+v, want %+v", test.importer, test.specifier, got, test.want)
 		}
+	}
+	if len(index.Imports["src/stray.ts"]) != 2 {
+		t.Fatalf("stray imports = %v, want the dot-prefixed bare and the backslash-relative specifier", index.Imports["src/stray.ts"])
 	}
 	receipt, err := Impact(index, []string{"src/api/client.ts"}, maxLimit)
 	if err != nil {
@@ -213,7 +216,7 @@ func TestImpactResolvesDotPrefixedAliasImporters(t *testing.T) {
 	uncertainty := anySlice(receipt["coverage"].(map[string]any)["uncertainty"])
 	want := "reverse-import results for 1 changed paths are incomplete: 1 bare import specifiers in 1 sources resolve to no repository file or declared package"
 	if !anyContains(uncertainty, want) {
-		t.Errorf("uncertainty = %v, want %q for the unmatched `.nowhere/thing`", uncertainty, want)
+		t.Errorf("uncertainty = %v, want %q: the unmatched `.nowhere/thing` is bare, the backslash-relative `..\\nowhere` is not", uncertainty, want)
 	}
 }
 

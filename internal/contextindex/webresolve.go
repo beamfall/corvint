@@ -105,12 +105,14 @@ func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImport
 	return resolver.resolveBare(importer, specifier)
 }
 
-// webRelativeSpecifier reports whether TypeScript reads specifier as relative:
-// `.` or `..` alone or followed by a slash, so whole segments only. A bare name
-// that merely starts with a dot, such as `.api/client`, is not relative and
-// goes through `paths`, `baseUrl` and the package test (GPK-V0-082, proposed).
+// webRelativeSpecifier reports whether TypeScript reads specifier as relative
+// (`pathIsRelative`, `^\.\.?($|[\\/])`): `.` or `..` alone or followed by a
+// slash or backslash, so whole segments only. A bare name that merely starts
+// with a dot, such as `.api/client`, is not relative and goes through `paths`,
+// `baseUrl` and the package test (GPK-V0-082, proposed).
 func webRelativeSpecifier(specifier string) bool {
-	return specifier == "." || specifier == ".." || strings.HasPrefix(specifier, "./") || strings.HasPrefix(specifier, "../")
+	rest := strings.TrimPrefix(strings.TrimPrefix(specifier, "."), ".")
+	return len(rest) < len(specifier) && (rest == "" || rest[0] == '/' || rest[0] == '\\')
 }
 
 // loadFrom loads one candidate path under the module resolution of the
