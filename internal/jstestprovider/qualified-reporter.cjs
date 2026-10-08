@@ -397,14 +397,12 @@ function canonicalReporterOptions(value, depth = 0, seen = new Set()) {
   } finally { seen.delete(value); }
 }
 
-// keptReporterEntries reports every reporter Playwright received after this
-// provider entry, which must be first and carry this run's private output path
-// (PWP-V0-014): the provider copies each observation before a kept reporter
-// receives the same callback arguments.
+// keptReporterEntries reports every reporter Playwright received before this
+// provider entry, which must be last and carry this run's private output path.
 function keptReporterEntries(reporters, output) {
-  const own = Array.isArray(reporters) ? reporters[0] : undefined;
+  const own = Array.isArray(reporters) ? reporters[reporters.length - 1] : undefined;
   if (!Array.isArray(own) || own[1]?.output !== output) return undefined;
-  return reporters.slice(1).map(entry => {
+  return reporters.slice(0, -1).map(entry => {
     const [name, options] = Array.isArray(entry) ? entry : [entry];
     if (typeof name !== 'string') return {name: '', options: 'unknown'};
     if (options === undefined) return {name, options: 'absent'};

@@ -49,7 +49,7 @@ func splitWatchOptions(args []string) ([]string, *watchOptions, error) {
 		}
 		name, value, hasValue := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(args[i], "-"), "-"), "=")
 		switch name {
-		case "dir", "config", "package-json", "lockfile", "runner-version", "timeout", "test-file", "env-key", "app-build-dir", "server-ready-url", "server-ready-timeout", "server-arg", "test-arg", "keep-reporters-qualification":
+		case "dir", "config", "package-json", "lockfile", "runner-version", "timeout", "test-file", "env-key", "app-build-dir", "server-ready-url", "server-ready-timeout", "server-arg", "test-arg":
 			filtered = append(filtered, args[i])
 			if !hasValue && i+1 < len(args) {
 				i++

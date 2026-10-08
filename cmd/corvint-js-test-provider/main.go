@@ -8,11 +8,7 @@
 // failure must surface, not abort the run. With --retain the same document
 // bytes are also retained under .corvint/test-evidence of the enclosing Git
 // worktree (LPCV-V0-055); a retention failure is reported on stderr and exits
-// nonzero after the document is emitted. The experimental (proposed
-// PWP-V0-015) `qualify-keep-reporters` runs the
-// same external e2e configuration replace-only and then with the project's
-// reporters kept, and prints the canonical qualification record
-// (PWP-V0-015); it exits zero only when the record is qualified.
+// nonzero after the document is emitted.
 package main
 
 import (
@@ -39,13 +35,6 @@ const producer = "corvint-js-test-provider"
 // errRetention marks a retention failure already reported on stderr.
 var errRetention = errors.New("retention failed")
 
-// errNotQualified marks a keep-reporters qualification record that was
-// printed but is not qualified; its reasons are already on stderr.
-var errNotQualified = errors.New("keep-reporters not qualified")
-
-// runE2EReceipt is the e2e entry point; tests replace it with a fake runner.
-var runE2EReceipt = jstestprovider.RunE2E
-
 type stringList []string
 
 func (s *stringList) String() string { return fmt.Sprintf("%v", []string(*s)) }
@@ -68,7 +57,7 @@ type testProjection struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|qualify-keep-reporters> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e> [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -77,13 +66,11 @@ func main() {
 		err = runUnit(os.Args[2:])
 	case "e2e":
 		err = runE2E(os.Args[2:])
-	case "qualify-keep-reporters":
-		err = runQualifyKeepReporters(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", os.Args[1])
 		os.Exit(2)
 	}
-	if errors.Is(err, errRetention) || errors.Is(err, errNotQualified) {
+	if errors.Is(err, errRetention) {
 		os.Exit(1)
 	}
 	if err != nil {
@@ -188,22 +175,12 @@ func runUnit(args []string) error {
 }
 
 func runE2E(args []string) error {
-	return runE2EMode("e2e", args)
-}
-
-// runQualifyKeepReporters takes the external e2e flags and runs the
-// two-run keep-reporters qualification (PWP-V0-015).
-func runQualifyKeepReporters(args []string) error {
-	return runE2EMode("qualify-keep-reporters", args)
-}
-
-func runE2EMode(mode string, args []string) error {
 	filtered, watch, err := splitWatchOptions(args)
 	if err != nil {
 		return err
 	}
 	args = filtered
-	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	fs := flag.NewFlagSet("e2e", flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run server and test commands in (resolved to an absolute path)")
 	configFile := fs.String("config", "", "playwright config file path")
@@ -218,8 +195,7 @@ func runE2EMode(mode string, args []string) error {
 	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation provider observation")
 	sensitiveInputRedaction := fs.Bool("sensitive-input-redaction", false, "select the /2 profile and retain only redacted browser input-action steps")
 	retainAttemptDetails := fs.Bool("retain-attempt-details", false, "select the /3 profile and retain each attempt's detail")
-	keepReporters := fs.Bool("keep-reporters", false, "external mode: keep the project's reporters after the provider reporter instead of replacing them; the receipt binds the kept entries and records their effects as unknown")
-	keepReportersQualification := fs.String("keep-reporters-qualification", "", "experimental (proposed PWP-V0-016), with --keep-reporters: a qualified record from qualify-keep-reporters; the receipt carries it and projects only when it matches exactly")
+	keepReporters := fs.Bool("keep-reporters", false, "external mode: append the provider reporter to the project's reporter list instead of replacing it; the receipt binds the kept entries and records their effects as unknown")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -274,18 +250,6 @@ func runE2EMode(mode string, args []string) error {
 		sensitivePolicy = &jstestprovider.SensitiveInputPolicy{AdditionalActionPatterns: sensitiveActionPatterns, AdditionalSensitiveFields: sensitiveFields}
 	}
 
-	var qualification *jstestprovider.KeepReportersQualification
-	if *keepReportersQualification != "" {
-		if mode != "e2e" {
-			return errors.New("qualify-keep-reporters takes no --keep-reporters-qualification")
-		}
-		record, err := readKeepReportersQualification(*keepReportersQualification)
-		if err != nil {
-			return err
-		}
-		qualification = &record
-	}
-
 	ctx, cancel := interruptContext()
 	defer cancel()
 
@@ -301,24 +265,17 @@ func runE2EMode(mode string, args []string) error {
 			DeclaredEnvKeys: envKeys,
 			Timeout:         *timeout,
 		},
-		ServerArgv:                 serverArgv,
-		ExternalServer:             *externalServer,
-		AppIdentity:                *appIdentity,
-		ServerReadyURL:             *serverReadyURL,
-		ServerReadyLimit:           *serverReadyTimeout,
-		AppBuildDir:                *appBuildDir,
-		TestArgv:                   testArgv,
-		ApplicationAttestation:     attestationProvider,
-		SensitiveInputPolicy:       sensitivePolicy,
-		RetainAttemptDetails:       *retainAttemptDetails,
-		KeepReporters:              *keepReporters,
-		KeepReportersQualification: qualification,
-	}
-	if mode == "qualify-keep-reporters" {
-		if watch != nil || *keepReporters || !*externalServer {
-			return errors.New("qualify-keep-reporters is one-shot, external-server only and selects both reporter modes itself")
-		}
-		return qualifyKeepReporters(ctx, cfg, os.Stdout, os.Stderr, retainFrom(*retain, resolvedDir))
+		ServerArgv:             serverArgv,
+		ExternalServer:         *externalServer,
+		AppIdentity:            *appIdentity,
+		ServerReadyURL:         *serverReadyURL,
+		ServerReadyLimit:       *serverReadyTimeout,
+		AppBuildDir:            *appBuildDir,
+		TestArgv:               testArgv,
+		ApplicationAttestation: attestationProvider,
+		SensitiveInputPolicy:   sensitivePolicy,
+		RetainAttemptDetails:   *retainAttemptDetails,
+		KeepReporters:          *keepReporters,
 	}
 	if watch != nil {
 		if attestationProvider != nil {
@@ -326,86 +283,11 @@ func runE2EMode(mode string, args []string) error {
 		}
 		return runE2EWatch(ctx, cfg, *retain, watch, os.Stdout, os.Stderr)
 	}
-	receipt, err := runE2EReceipt(ctx, cfg)
+	receipt, err := jstestprovider.RunE2E(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	return emit(os.Stdout, os.Stderr, receipt, retainFrom(*retain, resolvedDir))
-}
-
-// readKeepReportersQualification reads and strictly decodes a qualified
-// record (PWP-V0-016).
-func readKeepReportersQualification(path string) (jstestprovider.KeepReportersQualification, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return jstestprovider.KeepReportersQualification{}, err
-	}
-	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, jstestprovider.MaxKeepReportersQualificationSize+1))
-	if err != nil {
-		return jstestprovider.KeepReportersQualification{}, err
-	}
-	record, err := jstestprovider.DecodeKeepReportersQualification(data)
-	if err == nil && record.Verdict != jstestprovider.KeepReportersQualified {
-		err = errors.New("keep-reporters-qualification-not-qualified")
-	}
-	return record, err
-}
-
-// qualifyKeepReporters runs the control (replace-only) run and, only when it
-// completed, the keep-reporters run of the same configuration, then prints
-// the canonical record (PWP-V0-015). An incomplete run is reported, never
-// retried or inferred; with --retain each produced receipt is retained so the
-// record's digests name retained bytes.
-func qualifyKeepReporters(ctx context.Context, cfg jstestprovider.E2EConfig, stdout, stderr io.Writer, retainFrom string) error {
-	cfg.KeepReporters, cfg.KeepReportersQualification = false, nil
-	control, controlErr := runE2EReceipt(ctx, cfg)
-	keep, keepErr := jstestprovider.Receipt{}, errors.New("keep-reporters-keep-run-skipped")
-	if controlErr == nil && control.Infrastructure == nil && !control.Cancelled && ctx.Err() == nil {
-		cfg.KeepReporters = true
-		keep, keepErr = runE2EReceipt(ctx, cfg)
-	}
-	retained := error(nil)
-	for _, run := range []struct {
-		name    string
-		receipt jstestprovider.Receipt
-		err     error
-	}{{"control", control, controlErr}, {"keep", keep, keepErr}} {
-		if run.err != nil {
-			fmt.Fprintf(stderr, "%s run: %v\n", run.name, run.err)
-			continue
-		}
-		if run.receipt.Infrastructure != nil {
-			fmt.Fprintf(stderr, "%s run: %s: %s\n", run.name, run.receipt.Infrastructure.Reason, run.receipt.Infrastructure.Detail)
-		}
-		if retainFrom == "" {
-			continue
-		}
-		data, err := jstestprovider.EncodeQualified(run.receipt)
-		if err != nil {
-			fmt.Fprintf(stderr, "%s run: %v\n", run.name, err)
-			continue
-		}
-		if err := retainDocument(stderr, retainFrom, data); err != nil {
-			retained = err
-		}
-	}
-	record := jstestprovider.QualifyKeepReporters(control, controlErr, keep, keepErr)
-	data, err := jstestprovider.EncodeKeepReportersQualification(record)
-	if err != nil {
-		return err
-	}
-	if _, err := stdout.Write(data); err != nil {
-		return err
-	}
-	if retained != nil {
-		return retained
-	}
-	if record.Verdict != jstestprovider.KeepReportersQualified {
-		fmt.Fprintf(stderr, "keep-reporters %s: %v\n", record.Verdict, record.Reasons)
-		return errNotQualified
-	}
-	return nil
 }
 
 // retainFrom names the directory whose enclosing worktree retains the
