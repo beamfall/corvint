@@ -114,15 +114,18 @@ func TestMTPLiveExecution(t *testing.T) {
 					v.Argv[i] = long
 				}
 			}
-			x, e := tr.Execute(context.Background(), r, v)
-			if e != nil {
-				t.Logf("forced execution refused: %v", e)
-				return
+			x, xe := tr.Execute(context.Background(), r, v)
+			// The forced run must reach the native socket failure, not fail for
+			// an unrelated reason before launch.
+			stderr, e := os.ReadFile(filepath.Join(long, ".phase-00-stderr"))
+			if e != nil || !strings.Contains(string(stderr), "exceeds the maximum of 103 bytes allowed for a Unix domain socket") {
+				t.Fatalf("forced run did not reach the native socket failure: %v %v %.300s", xe, e, stderr)
 			}
-			stderr, _ := os.ReadFile(filepath.Join(long, ".phase-00-stderr"))
-			t.Logf("forced native exit %d: %.300s", x.Input.ExitCode, stderr)
-			if o, e := Parse(x.Input); e == nil && tr.Normalize(x.Input, o).Complete {
-				t.Fatalf("native socket abort produced a complete observation: %+v", o)
+			t.Logf("forced native abort: execute error %v; %.300s", xe, stderr)
+			if xe == nil {
+				if o, e := Parse(x.Input); e == nil && tr.Normalize(x.Input, o).Complete {
+					t.Fatalf("native socket abort produced a complete observation: %+v", o)
+				}
 			}
 		})
 	}

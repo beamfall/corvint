@@ -467,10 +467,12 @@ could disappear. These checks keep such evidence from becoming a pass.
   (including `FatalError` or unqualified result children), MUST refuse before
   projection, so no alias can replace a native outcome. A `Passed` row with
   any `ErrorInfo` (including empty or stack-only), summary `ErrorInfo`, an
-  outcome that is not an exact qualified value, a nonzero non-pass counter or a
-  summary/row contradiction MUST leave the observation incomplete. Native
-  counters MUST reconcile with rows; `NotExecuted` rows keep their native skip
-  reason. Status: proposed (V1-0600).
+  outcome that is not an exact qualified value, a nonzero exceptional counter
+  (any counter other than `total`, `executed`, `passed`, `failed` and
+  `notExecuted`) or a summary/row contradiction MUST leave the observation
+  incomplete. Native counters MUST reconcile with rows; reconciled `Failed` and
+  `NotExecuted` rows stay complete with their native failed or skipped state.
+  Status: proposed (V1-0600).
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
