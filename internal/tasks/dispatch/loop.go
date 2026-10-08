@@ -653,6 +653,8 @@ var killText = map[string]string{
 	"IDLE":     "no session activity and no running tool process within the idle timeout",
 	"WALL":     "the wall-clock cap was reached",
 	"ORPHANED": "the worker exited but left processes behind",
+	// CAL-V0-191: set by heal after it reaps the worker's expired attempt.
+	"LEASE_EXPIRED": "its attempt's lease expired beyond the grace and was reaped",
 }
 
 // active reports output growth, an activity path advancing, or a running
@@ -723,7 +725,15 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 			if ctx.Err() != nil {
 				return wrote
 			}
-			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) || d.worker(a.Holder) != nil {
+			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) {
+				continue
+			}
+			if w := d.worker(a.Holder); w != nil {
+				// An ended worker (empty tree) is left to its hand-off and
+				// the next pass, as before CAL-V0-191.
+				if len(w.Members) > 0 && d.reapRunningExpired(ctx, obs, w, a, now) {
+					wrote = true
+				}
 				continue
 			}
 			wrote = true
@@ -737,6 +747,30 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 		}
 	}
 	return wrote
+}
+
+// reapRunningExpired reaps the live attempt a of the still-running worker w
+// once its lease has been expired for longer than the role's grace, then
+// marks w for the same TERM-then-KILL stop as the wall-time cap
+// (CAL-V0-191). It reports whether it attempted a store write.
+func (d *Dispatcher) reapRunningExpired(ctx context.Context, obs *Observation, w *Worker, a Attempt, now time.Time) bool {
+	grace := d.launchConfig(w).roleNamed(w.Role).ExpiredLeaseGrace()
+	if now.Sub(a.LeaseExpires) <= grace {
+		return false
+	}
+	local := d.local(obs, a.Ticket)
+	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": a.Holder, "phase": a.Phase, "leaseExpires": a.LeaseExpires.UTC().Format(time.RFC3339), "graceSeconds": strconv.Itoa(int(grace / time.Second))}
+	if err := d.Queue.Reap(ctx, a, requestID("reap", a.ID, a.Generation, "lease-expired")); err != nil {
+		detail["error"] = err.Error()
+		d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not reap the expired lease of %s held by running worker %s: %v", local, w.ID, err), Detail: detail})
+		return true
+	}
+	d.emit(Event{Kind: "lease-expired", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("reaped attempt %s on %s: its lease expired at %s, more than %s ago, while %s still ran; stopping the worker", a.ID, local, detail["leaseExpires"], grace, w.ID), Detail: detail})
+	if w.State != "KILLING" {
+		w.State, w.KillReason = "KILLING", "LEASE_EXPIRED"
+		d.emit(Event{Kind: "killing", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("stopping %s worker %s on %s: %s", w.Role, w.ID, d.keyText(w.Key), killText["LEASE_EXPIRED"]), Detail: map[string]string{"reason": "LEASE_EXPIRED", "processes": strconv.Itoa(len(w.Members))}})
+	}
+	return true
 }
 
 // handoff releases the live attempt a of the ended worker through the
