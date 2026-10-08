@@ -14,11 +14,11 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 [issue 669](https://github.com/beamfall/corvint/issues/669) part 2 (V1-0982, tests in a second
 repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982)), and
 [issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
-through AngularJS dependency injection; AMAP-V0-021..023 proposed).
+through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are proposed (V1-1027; GitHub #685) and implemented over synthetic repositories.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -68,8 +68,8 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 ## Requirements
 
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
-(V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are proposed
-(V1-1027; GitHub #685) and await owner acceptance.
+(V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
+(decision 0460; V1-1027; GitHub #685).
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -279,7 +279,7 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   More than 20000 sources in scope, or more than 128 MiB of their text read, refuses with
   `appmap-bound-exceeded`. The scope is read from the `--root` index at the map revision, only
   when a router reads a name through injection. Without the member no name resolves through
-  injection, so an existing manifest compiles to the same bytes. Status: proposed (V1-1027;
+  injection, so an existing manifest compiles to the same bytes. Status: accepted (decision 0460; V1-1027;
   GitHub #685).
 - `AMAP-V0-022`: A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
   file that neither declares nor imports `X` MUST resolve through AngularJS injection when all of
@@ -298,7 +298,7 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   file for an imported `T`, the `.constant(...)` call and the router function's parameter list, in
   that order (AMAP-V0-010 anchors at the map revision; a declaring line equal to the call's span is
   carried once); they join the screen's lineage freshness.
-  Status: proposed (V1-1027; GitHub #685).
+  Status: accepted (decision 0460; V1-1027; GitHub #685).
 - `AMAP-V0-023`: A name or parent the injection path cannot prove MUST stay `UNKNOWN`
   `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: no `di_constants`;
   no registration of `'X'`, or more than one, in scope; an object-map registration
@@ -319,7 +319,7 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   registration through an aliased function
   (`const c = m.constant; c(...)`), the AngularJS module a registration belongs to, and a
   registration added in a new file after the map revision are not read; a static map cannot see
-  them. Status: proposed (V1-1027; GitHub #685).
+  them. Status: accepted (decision 0460; V1-1027; GitHub #685).
 
 ## Wire contract
 

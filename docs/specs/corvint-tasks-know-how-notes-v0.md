@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 proposed (V1-1029; GitHub #687)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,9 +15,9 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 proposed (V1-1029; GitHub #687); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
 - Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023). Proposed: `--repo ALIAS=ROOT` pins a note in another repository of a multi-repository program, stores its anchors as `ALIAS/PATH` and resolves its freshness only where the alias is mapped (KHN-V0-024..027).
-- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963), KHN-V0-021..023 (V1-0987) and KHN-V0-024..027 (V1-1029); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
+- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963) and KHN-V0-021..023 (V1-0987); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -271,7 +271,7 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
   it on a superseding ADD, a RETRACT, a RECONFIRM or an ADD without them. Status: proposed (V1-0987; GitHub
   #671).
 
-Multi-repository notes, KHN-V0-024 to KHN-V0-027, are proposed (V1-1029; GitHub #687). A program
+Multi-repository notes, KHN-V0-024 to KHN-V0-027, are accepted (decision 0462; V1-1029; GitHub #687). A program
 whose tickets span several Git repositories keeps one store in one checkout, and its touchPaths
 name files in the other repositories under a repository prefix such as `e2e/`. Before this
 amendment a note could only pin files of the store checkout, so a note on another repository's
@@ -292,7 +292,7 @@ unchanged.
   reconfirm` of a repository note MUST be given `--repo` mapping that note's own alias, re-pins
   the anchors below the alias in that ROOT, and stores them qualified again; `--repo` on a note
   without a repository, or with another alias, is refused `KNOWHOW_REPOSITORY:`. Without `--repo`
-  every write is byte-identical to before. Status: proposed (V1-1029; GitHub #687).
+  every write is byte-identical to before. Status: accepted (decision 0462; V1-1029; GitHub #687).
 - `KHN-V0-025`: The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key
   `repository`, a token of at most 64 bytes, omitted when absent and never null. When present,
   every anchor path MUST start with `repository + "/"` and name something below it. The Tasks
@@ -300,12 +300,12 @@ unchanged.
   non-token alias and an anchor outside the prefix. RETRACT and RECONFIRM entries and payloads
   carry no `repository`; a RECONFIRM inherits the repository of the note it re-pins. A record or
   payload without the key keeps its exact bytes, so receipts and replay are unchanged. Status:
-  proposed (V1-1029; GitHub #687).
+  accepted (decision 0462; V1-1029; GitHub #687).
 - `KHN-V0-026`: A repository note's anchors are matched in their stored, qualified form by the
   unchanged KHN-V0-006 rule wherever paths are compared: claim delivery against the claimed
   ticket's `effects.touchPaths`, `list --path`, and the KHN-V0-022 WORKER scope. A qualified
   touchPath such as `e2e/src/` therefore delivers and admits `e2e/...` anchors, and a bare path
-  never matches a qualified anchor or the reverse. Status: proposed (V1-1029; GitHub #687).
+  never matches a qualified anchor or the reverse. Status: accepted (decision 0462; V1-1029; GitHub #687).
 - `KHN-V0-027`: `ticket know-how list` and `claim` (with or without `--next`) MUST accept a
   repeatable `--repo ALIAS=ROOT`, validated as in KHN-V0-024; an alias given twice is refused
   `KNOWHOW_REPOSITORY:` as ambiguous, and `--repo` on any other lease command is refused. A claim
@@ -320,7 +320,7 @@ unchanged.
   head}`, where `head` is that root's `HEAD` or null; a note without a repository projects
   exactly as before. The result carries one warning `KNOWHOW_REPOSITORY: repository ALIAS is not
   mapped with --repo; its notes are UNKNOWN` per unmapped alias among the matched notes. Status:
-  proposed (V1-1029; GitHub #687).
+  accepted (decision 0462; V1-1029; GitHub #687).
 
 ## Failure modes and trust
 

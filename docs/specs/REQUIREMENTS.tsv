@@ -548,8 +548,8 @@ CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4913	(proposed; V1-0918; 
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5096	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer
 CAL-V0-192	docs/specs/corvint-tasks-agent-leases-v0.md	5187	(proposed (V1-1021, issue 679)) When `corvint-tasks ticket create`,
 CAL-V0-193	docs/specs/corvint-tasks-agent-leases-v0.md	5199	(proposed (V1-1021, issue 679)) A `plan preview` entry deferred for
-CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5242	(proposed; V1-1026) A policy MAY carry the optional top-level key `milestones`,
-CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5256	(proposed; V1-1026) `queue status` MUST report `openWithoutMilestone`, the count
+CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5242	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke
+CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5256	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -2449,11 +2449,11 @@ PWP-V0-010	docs/specs/playwright-external-provider-v0.md	36	(proposed (V1-0986; 
 PWP-V0-011	docs/specs/playwright-external-provider-v0.md	37	(proposed (V1-0986; GitHub #670)) A keep-reporters receipt binds `receipt.extern
 PWP-V0-012	docs/specs/playwright-external-provider-v0.md	42	(proposed (V1-0986; GitHub #670)) The provider never observes what a kept report
 PWP-V0-013	docs/specs/playwright-external-provider-v0.md	43	(proposed (V1-0986; GitHub #670)) Test-validity decoding and MCP discovery accep
-PWP-V0-014	docs/specs/playwright-external-provider-v0.md	64	(proposed (V1-1028; GitHub #686)) In keep-reporters mode the provider reporter i
-PWP-V0-015	docs/specs/playwright-external-provider-v0.md	71	(proposed (V1-1028; GitHub #686)) `corvint-js-test-provider qualify-keep-reporte
-PWP-V0-016	docs/specs/playwright-external-provider-v0.md	95	(proposed (V1-1028; GitHub #686)) `e2e --keep-reporters --keep-reporters-qualifi
-PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(proposed (V1-1028; GitHub #686)) The record is closed. It has exactly these mem
-PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(proposed (V1-1028; GitHub #686)) Missing evidence never becomes a qualification
+PWP-V0-014	docs/specs/playwright-external-provider-v0.md	64	(accepted (decision 0461; V1-1028; GitHub #686)) In keep-reporters mode the prov
+PWP-V0-015	docs/specs/playwright-external-provider-v0.md	71	(accepted (decision 0461; V1-1028; GitHub #686)) `corvint-js-test-provider quali
+PWP-V0-016	docs/specs/playwright-external-provider-v0.md	95	(accepted (decision 0461; V1-1028; GitHub #686)) `e2e --keep-reporters --keep-re
+PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision 0461; V1-1028; GitHub #686)) The record is closed. It has ex
+PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	163	`/1` is available only in external-server mode and requires a typed `corvint-app
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	164	The closed provider configuration binds the expected application root commit, re
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	165	Each closed canonical `corvint-application-attestation/0` observation binds the
