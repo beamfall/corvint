@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -192,7 +193,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		phaseCtx, phaseCancel := context.WithCancel(limited)
 		cmd := exec.CommandContext(phaseCtx, t.Executable, p.Argv...)
 		cmd.Dir = r.Root
-		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": filepath.Join(r.ReportDir, ".tmp"), "LANG": "C.UTF-8", "TZ": "UTC"}
+		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": ExecutionTempDir(r.ReportDir), "LANG": "C.UTF-8", "TZ": "UTC"}
 		for k, v := range p.Environment {
 			if k == "" || strings.ContainsAny(k, "=\x00") || strings.ContainsRune(v, 0) {
 				phaseCancel()
@@ -319,7 +320,7 @@ func checkTool(t Tool) error {
 	if e != nil || !s.Mode().IsRegular() || s.Size() > 256<<20 {
 		return fmt.Errorf("tool must be bounded regular file")
 	}
-	f, e := os.Open(t.Executable)
+	f, _, e := openCheckedRegular(t.Executable, s)
 	if e != nil {
 		return e
 	}
@@ -348,6 +349,33 @@ func regularPath(root *os.Root, n string) error {
 		}
 	}
 	return nil
+}
+
+// regularAbsolutePath is regularPath for an absolute pinned file: each prefix
+// takes a no-follow Lstat and the final one is returned for the open. A root
+// opened at "/" would contain nothing and needs read access to "/" itself,
+// which a sandbox such as Landlock denies (V1-0624). The open then goes through
+// openCheckedRegular, because os.Root follows a final symlink even with
+// O_NOFOLLOW.
+func regularAbsolutePath(name string) (os.FileInfo, error) {
+	parts := strings.Split(strings.TrimPrefix(name, string(filepath.Separator)), string(filepath.Separator))
+	var s os.FileInfo
+	for i := range parts {
+		var e error
+		if s, e = os.Lstat(string(filepath.Separator) + filepath.Join(parts[:i+1]...)); e != nil {
+			return nil, e
+		}
+		if s.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("symlink input refused")
+		}
+		if i < len(parts)-1 && !s.IsDir() {
+			return nil, fmt.Errorf("non-directory segment")
+		}
+		if i == len(parts)-1 && !s.Mode().IsRegular() {
+			return nil, fmt.Errorf("nonregular file refused")
+		}
+	}
+	return s, nil
 }
 func checkInputs(root *os.Root, files map[string]string) error {
 	for n, h := range files {
@@ -427,6 +455,26 @@ func declaredPath(r Request) string {
 	}
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
+
+// openCheckedRegular opens a path whose no-follow check saw before. O_NONBLOCK
+// keeps a FIFO swapped in after that check from blocking admission, O_NOFOLLOW
+// refuses a final symlink swapped in, and the same-file check refuses any other
+// replacement (V1-0624).
+func openCheckedRegular(name string, before os.FileInfo) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() || !before.Mode().IsRegular() || !os.SameFile(before, st) {
+		f.Close()
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	return f, st, nil
+}
 func checkPinnedFile(base, name, digest string) error {
 	if name == "" && digest == "" {
 		return nil
@@ -440,25 +488,20 @@ func checkPinnedFile(base, name, digest string) error {
 		}
 		name = filepath.Join(base, filepath.FromSlash(name))
 	}
-	root, err := os.OpenRoot(string(filepath.Separator))
+	name = filepath.Clean(name)
+	if err := relative(strings.TrimPrefix(name, string(filepath.Separator))); err != nil {
+		return err
+	}
+	before, err := regularAbsolutePath(name)
 	if err != nil {
 		return err
 	}
-	defer root.Close()
-	rel := strings.TrimPrefix(filepath.Clean(name), string(filepath.Separator))
-	if err = relative(rel); err != nil {
-		return err
-	}
-	if err = regularPath(root, rel); err != nil {
-		return err
-	}
-	f, err := root.Open(rel)
+	f, st, err := openCheckedRegular(name, before)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || st.Size() > MaxPinnedArtifactBytes {
+	if st.Size() > MaxPinnedArtifactBytes {
 		return fmt.Errorf("pinned artifact byte bound")
 	}
 	h := sha256.New()
