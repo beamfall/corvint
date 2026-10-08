@@ -4,6 +4,7 @@ package gitauth
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,25 +22,9 @@ import (
 // promisor source stays present, so a fetch would succeed; the remote's upload-pack touches a
 // sentinel first, so an attempt leaves it. It sets PATH, so it is not parallel.
 func TestPromisorObjectNeverFetchedByAGitThatDropsTheLazyFetchGuard(t *testing.T) {
-	realGit, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
 	root, base, target := makeRepo(t)
-	gitCmd(t, root, "config", "uploadpack.allowfilter", "true")
-	partial := filepath.Join(t.TempDir(), "partial")
-	gitCmd(t, filepath.Dir(partial), "clone", "-q", "--no-local", "--filter=blob:none", "file://"+root, partial)
-	partial, err = filepath.EvalSymlinks(partial)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
-	gitCmd(t, partial, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
-	shim := t.TempDir()
-	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	partial, sentinel := promisorClone(t, root)
+	shim := guardDroppingGit(t)
 	for _, dropsGuard := range []bool{false, true} {
 		t.Run(map[bool]string{false: "guarded", true: "drops-guard"}[dropsGuard], func(t *testing.T) {
 			if dropsGuard {
@@ -65,5 +50,74 @@ func TestPromisorObjectNeverFetchedByAGitThatDropsTheLazyFetchGuard(t *testing.T
 				}
 			}
 		})
+	}
+}
+
+// promisorClone makes a blob:none clone of root whose upload-pack touches the returned sentinel
+// before serving, so any fetch attempt leaves it. The source stays present, so a fetch would
+// succeed.
+func promisorClone(t *testing.T, root string) (string, string) {
+	t.Helper()
+	gitCmd(t, root, "config", "uploadpack.allowfilter", "true")
+	partial := filepath.Join(t.TempDir(), "partial")
+	gitCmd(t, filepath.Dir(partial), "clone", "-q", "--no-local", "--filter=blob:none", "file://"+root, partial)
+	partial, err := filepath.EvalSymlinks(partial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+	gitCmd(t, partial, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+	return partial, sentinel
+}
+
+// guardDroppingGit returns a directory holding a git that unsets GIT_NO_LAZY_FETCH, as Git before
+// 2.46 ignores it.
+func guardDroppingGit(t *testing.T) string {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shim := t.TempDir()
+	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return shim
+}
+
+// TestCanonicalDiffNamesAMissingPromisedBlobAmongManySharedOnes: V1-0349. When the batch read
+// exits, each distinct blob is probed once, so many paths sharing one present blob cannot exhaust
+// the operation budget before the missing base blob is named. It sets PATH, so it is not parallel.
+func TestCanonicalDiffNamesAMissingPromisedBlobAmongManySharedOnes(t *testing.T) {
+	root, base, _ := makeRepo(t)
+	for i := range 1100 {
+		writeFile(t, root, filepath.Join("a", fmt.Sprintf("%04d.txt", i)), "shared content\n")
+	}
+	writeFile(t, root, "f.go", "package f\n\n// changed again\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "many shared blobs")
+	target := gitCmd(t, root, "rev-parse", "HEAD")
+	partial, sentinel := promisorClone(t, root)
+	t.Setenv("PATH", guardDroppingGit(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	_, err := open(t, partial).CanonicalDiff(context.Background(), base, target)
+	if _, statErr := os.Stat(sentinel); !os.IsNotExist(statErr) {
+		t.Fatalf("the diff reached the promisor remote (sentinel stat: %v)", statErr)
+	}
+	if cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("got %v, want repository-object-unavailable naming the missing base blob", err)
+	}
+}
+
+// TestDiffExitClassificationKeepsCancellation: V1-0349. A cancellation during the missing-object
+// walk is returned as such, not hidden behind the diff's git-diff-failed.
+func TestDiffExitClassificationKeepsCancellation(t *testing.T) {
+	root, base, target := makeRepo(t)
+	repository := open(t, root)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := repository.diffExitError(ctx, cemcode.New(cemcode.GitExitFailure, "diff exited"), base, target)
+	if cemcode.CodeOf(err) != cemcode.GitCancelled {
+		t.Fatalf("got %v, want git-cancelled", err)
 	}
 }

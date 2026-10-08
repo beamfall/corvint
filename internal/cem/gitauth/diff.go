@@ -129,10 +129,9 @@ func (r *Repository) CanonicalDiffWithCreateDestinations(ctx context.Context, ba
 // is a promised object that is not present locally, because the read environment forbids the lazy
 // fetch. CEM-CB-019 codes that as repository-object-unavailable, not as a patch-derivation
 // failure, so on a Git exit the verified change set and its blobs are walked, without fetching,
-// and their missing-object refusal is returned when they have one (V1-0349). A Git that ignores
-// GIT_NO_LAZY_FETCH exits from the batch read instead of reporting the object missing, so the
-// blobs are then read one by one, where a Git exit names the object. Any other outcome keeps the
-// diff's own code.
+// and their missing-object refusal is returned when they have one (V1-0349). A cancellation,
+// timeout or budget failure during that walk is returned through the same mapping as a diff
+// failure. Any other outcome keeps the diff's own code.
 func (r *Repository) diffExitError(ctx context.Context, err error, baseOID, targetOID string) error {
 	if cemcode.CodeOf(err) != cemcode.GitExitFailure {
 		return canonicalDiffError(err)
@@ -141,29 +140,37 @@ func (r *Repository) diffExitError(ctx context.Context, err error, baseOID, targ
 	if walkErr == nil {
 		walkErr = r.missingPatchBlob(ctx, patchSections(changed))
 	}
-	if cemcode.CodeOf(walkErr) == cemcode.RepositoryObjectUnavailable {
-		return walkErr
+	switch cemcode.CodeOf(walkErr) {
+	case cemcode.RepositoryObjectUnavailable, cemcode.GitCancelled, cemcode.GitTimeout, cemcode.GitBudgetExceeded:
+		return canonicalDiffError(walkErr)
 	}
 	return canonicalDiffError(err)
 }
 
-// missingPatchBlob returns the error that reading the sections' blobs fails with, reading them one
-// by one when the batch read exits.
+// missingPatchBlob returns the error that reading the sections' blobs fails with. A Git that
+// ignores GIT_NO_LAZY_FETCH exits from the batch read instead of reporting the object missing, so
+// each distinct blob is then probed alone with cat-file -e, where an exit names the object. The
+// probe reads no content, so it charges no blob budget and fills no memo.
 func (r *Repository) missingPatchBlob(ctx context.Context, sections []patchSection) error {
 	_, err := r.verifiedBlobs(ctx, sections)
 	if cemcode.CodeOf(err) != cemcode.GitExitFailure {
 		return err
 	}
+	probed := map[string]bool{}
 	for _, section := range sections {
 		if section.old.OID == section.new.OID {
 			continue
 		}
 		for _, side := range []TreeEntry{section.old, section.new} {
-			if side.OID == "" || side.Type != "blob" {
+			if side.OID == "" || side.Type != "blob" || probed[side.OID] {
 				continue
 			}
-			if _, blobErr := r.BlobBytes(ctx, side.OID); cemcode.CodeOf(blobErr) == cemcode.RepositoryObjectUnavailable {
-				return blobErr
+			probed[side.OID] = true
+			if _, probeErr := r.git(ctx, 64, "cat-file", "-e", side.OID); probeErr != nil {
+				if cemcode.CodeOf(probeErr) == cemcode.GitExitFailure {
+					return unavailable("patch input %s does not resolve locally", side.OID)
+				}
+				return probeErr
 			}
 		}
 	}

@@ -36,13 +36,18 @@ full), and an upload-pack command that writes a sentinel. A shim Git that unsets
   gitauth runs no fetch, push, clone or other transport command.
 - `internal/cem/gitauth/diff.go`: on a Git exit from the canonical diff, `diffExitError` walks the
   verified change set and its blobs, without fetching. If an object is missing, it returns that
-  `repository-object-unavailable` refusal; otherwise it keeps `git-diff-failed`. The batch read
-  exits under a Git that ignores the guard, so the blobs are then read one by one, where an exit
-  names the object. The success path is unchanged.
+  `repository-object-unavailable` refusal. A cancellation, timeout or operation-budget failure
+  during the walk is returned through the diff's own mapping. Anything else keeps
+  `git-diff-failed`. A Git that ignores the guard makes the batch read exit, so each distinct blob is
+  then probed once with `cat-file -e`, where an exit names the object. The probe reads no content,
+  so it charges no blob budget and fills no memo. The success path is unchanged.
 - Tests:
   - `TestPromisorObjectNeverFetchedByAGitThatDropsTheLazyFetchGuard` (`internal/cem/gitauth`)
     covers `CanonicalDiff`, `CanonicalDiffWithCreateDestinations` and `BlobBytes`, guarded and
     with the shim.
+  - `TestCanonicalDiffNamesAMissingPromisedBlobAmongManySharedOnes`: 1,100 paths share one present
+    blob, and the missing base blob is still named within the operation budget.
+  - `TestDiffExitClassificationKeepsCancellation`: a cancelled walk returns `git-cancelled`.
   - `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) covers `cem status` and
     `cem verify`.
   - `TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching` (`internal/mcp/bridge`)
@@ -60,6 +65,9 @@ amendment to decision 0383.
 - The gitauth and CLI promisor tests failed before the fixes and pass after them.
 - Mutation: removing `GIT_ALLOW_PROTOCOL=` from `scrubbedEnv` makes both tests fail with the
   sentinel written. Removing `diffExitError` makes the diff assertions fail with `git-diff-failed`.
+- The independent review found two P2s in the first classifier: undeduplicated per-blob reads could
+  exhaust the operation budget, and probe cancellation was hidden. Both fixes are in. The two
+  regressions above fail on the first classifier and pass now.
 - Focused package and `-run` results are in the lane report.
 
 ### NOT_RUN
