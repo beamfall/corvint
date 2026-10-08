@@ -168,23 +168,47 @@ var StoredV1Pattern = regexp.MustCompile(secretPattern(`[a-z0-9_.-]*(?:`+storedV
 
 var goVerbosePassMarker = regexp.MustCompile(`(?m)^[ \t]*--- PASS: [^\r\n ]+ \([0-9]+(?:\.[0-9]+)?s\)\r?$`)
 
+// goJSONPassMarker matches one complete `go test -json` output event, exactly
+// as cmd/test2json encodes it, whose Output is a single Go verbose PASS
+// marker. Field order and the field set are fixed; Time, Package and the
+// `frame` OutputType are optional so older toolchains and a bare test2json
+// stay recognised. No JSON string here may hold a quote, a backslash or a
+// line break, so an escape sequence or extra content anywhere leaves the
+// event unrecognised. Group 1 is the Test field and group 2 the marker's test
+// name; writerMatches masks only when they are equal.
+var goJSONPassMarker = regexp.MustCompile(`(?m)^\{(?:"Time":"[0-9T:.+Z-]+",)?"Action":"output",(?:"Package":"[^"\\\r\n]+",)?"Test":"([^"\\\r\n ]+)","Output":"(?: |\\t)*--- PASS: ([^"\\\r\n ]+) \([0-9]+(?:\.[0-9]+)?s\)(?:\\r)?\\n"(?:,"OutputType":"frame")?\}\r?$`)
+
+// maskGoPassMarkers replaces the structural `PASS:` prefix of every complete
+// Go verbose PASS marker, plain or as a `go test -json` output event, with a
+// same-length neutral word. Byte positions stay unchanged, so Pattern's
+// matches still address text, and every other byte on the line, including
+// the test name, stays screenable.
+func maskGoPassMarkers(text string) string {
+	// Every marker of either form contains this literal.
+	if !strings.Contains(text, "--- PASS: ") {
+		return text
+	}
+	masked := []byte(text)
+	mask := func(start, end int) {
+		if pass := strings.Index(text[start:end], "--- PASS: "); pass >= 0 {
+			copy(masked[start+pass+len("--- "):], "GOOK ")
+		}
+	}
+	for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
+		mask(marker[0], marker[1])
+	}
+	for _, event := range goJSONPassMarker.FindAllStringSubmatchIndex(text, -1) {
+		if text[event[2]:event[3]] == text[event[4]:event[5]] {
+			mask(event[4]-len("--- PASS: "), event[5])
+		}
+	}
+	return string(masked)
+}
+
 func writerMatches(text string) [][]int {
 	// A complete Go verbose marker is the one safe place where the bare
-	// assignment grammar sees `PASS:` as a credential field. Mask only that
-	// structural prefix, keeping byte positions unchanged so Pattern's matches
-	// still address text and secrets inside the test name remain screenable.
-	// Every marker contains the literal tested here, so the marker scan and
-	// the copy are skipped without it.
-	if strings.Contains(text, "--- PASS: ") {
-		masked := []byte(text)
-		for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
-			pass := strings.Index(text[marker[0]:marker[1]], "PASS:")
-			if pass >= 0 {
-				copy(masked[marker[0]+pass:], "GOOK ")
-			}
-		}
-		text = string(masked)
-	}
+	// assignment grammar sees `PASS:` as a credential field.
+	text = maskGoPassMarkers(text)
 	var matches [][]int
 	if pattern := livePattern(text); pattern != nil {
 		matches = pattern.FindAllStringIndex(text, -1)

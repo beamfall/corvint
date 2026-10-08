@@ -1965,6 +1965,7 @@ LTA-V0-011	docs/specs/learned-trace-admission-v0.md	149	(decision 0368, accepted
 LTA-V0-012	docs/specs/learned-trace-admission-v0.md	167	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
 LTA-V0-013	docs/specs/learned-trace-admission-v0.md	175	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	197	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
+LTA-V0-015	docs/specs/learned-trace-admission-v0.md	212	The writer screen MUST treat the structural `PASS:` prefix inside one complete
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
