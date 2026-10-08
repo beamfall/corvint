@@ -171,6 +171,52 @@ func TestImpactKeepsFrozenBareReadingWithoutManifest(t *testing.T) {
 	}
 }
 
+// TestImpactResolvesDotPrefixedAliasImporters is GPK-V0-082 (proposed;
+// V1-0967): TypeScript reads a specifier as relative only when it is `.` or
+// `..` or starts with `./` or `../`, so `.api/client` is a bare name its
+// `paths` key claims. Before the whole-segment rule both the resolver and the
+// alias arm read it as relative, so impact missed the importer and disclosed
+// nothing.
+func TestImpactResolvesDotPrefixedAliasImporters(t *testing.T) {
+	index, resolver := webResolverFor(t, map[string]string{
+		"package.json":      `{"name": "dot-alias"}`,
+		"tsconfig.json":     `{"compilerOptions": {"moduleResolution": "bundler", "paths": {".api/*": ["./src/api/*"]}}}`,
+		"src/api/client.ts": "export const client = 1;\n",
+		"src/app.ts":        "import { client } from \".api/client\";\nexport const app = client;\n",
+		"src/relative.ts":   "import { client } from \"./api/client\";\nexport const relative = client;\n",
+		"src/stray.ts":      "import { thing } from \".nowhere/thing\";\nexport const stray = thing;\n",
+	})
+	for _, test := range []struct {
+		importer, specifier string
+		want                WebImportResolution
+	}{
+		{"src/app.ts", ".api/client", WebImportResolution{"src/api/client.ts", WebImportRepository}},
+		{"src/relative.ts", "./api/client", WebImportResolution{"src/api/client.ts", WebImportRepository}},
+		{"src/api/client.ts", "../relative", WebImportResolution{"src/relative.ts", WebImportRepository}},
+		{"src/stray.ts", ".nowhere/thing", WebImportResolution{State: WebImportUnresolved}},
+	} {
+		if got := resolver.Resolve(test.importer, test.specifier); got != test.want {
+			t.Errorf("Resolve(%s, %s) = %+v, want %+v", test.importer, test.specifier, got, test.want)
+		}
+	}
+	receipt, err := Impact(index, []string{"src/api/client.ts"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := reverseImportIDs(receipt)
+	if !found["src/app.ts"]["imports .api/client"] {
+		t.Errorf("reverse importers = %v, want src/app.ts through the `.api/*` alias", found)
+	}
+	if !found["src/relative.ts"]["imports ./api/client"] {
+		t.Errorf("reverse importers = %v, want the relative importer src/relative.ts", found)
+	}
+	uncertainty := anySlice(receipt["coverage"].(map[string]any)["uncertainty"])
+	want := "reverse-import results for 1 changed paths are incomplete: 1 bare import specifiers in 1 sources resolve to no repository file or declared package"
+	if !anyContains(uncertainty, want) {
+		t.Errorf("uncertainty = %v, want %q for the unmatched `.nowhere/thing`", uncertainty, want)
+	}
+}
+
 func TestWebImportResolverFixture(t *testing.T) {
 	_, resolver := webResolverFor(t, tsconfigPathsFixture(t))
 	for _, test := range []struct {
