@@ -83,6 +83,23 @@ type PlanEntry struct {
 	// Loop is the CAL-V0-102 hold behind a LOOP_DETECTED blocker, nil
 	// otherwise, so plan and a claim-next refusal name its evidence.
 	Loop *ticket.LoopHold
+	// SerialFallback marks a DEFERRED RESOURCE_COLLISION entry whose
+	// collision only its WHOLE_REPOSITORY fallback scope makes certain: the
+	// entry declares no scope, and the reservation or earlier selection it
+	// collides with holds no WHOLE_REPOSITORY resource (CAL-V0-193).
+	SerialFallback bool
+}
+
+// SerialFallbackDeferred is the ticket IDs, in plan order, of the entries
+// deferred only by the WHOLE_REPOSITORY serial fallback (CAL-V0-193).
+func (p TicketPlan) SerialFallbackDeferred() []string {
+	out := []string{}
+	for _, e := range p.Entries {
+		if e.SerialFallback {
+			out = append(out, e.Ticket.TicketID.Raw)
+		}
+	}
+	return out
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -423,13 +440,13 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	}
 	for _, en := range in.Reservations.Entries {
 		if ticket.Collide(e.Resources, en.Resources) {
-			e.Blockers = []string{en.TicketID.Raw}
+			e.Blockers, e.SerialFallback = []string{en.TicketID.Raw}, !e.ClosureComplete && !holdsWholeRepository(en.Resources)
 			return e
 		}
 	}
 	for _, s := range selected {
 		if ticket.Collide(e.Resources, s.Resources) {
-			e.Blockers = []string{s.Ticket.TicketID.Raw}
+			e.Blockers, e.SerialFallback = []string{s.Ticket.TicketID.Raw}, !e.ClosureComplete && !holdsWholeRepository(s.Resources)
 			return e
 		}
 	}
@@ -439,6 +456,12 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	}
 	e.State, e.Reason, e.Blockers = PlanSelected, wire.CodeDevelopmentMode, []string{}
 	return e
+}
+
+// holdsWholeRepository reports whether a reserved or selected scope holds
+// WHOLE_REPOSITORY, which collides with any scope a ticket could declare.
+func holdsWholeRepository(rs []ticket.Resource) bool {
+	return slices.ContainsFunc(rs, func(r ticket.Resource) bool { return r.Class == "WHOLE_REPOSITORY" })
 }
 
 // lastAttemptOf is the ticket's attempt at the highest generation, or nil.

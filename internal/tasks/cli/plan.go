@@ -253,6 +253,11 @@ func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPla
 	if plan.Pools != nil {
 		o.Set("resourceDeferred", resourceDeferredValue(plan.Pools))
 	}
+	// CAL-V0-193: present only when some entry is deferred by the serial
+	// fallback alone, so every other plan renders as before.
+	if ids := plan.SerialFallbackDeferred(); len(ids) > 0 {
+		o.Set("serialFallbackDeferred", wire.Strings(ids))
+	}
 	o.Set("mutationAuthority", wire.Bool(false))
 	return wire.ObjectValue(o), nil
 }
@@ -305,6 +310,9 @@ func planEntryValue(e transaction.PlanEntry, authors bool, offer []wire.Digest) 
 	}
 	if e.Loop != nil {
 		o.Set("loop", loopHoldValue(e.Loop))
+	}
+	if e.SerialFallback {
+		o.Set("serialFallback", wire.String("WHOLE_REPOSITORY"))
 	}
 	if offer != nil {
 		o.Set("nextAction", wire.String(ticket.NextActionCompleteManual))

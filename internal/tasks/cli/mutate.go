@@ -11,6 +11,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -318,10 +319,48 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 		return errorResult(cmd, err)
 	}
 	res := mutateResult(cmd, report)
+	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
+			res.Warnings = append(res.Warnings, w)
+		}
+	}
 	if operation == mutation.OpCompleteManual && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		res.Warnings = append(res.Warnings, unmetDependencyWarnings(store0.Inventory, report.Ticket)...)
 	}
 	return res
+}
+
+// WarningEffectsUnbounded prefixes the CAL-V0-192 warning, so a caller can
+// match it without parsing the prose that follows.
+const WarningEffectsUnbounded = "EFFECTS_UNBOUNDED"
+
+// unboundedEffectsWarning is the CAL-V0-192 warning for a fresh CREATE,
+// REFINE or SET_EFFECTS commit whose resulting effects leave the ticket with
+// the WHOLE_REPOSITORY fallback scope, or "" otherwise. CREATE and
+// SET_EFFECTS read the effects from the committed payload; REFINE never
+// changes effects, so it reads the record loaded before the write.
+func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Value, ticketID string) string {
+	var e ticket.Effects
+	switch operation {
+	case mutation.OpCreate, mutation.OpSetEffects:
+		var ok bool
+		if e, ok = mutation.PayloadEffects(operation, payload); !ok {
+			return ""
+		}
+	case mutation.OpRefine:
+		rec, ok := st.Inventory.Get(ticketID)
+		if !ok {
+			return ""
+		}
+		e = rec.Effects
+	default:
+		return ""
+	}
+	if !transaction.UnboundedEffects(e) {
+		return ""
+	}
+	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage QUALIFIED (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects",
+		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
 }
 
 // unmetDependencyWarnings names each COMPLETED-obligation dependency that a
