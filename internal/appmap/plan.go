@@ -208,8 +208,10 @@ func resolve(text string, flows []*planFlow, idf func(string) float64) resolutio
 // Plan document parts (AMSP-V0-003..008).
 
 type methodRef struct {
-	ID           string `json:"id"`
-	Ref          string `json:"ref"`
+	ID  string `json:"id"`
+	Ref string `json:"ref"`
+	// Repo names the aliased root Ref is read from (AMAP-V0-020); empty means --root.
+	Repo         string `json:"repo,omitempty"`
 	Freshness    string `json:"freshness"`
 	Verification string `json:"verification"`
 }
@@ -242,8 +244,10 @@ type exploration struct {
 }
 
 type specRef struct {
-	File      string `json:"file"`
-	Ref       string `json:"ref"`
+	File string `json:"file"`
+	Ref  string `json:"ref"`
+	// Repo names the aliased root File is read from (AMAP-V0-020); empty means --root.
+	Repo      string `json:"repo,omitempty"`
 	Freshness string `json:"freshness"`
 }
 
@@ -676,7 +680,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 				}
 				mf := fresh.of(me.Anchor)
 				note(mf, anchorRef(me.Anchor))
-				mr := methodRef{ID: me.ID, Ref: refAt(ps.files[j][k].Path, me.Anchor.Start), Freshness: mf, Verification: verify(me.ID, mf)}
+				mr := methodRef{ID: me.ID, Ref: refAt(ps.files[j][k].Path, me.Anchor.Start), Repo: me.Anchor.Repo, Freshness: mf, Verification: verify(me.ID, mf)}
 				if mr.Verification == Contradicted {
 					contradicted = append(contradicted, me.ID)
 				}
@@ -688,7 +692,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 			ps.Actions = append(ps.Actions, av)
 		}
 		if spec, _, _ := m.closestSpec(fl); spec != nil {
-			ps.Spec = &specRef{File: spec.Path, Ref: anchorRef(spec.Anchor), Freshness: fresh.of(spec.Anchor)}
+			ps.Spec = &specRef{File: spec.Path, Ref: anchorRef(spec.Anchor), Repo: spec.Anchor.Repo, Freshness: fresh.of(spec.Anchor)}
 		}
 		switch {
 		case len(fl.Steps) == 0:

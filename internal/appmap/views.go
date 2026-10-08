@@ -425,6 +425,8 @@ type findItem struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Ref   string `json:"ref,omitempty"`
+	// Repo names the aliased root Ref is read from (AMAP-V0-020); empty means --root.
+	Repo string `json:"repo,omitempty"`
 }
 
 // ProjectFind is map_find (AMAP-V0-012): a case-insensitive substring search over element IDs and
@@ -452,47 +454,47 @@ func ProjectFind(ctx context.Context, m *Map, text string, o Options) ([]byte, e
 	for i := range m.Screens {
 		s := &m.Screens[i]
 		if hit(s.ID, s.Template) {
-			screens = append(screens, findItem{s.ID, s.Template, anchorRef(s.Anchor)})
+			screens = append(screens, findItem{s.ID, s.Template, anchorRef(s.Anchor), s.Anchor.Repo})
 			p.element(s.ID)
 		}
 	}
 	seenSel := map[string]bool{}
-	addSel := func(sel Selector, ref string) {
+	addSel := func(sel Selector, ref, repo string) {
 		if !seenSel[sel.ID] && hit(sel.ID, sel.Value, sel.Name) {
 			seenSel[sel.ID] = true
-			selectors = append(selectors, findItem{sel.ID, sel.Kind + ":" + sel.Value + nameSuffix(sel.Name), ref})
+			selectors = append(selectors, findItem{sel.ID, sel.Kind + ":" + sel.Value + nameSuffix(sel.Name), ref, repo})
 			p.element(sel.ID)
 		}
 	}
 	for _, fl := range m.Flows {
 		if hit(fl.ID, fl.FlowID) {
-			flows = append(flows, findItem{fl.ID, fl.FlowID, anchorRef(fl.Anchor)})
+			flows = append(flows, findItem{fl.ID, fl.FlowID, anchorRef(fl.Anchor), fl.Anchor.Repo})
 			p.element(fl.ID)
 		}
 		for _, st := range fl.Steps {
 			label := st.Action
 			if hit(st.ID, st.Action) {
-				steps = append(steps, findItem{st.ID, label, st.Screen})
+				steps = append(steps, findItem{st.ID, label, st.Screen, ""})
 				p.element(st.ID)
 			}
 			if st.Selector != nil {
-				addSel(*st.Selector, st.ID)
+				addSel(*st.Selector, st.ID, "")
 			}
 		}
 	}
 	for _, f := range m.Files {
 		if hit(append([]string{f.ID, f.Path, f.Class}, f.Tests...)...) {
-			files = append(files, findItem{f.ID, f.Role, anchorRef(f.Anchor)})
+			files = append(files, findItem{f.ID, f.Role, anchorRef(f.Anchor), f.Anchor.Repo})
 			p.element(f.ID)
 		}
 		for _, me := range f.Methods {
 			if hit(me.ID, me.Name) {
-				methods = append(methods, findItem{me.ID, me.Name, anchorRef(me.Anchor)})
+				methods = append(methods, findItem{me.ID, me.Name, anchorRef(me.Anchor), me.Anchor.Repo})
 				p.element(me.ID)
 			}
 		}
 		for _, sel := range f.Selectors {
-			addSel(sel, refAt(f.Path, sel.Line))
+			addSel(sel, refAt(f.Path, sel.Line), f.Anchor.Repo)
 		}
 	}
 	head := append(p.envelope(FindSchema, budget), field{"query", text})

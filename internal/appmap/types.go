@@ -53,8 +53,11 @@ type RouterFile struct {
 	Dialect string `json:"dialect"`
 }
 
-// TestLayout declares the E2E test root and the role of each directory under it.
+// TestLayout declares the E2E test root and the role of each directory under it. Repo, when set,
+// names the operator-declared root (`--repo ALIAS=ABSOLUTE_ROOT`) that holds the tests
+// (AMAP-V0-017); empty is --root.
 type TestLayout struct {
+	Repo        string   `json:"repo,omitempty"`
 	Root        string   `json:"root"`
 	Specs       []string `json:"specs"`
 	PageObjects []string `json:"page_objects"`
@@ -69,8 +72,10 @@ type PageObjectScreen struct {
 }
 
 // Anchor pins one element to committed bytes: path, line span, blob and span digest at the map's
-// revision (AMAP-V0-009).
+// revision (AMAP-V0-009). Repo names the aliased root the bytes were read from; empty is --root
+// (AMAP-V0-018).
 type Anchor struct {
+	Repo       string `json:"repo,omitempty"`
 	Path       string `json:"path"`
 	Start      int    `json:"start_line"`
 	End        int    `json:"end_line"`
@@ -83,6 +88,9 @@ type Map struct {
 	Schema   string `json:"schema"`
 	App      string `json:"app"`
 	Revision string `json:"revision"`
+	// Roots pins every aliased root the map read and what it supplied; absent for a single-root
+	// map (AMAP-V0-018).
+	Roots []RootPin `json:"roots,omitempty"`
 	// HashPrefix is the manifest's hash-routing prefix, kept so projections can print a loadable URL.
 	HashPrefix string     `json:"hash_prefix"`
 	Manifest   Anchor     `json:"manifest"`
@@ -92,6 +100,14 @@ type Map struct {
 	Files      []TestFile `json:"files"`
 	Unknowns   []Unknown  `json:"unknowns"`
 	Digest     string     `json:"digest"`
+}
+
+// RootPin is one aliased root of a map: its alias, the commit read, and the manifest inputs it
+// supplied ("manifest", "tests").
+type RootPin struct {
+	Repo     string   `json:"repo"`
+	Revision string   `json:"revision"`
+	Inputs   []string `json:"inputs"`
 }
 
 // Screen is one router state: a node of the screen graph (AMAP-V0-002, AMAP-V0-003, AMAP-V0-006).
@@ -243,6 +259,7 @@ type Goto struct {
 
 // Unknown is one input the compiler could not resolve; it is reported, never guessed.
 type Unknown struct {
+	Repo   string `json:"repo,omitempty"`
 	Kind   string `json:"kind"`
 	Ref    string `json:"ref"`
 	Reason string `json:"reason"`

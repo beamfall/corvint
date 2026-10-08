@@ -7,6 +7,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 var appPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
@@ -51,6 +52,9 @@ func decodeManifest(raw []byte) (Manifest, error) {
 		return m, invalidManifest("manifest flows must be a repository-relative directory")
 	}
 	t := m.Tests
+	if t.Repo != "" && !rootalias.Valid(t.Repo) {
+		return m, invalidManifest("tests.repo must be a root alias matching ^[a-z][a-z0-9-]{0,31}$")
+	}
 	if !safeRelative(t.Root) {
 		return m, invalidManifest("tests.root must be a repository-relative directory")
 	}
