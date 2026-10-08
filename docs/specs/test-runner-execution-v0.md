@@ -452,3 +452,33 @@ including WebdriverIO, need their own matcher version.
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
 Plans without the field are unaffected, and plans that carry it then refuse as
 unknown fields.
+
+## .NET TRX failure evidence (experimental)
+
+VSTest and Microsoft.Testing.Platform (MTP) both write TeamTest TRX. Go XML
+projection matches attributes by local name, so a namespace alias could
+replace a native outcome, and failure evidence outside the projected fields
+could disappear. These checks keep such evidence from becoming a pass.
+
+- `TRE-V0-024`: VSTest and MTP TRX parsing MUST admit only the qualified
+  TeamTest subset under the single default namespace declared on `TestRun`.
+  Any namespaced, prefixed, undeclared-prefix, `xml:`-reserved, duplicate or
+  namespace-redeclaring attribute or element, and any unknown element
+  (including `FatalError` or unqualified result children), MUST refuse before
+  projection, so no alias can replace a native outcome. A `Passed` row with
+  any `ErrorInfo` (including empty or stack-only), summary `ErrorInfo`, an
+  outcome that is not an exact qualified value, a nonzero non-pass counter or a
+  summary/row contradiction MUST leave the observation incomplete. Native
+  counters MUST reconcile with rows; `NotExecuted` rows keep their native skip
+  reason. Status: proposed (V1-0600).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-024 | `native/trx_xml.go` `checkNativeTRXXML`, `parseTRX`, `parseMTP`; `TestTRXConflictingEvidence`, `TestLiveNativeReports`, `TestMTPNativeMatrix`, opt-in `TestVSTestLiveExecution` | Seventeen mutations over eight captured VSTest/MTP reports (NUnit, MSTest, xUnit) refuse or stay incomplete; unmodified reports stay complete; live VSTest pass/fail/skip requalified with .NET SDK 9.0.316 |
+
+Recorded limits. The four originally reproduced false passes were already
+refused at `722904f9`; V1-0600 adds the cross-framework and alias regression
+matrix and live requalification, not a parser change. MTP live requalification
+of this requirement is NOT_RUN (no .NET 10 runtime locally). Other TRX producers
+and VSTest/MTP versions remain unqualified and refuse on unknown structure.
+Rollback removes the test matrix and this section; parsers are unchanged.
