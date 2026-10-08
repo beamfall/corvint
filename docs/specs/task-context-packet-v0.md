@@ -1055,6 +1055,16 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   `--expand` exclusion. Under `--corpus` the positional is the corpus search query as `--task` is.
   Compatibility: additive under CCF-V1-006, since `context` is not a `cli-parity-v0` output and the
   change only accepts an input that was refused; no packet member, identifier or enumeration moves.
+- `TCP-V0-064`: (proposed (V1-0485), 2026-10-08; experimental) `TaskContext` observes its request
+  context at fixed compile boundaries (before the pair slot, before the mention slots, before the
+  subject slots, after the co-change history join, per lexical term, after the lexical walk inside
+  the lexical fill, after the fill) and once more after the packet, spans and snapshot refusal are
+  complete. A context that has ended at any boundary returns the existing cancellation refusal
+  (`Git repository index was cancelled`, or its deadline form) and no packet; it never returns a
+  READY or abstaining packet. The co-change history and recency readers are joined before
+  `TaskContext` returns on every path. A slot generator between two boundaries runs to completion,
+  so the retirement bound is one generator's run time, not a constant; that worst case is not
+  measured. An uncancelled request keeps its packet bytes.
 
 ## Non-goals and authority
 
@@ -1364,6 +1374,14 @@ TCP-V0-062 (V1-0993): `TestTaskContextPositionalTaskMatchesTheFlagBytes`
 pins the refusal for both forms in either order and for two positionals, and keeps the neither-form
 refusal unchanged (`docs/build-log/2026-10-07-v1-0993-context-positional-task.md`).
 
+TCP-V0-064 (V1-0485): `TestTaskContextCancellationNeverReturnsAPacket`
+(`taskcontext_cancel_test.go`) cancels the request at each boundary, with recency off and on,
+including inside the lexical fill where the defect returned READY on `f33ea8ef`; each returns the
+cancellation refusal with no surviving reader, and the uncancelled packet afterwards is
+byte-identical to the one before. `TestTaskContextPreCancelledRequestReturnsCancellation` covers a
+context cancelled before the call for the subject and retrieval shapes
+(`docs/build-log/2026-10-08-v1-0485-late-cancellation.md`).
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -1421,6 +1439,10 @@ The positional task (TCP-V0-062) rolls back alone: delete the positional collect
 before `checkContextViewArguments` and `contextPositionalTaskRefusal` in `cmd/corvint/taskcontext.go`,
 the `context` query override in `runCorpusIntegration`, and `taskcontext_positional_test.go`; a
 positional is then `unrecognized arguments` again. No state persists and no packet changed.
+
+The cancellation boundaries (TCP-V0-064) roll back alone: delete `stopped`, `join`, the
+`ctx`/`cancelled` compiler fields, the boundary checks and `taskcontext_cancel_test.go`. A late
+cancellation then returns its packet again; no state persists and no uncancelled packet changes.
 
 ## Traceability
 
@@ -1489,3 +1511,4 @@ positional is then `unrecognized arguments` again. No state persists and no pack
 | TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
 | TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
+| TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |

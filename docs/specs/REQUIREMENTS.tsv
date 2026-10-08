@@ -2034,6 +2034,7 @@ MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	577	An explicitly requested gop
 MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	587	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
 MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	594	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
 MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	602	proposed (V1-0944; no GitHub issue). When a successful tool result carries
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	612	proposed (V1-0485; no GitHub issue). `Registry.Call` checks the request context
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -2861,6 +2862,7 @@ TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and ame
 TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
 TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
 TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+TCP-V0-064	docs/specs/task-context-packet-v0.md	1058	(proposed (V1-0485), 2026-10-08; experimental) `TaskContext` observes its reques
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

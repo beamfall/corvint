@@ -559,9 +559,9 @@ Each row cites the first emitting site and states only the condition checked the
 |---|---|---|
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:438@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
 | `unsupported-tool` | `internal/mcp/bridge/bridge.go:447@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:680@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:680@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:681@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:685@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:685@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:686@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -609,6 +609,15 @@ Each row cites the first emitting site and states only the condition checked the
   SHOULD that a structured result also returns its serialized JSON as text; a text-only client
   sees the ranked rows but not their evidence. A client that validates the text block MUST also
   admit the full framed object, which servers predating this requirement emit.
+- `MCPV0-034`: proposed (V1-0485; no GitHub issue). `Registry.Call` checks the request context
+  again after the tool operation returns and before the root-identity check: a call whose context
+  ended at any point before that check returns the `cancelled` failure and no result, never a
+  READY receipt or an abstention built before the cancellation was observed. `invalid-arguments`
+  and an operation's own `cancelled` keep their precedence. An uncancelled call keeps its result,
+  abstention and evidence binding byte for byte. This closes the in-process bridge path (used
+  directly by the LSP context adapter); `MCPV0-011`'s server-side output race is unchanged, and a
+  cancellation observed only after the check is a completed call under that rule. The compile
+  side of `corvint.context` stops at its own stage boundaries (`TCP-V0-064`).
 
 ## Acceptance matrix
 
@@ -658,7 +667,10 @@ manifest and tests; the default three-tool output never changed, and no stored s
 `--error-profile` selector, the `/1` object, the class plumbing and the `/2` manifest and tests; the
 default tool-error bytes never changed. Rolling back the flows profile (`AFU-V1-034..035`) removes the
 `flows` selector value, `internal/mcp/bridge/flows.go`, its bridge cases and tests; the default and
-task-review tool lists never changed. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
+task-review tool lists never changed. Rolling back the post-operation cancellation check
+(`MCPV0-034`) deletes the `ctx.Err()` check after the dispatch switch in `Registry.Call` and
+`internal/mcp/bridge/context_cancel_test.go`; a late-cancelled call then returns its completed
+result again, and no state depends on it. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
 `LICENSING.md`; the rest of Corvint retains its repository license.
 
 ## Traceability
@@ -691,6 +703,7 @@ that focused run.
 | `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
 | `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
+| `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
 
