@@ -4962,6 +4962,7 @@ store, journal or receipt state depends on it.
 Accepting this spec accepts these amendments; each keeps the existing ID space.
 The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
 The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corvint-tasks-escalations-v0.md` (ESC-V0-006; owner-accepted 2026-10-05), not here.
+The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are amended in by `corvint-tasks-know-how-notes-v0.md` (KHN-V0-010; proposed, V1-0964), not here.
 
 - A24: CAL-V0-120 adds the optional top-level policy key `holderLiveness` under the A20 and A23
   pattern. Omission keeps the existing canonical policy bytes and the 600-second observation TTL;
@@ -5563,7 +5564,7 @@ The classification, as `wire.RetryOf` records it:
 | `LIMIT_EXCEEDED` | no | Mostly static size bounds; the transient preparation-slot and active-attempt caps share the code |
 | `JOURNAL_SATURATED`, `UNSUPPORTED_FILESYSTEM` | no | Capacity, I/O or filesystem-identity conditions that backoff is not known to clear |
 | `STALE_TICKET`, `STALE_POLICY`, `STALE_TREE` | no | A recorded fact moved; re-read and rebuild the request |
-| `REQUEST_ID_CONFLICT`, `MALFORMED`, `DUPLICATE_ID`, `CYCLE`, `DEPENDENCY_MISSING`, `INVALID_PRIORITY`, `GATE_UNKNOWN`, `ADOPT_UNSUPPORTED_FIELD`, `OUT_OF_SCOPE`, `UNSUPPORTED`, `UNSUPPORTED_VERSION`, `INTENT_BRANCH_MISMATCH`, `DIRTY_WORKTREE` | no | The request or local input must change first |
+| `REQUEST_ID_CONFLICT`, `MALFORMED`, `DUPLICATE_ID`, `CYCLE`, `DEPENDENCY_MISSING`, `INVALID_PRIORITY`, `GATE_UNKNOWN`, `ADOPT_UNSUPPORTED_FIELD`, `OUT_OF_SCOPE`, `UNSUPPORTED`, `UNSUPPORTED_VERSION`, `INTENT_BRANCH_MISMATCH`, `DIRTY_WORKTREE`, `SECRET_DETECTED`, `PROVENANCE_UNVERIFIED` | no | The request or local input must change first |
 | `ATTEMPT_LIVE`, `RESOURCE_COLLISION`, `PAUSED`, `DEPENDENCY_UNSATISFIED`, `TICKET_HELD`, `TICKET_STATE`, `APPROVAL_MISSING`, `APPROVAL_REVOKED`, `CUTOVER_MISSING`, `QUIESCENCE_UNPROVED`, `RETRY_EXHAUSTED`, `GATE_FAILED`, `GATE_STALE`, `MISSING_GATE`, `MISSING_EVIDENCE`, `BUDGET_UNKNOWN`, `COVERAGE_UNKNOWN`, `EXTERNAL_UNBOUNDED`, `UNINITIALIZED`, `RESTORE_INCOMPLETE`, `INTENT_DIVERGED`, `JOURNAL_FORKED`, `ESCALATION_PENDING`, `PREREQUISITE_UNSATISFIED`, `LOOP_DETECTED` | no | Another actor, the owner or a recorded state must change first |
 | `NOEXEC`, `SURVIVORS` | no | Execution results that the same inputs reproduce |
 | `HANDOFF`, `REVIEW_RETURNED`, `DEVELOPMENT_MODE` | no | Dispositions, not failures |

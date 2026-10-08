@@ -645,6 +645,9 @@ func Model(r Request, in Input) Result {
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
 		}
+		if mutation.KnowHowNamesAttempt(env) {
+			ctx.KnowHowAttempts = knowHowLedger(state.attempts)
+		}
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
@@ -960,7 +963,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r)) && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || knowHowAttemptMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
