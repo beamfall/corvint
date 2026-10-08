@@ -68,6 +68,9 @@ func TestKHNV0024_RepositoryKnowHowThroughTheCLI(t *testing.T) {
 		"not a repository":  add(home, "r-2", "1", "--repo", "e2e="+t.TempDir(), "--anchor", "src/a.go"),
 		"alias not a token": add(home, "r-3", "1", "--repo", "_e2e="+e2e, "--anchor", "src/a.go"),
 		"repo twice":        add(home, "r-4", "1", "--repo", e2eRepo, "--repo", e2eRepo, "--anchor", "src/a.go"),
+		"empty repo":        add(home, "r-7", "1", "--repo", "", "--anchor", "src/a.go"),
+		"empty list repo":   {"ticket", "know-how", "list", "--repo", ""},
+		"empty claim repo":  {"claim", other, "--holder", "agent", "--request-id", "claim-empty", "--repo", ""},
 		"missing in repo":   add(home, "r-5", "1", "--repo", e2eRepo, "--anchor", "src/gone.go"),
 		"store commit":      add(home, "r-6", "1", "--repo", e2eRepo, "--anchor", "src/a.go", "--commit", strings.TrimSpace(gitOutput(t, r.Root, "rev-parse", "HEAD"))),
 		"duplicate list":    {"ticket", "know-how", "list", "--repo", e2eRepo, "--repo", "e2e=" + r.Root},
@@ -152,6 +155,10 @@ func TestKHNV0024_RepositoryKnowHowThroughTheCLI(t *testing.T) {
 	if x := atm(t, r.Root, nil, "ticket", "know-how", "reconfirm", other, "--request-id", "rc-x3", "--expected-revision", "2",
 		"--note", "1", "--repo", e2eRepo); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "KNOWHOW_REPOSITORY") {
 		t.Fatalf("reconfirm of a plain note with --repo: %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, "ticket", "know-how", "reconfirm", other, "--request-id", "rc-x4", "--expected-revision", "2",
+		"--note", "1", "--repo", ""); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "KNOWHOW_REPOSITORY") {
+		t.Fatalf("reconfirm of a plain note with an empty --repo: %s", x.stdout)
 	}
 	if x := atm(t, r.Root, nil, reconfirm("rc-1", "2", "--repo", e2eRepo)...); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("reconfirm: %s", x.stdout)

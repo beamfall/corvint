@@ -79,15 +79,14 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
-	var text, commit, supersedes, reason, attempt, generation, evidencePath, repoArg string
-	var anchors, symbols, routes []string
+	var text, commit, supersedes, reason, attempt, generation, evidencePath string
+	var anchors, symbols, routes, repoArgs []string
 	textFromStdin := false
 	if res := knowHowFlags(cmd, args[1:], map[string]*string{
 		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--text": &text, "--commit": &commit, "--supersedes": &supersedes,
 		"--reason": &reason, "--attempt": &attempt, "--generation": &generation, "--evidence-path": &evidencePath,
-		"--repo": &repoArg,
-	}, map[string]*[]string{"--anchor": &anchors, "--symbol": &symbols, "--route": &routes}, map[string]*bool{"--text-stdin": &textFromStdin}); res != nil {
+	}, map[string]*[]string{"--anchor": &anchors, "--symbol": &symbols, "--route": &routes, "--repo": &repoArgs}, map[string]*bool{"--text-stdin": &textFromStdin}); res != nil {
 		return res
 	}
 	if f.requestID == "" {
@@ -119,7 +118,7 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	alias, root, err := knowHowRepositoryRoot(env, repoArg)
+	alias, root, err := knowHowRepositoryRoot(env, repoArgs)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -151,12 +150,17 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 
 // knowHowRepositoryRoot is the checkout a write pins in (KHN-V0-024): the
 // caller's working directory, or with `--repo ALIAS=ROOT` the work-tree top
-// level ROOT, whose alias then qualifies every stored anchor path.
-func knowHowRepositoryRoot(env Env, repoArg string) (string, string, error) {
-	if repoArg == "" {
+// level ROOT, whose alias then qualifies every stored anchor path. Presence
+// is tracked apart from the value, so an explicitly empty `--repo` is refused
+// rather than read as the caller's checkout.
+func knowHowRepositoryRoot(env Env, repoArgs []string) (string, string, error) {
+	switch len(repoArgs) {
+	case 0:
 		return "", env.Cwd, nil
+	case 1:
+		return store.KnowHowRepositoryArg(env.Cwd, repoArgs[0])
 	}
-	return store.KnowHowRepositoryArg(env.Cwd, repoArg)
+	return "", "", wire.Errorf(wire.CodeMalformed, "--repo", "%s: --repo may be given once", wire.KnowHowRepositoryDetail)
 }
 
 // knowHowQualify prefixes every anchor path with "<alias>/" (KHN-V0-024);
@@ -273,12 +277,13 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
-	var note, commit, attempt, generation, repoArg string
+	var note, commit, attempt, generation string
+	var repoArgs []string
 	if res := knowHowFlags(cmd, args[1:], map[string]*string{
 		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--note": &note, "--commit": &commit, "--attempt": &attempt,
-		"--generation": &generation, "--repo": &repoArg,
-	}, nil, nil); res != nil {
+		"--generation": &generation,
+	}, map[string]*[]string{"--repo": &repoArgs}, nil); res != nil {
 		return res
 	}
 	if f.requestID == "" {
@@ -298,7 +303,7 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	alias, root, err := knowHowRepositoryRoot(env, repoArg)
+	alias, root, err := knowHowRepositoryRoot(env, repoArgs)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
