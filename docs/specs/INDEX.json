@@ -3405,7 +3405,7 @@
     "path": "docs/specs/test-runner-execution-v0.md",
     "title": "Test runner execution V0",
     "reqPrefix": "TRE-V0",
-    "intent": "proposed",
+    "intent": "proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620)",
     "delivery": "experimental",
     "claim": "Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.",
     "dependsOn": [],
@@ -3442,7 +3442,7 @@
     "path": "docs/specs/application-flow-navigation-execution-v0.md",
     "title": "Application Flow Navigation Execution V0",
     "reqPrefix": "NEX-V0",
-    "intent": "proposed technical profile under AFU-V1-029",
+    "intent": "accepted technical profile under AFU-V1-029 (decision 0455; V1-0252)",
     "delivery": "experimental; qualification pending",
     "claim": "An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.",
     "dependsOn": [
