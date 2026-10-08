@@ -10,7 +10,7 @@ Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 ## Agent digest
 - Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
 - Status: proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620); technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
-- Exists: 58 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
+- Exists: 59 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.
 
@@ -65,13 +65,13 @@ Playwright, Bun, Deno, Cypress, WebdriverIO, TestCafe, Nightwatch, Detox and bot
 Python pytest/unittest; Ruby RSpec/Minitest/Test::Unit/Rails. Jasmine, accepted as an addition by
 decision 0437, is one further fixed dynamic profile without an affected registration (see Jasmine
 (experimental)). The native lane covers Go, Cargo/nextest
-and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2, CMocka and Ginkgo v2.
+and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2, CMocka, Boost.Test and Ginkgo v2.
 The platform lane covers Java JUnit/TestNG/Gradle/Maven, Kotlin kotlin-test/Kotest/Android families,
 Swift Testing/XCTest/SwiftPM/Xcode, Bats/ShellSpec and remaining domain runner inventory. Analyzer
 candidates never imply that SQL/shader/data compilation is assertion testing. Additional main-runner
 ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion. Decision 0437 closes the CEM 1.0 main-framework set.
 
-The concrete count is 22 dynamic, 17 native, 16 platform, two SQL and one Appium Android profiles. The registry also
+The concrete count is 22 dynamic, 18 native, 16 platform, two SQL and one Appium Android profiles. The registry also
 lists six unavailable IDs: `appium`, `pgtap`, `sqllogictest`, `shader-behavior`, `html-behavior` and
 `structured-data-behavior`. The two SQL profiles use the explicit IDs `sql-pgtap` and
 `sql-sqllogictest-sqlite`; the older unqualified names do not silently alias them. SQL coverage does
@@ -90,6 +90,101 @@ repair independently reviewed and locally qualified for native cooperating Playw
 executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch's current fixture
 used `start_session:false`, so its browser execution remains NOT_OBSERVED. Other OS versions, retries, parameterized cases and lifecycle negatives remain open
 where their adapter provenance says so.
+
+### Boost.Test JUnit sink (experimental)
+
+`boost-test-junit` reads one caller-built Boost.Test executable (V1-0861, an
+addition under V1-0593 accepted by decision 0437, which answered V1-0642).
+The pinned reading is Boost 1.92.0, official archive
+`https://archives.boost.io/release/1.92.0/source/boost_1_92_0.tar.bz2`
+(199030664 bytes, SHA-256
+`5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c`, release
+commit `afdfa32505af73e3d208144b3f623f0096cb62b6`, `BOOST_VERSION 109200`,
+BSL-1.0). The pins, fixture source and actual runner-generated reports are in
+`internal/testrunner/native/testdata/boosttest-provenance.json`.
+
+The format is the JUNIT log sink. Boost's detailed XML report omits disabled
+cases (it only counts them), and the XML log at error level has no per-case
+status, so neither retains a stable identity for every outcome. The JUnit sink
+emits one row per case, including disabled and filtered-out cases, with the
+suite path as `classname`. Stdout parsing is not used.
+
+- `TRE-V0-036`: `boost-test-junit` MUST execute the pinned test executable with
+  exactly 11 fixed argv elements: `--log_format=JUNIT`, `--log_level=error`,
+  `--log_sink=<ReportDir>/boost-junit.xml`, `--report_level=no`, `--random=0`,
+  `--result_code=yes`, `--build_info=no`, `--color_output=no`,
+  `--show_progress=no`, `--catch_system_errors=yes` and `--auto_start_dbg=no`,
+  with an empty phase environment. `Target` is the master test suite (module)
+  name, one identifier of at most 128 bytes. Expected identities are 1..4096
+  unique `Target::suite/.../case` paths of one to eight identifier segments.
+  Selectors MUST be unique expected identities and add exactly one 12th element,
+  `--run_test=<path_1>:<path_2>...`, bounded at the shared 4096-byte argv limit;
+  repeated `--run_test` arguments are a native setup error and are never
+  emitted. Build refuses project, configuration, reporter, report-file and
+  auxiliary-tool overrides. Success exit is 0 and failure exit is 201
+  (`exit_test_failure`); 200 (`exit_exception_failure`) is not admitted.
+  Proposed (V1-0861).
+- `TRE-V0-037`: The dedicated parser MUST accept exactly one `boost-junit.xml`
+  report within the per-report bound, decoded as a closed tree: one optional XML
+  declaration, one `testsuite` root with exactly `tests`, `skipped`, `errors`,
+  `failures`, `id="0"`, `name` and `time`, depth at most three, bounded nodes, no
+  namespaces, duplicate attributes, comments or directives. `name` MUST equal
+  Target. Each `testcase` has exactly `assertions`, `name`, `time` and an
+  optional `classname`, and either one `skipped` (no attributes or text) or any
+  number of `failure`/`error` entries with exactly `message` and `type` (Boost
+  writes one per failed assertion), plus optional `system-out`/`system-err`. The identity is Target, `::`, then the `classname`
+  segments split on `.` and the case `name`, joined with `/`; a non-identifier
+  segment or duplicate identity refuses the report. Proposed (V1-0861).
+- `TRE-V0-038`: A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a
+  row whose entries are all `failure` with type `assertion error` or `fatal
+  error` is `FAILED` with cause `ASSERTION`. These make the observation incomplete, so shared `Normalize` sets
+  every public state to `UNKNOWN`: an `error` row (uncaught exception, timeout,
+  system or user error; `BOOST_ERROR_ENTRY`), any other failure type
+  (`BOOST_FAILURE_TYPE`), a synthetic `-setup-teardown` or `-timed-execution`
+  row (`BOOST_SUITE_FIXTURE_FAILURE`), suite-level log output
+  (`BOOST_RUNNER_LOG`), a row outside the expected inventory
+  (`BOOST_SURPLUS_TEST`), an absent expected identity (`BOOST_MISSING_TEST`), a
+  non-selected row that was not skipped while selectors exist
+  (`BOOST_UNSELECTED_EXECUTED`), no rows (`BOOST_NO_TESTS`), counters that
+  disagree with the rows (`tests` = non-skipped rows, `skipped` = skipped rows,
+  `errors` = aborted rows, meaning rows with an `error` entry or a `fatal error`
+  failure, and `failures` = failed rows minus aborted rows;
+  `BOOST_COUNT_MISMATCH`), exit 0 with a failed row or 201 without one
+  (`BOOST_EXIT_REPORT_CONTRADICTION`), any other exit
+  (`BOOST_EXIT_UNSUPPORTED`), and any grammar refusal (`BOOST_INVALID_REPORT`).
+  A failed, skipped or unreported test is never a pass. Retry information is
+  `NOT_REPORTED`. Proposed (V1-0861).
+- `TRE-V0-039`: Maintained tests MUST replay the actual Boost 1.92.0 JUnit
+  bytes retained in the provenance file (pass, assertion failure, disabled,
+  suite-fixture failure, uncaught exception, selected run, selected disabled
+  case, empty no-match sink, several failed checks and a failed `REQUIRE` in
+  one run, and a failed check followed by an exception) and mutate them into every contradiction above.
+  An opt-in live test (`CORVINT_BOOST_ROOT`) MUST compile the pinned fixture
+  against a `BOOST_VERSION 109200` header tree and run it through the common
+  executor. Proposed (V1-0861).
+
+Recorded limits. JUnit names are normalized by Boost (`/` becomes `.` and space
+becomes `_`), so identity is the normalized identifier path; a native name
+outside the identifier grammar, such as a template or manually registered case
+with punctuation, refuses the report rather than being guessed. Explicitly
+selecting a disabled case enables and runs it; non-selected and natively
+disabled cases are both reported as disabled skips and cannot be told apart.
+Expected-failure (`expected_failures`) accounting, data-driven and template test
+cases, `depends_on` chains and timeouts are not qualified; they fall into the
+incomplete rows above. Exit 200, including a no-match filter and setup errors
+with an empty or absent sink, is incomplete. Timeout and interruption are owned
+by the shared executor (`PROCESS_INCOMPLETE`); no Boost-native timeout was
+observed. Only Apple clang 21.0.0 on macOS arm64 with the header-only
+`boost/test/included/unit_test.hpp` variant was observed; the shared-library
+and static-library variants and other compilers or platforms are NOT_RUN.
+
+Acceptance evidence: `TestBoostTestRecordedJUnitWitnesses`,
+`TestBoostTestBoundaryContradictions`, `TestBoostTestClosedBuild`,
+`TestBoostTestRegistryDispatch` and opt-in `TestBoostTestLiveExecution`, which
+passed live on 2026-10-08 against the checksum-verified archive (build log
+`2026-10-08-boost-test-profile.md`). Rollback removes the additive
+`boost-test-junit` profile, its tests and provenance file; no shared executor,
+other profile, queue, store or frozen wire changes.
 
 ## Acceptance and rollback
 
@@ -122,6 +217,7 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-015 | `execute_unix.go`; `TestExecuteExplicitPrimaryTestWithoutArguments` (pinned `pwd` with no argv; implicit, ambiguous, BUILD, DISCOVER, DECODE, auxiliary and implicit-primary-name refusals) | `cmocka-independent-review-r2/REVIEW.json` PASS_BOUNDED (F4); root decision `e4de2129…e161` ACCEPTED_WITH_CONDITIONS |
 | TRE-V0-016..017 | `native/cmocka.go`; `TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`, `TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`, `TestCMockaPlanBindsTargetAndFixedEnvironment`, opt-in `TestCMockaNativeReceiptReadback` | Nine actual macOS arm64 CMocka 2.0.2 receipts in `cmocka-profile-proposal-r1/proof`; review PASS_BOUNDED; fresh requalification on the integration base NOT_RUN |
 | TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports only; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; actual runtime qualification NOT_RUN |
+| TRE-V0-036..039 | `native/boosttest.go`; `TestBoostTestRecordedJUnitWitnesses`, `TestBoostTestBoundaryContradictions`, `TestBoostTestClosedBuild`, `TestBoostTestRegistryDispatch`, opt-in `TestBoostTestLiveExecution` | Actual Boost 1.92.0 (archive SHA-256 verified) JUnit reports from Apple clang 21.0.0 on macOS arm64 in `native/testdata/boosttest-provenance.json`; live shared-executor run PASS on 2026-10-08; other compilers, platforms and library variants NOT_RUN |
 
 Review and live manifests above are under `/private/tmp/cem10-build` for this build; their exact
 source/report hashes govern reuse. Current source and committed fixture provenance provide the
