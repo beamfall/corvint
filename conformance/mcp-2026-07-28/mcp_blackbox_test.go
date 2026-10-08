@@ -678,10 +678,50 @@ func assertToolReceipt(t *testing.T, result map[string]any, revision string, for
 	if err := decoder.Decode(&parsed); err != nil {
 		t.Fatalf("tool text is not receipt JSON: %v", err)
 	}
-	if canonicalJSON(parsed) != canonicalJSON(result["structuredContent"]) {
-		t.Fatalf("text and structuredContent differ: text=%s structured=%s", canonicalJSON(parsed), canonicalJSON(result["structuredContent"]))
+	if want := textSummary(result["structuredContent"]); canonicalJSON(parsed) != canonicalJSON(want) {
+		t.Fatalf("text is not the MCPV0-033 summary of structuredContent: text=%s want=%s", canonicalJSON(parsed), canonicalJSON(want))
 	}
 	assertServerInfo(t, result)
+}
+
+// textSummary is the MCPV0-033 text payload, written out independently of the
+// server: a receipt results list keeps each row's kind, id and score, and the
+// object names corvint-mcp-text-summary/0; any other member is unchanged.
+func textSummary(structured any) any {
+	bridgeObject, ok := structured.(map[string]any)
+	if !ok {
+		return structured
+	}
+	receipt, ok := bridgeObject["receipt"].(map[string]any)
+	if !ok {
+		return structured
+	}
+	rows, ok := receipt["results"].([]any)
+	if !ok {
+		return structured
+	}
+	projectedRows := make([]any, len(rows))
+	for position, raw := range rows {
+		row, _ := raw.(map[string]any)
+		projected := map[string]any{}
+		for _, key := range []string{"kind", "id", "score"} {
+			if value, present := row[key]; present {
+				projected[key] = value
+			}
+		}
+		projectedRows[position] = projected
+	}
+	projectedReceipt := map[string]any{}
+	for key, value := range receipt {
+		projectedReceipt[key] = value
+	}
+	projectedReceipt["results"] = projectedRows
+	summary := map[string]any{"textProfile": "corvint-mcp-text-summary/0"}
+	for key, value := range bridgeObject {
+		summary[key] = value
+	}
+	summary["receipt"] = projectedReceipt
+	return summary
 }
 
 type stdioClient struct {

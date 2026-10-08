@@ -227,8 +227,9 @@ under `AHI-004`: hidden characters become literal `\uXXXX` text, and a receipt c
 terminator is refused as a tool error with code `corvint-envelope-terminator-collision` rather than
 emitted. This is because repository-authored `title`, `summary`, and `evidence[].reason` fields reach
 a model through this text block exactly as they do through the harness hook path. `structuredContent` carries the
-identical parsed object unwrapped, for programmatic callers that do not read it as model input. The
-closed bridge object is:
+identical parsed object unwrapped, for programmatic callers that do not read it as model input; when
+the receipt carries a `results` list, the text block instead carries the `MCPV0-033` summary of that
+object. The closed bridge object is:
 
 ```text
 schema: "corvint-mcp-bridge-result/0"
@@ -556,11 +557,11 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:384@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:393@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:626@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:626@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:627@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:438@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:447@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:680@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:680@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:681@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -582,6 +583,32 @@ Each row cites the first emitting site and states only the condition checked the
   while repository/index/trace writes, automatic install, downloads and persistent servers remain
   prohibited. Gopls telemetry is disabled in the child environment. Required qualification is
   TCP-V0-053, plus real cancellation/descendant cleanup and executable-replacement regressions.
+
+- `MCPV0-031`: proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+  `evidence` rows and at most four `references`. A result that had more carries
+  `evidence_omitted` or `references_omitted` with the count of rows removed, so no cut is silent;
+  a result under both caps carries neither key. The cap applies inside the impact receipt itself,
+  so CLI impact, MCP `corvint.impact`, and every consumer that embeds the impact packet (for
+  example `FPK-V0-010`) see the same rows. Builder-level `MAX_EVIDENCE` truncation before this
+  cap is unchanged and is not counted.
+- `MCPV0-032`: proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+  (inline or as the next argument, once, within the `query` packet bounds) and compiles the
+  receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
+  and omission disclosures as `query`. Range (`--base`) and `--working-tree-untracked` impact
+  keep refusing it as `unsupported-impact-option`, and `--provider` with `--budget-bytes` is an
+  argument error because the external section is not budgeted. `prove` refuses `--budget-bytes`
+  because it embeds the unbudgeted impact packet (`FPK-V0-010`). This amends the
+  `GPK-V0` "only `--limit`" impact-option clause for path impact only.
+- `MCPV0-033`: proposed (V1-0944; no GitHub issue). When a successful tool result carries
+  `structuredContent` and its receipt has a `results` list, the text block carries the framed
+  canonical summary profile `corvint-mcp-text-summary/0`: the full bridge object with each
+  `receipt.results` row projected to its `kind`, `id` and `score` keys and a top-level
+  `textProfile` naming the profile. `structuredContent` keeps the full object. The terminator
+  refusal of `MCPV0-008` is still decided on the full object. Results without a `results` list,
+  tool errors and flows results keep the full framed text. This deliberately departs from the MCP
+  SHOULD that a structured result also returns its serialized JSON as text; a text-only client
+  sees the ranked rows but not their evidence. A client that validates the text block MUST also
+  admit the full framed object, which servers predating this requirement emit.
 
 ## Acceptance matrix
 
@@ -661,6 +688,9 @@ that focused run.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
+| `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
+| `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
+| `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 
 ## Unresolved decisions and promotion/kill criteria
 

@@ -14,7 +14,7 @@ import (
 // Bump it after reviewing any change to the inputs pinned by
 // TestAnalyzerSchemaInputs. The audit digest is a maintenance guard, not the
 // runtime key: an unrelated executable rebuild must keep using the same pack.
-const analyzerSchemaID = "corvint-analyzer/110"
+const analyzerSchemaID = "corvint-analyzer/111"
 
 // AnalyzerSchemaID is shared by experimental immutable stores of analyzer facts.
 func AnalyzerSchemaID() string { return analyzerSchemaID }
