@@ -38,7 +38,7 @@ func keptReceipt() jstestprovider.Receipt {
 }
 
 // PWP-V0-013: test-validity accepts the retained receipt of a keep-reporters
-// run, keeps its binding, and refuses a binding whose effects claim trust.
+// run, keeps its binding and recomputes an abstaining projection.
 func TestKeepReportersRetainedReceiptAccepted(t *testing.T) {
 	data, err := jstestprovider.EncodeQualified(keptReceipt())
 	if err != nil {
@@ -49,8 +49,22 @@ func TestKeepReportersRetainedReceiptAccepted(t *testing.T) {
 		t.Fatalf("keep-reporters receipt refused: %v", err)
 	}
 	doc := Project(input)
-	if len(doc.Tests) != 1 || doc.Tests[0].Projection.Execution.State != testvalidity.ExecutionPassed || doc.Playwright.External.ProjectReporters == nil || len(doc.Playwright.External.ProjectReporters.Entries) != 3 {
-		t.Fatalf("keep-reporters receipt not projected passing with its binding: %+v", doc)
+	if len(doc.Tests) != 1 || doc.Playwright.External.ProjectReporters == nil || len(doc.Playwright.External.ProjectReporters.Entries) != 3 {
+		t.Fatalf("keep-reporters binding not retained: %+v", doc)
+	}
+	// PWP-V0-012: the mode abstains until its own live qualification; the
+	// same receipt without keep-reporters passes.
+	if doc.Tests[0].Projection.Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("unqualified keep-reporters receipt projected passing")
+	}
+	control := keptReceipt()
+	control.External.ConfigOverride, control.External.ProjectReporters = "controlled-fixture-config", nil
+	controlData, err := jstestprovider.EncodeQualified(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if controlInput, err := Decode(controlData); err != nil || Project(controlInput).Tests[0].Projection.Execution.State != testvalidity.ExecutionPassed {
+		t.Fatalf("control receipt did not pass: %v", err)
 	}
 	forged := bytes.Replace(data, []byte(`"effects":"unknown"`), []byte(`"effects":"none"`), 1)
 	if input, err := Decode(forged); err == nil && Project(input).Tests[0].Projection.Execution.State == testvalidity.ExecutionPassed {

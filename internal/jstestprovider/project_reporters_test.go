@@ -85,8 +85,8 @@ func TestKeptReporterListResolution(t *testing.T) {
 		want     string
 		invalid  bool
 	}{
-		"array": {reporter: `[['list'], ['./project-reporter.cjs', {target: 'evidence.json'}], ['json', {outputFile: 'out/report.json'}], 'dot', ['pkg-reporter'], ['unresolvable-reporter']]`,
-			want: `[["list"],["` + filepath.Join(project, "project-reporter.cjs") + `",{"target":"evidence.json"}],["json",{"outputFile":"` + filepath.Join(project, "out", "report.json") + `"}],["dot"],["` + filepath.Join(project, "node_modules", "pkg-reporter", "index.js") + `"],["unresolvable-reporter"],`},
+		"array": {reporter: `[['list'], ['./project-reporter.cjs', {target: 'evidence.json'}], ['json', {outputFile: 'out/report.json'}], 'dot', ['html'], ['junit', {configDir: '/elsewhere'}], ['pkg-reporter'], ['unresolvable-reporter']]`,
+			want: `[["list"],["` + filepath.Join(project, "project-reporter.cjs") + `",{"target":"evidence.json"}],["json",{"configDir":"` + project + `","outputFile":"` + filepath.Join(project, "out", "report.json") + `"}],["dot"],["html",{"configDir":"` + project + `"}],["junit",{"configDir":"/elsewhere"}],["` + filepath.Join(project, "node_modules", "pkg-reporter", "index.js") + `"],["unresolvable-reporter"],`},
 		"string":    {reporter: `'line'`, want: `[["line"],`},
 		"undefined": {reporter: `undefined`, want: `[`},
 		"number":    {reporter: `42`, invalid: true},
@@ -196,8 +196,11 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 		if entry := r.External.ProjectReporters.Entries[1]; entry.Module != "bound" || entry.ModuleDigest != report.ConfigFiles[custom] {
 			t.Fatalf("loaded project reporter module not bound: %+v", entry)
 		}
-		if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-			t.Fatal("keep-reporters receipt did not project passing")
+		if _, err := EncodeQualified(r); err != nil {
+			t.Fatalf("observed keep-reporters receipt refused: %v", err)
+		}
+		if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+			t.Fatal("unqualified keep-reporters receipt projected passing")
 		}
 	}
 }
@@ -215,8 +218,17 @@ func mustJSON(t *testing.T, v any) []byte {
 // both directions and never weakens the qualified projection.
 func TestProjectReportersBindingShape(t *testing.T) {
 	r := keptFixture(t)
-	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-		t.Fatal("keep-reporters fixture did not pass")
+	// PWP-V0-012: keep-reporters mode abstains until its own live
+	// qualification; the same receipt without the binding passes.
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("unqualified keep-reporters receipt projected passing")
+	}
+	control := r
+	controlExternal := *r.External
+	controlExternal.ConfigOverride, controlExternal.ProjectReporters = "controlled-fixture-config", nil
+	control.External = &controlExternal
+	if ReceiptTestProjection(control, control.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("control receipt without keep-reporters did not pass")
 	}
 	encoded, err := EncodeQualified(r)
 	if err != nil || !strings.Contains(string(encoded), `"projectReporters":{"entries":[{"name":"list","module":"builtin","options":"absent"},{"name":"/repo/project-reporter.cjs","module":"bound","moduleDigest":"`+strings.Repeat("b", 64)+`","options":"bound","optionsDigest":"`+strings.Repeat("c", 64)+`"},{"name":"/outside/reporter.mjs","module":"unknown","options":"unknown"}],"effects":"unknown"}`) {
@@ -277,8 +289,12 @@ func TestProjectReportersBindingShape(t *testing.T) {
 	}
 }
 
-// PWP-V0-013: keep mode is refused outside the external profiles.
+// PWP-V0-013: keep mode is refused outside the external profiles, including
+// the direct freshness entry point, before any process starts.
 func TestKeepReportersUnsupportedMode(t *testing.T) {
+	if _, err := RunFreshE2E(context.Background(), E2EConfig{KeepReporters: true, Freshness: &FreshnessConfig{}}); err == nil || err.Error() != "keep-reporters-unsupported-mode" {
+		t.Fatalf("direct freshness run: %v", err)
+	}
 	for name, cfg := range map[string]E2EConfig{
 		"owned-server": {KeepReporters: true},
 		"freshness":    {KeepReporters: true, ExternalServer: true, Freshness: &FreshnessConfig{}},

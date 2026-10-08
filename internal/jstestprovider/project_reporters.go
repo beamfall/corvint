@@ -32,14 +32,17 @@ type reportedProjectReporter struct {
 // keptReportersConfig is the controlled-config prelude that normalizes the
 // original reporter value. Module names and the built-in reporters' output
 // paths resolve from the original config directory, as Playwright would
-// resolve them there; option values are otherwise passed through unchanged.
+// resolve them there. The file-writing built-ins also receive that directory
+// as configDir, unless the project set one, so default and environment-named
+// outputs do not land in the provider's scratch directory. Other option values
+// pass through unchanged.
 func keptReportersConfig() string {
 	builtin, _ := json.Marshal(builtinPlaywrightReporters)
 	return "const keptBuiltin = " + string(builtin) + ";\n" +
 		"const keptInvalid = () => { throw new Error('" + projectReportersInvalid + "'); };\n" +
 		"const keptName = name => keptBuiltin.includes(name) ? name : name.startsWith('.') || require('node:path').isAbsolute(name) ? resolve(name) : (() => { try { return require.resolve(name, {paths:[base]}); } catch { return name; } })();\n" +
-		"const keptOptions = (name, options) => { if (!['blob', 'html', 'json', 'junit'].includes(name) || options === null || typeof options !== 'object' || Array.isArray(options)) return options; const result = {...options}; for (const key of ['outputFile', 'outputFolder', 'outputDir']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" +
-		"const keptReporters = value => (value === undefined ? [] : typeof value === 'string' ? [value] : Array.isArray(value) ? value : keptInvalid()).map(entry => { const [name, options] = typeof entry === 'string' ? [entry] : Array.isArray(entry) && entry.length >= 1 && entry.length <= 2 && typeof entry[0] === 'string' ? entry : keptInvalid(); const resolved = keptName(name); return options === undefined ? [resolved] : [resolved, keptOptions(resolved, options)]; });\n"
+		"const keptOptions = (name, options) => { if (!['blob', 'html', 'json', 'junit'].includes(name) || (options !== undefined && (options === null || typeof options !== 'object' || Array.isArray(options)))) return options; const result = {configDir: base, ...options}; for (const key of ['outputFile', 'outputFolder', 'outputDir']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" +
+		"const keptReporters = value => (value === undefined ? [] : typeof value === 'string' ? [value] : Array.isArray(value) ? value : keptInvalid()).map(entry => { const [name, options] = typeof entry === 'string' ? [entry] : Array.isArray(entry) && entry.length >= 1 && entry.length <= 2 && typeof entry[0] === 'string' ? entry : keptInvalid(); const resolved = keptName(name); const kept = keptOptions(resolved, options); return kept === undefined ? [resolved] : [resolved, kept]; });\n"
 }
 
 // bindProjectReporters binds the reporter-observed kept entries after the

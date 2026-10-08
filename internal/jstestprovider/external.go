@@ -574,6 +574,12 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if r.Profile == SensitiveExternalProfile {
 		return true
 	}
+	// Keep-reporters mode runs project reporters before the provider reporter
+	// and must complete its own live qualification before it can project
+	// passing execution (PWP-V0-012). The retained receipt stays readable.
+	if r.External.ProjectReporters != nil {
+		return true
+	}
 	if (r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation == nil)) && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
 		return true
 	}
