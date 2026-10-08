@@ -220,7 +220,7 @@
     "reqPrefix": "TCN-V0",
     "intent": "proposed",
     "delivery": "not-started",
-    "claim": "A read-only planner could group variations sharing fixture state, screen and user into the fewest focused tests, as a fail-closed checkable table with reasons.",
+    "claim": "A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md",
       "docs/specs/application-map-scenario-planner-v0.md",
