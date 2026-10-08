@@ -2222,7 +2222,7 @@
     "path": "docs/specs/ocm-v0-dogfood.md",
     "title": "Obligation Closure Map V0 dogfood",
     "reqPrefix": "OCM-V0",
-    "intent": "proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)",
+    "intent": "proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)",
     "delivery": "experimental",
     "claim": "OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.",
     "dependsOn": [

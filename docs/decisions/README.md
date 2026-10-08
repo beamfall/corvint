@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0469-v1-0555-0520-ocm-boundary-requirements-accepted-2026-10-08.md`](0469-v1-0555-0520-ocm-boundary-requirements-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts OCM-V0-017 (requirement-token boundary hint on `claim-obligation-mismatch`, V1-0555) and OCM-V0-018 (Go case anchor on its parent header line is unsupported syntax, V1-0520). |
 | [`0466-v1-1023-consolidate-tests-mcp-interpretations-accepted-2026-10-08.md`](0466-v1-1023-consolidate-tests-mcp-interpretations-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts the three TCN-V0-012 MCP tool interpretations (JSON-string arguments, HEAD only, one-message bound); intent only, delivery stays experimental. |
 | [`0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md`](0458-v1-1024-step-level-negative-controls-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts LPCV-V0-057..070 step-level negative controls by fault injection; intent only, delivery stays not-started. |
 | [`0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md`](0457-v1-1023-test-consolidation-planner-accepted-2026-10-08.md) | accepted (owner approval in chat, 2026-10-08) | Accepts TCN-V0-001..012 test consolidation planner; intent only, delivery stays not-started. |

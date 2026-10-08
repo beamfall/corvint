@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -178,7 +178,7 @@ claim, and mutation ordering deltas below.
   and does not tighten `OCM-V0-010`'s default of visible unknowns. When at least one requirement is
   linked, `aggregate.findings` is absent, so the aggregate bytes of a linked change are unchanged.
   The `ocm/0.1-experimental` wire and the standalone `ocm status` envelope are unchanged.
-- `OCM-V0-017`: (proposed 2026-10-08, V1-0555) when `ocm link` refuses its candidate map
+- `OCM-V0-017`: (accepted 2026-10-08, decision 0469; V1-0555) when `ocm link` refuses its candidate map
   `claim-obligation-mismatch` and a selected claim's anchor contains the obligation ID only where
   an adjoining byte in `A-Z`, `a-z`, `0-9`, `_` or `-` continues the token (for example
   `t.Run("CVI-V0-002-strict-grammar", ...)`), the refusal message MUST keep its existing text and
@@ -188,6 +188,17 @@ claim, and mutation ordering deltas below.
   `OCM-V0-005` exact-token matcher, refusal code, exit status, `GPK-V0-008` no-effect rule, and
   the `ocm verify`/`status` issue message are unchanged, so an adjoined or longer ID such as
   `CVI-V0-0021` stays refused.
+- `OCM-V0-018`: (accepted 2026-10-08, decision 0469; V1-0520) a Go case anchor's parent test is the last
+  `func Test...(` header that ends before the start of the line holding the anchor's opening
+  quote. A case anchor on the same line as its parent's `func Test...(` header, such as
+  `func TestX(t *testing.T) { t.Run("TM-V0-008 exact anchor", ...) }`, is therefore intentionally
+  unsupported syntax, not a missing extraction: it yields no case claim (its test function claim
+  remains), and a `/case:` selector for it is refused `claim-selector-out-of-range`. The same
+  source with the anchor on a later line than the header extracts. Native `link` MUST NOT record a
+  case claim the read-path verifier would reject, so admitting this layout needs a verifier
+  contract change with its own oracle/divergence adjudication, not an extractor-only change. Every
+  `/case:` miss hint appends `, nor on its parent func header line` to the `TCQ-V0-018` shape list.
+  The hint does not select, widen extraction, or change any verdict.
 
 ## Wire profile
 
@@ -478,6 +489,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
 | OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 | OCM-V0-017 | `internal/lrfrepo/ocm_write.go` (`withAnchorBoundaryHint`), `internal/lrfrepo/ocm.go` (`requirementBoundaryHint`) | `internal/lrfrepo/ocm_anchor_test.go:TestOCMLinkExplainsRequirementTokenBoundary`, `cmd/corvint/ocm_test.go:TestOCMLinkRejectsClaimWithoutExactObligationIDBeforePublication` |
+| OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
