@@ -7,7 +7,7 @@ native Chrome process group alive: Playwright launches the browser detached (`se
 executor's single SIGKILL to the runner's process group never reached it. The 2026-10-01 repair
 (`2026-10-01-cem-stable-target.md`) made the executor send Playwright a cooperative SIGINT; that
 retires the browser only when the runner cooperates. This change makes retirement executor-owned
-for every profile. It adds proposed `PGO-V0-007` (`groupreap.RunContained`) and `TRE-V0-024`
+for every profile. It adds proposed `PGO-V0-007` (`groupreap.RunContained`) and `TRE-V0-034`
 (executor use), pending owner acceptance.
 
 ## Decisions
@@ -144,7 +144,7 @@ window, is the documented residual risk.
 
 Revert `internal/groupreap/escape.go`, `proctable_*.go` and their tests. Return
 `internal/testrunner/execute_unix.go` to `groupreap.Run` with the group-SIGKILL `Cancel`, and drop
-PGO-V0-007/TRE-V0-024. Plans and receipts carry no new fields.
+PGO-V0-007/TRE-V0-034. Plans and receipts carry no new fields.
 
 ## NOT_RUN / NOT_OBSERVED
 

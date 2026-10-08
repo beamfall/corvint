@@ -609,7 +609,7 @@ func containPhase(cmd *exec.Cmd, graceful bool) {
 	// worker teardown can close them before the bounded hard-kill fallback.
 	// Cancellation signals only the leader: groupreap.RunContained then stops
 	// the remaining group, retires descendants that left it while their owned
-	// parents are stopped, and kills the group (TRE-V0-024, V1-0608).
+	// parents are stopped, and kills the group (TRE-V0-034, V1-0608).
 	cmd.Cancel = func() error {
 		if cmd.Process != nil {
 			if graceful {

@@ -84,7 +84,7 @@ limits: TestCafe's current common-executor remote-Chrome CLI witness is qualifie
 refusal and first-use helper failure remain retained. Detox lacks a qualified task application/device;
 legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
-repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-024 adds
+repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-034 adds
 executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch's current fixture
 used `start_session:false`, so its browser execution remains NOT_OBSERVED. Other OS versions, retries, parameterized cases and lifecycle negatives remain open
 where their adapter provenance says so.
@@ -175,7 +175,7 @@ leader receives bounded fallback. Historical Go and Playwright plan/receipt byte
 when the optional flag is absent; current execution of an older Playwright plan requires replanning.
 Historical Go candidate assembly replay remains VERIFIED. V1-0608 stays OPEN until integration
 and native completion; cooperative native cleanup does not qualify hostile detached execution.
-TRE-V0-024 (2026-10-08) retires escaped owned descendants without runner cooperation; its exact
+TRE-V0-034 (2026-10-08) retires escaped owned descendants without runner cooperation; its exact
 Playwright 1.63 browser requalification is NOT_RUN (see the V1-0608 build log).
 
 ## Runner observation code ownership
@@ -440,7 +440,7 @@ part, and historical plan, receipt and identity bytes are unchanged.
   observation incomplete. Public states become `UNKNOWN`, and native IDs,
   including session IDs, stay retained. Status: proposed (V1-0620).
 
-- `TRE-V0-024`: The Unix executor MUST run every phase through `groupreap.RunContained`
+- `TRE-V0-034`: The Unix executor MUST run every phase through `groupreap.RunContained`
   (`PGO-V0-007`), so a descendant that leaves the phase's process group (a detached
   browser in its own session, for example) is retired when the phase ends normally,
   times out or is interrupted. A non-graceful timeout or interruption signals only the
@@ -454,7 +454,7 @@ part, and historical plan, receipt and identity bytes are unchanged.
 | --- | --- | --- |
 | TRE-V0-021 | `selection.go`, `types.go`, `document.go`; `TestSelectionIsAdditiveToHistoricalBytes`, `TestHistoricalPlanAndReceiptBytesSurviveSelectionContract` | Frozen plan and receipt bytes generated at `0c94c66c` decode and re-encode byte-identically with an unchanged plan digest |
 | TRE-V0-022 | `AdmitSelection`, `registry.Build`; `TestSelectionAdmissionIsClosed`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Invalid selections refuse at `plan` and at `run` before the report directory exists |
-| TRE-V0-024 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
+| TRE-V0-034 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
 | TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs only: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch |
 
 Recorded limits. A real pinned Nightwatch 3.16.0 browser run with fresh
