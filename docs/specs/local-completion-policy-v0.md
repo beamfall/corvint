@@ -2,13 +2,13 @@
 
 Owner: Russell Lewis
 Date: 2026-09-06
-Intent status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task)
+Intent status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)
 Delivery status: implemented
 Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-boundary.md`, `docs/specs/agent-harness-integration-v0.md`
 
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
-- Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task)/implemented
+- Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
 - Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
@@ -180,7 +180,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   Pi hashes `corvint-local-completion-session/pi/0` plus NUL plus the host session ID;
   forks and tree navigation do not adopt another session’s enrollment. Slash commands
   are operator assertions, not authenticated human provenance, because RPC can invoke
-  the same command surface. This remains local caller policy with FALLBACK support.
+  the same command surface. This remains local caller policy with FALLBACK support; the Pi tuple amendment is accepted by decision 0452 (V1-0506).
 - `LCP-V0-009`: `corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope and
   result-digest domain. Legacy query, task-context and harness command behavior stays unchanged.
   The result binds its full normalized public content, exact repository snapshot, event and local

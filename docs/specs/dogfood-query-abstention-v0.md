@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-09-30
 Requirement prefix: `QAT-V0`
-Intent status: proposed
+Intent status: accepted (decision 0450; V1-0523)
 Delivery status: experimental
 Authoritative inputs: owner request to merge the six experimental workflows (2026-09-30); `AGENTS.md` invariants 1, 2 and 4; `docs/DOGFOOD.md`; `daily-change-evidence-workflow-v0.md` DCW-V0-003/005/015/025/026; `go-production-kernel-migration-v0.md` GPK-V0-028.
 
 ## Agent digest
 - Claim: An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.
-- Status: proposed/experimental; no release or query capability promotion.
+- Status: accepted (decision 0450; V1-0523)/experimental; no release or query capability promotion.
 - Exists: `internal/dogfoodflow/query_abstention.go` and focused hostile binding/replay tests.
 - Blocked on: independent review and actual final original-task CLI qualification; general usefulness remains unqualified.
 - Read next: Requirements; Evidence contract; Acceptance evidence and rollback.
@@ -21,7 +21,7 @@ selects authority-start on a clean tree containing a previously retained local o
 That intentional refusal is supported behavior under GPK-V0-028, while changing task wording or
 removing the trace would conceal evidence. Existing DCW-V0-025 supplies a precedent for retaining
 an unsupported discovery result during structural closure, but accepts only impact abstentions.
-This separate proposed contract explicitly amends daily completion for one query refusal. It does
+This separate contract (accepted by decision 0450) explicitly amends daily completion for one query refusal. It does
 not retroactively claim that decision 0388 accepted a query exception.
 
 ## Requirements
