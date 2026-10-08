@@ -17,7 +17,8 @@ stayed byte-identical.
 ## Change
 
 `tick` has a named error result. When the final save fails it joins an error that matches the new
-`ErrLedgerUnsaved`, names `state.json` and wraps the original save error (`%w`), so
+`ErrLedgerUnsaved`, names `state.json` as not confirmed durable (it may still hold the previous
+save, or the new bytes when only the directory sync failed; independent review P2) and wraps the original save error (`%w`), so
 `errors.Is(err, fs.ErrPermission)` and an injected sync failure's text survive. Nothing else
 changes: the in-memory ledger and its workers stay authoritative, no snapshot is reloaded, `Run`
 raises its existing `tick failed: ...` alert and keeps supervising, and the next tick's save writes

@@ -5183,8 +5183,9 @@ own boundary, which still holds the current ledger.
 
 - `CAL-V0-192`: (proposed; V1-0672) When a tick's final ledger save fails (any step of the write:
   temporary file, write, file sync, close, rename or directory sync), the tick MUST return an
-  error that matches `ErrLedgerUnsaved`, names `state.json` and wraps the original save error
-  unchanged, joined with any other error the tick returned, and the tick MUST NOT count as saved:
+  error that matches `ErrLedgerUnsaved`, names `state.json` as not confirmed durable (it may
+  still hold the previous save, or, when only the directory sync failed, the new bytes without
+  proven durability) and wraps the original save error unchanged, joined with any other error the tick returned, and the tick MUST NOT count as saved:
   the controlled boundary reports it unrecorded (SERVICE500-003) and it does not arm the idle gate
   (CAL-V0-139). The dispatcher MUST keep its in-memory ledger, including every recorded worker,
   backoff and observation baseline, and MUST NOT stop, forget or relaunch a worker because of the
@@ -5192,7 +5193,7 @@ own boundary, which still holds the current ledger.
   any failed tick (an `alert` event `tick failed: ...` that carries the cause, and supervision
   continues), and a bounded run whose last tick failed so MUST return that error, so `dispatch
   --ticks N` reports outcome `ERROR` with the cause as a warning. The next tick's save MUST write the
-  then current ledger whole; the first successful save makes `state.json` current again. A tick
+  then current ledger whole; the first successful save makes `state.json` current and durable again. A tick
   that leaves the ledger bytes unchanged and still in place does not rewrite it (CAL-V0-139) and so
   cannot fail this way. The checked saves that already fail their own step (after a launch, the
   declared-progress admission, `Open` and `Close`) are unchanged.
@@ -5203,10 +5204,11 @@ mapping the I/O failure to a new wire code (a bounded `dispatch` run reports it 
 error mapping, as a failed `Close` save already does); changing the event log, which is appended
 before the ledger is saved.
 
-Failure modes: while saves keep failing, the event log runs ahead of `state.json`, and events
+Failure modes: while saves keep failing, the event log may run ahead of `state.json`, and events
 already appended (for example `state`, `finished` or `cooldown`) are not withdrawn; the `alert`
 records that their ledger effects are not yet persisted. A dispatcher that stops or crashes before
-any later save succeeds restarts from the last saved ledger, exactly as after a crash between an
+any later save succeeds restarts from whatever `state.json` then holds (the last saved ledger, or
+a renamed but unsynced newer one), exactly as after a crash between an
 event append and the ledger save: it adopts the workers that ledger records, re-reports state
 changes against the older baseline, and may account again a worker the unsaved tick had already
 accounted; its event sequence restarts from the saved value. A worker launched while saves fail is
