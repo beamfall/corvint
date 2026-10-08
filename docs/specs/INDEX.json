@@ -783,7 +783,7 @@
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
     "title": "Corvint Tasks know-how notes V0",
     "reqPrefix": "KHN-V0",
-    "intent": "accepted by decision 0443 (V1-0955)",
+    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..010 proposed (V1-0987; GitHub #671)",
     "delivery": "experimental",
     "claim": "Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.",
     "dependsOn": [
@@ -797,7 +797,8 @@
       "internal/tasks/cli/know_how.go",
       "internal/tasks/mutation/know_how.go",
       "internal/tasks/store/know_how.go",
-      "internal/tasks/ticket/know_how.go"
+      "internal/tasks/ticket/know_how.go",
+      "internal/tasks/transaction/model.go"
     ]
   },
   {

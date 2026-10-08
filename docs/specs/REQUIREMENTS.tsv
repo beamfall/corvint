@@ -1696,11 +1696,14 @@ KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	45	Unparsed source, dynamic
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	48	Fixed inputs MUST reproduce byte-identical graph and selection bodies
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	46	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	56	A ticket record MAY carry the optional member `knowHow`. When present it is a
-KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	72	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
-KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	87	Before an entry is appended, the writer MUST screen the text, the reason, the
-KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	91	Freshness MUST be computed at read time against the reader's committed `HEAD`,
-KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	100	`claim` and `claim --next` MUST add a `knowHow` member to their result.
-KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	117	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	73	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
+KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	89	Before an entry is appended, the writer MUST screen the text, the reason, the
+KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	93	Freshness MUST be computed at read time against the reader's committed `HEAD`,
+KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	102	`claim` and `claim --next` MUST add a `knowHow` member to their result.
+KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	119	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	125	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
+KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	135	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-008 MUST be checked, after request
+KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	155	An entry written under KHN-V0-009 MUST record actor role WORKER together with th
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation
