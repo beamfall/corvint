@@ -50,3 +50,17 @@ The non-goals are those listed in the spec: other runners, mutation of applicati
 retained traces, and changes to NEA or PTF verdicts.
 
 Rollback: revert this commit. No retained state or wire format exists yet.
+
+## Independent review
+
+Codex (gpt-6-astra, read-only) reviewed `78afb59f` and raised four findings. All four were accepted
+and fixed:
+
+- P1: a single-step document had no complete denominator. A retained baseline `inventory` and
+  `assertionsOutsideSteps` now gate the `KILLED` join.
+- P2: per-step plan digests in the binding made `--step A` then `--step B` replace each other. The
+  common binding is now separate from each entry's `planDigest`.
+- P2: DOM derivation lacked the literal and polarity restriction. Negated and non-literal assertions
+  now derive no fault, and a marker that satisfies the expectation gives `fault-does-not-falsify`.
+- P2: marker generation was circular with the plan digest. The marker now comes from a
+  pre-injection seed digest.

@@ -625,8 +625,9 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   choice for live qualification. If no hook works without editing test source, derivation abstains
   (`fault-not-installable`) rather than editing it.
 - `LPCV-V0-061`: (proposed (V1-1024; GitHub #682)) Network fault derivation. The witnessed assertion
-  must use a matcher in the closed set `toHaveText`, `toContainText` or `toHaveValue`, with a literal
-  string expected value recorded for that assertion in the baseline trace. A regular-expression,
+  must use a matcher in the closed set `toHaveText`, `toContainText` or `toHaveValue`, not negated with
+  `.not`, with a nonempty literal string expected value recorded for that assertion in the baseline
+  trace. A negated assertion gives no fault of either kind (`negated-assertion-unsupported`). A regular-expression,
   function, array or non-literal expected value gives no network fault (`expected-value-not-literal`).
   A candidate is a response recorded in the baseline trace that meets four conditions. Its request
   origin equals the declared external application origin (the readiness URL origin). It completed
@@ -635,8 +636,10 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   when exactly one candidate exists: zero gives `no-network-dependency` and more than one gives
   `network-dependency-ambiguous`. A dependency on any other origin is never faulted
   (`dependency-outside-application-origin`). The fault replaces that one occurrence with a
-  deterministic marker `corvint-fault-` plus 8 lowercase hex digits taken from the plan digest,
-  JSON-escaped where needed. It fetches the real response once for that request instead of the
+  deterministic marker `corvint-fault-` plus 8 lowercase hex digits taken from a seed digest,
+  JSON-escaped where needed. The seed digest is the SHA-256 of the canonical test identity, step
+  title, witnessed assertion location and fault kind. It is computed before injection and never
+  includes the plan, and the plan digest is computed afterwards over the completed plan. It fetches the real response once for that request instead of the
   browser's own fetch and fulfils it rewritten. Every other request passes unchanged. The plan binds
   the method and the SHA-256 of origin plus path (never the query string), the request ordinal among
   equal requests, the SHA-256 and length of the replaced value, the marker, and the body SHA-256
@@ -645,8 +648,10 @@ assertion* is the first of them, in reporter order, for which a fault can be der
 - `LPCV-V0-062`: (proposed (V1-1024; GitHub #682)) DOM fault derivation applies when no network
   fault is derivable, or when the network fault did not yield `KILLED`. The fault acts on the elements
   that the witnessed assertion's recorded locator resolves to while that assertion runs. For
-  `toHaveText`, `toContainText` and `toHaveValue` it replaces the text or value with the marker. For
-  `toBeVisible` it hides the element. The module applies the fault when the assertion starts and
+  `toHaveText`, `toContainText` and `toHaveValue` it replaces the text or value with the marker, under
+  the same non-negated, nonempty-literal restriction as `LPCV-V0-061`. Derivation also checks that the
+  marker does not satisfy the recorded expectation, and gives `fault-does-not-falsify` otherwise. For a
+  non-negated `toBeVisible` it hides the element. The module applies the fault when the assertion starts and
   reapplies it after DOM changes until the assertion settles. Any other matcher, or a locator that
   cannot be recovered from the trace, gives `no-dom-fault`. A DOM fault establishes only that the
   assertion evaluates the element state it names. It does not show dependence on application data, so
@@ -694,7 +699,10 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   - `binding` (`LPCV-V0-066`);
   - `mode` (`step` or `all-steps`);
   - `runs`;
-  - `steps[]`, each with `title`, `ordinal`, `witness` (`network`, `dom`, `joint-network`, `joint-dom`
+  - `inventory`: the complete baseline step tree as `{title, ordinal, assertions}` per `test.step`,
+    plus `assertionsOutsideSteps`, the count of `expect` steps with no enclosing `test.step`. Every
+    negate run records it, whichever steps it measured;
+  - `steps[]`, each with `planDigest`, `title`, `ordinal`, `witness` (`network`, `dom`, `joint-network`, `joint-dom`
     or `none`), `strength`, and an optional `requires` (`manual-control` or `single-step-run`).
 
   `strength` uses the existing `Axis` shape and only the existing states `KILLED`, `SURVIVED`,
@@ -706,7 +714,9 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   adequacy or as a source mutation (`LPCV-V0-047`). Exit status is 0 whenever a document was emitted,
   whatever its states. A refusal before the baseline exits 2 with a typed code and no stdout. A
   retention failure is reported as in `LPCV-V0-055`.
-- `LPCV-V0-066`: (proposed (V1-1024; GitHub #682)) The binding records:
+- `LPCV-V0-066`: (proposed (V1-1024; GitHub #682)) The common `binding` records the execution
+  context shared by every step entry. Each step entry carries its own `planDigest` instead, so the
+  binding does not depend on which steps were measured. The binding records:
   - the test repository's root commit, revision and tree, which must be clean (a dirty tree refuses
     `negate-dirty-test-repository`);
   - the original config and spec-file digests (`PWP-V0-002`);
@@ -716,8 +726,7 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   - the application identity: the `/0` declared label, which stays a caller assertion, or the `/1`
     attested commit, revision, tree and instance;
   - the readiness origin;
-  - the injection module digest;
-  - every fault plan digest.
+  - the injection module digest.
 
   Test-repository identity is observed before the baseline and after the last run, and `/1`
   attestation and readiness surround every run. Any drift sets every step to `NOT_MEASURED`
@@ -727,8 +736,9 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   and rename, and no symlinked component. It writes `.corvint/strength-evidence/<SHA-256 of the
   canonical test identity>.json`, one file per test identity, outside `.corvint/test-evidence`, so the
   listing, bounds and bytes of `LPCV-V0-053` discovery are unchanged. A later negate for the same
-  identity with an equal binding replaces only the step entries it measured. A different binding
-  replaces the whole file. A concurrent writer for the same identity refuses `negate-evidence-busy`.
+  identity with an equal common binding (`LPCV-V0-066`) replaces only the step entries it measured,
+  each with its own `planDigest`, and keeps the others. A different common binding or a different
+  `inventory` replaces the whole file. A concurrent writer for the same identity refuses `negate-evidence-busy`.
   The file is local derived state, never authority, ranking or learning input.
 - `LPCV-V0-068`: (proposed (V1-1024; GitHub #682)) This requirement covers projection join and reuse.
   The `--receipt` and `--discover` modes and the MCP `discover` argument (`MTV-V0-009`) join a stored
@@ -736,8 +746,9 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   identity must equal the selected receipt's. Every bound test-side digest must equal both the
   receipt's and the worktree's current digests, read through the `LPCV-V0-054` reader. The joining
   build must be qualified (`LPCV-V0-070`). After a join, the test's strength follows the
-  `PTF-V0-006` aggregation:
-  - every assertion-bearing step `KILLED` gives `KILLED` (`step-controls-killed`);
+  `PTF-V0-006` aggregation over the retained `inventory` denominator:
+  - `KILLED` (`step-controls-killed`) requires one `KILLED` entry for every inventory step with
+    assertions and `assertionsOutsideSteps` equal to zero;
   - any `SURVIVED` step gives `SURVIVED`;
   - otherwise the result is `NOT_MEASURED` (`step-controls-incomplete`), anchored to the unproven
     steps. Assertions outside every step also give `NOT_MEASURED` (`assertions-outside-steps`).

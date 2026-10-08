@@ -1909,15 +1909,15 @@ LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	598	(proposed (V1-
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	608	(proposed (V1-1024; GitHub #682)) Each invocation first runs the unfaulted test
 LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	619	(proposed (V1-1024; GitHub #682)) Faults are installed by a Corvint-owned inject
 LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	627	(proposed (V1-1024; GitHub #682)) Network fault derivation. The witnessed assert
-LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	645	(proposed (V1-1024; GitHub #682)) DOM fault derivation applies when no network
-LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	655	(proposed (V1-1024; GitHub #682)) Single-step pass rule: each faulted run has
-LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	677	(proposed (V1-1024; GitHub #682)) `--all-steps` performs the baseline and then o
-LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	691	(proposed (V1-1024; GitHub #682)) negate emits one closed canonical
-LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	709	(proposed (V1-1024; GitHub #682)) The binding records:
-LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	725	(proposed (V1-1024; GitHub #682)) Retention is atomic and confined under the
-LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	733	(proposed (V1-1024; GitHub #682)) This requirement covers projection join and re
-LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	749	(proposed (V1-1024; GitHub #682)) Safety. negate runs the user's test code at
-LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	761	(proposed (V1-1024; GitHub #682)) Every negate result is diagnostic, and
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	648	(proposed (V1-1024; GitHub #682)) DOM fault derivation applies when no network
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	660	(proposed (V1-1024; GitHub #682)) Single-step pass rule: each faulted run has
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	682	(proposed (V1-1024; GitHub #682)) `--all-steps` performs the baseline and then o
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	696	(proposed (V1-1024; GitHub #682)) negate emits one closed canonical
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	717	(proposed (V1-1024; GitHub #682)) The common `binding` records the execution
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	734	(proposed (V1-1024; GitHub #682)) Retention is atomic and confined under the
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	743	(proposed (V1-1024; GitHub #682)) This requirement covers projection join and re
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	760	(proposed (V1-1024; GitHub #682)) Safety. negate runs the user's test code at
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	772	(proposed (V1-1024; GitHub #682)) Every negate result is diagnostic, and
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj
