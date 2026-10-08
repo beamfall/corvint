@@ -802,6 +802,25 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-obligation-ledger-v0.md",
+    "title": "Corvint Tasks obligation ledger V0",
+    "reqPrefix": "TOL-V0",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/corvint-tasks-evidence-attachments-v0.md",
+      "docs/specs/corvint-tasks-operator-notes-v0.md",
+      "docs/specs/corvint-tasks-know-how-notes-v0.md",
+      "docs/specs/corvint-tasks-external-reviews-v0.md",
+      "docs/specs/playwright-external-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/corvint-tasks-external-reviews-v0.md",
     "title": "Corvint Tasks external reviews V0",
     "reqPrefix": "ERG-V0",
