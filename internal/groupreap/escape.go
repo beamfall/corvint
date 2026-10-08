@@ -96,6 +96,7 @@ func RunContained(command *exec.Cmd) (Containment, error) {
 	leader := command.Process.Pid
 	seen := map[int]sampled{}
 	var sampleErr error
+	overflow := false
 	stop, sampling := make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(sampling)
@@ -112,11 +113,8 @@ func RunContained(command *exec.Cmd) (Containment, error) {
 				sampleErr = err
 				continue
 			}
-			owned := ownedTree(table, leader)
-			for _, p := range escapedOf(table, owned) {
-				if prev, ok := seen[p.PID]; (ok && prev.same(p)) || len(seen) < maxEscaped {
-					seen[p.PID] = sampled{p, owned[p.PID]}
-				}
+			if !recordEscaped(seen, table, leader) {
+				overflow = true
 			}
 		}
 	}()
@@ -134,14 +132,19 @@ func RunContained(command *exec.Cmd) (Containment, error) {
 	}
 	c.Retired, c.Err = retireEscaped(leader)
 	_ = signalGroup(-leader, syscall.SIGKILL)
-	err := command.Wait()
-	if sampleErr != nil {
-		c.Err = errors.Join(c.Err, sampleErr)
-	}
+	// Orphans are retired before Wait: one holding the command's inherited
+	// output pipes would otherwise keep Wait's copy goroutines open.
 	orphans, orphanErr := retireSampledOrphans(seen, c.Retired)
 	c.Retired = append(c.Retired, orphans...)
 	if orphanErr != nil {
 		c.Err = errors.Join(c.Err, orphanErr)
+	}
+	err := command.Wait()
+	if sampleErr != nil {
+		c.Err = errors.Join(c.Err, sampleErr)
+	}
+	if overflow {
+		c.Err = errors.Join(c.Err, fmt.Errorf("groupreap: more than %d escaped identities; some were not tracked", maxEscaped))
 	}
 	survivors, observeErr := observeSurvivors(c.Retired, seen)
 	c.Survivors = survivors
@@ -156,6 +159,21 @@ func RunContained(command *exec.Cmd) (Containment, error) {
 type sampled struct {
 	Process
 	depth int
+}
+
+// recordEscaped adds the table's escaped owned identities to seen. It reports
+// false when the bound left a new identity untracked.
+func recordEscaped(seen map[int]sampled, table map[int]Process, leader int) bool {
+	owned := ownedTree(table, leader)
+	complete := true
+	for _, p := range escapedOf(table, owned) {
+		if prev, ok := seen[p.PID]; (ok && prev.same(p)) || len(seen) < maxEscaped {
+			seen[p.PID] = sampled{p, owned[p.PID]}
+		} else {
+			complete = false
+		}
+	}
+	return complete
 }
 
 // retireSampledOrphans SIGKILLs, deepest first, each sampled escaped identity

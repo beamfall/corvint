@@ -3,6 +3,7 @@
 package groupreap
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -27,6 +28,8 @@ func TestEscapeHelper(t *testing.T) {
 		exe, _ := os.Executable()
 		child := exec.Command(exe, "-test.run=^TestEscapeHelper$")
 		child.Env = append(os.Environ(), "CORVINT_ESCAPE_ROLE="+role)
+		// Inherit the leader's output, as a native browser does.
+		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if setsid {
 			child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		}
@@ -263,9 +266,20 @@ func TestRunContainedRetiresSampledOrphanByIdentity(t *testing.T) {
 	defer func() { _ = bystander.Process.Kill(); _ = bystander.Wait() }()
 	other := f.identity("bystander")
 	cmd := f.command(context.Background(), "orphan-leader", "")
+	// A pipe makes Wait depend on every holder of the inherited output.
+	var output bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &output, &output
 	done := runContainedAsync(cmd)
 	browser, helper := f.identity("browser"), f.identity("helper")
-	result := <-done
+	var result struct {
+		c   Containment
+		err error
+	}
+	select {
+	case result = <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("RunContained waited on an orphan holding the output pipe")
+	}
 	if !result.c.Complete() {
 		t.Fatalf("sampled orphan not contained: %+v", result.c)
 	}
@@ -442,5 +456,47 @@ func TestRunContainedPropagatesTableFailure(t *testing.T) {
 	c, err := RunContained(exec.Command("/bin/sh", "-c", "exit 0"))
 	if err != nil || c.Complete() || len(c.Retired) != 0 {
 		t.Fatalf("containment %+v err %v", c, err)
+	}
+}
+
+// A zombie thread-group leader with a live thread is still live, so it stays
+// retirable and observable; a single-threaded zombie is not.
+func TestReadProcTableThreadAwareZombie(t *testing.T) {
+	f := newFakeProc(t)
+	stat := func(pid int, state string, threads int) {
+		rest := " 1 " + strconv.Itoa(pid) + " " + strconv.Itoa(pid) + strings.Repeat(" 0", 15) + " 777 0\n"
+		f.write(filepath.Join(strconv.Itoa(pid), "stat"), strconv.Itoa(pid)+" (x) "+state+rest)
+		f.write(filepath.Join(strconv.Itoa(pid), "status"), "Name:\tx\nThreads:\t"+strconv.Itoa(threads)+"\n")
+	}
+	stat(200, "Z", 2)
+	stat(201, "Z", 1)
+	stat(202, "T", 1)
+	got, err := readProcTable(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[200].State != StateRunning || got[201].State != StateZombie || got[202].State != StateStopped || got[200].Start != 777 || got[200].PGID != 200 {
+		t.Fatalf("table %+v", got)
+	}
+}
+
+// Identities beyond the bound make sampling incomplete; a known identity
+// still updates.
+func TestRecordEscapedBound(t *testing.T) {
+	const leader = 1000
+	tbl := table(Process{PID: leader, PPID: os.Getpid(), PGID: leader, Start: 1, State: StateRunning})
+	for i := 0; i <= maxEscaped; i++ {
+		pid := 2000 + i
+		tbl[pid] = Process{PID: pid, PPID: leader, PGID: pid, Start: 2, State: StateRunning}
+	}
+	seen := map[int]sampled{}
+	if recordEscaped(seen, tbl, leader) || len(seen) != maxEscaped {
+		t.Fatalf("overflow not reported: %d tracked", len(seen))
+	}
+	for pid := range seen {
+		if !recordEscaped(seen, table(tbl[leader], tbl[pid]), leader) {
+			t.Fatal("a tracked identity counted as overflow")
+		}
+		break
 	}
 }

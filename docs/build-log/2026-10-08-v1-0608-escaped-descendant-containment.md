@@ -70,10 +70,32 @@ identity and the count of pre-existing Chrome-like processes (9, including the o
 | timeout + detached browser | 9 survivors (manual identity-checked cleanup) | 0 survivors, no `process-containment` |
 | SIGINT + detached browser | 8 survivors (manual identity-checked cleanup) | 0 survivors, no `process-containment` |
 
-Every run lost none of the 9 pre-existing Chrome-like processes. Results are under
-`/private/tmp/claude-501/pw-td/live/{base,new}-*/result.json` (new-timeout-detached sha256
-`02f8a136…eb7e`, base-timeout-detached `fb6ce334…9ac0`). Timeout and SIGINT receipts stay
-incomplete (`timeout`/`interrupted` problems), as before.
+Before review, every run kept all 9 pre-existing Chrome-like processes. After the review repairs
+the five runs were repeated with the same results: 0 survivors and no manual cleanup. The
+owner's Chrome had by then grown to 16 or 17 Chrome-like processes. In the timeout-detached run,
+one of the owner's `data_decoder` utility helpers, started 08:11:19, exited during the run. That
+was not a signal from the runner: ownership reaches only the leader's group and its descendants,
+and none of them can start before the leader (08:18:02). Orphan retirement signals only those
+sampled identities. A 90 s idle control with no Corvint run saw two more of the owner's helpers
+exit (`live/control-idle-churn.json`). Results are under
+`/private/tmp/claude-501/pw-td/live/{base,new}-*/result.json`. The post-review
+new-timeout-detached result has sha256 `920614de…08d8`; base-timeout-detached has
+`fb6ce334…9ac0`. Timeout and SIGINT receipts stay incomplete (`timeout`/`interrupted` problems),
+as before.
+
+## Independent review
+
+Codex (gpt-6-astra, read-only) reviewed `f9c35b24`. Its three findings were all fixed:
+
+- P1: sampled orphans were retired after `Wait`, so an orphan holding the inherited output pipe
+  blocked `Wait` (up to the executor's one-minute `WaitDelay`). They are now retired before
+  `Wait`. `TestRunContainedRetiresSampledOrphanByIdentity` now pipes the leader's output and
+  failed at the old order (`RunContained waited on an orphan holding the output pipe`), then passed.
+- P2: on Linux, a zombie thread-group leader with live threads was classified dead. It is now
+  live when `/proc/<pid>/status` counts more than one thread (`TestReadProcTableThreadAwareZombie`
+  on a fixture `/proc`; a live Linux run remains NOT_RUN).
+- P2: identities beyond the 4096 bound were dropped silently. They now make containment
+  incomplete (`TestRecordEscapedBound`).
 
 ## Non-goals
 
