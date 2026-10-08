@@ -29,10 +29,15 @@ why it was deferred. The change adds two proposed requirements to
 - **Deferred only by the fallback.** An entry is marked when all of these hold:
   - `choose` defers it for RESOURCE_COLLISION;
   - its own closure is incomplete, so its scope is the fallback;
-  - the reservation or earlier selection it collides with holds no WHOLE_REPOSITORY.
+  - no reservation or earlier selection holds WHOLE_REPOSITORY or collides with the entry's
+    non-PATH resources;
+  - capacity would admit one more attempt.
 
-  An entry queued behind a WHOLE_REPOSITORY holder is not marked, because declaring its own scope
-  would not admit it.
+  Otherwise declaring a PATH scope would not admit the entry, so it is not marked. The independent
+  review found the capacity and non-PATH conditions missing from the first version; the
+  `spare capacity then exhausted` and `kept non-PATH resource collides` subtests failed against
+  that version (`listed with capacity exhausted`, `listed behind a DATABASE collision`) and pass
+  with the fix.
 - **Additive output.** The plan members appear only when an entry qualifies, so existing plans
   render byte-identically. `queue status` always carries `serialFallbackDeferred`: an array, or
   null without a journal. It runs the planner only when an OPEN or HELD ticket has unbounded
@@ -56,14 +61,14 @@ Focused tests in `internal/tasks/cli`: `TestCALV0192_UnboundedEffectsWarn`,
   - `internal/tasks/ticket`
   - `internal/tasks/store`
   - `internal/tasks/cli`
-- Live check: a corvint-tasks binary built from this branch ran against a scratch store in a
-  fresh `git init` repository under the lane's temp directory, with the fixture queue and policy
-  (serialFallback BLOCK).
+- Live check: a corvint-tasks binary built from this branch, including the review fix, ran
+  against a scratch store in a fresh `git init` repository under the lane's temp directory. It used
+  the fixture queue and policy (serialFallback BLOCK) with `maxActiveAttempts` 2.
   - Creating a ticket with touchPaths `["src/"]` (P1) returned only the actor-binding warning.
   - Creating a ticket with empty effects (P3) also returned
-    `EFFECTS_UNBOUNDED: ticket ticket:acme:main:AT-0003 ... (policy serialFallback BLOCK) ...`.
-  - `queue status --summary` reported `"serialFallbackDeferred":["ticket:acme:main:AT-0003"]`.
-  - `plan preview --summary` marked AT-0003 `RESOURCE_COLLISION` with
+    `EFFECTS_UNBOUNDED: ticket ticket:acme:main:AT-0005 ... (policy serialFallback BLOCK) ...`.
+  - `queue status --summary` reported `"serialFallbackDeferred":["ticket:acme:main:AT-0005"]`.
+  - `plan preview --summary` marked AT-0005 `RESOURCE_COLLISION` with
     `"serialFallback":"WHOLE_REPOSITORY"`.
 
 ## Non-goals

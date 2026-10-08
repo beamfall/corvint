@@ -5096,10 +5096,12 @@ outcome, plan selection or claim scope.
   still commit, and its items, codes and outcome MUST be those it produces without this
   amendment. `EFFECTS_UNBOUNDED` is a warning prefix, not a result code.
 - `CAL-V0-193`: (proposed (V1-1021, issue 679)) A `plan preview` entry deferred for
-  RESOURCE_COLLISION whose own scope is the WHOLE_REPOSITORY fallback, and whose blocking
-  reservation or earlier selection holds no WHOLE_REPOSITORY resource, MUST carry
-  `serialFallback: "WHOLE_REPOSITORY"`; such an entry is deferred because of its fallback
-  scope, and a declared scope disjoint from the blocker's would admit it. The `taskman-plan/0` item MUST then carry
+  RESOURCE_COLLISION MUST carry `serialFallback: "WHOLE_REPOSITORY"` when all of these hold: its
+  own scope is the WHOLE_REPOSITORY fallback; no reserved or earlier-selected scope holds a
+  WHOLE_REPOSITORY resource or collides with the entry's non-PATH resources; and the reservations
+  plus earlier selections are below `maxActiveAttempts`. Such an entry is deferred only by its
+  fallback scope, and a declared PATH scope disjoint from every reserved and selected scope would
+  admit it. The `taskman-plan/0` item MUST then carry
   `serialFallbackDeferred`, the marked ticket IDs in plan order. Both members MUST be absent when no
   entry qualifies, so existing plans render unchanged. `queue status` MUST report
   `serialFallbackDeferred`, the same list for the queue's planning input (an empty array when none
@@ -5116,8 +5118,9 @@ console verbs or on Core history imports; changing the serial fallback or plan s
 Failure modes: the REFINE warning reads the pre-write record, so effects changed by another writer
 between that read and the commit can make the warning stale; it is advisory and the committed
 state is unaffected. `serialFallbackDeferred` names only entries whose collision is with a
-declared scope: an entry behind a WHOLE_REPOSITORY holder is not listed, because declaring its own
-scope would not admit it. `queue status` runs the planner only when an OPEN or HELD ticket has
+declared scope: an entry behind a WHOLE_REPOSITORY holder, behind a collision on one of its own
+non-PATH resources, or without spare capacity is not listed, because declaring a PATH scope would
+not admit it. `queue status` runs the planner only when an OPEN or HELD ticket has
 unbounded effects, so its cost is unchanged for a fully scoped queue. Rollback removes the warning,
 the two plan members and the queue status member; no store, journal or receipt state depends on
 them.

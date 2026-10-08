@@ -83,10 +83,8 @@ type PlanEntry struct {
 	// Loop is the CAL-V0-102 hold behind a LOOP_DETECTED blocker, nil
 	// otherwise, so plan and a claim-next refusal name its evidence.
 	Loop *ticket.LoopHold
-	// SerialFallback marks a DEFERRED RESOURCE_COLLISION entry whose
-	// collision only its WHOLE_REPOSITORY fallback scope makes certain: the
-	// entry declares no scope, and the reservation or earlier selection it
-	// collides with holds no WHOLE_REPOSITORY resource (CAL-V0-193).
+	// SerialFallback marks a DEFERRED RESOURCE_COLLISION entry deferred
+	// only by its WHOLE_REPOSITORY fallback scope (fallbackOnly, CAL-V0-193).
 	SerialFallback bool
 }
 
@@ -440,13 +438,13 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	}
 	for _, en := range in.Reservations.Entries {
 		if ticket.Collide(e.Resources, en.Resources) {
-			e.Blockers, e.SerialFallback = []string{en.TicketID.Raw}, !e.ClosureComplete && !holdsWholeRepository(en.Resources)
+			e.Blockers, e.SerialFallback = []string{en.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}
 	}
 	for _, s := range selected {
 		if ticket.Collide(e.Resources, s.Resources) {
-			e.Blockers, e.SerialFallback = []string{s.Ticket.TicketID.Raw}, !e.ClosureComplete && !holdsWholeRepository(s.Resources)
+			e.Blockers, e.SerialFallback = []string{s.Ticket.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}
 	}
@@ -458,10 +456,31 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 	return e
 }
 
-// holdsWholeRepository reports whether a reserved or selected scope holds
-// WHOLE_REPOSITORY, which collides with any scope a ticket could declare.
-func holdsWholeRepository(rs []ticket.Resource) bool {
-	return slices.ContainsFunc(rs, func(r ticket.Resource) bool { return r.Class == "WHOLE_REPOSITORY" })
+// fallbackOnly reports whether a RESOURCE_COLLISION deferral of e comes only
+// from its WHOLE_REPOSITORY fallback scope (CAL-V0-193): e declares no PATH
+// scope, no reserved or selected scope holds WHOLE_REPOSITORY, none collides
+// with the non-PATH resources e keeps when it declares a scope, and capacity
+// would admit one more attempt. A declared scope disjoint from every reserved
+// and selected PATH would then admit e.
+func fallbackOnly(in PlanInput, e PlanEntry, selected []PlanEntry) bool {
+	if e.ClosureComplete || e.Ticket == nil || int64(len(in.Reservations.Entries)+len(selected)) >= in.Policy.MaxActiveAttempts.Int() {
+		return false
+	}
+	other := declaredOther(e.Ticket)
+	blocks := func(rs []ticket.Resource) bool {
+		return slices.ContainsFunc(rs, func(r ticket.Resource) bool { return r.Class == "WHOLE_REPOSITORY" }) || ticket.Collide(other, rs)
+	}
+	for _, en := range in.Reservations.Entries {
+		if blocks(en.Resources) {
+			return false
+		}
+	}
+	for _, s := range selected {
+		if blocks(s.Resources) {
+			return false
+		}
+	}
+	return true
 }
 
 // lastAttemptOf is the ticket's attempt at the highest generation, or nil.
