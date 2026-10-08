@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is proposed (V1-1012).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -293,7 +293,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   Every other refusal, the envelope bytes and the context packet are unchanged. Measured in the
   fixture: four Git processes per event where `stop` took ten and an index-backed event
   thirteen. Rollback: revert the change; the two-probe path keeps no persistent state.
-- `LCP-V0-017`: (proposed; V1-1012) The top-level `ok` of a `corvint-local-completion/0`
+- `LCP-V0-017`: (accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-completion/0`
   envelope from `begin`, `status`, `verify`, `finish`, `review` or `cancel` MUST equal whether the
   command exits 0. `verify` exits 1 with `ok:false` when its recorded observation is unqualified
   (nonzero exit, timeout, overflow, dirty run or screened log; a refusal still exits 2), and

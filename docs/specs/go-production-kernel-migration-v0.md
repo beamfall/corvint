@@ -1598,7 +1598,7 @@ from the alias arm, and the implementation read that as any specifier whose firs
 `paths` key such as `.api/*` claims `.api/client` as a bare name; Corvint skipped it, `impact`
 missed the importer, and nothing was disclosed.
 
-- `GPK-V0-082`: (proposed 2026-10-08, not accepted; V1-0967) In `GPK-V0-077` and
+- `GPK-V0-082`: (accepted 2026-10-08, decision 0464; V1-0967) In `GPK-V0-077` and
   `NewWebImportResolver(index).Resolve`, a web specifier is relative only when it is `.` or `..`
   alone or followed by `/` or `\`, as TypeScript's `pathIsRelative` reads it. Every other
   specifier that starts with a dot is bare: it goes through `paths`, `baseUrl` and the

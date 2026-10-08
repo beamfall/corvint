@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, proposed).
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, accepted by decision 0463).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -709,7 +709,7 @@ its tests; a surviving mutant is a change the cited tests cannot tell from the o
   is rendering only: dispositions, counts, the worklist, the exit status, and the
   `status`/`verify` envelopes are unchanged, so a surviving mutant never fails the build and is
   never silent.
-- `TCQ-V0-059`: (proposed 2026-10-08, ticket V1-0651) a runner failure whose whole output is
+- `TCQ-V0-059`: (accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whole output is
   the macOS sandbox launcher's own refusal to apply its profile, exactly one line
   `sandbox-exec: sandbox_apply: ` followed by non-empty printable ASCII errno text and a newline,
   at most 160 bytes, as `/usr/bin/sandbox-exec` writes (exit 71) before `go test` starts when an
