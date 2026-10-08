@@ -133,7 +133,7 @@ func writeFiles(t testing.TB, root string, files map[string]string) {
 func commit(t testing.TB, root string) string {
 	t.Helper()
 	git(t, root, "add", "-A")
-	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "fixture")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", "fixture")
 	return strings.TrimSpace(git(t, root, "rev-parse", "HEAD"))
 }
 

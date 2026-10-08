@@ -736,7 +736,7 @@ func TestRetentionStaysOutOfGitStatus(t *testing.T) {
 	worktree := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()
-		command := exec.Command("git", append([]string{"-C", worktree, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+		command := exec.Command("git", append([]string{"-C", worktree, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		command.Env = []string{"HOME=" + worktree, "PATH=" + os.Getenv("PATH")}
 		output, err := command.CombinedOutput()
 		if err != nil {
