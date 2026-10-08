@@ -242,6 +242,43 @@ func TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne(t *testing.T) {
 	}
 }
 
+// TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker: a recovery stop
+// decided on an observation that predates the worker's new claim is
+// cancelled on the next tick before any signal; a stop that has already
+// signalled is never cancelled.
+func TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker(t *testing.T) {
+	t.Run("before the signal", func(t *testing.T) {
+		now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+		q := &refusingQueue{fakeQueue: &fakeQueue{}}
+		d, w := leaseRig(t, q, &now, now.Add(time.Hour), nil)
+		q.obs.Attempts[0].Live, q.obs.Attempts[0].Phase, q.obs.Attempts[0].Cause = false, "FAILED", "LEASE_EXPIRED"
+		tick(t, d)
+		if w.State != "KILLING" || !w.KillDeadline.IsZero() {
+			t.Fatalf("recovery: state %q deadline %v", w.State, w.KillDeadline)
+		}
+		// The worker claimed a new generation after the deciding observation.
+		q.obs.Attempts = append(q.obs.Attempts, Attempt{ID: "a2", Ticket: w.Ticket, Holder: w.ID, Phase: "RUNNING", Generation: "1", Live: true, LeaseExpires: now.Add(time.Hour)})
+		tick(t, d)
+		if w.State != "RUNNING" || w.KillReason != "" || gone(w.PID) || d.Running() != 1 || !has(kinds(t, d), "alert") {
+			t.Fatalf("reclaimed worker: state %q reason %q running %d events %v", w.State, w.KillReason, d.Running(), kinds(t, d))
+		}
+		tick(t, d)
+		if w.State != "RUNNING" || gone(w.PID) {
+			t.Fatalf("a worker with a live attempt was stopped again: state %q", w.State)
+		}
+	})
+	t.Run("after the signal", func(t *testing.T) {
+		now := time.Date(2026, 10, 8, 9, 0, 0, 0, time.UTC)
+		q := &refusingQueue{fakeQueue: &fakeQueue{}}
+		d, w := leaseRig(t, q, &now, now.Add(time.Hour), nil)
+		w.State, w.KillReason, w.KillDeadline = "KILLING", "LEASE_EXPIRED", time.Now().Add(time.Minute) // TERM already sent
+		tick(t, d)
+		if w.State != "KILLING" || !gone(w.PID) || d.Running() != 0 {
+			t.Fatalf("a signalled stop was cancelled: state %q running %d", w.State, d.Running())
+		}
+	})
+}
+
 func TestCALV0191_ExpiredLeaseGraceConfig(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	raw, _ := json.Marshal(c)

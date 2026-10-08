@@ -24,14 +24,17 @@ wall-time cap does, and record a `lease-expired` event.
   SIGKILL after `killGraceSeconds`. A completed reap that changed nothing (the worker ended the
   attempt first) leaves the worker running silently. A refused reap emits `alert` and leaves the
   worker running for the next tick's retry. Every heal pass also stops a running worker that holds
-  no live attempt but holds a `FAILED` `LEASE_EXPIRED` attempt (`stopReapedWorkers`).
+  no live attempt but holds a `FAILED` `LEASE_EXPIRED` attempt (`stopReapedWorkers`). Before
+  supervision signals on a tick, `keepReclaimedWorkers` cancels an unsignalled `LEASE_EXPIRED`
+  stop (zero `KillDeadline`) for a worker now observed holding a live attempt.
 - `internal/tasks/dispatch/ledger.go`: `lease-expired` joins `EventKinds`. The ledger shape is
   unchanged.
 - `internal/tasks/dispatch/roster.go`, `internal/tasks/cli/dispatch.go`: `Queue.ReapExpired`
   reports whether this request moved the attempt; an observed `Attempt` carries its native cause.
 - `internal/tasks/transaction/lease.go`, `internal/tasks/cli/lease.go`: `reap` accepts an optional
   `--lease-expires-at` with `--attempt` and `--generation`, joins the preimage only when present,
-  and refuses `FENCED` when the current lease expiry differs.
+  and refuses `FENCED` when the current lease expiry differs. A supplied empty value, or the flag
+  on another verb, is refused `MALFORMED` at the CLI.
 - Spec `docs/specs/corvint-tasks-agent-leases-v0.md`: new proposed `CAL-V0-191` (V1-1016 section),
   status, inputs, slice table and traceability rows; `docs/specs/INDEX.json` and `README.md` carry
   the same status. `docs/TASKS-SUPERVISION.md` gains one paragraph.
@@ -57,6 +60,20 @@ wall-time cap does, and record a `lease-expired` event.
   `taskman-dispatch-state` (CAL-V0-131) and so would force a drain to install this fix. Saving
   `KILLING` before the reap was rejected because it would stop a worker whose reap is then refused
   or finds the attempt already ended.
+- A second independent review (Codex, of 3989698e..4fc9cdca) confirmed those two fixes and the
+  digest and ledger compatibility, and found three more:
+  - an empty `--lease-expires-at` read as absent and ran an unfenced reap or sweep: now
+    `MALFORMED`;
+  - a recovery stop decided on an observation could kill a worker that claimed a new generation
+    just after it: the next tick cancels an unsignalled stop when the worker holds a live attempt.
+    A signalled stop is never cancelled, so no stopped worker is revived. The claim that lands
+    between a tick's observation and its supervision pass stays a residual window, as there is no
+    coordination with claim admission;
+  - a crash after the reap followed by another holder's claim before restart reuses the attempt ID
+    and erases the reaped holder and cause, so the stop is not recovered. It is a documented
+    residual limit: the worker runs until the idle or wall cap stops it, which is no worse than
+    before this change. Closing it needs a ledger member (a CAL-V0-131 version bump) or a claim
+    wire change, both out of scope.
 - The issue says "KILL after idleSeconds", but the wall cap actually waits
   `killGraceSeconds`. The requirement follows the actual wall-cap behavior, because the issue asks
   for "the same as the wall-time limit".
@@ -83,12 +100,17 @@ wall-time cap does, and record a `lease-expired` event.
   the store's reaped attempt with no second reap.
 - `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`: a reaped attempt does not stop a worker
   that holds a live one; a reap by another writer stops it once it holds none.
+- `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`: a recovery stop followed by a new live
+  attempt is cancelled before any signal and the process survives; a stop that has already
+  signalled runs to completion despite a live attempt.
 - `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`): a stale expiry is
   `FENCED` and changes nothing; the current expiry reaps and replays; a released attempt is a
   receiptless no-change; an expiry without attempt, on another verb, or malformed is `MALFORMED`.
 - `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap` (`internal/tasks/cli`): the native
   adapter reports a fresh reap and its replay as reaped, a fence as an error, and a released
   attempt as not reaped.
+- `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`): an empty expiry on a fenced
+  reap or a sweep, and an expiry on `release`, refuse `MALFORMED` and leave the attempt live.
 - `TestCALV0191_ExpiredLeaseGraceConfig`: an absent value is not serialized and defaults to 600;
   0, 1 and 86400 are accepted; -1 and 86401 are refused; an unknown role key is refused.
 - The focused `internal/tasks/dispatch` package, the dispatch-related `internal/tasks/cli` tests,

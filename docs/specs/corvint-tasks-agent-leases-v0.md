@@ -4891,7 +4891,8 @@ the worker and knows its attempt, reaps such an attempt after a bounded grace an
   generation, `lease-expired` and the observed lease expiry, so the attempt fails `LEASE_EXPIRED` and
   its pool member follows the ordinary quarantine-then-cleanup path. The reap MUST name the lease
   expiry the dispatcher observed (`reap --lease-expires-at T`, which requires `--attempt` and
-  `--generation`, joins the request digest only when present, and is refused on every other verb);
+  `--generation`, joins the request digest only when present, and is refused `MALFORMED` on every
+  other verb and when supplied empty, so an empty value never runs an unfenced reap or sweep);
   the transaction MUST refuse it `REVISION_CONFLICT` `FENCED`, changing nothing, when the attempt's
   current lease expiry differs, so a renewal between the observation and the reap keeps the attempt
   even when the renewed lease has itself expired by then. Only when the store
@@ -4906,7 +4907,12 @@ the worker and knows its attempt, reaps such an attempt after a bounded grace an
   ID. On every heal pass, whatever `heal.reap` says, a running worker of this dispatcher that holds
   no live attempt but is the lease holder of a `FAILED` attempt with cause `LEASE_EXPIRED` MUST be
   stopped the same way (kill reason `LEASE_EXPIRED`, `killing` event, no further store write), so the
-  store's reap, not the dispatcher's memory, is the durable record of the stop. An attempt whose lease is unexpired (for example renewed), expired for at most the grace,
+  store's reap, not the dispatcher's memory, is the durable record of the stop. Before supervision
+  signals anything on a tick, a `LEASE_EXPIRED` stop that has not yet signalled (no kill deadline)
+  MUST be cancelled, with an `alert`, when that tick's observation shows the worker holding a live
+  attempt, as when it claimed again after the observation that decided the stop; a stop that has
+  signalled MUST run to completion. An attempt whose lease is unexpired (for example renewed),
+  expired for at most the grace,
   or already handled by an earlier step of the same heal pass (a CAL-V0-104 exit recovery or a
   detached-run hand-off), and every attempt when `heal.reap` is off, MUST be left untouched.
   The closed CAL-V0-058 event vocabulary gains `lease-expired`.
@@ -4922,7 +4928,14 @@ Failure modes: an unreadable store skips heal, so the reap waits for the next re
 dispatcher that ends after the store reaped but before its ledger records `KILLING` (saved only at
 tick exit) restarts with the worker `RUNNING`, and the store's reaped attempt stops it on the first
 tick without a second reap or a second `lease-expired` event; a stop before the store write reaps
-again on the next tick, still fenced on the then observed expiry; a worker that survives SIGKILL is
+again on the next tick, still fenced on the then observed expiry. Residual limits: a claim that
+lands between a tick's observation and its supervision pass a few instructions later is not seen
+before the signal (no coordination with claim admission exists); and if the dispatcher ends after
+the reap but before its ledger records `KILLING`, and another holder claims the ticket before the
+restart, the retry reuses the attempt ID and replaces the reaped holder and cause, so the stop is
+not recovered and the worker runs until the idle or wall-time cap stops it, as before this
+requirement (closing that window would need a new ledger member, hence a new
+`taskman-dispatch-state` version under CAL-V0-131, or a claim wire change). A worker that survives SIGKILL is
 reported as an alert while supervision continues (CAL-V0-056); a configuration reload changes the
 grace only for workers launched after it (CAL-V0-127). A JSON `null` grace decodes as absent, as the
 role's other optional members do.
@@ -4930,9 +4943,10 @@ role's other optional members do.
 Acceptance evidence: `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`,
 `TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`,
 `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`,
-`TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`);
+`TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`,
+`TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`);
 `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`);
-`TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap` (`internal/tasks/cli`); the CAL-V0-011,
+`TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap`, `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`); the CAL-V0-011,
 CAL-V0-056 and CAL-V0-104 tests are unchanged.
 
 Rollback: revert the dispatcher change, this amendment and the guide sentence. A configuration that
@@ -5337,7 +5351,7 @@ and removes the new configuration members.
 | CAL-V0-176 | `TestCALV0176_ConfigWithoutFragmentsUnchanged`, `TestCALV0176_ReloadExpandsFragments` (`internal/tasks/dispatch`), `TestCALV0176_DispatchStatusReadsFragmentConfig` (`internal/tasks/cli`) |
 | CAL-V0-177 | `TestCALV0177_FragmentRefusals` (`internal/tasks/dispatch`) |
 | CAL-V0-178 | `TestCALV0178_FragmentCannotSmugglePlaceholders` (`internal/tasks/dispatch`) |
-| CAL-V0-191 | `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`, `TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`, `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`, `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`); `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`); `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap` (`internal/tasks/cli`) |
+| CAL-V0-191 | `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`, `TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`, `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`, `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`, `TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`); `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`); `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap`, `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

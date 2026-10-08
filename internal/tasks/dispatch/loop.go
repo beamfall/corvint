@@ -345,6 +345,7 @@ func (d *Dispatcher) tick(ctx context.Context) error {
 		return ctx.Err()
 	}
 	d.noteHeld(obs)
+	d.keepReclaimedWorkers(obs)
 	ended := d.supervise()
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -799,6 +800,28 @@ func (d *Dispatcher) stopReapedWorkers(obs *Observation) {
 	for _, w := range d.ledger.Workers {
 		if len(w.Members) > 0 && w.State != "KILLING" && reaped[w.ID] && !live[w.ID] {
 			d.stopLeaseExpired(w)
+		}
+	}
+}
+
+// keepReclaimedWorkers cancels a LEASE_EXPIRED stop that has not signalled
+// yet when this observation shows the worker holding a live attempt, such as
+// one it claimed after the observation that decided the stop (CAL-V0-191).
+// A stop that has signalled (KillDeadline set) always runs to completion.
+func (d *Dispatcher) keepReclaimedWorkers(obs *Observation) {
+	if obs == nil {
+		return
+	}
+	for _, w := range d.ledger.Workers {
+		if w.State != "KILLING" || w.KillReason != "LEASE_EXPIRED" || !w.KillDeadline.IsZero() {
+			continue
+		}
+		for _, a := range obs.Attempts {
+			if a.Live && a.Holder == w.ID {
+				w.State, w.KillReason = "RUNNING", ""
+				d.emit(Event{Kind: "alert", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("kept %s worker %s running: it holds live attempt %s, so its lease-expired stop is cancelled before any signal", w.Role, w.ID, a.ID), Detail: map[string]string{"attempt": a.ID, "generation": a.Generation, "reason": "LEASE_EXPIRED"}})
+				break
+			}
 		}
 	}
 }

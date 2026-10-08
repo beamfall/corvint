@@ -74,3 +74,24 @@ func TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap(t *testing.T) {
 		}
 	})
 }
+
+// TestCALV0191_EmptyLeaseExpiryIsMalformed: a supplied but empty
+// --lease-expires-at, or one on another verb, refuses MALFORMED instead of
+// running an unfenced reap or sweep; the attempt stays live.
+func TestCALV0191_EmptyLeaseExpiryIsMalformed(t *testing.T) {
+	root, claimed := expiredCLIStore(t, 1)
+	a := claimed[0]
+	gen := string(a.Generation)
+	for name, args := range map[string][]string{
+		"fenced reap": {"reap", "--attempt", a.AttemptID, "--generation", gen, "--lease-expires-at", "", "--request-id", "reap-empty"},
+		"sweep":       {"reap", "--lease-expires-at", "", "--request-id", "sweep-empty"},
+		"release":     {"release", "--attempt", a.AttemptID, "--generation", gen, "--lease-expires-at", "2026-10-08T09:00:00Z", "--request-id", "release-expiry"},
+	} {
+		if r := atm(t, root, nil, args...); r.code == 0 || !hasCode(r.res, wire.CodeMalformed) || !strings.Contains(string(r.stdout), "--lease-expires-at belongs to reap") {
+			t.Fatalf("%s: code %d %s", name, r.code, r.stdout)
+		}
+	}
+	if after := observedAttempt(t, cli.DispatchQueueForTest(root), a.AttemptID); !after.Live {
+		t.Fatalf("a refused request moved the attempt: %+v", after)
+	}
+}

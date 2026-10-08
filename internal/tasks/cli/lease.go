@@ -211,6 +211,10 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if value, supplied := parsed.values["--share-allocation"]; supplied && value == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--share-allocation needs an allocation id"))
 	}
+	// CAL-V0-191: an empty expiry must not read as an unfenced reap.
+	if value, supplied := parsed.values["--lease-expires-at"]; supplied && (name != "reap" || value == "") {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--lease-expires-at belongs to reap and needs a timestamp"))
+	}
 	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
 		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "%s belongs to release and needs a value", flag))
