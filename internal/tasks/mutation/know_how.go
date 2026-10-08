@@ -75,6 +75,7 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		entry.Attempt = p.Attempt
 		entry.Generation = p.Generation
 		entry.EvidencePath = p.EvidencePath
+		entry.Repository = p.Repository
 	case *KnowHowRetractPayload:
 		if !active[p.Note] {
 			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "note %s is not an active note on this ticket", p.Note)
@@ -141,6 +142,8 @@ func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 // evidence path that match the shared secret screen.
 func screenKnowHowPaths(anchors []ticket.KnowHowAnchor, routes []string, evidencePath *string) *refusal {
 	extra := append([]string{}, routes...)
+	// A repository alias is the first segment of every anchor path
+	// (KHN-V0-025), so screening the paths screens it too.
 	for _, a := range anchors {
 		extra = append(extra, a.Path)
 		if a.Symbol != "" {

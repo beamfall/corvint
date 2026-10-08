@@ -48,6 +48,7 @@ type leaseArgs struct {
 	whole         bool
 	next          bool
 	timing        bool
+	repos         []string
 	pos           []string
 }
 
@@ -107,6 +108,12 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 				return out, err
 			}
 			out.authors = mode
+		case a == "--repo":
+			if i+1 >= len(args) {
+				return out, wire.Errorf(wire.CodeMalformed, "argv", "flag --repo has no value")
+			}
+			i++
+			out.repos = append(out.repos, args[i])
 		case a == "--scope":
 			n := scopeRun(args[i+1:])
 			if n == 0 {
@@ -227,6 +234,16 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if parsed.timing && !timingVerbs[name] {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--timing belongs to claim, renew, attempt heartbeat and release"))
 	}
+	// KHN-V0-027: --repo maps know-how repository aliases for the claim's
+	// delivery; it is parsed and checked before anything commits and never
+	// enters the lease request, so a replay is unaffected.
+	if len(parsed.repos) > 0 && name != "claim" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--repo belongs to claim"))
+	}
+	knowHowRepos, err := store.KnowHowRepositoryArgs(env.Cwd, parsed.repos)
+	if err != nil {
+		return fail(err)
+	}
 	var lockWait time.Duration
 	if value, supplied := parsed.values["--lock-wait"]; supplied {
 		if !lockWaitVerbs[name] {
@@ -265,7 +282,7 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return fail(err)
 	}
-	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
+	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver, KnowHowRepos: knowHowRepos}
 	var report *store.Report
 	if name == "health" || name == "pool cleanup" {
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
@@ -619,6 +636,7 @@ func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
 		res.Warnings = append(res.Warnings, "escalation answers unavailable ("+wire.CodeOf(escalationReadError(d.EscalationAnswers.Err))+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
 	}
 	res.Items[0].Obj.Set("knowHow", claimedKnowHowValue(d.KnowHow))
+	res.Warnings = append(res.Warnings, d.KnowHow.Warnings...)
 	if d.KnowHow.Err != nil {
 		res.Warnings = append(res.Warnings, "know-how notes unavailable ("+wire.CodeOf(d.KnowHow.Err)+"): the claim is committed; read them with ticket know-how list")
 	}

@@ -79,13 +79,14 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
-	var text, commit, supersedes, reason, attempt, generation, evidencePath string
+	var text, commit, supersedes, reason, attempt, generation, evidencePath, repoArg string
 	var anchors, symbols, routes []string
 	textFromStdin := false
 	if res := knowHowFlags(cmd, args[1:], map[string]*string{
 		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--text": &text, "--commit": &commit, "--supersedes": &supersedes,
 		"--reason": &reason, "--attempt": &attempt, "--generation": &generation, "--evidence-path": &evidencePath,
+		"--repo": &repoArg,
 	}, map[string]*[]string{"--anchor": &anchors, "--symbol": &symbols, "--route": &routes}, map[string]*bool{"--text-stdin": &textFromStdin}); res != nil {
 		return res
 	}
@@ -118,12 +119,19 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	alias, root, err := knowHowRepositoryRoot(env, repoArg)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
 	actor, err := initActor(f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	pinned, pins, err := store.KnowHowPinAnchors(env.Cwd, rev, wanted)
+	pinned, pins, err := store.KnowHowPinAnchors(root, rev, wanted)
 	if err != nil {
+		return errorResult(cmd, err)
+	}
+	if pins, err = knowHowQualify(alias, pins); err != nil {
 		return errorResult(cmd, err)
 	}
 	if routes == nil {
@@ -135,7 +143,52 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	payload.Set("supersedes", optionalString(supersedes)).Set("reason", optionalString(reason))
 	payload.Set("attempt", optionalString(attempt)).Set("generation", optionalString(generation))
 	payload.Set("evidencePath", optionalString(evidencePath))
+	if alias != "" {
+		payload.Set("repository", wire.String(alias))
+	}
 	return submitMutation(env, cmd, mutation.OpKnowHowAdd, actor, f, wire.ObjectValue(payload))
+}
+
+// knowHowRepositoryRoot is the checkout a write pins in (KHN-V0-024): the
+// caller's working directory, or with `--repo ALIAS=ROOT` the work-tree top
+// level ROOT, whose alias then qualifies every stored anchor path.
+func knowHowRepositoryRoot(env Env, repoArg string) (string, string, error) {
+	if repoArg == "" {
+		return "", env.Cwd, nil
+	}
+	return store.KnowHowRepositoryArg(env.Cwd, repoArg)
+}
+
+// knowHowQualify prefixes every anchor path with "<alias>/" (KHN-V0-024);
+// an empty alias leaves the anchors unchanged. A common prefix keeps the
+// anchors' canonical order.
+func knowHowQualify(alias string, anchors []ticket.KnowHowAnchor) ([]ticket.KnowHowAnchor, error) {
+	if alias == "" {
+		return anchors, nil
+	}
+	out := make([]ticket.KnowHowAnchor, len(anchors))
+	for i, a := range anchors {
+		a.Path = alias + "/" + a.Path
+		if _, err := wire.ParsePath("/payload/anchors", a.Path); err != nil {
+			return nil, err
+		}
+		out[i] = a
+	}
+	return out, nil
+}
+
+// knowHowUnqualify removes the "<alias>/" prefix every anchor of a
+// repository note carries, giving paths relative to the repository root.
+func knowHowUnqualify(alias string, anchors []ticket.KnowHowAnchor) []ticket.KnowHowAnchor {
+	if alias == "" {
+		return anchors
+	}
+	out := make([]ticket.KnowHowAnchor, len(anchors))
+	for i, a := range anchors {
+		a.Path = strings.TrimPrefix(a.Path, alias+"/")
+		out[i] = a
+	}
+	return out
 }
 
 func knowHowRetract(env Env, cmd []string, args []string) *wire.Result {
@@ -220,11 +273,11 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
-	var note, commit, attempt, generation string
+	var note, commit, attempt, generation, repoArg string
 	if res := knowHowFlags(cmd, args[1:], map[string]*string{
 		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--note": &note, "--commit": &commit, "--attempt": &attempt,
-		"--generation": &generation,
+		"--generation": &generation, "--repo": &repoArg,
 	}, nil, nil); res != nil {
 		return res
 	}
@@ -245,11 +298,16 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	alias, root, err := knowHowRepositoryRoot(env, repoArg)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
 	actor, err := initActor(f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
 	var anchors []ticket.KnowHowAnchor
+	repository := ""
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		id, err := resolveTicketArg(rc, f.target)
 		if err != nil {
@@ -258,20 +316,31 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 		if rec, ok := rc.store.Inventory.Get(id); ok {
 			for _, k := range ticket.EffectiveKnowHow(rec.KnowHow) {
 				if k.Seq == seq {
-					anchors = k.Anchors
+					anchors, repository = k.Anchors, k.Repository
 				}
 			}
 		}
 		if anchors == nil {
 			return wire.Errorf(wire.CodeMalformed, "/payload/note", "note %s is not an active know-how note of %s", note, id)
 		}
+		// KHN-V0-024: a repository note re-pins only in the root its own
+		// alias is mapped to; a note without one never takes --repo.
+		if repository != alias {
+			if repository == "" {
+				return wire.Errorf(wire.CodeMalformed, "--repo", "%s: note %s names no repository; omit --repo", wire.KnowHowRepositoryDetail, note)
+			}
+			return wire.Errorf(wire.CodeMalformed, "--repo", "%s: note %s names repository %s; give --repo %s=ROOT", wire.KnowHowRepositoryDetail, note, repository, repository)
+		}
 		return nil
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
-	pinned, pins, err := store.KnowHowPinAnchors(env.Cwd, rev, anchors)
+	pinned, pins, err := store.KnowHowPinAnchors(root, rev, knowHowUnqualify(alias, anchors))
 	if err != nil {
+		return errorResult(cmd, err)
+	}
+	if pins, err = knowHowQualify(alias, pins); err != nil {
 		return errorResult(cmd, err)
 	}
 	payload := wire.NewObject().Set("note", wire.String(note)).Set("anchors", ticket.KnowHowAnchorsValue(pins))
@@ -292,11 +361,15 @@ func optionalString(s string) wire.Value {
 // home ticket, ordered like claim delivery, with freshness against the
 // caller's committed HEAD. It takes no lock and writes nothing.
 func knowHowList(env Env, cmd []string, args []string) *wire.Result {
-	var paths []string
+	var paths, repoArgs []string
 	var ticketArg, limitArg string
 	if res := knowHowFlags(cmd, args, map[string]*string{"--ticket": &ticketArg, "--limit": &limitArg},
-		map[string]*[]string{"--path": &paths}, nil); res != nil {
+		map[string]*[]string{"--path": &paths, "--repo": &repoArgs}, nil); res != nil {
 		return res
+	}
+	repos, err := store.KnowHowRepositoryArgs(env.Cwd, repoArgs)
+	if err != nil {
+		return failure(cmd, nil, err)
 	}
 	limit := 50
 	if limitArg != "" {
@@ -329,7 +402,7 @@ func knowHowList(env Env, cmd []string, args []string) *wire.Result {
 	}
 	head := ""
 	if len(notes) > 0 {
-		head = store.ResolveKnowHowFreshness(env.Cwd, notes)
+		head = store.ResolveKnowHowRepositories(env.Cwd, repos, notes)
 		store.SortKnowHow(notes)
 	}
 	shown := notes
@@ -342,6 +415,7 @@ func knowHowList(env Env, cmd []string, args []string) *wire.Result {
 	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{knowHowProjectionValue(head, len(notes), len(notes)-len(shown), items)}
+	res.Warnings = append(res.Warnings, store.KnowHowRepositoryWarnings(repos, notes)...)
 	res.Untrusted = true
 	return res
 }

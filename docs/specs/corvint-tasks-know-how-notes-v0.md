@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 proposed (V1-1029; GitHub #687)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,9 +15,9 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
-- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023).
-- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963) and KHN-V0-021..023 (V1-0987); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 proposed (V1-1029; GitHub #687); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023). Proposed: `--repo ALIAS=ROOT` pins a note in another repository of a multi-repository program, stores its anchors as `ALIAS/PATH` and resolves its freshness only where the alias is mapped (KHN-V0-024..027).
+- Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963), KHN-V0-021..023 (V1-0987) and KHN-V0-024..027 (V1-1029); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -271,6 +271,56 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
   it on a superseding ADD, a RETRACT, a RECONFIRM or an ADD without them. Status: proposed (V1-0987; GitHub
   #671).
 
+Multi-repository notes, KHN-V0-024 to KHN-V0-027, are proposed (V1-1029; GitHub #687). A program
+whose tickets span several Git repositories keeps one store in one checkout, and its touchPaths
+name files in the other repositories under a repository prefix such as `e2e/`. Before this
+amendment a note could only pin files of the store checkout, so a note on another repository's
+file could not be written, and a WORKER could not anchor inside its own `e2e/` touchPaths. A
+repository note names exactly one repository; the store, its location and every legacy note are
+unchanged.
+
+- `KHN-V0-024`: `ticket know-how add` MUST accept at most one `--repo ALIAS=ROOT`. ALIAS is a
+  token of at most 64 bytes. ROOT, relative to the working directory when not absolute, MUST
+  resolve (symbolic links followed) to the top level of a Git work tree; a subdirectory, a
+  non-repository or a missing path is refused MALFORMED with the detail prefix
+  `KNOWHOW_REPOSITORY:` before anything is written. With `--repo`, every `--anchor` and
+  `--symbol` path is relative to ROOT, the commit (`--commit`, else ROOT's `HEAD`) and every pin
+  resolve in ROOT under KHN-V0-001 and KHN-V0-016, and the payload carries `repository: ALIAS`
+  with each anchor path stored as `ALIAS/PATH`. An anchor or commit ROOT does not hold is refused
+  as before (`KNOWHOW_UNRESOLVED`, or a commit this checkout does not name). `ticket know-how
+  reconfirm` of a repository note MUST be given `--repo` mapping that note's own alias, re-pins
+  the anchors below the alias in that ROOT, and stores them qualified again; `--repo` on a note
+  without a repository, or with another alias, is refused `KNOWHOW_REPOSITORY:`. Without `--repo`
+  every write is byte-identical to before. Status: proposed (V1-1029; GitHub #687).
+- `KHN-V0-025`: The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key
+  `repository`, a token of at most 64 bytes, omitted when absent and never null. When present,
+  every anchor path MUST start with `repository + "/"` and name something below it. The Tasks
+  codec, the payload decoder and the Core ticket reader MUST each refuse a null, empty or
+  non-token alias and an anchor outside the prefix. RETRACT and RECONFIRM entries and payloads
+  carry no `repository`; a RECONFIRM inherits the repository of the note it re-pins. A record or
+  payload without the key keeps its exact bytes, so receipts and replay are unchanged. Status:
+  proposed (V1-1029; GitHub #687).
+- `KHN-V0-026`: A repository note's anchors are matched in their stored, qualified form by the
+  unchanged KHN-V0-006 rule wherever paths are compared: claim delivery against the claimed
+  ticket's `effects.touchPaths`, `list --path`, and the KHN-V0-022 WORKER scope. A qualified
+  touchPath such as `e2e/src/` therefore delivers and admits `e2e/...` anchors, and a bare path
+  never matches a qualified anchor or the reverse. Status: proposed (V1-1029; GitHub #687).
+- `KHN-V0-027`: `ticket know-how list` and `claim` (with or without `--next`) MUST accept a
+  repeatable `--repo ALIAS=ROOT`, validated as in KHN-V0-024; an alias given twice is refused
+  `KNOWHOW_REPOSITORY:` as ambiguous, and `--repo` on any other lease command is refused. A claim
+  parses and checks `--repo` before anything commits and never puts it in the lease request, so a
+  replay of the same request id is admitted and simply resolves against the replay's own
+  mapping. A note without a repository resolves against the caller's checkout exactly as
+  KHN-V0-005 states. A repository note resolves, with one batched Git call per alias, against
+  the `HEAD` of the root its alias is mapped to, asking each anchor path with the alias prefix
+  removed. When the alias is not mapped, or that root's `HEAD` is unavailable, every anchor of the
+  note MUST be UNKNOWN, never CURRENT, and the note MUST NOT be resolved against the caller's
+  checkout. The projection of a repository note, compact and full, adds `repository: {alias,
+  head}`, where `head` is that root's `HEAD` or null; a note without a repository projects
+  exactly as before. The result carries one warning `KNOWHOW_REPOSITORY: repository ALIAS is not
+  mapped with --repo; its notes are UNKNOWN` per unmapped alias among the matched notes. Status:
+  proposed (V1-1029; GitHub #687).
+
 ## Failure modes and trust
 
 - **Note content is unverified.** Note text is a claim by the writing principal. Since V1-0964
@@ -292,6 +342,14 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
 - **Re-confirm is a claim, not a review.** A RECONFIRM records that its writer checked the note
   against new code. Like the note text it is unverified; only its `attempt` and `generation` are
   checked against the audited attempt inventory, as for ADD (KHN-V0-008).
+- **Ambiguous or unpinned repository.** A note never resolves against a checkout chosen by
+  default. An alias the reader does not map leaves the note UNKNOWN with a warning, and an alias
+  mapped twice, a root that is not a work-tree top level, or `--repo` on a note of another
+  repository is refused (KHN-V0-024, KHN-V0-027). A pin whose commit or anchor the named root does
+  not hold is refused, so a repository note is never stored unpinned. The alias is a name the
+  writer and readers agree on, not a repository identity: a reader that maps it to a different
+  repository sees STALE or UNKNOWN unless that repository holds the identical blob at the same
+  path, which is then reported CURRENT as for any identical content.
 - **Git unavailable.** A missing Git binary, no checkout, an unborn `HEAD` or a failed batch makes
   every note UNKNOWN. The claim still succeeds, and the delivered notes say UNKNOWN rather than
   CURRENT.
@@ -322,6 +380,9 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
 - No WORKER grant by default. KHN-V0-021 is opt-in and grants only a scoped ADD on top of the
   KHN-V0-008 check; WORKER never supersedes, retracts or reconfirms, and no policy-declared anchor
   prefixes widen the touchPaths scope.
+- No note spanning repositories, persistent alias registry, configuration file or environment
+  variable for `--repo`, automatic mapping of touchPath prefixes to checkouts, store-location
+  flag, or Core freshness resolution. Each read names its roots explicitly (KHN-V0-027).
 - No foreign-import carrier. The `ticket import` closed key set still refuses the member.
 
 ## Acceptance evidence and traceability
@@ -351,6 +412,10 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
 | KHN-V0-021 | V1-0987 (GitHub #671) | `internal/tasks/intent` (policy key); `internal/tasks/mutation` (role row); `internal/tasks/transaction` (admission) | `TestKHNV0021_PolicyKnowHowWorkerAddOptIn`; `TestKHNV0021_WorkerAddIsPolicyOptIn` (absent and false refuse; RETRACT, non-body REFINE and a WORKER roles row still refuse; OWNER and OPERATOR unchanged); `TestKHNV0021_WorkerKnowHowRefusedWithoutPolicy` (CLI: same detail, state unchanged; refused before the store checks when no store exists) | none |
 | KHN-V0-022 | V1-0987 (GitHub #671) | `internal/tasks/mutation` (scope); `internal/tasks/transaction` (ledger holder and lease expiry); `internal/tasks/store` (pre-lock screen; attempt audit and writer-route decline through KHN-V0-009) | `TestKHNV0022_WorkerAddScope` (success; each WORKER refusal with its prefix; provenance refusals PROVENANCE_UNVERIFIED; cap and `SECRET_DETECTED` still apply); `TestKHNV0022_WorkerKnowHowThroughTheCLI` (claim holder adds; unrecorded generation and other ticket PROVENANCE_UNVERIFIED, out-of-scope anchor and foreign actor refused; WORKER retract refused; after release a new add is fenced and the committed one replays); `TestKHNV0022_WorkerAttemptLedger` (real attempt records: expiry boundary, terminal phases, supervision, unleased, unloaded inventory) | concurrent lease expiry during a WORKER add |
 | KHN-V0-023 | V1-0987 (GitHub #671) | `internal/tasks/ticket` (codec); `internal/taskman` (Core reader) | `TestKHNV0023_CodecWorkerEntry`; `TestKHNV0023_ReaderWorkerEntry`; `TestKHNV0022_WorkerAddScope` (the entry round-trips) | none |
+| KHN-V0-024 | V1-1029 (GitHub #687) | `internal/tasks/cli` (add, reconfirm, help); `internal/tasks/store` (`KnowHowRepositoryArg`) | `TestKHNV0024_RepositoryKnowHowThroughTheCLI` (add pins in the other root and stores `e2e/` paths with `repository`; replay; a plain add has no key; reconfirm requires the note's alias and refuses `--repo` on a plain note; subdirectory, non-repository, non-token alias, repeated `--repo`, missing file and a commit the root lacks refused with state and intent unchanged); `TestKHNV0027_RepositoryArguments` | durable qualification on a real multi-repository program |
+| KHN-V0-025 | V1-1029 (GitHub #687) | `internal/tasks/wire` (alias rule); `internal/tasks/ticket` (codec); `internal/tasks/mutation` (payload); `internal/taskman` (Core reader) | `TestKHNV0025_CodecRepositoryEntry` (round trip; legacy fixture has no key; unprefixed, partially prefixed, non-token and over-long aliases refused); `TestKHNV0025_RepositoryPayload` (entry composed; legacy payload and entry bytes keep no key; null, empty, alias-only and outside anchors refused; RECONFIRM refuses the key); `TestKHNV0025_ReaderRepositoryEntry`; `TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore` (unchanged) | an older released binary refusing a repository-bearing store |
+| KHN-V0-026 | V1-1029 (GitHub #687) | `internal/tasks/store` (selection, unchanged rule) | `TestKHNV0026_QualifiedAnchorsMatchTouchPaths`; `TestKHNV0024_RepositoryKnowHowThroughTheCLI` (claim of an `e2e/src/` ticket delivers the note; a WORKER bare-path anchor is refused out of scope and a `--repo` anchor admitted) | none |
+| KHN-V0-027 | V1-1029 (GitHub #687) | `internal/tasks/store` (per-alias freshness, projection, warnings); `internal/tasks/cli` (list and claim `--repo`) | `TestKHNV0027_RepositoryFreshness` (mapped CURRENT and STALE at the alias root's HEAD; unmapped UNKNOWN with a null head even where the store checkout holds the identical blob; legacy note unchanged; projection keys; warning); `TestKHNV0027_RepositoryArguments`; `TestKHNV0024_RepositoryKnowHowThroughTheCLI` (list unmapped UNKNOWN with warning, mapped CURRENT then STALE then CURRENT after reconfirm; claim `--repo` delivers CURRENT with the head; replay without `--repo` is UNKNOWN with a warning; duplicate alias and bad root refuse a claim before it commits; `--repo` refused on release) | none |
 
 ## Resolved decisions
 
@@ -460,3 +525,8 @@ An older binary refuses a policy carrying the `knowHow` key and a record holding
 both closed; a stored WORKER entry stays in history and can be retracted by OWNER. A
 `knowHow` policy change is not handoff-neutral: like any other policy change it fences an
 open handoff.
+
+The multi-repository additions (KHN-V0-024..027) follow the same rule. Without `--repo` nothing
+changes; reverting the change is safe until a store holds an entry with `repository`, after which
+an older binary refuses that record closed. Recovery is the newer binary or a backup from before the
+first repository note; a RETRACT keeps the entry in history, so it does not help.

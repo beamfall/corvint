@@ -287,6 +287,10 @@ type KnowHowAddPayload struct {
 	Attempt      *string
 	Generation   *wire.Size
 	EvidencePath *string
+	// Repository is the optional alias of the repository the anchors are
+	// pinned in (KHN-V0-025); "" means the key is absent, which keeps the
+	// payload's earlier bytes.
+	Repository string
 }
 
 func (*KnowHowAddPayload) operation() string { return OpKnowHowAdd }
@@ -519,8 +523,15 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		r.Closed(PayloadKeys[op]...)
 		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
 	case OpKnowHowAdd:
-		r.Closed(PayloadKeys[op]...)
+		repository := ""
+		if wire.Has(r.Value(), "repository") {
+			r.Closed(append([]string{"repository"}, PayloadKeys[op]...)...)
+			repository = ticket.ReadKnowHowRepository(r.Field("repository"))
+		} else {
+			r.Closed(PayloadKeys[op]...)
+		}
 		k := &KnowHowAddPayload{
+			Repository:   repository,
 			Text:         ticket.ReadKnowHowText(r.Field("text")),
 			Anchors:      ticket.ReadKnowHowAnchors(r.Field("anchors")),
 			Routes:       ticket.ReadKnowHowRoutes(r.Field("routes")),
@@ -533,6 +544,11 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		k.Reason = r.Field("reason").StringOrNull(ticket.ReadKnowHowReason)
 		if r.Err() == nil && (k.Supersedes == nil) != (k.Reason == nil) {
 			r.Field("reason").Fail(wire.CodeMalformed, "reason is required exactly when supersedes names a note")
+		}
+		if r.Err() == nil && repository != "" {
+			if why := ticket.KnowHowRepositoryRefusal(repository, k.Anchors); why != "" {
+				r.Field("anchors").Fail(wire.CodeMalformed, "%s", why)
+			}
 		}
 		p = k
 	case OpKnowHowRetract:
@@ -943,6 +959,9 @@ func PayloadValue(p Payload) wire.Value {
 			o.Set("generation", wire.String(string(*p.Generation)))
 		}
 		o.Set("evidencePath", wire.StringOrNull(p.EvidencePath))
+		if p.Repository != "" {
+			o.Set("repository", wire.String(p.Repository))
+		}
 	case *KnowHowRetractPayload:
 		o.Set("note", wire.String(string(p.Note)))
 		o.Set("reason", wire.String(p.Reason))
