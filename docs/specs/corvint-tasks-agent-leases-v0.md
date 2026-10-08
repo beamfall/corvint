@@ -5191,7 +5191,7 @@ on new and refined tickets, and reads surface the unmilestoned count so drift st
   `milestone` is admitted on them, and receipts recorded under an earlier policy still audit,
   because each receipt is replayed under the policy in force when it was written. `required:false`
   behaves as omission. `ticket create --template` marks `milestone` non-nullable and lists it in
-  `fill` while the policy requires it; verbose `ticket create` and `ticket refine` help states the
+  `fill` while the policy requires it; `ticket create` and `ticket refine` help states the
   rule.
 - `CAL-V0-196`: (proposed; V1-1026) `queue status` MUST report `openWithoutMilestone`, the count
   of tickets in status `OPEN` whose milestone is null over the whole inventory (DRAFT, HELD and
@@ -5209,7 +5209,7 @@ Failure modes: a policy update that adds or changes `milestones` is an ordinary 
 it fences live evidence handoffs `STALE_POLICY` like any other policy edit (the handoff
 compatibility allowance lists only `policyVersion`, `holderLiveness` and additive pool members);
 once a policy carrying `milestones` is written, an older binary refuses that policy `MALFORMED`
-(the A20/A23 downgrade rule) until the key is removed by a newer binary; an importer replaying a
+(the A20/A23 downgrade rule), and its journal audit keeps refusing after the key is removed; an importer replaying a
 foreign backlog without milestones is refused under the opt-in, which the operator resolves by
 supplying milestones or leaving the key off during import. Readers with a closed queue status key
 set see one more member, as with every earlier additive member.
@@ -5219,9 +5219,12 @@ Acceptance evidence: `TestCALV0195_PolicyMilestonesOptIn` (`internal/tasks/inten
 (`internal/tasks/cli`); `TestCALV0078_ClassificationCoversEveryCode` (`internal/tasks/wire`) keeps
 the new code classified.
 
-Rollback: revert the change, this amendment and the guide sentence. A policy carrying `milestones`
-is then refused `MALFORMED` until the key is removed (remove it with a newer binary first). No
-record, receipt or journal format changes; tickets created under the opt-in are ordinary records.
+Rollback: revert the change, this amendment and the guide sentence. Before any policy carries
+`milestones`, rollback is clean. Once one has, an older binary refuses that policy `MALFORMED`, and,
+as with A24, journal audit keeps refusing after the key is removed because the historical policy
+post still carries it; rolling back such a store needs a reader that accepts the key. No record,
+receipt or ticket format changes, and refusals write nothing, so `MILESTONE_REQUIRED` never reaches
+the journal.
 
 ## Amendments to TCP-00
 
@@ -5233,7 +5236,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 - A25: CAL-V0-195 adds the optional top-level policy key `milestones` (closed object, boolean
   `required`) under the A20, A23 and A24 pattern, and `MILESTONE_REQUIRED` to TCP-00 §11's closed
   detail code set (77 codes), classified not retryable. Omission keeps the existing canonical policy
-  bytes and behavior; older strict readers refuse a policy that carries the key.
+  bytes and behavior; older strict readers refuse a policy that carries the key, and journal audit
+  keeps refusing after the key is removed.
 - A24: CAL-V0-120 adds the optional top-level policy key `holderLiveness` under the A20 and A23
   pattern. Omission keeps the existing canonical policy bytes and the 600-second observation TTL;
   older strict readers refuse a policy that carries it, and journal audit keeps refusing after

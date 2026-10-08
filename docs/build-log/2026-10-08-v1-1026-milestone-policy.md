@@ -40,7 +40,8 @@ a milestone; a one-off backfill does not keep that true. The acceptance criteria
 - The count is reported on every policy, not only under the opt-in, because drift is the problem
   the ticket names.
 - Known limits: adding the key is a policy change and fences live evidence handoffs `STALE_POLICY`;
-  older binaries refuse a policy carrying it (A20/A23 downgrade rule). The legacy closed queue
+  older binaries refuse a policy carrying it (A20/A23 downgrade rule), and, as with A24, their
+  journal audit keeps refusing after the key is removed, because the historical policy post keeps it. The legacy closed queue
   status key-set readers in `internal/taskman/capture.go` and
   `internal/companionrelease/core_evidence.go` were not changed.
 
@@ -50,7 +51,13 @@ a milestone; a one-off backfill does not keep that true. The acceptance criteria
   MALFORMED for unknown member, non-boolean, `{}`, null and non-object.
 - `TestCALV0195_MilestoneRequiredPolicy` (`internal/tasks/cli`): default and `required:false`
   acceptance, both refusals writing nothing, admitted paths, template, receipt audit CONSISTENT,
-  key removal restoring the default, help text. Disabling the create refusal makes it fail.
+  key removal restoring the default, help text, batch refine refusing the clearing entry alone. Disabling the create refusal makes it fail.
 - `TestCALV0196_OpenWithoutMilestoneCount` (`internal/tasks/cli`): count 0 then 2 (DRAFT and
-  milestoned excluded) in both status forms, roadmap warning only when non-zero on `--limit 1`.
+  milestoned excluded) in both status forms, roadmap warning only when non-zero on `--limit 1` at offsets 0 and 1.
+- Independent review (Codex): one P2, that the first rollback text implied removing the key restored
+  older binaries. Fixed in the spec rollback, A25 and failure modes. An old-binary regression test
+  was not added: no older binary is built in tests, and A24 records the same limit. Of the review's
+  test gaps, batch refine and a non-zero roadmap offset are now tested; `ADOPT_FILE` and HELD
+  exclusion are covered by construction (the shared `mutation.Apply` path, and the count's
+  `status == OPEN` test) but have no dedicated test.
 - Not run: `make gate`, live qualification against the real store, native ticket completion.

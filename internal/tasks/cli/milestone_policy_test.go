@@ -89,9 +89,18 @@ func TestCALV0195_MilestoneRequiredPolicy(t *testing.T) {
 	if after := headSeq(); after != before {
 		t.Fatalf("refusals wrote receipts: headSeq %s -> %s", before, after)
 	}
-	ok(create("required-named", withMilestone("v1")), "CREATE naming a milestone")
+	named := ok(create("required-named", withMilestone("v1")), "CREATE naming a milestone")
 	ok(refine("legacy-body", legacy, "1", `{"body":"backfill pending"}`), "REFINE of another field on a legacy unmilestoned ticket")
 	ok(refine("legacy-set", legacy, "2", `{"milestone":"v1"}`), "REFINE setting a milestone")
+
+	// Batch refine applies the rule per entry through the same library.
+	batch := `[{"expectedRevision":"1","payload":{"milestone":null},"target":"` + named + `"},{"expectedRevision":"3","payload":{"body":"batched"},"target":"` + legacy + `"}]`
+	bx := atm(t, r.Root, []byte(batch), "ticket", "refine", "--batch", "--request-id", "required-batch", "--issued-at", "2026-10-08T12:00:00Z", "--payload-stdin")
+	entries := field(bx.res.Items[0], "entries").Arr
+	if len(entries) != 2 || field(entries[0], "outcome").Str != "VALIDATION_FAILED" || field(entries[1], "outcome").Str != "COMPLETED" ||
+		!strings.Contains(string(bx.stdout), wire.CodeMilestoneRequired) {
+		t.Fatalf("batch refine under milestones.required: %s", bx.stdout)
+	}
 
 	tmpl := atm(t, r.Root, nil, "ticket", "create", "--template")
 	m := field(field(tmpl.res.Items[0], "fields"), "milestone")
@@ -136,19 +145,21 @@ func TestCALV0196_OpenWithoutMilestoneCount(t *testing.T) {
 	}
 	roadmapWarns := func(want string) {
 		t.Helper()
-		x := atm(t, r.Root, nil, "roadmap", "--limit", "1")
-		joined := strings.Join(x.res.Warnings, "\n")
-		if x.res.Outcome != wire.OutcomeOK {
-			t.Fatalf("roadmap: %s", x.stdout)
-		}
-		if want == "" {
-			if strings.Contains(joined, "milestone") {
-				t.Fatalf("roadmap warned with no unmilestoned OPEN ticket: %s", x.stdout)
+		for _, offset := range []string{"0", "1"} {
+			x := atm(t, r.Root, nil, "roadmap", "--limit", "1", "--offset", offset)
+			joined := strings.Join(x.res.Warnings, "\n")
+			if x.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("roadmap: %s", x.stdout)
 			}
-			return
-		}
-		if !strings.Contains(joined, want+" OPEN ticket(s) have no milestone") {
-			t.Fatalf("roadmap warning want %s: %s", want, x.stdout)
+			if want == "" {
+				if strings.Contains(joined, "milestone") {
+					t.Fatalf("roadmap warned with no unmilestoned OPEN ticket: %s", x.stdout)
+				}
+				continue
+			}
+			if !strings.Contains(joined, want+" OPEN ticket(s) have no milestone") {
+				t.Fatalf("roadmap --offset %s warning want %s: %s", offset, want, x.stdout)
+			}
 		}
 	}
 	count("0")
