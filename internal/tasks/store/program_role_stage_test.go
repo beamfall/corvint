@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -135,5 +136,66 @@ func TestCALV0197_RoleSelectsByStage(t *testing.T) {
 	}
 	if store.RoleSelects("review", &snapshot.Attempt{Phase: "READY_FOR_INTEGRATION"}) || store.RoleSelects("integrate", &snapshot.Attempt{Phase: "BUILT"}) || store.RoleSelects("", &snapshot.Attempt{Phase: "COMPLETED"}) {
 		t.Error("a role selects another role's phase")
+	}
+}
+
+// TestCALV0197_NewQuestionClearsResumedAnswer proves a resumed stage that
+// stops into a new question (here "host result unavailable") records it
+// unanswered, so `run --role` does not reselect it on the answer of the wait
+// it resumed.
+func TestCALV0197_NewQuestionClearsResumedAnswer(t *testing.T) {
+	s := newLeaseStore(t)
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("gates", wire.Array())
+	b, _ := v.Obj.Get("budgets")
+	b.Obj.Set("requireEnforcedFields", wire.Array())
+	lane, _ := b.Obj.Get("lane")
+	lane.Obj.Set("inputTokens", str("0"))
+	lane.Obj.Set("outputTokens", str("0"))
+	digest := string(wire.Sum(nil))
+	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(digest), "fileSha256", str(digest), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER", "REVIEWER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
+	report, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("supervised-policy", "2", wire.EncodeFile(v)), now(t))
+	if e != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", report, e)
+	}
+	c := claimOf(s.ticket(t, "supervised"), "path")
+	c.Stage = "implement"
+	claim := s.lease(t, "supervised-claim", c, 0, nil)
+	p := snapshot.Program{CurrentAttempt: claim.AttemptID, CurrentGeneration: string(claim.Generation), Assignment: 1, ID: "program", Profile: snapshot.SupervisedProfile, OwnerPID: 99, OwnerStarted: "observed-test-identity", Epoch: 1, ConfigSHA256: digest, Phase: "ADMITTED", Base: "0123456789012345678901234567890123456789", Worktree: "/fixture"}
+	if report, e = store.ProgramTransition(context.Background(), s.repo, operator(), "queue:acme:main", "program-admit", p); e != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("program %+v %v", report, e)
+	}
+	n := 0
+	step := func(action string, f transaction.SupervisorChange) *snapshot.Attempt {
+		t.Helper()
+		n++
+		f.Action, f.ProgramID, f.OwnerPID, f.OwnerStarted = action, p.ID, p.OwnerPID, p.OwnerStarted
+		r, e := store.SupervisorTransition(context.Background(), s.repo, operator(), "queue:acme:main", fmt.Sprintf("step-%s-%d", action, n), claim.AttemptID, claim.Generation, f)
+		if e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("%s %+v %v", action, r, e)
+		}
+		return s.attempt(t, claim.AttemptID)
+	}
+	run := func(stopped transaction.SupervisorChange) *snapshot.Attempt {
+		t.Helper()
+		step("DISPATCH", transaction.SupervisorChange{Stage: "implement", Holder: c.Holder, Worktree: "/fixture/implement"})
+		step("BOOT", transaction.SupervisorChange{LeaderPID: 100 + n, LeaderStarted: "observed-leader"})
+		step("STOPPING", transaction.SupervisorChange{})
+		stopped.Clean = true
+		return step("STOPPED", stopped)
+	}
+	step("ATTACH", transaction.SupervisorChange{})
+	a := run(transaction.SupervisorChange{Session: "session-1", Question: "question-1"})
+	a = step("ANSWER", transaction.SupervisorChange{Question: a.Supervision.QuestionID, Answer: "operator answer", AnswerRevision: a.TicketRevision})
+	if a.Phase != "WAITING" || !store.RoleSelects("implement", a) {
+		t.Fatalf("answered wait phase %s answer %q not selected", a.Phase, a.Supervision.Answer)
+	}
+	a = run(transaction.SupervisorChange{Session: "session-1"})
+	if a.Phase != "WAITING" || a.Supervision.Question != "host result unavailable" || a.Supervision.Answer != "" {
+		t.Fatalf("resumed stop phase %s question %q answer %q, want a new unanswered question", a.Phase, a.Supervision.Question, a.Supervision.Answer)
+	}
+	if store.RoleSelects("implement", a) {
+		t.Fatal("run --role implementer reselects a new question on the resumed answer")
 	}
 }

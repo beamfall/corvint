@@ -38,6 +38,13 @@ answered integrate wait under its recorded grant inside `RunRole("integrator")`.
   it, as `reselected` already did.
 - Every other phase selection is unchanged; `resume`, `retry`, `answer`, `drain` and `cancel` are
   unchanged.
+- **A new question is unanswered.** The independent review (Codex, P2) found that `DISPATCH` keeps
+  the answer of the wait it resumes, and `STOPPED` entering `WAITING` with `host result
+  unavailable` (implement) or `repair bound reached` (review) did not clear it, so a role run would
+  reselect that new question on the old answer until a cap refused. The implement case already
+  looped this way at the base; selecting review waits would have extended it to review. The shared
+  new-question branch in `internal/tasks/transaction/supervisor.go`, which already regenerates
+  `questionId`, now also clears the answer. The other new-question paths already cleared it.
 
 ## Evidence
 
@@ -47,7 +54,10 @@ answered integrate wait under its recorded grant inside `RunRole("integrator")`.
   integrator run then resumes and integrates once.
 - `TestCALV0197_RoleSelectsByStage`: the predicate over every role and stage for answered,
   unanswered and unsupervised waits, and the unchanged per-role phases.
-- Focused `internal/tasks/cli` and `internal/tasks/store` packages pass.
+- `TestCALV0197_NewQuestionClearsResumedAnswer`: at the base the resumed stop into `host result
+  unavailable` kept `operator answer`; after the change it is unanswered and not selected.
+- Focused `internal/tasks/cli`, `internal/tasks/store` and `internal/tasks/transaction` packages
+  pass.
 
 ## Limits
 

@@ -121,7 +121,7 @@ one.
 | V1-0851 | CAL-V0-104 | Dispatcher worker-exit recovery: bounded hand-off release retries with backoff, reap once the lease expires, `needs-owner` only when both fail; `heal.exitRecovery` default on; focused tests |
 | V1-1016 | CAL-V0-191 | Proposed: with `heal.reap`, a running worker's attempt expired longer than the role's `expiredLeaseGraceSeconds` (0..86400, default 600) is reaped, the worker stopped like the wall cap, and a `lease-expired` event recorded; focused tests |
 | V1-0672 | CAL-V0-194 | Proposed: a dispatcher tick whose final ledger save fails returns `ErrLedgerUnsaved` with the original cause, keeps its in-memory ledger and workers, raises a `tick failed` alert and retries the save of the current ledger on the next tick; focused tests |
-| V1-0827 | CAL-V0-197 | Proposed: `run --role` (and `admit --role`) selects an answered `WAITING` attempt only for the role of its own stage; an implementer run no longer resumes an answered review or integrate wait, and the reviewer and integrator select their own; focused tests |
+| V1-0827 | CAL-V0-197 | Proposed: `run --role` (and `admit --role`) selects an answered `WAITING` attempt only for the role of its own stage; an implementer run no longer resumes an answered review or integrate wait, and the reviewer and integrator select their own; a new question is recorded unanswered; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
 
@@ -5309,15 +5309,18 @@ role filter applies to the stage of the waiting attempt.
   is unchanged (implementer: not live, `ADMITTED` or `RETURNED`; reviewer: `BUILT`; integrator:
   `READY_FOR_INTEGRATION`). A run of another role MUST leave that attempt, its program record and
   its preserved session untouched. The selection that classifies a `STOPPED` as reselectable
-  (CAL-V0-078) MUST use the same predicate.
+  (CAL-V0-078) MUST use the same predicate. A supervisor transition that enters `WAITING` with a
+  new question (from another phase, or with different question text) MUST record it unanswered,
+  so the answer of a wait the stage resumed never makes the new question selectable.
 
 Non-goals: changing `resume`, `retry`, `answer`, `drain` or `cancel` selection; selecting an
 unanswered wait (CAL-V0-089 item 5 is unchanged); any wire, policy or record shape change.
 
 Failure modes: an answered wait whose stage no role is started for stays selected only by that
-role, `resume` and `retry`; a stopped review or integrate stage that reads back as an answered wait
-is now reselectable, so its failed run keeps its codes' retry classification as integration's
-`READY_FOR_INTEGRATION` already does.
+role, `resume` and `retry`. Before the new-question rule, a resumed stage that stopped into
+`host result unavailable` or `repair bound reached` kept the resumed answer, so a role run would
+have relaunched it until a cap refused; an attempt record already in that state keeps its stale
+answer until its next transition and is selected once more by the role of its stage.
 
 Acceptance evidence: `TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage` (`internal/tasks/store`)
 drives `run --role implementer` through the CLI over an answered integrate-stage wait: at the base
@@ -5325,9 +5328,12 @@ it failed `MALFORMED` (`stage dispatch phase`); after the change it selects noth
 attempt, program and host session untouched, and `run --role integrator` then resumes the wait
 under its recorded grant and integrates exactly once. `TestCALV0197_RoleSelectsByStage`
 (`internal/tasks/store`) covers the predicate for every role, stage and phase.
+`TestCALV0197_NewQuestionClearsResumedAnswer` (`internal/tasks/store`) resumes an answered implement
+wait into `host result unavailable`: at the base the new question kept the answer
+`operator answer`; after the change it is unanswered and not selected.
 
-Rollback: revert the selection change, its tests and this amendment; no record, wire or state
-shape changes, so either build reads the other's store.
+Rollback: revert the selection and transition changes, their tests and this amendment; no
+record, wire or state shape changes, so either build reads the other's store.
 
 ## Amendments to TCP-00
 
@@ -5733,7 +5739,7 @@ and removes the new configuration members.
 | CAL-V0-178 | `TestCALV0178_FragmentCannotSmugglePlaceholders` (`internal/tasks/dispatch`) |
 | CAL-V0-191 | `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`, `TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`, `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`, `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`, `TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`); `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`); `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap`, `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`) |
 | CAL-V0-194 | `TestCALV0194_FailedTickSaveIsReportedAndRetried`, `TestCALV0194_UnsavedTickKeepsRunningWorkers`, `TestSERVICE500_UnsavedLaunchStaysUnrecorded`, `TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded`, `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`, `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure` (`internal/tasks/dispatch`) |
-| CAL-V0-197 | `TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage`, `TestCALV0197_RoleSelectsByStage` (`internal/tasks/store`); `docs/build-log/2026-10-08-v1-0827-role-stage-selection.md` |
+| CAL-V0-197 | `TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage`, `TestCALV0197_RoleSelectsByStage`, `TestCALV0197_NewQuestionClearsResumedAnswer` (`internal/tasks/store`); `docs/build-log/2026-10-08-v1-0827-role-stage-selection.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
