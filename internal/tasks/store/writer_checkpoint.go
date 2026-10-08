@@ -205,7 +205,10 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	}
 	// A retained request replays from its original entry; one the route
 	// cannot bind to the checkpoint declines (CAL-V0-187, proposed).
-	found, entry, ticketID, err := journalReader(repo, headState).WriterReplay(proof, requestID)
+	found, entry, ticketID, cleanup, err := journalReader(repo, headState).WriterReplay(proof, requestID)
+	if cleanup != nil {
+		return nil, nil, err
+	}
 	if err != nil {
 		return nil, errWriterRoute("requests", err.Error()), nil
 	}

@@ -651,70 +651,90 @@ func (res *Result) WriterListing() map[string]ListedFile {
 //
 // Every error means only that this route cannot serve the replay: the caller
 // runs the complete route, which derives the replay or the refusal itself.
-func (r Reader) WriterReplay(res *Result, requestID string) (found bool, entry mutation.IndexEntry, ticketID string, err error) {
+// The one exception is cleanup, a failed native close of these reads, which
+// is terminal as it is for the audit (CAL-V0-116): err then carries it too.
+func (r Reader) WriterReplay(res *Result, requestID string) (found bool, entry mutation.IndexEntry, ticketID string, cleanup, err error) {
 	if res == nil || res.Mode != ModeWriter || res.writerBase == nil {
-		return false, entry, "", errCheckpoint("writer replay", "not a writer audit")
+		return false, entry, "", nil, errCheckpoint("writer replay", "not a writer audit")
+	}
+	var native *nativeRead
+	switch n := r.Source.(type) {
+	case Native:
+		native = newNativeRead(n)
+	case *Native:
+		if n != nil {
+			native = newNativeRead(*n)
+		}
+	}
+	if native != nil {
+		r.Source = native
+		defer func() {
+			if cleanup = native.close(); cleanup != nil {
+				found, entry, ticketID = false, mutation.IndexEntry{}, ""
+				err = wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v; close: %v", err, cleanup)
+			}
+		}()
 	}
 	if res.request != nil {
 		if res.request.Entry.RequestID != requestID {
-			return false, entry, "", errCheckpoint("requests", "walked request differs")
+			return false, entry, "", nil, errCheckpoint("requests", "walked request differs")
 		}
-		return true, res.request.Entry, res.requestTicket, nil
+		return true, res.request.Entry, res.requestTicket, nil, nil
 	}
 	rp, err := snapshot.RequestPath(requestID)
 	if err != nil {
-		return false, entry, "", err
+		return false, entry, "", nil, err
 	}
 	wc := res.writerBase
 	want, ok := wc.RequestAfterimage(rp)
 	if !ok {
-		return false, entry, "", nil
+		return false, entry, "", nil, nil
 	}
 	bound, err := snapshot.PostBound(rp)
 	if err != nil {
-		return false, entry, "", err
+		return false, entry, "", nil, err
 	}
 	raw, err := requiredRead(r.Source, rp, bound)
 	if err != nil {
-		return false, entry, "", err
+		return false, entry, "", nil, err
 	}
 	if wire.Sum(raw) != want {
-		return false, entry, "", errCheckpoint(rp, "request afterimage differs from the checkpoint")
+		return false, entry, "", nil, errCheckpoint(rp, "request afterimage differs from the checkpoint")
 	}
 	req, err := snapshot.DecodeRequest(raw)
 	if err != nil {
-		return false, entry, "", err
+		return false, entry, "", nil, err
 	}
 	seq, last := req.Seq.Uint64(), wc.Seq.Uint64()
 	if req.Entry.RequestID != requestID || seq < 1 || seq > last || last-seq > MaxWriterTail {
-		return false, entry, "", errCheckpoint(rp, "request is not within the bound before the checkpoint")
+		return false, entry, "", nil, errCheckpoint(rp, "request is not within the bound before the checkpoint")
 	}
 	digest := wc.ReceiptSha256
 	var rc *snapshot.Receipt
 	for at := last; ; at-- {
 		name, err := snapshot.ReceiptName(at)
 		if err != nil {
-			return false, entry, "", err
+			return false, entry, "", nil, err
 		}
 		body, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
 		if err != nil {
-			return false, entry, "", err
+			return false, entry, "", nil, err
 		}
 		if wire.Sum(body) != digest {
-			return false, entry, "", errCheckpoint(name, "receipt is not on the checkpoint's chain")
+			return false, entry, "", nil, errCheckpoint(name, "receipt is not on the checkpoint's chain")
 		}
 		rc, err = snapshot.DecodeReceipt(body)
 		if err != nil {
-			return false, entry, "", err
+			return false, entry, "", nil, err
 		}
 		if rc.Seq.Uint64() != at {
-			return false, entry, "", errCheckpoint(name, "receipt sequence differs")
+			return false, entry, "", nil, errCheckpoint(name, "receipt sequence differs")
 		}
 		if at == seq {
 			break
 		}
 		if rc.Prev == nil {
-			return false, entry, "", errCheckpoint(name, "receipt chain ends early")
+			return false, entry, "", nil, errCheckpoint(name, "receipt chain ends early")
 		}
 		digest = *rc.Prev
 	}
@@ -723,10 +743,10 @@ func (r Reader) WriterReplay(res *Result, requestID string) (found bool, entry m
 		posted = posted || (p.Path == rp && p.Sha256 != nil && *p.Sha256 == want)
 	}
 	if !posted || rc.RequestID == nil || *rc.RequestID != requestID || req.Entry.Outcome.Outcome != rc.Outcome || strings.Join(req.Entry.Outcome.Codes, "\x00") != strings.Join(rc.Codes, "\x00") {
-		return false, entry, "", errCheckpoint(rp, "request afterimage does not bind its receipt")
+		return false, entry, "", nil, errCheckpoint(rp, "request afterimage does not bind its receipt")
 	}
 	if rc.TicketID != nil {
 		ticketID = rc.TicketID.Raw
 	}
-	return true, req.Entry, ticketID, nil
+	return true, req.Entry, ticketID, nil, nil
 }

@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -215,5 +218,82 @@ func TestCALV0186_WriterAuditReadsIntentOnce(t *testing.T) {
 		if !ok || tk.Raw == nil || !bytes.Equal(tk.Raw, fixture.Ticket("C").Encode()) || tk.Sha256 == nil || *tk.Sha256 != wire.Sum(tk.Raw) {
 			t.Fatalf("forMutation=%v: selected ticket record %+v", forMutation, tk)
 		}
+	}
+}
+
+// TestCALV0187_WriterReplayKeyAndCloseFailure covers CAL-V0-187 (proposed)
+// in the journal: a request posted before the checkpoint is found under the
+// record keyed by the SHA-256 of its request ID (the name of its request
+// path) and replays its original entry; a failed native close while reading
+// it is returned as cleanup, with no replay, for each kind of handle.
+func TestCALV0187_WriterReplayKeyAndCloseFailure(t *testing.T) {
+	repo, r := setup(t)
+	rp, err := snapshot.RequestPath("R")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := requestBytes("R", 2, wire.Sum([]byte("R")), false)
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{rp: raw}, "R", true, true, false)
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil || full.Mode != ModeFull {
+		t.Fatalf("complete audit: %v", err)
+	}
+	wc, err := full.WriterCheckpoint(observed.Files)
+	if err != nil || wc == nil {
+		t.Fatalf("writer checkpoint: %v", err)
+	}
+	key := sha256.Sum256([]byte("R"))
+	if got, ok := wc.RequestAfterimage(requestPathOf(key[:])); !ok || got != wire.Sum(raw) {
+		t.Fatalf("record keyed by the request ID digest: %v %v", got, ok)
+	}
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
+	res, _, err := r.AuditForWriter(wc, "R", true)
+	if err != nil || res.Mode != ModeWriter {
+		t.Fatalf("writer audit: %v", err)
+	}
+	want, err := snapshot.DecodeRequest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, entry, _, cleanup, err := r.WriterReplay(res, "R")
+	if err != nil || cleanup != nil || !found || entry.RequestID != "R" || entry.Outcome.Outcome != want.Entry.Outcome.Outcome {
+		t.Fatalf("replay: found=%v entry=%+v cleanup=%v err=%v", found, entry, cleanup, err)
+	}
+	oldFile, oldRoot := closeReadFile, closeReadRoot
+	t.Cleanup(func() { closeReadFile, closeReadRoot = oldFile, oldRoot })
+	sentinel := errors.New("injected writer replay close")
+	for _, kind := range []string{"request-file", "receipt-file", "root"} {
+		injected := false
+		closeReadFile = func(f *os.File) error {
+			if err := f.Close(); err != nil {
+				return err
+			}
+			name := filepath.Base(f.Name())
+			hit := (kind == "request-file" && name == filepath.Base(rp)) || (kind == "receipt-file" && strings.HasPrefix(name, "000000"))
+			if hit && !injected {
+				injected = true
+				return sentinel
+			}
+			return nil
+		}
+		closeReadRoot = func(root *os.Root) error {
+			if err := root.Close(); err != nil {
+				return err
+			}
+			if kind == "root" && !injected {
+				injected = true
+				return sentinel
+			}
+			return nil
+		}
+		found, _, _, cleanup, err := r.WriterReplay(res, "R")
+		closeReadFile, closeReadRoot = oldFile, oldRoot
+		if !injected {
+			t.Fatalf("%s: close not reached", kind)
+		}
+		if found || !errors.Is(cleanup, sentinel) || err == nil || !strings.Contains(err.Error(), sentinel.Error()) {
+			t.Fatalf("%s: found=%v cleanup=%v err=%v", kind, found, cleanup, err)
+		}
+		requireCode(t, err, wire.CodeUnsupportedFilesystem)
 	}
 }

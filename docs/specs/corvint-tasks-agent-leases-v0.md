@@ -4849,9 +4849,10 @@ complete route's cost. These requirements are proposed; their acceptance is huma
   instead of about four times.
 - `CAL-V0-187`: (proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
   This amends `CAL-V0-115` and `CAL-V0-116` as follows.
-  - Checkpoint profile `taskman-writer-checkpoint/1`. Each request record is 64 bytes: the SHA-256
-    of the request path, then the SHA-256 of the latest afterimage of that path that receipts
-    1..Seq posted, as the deriving audit read it. Records are strictly ascending by path digest,
+  - Checkpoint profile `taskman-writer-checkpoint/1`. Each request record is 64 bytes: the path
+    digest, which is the SHA-256 of the request ID that names the request path, then the SHA-256
+    of the latest afterimage of that path that receipts 1..Seq posted, as the deriving audit read
+    it. Records are strictly ascending by path digest,
     and a decoder refuses a record count that disagrees with the remaining bytes or a path digest
     that is not strictly ascending. Derivation refuses an afterimage digest that is not 32 bytes
     and a path that repeats. A `/0` file, and any other version, is refused UNSUPPORTED_VERSION and
@@ -4870,6 +4871,8 @@ complete route's cost. These requirements are proposed; their acceptance is huma
 
     The answer is the complete route's: `Mutate` reports the replay or REQUEST_ID_CONFLICT with
     the receipt's ticket ID, and a lease verb reports it as `commitLease` does. Nothing is written.
+    A failed native close of these reads is terminal, as it is for the writer audit, and is never a
+    decline.
   - Model results without a transaction. When the model plans no transaction (a refusal, or no
     change), the route reports that result as the complete route does, with nothing written. It
     does so only after the branch check and the pre-effect recheck of the head and intent tree
@@ -4907,6 +4910,9 @@ Failure modes:
   it.
 - A request more than 256 receipts before the checkpoint declines, and the complete route replays
   it.
+- A failed native close while the route reads a retained request or its receipts is terminal, as it
+  is for the writer audit (`CAL-V0-116`). The write fails UNSUPPORTED_FILESYSTEM and does not fall
+  through to the complete route.
 
 Acceptance evidence:
 - `TestCALV0186_WriterAuditReadsIntentOnce` (`internal/tasks/journal`) counts one content read per
@@ -4924,6 +4930,9 @@ Acceptance evidence:
   bound.
 - `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`) covers the `/1` codec
   and the refusal of `/0`.
+- `TestCALV0187_WriterReplayKeyAndCloseFailure` (`internal/tasks/journal`) covers the record key
+  for a real request ID and the terminal close failure of a request file, a receipt file and a
+  root.
 - Measurements are in `docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md`.
 
 Rollback: revert the code and this amendment. A reverted runtime refuses a `/1` checkpoint
@@ -5366,7 +5375,7 @@ and removes the new configuration members.
 | CAL-V0-184 | `TestCALV0184_QueueStatusLastCompletionAndWindows`, `TestCALV0167_SummaryShapes` (`internal/tasks/cli`); `docs/build-log/2026-10-07-v1-0966-queue-throughput-visibility.md` |
 | CAL-V0-185 | `TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`, `TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`, `TestCALV0185_TickDuringSessionKeepsStatusChange`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`); `TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`) |
 | CAL-V0-186 | `TestCALV0186_WriterAuditReadsIntentOnce` (`internal/tasks/journal`); `TestCALV0186_FastWriteRechecksIntentContent` (`internal/tasks/store`); `docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md` |
-| CAL-V0-187 | `TestCALV0187_WriterRouteServesReplaysAndRefusals`, `TestCALV0187_WriterReplayBeyondBoundDeclines` (`internal/tasks/store`); `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`); `docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md` |
+| CAL-V0-187 | `TestCALV0187_WriterRouteServesReplaysAndRefusals`, `TestCALV0187_WriterReplayBeyondBoundDeclines` (`internal/tasks/store`); `TestCALV0115_WriterCheckpointCodecIsClosed`, `TestCALV0187_WriterReplayKeyAndCloseFailure` (`internal/tasks/journal`); `docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md` |
 | CAL-V0-175 | `TestCALV0175_FragmentPromptEqualsInline` (`internal/tasks/dispatch`) |
 | CAL-V0-176 | `TestCALV0176_ConfigWithoutFragmentsUnchanged`, `TestCALV0176_ReloadExpandsFragments` (`internal/tasks/dispatch`), `TestCALV0176_DispatchStatusReadsFragmentConfig` (`internal/tasks/cli`) |
 | CAL-V0-177 | `TestCALV0177_FragmentRefusals` (`internal/tasks/dispatch`) |
