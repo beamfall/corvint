@@ -549,6 +549,7 @@ CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	153	The admission, freshne
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	172	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	182	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
 CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	318	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	325	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa

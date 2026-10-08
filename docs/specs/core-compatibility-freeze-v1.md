@@ -322,6 +322,14 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `topLevelCommands` verb in `Commands:`. The only verbs dispatched outside `topLevelCommands` are the
   three CCF-V1-003 plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
+- **CCF-V1-009:** (proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
+  index of at most `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines
+  (`COMMAND [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has exactly one
+  line per `topLevelCommands` verb, the verb and a short gloss; and it carries no per-verb option.
+  Per-verb usage, options and writes stay in each verb's shared help topic (GPK-V0-059). The
+  CCF-V1-008 `Command maturity:` section and the support boundary's local-only, read-only,
+  self-observation-ledger and writer disclosures stay. Help invocations still read no stdin and
+  inspect no repository. Root help bytes are not pinned by `conformance/cli-parity-v0`.
 
 ## Non-goals
 
@@ -386,6 +394,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
 | CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches, including the rows of the `prove` `packet`); (accepted 2026-09-26, decision 0422; from decision 0398) the same test under `make core-n1-replay` (`replayCoreModeN1`) for the N-1 replay |
 | CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
+| CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
 
 ## Rollback
 
@@ -403,6 +412,8 @@ statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-
 rows (accepted 2026-09-26, decision 0422; V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
 reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
 N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
+Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
+stdout text only, so no stored state changes.
 
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
