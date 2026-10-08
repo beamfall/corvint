@@ -92,7 +92,7 @@ func NewWebImportResolver(index *Index) *WebImportResolver {
 // index rules as aliases, under the governing config's module resolution; a
 // missing relative target is unresolved.
 func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImportResolution {
-	if strings.HasPrefix(specifier, ".") {
+	if webRelativeSpecifier(specifier) {
 		if last := path.Base(specifier); last == "." || last == ".." {
 			// TypeScript reads a final `.` or `..` segment as a directory.
 			specifier += "/"
@@ -103,6 +103,16 @@ func (resolver *WebImportResolver) Resolve(importer, specifier string) WebImport
 		return resolvedOrUnknown(resolver.loadFrom(importer, webJoin(resolver.profile.WebAliasRoot, specifier[len(prefix):])).target)
 	}
 	return resolver.resolveBare(importer, specifier)
+}
+
+// webRelativeSpecifier reports whether TypeScript reads specifier as relative
+// (`pathIsRelative`, `^\.\.?($|[\\/])`): `.` or `..` alone or followed by a
+// slash or backslash, so whole segments only. A bare name that merely starts
+// with a dot, such as `.api/client`, is not relative and goes through `paths`,
+// `baseUrl` and the package test (GPK-V0-082, proposed).
+func webRelativeSpecifier(specifier string) bool {
+	rest := strings.TrimPrefix(strings.TrimPrefix(specifier, "."), ".")
+	return len(rest) < len(specifier) && (rest == "" || rest[0] == '/' || rest[0] == '\\')
 }
 
 // loadFrom loads one candidate path under the module resolution of the
@@ -1100,7 +1110,7 @@ func buildWebImportGraph(index *Index) *webImportGraph {
 		unresolved := 0
 		for imported := range imports {
 			// Relative and profile-alias specifiers stay rule (c)'s oracle arm.
-			if strings.HasPrefix(imported, ".") || prefix != "" && strings.HasPrefix(imported, prefix) {
+			if webRelativeSpecifier(imported) || prefix != "" && strings.HasPrefix(imported, prefix) {
 				continue
 			}
 			resolution := graph.resolver.resolveBare(importerPath, imported)
