@@ -172,11 +172,13 @@ var goVerbosePassMarker = regexp.MustCompile(`(?m)^[ \t]*--- PASS: [^\r\n ]+ \([
 // as cmd/test2json encodes it, whose Output is a single Go verbose PASS
 // marker. Field order and the field set are fixed; Time, Package and the
 // `frame` OutputType are optional so older toolchains and a bare test2json
-// stay recognised. No JSON string here may hold a quote, a backslash or a
-// line break, so an escape sequence or extra content anywhere leaves the
-// event unrecognised. Group 1 is the Test field and group 2 the marker's test
-// name; writerMatches masks only when they are equal.
-var goJSONPassMarker = regexp.MustCompile(`(?m)^\{(?:"Time":"[0-9T:.+Z-]+",)?"Action":"output",(?:"Package":"[^"\\\r\n]+",)?"Test":"([^"\\\r\n ]+)","Output":"(?: |\\t)*--- PASS: ([^"\\\r\n ]+) \([0-9]+(?:\.[0-9]+)?s\)(?:\\r)?\\n"(?:,"OutputType":"frame")?\}\r?$`)
+// stay recognised. Apart from the Output's structural `\t`, `\r` and `\n`
+// escapes, no JSON string here may hold a quote, a backslash or a control
+// character (which valid JSON never carries unescaped), so an escape
+// sequence or extra content anywhere leaves the event unrecognised. Group 1
+// is the Test field and group 2 the marker's test name; maskGoPassMarkers
+// masks only when they are equal.
+var goJSONPassMarker = regexp.MustCompile(`(?m)^\{(?:"Time":"[0-9T:.+Z-]+",)?"Action":"output",(?:"Package":"[^"\\\x00-\x1f]+",)?"Test":"([^"\\\x00-\x20]+)","Output":"(?: |\\t)*--- PASS: ([^"\\\x00-\x20]+) \([0-9]+(?:\.[0-9]+)?s\)(?:\\r)?\\n"(?:,"OutputType":"frame")?\}\r?$`)
 
 // maskGoPassMarkers replaces the structural `PASS:` prefix of every complete
 // Go verbose PASS marker, plain or as a `go test -json` output event, with a

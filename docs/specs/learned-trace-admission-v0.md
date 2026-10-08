@@ -215,9 +215,10 @@ alone, and `BenchmarkScreen` for the retained before and after.
   `"Action":"output"`, an optional nonempty `"Package"` string, a `"Test"` string, and an
   `"Output"` string holding optional leading spaces or `\t` escapes, `--- PASS: `, a test name, a
   space, a parenthesised seconds value and a final `\n` (optionally preceded by `\r`), then an
-  optional `"OutputType":"frame"` and `}`, in that field order with no other field. No string in
-  the line may hold a quote, a backslash escape, or a line break, and the Test field MUST equal the
-  marker's test name. Only the four `PASS` bytes and colon are neutralised, at unchanged byte
+  optional `"OutputType":"frame"` and `}`, in that field order with no other field. Apart from
+  those structural Output escapes, no string in the line may hold a quote, a backslash escape or an
+  unescaped control character, the test names may not hold a space, and the Test field MUST equal
+  the marker's test name. Only the four `PASS` bytes and colon are neutralised, at unchanged byte
   offsets; every other byte, including the test name, the Test and Package values, and every other
   line, remains screened, so credential-shaped test names, arbitrary JSON values, other `Action` or
   `OutputType` values, extra or reordered fields, escaped content and trailing Output text are
@@ -226,8 +227,8 @@ alone, and `BenchmarkScreen` for the retained before and after.
   carries a credential stays `secretScreened` and unqualified.
 
 Acceptance: `TestLTAV0015GoJSONPassMarker` (a real go1.27.1 `go test -json` transcript and
-structural variants pass; credential and malformed-structure cases still match and are not
-recognised), `TestActualVerificationAndSecretRefusal` subtests `go-json-pass-log` and
+structural variants screen clean; credential-bearing events stay recognised but still match;
+malformed-structure cases are not recognised and still match), `TestActualVerificationAndSecretRefusal` subtests `go-json-pass-log` and
 `go-json-pass-log-with-embedded-secret`, plus a recorded live `corvint dogfood verify` of an
 unchanged `go test -json ./...` check (build log 2026-10-08-go-json-pass-screening).
 
@@ -326,7 +327,7 @@ is weighted; that mismatch is why the gate, not the labels, decides admission.
 | `LTA-V0-011` | nil weights leave the packet unchanged; weights reorder stably and disclose the trace; the loader refuses symlinked, oversized, malformed, unknown-relation, out-of-range and unevaluated files, and a file under a symlinked store directory, naming the rollback; `batch` `context` equals the weighted standalone packet |
 | `LTA-V0-012` | `eval --reset-slot-weights` removes the admitted file and the next `context` output equals the default bytes, including after a malformed file; a symlinked store is refused with the outside file byte-identical, a leaf symlink is removed without touching its target, and removal through the pinned store ignores a substituted directory |
 | `LTA-V0-014` | every parity fixture, its case, fold, split, JSON and base64 variants and every ordered fixture pair return `Pattern`'s matches, as do texts generated from each branch's own expression; each branch's necessary condition holds wherever that branch alone matches; a text with U+212A or U+017F uses the complete pattern; the writer pattern's source digest is pinned |
-| `LTA-V0-015` | a recorded go1.27.1 `go test -json` transcript, top-level, subtest, indented, CRLF, time-less and package-less PASS events screen clean; a credential in the test name, Package value or a later line is still redacted while the marker stays recognised; a mismatched Test field, a non-`output` Action, a non-`frame` OutputType, an extra or reordered field, continued or prefixed Output, an escaped quote or `\u` sequence, leading text, another JSON value and an unterminated line are not recognised and still match; `dogfood verify` qualifies the clean event and screens the credential-bearing one |
+| `LTA-V0-015` | a recorded go1.27.1 `go test -json` transcript, top-level, subtest, indented, CRLF, time-less and package-less PASS events screen clean; a credential in the test name, Package value or a later line is still redacted while the marker stays recognised; a mismatched Test field, a non-`output` Action, a non-`frame` OutputType, an extra or reordered field, continued or prefixed Output, an escaped quote or `\u` sequence, a raw tab or NUL, leading text, another JSON value and an unterminated line are not recognised and still match; `dogfood verify` qualifies the clean event and screens the credential-bearing one |
 | writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
 
 Blind-v4 is not acceptance evidence for this spec. A first development result is first-observation

@@ -17,8 +17,9 @@ was the test name. Every PASS event in every `go test -json` run matched.
 
 - `internal/secretscreen/secretscreen.go`: `goJSONPassMarker` recognises one complete
   test2json output event, in cmd/test2json's field order, with optional `Time`, `Package` and
-  `"OutputType":"frame"`, and no other field. No string in it may hold a quote, a backslash escape
-  or a line break, the Output must be exactly one PASS marker line ending in `\n`, and the Test
+  `"OutputType":"frame"`, and no other field. Apart from the Output's structural `\t`, `\r` and
+  `\n` escapes, no string in it may hold a quote, a backslash escape or an unescaped control
+  character, the Output must be exactly one PASS marker line ending in `\n`, and the Test
   field must equal the marker's test name. `maskGoPassMarkers` (shared with the plain marker)
   replaces only `PASS:` with a same-length word at unchanged offsets; `Pattern` then screens the
   whole text, including the test name, the Test and Package values, and every other line.
@@ -33,8 +34,9 @@ Failing before (base 722904f9, fix reverted), passing after:
 
 - `TestLTAV0015GoJSONPassMarker`: before, the seven clean-event cases failed (real transcript,
   top-level, subtest, indented, no OutputType, no Time/Package, CRLF) and the seventeen
-  credential/malformed cases already matched; after, all 24 pass, and recognition is asserted
-  directly (masked exactly for the recognised events).
+  credential/malformed cases already matched; after, all 26 pass (two raw-control-character cases
+  added after review), and recognition is asserted directly (masked exactly for the recognised
+  events).
 - `TestActualVerificationAndSecretRefusal/go-json-pass-log`: before, FAIL
   (`selected-check-unverified:test`); after, PASS with the stored stdout byte-identical.
   `go-json-pass-log-with-embedded-secret` (a `pass=synthetic123` subtest name) is screened both
@@ -52,8 +54,17 @@ Failing before (base 722904f9, fix reverted), passing after:
   | `pa`+`ss=synthetic123` subtest / base | 0 | true | false |
   | `pa`+`ss=synthetic123` subtest / fixed | 0 | true | false |
 
+  The review-fixed binary (control characters excluded) repeated both fixed rows on fresh copies.
   The fixed clean run retained the real JSON stdout with three PASS events; the credential run
   retained only `log-secret-screened`. Both fixture worktrees stayed clean.
+
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) security review of the screening change found no P0/P1 and no
+credential-screening bypass. Two P2 findings were fixed: the Package and name classes admitted
+unescaped control characters (invalid JSON), now excluded with raw-tab and raw-NUL negative cases;
+and the `\u` escape case held a literal space, now a real `\u0078` escape. Spec wording on the
+permitted Output escapes and on recognised credential-bearing events was clarified.
 
 ## Non-goals
 
