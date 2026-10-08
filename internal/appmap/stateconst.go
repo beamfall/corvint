@@ -19,14 +19,32 @@ type constTable struct {
 	ix       *contextindex.Index
 	resolver *contextindex.WebImportResolver
 	files    map[string]*constFile // tracked path -> parsed file; nil when unreadable
+	di       *diScope              // the manifest's di_constants scope (AMAP-V0-021); nil without one
 }
 
-func newConstTable(ix *contextindex.Index) *constTable {
+// newConstTable prepares one build's constant resolution; a di_constants scope that names no
+// indexed source, or too many, refuses (AMAP-V0-021).
+func newConstTable(ix *contextindex.Index, scope []string) (*constTable, error) {
 	t := &constTable{ix: ix, files: map[string]*constFile{}}
 	if ix != nil {
 		t.resolver = contextindex.NewWebImportResolver(ix)
 	}
-	return t
+	if len(scope) > 0 {
+		di, err := newDIScope(ix, scope)
+		if err != nil {
+			return nil, err
+		}
+		t.di = di
+	}
+	return t, nil
+}
+
+// err reports a bound the lazily read di_constants scope exceeded (AMAP-V0-021).
+func (t *constTable) err() error {
+	if t.di == nil {
+		return nil
+	}
+	return t.di.err
 }
 
 // constFile is one lexed source: its top-level constant tables, the names a static import binds,
@@ -39,7 +57,18 @@ type constFile struct {
 	dflt    string                // the local name `export default NAME` exports, or "default"
 	imports map[string]constImport
 	skip    []bool // tokens of import statements and constant declaration headers
-	reads   map[string]bool
+	reads   map[readKey]bool
+	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
+	inject  map[string]*diBinding
+	depth   []int
+	annot   map[string][]string
+	annotOK bool
+}
+
+// readKey memoizes onlyRead for one name and the one token (or -1) allowed to pass it along.
+type readKey struct {
+	name  string
+	allow int
 }
 
 type constDecl struct {
@@ -60,9 +89,9 @@ type constImport struct {
 }
 
 // forRouter returns the resolver a router file's `X.Y` references go through.
-func (t *constTable) forRouter(e blobEntry, data []byte) func(ref string) (string, []Anchor, bool) {
+func (t *constTable) forRouter(e blobEntry, data []byte) constLookup {
 	var own *constFile
-	return func(ref string) (string, []Anchor, bool) {
+	return func(ref string, tok int) (string, []Anchor, bool) {
 		local, member, ok := strings.Cut(ref, ".")
 		if !ok {
 			return "", nil, false
@@ -70,45 +99,56 @@ func (t *constTable) forRouter(e blobEntry, data []byte) func(ref string) (strin
 		if own == nil {
 			own = parseConstFile(e, data)
 		}
-		if !own.onlyRead(local) {
-			return "", nil, false
+		_, declared := own.decls[local]
+		_, imported := own.imports[local]
+		if !declared && !imported && t.di != nil {
+			return t.injected(own, local, member, tok)
 		}
-		decl, declared := own.decls[local]
-		imp, imported := own.imports[local]
-		switch {
-		case declared && imported:
-			return "", nil, false // two bindings for one name: ambiguous
-		case declared:
-			return own.member(decl, member)
-		case imported && !imp.bad && t.resolver != nil:
-			res := t.resolver.Resolve(e.path, imp.module)
-			if res.State != contextindex.WebImportRepository {
-				return "", nil, false
-			}
-			f := t.file(res.Target)
-			if f == nil {
-				return "", nil, false
-			}
-			name := imp.exported
-			if name == "default" {
-				name = f.dflt // the default export: an object literal, or a table declared under a name
-			}
-			d := f.decls[name]
-			switch {
-			case d == nil, imp.exported != "default" && !d.exported:
-				return "", nil, false
-			case name != "default" && !f.onlyRead(name):
-				return "", nil, false
-			}
-			v, at, ok := f.member(d, member)
-			if !ok {
-				return "", nil, false
-			}
-			// The binding is evidence too: re-pointing the import changes what the name reads.
-			return v, append(at, spanOf(e, data, imp.first, imp.last)), true
-		}
+		return t.resolve(own, local, member, -1)
+	}
+}
+
+// resolve reads local.member through a table f declares or imports; allow is the one token (or -1)
+// that may pass the table along, the `.constant(...)` argument that registers it (AMAP-V0-022).
+func (t *constTable) resolve(f *constFile, local, member string, allow int) (string, []Anchor, bool) {
+	if !f.onlyRead(local, allow) {
 		return "", nil, false
 	}
+	decl, declared := f.decls[local]
+	imp, imported := f.imports[local]
+	switch {
+	case declared && imported:
+		return "", nil, false // two bindings for one name: ambiguous
+	case declared:
+		return f.member(decl, member)
+	case imported && !imp.bad && t.resolver != nil:
+		res := t.resolver.Resolve(f.entry.path, imp.module)
+		if res.State != contextindex.WebImportRepository {
+			return "", nil, false
+		}
+		g := t.file(res.Target)
+		if g == nil {
+			return "", nil, false
+		}
+		name := imp.exported
+		if name == "default" {
+			name = g.dflt // the default export: an object literal, or a table declared under a name
+		}
+		d := g.decls[name]
+		switch {
+		case d == nil, imp.exported != "default" && !d.exported:
+			return "", nil, false
+		case name != "default" && !g.onlyRead(name, -1):
+			return "", nil, false
+		}
+		v, at, ok := g.member(d, member)
+		if !ok {
+			return "", nil, false
+		}
+		// The binding is evidence too: re-pointing the import changes what the name reads.
+		return v, append(at, spanOf(f.entry, f.data, imp.first, imp.last)), true
+	}
+	return "", nil, false
 }
 
 // file reads one tracked source from the revision's index, once.
@@ -144,14 +184,16 @@ func (f *constFile) member(d *constDecl, name string) (string, []Anchor, bool) {
 // onlyRead reports whether every use of name outside import statements and constant declarations
 // is a member read `name.member` that is not assigned, deleted or incremented, a `typeof name`, or
 // an `export { name }` / `export default name`. Any other use could mutate or rebind the table.
-func (f *constFile) onlyRead(name string) bool {
-	if v, ok := f.reads[name]; ok {
+// The token at allow (or none, -1) is exempt: it registers the table for injection.
+func (f *constFile) onlyRead(name string, allow int) bool {
+	key := readKey{name, allow}
+	if v, ok := f.reads[key]; ok {
 		return v
 	}
 	ok := true
 	toks := f.toks
 	for i := 0; i < len(toks) && ok; i++ {
-		if f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || (i > 0 && isPunct(toks[i-1], ".")) {
+		if i == allow || f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || (i > 0 && isPunct(toks[i-1], ".")) {
 			continue
 		}
 		prev := ""
@@ -168,7 +210,7 @@ func (f *constFile) onlyRead(name string) bool {
 			ok = false
 		}
 	}
-	f.reads[name] = ok
+	f.reads[key] = ok
 	return ok
 }
 
@@ -233,7 +275,7 @@ func inExportList(toks []token, i int) bool {
 func parseConstFile(e blobEntry, data []byte) *constFile {
 	toks, _ := lexJS(string(data))
 	f := &constFile{entry: e, data: data, toks: toks, decls: map[string]*constDecl{}, imports: map[string]constImport{},
-		skip: make([]bool, len(toks)), reads: map[string]bool{}}
+		skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
 	declare := func(name string, d *constDecl) {
 		if prior, dup := f.decls[name]; dup {
 			prior.bad = true
@@ -341,16 +383,23 @@ func (f *constFile) mark(from, to int) {
 // objectDecl reads a constant table from an object literal; the declaration must end at after
 // (`;`, `as const`, a new line or the end of the file), or the table is not what the name holds.
 func objectDecl(v jsValue, toks []token, after int) *constDecl {
-	d := &constDecl{members: map[string]constMember{}}
-	if v.kind != "object" {
-		d.bad = true
-		return d
-	}
+	d := objectMembers(v)
 	if after+1 < len(toks) && toks[after].text == "as" && toks[after+1].text == "const" {
 		after += 2
 	}
 	if after < len(toks) && !isPunct(toks[after], ";") && (toks[after].kind == tokPunct || toks[after].line == toks[after-1].line) {
 		d.bad = true
+	}
+	return d
+}
+
+// objectMembers reads the string members of an object literal; anything that may set a member the
+// reader cannot see makes the table unreadable.
+func objectMembers(v jsValue) *constDecl {
+	d := &constDecl{members: map[string]constMember{}}
+	if v.kind != "object" {
+		d.bad = true
+		return d
 	}
 	for _, p := range v.obj {
 		if p.key == "" {

@@ -189,9 +189,16 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	if err != nil {
 		return err
 	}
-	raws, consts := []rawState{}, newConstTable(ix)
+	consts, err := newConstTable(ix, b.m.DIConstants)
+	if err != nil {
+		return err
+	}
+	raws := []rawState{}
 	for _, e := range ordered {
 		states, unknowns := parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
+		if err := consts.err(); err != nil {
+			return err
+		}
 		raws = append(raws, states...)
 		b.out.Unknowns = append(b.out.Unknowns, unknowns...)
 		if len(raws) > maxStates {
