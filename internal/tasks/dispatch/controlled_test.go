@@ -121,8 +121,9 @@ func TestSERVICE500_UnsavedLaunchStaysUnrecorded(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	if err := d.Run(context.Background(), 1); err != nil {
-		t.Fatal(err)
+	// CAL-V0-192: the run reports the failed final save.
+	if err := d.Run(context.Background(), 1); !errors.Is(err, ErrLedgerUnsaved) {
+		t.Fatalf("unsaved launch run: %v", err)
 	}
 	f.mu.Lock()
 	if !reflect.DeepEqual(f.released, []bool{false}) || !reflect.DeepEqual(f.bounds, [][2]bool{{false, false}}) {
@@ -338,8 +339,9 @@ func TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded(t *testing.T) {
 	defer d.Close()
 	t.Cleanup(func() { syncDir = syncDirectory })
 	f.onAdmit = func() { syncDir = func(string) error { return errors.New("injected directory sync failure") } }
-	if err := d.Run(context.Background(), 1); err != nil {
-		t.Fatal(err)
+	// CAL-V0-192: the run reports the unsynced final save with its cause.
+	if err := d.Run(context.Background(), 1); !errors.Is(err, ErrLedgerUnsaved) || !strings.Contains(err.Error(), "injected directory sync failure") {
+		t.Fatalf("unsynced save run: %v", err)
 	}
 	f.mu.Lock()
 	if !reflect.DeepEqual(f.released, []bool{false}) || !reflect.DeepEqual(f.bounds, [][2]bool{{false, false}}) {
