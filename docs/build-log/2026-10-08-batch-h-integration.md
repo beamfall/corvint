@@ -1,4 +1,4 @@
-# 2026-10-08: Batch H integration (V1-1026, V1-1027, V1-1028, V1-1029)
+# 2026-10-08: Batch H integration (V1-1026, V1-1027, V1-1029)
 
 ## Intent
 
@@ -11,6 +11,13 @@ V1-0431 was first merged here too, but the batch then exceeded the 256-obligatio
 the change-evidence binder (314 obligations across five intent specs). It was taken out and moves
 to batch I with its own specs; the rollback branch `batch-h-with-0431` (`3df23a2a`) keeps that
 first integration.
+
+V1-1028 (#686) was merged here as well, but the batch then reached 269 obligations across four
+intent specs (application map 23, agent leases 181, know-how notes 27, Playwright provider 38),
+over the binder's 256 cap. Commit "batch H: defer V1-1028" restores every path the V1-1028 merge
+changed to `388fb832` and removes decision 0461, so the batch carries 231 obligations. V1-1028 and
+decision 0461 come back in a follow-up PR that reverts that commit on top of this batch; its lane
+head `c9348a8d` and merge `795a9f26` stay in this history.
 
 ## Merges
 
