@@ -29,6 +29,9 @@ func has(list []string, name string) bool {
 	return false
 }
 func Build(r testrunner.Request) (testrunner.Invocation, error) {
+	if err := testrunner.AdmitSelection(r); err != nil {
+		return testrunner.Invocation{}, err
+	}
 	switch {
 	case has(dynamic.Runners(), r.Runner):
 		return dynamic.Build(r)

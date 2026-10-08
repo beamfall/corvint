@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -17,6 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 const (
@@ -171,7 +173,7 @@ func parseArguments(arguments []string) (roots []rootDeclaration, versionOnly bo
 		if arguments[index] != "--root" || arguments[index+1] == "" {
 			return nil, false, false
 		}
-		alias, root, aliased := splitAlias(arguments[index+1])
+		alias, root, aliased := rootalias.Split(arguments[index+1])
 		if (!aliased && len(arguments) != 2) || (aliased && (root == "" || aliases[alias])) {
 			return nil, false, false
 		}
@@ -258,12 +260,14 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		}
 		return handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass)
 	}
-	structured, text, err := structuredResult(result)
+	structured, full, text, err := structuredResult(result, bridge.EnvelopeOnly(name))
 	if err != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
 	framed, frameErr := repoenvelope.Frame(text)
-	if frameErr != nil {
+	// The summary can drop the field that carries the terminator, so the full
+	// object is checked too: such a receipt stays refused, never emitted.
+	if frameErr != nil || strings.Contains(full, repoenvelope.Terminator) {
 		return handler.toolFailure(name, repoenvelope.CollisionCode, "")
 	}
 	response := map[string]any{
@@ -306,16 +310,27 @@ func (handler *toolHandler) toolErrorObject(name, code, reasonClass string) map[
 	return value
 }
 
-func structuredResult(result bridge.Result) (map[string]any, string, error) {
+// structuredResult returns the structuredContent object, its full canonical
+// JSON, and the text block payload: the MCPV0-033 summary when
+// structuredContent is emitted, and the full canonical JSON when the result
+// travels in the envelope alone.
+func structuredResult(result bridge.Result, envelopeOnly bool) (map[string]any, string, string, error) {
 	structured, objectErr := result.Object()
 	if objectErr != nil {
-		return nil, "", objectErr
+		return nil, "", "", objectErr
 	}
-	raw, canonicalErr := result.CanonicalJSON()
+	full, canonicalErr := result.CanonicalJSON()
 	if canonicalErr != nil {
-		return nil, "", canonicalErr
+		return nil, "", "", canonicalErr
 	}
-	return structured, string(raw), nil
+	if envelopeOnly {
+		return structured, string(full), string(full), nil
+	}
+	text, textErr := result.TextJSON()
+	if textErr != nil {
+		return nil, "", "", textErr
+	}
+	return structured, string(full), string(text), nil
 }
 
 func onlyKeys(params map[string]any, allowed ...string) bool {

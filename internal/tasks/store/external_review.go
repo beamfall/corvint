@@ -15,11 +15,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// reviewAudit re-audits a REVIEW_* request with every attempt record, so the
-// model judges leases and subject currency from journal-authoritative bytes
-// (ERG-V0-009). Other operations keep their read boundary unchanged.
+// reviewAudit re-audits a REVIEW_* request, and a KNOWHOW_ADD or RECONFIRM naming an
+// attempt or generation (KHN-V0-008), with every attempt record, so the model
+// judges leases, subject currency and provenance from journal-authoritative
+// bytes (ERG-V0-009). Other operations keep their read boundary unchanged.
 func reviewAudit(reader journal.Reader, inv *transaction.Inventory, env *mutation.Envelope, paths []string, canonical *journal.Result) ([]string, *journal.Result, error) {
-	if !mutation.IsReviewOperation(env.Operation) {
+	if !mutation.IsReviewOperation(env.Operation) && !mutation.KnowHowNamesAttempt(env) {
 		return paths, canonical, nil
 	}
 	for _, file := range inv.Files() {

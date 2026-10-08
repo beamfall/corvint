@@ -47,8 +47,8 @@ At `978b37b`:
   root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
   `internal/appflows/input.go:91-104@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:65-72@8ab13087`).
-- The `/1` behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
-  (`internal/doccorpus/behavior.go:41-45@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
+- The `/1` behavior provider pins exactly three repositories, `app`, the legacy /1 member and `docs_corpus`
+  (`internal/doccorpus/behavior.go:47-51@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
   (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
@@ -541,6 +541,12 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   any other class, unknown included, only against a listed origin, else
   `observer-origin-not-disposable`.
 
+The separate proposed [navigation execution profile](application-flow-navigation-execution-v0.md)
+connects these unchanged packets to the explicit experimental companion. Its closed committed
+execution input supplies operations and observable outcome mappings; prose is never executable.
+The initial consumer accepts evidence/registry/traffic-free UI packets only, preserves verification
+labels and grants no per-test `LOCALLY_OBSERVED` authority. Qualification is recorded separately.
+
 ### Proven documentation
 
 - `AFU-V1-030`: `corvint flows docs` MUST render user documentation from flow intents with fixed
@@ -728,6 +734,9 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
 | AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written report; separate real browser qualifications are retained below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
 | AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (21 labelled, fault-injected cases over five tests, `spec-after-coverage` added by decision 0416) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 15/105), `reviewed-links` omits 3 with 0 unsafe (reduction 3/105), no basis withdrawn |
+| AFU-V1-054 | proposed (V1-0985): `TestAFUV1BehaviorProviderV1BytesUnchanged` (/1 bytes unchanged), `TestBehaviorProviderV1LegacyMemberDecodes` (/1 decode keeps the legacy /1 member; no alias) |
+| AFU-V1-055 | proposed (V1-0985): `TestBehaviorProviderV2EmitsNeutralMembersOnly`, `TestAFUV1BehaviorProviderV2MultiRepository` (/2 record and corpus report emit only neutral members) |
+| AFU-V1-056 | proposed (V1-0985): `TestBehaviorProviderV2RefusesLegacyMember` (/2 request refuses the legacy /1 member and an `e2e` alias) |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against
@@ -776,6 +785,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
 | AFU-V1-039 | implemented and locally qualified (limits above): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
+| AFU-V1-054..056 | proposed (V1-0985): `internal/doccorpus/behavior.go` (`BehaviorRevisions`), `behavior_v2.go` |
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
@@ -955,3 +965,37 @@ retry-budget confusion, stale documentation manifests and fabricated deployment 
 fail closed. Scope completeness is only for the declared inventory, not the entire application or
 unretained executions. Rollback removes this additive compiler/CLI/MCP tool and regenerates docs
 with the preceding source generator; it never rewrites accepted intents or previous evidence.
+
+## Neutral member for the behavior provider's end-to-end repository (V1-0985)
+
+The `/1` behavior provider's `revisions` object names its end-to-end test repository with a
+member called the legacy /1 member here. Its exact spelling lives only in the `BehaviorRevisions`
+declaration in `internal/doccorpus/behavior.go`. Renaming it would break the frozen `/1` bytes, so
+`/1` keeps it. `/2` (AFU-V1-006) is the existing next version and upgrade path. It already
+replaces the three fixed members with neutral ones, so no new profile or version is added.
+
+- **AFU-V1-054**: (proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that share
+  its `revisions` shape keep the legacy /1 member. `/1` encoding stays byte-identical, and `/1`
+  decoding keeps accepting the member. `/1` gains no alias: the closed decoder refuses a neutral
+  spelling of the member in a `/1` record.
+- **AFU-V1-055**: (proposed (V1-0985)) A `/2` provider record, and the corpus report built from it,
+  carries the end-to-end repository only through neutral members. These are the provider `source`
+  and one `repositories` entry with that root commit and revision. Neither emits the legacy /1
+  member or any `revisions` object.
+- **AFU-V1-056**: (proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member in
+  `registry.revisions` is refused before output. So is a request that names a neutral alias of it,
+  such as `e2e`. A producer upgrading from `/1` moves that repository into `source` and
+  `repositories`. Tests read the member's spelling from its declaration and never repeat it, and
+  specs call it the legacy /1 member.
+
+Acceptance: `TestAFUV1BehaviorProviderV1BytesUnchanged` and
+`TestBehaviorProviderV1LegacyMemberDecodes` (AFU-V1-054),
+`TestBehaviorProviderV2EmitsNeutralMembersOnly` and `TestAFUV1BehaviorProviderV2MultiRepository`
+(AFU-V1-055), and `TestBehaviorProviderV2RefusesLegacyMember` (AFU-V1-056), all in
+`internal/doccorpus`.
+
+Failure modes: a rename or alias in `/1` would change its pinned digest or silently admit a second
+spelling. A `/2` record that re-emits the fixed members would carry the legacy /1 member into the
+new version. Both fail the tests above. Repository history and the closed `docs/BUILD-LOG.md` keep
+earlier spellings. Rollback removes these tests and this section. No wire bytes changed, so no
+producer or reader needs to roll back.

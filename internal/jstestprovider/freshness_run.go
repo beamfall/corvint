@@ -95,6 +95,9 @@ func freshServeObserve(ctx context.Context, c FreshnessConfig, dir string, envir
 // the external /1 runner's lifecycle facts. No external server is claimed by
 // the reused observer. Only the separately captured leader is owned here.
 func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
+	if cfg.KeepReporters {
+		return Receipt{}, errors.New("keep-reporters-unsupported-mode")
+	}
 	c := cfg.Freshness
 	if c == nil || cfg.ExternalServer || cfg.ApplicationAttestation == nil || cfg.SensitiveInputPolicy != nil || cfg.RetainAttemptDetails || !freshRepoComplete(c.ProductExpected) || !freshRepoComplete(c.TestExpected) || !freshLoopback(c.DocumentURL) || !freshLoopback(cfg.ServerReadyURL) || !filepath.IsAbs(c.ProductDir) || filepath.IsAbs(c.ArtifactPath) || filepath.Clean(c.ArtifactPath) != c.ArtifactPath || c.ArtifactPath == "." || strings.HasPrefix(c.ArtifactPath, "../") || !rawDigestPattern.MatchString(c.SourceDigest) || !rawDigestPattern.MatchString(c.ObserverConfigDigest) || !reflect.DeepEqual(cfg.ServerArgv, c.Server.Argv) || cfg.RunnerVersion != "1.63.0" || cfg.Timeout <= 0 || cfg.Timeout > 60*time.Second {
 		return Receipt{}, errors.New("freshness-config-unsupported")

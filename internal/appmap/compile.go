@@ -15,9 +15,24 @@ import (
 
 var webSuffix = map[string]bool{".ts": true, ".tsx": true, ".js": true, ".jsx": true, ".mjs": true, ".cjs": true}
 
+// Roots binds manifest root aliases to operator-declared roots (AMAP-V0-017): Repos maps each
+// alias to its ABSOLUTE_ROOT, and ManifestRepo names the alias whose HEAD holds the manifest
+// (empty: --root at the evaluated revision).
+type Roots struct {
+	Repos        map[string]string
+	ManifestRepo string
+}
+
 // Build compiles the application-map/0 artifact for the manifest committed at revision
 // (AMAP-V0-001..009, AMAP-V0-015). It reads committed objects only and writes nothing.
 func Build(ctx context.Context, root, manifestPath, revision string) (*Map, error) {
+	return BuildRoots(ctx, root, manifestPath, revision, Roots{})
+}
+
+// BuildRoots is Build with aliased roots (AMAP-V0-017, AMAP-V0-018). Routers and flows are read
+// from root at revision; the manifest and the tests may each come from an aliased root at its
+// pinned HEAD. Without aliases it is Build byte for byte.
+func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots Roots) (*Map, error) {
 	r := repo{ctx: ctx, root: root}
 	rev, err := r.resolve(revision)
 	if err != nil {
@@ -26,7 +41,31 @@ func Build(ctx context.Context, root, manifestPath, revision string) (*Map, erro
 	if !safeRelative(manifestPath) {
 		return nil, invalidManifest("--manifest must be a repository-relative path")
 	}
-	me, raw, err := r.readOne(rev, manifestPath, maxManifestBytes)
+	type opened struct {
+		r      repo
+		rev    string
+		inputs map[string][]string // input name -> paths read from this root
+	}
+	aliased := map[string]*opened{}
+	at := func(alias string) (repo, string, error) {
+		if alias == "" {
+			return r, rev, nil
+		}
+		if o := aliased[alias]; o != nil {
+			return o.r, o.rev, nil
+		}
+		ar, arev, err := openRoot(ctx, root, alias, roots.Repos[alias])
+		if err != nil {
+			return repo{}, "", err
+		}
+		aliased[alias] = &opened{r: ar, rev: arev, inputs: map[string][]string{}}
+		return ar, arev, nil
+	}
+	mr, mrev, err := at(roots.ManifestRepo)
+	if err != nil {
+		return nil, err
+	}
+	me, raw, err := mr.readOne(mrev, manifestPath, maxManifestBytes)
 	if err != nil {
 		return nil, invalidManifest("manifest: %v", err)
 	}
@@ -34,27 +73,63 @@ func Build(ctx context.Context, root, manifestPath, revision string) (*Map, erro
 	if err != nil {
 		return nil, err
 	}
+	tr, trev, err := at(m.Tests.Repo)
+	if err != nil {
+		return nil, err
+	}
 	// A declared directory absent at the revision would silently drop its files from the join.
 	dirs := append([]string{m.Tests.Root}, m.Tests.Specs...)
 	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
-	if m.Flows != "" {
+	if m.Flows != "" && m.Tests.Repo == "" {
 		dirs = append(dirs, m.Flows)
 	}
-	missing, err := r.missingDirs(rev, dirs)
+	missing, err := tr.missingDirs(trev, dirs)
+	if err == nil && len(missing) == 0 && m.Flows != "" && m.Tests.Repo != "" {
+		missing, err = r.missingDirs(rev, []string{m.Flows})
+	}
 	if err != nil {
 		return nil, invalidManifest("declared directories unreadable: %v", err)
 	}
 	if len(missing) > 0 {
 		return nil, invalidManifest("declared directory %q is not a directory at the evaluated revision", missing[0])
 	}
+	if o := aliased[roots.ManifestRepo]; o != nil {
+		o.inputs["manifest"] = []string{manifestPath}
+	}
+	if o := aliased[m.Tests.Repo]; o != nil {
+		o.inputs["tests"] = []string{m.Tests.Root}
+	}
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}
-	if err = b.routers(r); err != nil {
-		return nil, err
+	// An aliased root is read at HEAD, so an uncommitted change under what the map reads from it
+	// would make the map silently disagree with that checkout (AMAP-V0-019).
+	for _, alias := range sortedKeys(aliased) {
+		o, paths := aliased[alias], []string{}
+		for _, name := range sortedKeys(o.inputs) {
+			paths = append(paths, o.inputs[name]...)
+		}
+		dirty, err := o.r.dirty(paths)
+		if err != nil {
+			return nil, rootUnavailable(alias, "worktree status is unreadable")
+		}
+		if dirty {
+			return nil, &gokernel.Error{Code: "appmap-root-dirty", Message: fmt.Sprintf("root %s has uncommitted changes under %s; commit or stash them", alias, strings.Join(paths, ", "))}
+		}
+		b.out.Roots = append(b.out.Roots, RootPin{Repo: alias, Revision: o.rev, Inputs: sortedKeys(o.inputs)})
 	}
+	// Routers are read from the primary root, so their constant tables resolve through its index;
+	// tests read from an aliased root are joined through that root's own index.
 	ix, err := contextindex.BuildRevisionContext(ctx, root, rev)
 	if err != nil {
 		return nil, err
+	}
+	if err = b.routers(r, ix); err != nil {
+		return nil, err
+	}
+	if m.Tests.Repo != "" {
+		if ix, err = contextindex.BuildRevisionContext(ctx, tr.root, trev); err != nil {
+			return nil, err
+		}
 	}
 	if err = b.tests(ix); err != nil {
 		return nil, err
@@ -83,7 +158,13 @@ type builder struct {
 
 func (b *builder) unknown(u Unknown) { b.out.Unknowns = append(b.out.Unknowns, u) }
 
-func (b *builder) routers(r repo) error {
+// testUnknown reports an unknown about a test file, naming the root the tests were read from.
+func (b *builder) testUnknown(u Unknown) {
+	u.Repo = b.m.Tests.Repo
+	b.unknown(u)
+}
+
+func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	paths := []string{}
 	for _, rf := range b.m.Routers {
 		paths = append(paths, rf.Path)
@@ -108,9 +189,9 @@ func (b *builder) routers(r repo) error {
 	if err != nil {
 		return err
 	}
-	raws := []rawState{}
+	raws, consts := []rawState{}, newConstTable(ix)
 	for _, e := range ordered {
-		states, unknowns := parseRouter(e, data[e.oid])
+		states, unknowns := parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
 		raws = append(raws, states...)
 		b.out.Unknowns = append(b.out.Unknowns, unknowns...)
 		if len(raws) > maxStates {
@@ -152,7 +233,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 	rootDir := b.m.Tests.Root
 	for _, ex := range ix.Exclusions {
 		if under(ex.Path, rootDir) && webSuffix[strings.ToLower(path.Ext(ex.Path))] {
-			b.unknown(Unknown{Kind: "file", Ref: fileID(ex.Path), Reason: "excluded-by-index", Path: ex.Path})
+			b.testUnknown(Unknown{Kind: "file", Ref: fileID(ex.Path), Reason: "excluded-by-index", Path: ex.Path})
 		}
 	}
 	unparsed := map[string]bool{}
@@ -179,7 +260,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 		src := ix.Sources[p]
 		text, valid, loaded := src.Text()
 		if !loaded || !valid {
-			b.unknown(Unknown{Kind: "file", Ref: fileID(p), Reason: "unparsed-imports", Path: p})
+			b.testUnknown(Unknown{Kind: "file", Ref: fileID(p), Reason: "unparsed-imports", Path: p})
 			continue
 		}
 		if len(text) > maxTestFileBytes {
@@ -188,7 +269,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 		if total += len(text); total > maxTestBytes {
 			return bound(fmt.Sprintf("test sources exceed %d bytes", maxTestBytes))
 		}
-		e := blobEntry{path: p, oid: src.BlobHash, size: len(text)}
+		e := blobEntry{repo: b.m.Tests.Repo, path: p, oid: src.BlobHash, size: len(text)}
 		data := []byte(text)
 		facts := readFacts(text)
 		binds := contextindex.WebImportBindings(text)
@@ -197,7 +278,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			Assertions: facts.asserts, Selectors: append([]Selector{}, facts.selectors...)}
 		if unparsed[p] {
 			tf.Join = StatusUnknown
-			b.unknown(Unknown{Kind: "file", Ref: tf.ID, Reason: "unparsed-imports", Path: p})
+			b.testUnknown(Unknown{Kind: "file", Ref: tf.ID, Reason: "unparsed-imports", Path: p})
 		}
 		specifiers := []string{}
 		for s := range ix.Imports[p] {
@@ -239,11 +320,11 @@ func (b *builder) tests(ix *contextindex.Index) error {
 				// A first-party module outside tests.root is not read, yet it may import a page
 				// object, so the chain through it is not known to be complete.
 				tf.Join = StatusUnknown
-				b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-outside-tests", Path: p, Line: imp.Line})
+				b.testUnknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-outside-tests", Path: p, Line: imp.Line})
 			}
 			if imp.Status == importUnresolved {
 				tf.Join = StatusUnknown
-				b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "unresolved-import", Path: p, Line: imp.Line})
+				b.testUnknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "unresolved-import", Path: p, Line: imp.Line})
 			}
 			tf.Imports = append(tf.Imports, imp)
 		}
@@ -268,7 +349,7 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			tf.Gotos = append(tf.Gotos, gt)
 		}
 		for _, line := range facts.secrets {
-			b.unknown(Unknown{Kind: "selector", Ref: refAt(p, line), Reason: "secret-shaped", Path: p, Line: line})
+			b.testUnknown(Unknown{Kind: "selector", Ref: refAt(p, line), Reason: "secret-shaped", Path: p, Line: line})
 		}
 		b.files[p], b.facts[p], b.binds[p], b.sources[p] = tf, facts, binds, data
 		b.order = append(b.order, p)
@@ -322,7 +403,7 @@ func (b *builder) join() {
 			if s := b.screens[id]; s != nil && s.Status == StatusResolved {
 				tf.Screen, tf.ScreenBasis = id, "declared"
 			} else {
-				b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "unknown-state", Path: p})
+				b.testUnknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "unknown-state", Path: p})
 			}
 			continue
 		}
@@ -337,20 +418,20 @@ func (b *builder) join() {
 		switch {
 		case unresolved:
 			// a target the map cannot place may be a second screen, so no single binding is known
-			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unresolved-target", Path: p})
+			b.testUnknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unresolved-target", Path: p})
 		case len(targets) == 1:
 			for id := range targets {
 				tf.Screen, tf.ScreenBasis = id, "page-object-url"
 			}
 		case len(targets) == 0:
-			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unbound", Path: p})
+			b.testUnknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-unbound", Path: p})
 		default:
-			b.unknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-ambiguous", Path: p})
+			b.testUnknown(Unknown{Kind: "page-object", Ref: tf.ID, Reason: "page-object-ambiguous", Path: p})
 		}
 	}
 	for p := range declared {
 		if b.files[p] == nil {
-			b.unknown(Unknown{Kind: "page-object", Ref: fileID(p), Reason: "page-object-unbound", Path: p})
+			b.testUnknown(Unknown{Kind: "page-object", Ref: fileID(p), Reason: "page-object-unbound", Path: p})
 		}
 	}
 	for _, p := range b.order {
@@ -364,11 +445,11 @@ func (b *builder) join() {
 		}
 		reached, complete, truncated := b.closure(p)
 		if truncated {
-			b.unknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-depth-exceeded", Path: p})
+			b.testUnknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "import-depth-exceeded", Path: p})
 		}
 		if !complete && tf.Join == StatusResolved {
 			tf.Join = StatusUnknown
-			b.unknown(Unknown{Kind: "test-join", Ref: tf.ID, Reason: "unresolved-import", Path: p})
+			b.testUnknown(Unknown{Kind: "test-join", Ref: tf.ID, Reason: "unresolved-import", Path: p})
 		}
 		screens := map[string]Attribution{}
 		scenarios := []string{}
@@ -469,7 +550,7 @@ func (b *builder) sequence(tf *TestFile) {
 		}
 		uses = append(uses, use{b.files[target].Screen, n.line})
 	}
-	e := blobEntry{path: tf.Path, oid: tf.Anchor.Blob}
+	e := blobEntry{repo: tf.Anchor.Repo, path: tf.Path, oid: tf.Anchor.Blob}
 	for i := 1; i < len(uses); i++ {
 		anchor := spanOf(e, b.sources[tf.Path], uses[i-1].line, uses[i].line)
 		b.out.Edges = append(b.out.Edges, Edge{From: uses[i-1].screen, To: uses[i].screen, Basis: "test-sequence", Source: tf.ID, Anchor: anchor})

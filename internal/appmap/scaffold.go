@@ -327,7 +327,12 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 	}
 	sort.SliceStable(unknowns, func(i, j int) bool { return unknownLess(unknowns[i].(Unknown), unknowns[j].(Unknown)) })
 	head := append(p.envelope(ScaffoldSchema, budget), field{"query", query}, field{"status", StatusResolved},
-		field{"flow", fl.ID}, field{"flow_anchor", p.anchorView(fl.Anchor)}, field{"proposed_path", proposed}, field{"closest", cv})
+		field{"flow", fl.ID}, field{"flow_anchor", p.anchorView(fl.Anchor)}, field{"proposed_path", proposed})
+	if closest != nil && closest.Anchor.Repo != "" {
+		// The proposed file sits beside the closest spec, in the root the tests were read from.
+		head = append(head, field{"proposed_repo", closest.Anchor.Repo})
+	}
+	head = append(head, field{"closest", cv})
 	learned, overlayUnknowns := p.learned(stale)
 	return render(head, []section{
 		{"imports", imports},

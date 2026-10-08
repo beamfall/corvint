@@ -254,6 +254,7 @@ type sectionedFile struct {
 	at      io.ReaderAt
 	size    int64
 	mapping []byte
+	owner   *snapshotMapping
 	close   func()
 	key     packKey
 }
@@ -268,15 +269,22 @@ func openSectionedFile(path string) (*sectionedFile, error) {
 		file.Close()
 		return nil, err
 	}
-	mapping := mapReadOnly(file, info.Size())
+	owner := mapSnapshot(file, info.Size())
 	key := packKey{path: path, size: info.Size(), modified: info.ModTime().UnixNano()}
-	return &sectionedFile{at: file, size: info.Size(), mapping: mapping, close: func() { file.Close() }, key: key}, nil
+	return &sectionedFile{at: file, size: info.Size(), mapping: owner.data(), owner: owner, close: func() { file.Close() }, key: key}, nil
 }
 
-// release drops the mapping after a refused read. A successful read keeps
-// it: the returned Sources alias the mapped bodies for the process's life,
-// so sectionedCache retains it and later reads of the same file reuse it.
-func (f *sectionedFile) release() { unmapReadOnly(f.mapping) }
+// release drops the opener's or the retention's reference to the mapping. A
+// successful read's Sources alias the mapped bodies, so the mapping stays
+// until sectionedCache evicts it and every Index read from it is released
+// (snapshot_mapping.go); every other field is decoded to the heap.
+func (f *sectionedFile) release() { f.owner.release() }
+
+// adopt is packFile.adopt for a sectioned file.
+func (f *sectionedFile) adopt(key packKey) {
+	f.owner = sectionedMappings.adopt(key, f.owner)
+	f.mapping = f.owner.data()
+}
 
 // withinBounds reports whether [offset, offset+length) lies inside size
 // without computing offset+length, which a corrupt table can make wrap.
@@ -359,8 +367,9 @@ const sectionedCacheCapacity = packCacheCapacity
 
 // sectionedCache retains the mappings of the last sectionedCacheCapacity
 // distinct sectioned files and evicts the oldest retention first. Eviction
-// drops the reference without unmapping: an Index handed out earlier still
-// aliases those bytes, and a later read of that file maps it again.
+// releases the retention's reference, as packCache does (proposed
+// IDX-SNAP-V0-028), and a later read of that file adopts the mapping while it
+// is live in sectionedMappings (V1-0947), mapping the file again once not.
 var sectionedCache = struct {
 	sync.Mutex
 	mapped map[packKey]*sectionedFile
@@ -368,30 +377,38 @@ var sectionedCache = struct {
 	next   int
 }{mapped: map[packKey]*sectionedFile{}}
 
-func retainedSectioned(key packKey) (*sectionedFile, bool) {
+// retainedSectioned is retainedPack for a sectioned file.
+func retainedSectioned(key packKey) (*sectionedFile, *snapshotLease, bool) {
 	sectionedCache.Lock()
 	defer sectionedCache.Unlock()
 	file, ok := sectionedCache.mapped[key]
-	return file, ok
+	if !ok {
+		return nil, nil, false
+	}
+	return file, file.owner.lease(), true
 }
 
-// retainSectioned retains a mapped file and returns the file holding the
-// key's retention: file, or the one a concurrent first read retained before
-// it. An unmapped read copies its bytes, so there is nothing to reuse.
-func retainSectioned(key packKey, file *sectionedFile) *sectionedFile {
+// retainSectioned is retainPack for a sectioned file: it takes over the
+// opener's reference and returns nil, or returns the file a concurrent first
+// read retained with a lease on it. An unmapped read copies its bytes, so
+// there is nothing to retain.
+func retainSectioned(key packKey, file *sectionedFile) (*sectionedFile, *snapshotLease) {
 	if file.mapping == nil {
-		return file
+		return nil, nil
 	}
 	sectionedCache.Lock()
 	defer sectionedCache.Unlock()
 	if retained, ok := sectionedCache.mapped[key]; ok {
-		return retained
+		return retained, retained.owner.lease()
 	}
-	delete(sectionedCache.mapped, sectionedCache.ring[sectionedCache.next])
+	if evicted, ok := sectionedCache.mapped[sectionedCache.ring[sectionedCache.next]]; ok {
+		delete(sectionedCache.mapped, sectionedCache.ring[sectionedCache.next])
+		evicted.release()
+	}
 	sectionedCache.mapped[key] = file
 	sectionedCache.ring[sectionedCache.next] = key
 	sectionedCache.next = (sectionedCache.next + 1) % sectionedCacheCapacity
-	return file
+	return nil, nil
 }
 
 func (header sectionedHeader) entry(name string) (sectionEntry, error) {
@@ -445,23 +462,39 @@ func readSectionedSnapshot(path string, identity repositoryIdentity, engineID st
 		file.release()
 		return nil, err
 	}
-	if retained, ok := retainedSectioned(key); ok {
+	if retained, lease, ok := retainedSectioned(key); ok {
 		file.close()
 		file.release()
-		return decodeSectionedSnapshot(retained, identity, engineID, load)
+		return decodeRetainedSectioned(retained, lease, identity, engineID, load)
 	}
+	file.adopt(key)
 	defer file.close()
 	index, err := decodeSectionedSnapshot(file, identity, engineID, load)
 	if err != nil {
 		file.release()
 		return nil, err
 	}
+	lease := file.owner.lease()
 	// A concurrent first read retained this file first; as for a pack, the
 	// index decoded here is dropped with its mapping and the retained one answers.
-	if retained := retainSectioned(key, file); retained != file {
+	if retained, retainedLease := retainSectioned(key, file); retained != nil {
+		lease.release()
 		file.release()
-		return decodeSectionedSnapshot(retained, identity, engineID, load)
+		return decodeRetainedSectioned(retained, retainedLease, identity, engineID, load)
 	}
+	attachLease(index, lease, load)
+	return index, nil
+}
+
+// decodeRetainedSectioned decodes a retained file under lease, which the
+// returned Index takes and an error releases.
+func decodeRetainedSectioned(retained *sectionedFile, lease *snapshotLease, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
+	index, err := decodeSectionedSnapshot(retained, identity, engineID, load)
+	if err != nil {
+		lease.release()
+		return nil, err
+	}
+	attachLease(index, lease, load)
 	return index, nil
 }
 

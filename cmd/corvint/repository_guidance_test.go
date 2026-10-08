@@ -3,13 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 func guidanceWrite(t *testing.T, root, name, body string) {
@@ -166,17 +171,7 @@ func TestRepositoryGuidanceReviewBranches(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			actualRaw, err := json.Marshal(actual)
-			if err != nil {
-				t.Fatal(err)
-			}
-			composedRaw, err := json.Marshal(out.Review.Affected)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(actualRaw, composedRaw) {
-				t.Fatalf("immutable composition differs from actual affected receipt:\n%s\n%s", actualRaw, composedRaw)
-			}
+			assertReviewAffectedResolves(t, root, base, out, raw, actual)
 			if treeDigest(t, root) != before {
 				t.Fatal("review mutated repository")
 			}
@@ -470,7 +465,7 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 	t.Run("RGV-V0-013 over-cap inventory uses the standalone affected path", func(t *testing.T) {
 		root, base := guidanceOverCapFixture(t)
 		before := treeDigest(t, root)
-		out, _ := guidanceRead(t, root, "review", base)
+		out, raw := guidanceRead(t, root, "review", base)
 		if out.Omissions["inventory"] == 0 {
 			t.Fatalf("fixture did not exceed the guidance inventory cap: %v", out.Omissions)
 		}
@@ -478,11 +473,8 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		actualRaw, _ := json.Marshal(actual)
+		assertReviewAffectedResolves(t, root, base, out, raw, actual)
 		composedRaw, _ := json.Marshal(out.Review.Affected)
-		if !bytes.Equal(actualRaw, composedRaw) {
-			t.Fatalf("over-cap review differs from standalone affected:\n%s\n%s", actualRaw, composedRaw)
-		}
 		if len(out.Review.Affected.Plan.Selected) == 0 || out.Review.Affected.Provider.Go.State == providerStateEmpty {
 			t.Fatalf("over-cap review reported an empty selection: %s", composedRaw)
 		}
@@ -502,7 +494,7 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 				t.Fatalf("gate absence claimed from a capped inventory: %v", advice.Unknown)
 			}
 		}
-		if !declaresMandatoryCheck(advice.Checks) {
+		if !declaresMandatoryCheck(affectedChecksOf(advice.Checks)) {
 			t.Fatalf("declared Makefile gate missing: %+v", advice.Checks)
 		}
 	})
@@ -521,4 +513,57 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 			t.Fatal("within-cap review lost its selection")
 		}
 	})
+}
+
+// assertReviewAffectedResolves checks RGV-V0-015: review.affected is the
+// affected-plan/1 projection of the planned receipt, byte-equal to the
+// default `affected --base` document, it carries no full exclusion or test
+// list, and review.affectedFull names the command whose stdout has the digest.
+func assertReviewAffectedResolves(t *testing.T, root, base string, out guidanceReceipt, raw []byte, actual affectedReceipt) {
+	t.Helper()
+	want, err := compactAffected(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRaw, _ := json.Marshal(want)
+	composedRaw, _ := json.Marshal(out.Review.Affected)
+	if !bytes.Equal(wantRaw, composedRaw) || out.Review.Affected.Profile != affectedCompactProfile {
+		t.Fatalf("review.affected is not the affected-plan/1 projection:\n%s\n%s", wantRaw, composedRaw)
+	}
+	var stdout, stderr bytes.Buffer
+	argv := out.Review.AffectedFull.Argv
+	if len(argv) != 5 || argv[0] != "corvint" || !reflect.DeepEqual(argv[1:], []string{"affected", "--base", base, "--full"}) {
+		t.Fatalf("affectedFull argv %v", argv)
+	}
+	if code := runContext(context.Background(), append([]string{"--root", root}, argv[1:]...), strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("affectedFull command exit %d: %s", code, stderr.String())
+	}
+	sum := sha256.Sum256(bytes.TrimSuffix(stdout.Bytes(), []byte("\n")))
+	if out.Review.AffectedFull.Digest != guidanceAffectedFullDigestPrefix+hex.EncodeToString(sum[:]) {
+		t.Fatalf("affectedFull digest %s does not match the --full stdout", out.Review.AffectedFull.Digest)
+	}
+	stdout.Reset()
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", base}, strings.NewReader(""), &stdout, &stderr); code != 0 || !bytes.Equal(bytes.TrimSuffix(stdout.Bytes(), []byte("\n")), mustCanonical(t, out.Review.Affected)) {
+		t.Fatalf("review.affected differs from the default affected document: %s", stderr.String())
+	}
+	if bytes.Contains(raw, []byte(`"tests":["`)) || bytes.Contains(raw, []byte(`"excluded":[`)) {
+		t.Fatalf("review embeds a full test or exclusion list: %s", raw)
+	}
+}
+
+func mustCanonical(t *testing.T, value any) []byte {
+	t.Helper()
+	encoded, err := gokernel.CanonicalJSON(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
+}
+
+func affectedChecksOf(checks []affectedCompactCheck) []affectedCheck {
+	out := make([]affectedCheck, 0, len(checks))
+	for _, check := range checks {
+		out = append(out, affectedCheck{Command: check.Command, Kind: check.Kind, Reason: check.Reason, Source: check.Source})
+	}
+	return out
 }

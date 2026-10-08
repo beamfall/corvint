@@ -332,14 +332,39 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		"context --task TEXT [--subject PATH] [--limit N]",
-		"context        Compile the task-context packet",
-		"work observe",
-		"work propose-wave --envelope PATH --limit N",
-		"work           Validate a repository queue observation or compile a non-operative shadow wave.",
+		"\n  context  task-context packet",
+		"\n  work  queue observation",
+		"corvint COMMAND --help | corvint help COMMAND",
 	} {
 		if !strings.Contains(rootHelp, required) {
 			t.Fatalf("root help does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"context --task TEXT [--subject PATH] [--limit N]", "work propose-wave --envelope PATH --limit N"} {
+		if !strings.Contains(helpText(strings.Fields(required)[0]), required) {
+			t.Fatalf("%s help does not contain %q", strings.Fields(required)[0], required)
+		}
+	}
+}
+
+// TestRootHelpIsACompactVerbIndex pins CCF-V1-009: root help is a verb index with one line per
+// verb, carries no per-verb usage line, and stays within its byte bound; the detail is per verb.
+func TestRootHelpIsACompactVerbIndex(t *testing.T) {
+	t.Parallel()
+	if len(rootHelp) > rootHelpMaxBytes {
+		t.Fatalf("root help is %d bytes, want at most %d", len(rootHelp), rootHelpMaxBytes)
+	}
+	usage, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nUsage:\n", 2)[1], "\n\n")
+	if lines := strings.Count(usage, "\n") + 1; lines != 3 {
+		t.Fatalf("root usage has %d lines, want 3:\n%s", lines, usage)
+	}
+	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
+	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands) {
+		t.Fatalf("Commands has %d lines, want one per verb (%d)", lines, len(topLevelCommands))
+	}
+	for _, flag := range []string{"--task", "--base", "--cem", "--limit"} {
+		if strings.Contains(rootHelp, flag) {
+			t.Errorf("root help carries per-verb option %q", flag)
 		}
 	}
 }
@@ -443,12 +468,13 @@ func TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite(t *testing.T) {
 	if strings.Contains(rootHelp, "impact, harness, and lrf read without mutating.") {
 		t.Fatal("root help still claims impact and harness never mutate anything, contradicting the self-observation ledger append")
 	}
+	flowed := strings.Join(strings.Fields(rootHelp), " ")
 	for _, required := range []string{
-		"repository or trace\n  state",
+		"read without mutating repository or trace state.",
 		"self-observation ledger (.corvint/self-observations.jsonl) on an unsupported-* failure",
 		"a ledger storage failure never alters the response",
 	} {
-		if !strings.Contains(rootHelp, required) {
+		if !strings.Contains(flowed, required) {
 			t.Fatalf("root help does not disclose the ledger write: missing %q", required)
 		}
 	}
