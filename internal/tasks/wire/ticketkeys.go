@@ -45,4 +45,53 @@ const (
 	KnowHowMaxRoutes      = 4
 	KnowHowMaxRouteBytes  = 64
 	KnowHowMaxReasonBytes = 512
+	KnowHowMaxSymbolBytes = 128
 )
+
+// ParseKnowHowSymbol validates a know-how symbol anchor name (KHN-V0-008):
+// 1..KnowHowMaxSymbolBytes printable ASCII bytes other than space and '#',
+// so `--symbol PATH#NAME` splits unambiguously at its last '#'. The native
+// codec and Core's read-only planner both enforce it.
+func ParseKnowHowSymbol(where, s string) (string, error) {
+	if len(s) == 0 || len(s) > KnowHowMaxSymbolBytes {
+		return "", Errorf(CodeMalformed, where, "symbol must be 1..%d bytes", KnowHowMaxSymbolBytes)
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c <= ' ' || c > '~' || c == '#' {
+			return "", Errorf(CodeMalformed, where, "symbol %q must be printable ASCII without space or '#'", s)
+		}
+	}
+	return s, nil
+}
+
+// KnowHowNotStale prefixes the refusal of a know-how RECONFIRM that would
+// change no pin in a way that makes its note STALE (KHN-V0-011).
+const KnowHowNotStale = "KNOWHOW_NOT_STALE"
+
+// KnowHowPin is the freshness identity of one know-how anchor: its path, its
+// symbol ("" for a file anchor) and the value freshness compares, which is
+// the blob of a file anchor and the declaration digest of a symbol anchor.
+type KnowHowPin struct{ Path, Symbol, Pin string }
+
+// KnowHowReconfirmRefusal is "" when next re-pins exactly the anchors of
+// prior (the same paths and symbols in the same order) and changes at least
+// one Pin. Otherwise it is the reason a RECONFIRM is refused, prefixed
+// KnowHowNotStale when no pin would change (KHN-V0-011). The native writer
+// and codec and Core's read-only planner all apply this one rule.
+func KnowHowReconfirmRefusal(prior, next []KnowHowPin) string {
+	same := "a reconfirm re-pins exactly the note's anchors"
+	if len(prior) != len(next) {
+		return same
+	}
+	changed := false
+	for i, a := range prior {
+		if a.Path != next[i].Path || a.Symbol != next[i].Symbol {
+			return same
+		}
+		changed = changed || a.Pin != next[i].Pin
+	}
+	if !changed {
+		return KnowHowNotStale + ": no anchor's pin changed, so the note is not STALE at that commit"
+	}
+	return ""
+}

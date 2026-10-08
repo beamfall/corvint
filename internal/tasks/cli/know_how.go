@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -19,12 +20,13 @@ const knowHowTrust = "UNTRUSTED_AGENT_AUTHORED_DATA"
 // knowHowListMax bounds `ticket know-how list --limit`.
 const knowHowListMax = 200
 
-// knowHowCommand runs `ticket know-how add|retract|list` (KHN-V0-003,
-// KHN-V0-006). The writes are ordinary KNOWHOW_ADD/KNOWHOW_RETRACT mutations
-// whose payload is composed here, so a caller never hand-writes blob pins.
+// knowHowCommand runs `ticket know-how add|retract|reconfirm|list`
+// (KHN-V0-003, KHN-V0-006, KHN-V0-010). The writes are ordinary
+// KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM mutations whose payload is
+// composed here, so a caller never hand-writes blob or symbol pins.
 func knowHowCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 {
-		return usage([]string{"ticket", "know-how"}, "ticket know-how needs a verb: add, retract or list")
+		return usage([]string{"ticket", "know-how"}, "ticket know-how needs a verb: add, retract, reconfirm or list")
 	}
 	cmd := []string{"ticket", "know-how", args[0]}
 	switch args[0] {
@@ -32,6 +34,8 @@ func knowHowCommand(env Env, args []string) *wire.Result {
 		return knowHowAdd(env, cmd, args[1:])
 	case "retract":
 		return knowHowRetract(env, cmd, args[1:])
+	case "reconfirm":
+		return knowHowReconfirm(env, cmd, args[1:])
 	case "list":
 		return knowHowList(env, cmd, args[1:])
 	}
@@ -76,13 +80,13 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	}
 	f := mutateFlags{role: "OWNER", target: args[0]}
 	var text, commit, supersedes, reason, attempt, generation, evidencePath string
-	var anchors, routes []string
+	var anchors, symbols, routes []string
 	textFromStdin := false
 	if res := knowHowFlags(cmd, args[1:], map[string]*string{
 		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--text": &text, "--commit": &commit, "--supersedes": &supersedes,
 		"--reason": &reason, "--attempt": &attempt, "--generation": &generation, "--evidence-path": &evidencePath,
-	}, map[string]*[]string{"--anchor": &anchors, "--route": &routes}, map[string]*bool{"--text-stdin": &textFromStdin}); res != nil {
+	}, map[string]*[]string{"--anchor": &anchors, "--symbol": &symbols, "--route": &routes}, map[string]*bool{"--text-stdin": &textFromStdin}); res != nil {
 		return res
 	}
 	if f.requestID == "" {
@@ -98,44 +102,35 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 		}
 		text = string(data)
 	}
-	if len(anchors) == 0 {
-		return usage(cmd, "at least one --anchor PATH is required")
+	if len(anchors)+len(symbols) == 0 {
+		return usage(cmd, "at least one --anchor PATH or --symbol PATH#NAME is required")
 	}
 	screened := append([]string{text, commit, supersedes, reason, attempt, generation, evidencePath}, anchors...)
+	screened = append(screened, symbols...)
 	if err := mutation.ScreenKnowHowArgs(append(screened, routes...)); err != nil {
 		return errorResult(cmd, err)
 	}
-	sort.Strings(anchors)
-	for _, a := range anchors {
-		if _, err := wire.ParsePath("/payload/anchors", a); err != nil {
-			return errorResult(cmd, err)
-		}
+	wanted, err := knowHowAnchorArgs(anchors, symbols)
+	if err != nil {
+		return errorResult(cmd, err)
 	}
-	rev := "HEAD"
-	if commit != "" {
-		oid, err := wire.ParseOID("--commit", commit)
-		if err != nil {
-			return errorResult(cmd, err)
-		}
-		rev = oid
+	rev, err := knowHowRev(commit)
+	if err != nil {
+		return errorResult(cmd, err)
 	}
 	actor, err := initActor(f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	pinned, blobs, err := store.KnowHowPins(env.Cwd, rev, anchors)
+	pinned, pins, err := store.KnowHowPinAnchors(env.Cwd, rev, wanted)
 	if err != nil {
 		return errorResult(cmd, err)
-	}
-	anchorValues := make([]wire.Value, len(anchors))
-	for i, a := range anchors {
-		anchorValues[i] = wire.ObjectValue(wire.NewObject().Set("blob", wire.String(blobs[i])).Set("path", wire.String(a)))
 	}
 	if routes == nil {
 		routes = []string{}
 	}
 	sort.Strings(routes)
-	payload := wire.NewObject().Set("text", wire.String(text)).Set("anchors", wire.Array(anchorValues...))
+	payload := wire.NewObject().Set("text", wire.String(text)).Set("anchors", ticket.KnowHowAnchorsValue(pins))
 	payload.Set("routes", wire.Strings(routes)).Set("commit", wire.String(pinned))
 	payload.Set("supersedes", optionalString(supersedes)).Set("reason", optionalString(reason))
 	payload.Set("attempt", optionalString(attempt)).Set("generation", optionalString(generation))
@@ -170,6 +165,119 @@ func knowHowRetract(env Env, cmd []string, args []string) *wire.Result {
 	}
 	payload := wire.NewObject().Set("note", wire.String(note)).Set("reason", wire.String(reason))
 	return submitMutation(env, cmd, mutation.OpKnowHowRetract, actor, f, wire.ObjectValue(payload))
+}
+
+// knowHowAnchorArgs turns `--anchor PATH` and `--symbol PATH#NAME` (split at
+// the last '#') into anchors in (path, symbol) order, refusing a malformed
+// path or symbol, a duplicate, and more than KnowHowMaxAnchors (KHN-V0-008).
+func knowHowAnchorArgs(paths, symbols []string) ([]ticket.KnowHowAnchor, error) {
+	var out []ticket.KnowHowAnchor
+	for _, p := range paths {
+		out = append(out, ticket.KnowHowAnchor{Path: p})
+	}
+	for _, s := range symbols {
+		i := strings.LastIndexByte(s, '#')
+		if i < 0 {
+			return nil, wire.Errorf(wire.CodeMalformed, "--symbol", "%q is not PATH#NAME", s)
+		}
+		name, err := wire.ParseKnowHowSymbol("--symbol", s[i+1:])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ticket.KnowHowAnchor{Path: s[:i], Symbol: name})
+	}
+	if len(out) > wire.KnowHowMaxAnchors {
+		return nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "at most %d anchors", wire.KnowHowMaxAnchors)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return ticket.KnowHowAnchorLess(out[i], out[j]) })
+	for i, a := range out {
+		if _, err := wire.ParsePath("/payload/anchors", a.Path); err != nil {
+			return nil, err
+		}
+		if i > 0 && out[i-1].Path == a.Path && out[i-1].Symbol == a.Symbol {
+			return nil, wire.Errorf(wire.CodeMalformed, "/payload/anchors", "anchor %q is given twice", a.Path+"#"+a.Symbol)
+		}
+	}
+	return out, nil
+}
+
+// knowHowRev is the revision a write pins at: --commit, else HEAD.
+func knowHowRev(commit string) (string, error) {
+	if commit == "" {
+		return "HEAD", nil
+	}
+	return wire.ParseOID("--commit", commit)
+}
+
+// knowHowReconfirm re-pins an active note's own anchors at --commit (else
+// HEAD) and submits KNOWHOW_RECONFIRM (KHN-V0-010). The anchors are the
+// note's effective ones, so a caller cannot move or widen a note this way.
+// An anchor that no longer resolves is refused KNOWHOW_UNRESOLVED before
+// submission, and a re-pin that changes nothing is refused KNOWHOW_NOT_STALE
+// by the writer (KHN-V0-011).
+func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
+	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
+		return usage(cmd, "the first argument is the ticket id or local token")
+	}
+	f := mutateFlags{role: "OWNER", target: args[0]}
+	var note, commit, attempt, generation string
+	if res := knowHowFlags(cmd, args[1:], map[string]*string{
+		"--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
+		"--issued-at": &f.issuedAt, "--note": &note, "--commit": &commit, "--attempt": &attempt,
+		"--generation": &generation,
+	}, nil, nil); res != nil {
+		return res
+	}
+	if f.requestID == "" {
+		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
+	}
+	if note == "" {
+		return usage(cmd, "--note N is required")
+	}
+	if err := mutation.ScreenKnowHowArgs([]string{note, commit, attempt, generation}); err != nil {
+		return errorResult(cmd, err)
+	}
+	seq, err := wire.ParseCount("--note", note)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	rev, err := knowHowRev(commit)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	actor, err := initActor(f.role)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	var anchors []ticket.KnowHowAnchor
+	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+		id, err := resolveTicketArg(rc, f.target)
+		if err != nil {
+			return err
+		}
+		if rec, ok := rc.store.Inventory.Get(id); ok {
+			for _, k := range ticket.EffectiveKnowHow(rec.KnowHow) {
+				if k.Seq == seq {
+					anchors = k.Anchors
+				}
+			}
+		}
+		if anchors == nil {
+			return wire.Errorf(wire.CodeMalformed, "/payload/note", "note %s is not an active know-how note of %s", note, id)
+		}
+		return nil
+	})
+	if err != nil {
+		return failure(cmd, rc, err)
+	}
+	pinned, pins, err := store.KnowHowPinAnchors(env.Cwd, rev, anchors)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	payload := wire.NewObject().Set("note", wire.String(note)).Set("anchors", ticket.KnowHowAnchorsValue(pins))
+	payload.Set("commit", wire.String(pinned)).Set("attempt", optionalString(attempt))
+	payload.Set("generation", optionalString(generation))
+	return submitMutation(env, cmd, mutation.OpKnowHowReconfirm, actor, f, wire.ObjectValue(payload))
 }
 
 func optionalString(s string) wire.Value {

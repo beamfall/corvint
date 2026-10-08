@@ -25,11 +25,11 @@ func ScreenKnowHowArgs(args []string) error {
 	return nil
 }
 
-// knowHowStep appends one KNOWHOW_ADD or KNOWHOW_RETRACT entry (KHN-V0-003)
-// to a live native home ticket. Actor, role, time and seq come from the
-// trusted context; nothing acceptance-relevant changes, so finalize bumps
-// revision alone. The secret screen runs here, after request replay, so only
-// a fresh write is screened.
+// knowHowStep appends one KNOWHOW_ADD, KNOWHOW_RETRACT or KNOWHOW_RECONFIRM
+// entry (KHN-V0-003, KHN-V0-010) to a live native home ticket. Actor, role,
+// time and seq come from the trusted context; nothing acceptance-relevant
+// changes, so finalize bumps revision alone. The secret screen runs here,
+// after request replay, so only a fresh write is screened.
 func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 	op := p.operation()
 	if !isLive(work.Status) {
@@ -81,9 +81,37 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		entry.Operation = ticket.KnowHowRetract
 		entry.Note = p.Note
 		entry.Reason = &reason
+	case *KnowHowReconfirmPayload:
+		if !active[p.Note] {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "note %s is not an active note on this ticket", p.Note)
+		}
+		if why := ticket.KnowHowReconfirmRefusal(knowHowEffectivePins(work.KnowHow, p.Note), p.Anchors); why != "" {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s", why)
+		}
+		if r := screenKnowHowPaths(p.Anchors, nil, nil); r != nil {
+			return r
+		}
+		entry.Operation = ticket.KnowHowReconfirm
+		entry.Note = p.Note
+		entry.Anchors = append([]ticket.KnowHowAnchor{}, p.Anchors...)
+		entry.Commit = p.Commit
+		entry.Attempt = p.Attempt
+		entry.Generation = p.Generation
 	}
 	work.KnowHow = append(append([]ticket.KnowHowEntry{}, work.KnowHow...), entry)
 	return nil
+}
+
+// knowHowEffectivePins is note's anchors as last pinned: by its latest
+// RECONFIRM, else by its ADD.
+func knowHowEffectivePins(entries []ticket.KnowHowEntry, note wire.Count) []ticket.KnowHowAnchor {
+	var pins []ticket.KnowHowAnchor
+	for _, k := range entries {
+		if (k.Operation == ticket.KnowHowAdd && k.Seq == note) || (k.Operation == ticket.KnowHowReconfirm && k.Note == note) {
+			pins = k.Anchors
+		}
+	}
+	return pins
 }
 
 // screenKnowHow refuses a write whose free text, route tokens or paths match
@@ -98,12 +126,21 @@ func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 	if add == nil {
 		return nil
 	}
-	extra := append([]string{}, add.Routes...)
-	for _, a := range add.Anchors {
+	return screenKnowHowPaths(add.Anchors, add.Routes, add.EvidencePath)
+}
+
+// screenKnowHowPaths refuses route tokens, anchor paths, symbol names or an
+// evidence path that match the shared secret screen.
+func screenKnowHowPaths(anchors []ticket.KnowHowAnchor, routes []string, evidencePath *string) *refusal {
+	extra := append([]string{}, routes...)
+	for _, a := range anchors {
 		extra = append(extra, a.Path)
+		if a.Symbol != "" {
+			extra = append(extra, a.Symbol)
+		}
 	}
-	if add.EvidencePath != nil {
-		extra = append(extra, *add.EvidencePath)
+	if evidencePath != nil {
+		extra = append(extra, *evidencePath)
 	}
 	for _, s := range extra {
 		if secretscreen.MatchString(s) {

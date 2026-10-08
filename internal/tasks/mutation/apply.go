@@ -521,7 +521,7 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt:         ctx.Now,
 		}
 		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
-	case *KnowHowAddPayload, *KnowHowRetractPayload:
+	case *KnowHowAddPayload, *KnowHowRetractPayload, *KnowHowReconfirmPayload:
 		return ctx.knowHowStep(work, p)
 	case *GrantApprovalPayload:
 		if p.Actor != ctx.Binding.ID {
