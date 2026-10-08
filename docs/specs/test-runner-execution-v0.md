@@ -596,3 +596,67 @@ directories of a document path are trusted, as before. This is not hostile
 filesystem authority.
 
 Rollback restores the blocking opens; no wire, plan or receipt bytes change.
+
+## SwiftPM XCTest transport and lifecycle (experimental)
+
+Swift 6.4 (swiftlang-6.4.0.34.1) on macOS 26.6.2 (25G83) arm64 is the only
+qualified tuple. Linux, other Swift versions and Swift Testing in this profile
+remain NOT_OBSERVED.
+
+- `TRE-V0-029`: SwiftPM XCTest execution evidence MUST come only from the
+  serial native text profile `swift-xctest`, which keeps pass, assertion failure
+  and XCTSkip distinct. That profile MUST NOT request `--parallel` or
+  `--xunit-output` and MUST refuse any report file. The actual parallel xUnit
+  file, in which XCTSkip is an ordinary passing testcase without a `file`
+  attribute, is retained only as a negative witness. TCQ JUnit import MUST leave
+  its rows unkeyed, so they cannot key criterion evidence. Status: proposed
+  (V1-0597).
+- `TRE-V0-030`: A plan whose invocation sets `retireDetachedDescendants` MUST,
+  on timeout, interruption and normal leader exit, retire every process the
+  phase owns that left the leader's process group, before the leader is reaped.
+  Ownership MUST be proved only by ppid ancestry from the identity-verified live
+  leader or by a fresh random per-phase `CORVINT_TEST_RUNNER_OWNER` token in
+  the process's initial environment; the plan cannot supply that key. Each pid
+  plus kernel start time MUST be re-verified immediately before SIGSTOP and
+  SIGKILL, so unrelated, pre-phase, zombie and reused identities are never
+  signalled. An unreadable identity or owner token is uncertainty, never proof
+  of exit or non-ownership, and a failed later scan still kills processes
+  already stopped. Owned processes that cannot be signalled (foreign uid,
+  refused stop, unreadable identity) or survive SIGKILL, and an unconverged,
+  failed or unbounded scan, MUST be
+  retained as `unretired` or `problems` in the execution's `retirement` and MUST
+  become an `execution-boundary` problem, so no complete or passing observation
+  hides them. The flag excludes graceful interrupt and is refused before launch
+  where retirement is unproven (everything except Darwin arm64/amd64). New
+  `swift-xctest` plans set it. Historical plans and receipts keep their bytes
+  and identities, so existing receipts still bind. A historical `swift-xctest`
+  plan that differs from the rebuilt profile only by the absent flag MUST be
+  refused for new execution with a re-plan diagnosis, because running it
+  without retirement could hide a leak and running it with retirement would
+  break its receipt's invocation binding. No plan may add the flag where its
+  profile does not. The retirement record MUST be retained before any fallible
+  post-run check. Status: proposed (V1-0613).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-029 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
+| TRE-V0-030 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRefusedForExecution`, `TestRetirementSurvivesLaterExecutionFailure`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption |
+
+Recorded limits. The shared executor admits only a regular-file executable, so
+the live witness uses the `/usr/bin/swift` shim; the toolchain `swift` symlink is
+refused. Generic JUnit profiles (bun-test, deno-test, pytest) still decode this
+XML as complete if a caller pins a wrapper that writes it; that is the
+trusted-local-executable boundary of `TRE-V0-004`, not SwiftPM qualification. AFU
+run ingest of arbitrary JUnit files is outside CEM execution and unchanged.
+
+Retirement limits. PID reuse is possible only between the final identity
+check and the signal. Processes started through launchd or XPC, and
+non-descendants that scrub the owner token, are NOT_OBSERVED and not retired.
+Linux and other platforms refuse the flag rather than claim cleanup. The group
+kill remains containment only; `retirement` is the durable cleanup record.
+
+Rollback removes the two fixtures, their tests and this section. The
+`swift-xctest` profile and historical plan and receipt bytes are unchanged.
+Rolling back `TRE-V0-030` removes the flag from `buildXCTest`, the
+`retirement` field and `internal/groupreap/retire*.go`; plans that set the
+flag would then be refused as unknown fields rather than run uncleaned.

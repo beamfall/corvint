@@ -46,6 +46,15 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 	if err := exitProfile(inv.SuccessExitCodes, inv.FailureExitCodes, inv.OutcomeNeutralExitCodes); err != nil {
 		return out, err
 	}
+	if inv.RetireDetachedDescendants {
+		if inv.GracefulInterrupt {
+			return out, fmt.Errorf("detached retirement excludes graceful interrupt")
+		}
+		if !groupreap.RetirementSupported {
+			return out, fmt.Errorf("detached descendant retirement unsupported on this platform")
+		}
+		out.Retirement = &groupreap.Retirement{Retired: []groupreap.RetiredProcess{}, Unretired: []groupreap.RetiredProcess{}, Problems: []string{}}
+	}
 	if !filepath.IsAbs(r.Root) || !filepath.IsAbs(r.ReportDir) || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 1800 || len(r.InputFiles) == 0 || len(r.InputFiles) > 4096 {
 		return out, fmt.Errorf("incomplete execution admission")
 	}
@@ -199,11 +208,19 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 				phaseCancel()
 				return out, fmt.Errorf("invalid environment")
 			}
-			if k == "HOME" || k == "TMPDIR" || k == "PATH" {
+			if k == "HOME" || k == "TMPDIR" || k == "PATH" || k == groupreap.OwnerEnvironmentKey {
 				phaseCancel()
 				return out, fmt.Errorf("reserved execution environment")
 			}
 			env[k] = v
+		}
+		var retirer *groupreap.Retirer
+		if inv.RetireDetachedDescendants {
+			if retirer, err = groupreap.NewRetirer(); err != nil {
+				phaseCancel()
+				return out, err
+			}
+			env[groupreap.OwnerEnvironmentKey] = retirer.Token()
 		}
 		keys := make([]string, 0, len(env))
 		for k := range env {
@@ -213,11 +230,21 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		for _, k := range keys {
 			cmd.Env = append(cmd.Env, k+"="+env[k])
 		}
-		containPhase(cmd, inv.GracefulInterrupt)
+		containPhase(cmd, inv.GracefulInterrupt, retirer)
 		stdout, stderr := &limitedBuffer{cancel: phaseCancel}, &limitedBuffer{cancel: phaseCancel}
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
-		runErr := groupreap.Run(cmd)
+		runErr := groupreap.RunRetiring(cmd, retirer)
+		var retireErr error
+		if retirer != nil {
+			// Retain the record before any fallible post-processing, so a
+			// later binding or write failure cannot discard it (TRE-V0-030).
+			got := retirer.Result()
+			out.Retirement.Merge(got)
+			if !got.Clean() {
+				retireErr = fmt.Errorf("detached descendant retirement incomplete: %d unretired, %d problems", len(got.Unretired), len(got.Problems))
+			}
+		}
 		a, ovA := stdout.value()
 		b, ovB := stderr.value()
 		code := -1
@@ -251,6 +278,11 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 			out.Input.TimedOut = result.TimedOut
 			out.Input.Interrupted = result.Interrupted
 			out.Input.Overflow = result.Overflow
+		}
+		if retireErr != nil {
+			// A cleanup failure is an execution problem, so no complete or
+			// passing observation can hide it (TRE-V0-030).
+			return out, retireErr
 		}
 		if result.TimedOut || result.Interrupted || result.Overflow || code < 0 || (p.Kind != "TEST" && runErr != nil) {
 			out.Input.TimedOut = result.TimedOut
@@ -631,7 +663,7 @@ func boundedReportGlob(ctx context.Context, root *os.Root, pattern string, scann
 
 // containPhase owns a phase's process group, chooses its cancellation signal
 // and bounds its pipe drain.
-func containPhase(cmd *exec.Cmd, graceful bool) {
+func containPhase(cmd *exec.Cmd, graceful bool, retirer *groupreap.Retirer) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	// Playwright owns detached browser groups. Interrupt its leader so native
 	// worker teardown can close them before the bounded hard-kill fallback.
@@ -639,6 +671,11 @@ func containPhase(cmd *exec.Cmd, graceful bool) {
 		if cmd.Process != nil {
 			if graceful {
 				return cmd.Process.Signal(syscall.SIGINT)
+			}
+			if retirer != nil {
+				// Stop and retire owned detached descendants while the
+				// leader still proves their ancestry, then kill its group.
+				retirer.Retire()
 			}
 			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}

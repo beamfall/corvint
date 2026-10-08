@@ -265,7 +265,9 @@ func TestHistoricalPlanAndReceiptBytesSurviveSelectionContract(t *testing.T) {
 	}
 	var p plan
 	tr.DecodeDocument([]byte(historicalNightwatchPlan), &p)
-	if p.Request.ExpectedSelection != nil || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
+	// Detached retirement (TRE-V0-030) is additive: historical plans keep
+	// their bytes and are executed without it.
+	if p.Request.ExpectedSelection != nil || p.Invocation.RetireDetachedDescendants || tr.Identity(p) != "7ed7e187a85628d164eeaf4924e2ace4d88d17bfac1ab9a7ae2bb1b22992a13a" {
 		t.Fatal("historical plan identity moved")
 	}
 	if _, e := registry.Build(p.Request); e != nil {
@@ -362,5 +364,40 @@ func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
 		if _, e := os.Stat(r.ReportDir); !os.IsNotExist(e) {
 			t.Fatalf("%s selection launched", name)
 		}
+	}
+}
+
+// TestPreRetirementXCTestPlanRefusedForExecution binds TRE-V0-030's
+// compatibility rule: a historical swift-xctest plan keeps its identity but is
+// refused for new execution with a re-plan diagnosis, a current plan runs with
+// retirement, and no plan can add retirement where its profile does not.
+func TestPreRetirementXCTestPlanRefusedForExecution(t *testing.T) {
+	r := tr.Request{Runner: "swift-xctest", Root: "/source", Config: "/source/Package.swift", ConfigSha256: strings.Repeat("a", 64), Executable: "/usr/bin/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", TimeoutSeconds: 60, InputFiles: map[string]string{"Package.swift": strings.Repeat("a", 64)}, Selectors: []string{"ProofTests.Proof/testPass"}}
+	current, e := registry.Build(r)
+	if e != nil || !current.RetireDetachedDescendants {
+		t.Fatalf("%+v %v", current, e)
+	}
+	historical := current
+	historical.RetireDetachedDescendants = false
+	if v, e := admittedInvocation(plan{Request: r, Invocation: current}); e != nil || !v.RetireDetachedDescendants {
+		t.Fatalf("current plan not admitted with retirement: %+v %v", v, e)
+	}
+	if _, e := admittedInvocation(plan{Request: r, Invocation: historical}); e == nil || !strings.Contains(e.Error(), "re-plan") {
+		t.Fatalf("pre-retirement plan admitted: %v", e)
+	}
+	changed := historical
+	changed.Argv = append([]string{}, historical.Argv...)
+	changed.Argv[len(changed.Argv)-1] = "^ProofTests.Proof/testFail$"
+	if _, e := admittedInvocation(plan{Request: r, Invocation: changed}); e == nil {
+		t.Fatal("changed historical invocation admitted")
+	}
+	n := tr.Request{Runner: "nightwatch", Root: "/src", Executable: "/x/nightwatch", ExecutableSha256: "aa", InputFiles: map[string]string{"tests/sample.js": "bb"}, ReportFiles: []string{"sample.json"}, ReportDir: "/r", TimeoutSeconds: 60}
+	nv, e := registry.Build(n)
+	if e != nil {
+		t.Fatal(e)
+	}
+	nv.RetireDetachedDescendants = true
+	if _, e := admittedInvocation(plan{Request: n, Invocation: nv}); e == nil {
+		t.Fatal("plan added retirement outside its fixed profile")
 	}
 }

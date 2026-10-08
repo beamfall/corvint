@@ -86,6 +86,26 @@ setup exception can mark a body skipped while the method still fails with an
 infrastructure error. Linux output, retries and arbitrary custom observers remain
 unqualified. The Swift 6.4 --skip-update option is deprecated.
 
+TRE-V0-029 (V1-0597) retains the actual skip loss: `swiftpm-xunit-parallel.xml` is
+Swift 6.4 (swiftlang-6.4.0.34.1), macOS 26.6.2 arm64, `--parallel --xunit-output`,
+where XCTSkip is an ordinary passing testcase without a `file` attribute. The
+swift-xctest profile never requests that transport and refuses any report file;
+TCQ JUnit import leaves those rows unkeyed. The opt-in
+`TestSwiftPMXCTestLiveThreeOutcomes` (`CORVINT_SWIFTPM_LIVE_ROOT`,
+`CORVINT_SWIFTPM_LIVE_EXE`, optional `CORVINT_SWIFTPM_LIVE_OUT`) drives the shared
+executor with the regular-file `/usr/bin/swift` shim; the toolchain `swift` is a
+symlink, which executor admission refuses. A caller-pinned wrapper that writes this
+XML under a generic JUnit profile (bun-test, deno-test, pytest) would still decode
+it as complete: that is the trusted-local-executable limit of TRE-V0-004.
+
+TRE-V0-030 (V1-0613): SwiftPM 6.4 runs the xctest child and Foundation `Process`
+helpers outside swift-test's process group, so the group kill alone leaves them.
+New swift-xctest plans set `retireDetachedDescendants`; the executor then stops and
+kills owned processes proved by ancestry or the per-phase owner token, and records
+them in the execution's `retirement`. The opt-in `TestSwiftPMXCTestLiveDetachedTeardown`
+runs `ProofTests.Hang/testHang` with a `CORVINT_SWIFT_READY` marker path, which the
+fixture writes as "xctestpid helperpid" before hanging. Darwin arm64/amd64 only.
+
 Robolectric requires prepared compiled classes/runtime jars, pinned Console jar
 and the exact pinned API-35 android-all-instrumented artifact for Robolectric
 4.16.1. The fixed invocation sets offline mode and enabledSdks=35. Other SDKs,
