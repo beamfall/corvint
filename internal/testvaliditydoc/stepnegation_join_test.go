@@ -191,9 +191,24 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		retained.Binding.Application = stepnegation.Application{Profile: jstestprovider.AttestedExternalProfile, RootCommit: observed.Repository.RootCommit, Revision: observed.Repository.Revision, Tree: observed.Repository.Tree, InstanceKind: "process", InstanceID: "fixture-1", StartGeneration: "1"}
 		retainNegation(t, root, retained)
 		input := Input{js: &receipt}
+		// A /1 receipt without its test repository identity never joins.
+		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
+			t.Fatal("an attested receipt without a test repository identity joined")
+		}
+		bound := retained.Binding.TestRepository
+		testRepository := jstestprovider.ApplicationRepositoryIdentity{RootCommit: bound.RootCommit, Revision: bound.Revision, Tree: bound.Tree, DirtyState: "clean"}
+		atPublish := testRepository
+		receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish = &testRepository, &atPublish
 		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State != testvalidity.StrengthKilled {
 			t.Fatalf("attested join = %+v", strength)
 		}
+		// A new test revision is a changed binding: the witness does not
+		// carry forward (LPCV-V0-068).
+		atPublish.Revision = strings.Repeat("9", 40)
+		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
+			t.Fatal("a changed test revision joined")
+		}
+		atPublish.Revision = bound.Revision
 		receipt.ApplicationAttestation.Before.Attestation.Instance.StartGeneration = "2"
 		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
 			t.Fatal("a restarted application instance joined")

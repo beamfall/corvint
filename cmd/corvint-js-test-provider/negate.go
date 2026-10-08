@@ -108,6 +108,10 @@ func parseNegate(args []string) (jstestprovider.NegateConfig, error) {
 	if fs.NArg() != 0 {
 		return jstestprovider.NegateConfig{}, invalid(errors.New("negate takes no positional arguments"))
 	}
+	// An explicit zero is outside 1 to 5, not a request for the default.
+	if *baselineRepeat < 1 || *maxRuns < 0 {
+		return jstestprovider.NegateConfig{}, invalid(errors.New("--baseline-repeat is 1 to 5 and --max-runs is not negative"))
+	}
 	if !*externalServer {
 		return jstestprovider.NegateConfig{}, &jstestprovider.NegateRefusal{Code: jstestprovider.NegateModeUnsupported, Message: "owned-server mode is not composed with negate"}
 	}

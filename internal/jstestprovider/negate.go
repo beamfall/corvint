@@ -146,6 +146,8 @@ func RunNegate(ctx context.Context, cfg NegateConfig) (stepnegation.Document, er
 	if err != nil {
 		return stepnegation.Document{}, err
 	}
+	// Every later read uses the admitted, defaulted configuration.
+	cfg = n.cfg
 	startRepository, failure := observeTestRepository(ctx, cfg.Root)
 	if failure != "" {
 		return stepnegation.Document{}, refuse(NegateDirtyRepository, "test repository is %s", strings.TrimPrefix(failure, "test-repository-"))
@@ -171,7 +173,9 @@ func RunNegate(ctx context.Context, cfg NegateConfig) (stepnegation.Document, er
 	if err != nil {
 		return stepnegation.Document{}, err
 	}
-	n.base.TestArgv = []string{n.spec + ":" + strconv.Itoa(selected.line), "--retries=0", "--workers=1", "--repeat-each=1"}
+	// --no-deps keeps dependency projects' tests from running alongside the
+	// one selected test (LPCV-V0-058).
+	n.base.TestArgv = []string{n.spec + ":" + strconv.Itoa(selected.line), "--retries=0", "--workers=1", "--repeat-each=1", "--no-deps"}
 	if selected.project != "" {
 		n.base.TestArgv = append(n.base.TestArgv, "--project="+selected.project)
 	}
@@ -371,6 +375,17 @@ func selectTest(tests []listedTest, spec, fullTitle, project string) (selectedTe
 	}
 	if len(matches) != 1 {
 		return selectedTest{}, refuse(NegateTestAmbiguous, "the selection matches %d tests", len(matches))
+	}
+	// A run selects by file:line and project, so a declaration line shared
+	// with another test (a parameterized loop) would run both (LPCV-V0-057).
+	shared := 0
+	for _, test := range tests {
+		if canonicalPath(test.File) == want && test.Line == matches[0].line && test.Project == matches[0].project {
+			shared++
+		}
+	}
+	if shared != 1 {
+		return selectedTest{}, refuse(NegateTestAmbiguous, "the selected test shares its declaration line with %d other tests, so a run cannot select only it", shared-1)
 	}
 	return matches[0], nil
 }

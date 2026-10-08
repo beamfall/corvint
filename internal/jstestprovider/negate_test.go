@@ -76,6 +76,11 @@ func TestAdmitNegateRefusesBeforeAnyRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// RunNegate reads the admitted configuration, so the zero baseline
+		// repeat a library caller passes is already the default of one.
+		if n.cfg.BaselineRepeat != 1 || n.cfg.MaxRuns != defaultStepMaxRuns {
+			t.Fatalf("admitted config = %+v", n.cfg)
+		}
 		if n.budget != defaultStepMaxRuns || n.origin != "http://127.0.0.1:4000" || n.spec != filepath.Join(cfg.Root, "cart.spec.cjs") || !containsString(n.base.TestFiles, n.spec) {
 			t.Fatalf("negation = %+v", n)
 		}
@@ -122,6 +127,16 @@ func TestSelectTestRequiresExactlyOne(t *testing.T) {
 	}
 	if _, err := selectTest(tests, filepath.Join(root, "other.spec.cjs"), "cart > total", "chromium"); err == nil {
 		t.Error("another file matched")
+	}
+	// A parameterized loop declares several tests on one line; a file:line
+	// run would execute all of them, so the selection refuses.
+	looped := []listedTest{listed("cart > total 1", "chromium", 40), listed("cart > total 2", "chromium", 40), listed("cart > total 1", "webkit", 40)}
+	var refusal *NegateRefusal
+	if _, err := selectTest(looped, spec, "cart > total 1", "chromium"); !errors.As(err, &refusal) || refusal.Code != NegateTestAmbiguous {
+		t.Errorf("shared declaration line: %v", err)
+	}
+	if selected, err := selectTest(looped, spec, "cart > total 1", "webkit"); err != nil || selected.line != 40 {
+		t.Errorf("a line shared only across projects is selectable: %+v, %v", selected, err)
 	}
 }
 

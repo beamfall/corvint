@@ -95,7 +95,7 @@ func joinable(worktree *os.Root, root string, receipt jstestprovider.Receipt, ou
 	if binding.Runner.Name != "playwright" || binding.Runner.Version != receipt.Identity.RunnerVersion || binding.Runner.NodeVersion != receipt.Identity.NodeVersion || binding.Runner.Tuple != jstestprovider.RuntimeTupleCandidate {
 		return false
 	}
-	if !sameApplication(receipt, binding.Application) {
+	if !sameApplication(receipt, binding.Application) || !sameTestRepository(receipt, binding.TestRepository) {
 		return false
 	}
 	spec := filepath.Join(root, filepath.FromSlash(binding.SpecFile))
@@ -125,4 +125,20 @@ func sameApplication(receipt jstestprovider.Receipt, application stepnegation.Ap
 	observed := attestation.Before.Attestation
 	return application.RootCommit == observed.Repository.RootCommit && application.Revision == observed.Repository.Revision && application.Tree == observed.Repository.Tree &&
 		application.InstanceKind == observed.Instance.Kind && application.InstanceID == observed.Instance.ID && application.StartGeneration == observed.Instance.StartGeneration
+}
+
+// sameTestRepository requires a /1 receipt's test repository identity, at
+// start and at publish, to equal the bound one, so a witness never survives a
+// new test revision (LPCV-V0-068). A /0 receipt carries no test repository
+// identity; its test side is bound by the spec and config digests only.
+func sameTestRepository(receipt jstestprovider.Receipt, bound stepnegation.Repository) bool {
+	if receipt.Profile != jstestprovider.AttestedExternalProfile {
+		return true
+	}
+	for _, observed := range []*jstestprovider.ApplicationRepositoryIdentity{receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish} {
+		if observed == nil || observed.RootCommit != bound.RootCommit || observed.Revision != bound.Revision || observed.Tree != bound.Tree {
+			return false
+		}
+	}
+	return true
 }

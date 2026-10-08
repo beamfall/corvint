@@ -55,6 +55,24 @@ not change the intent-status word.
   a different test identity than the pre-locked one. The traceability row names it. A numbered
   requirement that owns it is left for the intent owner.
 
+## Independent review
+
+A Codex review of the first commit reported one P1 and two P2 findings, all fixed in the
+following commit:
+
+- **P1: a shared declaration line ran more than one test.** A run selects by `file:line` and
+  project, so tests declared on one line, such as a parameterized loop, would all run.
+  `selectTest` now refuses with `negate-test-ambiguous` when the selected test shares its line
+  within its project. Runs also pass `--no-deps`, so dependency projects' tests do not run.
+- **P2: `--baseline-repeat=0` caused a panic.** `RunNegate` now reads the admitted, defaulted
+  configuration. The provider CLI refuses an explicit zero `--baseline-repeat` and a negative
+  `--max-runs`.
+- **P2: the join ignored the bound test repository.** A `/1` join now requires the receipt's
+  test repository identity, at start and at publish, to equal the bound one. A `/0` receipt
+  carries no test repository identity, so its test side stays bound by the spec and config
+  digests only. A helper file outside those digests can change without breaking a `/0` join.
+  That residual must be settled before the join gate is turned on.
+
 ## Evidence
 
 All of the following pass with `GOMAXPROCS=3 go test -p 1 -count=1`:
@@ -68,7 +86,7 @@ All of the following pass with `GOMAXPROCS=3 go test -p 1 -count=1`:
 The traceability row names each test.
 
 `TestNegateLiveDiagnostic` ran the synthetic fixture matrix (12 subtests) with Playwright 1.63.0
-installed under the lane's TMPDIR. The local Node is v22.23.3, which `PWP-V0-008` does not
+installed under the lane's TMPDIR, before and after the review fixes. The local Node is v22.23.3, which `PWP-V0-008` does not
 qualify, so that run is diagnostic only.
 
 `NOT_RUN`:

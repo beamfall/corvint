@@ -29,6 +29,8 @@ func TestParseNegateRefusals(t *testing.T) {
 		{"unknown flag", jstestprovider.NegateInvalidArguments, []string{"--root=" + root, "--frobnicate"}},
 		{"positional", jstestprovider.NegateInvalidArguments, []string{"--root=" + root, "extra"}},
 		{"missing root", jstestprovider.NegateInvalidArguments, []string{"--spec=a.spec.cjs"}},
+		{"explicit zero baseline repeat", jstestprovider.NegateInvalidArguments, []string{"--root=" + root, "--baseline-repeat=0"}},
+		{"negative max runs", jstestprovider.NegateInvalidArguments, []string{"--root=" + root, "--max-runs=-1"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := parseNegate(test.args)
