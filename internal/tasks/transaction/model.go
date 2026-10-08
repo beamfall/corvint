@@ -654,7 +654,9 @@ func Model(r Request, in Input) Result {
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
 		}
-		ctx.WorkerAttempt = workerKnowHowAttempt(r, state, env, in.RecordedAt)
+		if mutation.KnowHowNamesAttempt(env) {
+			ctx.KnowHowAttempts = knowHowLedger(state.attempts, in.RecordedAt)
+		}
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
@@ -970,7 +972,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || workerKnowHowMutation(r)) && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || knowHowAttemptMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
@@ -1000,28 +1002,6 @@ func workerKnowHowMutation(r Request) bool {
 	}
 	env, err := mutation.Decode(r.Envelope)
 	return err == nil && env.Operation == mutation.OpKnowHowAdd
-}
-
-// workerKnowHowAttempt observes, from the audited attempt records, the
-// attempt a WORKER KNOWHOW_ADD names (KHN-V0-022). Any other request gets
-// nil. An absent, ended, unleased or expired attempt is not live; as for every
-// lease command, a supervised attempt's lease does not expire by time.
-func workerKnowHowAttempt(r Request, st inputState, env *mutation.Envelope, now wire.Timestamp) *mutation.WorkerAttemptObservation {
-	p, ok := env.Payload.(*mutation.KnowHowAddPayload)
-	if !ok || r.Actor.Role != "WORKER" {
-		return nil
-	}
-	o := &mutation.WorkerAttemptObservation{}
-	if p.Attempt == nil {
-		return o
-	}
-	a := st.attempts[*p.Attempt]
-	if a == nil || a.Lease == nil {
-		return o
-	}
-	o.TicketID, o.Generation, o.Holder = a.TicketID.Raw, a.Generation, a.Lease.Holder
-	o.Live = a.Live() && !expired(a, now)
-	return o
 }
 
 func cloneRequest(r Request) Request {
@@ -1348,9 +1328,9 @@ func importAttachedEvidence(post, pre *ticket.Record, where string) error {
 }
 
 // importKnowHow keeps an IMPORT batch from adding, rewriting or dropping
-// know-how entries (KHN-V0-003): only KNOWHOW_ADD and KNOWHOW_RETRACT write
-// them, so an imported record carries exactly the ledger of the record it
-// replaces.
+// know-how entries (KHN-V0-003): only KNOWHOW_ADD, KNOWHOW_RETRACT and
+// KNOWHOW_RECONFIRM write them, so an imported record carries exactly the
+// ledger of the record it replaces.
 func importKnowHow(post, pre *ticket.Record, where string) error {
 	var want []ticket.KnowHowEntry
 	if pre != nil {

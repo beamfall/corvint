@@ -15,14 +15,25 @@ holds KHN-V0-008..015 and V1-0963 holds KHN-V0-016..020.
   `outside hypothetical role subset`, nothing written. True appends `KNOWHOW_ADD` to WORKER's
   default row only. An explicit `policy.roles.WORKER` row still outranks it, and a roles row naming
   `KNOWHOW_ADD` for WORKER stays undecodable, so roles rows still only remove operations.
-- **Scope.** The add must name an attempt and generation. The transaction layer reads the
-  ticket's attempt under the store lock (the store audits `attempts/` for this one request shape)
-  and passes a small observation to `mutation`. The WORKER-only check
-  (`workerKnowHowScope`) refuses, in order: supersede; missing attempt or generation; an absent,
-  ended, expired or other-generation attempt; a lease holder other than the actor; an attempt on
-  another ticket; an anchor outside `effects.touchPaths` (KHN-V0-006 matching). Each case reuses a
-  closed §11 code and has a stable `KNOWHOW_WORKER_*` detail prefix. Details name fields, never
-  values, because the secret screen runs afterwards. Caps and the secret screen are unchanged.
+- **Scope.** The add must name an attempt and generation. It then passes the shared
+  `mutation.CheckKnowHowProvenance` (KHN-V0-008) against the ledger built from the attempt
+  inventory audited under the store lock (KHN-V0-009), which refuses an unobserved inventory, an
+  unknown attempt, another ticket's attempt or an unrecorded generation `PROVENANCE_UNVERIFIED`.
+  The WORKER-only check (`workerKnowHowScope`) refuses, in order: supersede; missing attempt or
+  generation; then, after provenance, an ended attempt, a missing or expired lease, or a prior
+  generation; a lease holder other than the actor; an anchor (file or symbol) outside
+  `effects.touchPaths` (KHN-V0-006 matching). Each WORKER case reuses a closed §11 code and has a
+  stable `KNOWHOW_WORKER_*` detail prefix. Details name fields, never values, because the secret
+  screen runs afterwards. Caps and the secret screen (`SECRET_DETECTED`) are unchanged.
+- **Integration with V1-0964 and V1-0963.** The first version carried its own attempt
+  observation, store audit and other-ticket check. The merge replaces them with V1-0964's ledger
+  and audited route: the ledger gains `Holder`, set only while the lease is unexpired (a
+  supervised lease does not expire by time), and the separate WORKER store audit is dropped
+  because the shared audit already covers every attempt-naming add. The
+  `KNOWHOW_WORKER_OTHER_TICKET` prefix is removed: provenance refuses that case first, so the
+  check could not be reached. An unknown attempt or an unrecorded generation now gets
+  `PROVENANCE_UNVERIFIED` where the first version said `KNOWHOW_WORKER_ATTEMPT_STALE`. WORKER
+  RECONFIRM stays refused by the role row, the codec and the Core reader.
 - **Policy prefixes.** Not implemented. The schema has no natural place for them and touchPaths
   already bound the claimed work; they remain a possible extension.
 - **Record.** The entry records role WORKER plus the verified attempt and generation. The codec and
@@ -40,8 +51,8 @@ holds KHN-V0-008..015 and V1-0963 holds KHN-V0-016..020.
   an amendment recording that WORKER may hold a scoped, policy-opt-in ADD and still never
   supersedes or retracts.
 - Decision 0444 assigns attempt/generation verification for every know-how writer to V1-0964.
-  This slice verifies only WORKER adds; the amendment should record that V1-0964's generic check
-  subsumes the WORKER attempt observation and keeps the WORKER holder, ticket and anchor checks.
+  The amendment should record that a WORKER add runs V1-0964's check first and adds only the
+  liveness, holder and anchor checks of KHN-V0-022.
 
 ## Limits
 

@@ -72,7 +72,8 @@ func TestKHNV0006_KnowHowThroughTheCLI(t *testing.T) {
 	} {
 		if x := atm(t, r.Root, nil, args...); x.res.Outcome == wire.OutcomeOK {
 			t.Fatalf("%s accepted: %s", name, x.stdout)
-		} else if strings.HasPrefix(name, "secret") && (!strings.Contains(string(x.stdout), mutation.KnowHowSecretDetail) || strings.Contains(string(x.stdout), "AKIAABCDEFGHIJKLMNOP")) {
+		} else if strings.HasPrefix(name, "secret") && (!strings.Contains(string(x.stdout), mutation.KnowHowSecretDetail) || strings.Contains(string(x.stdout), "AKIAABCDEFGHIJKLMNOP") ||
+			!strings.Contains(string(x.stdout), `"`+wire.CodeSecretDetected+`"`) || strings.Contains(string(x.stdout), `"`+wire.CodeMalformed+`"`)) {
 			t.Fatalf("secret refusal: %s", x.stdout)
 		}
 	}

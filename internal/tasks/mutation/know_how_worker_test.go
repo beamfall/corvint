@@ -35,14 +35,21 @@ func scopedTicket() *ticket.Record {
 	return rec
 }
 
-func liveAttempt() *mutation.WorkerAttemptObservation {
-	return &mutation.WorkerAttemptObservation{Live: true, TicketID: fixture.TicketID("AT-01"), Generation: "3", Holder: worker.ID}
+// liveAttempt is att-1 on AT-01 at generation 3 (prior 2), live under an
+// unexpired lease the worker holds.
+func liveAttempt() mutation.AttemptProvenance {
+	return mutation.AttemptProvenance{TicketID: khnTicketID(fixture.TicketID("AT-01")), Generation: "3", Prior: []wire.Size{"2"}, Live: true, Holder: worker.ID}
 }
 
-func workerPlan(t *testing.T, policy []byte, obs *mutation.WorkerAttemptObservation, rec *ticket.Record, op string, payload wire.Value) *mutation.Plan {
+// ledgerOf is the audited ledger holding a as att-1.
+func ledgerOf(a mutation.AttemptProvenance) mutation.AttemptLedger {
+	return mutation.AttemptLedger{"att-1": a}
+}
+
+func workerPlan(t *testing.T, policy []byte, ledger mutation.AttemptLedger, rec *ticket.Record, op string, payload wire.Value) *mutation.Plan {
 	t.Helper()
 	ctx := ctxWithPolicy(t, worker, attempts{fixture.TicketID("AT-01"): true}, policy, rec)
-	ctx.WorkerAttempt = obs
+	ctx.KnowHowAttempts = ledger
 	return apply(t, ctx, envelope("w1", worker, "AT-01", string(rec.Revision), op, payload))
 }
 
@@ -55,7 +62,7 @@ func wantDetail(t *testing.T, plan *mutation.Plan, prefix string) {
 
 // TestKHNV0021_WorkerAddIsPolicyOptIn: without knowHow.workerAdd, or with it
 // false, a WORKER KNOWHOW_ADD is refused exactly as before, even when it names
-// its own live attempt in scope; RETRACT and every other non-body write stay
+// its own live attempt in scope; RETRACT, RECONFIRM and every other non-body write stay
 // refused with the key true; a WORKER roles row still outranks the key; OWNER
 // and OPERATOR behave as before.
 func TestKHNV0021_WorkerAddIsPolicyOptIn(t *testing.T) {
@@ -63,20 +70,21 @@ func TestKHNV0021_WorkerAddIsPolicyOptIn(t *testing.T) {
 	good := workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA))
 	for name, policy := range map[string][]byte{"absent": workerKnowHowPolicy(nil), "false": workerKnowHowPolicy(&off)} {
 		t.Run(name, func(t *testing.T) {
-			want(t, workerPlan(t, policy, liveAttempt(), scopedTicket(), mutation.OpKnowHowAdd, good), mutation.OutcomeUnauthorized, "")
+			want(t, workerPlan(t, policy, ledgerOf(liveAttempt()), scopedTicket(), mutation.OpKnowHowAdd, good), mutation.OutcomeUnauthorized, "")
 		})
 	}
 	enabled := workerKnowHowPolicy(&on)
 	withNote := scopedTicket()
 	withNote.KnowHow = []ticket.KnowHowEntry{{Seq: wire.CountOf(1), Operation: ticket.KnowHowAdd, Text: "n",
 		Anchors: []ticket.KnowHowAnchor{{Path: "b.go", Blob: khBlobA}}, Routes: []string{}, Commit: khCommit, ActorID: "russell", ActorRole: "OWNER", RecordedAt: now}}
-	want(t, workerPlan(t, enabled, liveAttempt(), withNote, mutation.OpKnowHowRetract, obj("note", str("1"), "reason", str("wrong"))), mutation.OutcomeUnauthorized, "")
-	want(t, workerPlan(t, enabled, liveAttempt(), scopedTicket(), mutation.OpRefine, obj("title", str("renamed"))), mutation.OutcomeUnauthorized, "")
+	want(t, workerPlan(t, enabled, ledgerOf(liveAttempt()), withNote, mutation.OpKnowHowRetract, obj("note", str("1"), "reason", str("wrong"))), mutation.OutcomeUnauthorized, "")
+	want(t, workerPlan(t, enabled, ledgerOf(liveAttempt()), withNote, mutation.OpKnowHowReconfirm, knowHowReconfirm("1", khCommit, khAnchor("b.go", khBlobB))), mutation.OutcomeUnauthorized, "")
+	want(t, workerPlan(t, enabled, ledgerOf(liveAttempt()), scopedTicket(), mutation.OpRefine, obj("title", str("renamed"))), mutation.OutcomeUnauthorized, "")
 
 	pv := fixture.PolicyValue()
 	pv.Obj.Set("knowHow", obj("workerAdd", wire.Bool(true)))
 	pv.Obj.Set("roles", obj("WORKER", wire.Strings([]string{"REFINE"})))
-	want(t, workerPlan(t, wire.EncodeFile(pv), liveAttempt(), scopedTicket(), mutation.OpKnowHowAdd, good), mutation.OutcomeUnauthorized, "")
+	want(t, workerPlan(t, wire.EncodeFile(pv), ledgerOf(liveAttempt()), scopedTicket(), mutation.OpKnowHowAdd, good), mutation.OutcomeUnauthorized, "")
 
 	ownerCtx := ctxWithPolicy(t, owner, nil, enabled, scopedTicket())
 	plan := apply(t, ownerCtx, envelope("o1", owner, "AT-01", string(scopedTicket().Revision), mutation.OpKnowHowAdd, knowHowAdd("t", "", "", khAnchor("z.go", khBlobA))))
@@ -95,7 +103,7 @@ func TestKHNV0022_WorkerAddScope(t *testing.T) {
 	enabled := workerKnowHowPolicy(&on)
 	inScope := []wire.Value{khAnchor("b.go", khBlobA), khAnchor("internal/a/x.go", khBlobB)}
 
-	plan := workerPlan(t, enabled, liveAttempt(), scopedTicket(), mutation.OpKnowHowAdd, workerAddPayload("att-1", "3", inScope...))
+	plan := workerPlan(t, enabled, ledgerOf(liveAttempt()), scopedTicket(), mutation.OpKnowHowAdd, workerAddPayload("att-1", "3", inScope...))
 	want(t, plan, mutation.OutcomeCompleted, "")
 	e := plan.Post.KnowHow[0]
 	if e.ActorID != worker.ID || e.ActorRole != "WORKER" || e.Attempt == nil || *e.Attempt != "att-1" || e.Generation == nil || *e.Generation != "3" {
@@ -107,47 +115,57 @@ func TestKHNV0022_WorkerAddScope(t *testing.T) {
 	}
 
 	other := liveAttempt()
-	other.TicketID = fixture.TicketID("AT-02")
+	other.TicketID = khnTicketID(fixture.TicketID("AT-02"))
 	foreign := liveAttempt()
 	foreign.Holder = "lane-2"
 	ended := liveAttempt()
 	ended.Live = false
+	expired := liveAttempt()
+	expired.Holder = ""
 	withNote := scopedTicket()
 	withNote.KnowHow = append(withNote.KnowHow, plan.Post.KnowHow...)
 	supersede := workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA))
 	supersede.Obj.Set("supersedes", str("1"))
 	supersede.Obj.Set("reason", str("corrected"))
+	live := ledgerOf(liveAttempt())
 	cases := []struct {
 		name          string
-		obs           *mutation.WorkerAttemptObservation
+		ledger        mutation.AttemptLedger
 		rec           *ticket.Record
 		payload       wire.Value
 		outcome, code string
 		prefix        string
 	}{
-		{"supersede", liveAttempt(), withNote, supersede, mutation.OutcomeUnauthorized, "", mutation.KnowHowWorkerSupersede},
-		{"no attempt", liveAttempt(), scopedTicket(), workerAddPayload("", "3", inScope...), mutation.OutcomeValidationFailed, wire.CodeMalformed, mutation.KnowHowWorkerAttemptRequired},
-		{"no generation", liveAttempt(), scopedTicket(), workerAddPayload("att-1", "", inScope...), mutation.OutcomeValidationFailed, wire.CodeMalformed, mutation.KnowHowWorkerAttemptRequired},
-		{"unobserved attempt", nil, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
-		{"ended attempt", ended, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
-		{"stale generation", liveAttempt(), scopedTicket(), workerAddPayload("att-1", "2", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
-		{"foreign holder", foreign, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeUnauthorized, "", mutation.KnowHowWorkerAttemptForeign},
-		{"other ticket", other, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeBlocked, wire.CodeOutOfScope, mutation.KnowHowWorkerOtherTicket},
-		{"anchor out of scope", liveAttempt(), scopedTicket(), workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA), khAnchor("internal/ab.go", khBlobB)), mutation.OutcomeBlocked, wire.CodeOutOfScope, mutation.KnowHowWorkerAnchorScope},
-		{"no touchPaths", liveAttempt(), fixture.Ticket("AT-01"), workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA)), mutation.OutcomeBlocked, wire.CodeOutOfScope, mutation.KnowHowWorkerAnchorScope},
+		{"supersede", live, withNote, supersede, mutation.OutcomeUnauthorized, "", mutation.KnowHowWorkerSupersede},
+		{"no attempt", live, scopedTicket(), workerAddPayload("", "3", inScope...), mutation.OutcomeValidationFailed, wire.CodeMalformed, mutation.KnowHowWorkerAttemptRequired},
+		{"no generation", live, scopedTicket(), workerAddPayload("att-1", "", inScope...), mutation.OutcomeValidationFailed, wire.CodeMalformed, mutation.KnowHowWorkerAttemptRequired},
+		// The shared provenance check (KHN-V0-008) runs first.
+		{"unobserved inventory", nil, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified, ""},
+		{"unknown attempt", mutation.AttemptLedger{}, scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified, ""},
+		{"other ticket", ledgerOf(other), scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified, ""},
+		{"unrecorded generation", live, scopedTicket(), workerAddPayload("att-1", "7", inScope...), mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified, ""},
+		// Then the WORKER-only checks (KHN-V0-022).
+		{"ended attempt", ledgerOf(ended), scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
+		{"unleased or expired", ledgerOf(expired), scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
+		{"prior generation", live, scopedTicket(), workerAddPayload("att-1", "2", inScope...), mutation.OutcomeRevisionConflict, wire.CodeFenced, mutation.KnowHowWorkerAttemptStale},
+		{"foreign holder", ledgerOf(foreign), scopedTicket(), workerAddPayload("att-1", "3", inScope...), mutation.OutcomeUnauthorized, "", mutation.KnowHowWorkerAttemptForeign},
+		{"anchor out of scope", live, scopedTicket(), workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA), khAnchor("internal/ab.go", khBlobB)), mutation.OutcomeBlocked, wire.CodeOutOfScope, mutation.KnowHowWorkerAnchorScope},
+		{"no touchPaths", live, fixture.Ticket("AT-01"), workerAddPayload("att-1", "3", khAnchor("b.go", khBlobA)), mutation.OutcomeBlocked, wire.CodeOutOfScope, mutation.KnowHowWorkerAnchorScope},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			plan := workerPlan(t, enabled, c.obs, c.rec, mutation.OpKnowHowAdd, c.payload)
+			plan := workerPlan(t, enabled, c.ledger, c.rec, mutation.OpKnowHowAdd, c.payload)
 			want(t, plan, c.outcome, c.code)
-			wantDetail(t, plan, c.prefix)
+			if c.prefix != "" {
+				wantDetail(t, plan, c.prefix)
+			}
 		})
 	}
 
 	secret := workerAddPayload("att-1", "3", inScope...)
 	secret.Obj.Set("text", str("token AKIAABCDEFGHIJKLMNOP"))
-	plan = workerPlan(t, enabled, liveAttempt(), scopedTicket(), mutation.OpKnowHowAdd, secret)
-	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeMalformed)
+	plan = workerPlan(t, enabled, ledgerOf(liveAttempt()), scopedTicket(), mutation.OpKnowHowAdd, secret)
+	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeSecretDetected)
 	wantDetail(t, plan, mutation.KnowHowSecretDetail)
 
 	full := scopedTicket()
@@ -155,5 +173,5 @@ func TestKHNV0022_WorkerAddScope(t *testing.T) {
 		full.KnowHow = append(full.KnowHow, ticket.KnowHowEntry{Seq: wire.CountOf(int64(i + 1)), Operation: ticket.KnowHowAdd, Text: "n",
 			Anchors: []ticket.KnowHowAnchor{{Path: "b.go", Blob: khBlobA}}, Routes: []string{}, Commit: khCommit, ActorID: "russell", ActorRole: "OWNER", RecordedAt: now})
 	}
-	want(t, workerPlan(t, enabled, liveAttempt(), full, mutation.OpKnowHowAdd, workerAddPayload("att-1", "3", inScope...)), mutation.OutcomeValidationFailed, wire.CodeLimitExceeded)
+	want(t, workerPlan(t, enabled, ledgerOf(liveAttempt()), full, mutation.OpKnowHowAdd, workerAddPayload("att-1", "3", inScope...)), mutation.OutcomeValidationFailed, wire.CodeLimitExceeded)
 }

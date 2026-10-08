@@ -88,9 +88,10 @@ type Context struct {
 	// ExternalReview is the transaction layer's audited review result for
 	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
 	ExternalReview *ExternalReviewPost
-	// WorkerAttempt is the transaction layer's observation of the attempt a
-	// WORKER KNOWHOW_ADD names (KHN-V0-022); nil refuses that write.
-	WorkerAttempt *WorkerAttemptObservation
+	// KnowHowAttempts is the audited attempt ledger for a KNOWHOW_ADD or RECONFIRM that
+	// names an attempt or generation (KHN-V0-008); nil refuses such a write
+	// PROVENANCE_UNVERIFIED. Other operations ignore it.
+	KnowHowAttempts AttemptLedger
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -533,7 +534,7 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt:         ctx.Now,
 		}
 		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
-	case *KnowHowAddPayload, *KnowHowRetractPayload:
+	case *KnowHowAddPayload, *KnowHowRetractPayload, *KnowHowReconfirmPayload:
 		return ctx.knowHowStep(work, p)
 	case *GrantApprovalPayload:
 		if p.Actor != ctx.Binding.ID {

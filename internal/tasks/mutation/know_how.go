@@ -7,29 +7,31 @@ import (
 )
 
 // KnowHowSecretDetail prefixes the refusal detail of a know-how write whose
-// free text matches the secret screen (KHN-V0-004). The refusal is
-// VALIDATION_FAILED with detail code MALFORMED; the detail names the field,
-// never the matched text.
+// free text matches the secret screen. Since KHN-V0-010 the refusal carries
+// the owned detail code SECRET_DETECTED instead of MALFORMED; the prefix is
+// kept as a deprecated compatibility alias for scripts that matched the
+// MALFORMED detail (KHN-V0-011). The detail names the field, never the text.
 const KnowHowSecretDetail = "KNOWHOW_SECRET_DETECTED"
 
 // ScreenKnowHowArgs refuses a know-how command whose raw arguments match the
 // secret screen before any parse or pin error can echo them (KHN-V0-004).
-// The error is MALFORMED with the KnowHowSecretDetail prefix and never
+// The error is SECRET_DETECTED with the KnowHowSecretDetail prefix and never
 // repeats the argument; the mutation step screens the payload again.
 func ScreenKnowHowArgs(args []string) error {
 	for _, s := range args {
 		if secretscreen.MatchString(s) {
-			return wire.Errorf(wire.CodeMalformed, "/payload", "%s: an argument matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail)
+			return wire.Errorf(wire.CodeSecretDetected, "/payload", "%s: an argument matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail)
 		}
 	}
 	return nil
 }
 
-// knowHowStep appends one KNOWHOW_ADD or KNOWHOW_RETRACT entry (KHN-V0-003)
-// to a live native home ticket. Actor, role, time and seq come from the
-// trusted context; nothing acceptance-relevant changes, so finalize bumps
-// revision alone. The secret screen runs here, after request replay, so only
-// a fresh write is screened.
+// knowHowStep appends one KNOWHOW_ADD, KNOWHOW_RETRACT or KNOWHOW_RECONFIRM
+// entry (KHN-V0-003, KHN-V0-018) to a live native home ticket. Actor, role,
+// time and seq come from the trusted context; nothing acceptance-relevant
+// changes, so finalize bumps revision alone. The secret screen and the
+// provenance check (KHN-V0-008) run here, after request replay, so only a
+// fresh write is checked.
 func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 	op := p.operation()
 	if !isLive(work.Status) {
@@ -60,6 +62,9 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		if r := screenKnowHow(fields, p); r != nil {
 			return r
 		}
+		if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
+			return refuseErr(err)
+		}
 		entry.Operation = ticket.KnowHowAdd
 		entry.Text = p.Text
 		entry.Anchors = append([]ticket.KnowHowAnchor{}, p.Anchors...)
@@ -81,33 +86,73 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		entry.Operation = ticket.KnowHowRetract
 		entry.Note = p.Note
 		entry.Reason = &reason
+	case *KnowHowReconfirmPayload:
+		if !active[p.Note] {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "note %s is not an active note on this ticket", p.Note)
+		}
+		if why := ticket.KnowHowReconfirmRefusal(knowHowEffectivePins(work.KnowHow, p.Note), p.Anchors); why != "" {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s", why)
+		}
+		if r := screenKnowHowPaths(p.Anchors, nil, nil); r != nil {
+			return r
+		}
+		if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
+			return refuseErr(err)
+		}
+		entry.Operation = ticket.KnowHowReconfirm
+		entry.Note = p.Note
+		entry.Anchors = append([]ticket.KnowHowAnchor{}, p.Anchors...)
+		entry.Commit = p.Commit
+		entry.Attempt = p.Attempt
+		entry.Generation = p.Generation
 	}
 	work.KnowHow = append(append([]ticket.KnowHowEntry{}, work.KnowHow...), entry)
 	return nil
 }
 
+// knowHowEffectivePins is note's anchors as last pinned: by its latest
+// RECONFIRM, else by its ADD.
+func knowHowEffectivePins(entries []ticket.KnowHowEntry, note wire.Count) []ticket.KnowHowAnchor {
+	var pins []ticket.KnowHowAnchor
+	for _, k := range entries {
+		if (k.Operation == ticket.KnowHowAdd && k.Seq == note) || (k.Operation == ticket.KnowHowReconfirm && k.Note == note) {
+			pins = k.Anchors
+		}
+	}
+	return pins
+}
+
 // screenKnowHow refuses a write whose free text, route tokens or paths match
 // the shared Core secret screen (decision 0397, V1-0955 addendum). The detail
-// names only the field.
+// names only the field; the code is SECRET_DETECTED (KHN-V0-010).
 func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 	for _, name := range []string{"text", "reason"} {
 		if s, ok := fields[name]; ok && secretscreen.MatchString(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: /payload/%s matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail, name)
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "%s: /payload/%s matches the secret screen; remove the secret and retry with a new request ID", KnowHowSecretDetail, name)
 		}
 	}
 	if add == nil {
 		return nil
 	}
-	extra := append([]string{}, add.Routes...)
-	for _, a := range add.Anchors {
+	return screenKnowHowPaths(add.Anchors, add.Routes, add.EvidencePath)
+}
+
+// screenKnowHowPaths refuses route tokens, anchor paths, symbol names or an
+// evidence path that match the shared secret screen.
+func screenKnowHowPaths(anchors []ticket.KnowHowAnchor, routes []string, evidencePath *string) *refusal {
+	extra := append([]string{}, routes...)
+	for _, a := range anchors {
 		extra = append(extra, a.Path)
+		if a.Symbol != "" {
+			extra = append(extra, a.Symbol)
+		}
 	}
-	if add.EvidencePath != nil {
-		extra = append(extra, *add.EvidencePath)
+	if evidencePath != nil {
+		extra = append(extra, *evidencePath)
 	}
 	for _, s := range extra {
 		if secretscreen.MatchString(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: a route or path in /payload matches the secret screen", KnowHowSecretDetail)
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "%s: a route or path in /payload matches the secret screen", KnowHowSecretDetail)
 		}
 	}
 	return nil
@@ -121,29 +166,20 @@ const (
 	KnowHowWorkerAttemptRequired = "KNOWHOW_WORKER_ATTEMPT_REQUIRED"
 	KnowHowWorkerAttemptStale    = "KNOWHOW_WORKER_ATTEMPT_STALE"
 	KnowHowWorkerAttemptForeign  = "KNOWHOW_WORKER_ATTEMPT_FOREIGN"
-	KnowHowWorkerOtherTicket     = "KNOWHOW_WORKER_OTHER_TICKET"
 	KnowHowWorkerAnchorScope     = "KNOWHOW_WORKER_ANCHOR_OUT_OF_SCOPE"
 )
 
-// WorkerAttemptObservation is the transaction layer's read, under the store
-// lock, of the attempt a WORKER KNOWHOW_ADD names (KHN-V0-022). Live is true
-// only for a present attempt in a non-terminal phase whose lease is held and
-// unexpired; every other state, including an absent attempt, is not live.
-type WorkerAttemptObservation struct {
-	Live       bool
-	TicketID   string
-	Generation wire.Size
-	Holder     string
-}
-
 // workerKnowHowScope is the WORKER-only KNOWHOW_ADD scope (KHN-V0-022),
 // reached only when policy knowHow.workerAdd granted the operation
-// (KHN-V0-021). The note must name the live attempt the binding holds on
-// this ticket at its current generation, and every anchor must lie inside
-// the ticket's effects.touchPaths, which cannot change while that attempt is
-// live. A worker cannot supersede. Details name payload fields, never their
-// values, because the secret screen has not run yet. The ordinary knowHowStep checks (status,
-// entry cap, secret screen) still run afterwards.
+// (KHN-V0-021). A worker cannot supersede and must name its attempt and
+// generation. The shared provenance check (KHN-V0-008) then verifies the
+// attempt belongs to this ticket at a recorded generation; this scope adds
+// only what is WORKER-specific: the generation is current, the attempt is
+// live under an unexpired lease the binding holds, and every anchor lies
+// inside the ticket's effects.touchPaths, which cannot change while that
+// attempt is live. Details name payload fields, never their values, because
+// the secret screen has not run yet. The ordinary knowHowStep checks
+// (status, entry cap, secret screen) still run afterwards.
 func (ctx *Context) workerKnowHowScope(work *ticket.Record, p *KnowHowAddPayload) *refusal {
 	if p.Supersedes != nil {
 		return refuse(OutcomeUnauthorized, "", "%s: WORKER may not supersede a know-how note", KnowHowWorkerSupersede)
@@ -151,15 +187,15 @@ func (ctx *Context) workerKnowHowScope(work *ticket.Record, p *KnowHowAddPayload
 	if p.Attempt == nil || p.Generation == nil {
 		return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s: WORKER KNOWHOW_ADD must name its live attempt and generation", KnowHowWorkerAttemptRequired)
 	}
-	a := ctx.WorkerAttempt
-	if a == nil || !a.Live || a.Generation != *p.Generation {
+	if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
+		return refuseErr(err)
+	}
+	a := ctx.KnowHowAttempts[*p.Attempt]
+	if !a.Live || a.Holder == "" || a.Generation != *p.Generation {
 		return refuse(OutcomeRevisionConflict, wire.CodeFenced, "%s: /payload/attempt and /payload/generation do not name a live attempt generation", KnowHowWorkerAttemptStale)
 	}
 	if a.Holder != ctx.Binding.ID {
 		return refuse(OutcomeUnauthorized, "", "%s: /payload/attempt is not held by the acting binding", KnowHowWorkerAttemptForeign)
-	}
-	if a.TicketID != work.TicketID.Raw {
-		return refuse(OutcomeBlocked, wire.CodeOutOfScope, "%s: /payload/attempt belongs to another ticket", KnowHowWorkerOtherTicket)
 	}
 	for i, an := range p.Anchors {
 		covered := false

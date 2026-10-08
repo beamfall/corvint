@@ -15,9 +15,10 @@ import (
 
 // TestKHNV0022_WorkerKnowHowThroughTheCLI: with policy knowHow.workerAdd the
 // claim holder, acting as WORKER, adds a note on its claimed ticket naming the
-// attempt and generation the claim returned, and the audited attempt record
-// refuses a stale generation, an anchor outside touchPaths, another ticket and
-// another actor, each with its stable detail prefix.
+// attempt and generation the claim returned. The shared provenance check
+// refuses an unrecorded generation and another ticket PROVENANCE_UNVERIFIED;
+// the WORKER scope refuses an anchor outside touchPaths and another actor,
+// each with its stable detail prefix.
 func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 	r := exclusionCLIRepo(t)
 	policyPath := filepath.Join(r.IntentDir, "policy.json")
@@ -57,9 +58,9 @@ func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 		name, actor, prefix string
 		args                []string
 	}{
-		{"stale generation", "agent", mutation.KnowHowWorkerAttemptStale, add("w-stale", home, strconv.Itoa(n+1), "src/a.go")},
+		{"unrecorded generation", "agent", wire.CodeProvenanceUnverified, add("w-stale", home, strconv.Itoa(n+1), "src/a.go")},
 		{"anchor out of scope", "agent", mutation.KnowHowWorkerAnchorScope, add("w-scope", home, gen, "docs/x.md")},
-		{"other ticket", "agent", mutation.KnowHowWorkerOtherTicket, add("w-other", other, gen, "docs/x.md")},
+		{"other ticket", "agent", wire.CodeProvenanceUnverified, add("w-other", other, gen, "docs/x.md")},
 		{"foreign actor", "intruder", mutation.KnowHowWorkerAttemptForeign, add("w-foreign", home, gen, "src/a.go")},
 	}
 	for _, rc := range refusals {
