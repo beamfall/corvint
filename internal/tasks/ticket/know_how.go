@@ -63,9 +63,13 @@ type KnowHowEntry struct {
 	EvidencePath *string
 	Note         wire.Count
 	Reason       *string
-	ActorID      string
-	ActorRole    string
-	RecordedAt   wire.Timestamp
+	// Repository is the alias of the repository an ADD's anchors are pinned
+	// in, "" for the store's own checkout (KHN-V0-025). Each anchor path of
+	// such a note is "<Repository>/<repository-relative path>".
+	Repository string
+	ActorID    string
+	ActorRole  string
+	RecordedAt wire.Timestamp
 	// Reconfirmed is the latest RECONFIRM of an active note as projected by
 	// EffectiveKnowHow; it is never encoded in the ledger.
 	Reconfirmed *KnowHowEntry
@@ -88,7 +92,12 @@ func ReadKnowHow(r *wire.Reader) []KnowHowEntry {
 		}
 		switch k.Operation {
 		case KnowHowAdd:
-			e.Closed(knowHowAddKeys...)
+			if wire.Has(e.Value(), "repository") {
+				e.Closed(append([]string{"repository"}, knowHowAddKeys...)...)
+				k.Repository = ReadKnowHowRepository(e.Field("repository"))
+			} else {
+				e.Closed(knowHowAddKeys...)
+			}
 			k.Text = ReadKnowHowText(e.Field("text"))
 			k.Anchors = ReadKnowHowAnchors(e.Field("anchors"))
 			k.Routes = ReadKnowHowRoutes(e.Field("routes"))
@@ -97,6 +106,11 @@ func ReadKnowHow(r *wire.Reader) []KnowHowEntry {
 			k.Attempt = e.Field("attempt").StringOrNull((*wire.Reader).Identifier)
 			k.Generation = e.Field("generation").SizeOrNull()
 			k.EvidencePath = e.Field("evidencePath").StringOrNull(ReadKnowHowFile)
+			if r.Err() == nil && k.Repository != "" {
+				if why := KnowHowRepositoryRefusal(k.Repository, k.Anchors); why != "" {
+					e.Field("anchors").Fail(wire.CodeMalformed, "%s", why)
+				}
+			}
 			if e.Field("reason").IsNull() {
 				k.Reason = nil
 			} else {
@@ -187,6 +201,29 @@ func ReadKnowHowAnchors(r *wire.Reader) []KnowHowAnchor {
 		out = append(out, a)
 	}
 	return out
+}
+
+// ReadKnowHowRepository reads an optional repository alias, which is never
+// empty or null when present (KHN-V0-025).
+func ReadKnowHowRepository(r *wire.Reader) string {
+	s := r.String()
+	if r.Err() != nil {
+		return ""
+	}
+	if _, err := wire.ParseKnowHowRepository(r.Where(), s); err != nil {
+		r.Fail(wire.CodeMalformed, "%s: repository %q is not a token of at most %d bytes", wire.KnowHowRepositoryDetail, s, wire.KnowHowMaxRepositoryBytes)
+		return ""
+	}
+	return s
+}
+
+// KnowHowRepositoryRefusal applies wire.KnowHowRepositoryRefusal to anchors.
+func KnowHowRepositoryRefusal(repository string, anchors []KnowHowAnchor) string {
+	paths := make([]string, len(anchors))
+	for i, a := range anchors {
+		paths[i] = a.Path
+	}
+	return wire.KnowHowRepositoryRefusal(repository, paths)
 }
 
 // ReadKnowHowSymbol reads a symbol anchor name (wire.ParseKnowHowSymbol).
@@ -285,6 +322,9 @@ func KnowHowValue(entries []KnowHowEntry) wire.Value {
 			o.Set("generation", sizeOrNull(k.Generation))
 			o.Set("evidencePath", stringOrNull(k.EvidencePath))
 			o.Set("reason", stringOrNull(k.Reason))
+			if k.Repository != "" {
+				o.Set("repository", wire.String(k.Repository))
+			}
 		case KnowHowRetract:
 			o.Set("note", wire.String(string(k.Note)))
 			o.Set("reason", stringOrNull(k.Reason))
