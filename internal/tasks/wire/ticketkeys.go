@@ -48,7 +48,7 @@ const (
 	KnowHowMaxSymbolBytes = 128
 )
 
-// ParseKnowHowSymbol validates a know-how symbol anchor name (KHN-V0-008):
+// ParseKnowHowSymbol validates a know-how symbol anchor name (KHN-V0-016):
 // 1..KnowHowMaxSymbolBytes printable ASCII bytes other than space and '#',
 // so `--symbol PATH#NAME` splits unambiguously at its last '#'. The native
 // codec and Core's read-only planner both enforce it.
@@ -65,7 +65,7 @@ func ParseKnowHowSymbol(where, s string) (string, error) {
 }
 
 // KnowHowNotStale prefixes the refusal of a know-how RECONFIRM that would
-// change no pin in a way that makes its note STALE (KHN-V0-011).
+// change no pin in a way that makes its note STALE (KHN-V0-019).
 const KnowHowNotStale = "KNOWHOW_NOT_STALE"
 
 // KnowHowPin is the freshness identity of one know-how anchor: its path, its
@@ -76,7 +76,7 @@ type KnowHowPin struct{ Path, Symbol, Pin string }
 // KnowHowReconfirmRefusal is "" when next re-pins exactly the anchors of
 // prior (the same paths and symbols in the same order) and changes at least
 // one Pin. Otherwise it is the reason a RECONFIRM is refused, prefixed
-// KnowHowNotStale when no pin would change (KHN-V0-011). The native writer
+// KnowHowNotStale when no pin would change (KHN-V0-019). The native writer
 // and codec and Core's read-only planner all apply this one rule.
 func KnowHowReconfirmRefusal(prior, next []KnowHowPin) string {
 	same := "a reconfirm re-pins exactly the note's anchors"

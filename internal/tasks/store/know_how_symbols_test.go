@@ -58,12 +58,12 @@ func symbolAnchors(specs ...string) []ticket.KnowHowAnchor {
 	return out
 }
 
-// TestKHNV0008_SymbolPinsReuseTheIndexExtractor: a symbol anchor pins its
+// TestKHNV0016_SymbolPinsReuseTheIndexExtractor: a symbol anchor pins its
 // file's blob and the SHA-256 of the one declaration the context index's
 // extractor names (a Go method as Receiver.Method, a Python def); a symbol
 // that is missing or declared twice, or a file no extractor admits, is
 // refused KNOWHOW_UNRESOLVED and nothing is pinned.
-func TestKHNV0008_SymbolPinsReuseTheIndexExtractor(t *testing.T) {
+func TestKHNV0016_SymbolPinsReuseTheIndexExtractor(t *testing.T) {
 	root := t.TempDir()
 	gitRun(t, root, "init", "-q", "-b", "main")
 	head := writeCommit(t, root, "base", map[string]string{"sym.go": symGoV1, "lib.py": symPyV1, "notes.txt": "F\n"})
@@ -97,12 +97,12 @@ func TestKHNV0008_SymbolPinsReuseTheIndexExtractor(t *testing.T) {
 	}
 }
 
-// TestKHNV0009_SymbolFreshnessFollowsTheDeclaration: editing another symbol
+// TestKHNV0017_SymbolFreshnessFollowsTheDeclaration: editing another symbol
 // in the same file, or moving the pinned one down, leaves a symbol anchor
 // CURRENT while the file anchor of that path goes STALE; editing the pinned
 // declaration makes it STALE; deleting or renaming it, deleting the file,
 // growing it past 1 MiB, or duplicating it reads UNKNOWN, never CURRENT.
-func TestKHNV0009_SymbolFreshnessFollowsTheDeclaration(t *testing.T) {
+func TestKHNV0017_SymbolFreshnessFollowsTheDeclaration(t *testing.T) {
 	root := t.TempDir()
 	gitRun(t, root, "init", "-q", "-b", "main")
 	writeCommit(t, root, "base", map[string]string{"sym.go": symGoV1, "lib.py": symPyV1})
@@ -170,12 +170,12 @@ func TestKHNV0009_SymbolFreshnessFollowsTheDeclaration(t *testing.T) {
 	}
 }
 
-// TestKHNV0010_ProjectionShowsEffectivePinsAndProvenance: selection and the
+// TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance: selection and the
 // full projection use a note's latest RECONFIRM pins and name its seq,
 // actor, time, attempt and generation; the compact form names the symbol
 // but no pins; a note never re-confirmed and without symbols projects as
 // before.
-func TestKHNV0010_ProjectionShowsEffectivePinsAndProvenance(t *testing.T) {
+func TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance(t *testing.T) {
 	blobA, blobB := strings.Repeat("a", 40), strings.Repeat("b", 40)
 	d1, d2 := string(wire.Sum([]byte("1"))), string(wire.Sum([]byte("2")))
 	add := knowHowEntry(1, "2026-10-01T00:00:00Z", ticket.KnowHowAnchor{Path: "a.go", Blob: blobA, Symbol: "F", SymbolSha256: d1})

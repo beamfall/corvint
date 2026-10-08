@@ -21,7 +21,7 @@ const knowHowTrust = "UNTRUSTED_AGENT_AUTHORED_DATA"
 const knowHowListMax = 200
 
 // knowHowCommand runs `ticket know-how add|retract|reconfirm|list`
-// (KHN-V0-003, KHN-V0-006, KHN-V0-010). The writes are ordinary
+// (KHN-V0-003, KHN-V0-006, KHN-V0-018). The writes are ordinary
 // KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM mutations whose payload is
 // composed here, so a caller never hand-writes blob or symbol pins.
 func knowHowCommand(env Env, args []string) *wire.Result {
@@ -169,7 +169,7 @@ func knowHowRetract(env Env, cmd []string, args []string) *wire.Result {
 
 // knowHowAnchorArgs turns `--anchor PATH` and `--symbol PATH#NAME` (split at
 // the last '#') into anchors in (path, symbol) order, refusing a malformed
-// path or symbol, a duplicate, and more than KnowHowMaxAnchors (KHN-V0-008).
+// path or symbol, a duplicate, and more than KnowHowMaxAnchors (KHN-V0-016).
 func knowHowAnchorArgs(paths, symbols []string) ([]ticket.KnowHowAnchor, error) {
 	var out []ticket.KnowHowAnchor
 	for _, p := range paths {
@@ -210,11 +210,11 @@ func knowHowRev(commit string) (string, error) {
 }
 
 // knowHowReconfirm re-pins an active note's own anchors at --commit (else
-// HEAD) and submits KNOWHOW_RECONFIRM (KHN-V0-010). The anchors are the
+// HEAD) and submits KNOWHOW_RECONFIRM (KHN-V0-018). The anchors are the
 // note's effective ones, so a caller cannot move or widen a note this way.
 // An anchor that no longer resolves is refused KNOWHOW_UNRESOLVED before
 // submission, and a re-pin that changes nothing is refused KNOWHOW_NOT_STALE
-// by the writer (KHN-V0-011).
+// by the writer (KHN-V0-019).
 func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
 		return usage(cmd, "the first argument is the ticket id or local token")

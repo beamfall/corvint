@@ -63,11 +63,11 @@ func TestKHNV0002_ReaderKnowHow(t *testing.T) {
 	}
 }
 
-// TestKHNV0012_ReaderKnowHowSymbolsAndReconfirm: Core's reader admits a
+// TestKHNV0020_ReaderKnowHowSymbolsAndReconfirm: Core's reader admits a
 // symbol anchor and a RECONFIRM that re-pins an active note, and refuses the
-// same forms the Tasks codec refuses (KHN-V0-008, KHN-V0-010, KHN-V0-011), so
+// same forms the Tasks codec refuses (KHN-V0-016, KHN-V0-018, KHN-V0-019), so
 // a record the new codec writes never reads differently in Core.
-func TestKHNV0012_ReaderKnowHowSymbolsAndReconfirm(t *testing.T) {
+func TestKHNV0020_ReaderKnowHowSymbolsAndReconfirm(t *testing.T) {
 	const (
 		blobA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		blobD = "dddddddddddddddddddddddddddddddddddddddd"

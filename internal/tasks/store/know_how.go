@@ -39,13 +39,13 @@ type KnowHowNote struct {
 // KnowHowUnresolved prefixes the detail of a pin refused because an anchor
 // does not resolve at the writer's commit: its path is not a file there, or
 // its symbol is not exactly one declaration the index's extractor names in a
-// blob of at most 1 MiB (KHN-V0-008, KHN-V0-011).
+// blob of at most 1 MiB (KHN-V0-016, KHN-V0-019).
 const KnowHowUnresolved = "KNOWHOW_UNRESOLVED"
 
 // KnowHowPinAnchors pins each anchor at rev with one `git cat-file
 // --batch-check` and, when any anchor names a symbol, one `git cat-file
 // --batch` over the blobs those anchors name: Blob is set for every anchor and
-// SymbolSha256 for every symbol anchor (KHN-V0-001, KHN-V0-008). It returns
+// SymbolSha256 for every symbol anchor (KHN-V0-001, KHN-V0-016). It returns
 // rev's commit. An anchor that does not resolve is refused MALFORMED with the
 // KnowHowUnresolved prefix; a note is never pinned to something the writer's
 // commit does not hold. The anchors keep their order.
@@ -109,7 +109,7 @@ func KnowHowPinAnchors(root, rev string, anchors []ticket.KnowHowAnchor) (string
 // alone when home is set, whose anchors intersect paths (all notes when paths
 // is empty). A path ending in "/" matches every anchor below it; any other
 // path matches one anchor exactly (KHN-V0-006). Each note carries its
-// effective pins: those of its latest RECONFIRM, else its own (KHN-V0-010).
+// effective pins: those of its latest RECONFIRM, else its own (KHN-V0-018).
 func SelectKnowHow(inv *ticket.Inventory, paths []string, home string) []KnowHowNote {
 	var out []KnowHowNote
 	for _, id := range inv.IDs() {
@@ -148,7 +148,7 @@ func knowHowIntersects(anchors []ticket.KnowHowAnchor, paths []string) bool {
 // any anchor is, else UNKNOWN when any anchor is, else CURRENT. It writes
 // nothing: the Git environment disables optional locks.
 //
-// A symbol anchor (KHN-V0-009) whose file blob equals its pin is CURRENT
+// A symbol anchor (KHN-V0-017) whose file blob equals its pin is CURRENT
 // without reading content. Otherwise one more `git cat-file --batch` reads
 // the changed blobs, each at most once: the anchor is CURRENT when its
 // declaration's digest equals the pin, STALE when it differs, and UNKNOWN
@@ -232,9 +232,9 @@ func SortKnowHow(notes []KnowHowNote) {
 // KnowHowNoteValue encodes one note. The compact form a claim delivers keeps
 // the text, anchor paths with their states, routes and time; the full form
 // adds the pins, provenance and supersession a list reader audits. A symbol
-// anchor adds its symbol, and the full form its digest pin (KHN-V0-008); a
+// anchor adds its symbol, and the full form its digest pin (KHN-V0-016); a
 // re-confirmed note's full form adds the latest RECONFIRM's provenance and
-// shows its pins (KHN-V0-010). A note without either encodes as before.
+// shows its pins (KHN-V0-018). A note without either encodes as before.
 func KnowHowNoteValue(n KnowHowNote, compact bool) wire.Value {
 	k := n.Entry
 	anchors := make([]wire.Value, 0, len(k.Anchors))

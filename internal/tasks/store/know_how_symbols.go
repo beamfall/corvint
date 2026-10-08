@@ -15,11 +15,11 @@ import (
 
 // knowHowSymbolMaxBlobBytes bounds the blob a symbol anchor is resolved in.
 // A larger file is UNKNOWN at read time and refused at write time, so one
-// read never parses an unbounded source (KHN-V0-009).
+// read never parses an unbounded source (KHN-V0-017).
 const knowHowSymbolMaxBlobBytes = 1 << 20
 
 // knowHowSymbols is one source's declarations as the index's own extractor
-// names them (KHN-V0-008): the SHA-256 of each uniquely named declaration's
+// names them (KHN-V0-016): the SHA-256 of each uniquely named declaration's
 // text, with "" for a name declared more than once. refusal is non-empty
 // when the file has no extractor or the extractor refused or truncated it.
 type knowHowSymbols struct {

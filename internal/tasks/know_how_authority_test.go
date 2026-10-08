@@ -15,7 +15,7 @@ import (
 // None of them ranks, plans, cites evidence or decides authority: the record
 // codec, the Core reader that admits the optional key, the write verbs and
 // their help, the import and adoption guards, the read/delivery projection
-// and its symbol-extent reader (KHN-V0-009).
+// and its symbol-extent reader (KHN-V0-017).
 var knowHowReaders = []string{
 	"internal/taskman/decode.go",
 	"internal/taskman/know_how.go",
@@ -27,15 +27,20 @@ var knowHowReaders = []string{
 	"internal/tasks/mutation/adopt.go",
 	"internal/tasks/mutation/apply.go",
 	"internal/tasks/mutation/know_how.go",
+	"internal/tasks/mutation/know_how_provenance.go",
 	"internal/tasks/mutation/mutation.go",
 	"internal/tasks/store/claim_delivery.go",
+	"internal/tasks/store/external_review.go",
 	"internal/tasks/store/know_how.go",
 	"internal/tasks/store/know_how_symbols.go",
 	"internal/tasks/store/lease.go",
+	"internal/tasks/store/writer_route.go",
 	"internal/tasks/ticket/know_how.go",
 	"internal/tasks/ticket/record.go",
 	"internal/tasks/ticket/view.go",
+	"internal/tasks/transaction/know_how_provenance.go",
 	"internal/tasks/transaction/model.go",
+	"internal/tasks/wire/codes.go",
 	"internal/tasks/wire/ticketkeys.go",
 }
 

@@ -10,14 +10,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestKHNV0010_SymbolAnchorsAndReconfirmThroughTheCLI drives the V1-0963
+// TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI drives the V1-0963
 // slice end to end: `add --symbol` pins a declaration, an edit of another
 // symbol leaves its note CURRENT while the edited one goes STALE, `reconfirm`
 // re-pins the STALE note with provenance and keeps both entries in `ticket
 // show`, a reconfirm of a CURRENT note is refused KNOWHOW_NOT_STALE, and an
 // unresolvable symbol is refused KNOWHOW_UNRESOLVED on add and on reconfirm
 // while it reads UNKNOWN.
-func TestKHNV0010_SymbolAnchorsAndReconfirmThroughTheCLI(t *testing.T) {
+func TestKHNV0018_SymbolAnchorsAndReconfirmThroughTheCLI(t *testing.T) {
 	r := knowHowCLIRepo(t)
 	commit := func(body string) {
 		t.Helper()
@@ -28,14 +28,20 @@ func TestKHNV0010_SymbolAnchorsAndReconfirmThroughTheCLI(t *testing.T) {
 	base := "package a\n\n// F is f.\nfunc F() int { return 1 }\n\nfunc G() int { return 2 }\n"
 	commit(base)
 	home := planTicket(t, r.Root, "home", "P2", `["src/a.go"]`)
+	c := atm(t, r.Root, nil, "claim", home, "--holder", "agent", "--request-id", "claim-home")
+	if c.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim: %s", c.stdout)
+	}
+	attempt, gen := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
 	stamp := []string{"--issued-at", "2026-10-07T12:00:00Z"}
 	add := func(req, rev, text string, extra ...string) []string {
 		return append(append([]string{"ticket", "know-how", "add", home, "--request-id", req, "--expected-revision", rev, "--text", text}, stamp...), extra...)
 	}
-	reconfirm := func(req, rev, note string) []string {
+	reconfirmAs := func(req, rev, note, attempt, gen string) []string {
 		return append([]string{"ticket", "know-how", "reconfirm", home, "--request-id", req, "--expected-revision", rev, "--note", note,
-			"--attempt", "attempt-9", "--generation", "3"}, stamp...)
+			"--attempt", attempt, "--generation", gen}, stamp...)
 	}
+	reconfirm := func(req, rev, note string) []string { return reconfirmAs(req, rev, note, attempt, gen) }
 	refused := func(name, code string, args []string) {
 		t.Helper()
 		x := atm(t, r.Root, nil, args...)
@@ -81,13 +87,14 @@ func TestKHNV0010_SymbolAnchorsAndReconfirmThroughTheCLI(t *testing.T) {
 	}
 	refused("reconfirm CURRENT", "KNOWHOW_NOT_STALE", reconfirm("kh-r0", "3", "1"))
 	refused("reconfirm unknown note", "MALFORMED", reconfirm("kh-r9", "3", "9"))
+	refused("reconfirm unverified attempt", wire.CodeProvenanceUnverified, reconfirmAs("kh-r8", "3", "2", "att-unknown-khn", gen))
 	if x := atm(t, r.Root, nil, reconfirm("kh-r1", "3", "2")...); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("reconfirm: %s", x.stdout)
 	}
 	notes = byNote()
 	re := field(notes["2"], "reconfirmed")
-	if field(notes["2"], "freshness").Str != "CURRENT" || field(re, "seq").Str != "3" || field(re, "attempt").Str != "attempt-9" ||
-		field(re, "generation").Str != "3" || field(field(re, "actor"), "role").Str != "OWNER" {
+	if field(notes["2"], "freshness").Str != "CURRENT" || field(re, "seq").Str != "3" || field(re, "attempt").Str != attempt ||
+		field(re, "generation").Str != gen || field(field(re, "actor"), "role").Str != "OWNER" {
 		t.Fatalf("reconfirmed note: %s", wire.Encode(notes["2"]))
 	}
 	refused("second reconfirm", "KNOWHOW_NOT_STALE", reconfirm("kh-r2", "4", "2"))

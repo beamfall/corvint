@@ -6,7 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// Know-how ledger operations (KHN-V0-002, KHN-V0-010). An ADD records one
+// Know-how ledger operations (KHN-V0-002, KHN-V0-018). An ADD records one
 // note, optionally superseding an earlier active note on the same home
 // ticket; a RETRACT withdraws one; a RECONFIRM re-pins an active note's
 // anchors to a later commit without changing its text or the active set.
@@ -22,7 +22,7 @@ var knowHowRetractKeys = []string{"actor", "note", "operation", "reason", "recor
 var knowHowReconfirmKeys = []string{"actor", "anchors", "attempt", "commit", "generation", "note", "operation", "recordedAt", "seq"}
 
 // KnowHowAnchor pins one repository-relative file to the Git blob it had at
-// the writer's commit. A symbol anchor (KHN-V0-008) also names one
+// the writer's commit. A symbol anchor (KHN-V0-016) also names one
 // declaration in that file and pins the SHA-256 of its extent's text, so an
 // edit elsewhere in the file leaves it fresh. Symbol and SymbolSha256 are
 // both empty for a file anchor, whose encoding is unchanged.
@@ -148,7 +148,7 @@ func ReadKnowHowReason(r *wire.Reader) string {
 }
 
 // ReadKnowHowAnchors reads 1..KnowHowMaxAnchors closed {blob, path} file
-// anchors or {blob, path, symbol, symbolSha256} symbol anchors (KHN-V0-008)
+// anchors or {blob, path, symbol, symbolSha256} symbol anchors (KHN-V0-016)
 // in strictly ascending (path, symbol) order. A path is a repository-relative
 // file: the Path grammar refuses absolute and '..' paths, and a trailing '/'
 // directory prefix is refused here. A symbol anchor carries both symbol keys
@@ -335,7 +335,7 @@ func ActiveKnowHow(entries []KnowHowEntry) []KnowHowEntry {
 
 // EffectiveKnowHow returns the active ADD entries in append order with each
 // note's effective pins: the anchors and commit of its latest RECONFIRM, which
-// is kept in Reconfirmed, else its own (KHN-V0-010).
+// is kept in Reconfirmed, else its own (KHN-V0-018).
 func EffectiveKnowHow(entries []KnowHowEntry) []KnowHowEntry {
 	latest := map[wire.Count]KnowHowEntry{}
 	for _, k := range entries {
@@ -355,7 +355,7 @@ func EffectiveKnowHow(entries []KnowHowEntry) []KnowHowEntry {
 // KnowHowReconfirmRefusal applies wire.KnowHowReconfirmRefusal to anchors:
 // a RECONFIRM re-pins exactly prior's paths and symbols and moves at least
 // one pin in a way that makes the note STALE, a file anchor's blob or a
-// symbol anchor's digest (KHN-V0-011).
+// symbol anchor's digest (KHN-V0-019).
 func KnowHowReconfirmRefusal(prior, next []KnowHowAnchor) string {
 	return wire.KnowHowReconfirmRefusal(KnowHowPins(prior), KnowHowPins(next))
 }
@@ -376,7 +376,7 @@ func KnowHowPins(anchors []KnowHowAnchor) []wire.KnowHowPin {
 // cannot: seq is the 1-based position, a superseding ADD, a RETRACT and a
 // RECONFIRM name an earlier ADD that is still active, an ADD carries a
 // reason exactly when it supersedes, and a RECONFIRM re-pins the note's
-// effective anchors with at least one STALE change (KHN-V0-011).
+// effective anchors with at least one STALE change (KHN-V0-019).
 func (rec *Record) validateKnowHow() error {
 	active := map[wire.Count]bool{}
 	pins := map[wire.Count][]KnowHowAnchor{}

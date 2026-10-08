@@ -83,7 +83,7 @@ func BenchmarkKnowHowFreshness32FileAnchors(b *testing.B) {
 	}
 }
 
-// BenchmarkKnowHowFreshness32SymbolAnchors is the KHN-V0-009 worst case at
+// BenchmarkKnowHowFreshness32SymbolAnchors is the KHN-V0-017 worst case at
 // the cap: 32 notes of 4 symbol anchors, pinned at the base commit, whose
 // files all changed elsewhere, so every blob differs and every declaration
 // is re-extracted (all CURRENT).

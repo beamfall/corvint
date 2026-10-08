@@ -453,7 +453,7 @@ func (p *Policy) PolicySha256() wire.Digest {
 // (ON-V0-004) or an escalation verb (ESC-V0-001, ESC-V0-004) only through an
 // explicit policy.roles.OPERATOR row, never by default; the same holds for
 // ATTACH_EVIDENCE (TEA-V0-001) and the know-how verbs (KHN-V0-003,
-// KHN-V0-010). No other role may be granted them.
+// KHN-V0-018). No other role may be granted them.
 var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM"}}
 
 // PolicyGrantable is the closed set a policy row for role may list: its

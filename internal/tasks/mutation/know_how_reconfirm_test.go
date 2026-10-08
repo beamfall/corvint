@@ -25,12 +25,12 @@ func knowHowReconfirm(note, commit string, anchors ...wire.Value) wire.Value {
 	return obj("note", str(note), "anchors", wire.Array(anchors...), "commit", str(commit), "attempt", wire.Null(), "generation", wire.Null())
 }
 
-// TestKHNV0008_SymbolAnchorsInPayloadAndRecord: an ADD may carry symbol
+// TestKHNV0016_SymbolAnchorsInPayloadAndRecord: an ADD may carry symbol
 // anchors {blob, path, symbol, symbolSha256} beside file anchors, in (path,
 // symbol) order; a file anchor's encoding is unchanged; a malformed symbol,
 // a missing or malformed digest, a stray symbol key, two blobs for one path
 // or an unsorted pair is refused by the payload decoder and the record codec.
-func TestKHNV0008_SymbolAnchorsInPayloadAndRecord(t *testing.T) {
+func TestKHNV0016_SymbolAnchorsInPayloadAndRecord(t *testing.T) {
 	post := step(t, owner, nil, fixture.Ticket("AT-01"), mutation.OpKnowHowAdd, knowHowAdd("F needs the lock", "", "",
 		khAnchor("a.go", khBlobA), khSymbol("a.go", khBlobA, "F", khDigestF), khSymbol("a.go", khBlobA, "T.G", khDigestG)), "1")
 	got := post.KnowHow[0].Anchors
@@ -83,32 +83,44 @@ func TestKHNV0008_SymbolAnchorsInPayloadAndRecord(t *testing.T) {
 	secret := "AKIAABCDEFGHIJKLMNOP"
 	ctx := newCtx(t, owner, nil, fixture.Ticket("AT-01"))
 	plan := apply(t, ctx, envelope("sec", owner, "AT-01", rev, mutation.OpKnowHowAdd, knowHowAdd("ok", "", "", khSymbol("a.go", khBlobA, secret, khDigestF))))
-	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeMalformed)
+	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeSecretDetected)
 	if !strings.HasPrefix(plan.Detail, mutation.KnowHowSecretDetail+":") || strings.Contains(plan.Detail, secret) {
 		t.Fatalf("symbol secret detail %q", plan.Detail)
 	}
 }
 
-// TestKHNV0010_ReconfirmRepinsWithProvenance: RECONFIRM appends one entry
+// TestKHNV0018_ReconfirmRepinsWithProvenance: RECONFIRM appends one entry
 // naming the note with its re-pinned anchors, commit, attempt, generation,
 // actor and time; every earlier entry, the note's text and its active seq
 // stay; the effective pins are the latest RECONFIRM's, and a second
 // RECONFIRM supersedes the first while both stay in history. It counts
 // toward the 32-entry bound, and OPERATOR needs an explicit policy row.
-func TestKHNV0010_ReconfirmRepinsWithProvenance(t *testing.T) {
+func TestKHNV0018_ReconfirmRepinsWithProvenance(t *testing.T) {
 	add := step(t, owner, nil, fixture.Ticket("AT-01"), mutation.OpKnowHowAdd, knowHowAdd("F needs the lock", "", "",
 		khAnchor("a.go", khBlobA), khSymbol("b.go", khBlobA, "F", khDigestF)), "1")
 	first := string(wire.Encode(ticket.KnowHowValue(add.KnowHow)))
 	p := knowHowReconfirm("1", khCommit2, khAnchor("a.go", khBlobB), khSymbol("b.go", khBlobB, "F", khDigestG))
-	p.Obj.Set("attempt", str("att-1")).Set("generation", str("3"))
-	re := step(t, owner, nil, add, mutation.OpKnowHowReconfirm, p, "1")
+	p.Obj.Set("attempt", str("att-home")).Set("generation", str("3"))
+	// The named attempt passes the KHN-V0-008 provenance check; an unknown
+	// attempt or an unobserved ledger refuses PROVENANCE_UNVERIFIED.
+	for name, ledger := range map[string]mutation.AttemptLedger{"unobserved": nil, "unknown": {"att-other": khnLedger()["att-other"]}} {
+		ctx := newCtx(t, owner, nil, add)
+		ctx.KnowHowAttempts = ledger
+		want(t, apply(t, ctx, envelope("re-"+name, owner, "AT-01", string(add.Revision), mutation.OpKnowHowReconfirm, p)), mutation.OutcomeValidationFailed, wire.CodeProvenanceUnverified)
+	}
+	ctx := newCtx(t, owner, nil, add)
+	ctx.KnowHowAttempts = khnLedger()
+	plan := apply(t, ctx, envelope("re", owner, "AT-01", string(add.Revision), mutation.OpKnowHowReconfirm, p))
+	want(t, plan, mutation.OutcomeCompleted, "")
+	chain(t, add, plan.Post, "1")
+	re := plan.Post
 	sameExceptKnowHow(t, add, re)
 	if !strings.HasPrefix(string(wire.Encode(ticket.KnowHowValue(re.KnowHow))), strings.TrimSuffix(first, "]")) {
 		t.Fatal("reconfirm rewrote the earlier entry")
 	}
 	e := re.KnowHow[1]
 	if len(re.KnowHow) != 2 || e.Operation != ticket.KnowHowReconfirm || e.Seq != "2" || e.Note != "1" || e.Commit != khCommit2 ||
-		e.ActorID != owner.ID || e.ActorRole != "OWNER" || e.RecordedAt != now || *e.Attempt != "att-1" || *e.Generation != "3" || e.Reason != nil || e.Text != "" {
+		e.ActorID != owner.ID || e.ActorRole != "OWNER" || e.RecordedAt != now || *e.Attempt != "att-home" || *e.Generation != "3" || e.Reason != nil || e.Text != "" {
 		t.Fatalf("reconfirm entry: %+v", e)
 	}
 	eff := ticket.EffectiveKnowHow(re.KnowHow)
@@ -158,20 +170,21 @@ func TestKHNV0010_ReconfirmRepinsWithProvenance(t *testing.T) {
 	}
 	pv := fixture.PolicyValue()
 	pv.Obj.Set("roles", obj("OPERATOR", wire.Strings([]string{"KNOWHOW_RECONFIRM"})))
-	ctx := ctxWithPolicy(t, operator, nil, wire.EncodeFile(pv), add)
-	plan := apply(t, ctx, envelope("op1", operator, "AT-01", string(add.Revision), mutation.OpKnowHowReconfirm, p))
+	ctx = ctxWithPolicy(t, operator, nil, wire.EncodeFile(pv), add)
+	ctx.KnowHowAttempts = khnLedger()
+	plan = apply(t, ctx, envelope("op1", operator, "AT-01", string(add.Revision), mutation.OpKnowHowReconfirm, p))
 	want(t, plan, mutation.OutcomeCompleted, "")
 	if plan.Post.KnowHow[1].ActorRole != "OPERATOR" {
 		t.Fatalf("operator reconfirm actor: %+v", plan.Post.KnowHow[1])
 	}
 }
 
-// TestKHNV0011_ReconfirmOfANoteThatIsNotStaleIsRefused: a RECONFIRM whose
+// TestKHNV0019_ReconfirmOfANoteThatIsNotStaleIsRefused: a RECONFIRM whose
 // pins equal the note's effective pins is refused VALIDATION_FAILED /
 // MALFORMED with the KNOWHOW_NOT_STALE prefix, by the writer and by the
 // record codec; one that moves, adds, drops or renames an anchor, or names
 // an inactive note, is refused; the payload is closed.
-func TestKHNV0011_ReconfirmOfANoteThatIsNotStaleIsRefused(t *testing.T) {
+func TestKHNV0019_ReconfirmOfANoteThatIsNotStaleIsRefused(t *testing.T) {
 	add := step(t, owner, nil, fixture.Ticket("AT-01"), mutation.OpKnowHowAdd, knowHowAdd("n", "", "",
 		khAnchor("a.go", khBlobA), khSymbol("b.go", khBlobA, "F", khDigestF)), "1")
 	same := knowHowReconfirm("1", khCommit2, khAnchor("a.go", khBlobA), khSymbol("b.go", khBlobA, "F", khDigestF))

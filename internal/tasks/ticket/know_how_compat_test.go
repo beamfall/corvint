@@ -9,11 +9,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 )
 
-// TestKHNV0012_LegacyKnowHowReadsExactlyAsBefore: a record written before
+// TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore: a record written before
 // symbol anchors and RECONFIRM existed (the shared fixture Core also reads)
 // decodes and re-encodes to the same bytes, gains no symbol or reconfirm
 // key, and its effective notes are its active notes with no overlay.
-func TestKHNV0012_LegacyKnowHowReadsExactlyAsBefore(t *testing.T) {
+func TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore(t *testing.T) {
 	raw, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)

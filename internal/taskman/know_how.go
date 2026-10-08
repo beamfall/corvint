@@ -13,7 +13,7 @@ import (
 // RECONFIRM entries in append order, seq equal to the 1-based position, a
 // superseding ADD, a RETRACT or a RECONFIRM naming an earlier still-active
 // ADD, a reason exactly when an ADD supersedes, and a RECONFIRM re-pinning
-// its note's anchors with at least one changed pin (KHN-V0-011). Absence is
+// its note's anchors with at least one changed pin (KHN-V0-019). Absence is
 // valid. The ledger is agent-authored data: this reader admits it and nothing
 // in Core ranks, cites or trusts it.
 func knowHow(v wire.Value, _, _ uint64) error {
@@ -137,7 +137,7 @@ func knowHowAdd(x wire.Value) ([]taskswire.KnowHowPin, error) {
 
 // knowHowPins validates the commit, anchors, attempt and generation an ADD
 // and a RECONFIRM share and returns the anchors' freshness identities. An
-// anchor is {blob, path} or, for a symbol anchor (KHN-V0-008), {blob, path,
+// anchor is {blob, path} or, for a symbol anchor (KHN-V0-016), {blob, path,
 // symbol, symbolSha256}, in strictly ascending (path, symbol) order, and the
 // anchors of one path pin one blob.
 func knowHowPins(x wire.Value) ([]taskswire.KnowHowPin, error) {

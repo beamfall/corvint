@@ -45,6 +45,8 @@ var retries = map[string]Retry{
 	CodeStaleTree:             {false, whyReread},
 	CodeRequestIDConflict:     {false, whyInput},
 	CodeMalformed:             {false, whyInput},
+	CodeSecretDetected:        {false, whyInput},
+	CodeProvenanceUnverified:  {false, whyInput},
 	CodeDuplicateID:           {false, whyInput},
 	CodeCycle:                 {false, whyInput},
 	CodeDependencyMissing:     {false, whyInput},

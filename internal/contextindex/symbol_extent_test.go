@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-// TestKHNV0008_SymbolExtentsReuseTheIndexExtractors: a Go source names
+// TestKHNV0016_SymbolExtentsReuseTheIndexExtractors: a Go source names
 // functions, types and Receiver.Method with doc-comment-to-brace extents; a
 // Python source is walked by the index's Python extractor; a path no
 // extractor admits, or bytes that are not text, is refused rather than read
 // as an empty symbol table.
-func TestKHNV0008_SymbolExtentsReuseTheIndexExtractors(t *testing.T) {
+func TestKHNV0016_SymbolExtentsReuseTheIndexExtractors(t *testing.T) {
 	goSrc := "package p\n\n// F does f.\nfunc F() int {\n\treturn 1\n}\n\ntype T struct{}\n\nfunc (t *T) M() {}\n"
 	got, ok := SymbolExtents("p.go", []byte(goSrc))
 	if !ok {

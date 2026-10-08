@@ -68,7 +68,7 @@ const (
 	OpKnowHowAdd     = "KNOWHOW_ADD"
 	OpKnowHowRetract = "KNOWHOW_RETRACT"
 	// OpKnowHowReconfirm re-pins a STALE active note's anchors to a later
-	// commit (KHN-V0-010). It changes no text, active set or acceptance.
+	// commit (KHN-V0-018). It changes no text, active set or acceptance.
 	OpKnowHowReconfirm = "KNOWHOW_RECONFIRM"
 )
 
@@ -300,7 +300,7 @@ type KnowHowRetractPayload struct {
 func (*KnowHowRetractPayload) operation() string { return OpKnowHowRetract }
 
 // KnowHowReconfirmPayload is {note, anchors, commit, attempt, generation}
-// (KHN-V0-010): the note's anchors re-pinned at commit, with the same paths
+// (KHN-V0-018): the note's anchors re-pinned at commit, with the same paths
 // and symbols in the same order, and writer-asserted provenance. Actor,
 // time and seq come from the writer, never from here.
 type KnowHowReconfirmPayload struct {
@@ -349,7 +349,7 @@ var PayloadKeys = map[string][]string{
 	OpNoteClear:       {"supersedes"},
 	OpReviewRecord:    {"request"},
 	OpReviewResubmit:  {"request"},
-	// KHN-V0-010.
+	// KHN-V0-018.
 	OpKnowHowReconfirm: {"anchors", "attempt", "commit", "generation", "note"},
 }
 

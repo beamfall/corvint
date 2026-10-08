@@ -164,8 +164,8 @@ writer and removing this two-file edge; the other edges stay.
 
 Agent decision, 2026-10-07, made while delivering the native follow-up V1-0963 of GitHub issue
 beamfall/corvint#655; it is not a direct owner statement, and the owner's acceptance is an open
-question of the proposed KHN-V0-008..012. Symbol anchors
-(`docs/specs/corvint-tasks-know-how-notes-v0.md`, KHN-V0-008 and KHN-V0-009) must reuse Corvint's
+question of the proposed KHN-V0-016..020. Symbol anchors
+(`docs/specs/corvint-tasks-know-how-notes-v0.md`, KHN-V0-016 and KHN-V0-017) must reuse Corvint's
 existing symbol extraction rather than add a parser, so the declaration extents come from
 `contextindex.SymbolExtents`. Rule 2 gains one more exact edge, limited to one file:
 `internal/tasks/store/know_how_symbols.go` may import `internal/contextindex`. The rest of

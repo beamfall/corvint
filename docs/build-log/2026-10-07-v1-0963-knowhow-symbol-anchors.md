@@ -6,7 +6,7 @@ V1-0963 follows up V1-0955 / GitHub issue beamfall/corvint#655. A whole-file anc
 any edit of its file, so a note about one function decays when a neighbour changes, and the only
 refresh was a superseding ADD that restates the text. The slice adds symbol anchors whose freshness
 follows one declaration, and an explicit write that re-pins a STALE note with provenance. The
-requirements are KHN-V0-008..012 in `docs/specs/corvint-tasks-know-how-notes-v0.md`, proposed
+requirements are KHN-V0-016..020 in `docs/specs/corvint-tasks-know-how-notes-v0.md`, proposed
 pending owner acceptance; delivery is experimental.
 
 ## Decisions
@@ -31,11 +31,17 @@ pending owner acceptance; delivery is experimental.
   keeps uninformative entries out of the 32-entry cap, tells the caller its premise is wrong, and
   adds no §11 code. Reads overlay the latest RECONFIRM's pins; the ADD's pins and every earlier
   RECONFIRM stay in `ticket show`.
-- **Unchanged contracts.** The caps (1024 bytes, 4 anchors, 32 entries), the secret-hit code and
-  prefix, the role grants (OWNER, OPERATOR by policy row; no WORKER) and the read-only `list` and
+- **Unchanged contracts.** The caps (1024 bytes, 4 anchors, 32 entries), the secret screen (code and
+  prefix as V1-0964 sets them), the role grants (OWNER, OPERATOR by policy row; no WORKER) and the read-only `list` and
   claim delivery are unchanged. Symbol names are screened like paths.
 - **Compatibility.** A file anchor keeps `{blob, path}` and a legacy ledger re-encodes
   byte-identically. An older binary refuses the new keys closed.
+- **Merged with V1-0964.** This lane merges `claude/v1-0964-knowhow-hardening` (546b2b4e), which
+  owns KHN-V0-008..015, so these requirements were renumbered from KHN-V0-008..012 to
+  KHN-V0-016..020. Secret hits now carry V1-0964's `SECRET_DETECTED` code. A reconfirm naming an
+  attempt or a generation goes through the same `CheckKnowHowProvenance` check as ADD, against the
+  audited attempt inventory, and so never takes the writer fast route. `KNOWHOW_NOT_STALE:` stays a
+  detail on VALIDATION_FAILED/MALFORMED. `KNOWHOW_UNRESOLVED:` stays a detail on MALFORMED.
 
 ## Evidence
 
@@ -54,8 +60,8 @@ pending owner acceptance; delivery is experimental.
 
 ## Not done
 
-- Owner acceptance of KHN-V0-008..012.
+- Owner acceptance of KHN-V0-016..020.
 - A durable qualification on a non-Go repository; concurrent two-process CAS and an
   interrupted-commit redo of a reconfirm receipt; an older released binary refusing a
   RECONFIRM-bearing store.
-- Verification of `attempt` and `generation` (V1-0964) and any WORKER grant (V1-0987).
+- Any WORKER grant (V1-0987).

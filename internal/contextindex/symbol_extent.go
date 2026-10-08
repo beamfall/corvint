@@ -9,7 +9,7 @@ import (
 
 // SymbolExtent is one declaration an index symbol extractor names in a single
 // source, with the 1-based inclusive line range its text occupies and that
-// text. It exists for know-how symbol anchors (KHN-V0-008), which pin a
+// text. It exists for know-how symbol anchors (KHN-V0-016), which pin a
 // declaration's content rather than a whole file.
 type SymbolExtent struct {
 	Kind, Name string
