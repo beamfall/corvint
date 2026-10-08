@@ -64,6 +64,10 @@ One independent Codex review (`gpt-6-astra`, read-only) reported three P1 and th
 - P2, witness rejections omit the project. Kept: TCN-V0-009 fixes the members as
   `{variation_id, test_id, reason}`; the implementation note claiming otherwise was corrected.
 
+The one re-review found one P2: an absolute link to a file inside the root no longer resolved
+through `os.Root`. Fixed: the pre-check returns the resolved root-relative target, which is then
+read through the root (covered in `TestTCNV0012CorpusMCPConsolidateTests`).
+
 The freshness and duplicate tests were run against the reviewed code and failed there. The FIFO and rooted-read tests fail by construction (a blocking open; a reopened pathname).
 
 ## Evidence

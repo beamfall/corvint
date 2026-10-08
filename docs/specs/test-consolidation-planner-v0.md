@@ -399,10 +399,9 @@ Choices the requirements left open, made by the implementation and open to owner
 - A passing `check` prints the recomputed table on stdout; the MCP tool's check mode returns the
   same bytes.
 - The MCP tool takes `input` and `plan` as JSON strings, so the input document is decoded strictly
-  byte for byte; `tests` and `maps` are local names read through an `os.Root` on the server root,
-  which refuses any path or symbolic link leaving the root at the moment of the open (a link inside
-  the root is followed). A pre-check gives a name that does not resolve inside the root the code
-  `test-plan-invalid-arguments`. It takes
+  byte for byte; `tests` and `maps` are local names resolved, after symbolic links, to a target
+  inside the server root (else `test-plan-invalid-arguments`), and that target is read through an
+  `os.Root`, which refuses any path leaving the root at the moment of the open. It takes
   no revision (always `HEAD`), and refuses with `test-plan-bound-exceeded` when the framed text and
   its structured copy exceed one MCP message less 4 KiB for the JSON-RPC envelope.
 - Only the JSON output bound is reachable in practice; the table is always smaller than the input.

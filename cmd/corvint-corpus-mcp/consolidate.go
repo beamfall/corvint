@@ -127,9 +127,10 @@ func decodeConsolidateArguments(raw []byte) (consolidateArguments, bool) {
 	return a, true
 }
 
-// confine refuses early, with the tool's own code, a name that does not resolve inside the root.
-// It is a diagnostic only: the read itself goes through an os.Root, which refuses an escape at the
-// moment of the open, so a path replaced after this check still cannot leave the root.
+// confine resolves a name, after symbolic links, to its root-relative target, refusing with the
+// tool's own code one that leaves the root. The read itself goes through an os.Root, which
+// refuses an escape at the moment of the open, so a path replaced after this check still cannot
+// leave the root; resolving first lets an absolute link to a file inside the root be read.
 func (c *consolidator) confine(name string) (string, error) {
 	refuse := &gokernel.Error{Code: "test-plan-invalid-arguments", Message: "tests and maps must be repository-relative paths inside the root"}
 	if !filepath.IsLocal(name) {
@@ -143,10 +144,11 @@ func (c *consolidator) confine(name string) (string, error) {
 	if err != nil {
 		return "", refuse
 	}
-	if rel, err := filepath.Rel(resolvedRoot, resolved); err != nil || !filepath.IsLocal(rel) {
+	rel, err := filepath.Rel(resolvedRoot, resolved)
+	if err != nil || !filepath.IsLocal(rel) {
 		return "", refuse
 	}
-	return filepath.Clean(name), nil
+	return rel, nil
 }
 
 // call returns the CLI's exact output bytes and the plan object, or a coded failure; ok is false

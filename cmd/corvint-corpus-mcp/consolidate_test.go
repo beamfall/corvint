@@ -132,6 +132,18 @@ func TestTCNV0012CorpusMCPConsolidateTests(t *testing.T) {
 		t.Fatalf("plan: %s", library.JSON())
 	}
 
+	// An absolute link to a file inside the root is read like the file itself.
+	if err := os.Symlink(filepath.Join(root, "receipt.json"), filepath.Join(root, "receipt-link.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "map-appmap.json"), filepath.Join(root, "map-link.json")); err != nil {
+		t.Fatal(err)
+	}
+	linked, rpc := call(map[string]any{"input": input, "tests": []any{"receipt-link.json"}, "maps": []any{"map-link.json"}, "max_steps": 4, "format": "json"})
+	if framed, _ := repoenvelope.Frame(string(library.JSON())); rpc != nil || linked["isError"] != false || text(linked) != framed {
+		t.Fatalf("absolute links inside the root: %#v %v", linked, rpc)
+	}
+
 	// Check mode returns the recomputed table, or the check's code as a tool error.
 	plain, err := testplan.Run(context.Background(), testplan.Request{Root: root, Input: []byte(input)})
 	if err != nil {
