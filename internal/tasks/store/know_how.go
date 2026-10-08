@@ -50,11 +50,16 @@ const KnowHowDeliveryMaxBytes = 2048
 // KnowHowNote is one active ADD entry of a home ticket with its read-time
 // freshness: Anchors holds one state per entry anchor, in anchor order, and
 // Freshness the note state. The text is agent-authored, untrusted data.
+//
+// RepositoryHead is the HEAD commit of the root a repository note's alias
+// was mapped to, or "" when the alias was not mapped or that HEAD is
+// unavailable (KHN-V0-027); a note without a repository leaves it "".
 type KnowHowNote struct {
-	TicketID  string
-	Entry     ticket.KnowHowEntry
-	Anchors   []string
-	Freshness string
+	TicketID       string
+	Entry          ticket.KnowHowEntry
+	Anchors        []string
+	Freshness      string
+	RepositoryHead string
 }
 
 // KnowHowUnresolved prefixes the detail of a pin refused because an anchor
@@ -177,6 +182,62 @@ func knowHowIntersects(anchors []ticket.KnowHowAnchor, paths []string) bool {
 // duplicated), the file is no longer admitted by an extractor or is larger
 // than 1 MiB, or the read fails.
 func ResolveKnowHowFreshness(root string, notes []KnowHowNote) string {
+	return ResolveKnowHowRepositories(root, nil, notes)
+}
+
+// ResolveKnowHowRepositories is ResolveKnowHowFreshness for notes that may
+// name a repository (KHN-V0-027). A note without a repository resolves
+// against root exactly as before, and root's HEAD is returned. A repository
+// note resolves, per alias with one batched Git call, against the root repos
+// maps that alias to, at that root's HEAD, asking each anchor path with the
+// "<alias>/" prefix removed; its RepositoryHead is that HEAD. An alias repos
+// does not map, or a root whose HEAD is unavailable, leaves every anchor of
+// its notes UNKNOWN, never CURRENT: a repository note is never resolved
+// against root.
+func ResolveKnowHowRepositories(root string, repos map[string]string, notes []KnowHowNote) string {
+	groups := map[string][]int{}
+	var aliases []string
+	var local []KnowHowNote
+	var localAt []int
+	for i, n := range notes {
+		alias := n.Entry.Repository
+		if alias == "" {
+			local = append(local, n)
+			localAt = append(localAt, i)
+			continue
+		}
+		if _, ok := groups[alias]; !ok {
+			aliases = append(aliases, alias)
+		}
+		groups[alias] = append(groups[alias], i)
+	}
+	head := resolveKnowHowAt(root, local)
+	for j, i := range localAt {
+		notes[i] = local[j]
+	}
+	sort.Strings(aliases)
+	for _, alias := range aliases {
+		group := make([]KnowHowNote, len(groups[alias]))
+		for j, i := range groups[alias] {
+			group[j] = notes[i]
+			anchors := make([]ticket.KnowHowAnchor, len(notes[i].Entry.Anchors))
+			for a, anchor := range notes[i].Entry.Anchors {
+				anchor.Path = strings.TrimPrefix(anchor.Path, alias+"/")
+				anchors[a] = anchor
+			}
+			group[j].Entry.Anchors = anchors
+		}
+		repoHead := resolveKnowHowAt(repos[alias], group)
+		for j, i := range groups[alias] {
+			notes[i].Anchors = group[j].Anchors
+			notes[i].Freshness = group[j].Freshness
+			notes[i].RepositoryHead = repoHead
+		}
+	}
+	return head
+}
+
+func resolveKnowHowAt(root string, notes []KnowHowNote) string {
 	index := map[string]int{}
 	var paths []string
 	for _, n := range notes {
@@ -276,6 +337,10 @@ func KnowHowNoteValue(n KnowHowNote, compact bool) wire.Value {
 	o.Set("freshness", wire.String(n.Freshness)).Set("text", wire.String(k.Text))
 	o.Set("anchors", wire.Array(anchors...)).Set("routes", wire.Strings(append([]string{}, k.Routes...)))
 	o.Set("recordedAt", wire.String(string(k.RecordedAt)))
+	if k.Repository != "" {
+		r := wire.NewObject().Set("alias", wire.String(k.Repository)).Set("head", stringOrNullValue(n.RepositoryHead))
+		o.Set("repository", wire.ObjectValue(r))
+	}
 	if !compact {
 		o.Set("commit", wire.String(k.Commit))
 		o.Set("supersedes", countOrNullValue(k.Supersedes)).Set("reason", strOrNull(k.Reason))
@@ -305,6 +370,13 @@ func countOrNullValue(c *wire.Count) wire.Value {
 		return wire.Null()
 	}
 	return wire.String(string(*c))
+}
+
+func stringOrNullValue(s string) wire.Value {
+	if s == "" {
+		return wire.Null()
+	}
+	return wire.String(s)
 }
 
 func strOrNull(s *string) wire.Value {
@@ -350,13 +422,17 @@ func ProjectKnowHow(notes []KnowHowNote, compact bool, maxBytes int, envelope fu
 // computed when the response is built, never pinned at admission, so a replay
 // shows current freshness. Err keeps an unreadable inventory visible; it never
 // fails the committed claim.
+//
+// Warnings names each repository alias of the delivered notes that the claim
+// did not map with --repo (KHN-V0-027).
 type ClaimedKnowHow struct {
-	Head  string
-	Notes []KnowHowNote
-	Err   error
+	Head     string
+	Notes    []KnowHowNote
+	Warnings []string
+	Err      error
 }
 
-func claimKnowHow(repo *intent.Repository, root, ticketID string) ClaimedKnowHow {
+func claimKnowHow(repo *intent.Repository, root string, repos map[string]string, ticketID string) ClaimedKnowHow {
 	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return ClaimedKnowHow{Err: err}
@@ -371,7 +447,8 @@ func claimKnowHow(repo *intent.Repository, root, ticketID string) ClaimedKnowHow
 	}
 	c.Notes = SelectKnowHow(st.Inventory, rec.Effects.TouchPaths, "")
 	if len(c.Notes) > 0 {
-		c.Head = ResolveKnowHowFreshness(root, c.Notes)
+		c.Head = ResolveKnowHowRepositories(root, repos, c.Notes)
+		c.Warnings = KnowHowRepositoryWarnings(repos, c.Notes)
 		SortKnowHow(c.Notes)
 	}
 	return c
@@ -476,4 +553,77 @@ func readCatFileObject(out *bufio.Reader) (catFileObject, error) {
 
 func gitObservationFailed(err error) error {
 	return wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
+}
+
+// KnowHowRepositoryArg parses one `--repo ALIAS=ROOT` value (KHN-V0-024,
+// KHN-V0-027): ALIAS is a token of at most 64 bytes and ROOT, relative to
+// cwd when not absolute, must be the top level of a Git work tree, so an
+// anchor path is never resolved against a parent or nested checkout by
+// accident. It returns the alias and the root with symbolic links resolved.
+// Anything else is refused MALFORMED with the KNOWHOW_REPOSITORY prefix.
+func KnowHowRepositoryArg(cwd, arg string) (string, string, error) {
+	alias, root, ok := strings.Cut(arg, "=")
+	if !ok || root == "" {
+		return "", "", wire.Errorf(wire.CodeMalformed, "--repo", "%s: --repo takes ALIAS=ROOT", wire.KnowHowRepositoryDetail)
+	}
+	if _, err := wire.ParseKnowHowRepository("--repo", alias); err != nil {
+		return "", "", wire.Errorf(wire.CodeMalformed, "--repo", "%s: repository alias must be a token of at most %d bytes", wire.KnowHowRepositoryDetail, wire.KnowHowMaxRepositoryBytes)
+	}
+	if !filepath.IsAbs(root) {
+		root = filepath.Join(cwd, root)
+	}
+	refuse := func() (string, string, error) {
+		return "", "", wire.Errorf(wire.CodeMalformed, "--repo", "%s: root for %s is not the top level of a Git work tree", wire.KnowHowRepositoryDetail, alias)
+	}
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return refuse()
+	}
+	out, err := gitOutput(resolved, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return refuse()
+	}
+	top, err := filepath.EvalSymlinks(strings.TrimRight(string(out), "\r\n"))
+	if err != nil || top != resolved {
+		return refuse()
+	}
+	return alias, resolved, nil
+}
+
+// KnowHowRepositoryArgs parses repeated `--repo` values into an alias map;
+// an alias given twice is refused, since it would make the repository a
+// note names ambiguous (KHN-V0-027).
+func KnowHowRepositoryArgs(cwd string, args []string) (map[string]string, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	repos := map[string]string{}
+	for _, arg := range args {
+		alias, root, err := KnowHowRepositoryArg(cwd, arg)
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := repos[alias]; dup {
+			return nil, wire.Errorf(wire.CodeMalformed, "--repo", "%s: repository alias %s is given more than once", wire.KnowHowRepositoryDetail, alias)
+		}
+		repos[alias] = root
+	}
+	return repos, nil
+}
+
+// KnowHowRepositoryWarnings names each repository alias of notes that repos
+// does not map, once, in alias order: its notes are UNKNOWN (KHN-V0-027).
+func KnowHowRepositoryWarnings(repos map[string]string, notes []KnowHowNote) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, n := range notes {
+		alias := n.Entry.Repository
+		if _, mapped := repos[alias]; alias == "" || mapped || seen[alias] {
+			continue
+		}
+		seen[alias] = true
+		out = append(out, wire.KnowHowRepositoryDetail+": repository "+alias+" is not mapped with --repo; its notes are UNKNOWN")
+	}
+	sort.Strings(out)
+	return out
 }

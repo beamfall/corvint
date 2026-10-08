@@ -45,6 +45,9 @@ type Manifest struct {
 	Flows             string             `json:"flows,omitempty"`
 	Tests             TestLayout         `json:"tests"`
 	PageObjectScreens []PageObjectScreen `json:"page_object_screens,omitempty"`
+	// DIConstants scopes the AngularJS `.constant(...)` registrations a router's injected
+	// parameters resolve through (AMAP-V0-021); empty resolves none.
+	DIConstants []string `json:"di_constants,omitempty"`
 }
 
 // RouterFile names one router definition file and its dialect.
