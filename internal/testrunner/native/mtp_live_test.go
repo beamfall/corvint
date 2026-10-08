@@ -8,17 +8,25 @@ import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // Opt-in only: these are operator-built native applications; the test does not
 // restore packages or download an SDK. Receipts remain outside the repository.
+// CORVINT_MTP_LIVE_TFM selects the built target framework (default net10.0).
+// CORVINT_MTP_LIVE_RUN_DIR is the evidence parent; MTP admission (TRE-V0-027)
+// needs it short, since the platform temporary directory can exceed the bound.
 func TestMTPLiveExecution(t *testing.T) {
 	root := os.Getenv("CORVINT_MTP_LIVE_ROOT")
 	if root == "" {
 		t.Skip("operator-built MTP fixture root not supplied")
 	}
-	runDir, err := os.MkdirTemp("", "mtp-")
+	tfm := os.Getenv("CORVINT_MTP_LIVE_TFM")
+	if tfm == "" {
+		tfm = "net10.0"
+	}
+	runDir, err := os.MkdirTemp(os.Getenv("CORVINT_MTP_LIVE_RUN_DIR"), "m")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,9 +44,9 @@ func TestMTPLiveExecution(t *testing.T) {
 			complete     bool
 		}{{"pass", "MtpProbe.Probe.Pass", 0, true}, {"fail", "MtpProbe.Probe.Fail", 2, true}, {"skip", "MtpProbe.Probe.Skip", 0, true}, {"zero", "MtpProbe.Probe.Missing", 8, false}, {"infra", "MtpProbe.InfrastructureProbe.Blocked", 2, true}} {
 			t.Run(f+"/"+c.name, func(t *testing.T) {
-				project := "bin/Debug/net10.0/Probe.dll"
+				project := "bin/Debug/" + tfm + "/Probe.dll"
 				inputs := map[string]string{}
-				for _, n := range []string{project, "bin/Debug/net10.0/Probe.runtimeconfig.json", "bin/Debug/net10.0/Probe.deps.json", "Probe.cs", "Infrastructure.cs", "Probe.csproj"} {
+				for _, n := range []string{project, "bin/Debug/" + tfm + "/Probe.runtimeconfig.json", "bin/Debug/" + tfm + "/Probe.deps.json", "Probe.cs", "Infrastructure.cs", "Probe.csproj"} {
 					b, e := os.ReadFile(filepath.Join(root, f, n))
 					if e != nil {
 						t.Fatal(e)
@@ -77,5 +85,48 @@ func TestMTPLiveExecution(t *testing.T) {
 				}
 			})
 		}
+		// TRE-V0-027: a report directory past the native socket bound is refused
+		// before launch; forcing the same invocation past admission reproduces the
+		// native abort, which must never yield a complete observation.
+		t.Run(f+"/long-report-dir", func(t *testing.T) {
+			project := "bin/Debug/" + tfm + "/Probe.dll"
+			inputs := map[string]string{}
+			for _, n := range []string{project, "bin/Debug/" + tfm + "/Probe.runtimeconfig.json", "bin/Debug/" + tfm + "/Probe.deps.json"} {
+				b, e := os.ReadFile(filepath.Join(root, f, n))
+				if e != nil {
+					t.Fatal(e)
+				}
+				inputs[n] = tr.Digest(b)
+			}
+			long := filepath.Join(runDir, f+"-long-"+strings.Repeat("x", 64))
+			r := tr.Request{Runner: "dotnet-mtp-" + f, Root: filepath.Join(root, f), Executable: exe, ExecutableSha256: exeSHA, ReportDir: long, Project: project, Selectors: []string{"MtpProbe.Probe.Pass"}, InputFiles: inputs, TimeoutSeconds: 60}
+			if _, e := Build(r); e == nil || !strings.Contains(e.Error(), "native pipe path") {
+				t.Fatalf("long report directory admitted: %v", e)
+			}
+			short := r
+			short.ReportDir = filepath.Join(runDir, f+"-n")
+			v, e := Build(short)
+			if e != nil {
+				t.Fatal(e)
+			}
+			for i, a := range v.Argv {
+				if a == short.ReportDir {
+					v.Argv[i] = long
+				}
+			}
+			x, xe := tr.Execute(context.Background(), r, v)
+			// The forced run must reach the native socket failure, not fail for
+			// an unrelated reason before launch.
+			stderr, e := os.ReadFile(filepath.Join(long, ".phase-00-stderr"))
+			if e != nil || !strings.Contains(string(stderr), "exceeds the maximum of 103 bytes allowed for a Unix domain socket") {
+				t.Fatalf("forced run did not reach the native socket failure: %v %v %.300s", xe, e, stderr)
+			}
+			t.Logf("forced native abort: execute error %v; %.300s", xe, stderr)
+			if xe == nil {
+				if o, e := Parse(x.Input); e == nil && tr.Normalize(x.Input, o).Complete {
+					t.Fatalf("native socket abort produced a complete observation: %+v", o)
+				}
+			}
+		})
 	}
 }

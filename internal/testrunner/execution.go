@@ -1,5 +1,11 @@
 package testrunner
 
+import "path/filepath"
+
+// ExecutionTempDir is the private TMPDIR the executor gives every phase of a
+// request; profiles whose native tools derive paths from TMPDIR bound it here.
+func ExecutionTempDir(reportDir string) string { return filepath.Join(reportDir, ".tmp") }
+
 type PhaseResult struct {
 	Kind         string `json:"kind"`
 	ToolSha256   string `json:"toolSha256"`

@@ -3,6 +3,7 @@ package native
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -23,6 +24,12 @@ func buildMTP(r tr.Request, v tr.Invocation) (tr.Invocation, error) {
 			return v, errors.New("MTP assembly, runtimeconfig and deps must be declared hashed inputs")
 		}
 	}
+	// MTP creates Unix-domain-socket pipes named TMPDIR/<name>; the longest
+	// observed name is MONITORTOHOST_<32 hex>. A longer path aborts the host
+	// (exit 134) before any report is written, so refuse it before launch.
+	if n := len(tr.ExecutionTempDir(r.ReportDir)) + 1 + mtpLongestPipeName; n > mtpMaxSocketPath {
+		return v, fmt.Errorf("MTP report directory too long: native pipe path would be %d bytes, maximum %d", n, mtpMaxSocketPath)
+	}
 	v.ReportPaths = []string{"results.trx"}
 	v.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
 	v.Environment["TESTINGPLATFORM_TELEMETRY_OPTOUT"] = "1"
@@ -40,6 +47,14 @@ func buildMTP(r tr.Request, v tr.Invocation) (tr.Invocation, error) {
 	}
 	return v, nil
 }
+
+// mtpMaxSocketPath is the macOS sun_path limit MTP 2.4.1 enforces; it is also
+// applied on Linux, where the native limit is larger, so admission is never
+// looser than the qualified host. mtpLongestPipeName is len("MONITORTOHOST_")+32.
+const (
+	mtpMaxSocketPath   = 103
+	mtpLongestPipeName = 46
+)
 
 var mtpSelector = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.+]*$`)
 var mtpGUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
