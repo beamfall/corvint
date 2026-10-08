@@ -62,6 +62,9 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
 			report.ReapReceipts = reapReceipts
+			if err == nil && (choice.Lease.Verb == transaction.LeasePoolAcquire || choice.Lease.Verb == transaction.LeasePoolRelease) {
+				return report, pooledAttempt(ctx, repo, choice.Lease.AttemptID, report)
+			}
 			return report, claimedTicket(repo, choice.Root, choice.KnowHowRepos, choice.Lease.Verb, report, err)
 		}
 		for _, x := range report.Expired {
@@ -107,14 +110,9 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 // --next` did not name. An attempt's ticket never changes, so reading its
 // record after the commit is enough. root is the claimant's checkout, whose
 // HEAD the delivered know-how freshness is computed against (KHN-V0-006).
-// A pool acquire or release reports the allocation its receipt bound
-// (CAL-V0-203).
 func claimedTicket(repo *intent.Repository, root string, repos map[string]string, verb string, report *Report, err error) error {
 	if err != nil || report.AttemptID == "" {
 		return err
-	}
-	if verb == transaction.LeasePoolAcquire || verb == transaction.LeasePoolRelease {
-		return pooledAttempt(repo, report)
 	}
 	if verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext {
 		return nil
@@ -135,9 +133,17 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 
 // pooledAttempt reports the allocation a completed pool acquire or release
 // bound in its receipt, fresh or replayed. A refusal or a recorded fence
-// posts no attempt and reports none.
-func pooledAttempt(repo *intent.Repository, report *Report) error {
+// posts no attempt and reports none, but still names the attempt's ticket
+// (CAL-V0-203).
+func pooledAttempt(ctx context.Context, repo *intent.Repository, attemptID string, report *Report) error {
 	if report.Outcome.Outcome != mutation.OutcomeCompleted || report.Outcome.ReceiptSeq == nil {
+		proof, err := readLeaseProof(ctx, repo)
+		if err != nil {
+			return err
+		}
+		if a, ok := lockedAttempt(proof, attemptID); ok {
+			report.Ticket = a.TicketID.Raw
+		}
 		return nil
 	}
 	a, err := receiptAttempt(repo, report)

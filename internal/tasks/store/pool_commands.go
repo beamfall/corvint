@@ -262,8 +262,8 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		if e != nil {
 			return report, e
 		}
-		a, ok := lockedAttempt(proof, choice.Lease.AttemptID)
-		if !ok || a.Lease == nil {
+		a, _ := lockedAttempt(proof, choice.Lease.AttemptID)
+		if !acquirePreparable(a) {
 			return report, nil
 		}
 		holder, stage = a.Lease.Holder, a.Stage
@@ -389,6 +389,13 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		}
 	}
 	return report, wire.Errorf(wire.CodeLimitExceeded, "pool", "member probe bound")
+}
+
+// acquirePreparable reports whether an acquire's QUIESCENCE_UNPROVED refusal
+// asks for health preparation. A supervised attempt's refusal is the
+// attempt-verb guard instead, so the acquire probes and quarantines nothing.
+func acquirePreparable(a *snapshot.Attempt) bool {
+	return a != nil && a.Lease != nil && a.Supervision == nil
 }
 
 // poolAdmissionSource is the pooled-admission source check a claim and an

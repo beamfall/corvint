@@ -5377,7 +5377,8 @@ return it early into quarantine, and keeps its lease, phase and generation throu
   a member with a configured health command runs the same health preparation, from the same
   clean source checks, as a pooled claim and is skipped and quarantined on failure (CAL-V0-031,
   CAL-V0-032); and no free eligible member refuses `RESOURCE_COLLISION`. A supervised attempt is
-  refused `QUIESCENCE_UNPROVED` as every other attempt verb.
+  refused `QUIESCENCE_UNPROVED` as every other attempt verb, without health preparation, so a
+  repeated refused acquire probes and quarantines no member.
 - `CAL-V0-199`: (proposed (V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-098
   author derivation to the attempt's ticket, and MUST be refused `MALFORMED` unless the attempt's
   stage is `review` or `integrate`; an unverifiable author history refuses
@@ -5431,7 +5432,7 @@ member handling. A member returned early stays quarantined until an operator cle
 
 Acceptance evidence: `TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation`,
 `TestCALV0198_AcquirePreparesHealth`, `TestCALV0198_BarrierPausesAcquireNotRelease`,
-`TestCALV0199_AcquireExcludesAuthors`, `TestCALV0201_EndingQuarantinesAcquiredAllocation`
+`TestCALV0198_SupervisedAcquireIsNotPrepared`, `TestCALV0199_AcquireExcludesAuthors`, `TestCALV0201_EndingQuarantinesAcquiredAllocation`
 (`internal/tasks/store`); `TestCALV0200_ReleasedAllocationCodec` (`internal/tasks/snapshot`);
 `TestCALV0202_ReturnedAllocationAttachRefused` (`internal/tasks/transaction`);
 `TestCALV0203_CLIAcquireAndReleaseResults`, `TestTMV0008_AS07_HelpAndVersion`,
@@ -5855,7 +5856,7 @@ and removes the new configuration members.
 | CAL-V0-195 | `TestCALV0195_PolicyMilestonesOptIn` (`internal/tasks/intent`); `TestCALV0195_MilestoneRequiredPolicy` (`internal/tasks/cli`); `TestCALV0078_ClassificationCoversEveryCode` (`internal/tasks/wire`) |
 | CAL-V0-196 | `TestCALV0196_OpenWithoutMilestoneCount` (`internal/tasks/cli`) |
 | CAL-V0-197 | `TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation` (`internal/tasks/store`); `TestCALV0203_CLIAcquireAndReleaseResults`, `TestTMV0008_AS07_HelpAndVersion`, `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`); `docs/build-log/2026-10-08-v1-1042-pool-acquire.md` |
-| CAL-V0-198 | `TestCALV0198_AcquirePreparesHealth`, `TestCALV0198_BarrierPausesAcquireNotRelease` (`internal/tasks/store`) |
+| CAL-V0-198 | `TestCALV0198_AcquirePreparesHealth`, `TestCALV0198_BarrierPausesAcquireNotRelease`, `TestCALV0198_SupervisedAcquireIsNotPrepared` (`internal/tasks/store`) |
 | CAL-V0-199 | `TestCALV0199_AcquireExcludesAuthors` (`internal/tasks/store`) |
 | CAL-V0-200 | `TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation`, `TestCALV0198_BarrierPausesAcquireNotRelease` (`internal/tasks/store`); `TestCALV0200_ReleasedAllocationCodec` (`internal/tasks/snapshot`) |
 | CAL-V0-201 | `TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation`, `TestCALV0201_EndingQuarantinesAcquiredAllocation` (`internal/tasks/store`) |

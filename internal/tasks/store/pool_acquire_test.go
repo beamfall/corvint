@@ -100,7 +100,11 @@ func TestCALV0197_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
 		t.Fatalf("replay %+v", again)
 	}
 	before := storeDigest(t, s.repo)
-	refusedWith(t, s.lease(t, "acquire-2", acquireOf(claim, "db"), 3, nil), mutation.OutcomeBlocked, wire.CodeResourceCollision)
+	held := s.lease(t, "acquire-2", acquireOf(claim, "db"), 3, nil)
+	refusedWith(t, held, mutation.OutcomeBlocked, wire.CodeResourceCollision)
+	if held.Ticket != id || held.PoolAllocation != nil {
+		t.Fatalf("refused acquire must name the ticket and no allocation: %+v", held)
+	}
 	if storeDigest(t, s.repo) != before {
 		t.Fatal("refused acquire wrote")
 	}
