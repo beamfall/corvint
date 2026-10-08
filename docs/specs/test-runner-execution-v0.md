@@ -402,3 +402,53 @@ blocker for this tuple.
 
 Rollback removes the additive `ginkgo-v2` profile, its tests and provenance file.
 No shared executor, other profile, queue, store or frozen wire changes.
+
+## Stable selection expectation (experimental)
+
+Nightwatch native identities are `ModulePath::Name::TestEnv::SessionID::Case`. A
+fresh WebDriver session ID is unknown when a plan is admitted, so exact
+`ExpectedTests` cannot be pre-admitted for a browser run. This slice adds a
+separate, closed selection expectation. Native identities keep their session
+part, and historical plan, receipt and identity bytes are unchanged.
+
+- `TRE-V0-021`: A request MAY carry `expectedSelection` `{version, matcher,
+  tests}`, encoded with `omitempty` so a request without it serializes to the
+  historical bytes and plan identity. The only version is
+  `corvint-test-selection/1`. The only matcher is `nightwatch-session-elided/1`,
+  bound to runner `nightwatch`. Document decoding stays closed: unknown or
+  duplicate fields refuse. Status: proposed (V1-0620).
+- `TRE-V0-022`: Plan and run admission MUST refuse, before any launch, a
+  selection with another version, an unknown matcher or a matcher bound to
+  another runner, one combined with non-empty `ExpectedTests`, zero or more than
+  4096 identities, a duplicate identity, or an identity that is not exactly four
+  non-empty `::`-separated components of at most 4096 bytes without control
+  characters or an edge colon. The admitted selection is part of the approved
+  plan digest. Status: proposed (V1-0620).
+- `TRE-V0-023`: After native observation, shared `Normalize` MUST project each
+  observed test from its structured file, suite and name fields: its identity must be
+  `File::Suite::TestEnv::SessionID::Name` with a non-empty session that has no
+  separator or edge colon, and the projection is `File::Suite::TestEnv::Name`.
+  Coverage is exact: an unprojectable test
+  (`unmatchable-selected-test`), two native tests projecting to one identity
+  (`aliased-selected-test`), an observed identity outside the selection
+  (`extra-selected-test`), an absent selected identity (`missing-selected-test`)
+  or a selection that fails `TRE-V0-022` (`invalid-test-selection`) makes the
+  observation incomplete. Public states become `UNKNOWN`, and native IDs,
+  including session IDs, stay retained. Status: proposed (V1-0620).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-021 | `selection.go`, `types.go`, `document.go`; `TestSelectionIsAdditiveToHistoricalBytes`, `TestHistoricalPlanAndReceiptBytesSurviveSelectionContract` | Frozen plan and receipt bytes generated at `0c94c66c` decode and re-encode byte-identically with an unchanged plan digest |
+| TRE-V0-022 | `AdmitSelection`, `registry.Build`; `TestSelectionAdmissionIsClosed`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Invalid selections refuse at `plan` and at `run` before the report directory exists |
+| TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs only: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch |
+
+Recorded limits. A real pinned Nightwatch 3.16.0 browser run with fresh
+WebDriver sessions is NOT_RUN: no Nightwatch package or ChromeDriver was
+installed locally, and the earlier raw qualification file was no longer present.
+The matcher trusts the parser's structured fields; it does not prove that the
+session ID came from a live WebDriver server. Other session-bearing runners,
+including WebdriverIO, need their own matcher version.
+
+Rollback removes `expectedSelection`, `selection.go` and its admission call.
+Plans without the field are unaffected, and plans that carry it then refuse as
+unknown fields.

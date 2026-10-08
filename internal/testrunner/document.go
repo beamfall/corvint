@@ -69,6 +69,10 @@ func closedFields(v cw.Value, t reflect.Type) error {
 				return e
 			}
 		}
+	case reflect.Pointer:
+		if v.Kind != cw.KindNull {
+			return closedFields(v, t.Elem())
+		}
 	case reflect.Map:
 		if v.Kind == cw.KindObject {
 			for _, k := range v.Obj.Keys {

@@ -28,6 +28,11 @@ import (
 func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, retErr error) {
 	out = Execution{Profile: "corvint-test-runner-execution/0", Runner: r.Runner, InputSha256: Identity(r.InputFiles), InvocationSha256: Identity(inv), ReportSha256: map[string]string{}, ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}
 	out.Input = Input{Target: r.Target, SourceRoot: r.Root, Selectors: append([]string{}, r.Selectors...), SourceFile: r.Project, Runner: r.Runner, Reports: map[string][]byte{}, Expected: append([]string{}, r.ExpectedTests...), OutcomeNeutralExitCodes: inv.OutcomeNeutralExitCodes, SuccessExitCodes: inv.SuccessExitCodes, FailureExitCodes: inv.FailureExitCodes, ExitCode: -1}
+	if r.ExpectedSelection != nil {
+		s := *r.ExpectedSelection
+		s.Tests = append([]string{}, s.Tests...)
+		out.Input.ExpectedSelection = &s
+	}
 	defer func() {
 		if retErr != nil {
 			detail := retErr.Error()
