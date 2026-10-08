@@ -1,0 +1,140 @@
+{
+  "coverage": {
+    "answerability": {
+      "known": 0,
+      "reason": "the task writes no name fewer than one source in sixteen carries",
+      "required": 0,
+      "specific_terms": [],
+      "support": 0,
+      "supporting_sources": 0,
+      "verdict": "no-specific-terms"
+    },
+    "budget_shortage": "none",
+    "candidates": 1,
+    "critical": [],
+    "critical_missing": [],
+    "governance": "unresolved",
+    "governance_refused": [
+      {
+        "path": "AGENTS.md",
+        "reason": "a downgraded row cannot satisfy governance: hidden-unicode",
+        "relation": "governing",
+        "trust": "repository-content",
+        "warnings": [
+          "hidden-unicode"
+        ]
+      }
+    ],
+    "included_results": 1,
+    "omitted_results": 0,
+    "unexamined": [
+      {
+        "relation": "governing",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "spec-mentioned",
+        "state": "not-applicable",
+        "withheld": null
+      },
+      {
+        "relation": "instruction-routed",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "pair",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "mentioned",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "definition",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "reverse-import",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "reference",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "cochange",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "sibling",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "test",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "lexical",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "documentation",
+        "state": "examined",
+        "withheld": 1
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "request": {
+    "limit": 20,
+    "task_chars": 38
+  },
+  "results": [
+    {
+      "action": "Inspect this file before trusting it: it is not project authority for this task (hidden-unicode).",
+      "evidence": [
+        {
+          "authority": "downgraded-authority",
+          "blob_hash": "99dacd54f3ad43393e4e8ca39014f74a7c232e04",
+          "confidence": "low",
+          "line": 1,
+          "path": "AGENTS.md",
+          "reason": "the highest-precedence tracked instruction file",
+          "trust": "repository-content",
+          "warnings": [
+            {
+              "classes": [
+                "bidi-control"
+              ],
+              "code": "hidden-unicode",
+              "count": 2,
+              "first_code_point": "U+202E",
+              "first_line": 3
+            }
+          ]
+        }
+      ],
+      "id": "AGENTS.md",
+      "kind": "governing",
+      "score": 0,
+      "summary": "not project authority: hidden-unicode; also documentation"
+    }
+  ],
+  "revision": "bb346d7df5b94541600125b03ce0b5506795cd21",
+  "schema_version": 1,
+  "state": "READY",
+  "subject": null,
+  "tool": "context"
+}

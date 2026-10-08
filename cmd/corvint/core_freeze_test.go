@@ -158,6 +158,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", root, "context", "--task", "Where does docs/specs/queue.md define the work queue", "--limit", "1"}
 		}, 0,
 			map[string]any{"tool": "context", "schema_version": float64(1)}},
+		{"context downgraded governing row", func(t *testing.T) []string {
+			// A governing file hiding bidirectional controls is downgraded and named in
+			// coverage.governance_refused (TCP-V0-056; decision 0468, V1-0653).
+			agents := map[string]string{"AGENTS.md": "# Project instructions\n\nThe roadmap is the only active work queue.\u202E hidden\u202C\n"}
+			root := coreFreezeCommit(t, queryCLIRepository(t), agents)
+			return []string{"--root", root, "context", "--task", "Where is the active work queue defined"}
+		}, 0,
+			map[string]any{"tool": "context", "schema_version": float64(1)}},
 		{"impact path", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "impact", "pkg/main.go"}
 		}, 0,
@@ -253,10 +261,11 @@ func checkCoreWant(t *testing.T, document map[string]any, want map[string]any) {
 
 // coreN1Skips names the modes the N-1 replay cannot run, and why.
 var coreN1Skips = map[string]string{
-	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh":   "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
-	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source": "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
-	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":           "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
-	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":    "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
+	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh":        "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
+	"TestCoreVerbsEmitTheFrozenProfiles/context_downgraded_governing_row": "0.8.1 has no authority screen; TCP-V0-055..058 (V1-0414) added coverage.governance_refused rows after it (decision 0468)",
+	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source":      "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":                "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":         "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
 }
 
 // coreN1WithoutFull names the modes whose N-1 equivalent is the same command line without
