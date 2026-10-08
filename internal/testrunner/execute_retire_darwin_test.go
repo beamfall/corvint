@@ -98,7 +98,7 @@ func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 				t.Fatalf("readiness marker missing: %v %v", pids, err)
 			}
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("%v: %+v", err, out.Retirement)
 			}
 			switch tc.mode {
 			case "timeout":

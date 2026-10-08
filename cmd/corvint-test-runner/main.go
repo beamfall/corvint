@@ -116,12 +116,9 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		if len(p.Request.Tools) > 0 && tr.Identity(p.Request.Tools) != tr.Identity(trustedTools) {
 			return fail(fmt.Errorf("plan auxiliary tools disagree with independent pins"))
 		}
-		v, e := registry.Build(p.Request)
+		v, e := admittedInvocation(p)
 		if e != nil {
 			return fail(e)
-		}
-		if tr.Identity(v) != tr.Identity(p.Invocation) {
-			return fail(fmt.Errorf("plan does not match current fixed runner profile"))
 		}
 		if *output == "" || !filepath.IsAbs(*output) {
 			return fail(fmt.Errorf("run requires a new absolute receipt file"))
@@ -174,6 +171,24 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 	default:
 		return fail(fmt.Errorf("unknown command"))
 	}
+}
+
+// admittedInvocation rebuilds the fixed profile and requires the plan to match
+// it. A plan from before TRE-V0-025 differs only by the absent additive
+// retirement flag; it keeps its identity and runs with retirement on.
+func admittedInvocation(p plan) (tr.Invocation, error) {
+	v, e := registry.Build(p.Request)
+	if e != nil {
+		return v, e
+	}
+	compare := v
+	if v.RetireDetachedDescendants && !p.Invocation.RetireDetachedDescendants {
+		compare.RetireDetachedDescendants = false
+	}
+	if tr.Identity(compare) != tr.Identity(p.Invocation) {
+		return v, fmt.Errorf("plan does not match current fixed runner profile")
+	}
+	return v, nil
 }
 func read(path string, dst any) error {
 	f, e := os.Open(path)

@@ -1,7 +1,9 @@
 package groupreap
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -115,5 +117,70 @@ func TestRetirerReportsUnconvergedForkStorm(t *testing.T) {
 	r.Retire()
 	if got := r.Result(); got.Clean() || len(got.Problems) != 1 {
 		t.Fatalf("%+v", got)
+	}
+}
+
+// TestRetirerKeepsReadFailuresAsUncertainty binds TRE-V0-025's failure path:
+// unreadable identities or owner tokens never count as retired, and a failed
+// later snapshot still kills processes the first snapshot stopped.
+func TestRetirerKeepsReadFailuresAsUncertainty(t *testing.T) {
+	now := time.Now().Unix()
+	uid := os.Getuid()
+	f := &fakeTable{rows: map[int]procRow{
+		103: {pid: 103, ppid: 1, uid: uid, sec: now}, // token; stopped, then killed
+		104: {pid: 104, ppid: 1, uid: uid, sec: now}, // token unreadable
+		105: {pid: 105, ppid: 1, uid: uid, sec: now}, // token; identity unreadable after kill
+	}, env: map[int]bool{103: true, 105: true}}
+	p := f.primitives()
+	rows, identity, environ := p.rows, p.identity, p.environ
+	snapshots := 0
+	p.rows = func() ([]procRow, error) {
+		if snapshots++; snapshots > 1 {
+			return nil, errors.New("snapshot refused")
+		}
+		return rows()
+	}
+	killed := map[int]bool{}
+	signal := p.signal
+	p.signal = func(pid int, sig syscall.Signal) error {
+		if sig == sigKill {
+			killed[pid] = true
+		}
+		if pid == 105 && sig == sigKill {
+			f.immortal[105] = true
+		}
+		return signal(pid, sig)
+	}
+	f.immortal = map[int]bool{}
+	p.identity = func(pid int) (procRow, bool, error) {
+		if pid == 105 && killed[105] {
+			return procRow{}, false, errors.New("identity refused")
+		}
+		return identity(pid)
+	}
+	p.environ = func(pid int, entry string) (bool, error) {
+		if pid == 104 {
+			return false, errors.New("procargs refused")
+		}
+		return environ(pid, entry)
+	}
+	r, err := newRetirer(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Retire()
+	got := r.Result()
+	if !killed[103] || killed[104] {
+		t.Fatalf("stopped process not killed after snapshot failure, or unproven signalled: %v", f.signals)
+	}
+	if got.Clean() || len(got.Retired) != 1 || got.Retired[0].PID != 103 {
+		t.Fatalf("%+v", got)
+	}
+	if len(got.Unretired) != 1 || got.Unretired[0].PID != 105 || got.Unretired[0].Detail != "identity unreadable" {
+		t.Fatalf("unreadable identity certified as retired: %+v", got)
+	}
+	problems := strings.Join(got.Problems, "; ")
+	if !strings.Contains(problems, "owner token unreadable for pid 104") || !strings.Contains(problems, "snapshot refused") {
+		t.Fatalf("read failures not retained: %v", got.Problems)
 	}
 }

@@ -82,7 +82,9 @@ Design: `internal/groupreap` gains a `Retirer`.
   retained in `execution.retirement`. They fail Execute, which yields an `execution-boundary`
   problem, so the observation is incomplete.
 - New `swift-xctest` plans set `retireDetachedDescendants`. The field is omitempty, so
-  historical plan and receipt bytes and identities are unchanged.
+  historical plan and receipt bytes and identities are unchanged. `corvint-test-runner run`
+  admits a historical `swift-xctest` plan that differs only by the absent flag and runs it
+  with retirement on.
 
 Passing after:
 
@@ -100,7 +102,34 @@ Passing after:
   - `testrunner`: retirement on timeout, interruption and normal exit; the no-retirement
     baseline survives; admission refusals; refusal off Darwin; a cleanup failure cannot
     leave a complete observation; plan byte identity.
-  - `corvint-test-runner`: the historical plan and receipt keep their bytes.
+  - `corvint-test-runner`: the historical plan and receipt keep their bytes; a
+    pre-retirement `swift-xctest` plan is admitted and runs with retirement; a plan cannot
+    add the flag outside its profile.
+
+Review (codex, gpt-6-astra, on a8bcd149) found three issues, all fixed in the follow-up commit:
+
+- P1: identity and owner-token read errors were treated as "gone" or "not owned", which
+  could falsely certify cleanup. They are now retained as `identity unreadable` or as
+  problems. `TestRetirerKeepsReadFailuresAsUncertainty` failed on a8bcd149 and passes after
+  the fix. A probe found 0 of 684 live same-uid processes with an unreadable token, so this
+  does not add false failures on this host.
+- P2: historical `swift-xctest` plans no longer matched the rebuilt profile. They are now
+  admitted as described above.
+- P2: a scan failure skipped the kill of processes it had already stopped. Stopped processes
+  are now always killed.
+
+While fixing the P1 issue, the first executor run recorded a spurious `owner token unreadable`
+problem. The affected processes were unrelated same-uid processes that were between fork and
+exec, or exiting, while being scanned. Token reads are now retried up to five times while the
+process identity persists. After that, six repeated runs of the executor and groupreap
+retirement tests passed. The live rerun after the fixes also passed:
+
+- the contained-only baseline again left 13597 and 13647 running;
+- the timeout run retired 21401 and 21413;
+- the interrupt run retired 29766 and 29782.
+
+Evidence is in `/private/tmp/claude-501/swiftpm-td/live3/` (`teardown-timeout.json`, sha256
+`b1511d83…1e4e`; `teardown-interrupt.json`, sha256 `11db8b76…ee9d`).
 
 Non-goals:
 

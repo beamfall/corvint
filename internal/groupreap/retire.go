@@ -21,9 +21,10 @@ const (
 	OwnerAncestry = "ANCESTRY"
 	OwnerToken    = "TOKEN"
 
-	retireRounds   = 32
-	retireEnvReads = 4096
-	retirePoll     = 3 * time.Second
+	retireRounds     = 32
+	retireEnvReads   = 4096
+	retireTokenTries = 5
+	retirePoll       = 3 * time.Second
 )
 
 // RetiredProcess is one owned process identity: pid plus kernel start time.
@@ -114,7 +115,11 @@ func (r *Retirer) Token() string { return r.entry[len(OwnerEnvironmentKey)+1:] }
 func (r *Retirer) Leader(pid int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if row, alive, err := r.p.identity(pid); err == nil && alive {
+	row, alive, err := r.p.identity(pid)
+	switch {
+	case err != nil:
+		r.problems = append(r.problems, "leader identity unreadable: "+err.Error())
+	case alive:
 		r.leader, r.leaderID = pid, row.start()
 	}
 }
@@ -126,24 +131,27 @@ func (r *Retirer) Retire() {
 	defer r.mu.Unlock()
 	leaderAlive := false
 	if r.leader != 0 {
-		if row, alive, err := r.p.identity(r.leader); err == nil && alive && !row.zombie && row.start() == r.leaderID {
+		row, alive, err := r.p.identity(r.leader)
+		if err != nil {
+			r.problems = append(r.problems, "leader identity unreadable: "+err.Error())
+		} else if alive && !row.zombie && row.start() == r.leaderID {
 			leaderAlive = true
 			// The leader is this process's unreaped child; stop its forking.
 			_ = r.p.signal(r.leader, sigStop)
 		}
 	}
+	// A failed or unbounded scan is retained, but processes already stopped
+	// are still killed so none is left suspended.
 	converged := false
 	for round := 0; round < retireRounds; round++ {
 		rows, err := r.p.rows()
 		if err != nil {
 			r.problems = append(r.problems, "process snapshot: "+err.Error())
-			return
+			converged = true
+			break
 		}
 		fresh := r.owned(rows, leaderAlive)
-		if fresh < 0 {
-			return
-		}
-		if fresh == 0 {
+		if fresh <= 0 {
 			converged = true
 			break
 		}
@@ -155,7 +163,7 @@ func (r *Retirer) Retire() {
 		if !t.signalled || t.gone {
 			continue
 		}
-		if r.verified(t) {
+		if alive, err := r.check(t); err == nil && alive {
 			_ = r.p.signal(t.PID, sigKill)
 		}
 	}
@@ -164,7 +172,8 @@ func (r *Retirer) Retire() {
 		pending := 0
 		for _, t := range r.seen {
 			if t.signalled && !t.gone {
-				if r.verified(t) {
+				// An unreadable identity stays pending, never retired.
+				if alive, err := r.check(t); err != nil || alive {
 					pending++
 				} else {
 					t.gone = true
@@ -202,8 +211,12 @@ func (r *Retirer) owned(rows []procRow, leaderAlive bool) int {
 				r.problems = append(r.problems, "ownership scan bound exceeded")
 				return -1
 			}
-			if ok, err := r.p.environ(row.pid, r.entry); err == nil && ok {
+			ok, err := r.token(row)
+			if err == nil && ok {
 				owner = OwnerToken
+			} else if err != nil {
+				// Ownership is undecidable while the identity persists.
+				r.problems = append(r.problems, fmt.Sprintf("owner token unreadable for pid %d: %v", row.pid, err))
 			}
 		}
 		if owner == "" {
@@ -217,16 +230,43 @@ func (r *Retirer) owned(rows []procRow, leaderAlive bool) int {
 			t.Detail = "foreign-uid descendant"
 			continue
 		}
-		if r.verified(t) && r.p.signal(t.PID, sigStop) == nil {
+		if alive, err := r.check(t); err == nil && alive && r.p.signal(t.PID, sigStop) == nil {
 			t.signalled = true
-		} else {
-			t.gone = !r.verified(t)
-			if !t.gone {
-				t.Detail = "stop refused"
-			}
+			continue
+		}
+		switch alive, err := r.check(t); {
+		case err != nil:
+			t.Detail = "identity unreadable"
+		case alive:
+			t.Detail = "stop refused"
+		default:
+			t.gone = true
 		}
 	}
 	return fresh
+}
+
+// token reads row's owner token. A process between fork and exec, or exiting,
+// briefly has no readable arguments, so a failed read is retried while the
+// identity persists; an error is returned only for a persisting identity.
+func (r *Retirer) token(row procRow) (bool, error) {
+	probe := &tracked{RetiredProcess: RetiredProcess{PID: row.pid, Start: row.start()}}
+	var err error
+	for attempt := 0; attempt < retireTokenTries; attempt++ {
+		var ok bool
+		if ok, err = r.p.environ(row.pid, r.entry); err == nil {
+			return ok, nil
+		}
+		alive, cerr := r.check(probe)
+		if cerr != nil {
+			return false, cerr
+		}
+		if !alive {
+			return false, nil
+		}
+		r.p.sleep(2 * time.Millisecond)
+	}
+	return false, err
 }
 
 func descends(byPID map[int]procRow, row procRow, leader int) bool {
@@ -243,10 +283,14 @@ func descends(byPID map[int]procRow, row procRow, leader int) bool {
 	return false
 }
 
-// verified reports whether t's pid still names the same live, non-zombie process.
-func (r *Retirer) verified(t *tracked) bool {
+// check reports whether t's pid still names the same live, non-zombie
+// process. A read error is uncertainty, never proof that it is gone.
+func (r *Retirer) check(t *tracked) (bool, error) {
 	row, alive, err := r.p.identity(t.PID)
-	return err == nil && alive && !row.zombie && row.start() == t.Start
+	if err != nil {
+		return false, err
+	}
+	return alive && !row.zombie && row.start() == t.Start, nil
 }
 
 // Result is the accumulated retirement report, sorted by pid.
@@ -255,8 +299,14 @@ func (r *Retirer) Result() Retirement {
 	defer r.mu.Unlock()
 	out := Retirement{Retired: []RetiredProcess{}, Unretired: []RetiredProcess{}, Problems: append([]string{}, r.problems...)}
 	for _, t := range r.seen {
-		if !t.gone && !r.verified(t) {
-			t.gone = true
+		if !t.gone {
+			alive, err := r.check(t)
+			switch {
+			case err != nil:
+				t.Detail = "identity unreadable"
+			case !alive:
+				t.gone = true
+			}
 		}
 		if t.gone {
 			out.Retired = append(out.Retired, t.RetiredProcess)

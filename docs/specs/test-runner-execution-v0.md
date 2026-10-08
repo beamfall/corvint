@@ -475,19 +475,25 @@ remain NOT_OBSERVED.
   the process's initial environment; the plan cannot supply that key. Each pid
   plus kernel start time MUST be re-verified immediately before SIGSTOP and
   SIGKILL, so unrelated, pre-phase, zombie and reused identities are never
-  signalled. Owned processes that cannot be signalled (foreign uid, refused
-  stop) or survive SIGKILL, and an unconverged or unbounded scan, MUST be
+  signalled. An unreadable identity or owner token is uncertainty, never proof
+  of exit or non-ownership, and a failed later scan still kills processes
+  already stopped. Owned processes that cannot be signalled (foreign uid,
+  refused stop, unreadable identity) or survive SIGKILL, and an unconverged,
+  failed or unbounded scan, MUST be
   retained as `unretired` or `problems` in the execution's `retirement` and MUST
   become an `execution-boundary` problem, so no complete or passing observation
   hides them. The flag excludes graceful interrupt and is refused before launch
   where retirement is unproven (everything except Darwin arm64/amd64). New
-  `swift-xctest` plans set it; historical plans and receipts keep their bytes
-  and run without it. Status: proposed (V1-0613).
+  `swift-xctest` plans set it. Historical plans and receipts keep their bytes
+  and identities; a historical `swift-xctest` plan that differs from the
+  rebuilt profile only by the absent flag is admitted and runs with retirement,
+  and no plan may add the flag where its profile does not. Status: proposed
+  (V1-0613).
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-024 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
-| TRE-V0-025 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption |
+| TRE-V0-025 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRunsWithRetirement`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption |
 
 Recorded limits. The shared executor admits only a regular-file executable, so
 the live witness uses the `/usr/bin/swift` shim; the toolchain `swift` symlink is

@@ -366,3 +366,38 @@ func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
 		}
 	}
 }
+
+// TestPreRetirementXCTestPlanRunsWithRetirement keeps historical swift-xctest
+// plans admissible after TRE-V0-025 added retirement to the fixed profile:
+// their identity is unchanged and execution gains retirement; no plan can
+// add retirement where the profile does not.
+func TestPreRetirementXCTestPlanRunsWithRetirement(t *testing.T) {
+	r := tr.Request{Runner: "swift-xctest", Root: "/source", Config: "/source/Package.swift", ConfigSha256: strings.Repeat("a", 64), Executable: "/usr/bin/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", TimeoutSeconds: 60, InputFiles: map[string]string{"Package.swift": strings.Repeat("a", 64)}, Selectors: []string{"ProofTests.Proof/testPass"}}
+	current, e := registry.Build(r)
+	if e != nil || !current.RetireDetachedDescendants {
+		t.Fatalf("%+v %v", current, e)
+	}
+	historical := current
+	historical.RetireDetachedDescendants = false
+	for _, inv := range []tr.Invocation{historical, current} {
+		v, e := admittedInvocation(plan{Request: r, Invocation: inv})
+		if e != nil || !v.RetireDetachedDescendants {
+			t.Fatalf("plan not admitted with retirement: %+v %v", v, e)
+		}
+	}
+	changed := historical
+	changed.Argv = append([]string{}, historical.Argv...)
+	changed.Argv[len(changed.Argv)-1] = "^ProofTests.Proof/testFail$"
+	if _, e := admittedInvocation(plan{Request: r, Invocation: changed}); e == nil {
+		t.Fatal("changed historical invocation admitted")
+	}
+	n := tr.Request{Runner: "nightwatch", Root: "/src", Executable: "/x/nightwatch", ExecutableSha256: "aa", InputFiles: map[string]string{"tests/sample.js": "bb"}, ReportFiles: []string{"sample.json"}, ReportDir: "/r", TimeoutSeconds: 60}
+	nv, e := registry.Build(n)
+	if e != nil {
+		t.Fatal(e)
+	}
+	nv.RetireDetachedDescendants = true
+	if _, e := admittedInvocation(plan{Request: n, Invocation: nv}); e == nil {
+		t.Fatal("plan added retirement outside its fixed profile")
+	}
+}
