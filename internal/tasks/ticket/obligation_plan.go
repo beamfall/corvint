@@ -43,6 +43,10 @@ func DecodeObligationPlan(raw []byte) (*ObligationPlan, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A plan from a later build refuses UNSUPPORTED_VERSION (CAL-V0-131).
+	if err := wire.ProfileVersion("/profile", v, ObligationPlanProfile); err != nil {
+		return nil, err
+	}
 	r := wire.NewReader(v, "")
 	r.Closed("profile", "ticketId", "tests")
 	r.Field("profile").Exact(ObligationPlanProfile)

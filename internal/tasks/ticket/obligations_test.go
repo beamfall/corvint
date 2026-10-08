@@ -3,6 +3,7 @@ package ticket_test
 import (
 	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,10 +49,10 @@ func tolRecord(t *testing.T, edit func(rec, ref wire.Value)) []byte {
 // it keeps its legacy bytes; each malformed or inconsistent reference, and
 // the member on a non-NATIVE record, refuses.
 func TestTOLV0001_RecordMemberRoundTrip(t *testing.T) {
-	legacy, err := os.ReadFile(issue502RecordFixture)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fv := tolParse(t, string(tolRecord(t, nil)))
+	delete(fv.Obj.Vals, "obligations")
+	fv.Obj.Keys = slices.DeleteFunc(fv.Obj.Keys, func(k string) bool { return k == "obligations" })
+	legacy := wire.EncodeFile(fv)
 	if rec, err := ticket.Decode(legacy); err != nil || rec.ObligationsRef != nil || !bytes.Equal(rec.Encode(), legacy) {
 		t.Fatalf("legacy record: %v", err)
 	}
@@ -170,6 +171,18 @@ func TestTOLV0002_EventCanonicalAndChained(t *testing.T) {
 		}
 		blobs, ref = saved, savedRef
 	}
+	// A corrupt store whose event points back at its own storage key must not
+	// loop: collection stops at the revisit and the fold refuses.
+	loopKey := wire.Sum([]byte("loop"))
+	loop := map[wire.Digest][]byte{loopKey: tolEvent(t, 2, &loopKey, set)}
+	loopRead := func(d wire.Digest) ([]byte, error) { return loop[d], nil }
+	loopRef := ticket.ObligationsReference{Prefix: "AC", Revision: "2", Head: loopKey}
+	if got, err := ticket.ObligationChainEvents(loopRead, &loopRef); err != nil || len(got) != 1 {
+		t.Fatalf("cyclic collection: %d %v", len(got), err)
+	}
+	if _, err := ticket.FoldObligationChain(id, loopRef, loopRead); err == nil || !strings.Contains(err.Error(), ticket.ObligationChainDetail) {
+		t.Fatalf("cyclic fold: %v", err)
+	}
 	edit := func(raw []byte, f func(v wire.Value)) []byte {
 		v := tolParse(t, string(raw))
 		f(v)
@@ -282,7 +295,11 @@ func TestTOLV0003_EntryCodecRefusals(t *testing.T) {
 	for _, ok := range []func(e, ev wire.Value){
 		func(e, _ wire.Value) { e.Obj.Set("id", s("AC-999999")) },
 		func(e, _ wire.Value) { e.Obj.Set("title", s(strings.Repeat("t", 256))) },
-		func(e, _ wire.Value) { e.Obj.Set("state", s("DEFECT")); e.Obj.Set("evidence", wire.Null()); e.Obj.Set("reason", s(strings.Repeat("r", 512))) },
+		func(e, _ wire.Value) {
+			e.Obj.Set("state", s("DEFECT"))
+			e.Obj.Set("evidence", wire.Null())
+			e.Obj.Set("reason", s(strings.Repeat("r", 512)))
+		},
 	} {
 		if _, err := tolEntry(t, ok); err != nil {
 			t.Errorf("boundary refused: %v", err)
@@ -318,12 +335,15 @@ func TestTOLV0004_EvidenceCodec(t *testing.T) {
 		t.Fatalf("64-hex commit: %v", err)
 	}
 	for name, edit := range map[string]func(e, ev wire.Value){
-		"unknown source":         func(_, ev wire.Value) { ev.Obj.Set("source", s("CI")) },
-		"short commit":           func(_, ev wire.Value) { ev.Obj.Set("commit", s("abc123")) },
-		"symbolic commit":        func(_, ev wire.Value) { ev.Obj.Set("commit", s("HEAD")) },
-		"bad event digest":       func(_, ev wire.Value) { ev.Obj.Set("eventSha256", s("x")) },
-		"report with decl":       func(_, ev wire.Value) { declared(wire.Value{}, ev); ev.Obj.Set("source", s("PLAYWRIGHT_REPORT")) },
-		"declared with report":   func(_, ev wire.Value) { declared(wire.Value{}, ev); ev.Obj.Set("reportSha256", s(strings.Repeat("a", 64))) },
+		"unknown source":   func(_, ev wire.Value) { ev.Obj.Set("source", s("CI")) },
+		"short commit":     func(_, ev wire.Value) { ev.Obj.Set("commit", s("abc123")) },
+		"symbolic commit":  func(_, ev wire.Value) { ev.Obj.Set("commit", s("HEAD")) },
+		"bad event digest": func(_, ev wire.Value) { ev.Obj.Set("eventSha256", s("x")) },
+		"report with decl": func(_, ev wire.Value) { declared(wire.Value{}, ev); ev.Obj.Set("source", s("PLAYWRIGHT_REPORT")) },
+		"declared with report": func(_, ev wire.Value) {
+			declared(wire.Value{}, ev)
+			ev.Obj.Set("reportSha256", s(strings.Repeat("a", 64)))
+		},
 		"report without version": func(_, ev wire.Value) { ev.Obj.Set("playwrightVersion", wire.Null()) },
 		"empty matches":          func(_, ev wire.Value) { ev.Obj.Set("matches", tolParse(t, `[]`)) },
 		"match unknown key": func(_, ev wire.Value) {

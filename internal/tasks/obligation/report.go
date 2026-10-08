@@ -330,13 +330,16 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 		case ticket.ObligationDeferred:
 			continue
 		}
+		// An id outside --ids is never credited, so its match count cannot
+		// refuse a witness of the subset (TOL-V0-009).
+		if !inSubset(id) {
+			continue
+		}
 		if len(bound) > ticket.MaxObligationMatches {
 			return nil, wire.Errorf(wire.CodeLimitExceeded, "/payload/credits", "%s %s has %d matches; an event holds at most %d per id", ticket.ObligationEventTooLargeDetail, id, len(bound), ticket.MaxObligationMatches)
 		}
 		res.Eligible[id] = bound
-		if inSubset(id) {
-			res.Credited = append(res.Credited, id)
-		}
+		res.Credited = append(res.Credited, id)
 	}
 	for _, e := range l.Entries {
 		if _, ok := found[e.ID]; ok || !inSubset(e.ID) {

@@ -20,6 +20,18 @@ import (
 // self-consistent and only the attempt provenance is untrue.
 func tolForgeWorkerGeneration(t *testing.T, root, gen string) {
 	t.Helper()
+	tolForgeHeadWitness(t, root, func(payload wire.Value) { payload.Obj.Set("generation", wire.String(gen)) }, func(ref wire.Value) {
+		if raise, ok := ref.Obj.Get("lastRaise"); ok && raise.Obj != nil {
+			raise.Obj.Set("generation", wire.String(gen))
+		}
+	})
+}
+
+// tolForgeHeadWitness rewrites the head receipt's retained witness payload
+// with edit (and the record reference with editRef when not nil), rehashing
+// every dependent byte as tolForgeWorkerGeneration describes.
+func tolForgeHeadWitness(t *testing.T, root string, edit func(payload wire.Value), editRef func(ref wire.Value)) {
+	t.Helper()
 	repo, err := intent.Resolve(root)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +69,7 @@ func tolForgeWorkerGeneration(t *testing.T, root, gen string) {
 		}
 		req, _ := ev.Obj.Get("request")
 		payload, _ := req.Obj.Get("payload")
-		payload.Obj.Set("generation", wire.String(gen))
+		edit(payload)
 		request = wire.Sum(wire.EncodeFile(req))
 		ev.Obj.Set("requestSha256", wire.String(string(request)))
 		raw := wire.EncodeFile(ev)
@@ -81,8 +93,8 @@ func tolForgeWorkerGeneration(t *testing.T, root, gen string) {
 		case strings.HasPrefix(at.Str, "intent/tickets/"):
 			ref, _ := rec.Obj.Get("obligations")
 			ref.Obj.Set("head", wire.String(string(forged)))
-			if raise, ok := ref.Obj.Get("lastRaise"); ok && raise.Obj != nil {
-				raise.Obj.Set("generation", wire.String(gen))
+			if editRef != nil {
+				editRef(ref)
 			}
 			fixture.Write(t, filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", filepath.Base(at.Str)), wire.EncodeFile(rec))
 		case strings.HasPrefix(at.Str, "requests/"):
@@ -133,5 +145,24 @@ func TestTOLV0013_TamperedWorkerGenerationInconsistent(t *testing.T) {
 		if forge == auditConsistent(t, r.Root) || forge != strings.Contains(string(a.stdout), "obligation binding: the write does not replay") {
 			t.Fatalf("forged=%v receipt audit: %s", forge, a.stdout)
 		}
+	}
+}
+
+// TestTOLV0013_DeclaredCommitAudited: a DECLARED witness rewritten, with
+// every byte rehashed, to name a commit the repository lacks fails receipt
+// audit; the shape and grant still replay, so only the commit check refuses.
+func TestTOLV0013_DeclaredCommitAudited(t *testing.T) {
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1")...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("declared: %s", x.stdout)
+	}
+	if !auditConsistent(t, r.Root) {
+		t.Fatal("the true declared witness does not audit")
+	}
+	tolForgeHeadWitness(t, r.Root, func(payload wire.Value) { payload.Obj.Set("commit", wire.String(strings.Repeat("c", 40))) }, nil)
+	a := atm(t, r.Root, nil, "receipt", "audit")
+	if auditConsistent(t, r.Root) || !strings.Contains(string(a.stdout), "holds no commit") {
+		t.Fatalf("a declared witness at a missing commit audited: %s", a.stdout)
 	}
 }

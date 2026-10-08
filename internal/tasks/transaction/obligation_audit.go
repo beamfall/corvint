@@ -216,13 +216,24 @@ func (a *ObligationReceiptAudit) bind(rc *snapshot.Receipt, prior obligationTick
 
 // sourcePresence re-checks TOL-V0-012 for a report witness: every retained
 // match's path is a blob at the event's commit that holds the id as a whole
-// token. A DECLARED witness checks shape, commit and grant only.
+// token. A DECLARED witness checks shape, commit and grant only: replay has
+// checked the shape and grant, and here its commit must exist.
 func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.ObligationRequest) error {
 	if a.Source == nil || q.Operation != ticket.OpObligationsWitness {
 		return nil
 	}
 	w := q.Witness
-	if w == nil || w.Source != ticket.ObligationSourceReport {
+	if w == nil {
+		return nil
+	}
+	if w.Source != ticket.ObligationSourceReport {
+		commit, _, _, err := a.Source(w.Commit, nil)
+		if err != nil {
+			return a.fail(rc, "declared commit %s is unobservable: %v", w.Commit, err)
+		}
+		if commit == "" {
+			return a.fail(rc, "the repository holds no commit %s", w.Commit)
+		}
 		return nil
 	}
 	seen := map[string]bool{}

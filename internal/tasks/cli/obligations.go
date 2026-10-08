@@ -288,6 +288,16 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		if ledger == nil {
 			return wire.Errorf(wire.CodeMalformed, "--target", "%s ticket %s has no obligation ledger; seed it first", ticket.ObligationUnknownDetail, rec.TicketID.Raw)
 		}
+		// A retry of a recorded witness derives its credits from the ledger
+		// before that write, so it rebuilds the same request bytes and
+		// replays (or conflicts) rather than reporting written:false.
+		before, found, ferr := ticket.ObligationLedgerBeforeRequest(rec.TicketID, *rec.ObligationsRef, store.ObligationEventReader(rc.repo), f.requestID)
+		if ferr != nil {
+			return ferr
+		}
+		if found && before != nil {
+			ledger = before
+		}
 		return nil
 	})
 	if err != nil {
@@ -317,6 +327,10 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		for _, id := range ids {
 			if e := ledger.Entry(id); e != nil && e.State == ticket.ObligationWitnessed {
 				lists.alreadyWitnessed = append(lists.alreadyWitnessed, id)
+				continue
+			} else if e != nil && e.State == ticket.ObligationDeferred {
+				// TOL-V0-008: a DEFERRED entry is not credited, as in the
+				// report path, so it neither fails the batch nor writes.
 				continue
 			}
 			w.Credits = append(w.Credits, ticket.ObligationCredit{ID: id})

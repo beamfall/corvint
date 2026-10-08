@@ -208,6 +208,47 @@ func TestTOLV0021_StallRestartsOnRaise(t *testing.T) {
 			t.Fatalf("%d stalled events for a session that raised the high water", n)
 		}
 	})
+	t.Run("TOL-V0-021 new revision mid-session", func(t *testing.T) {
+		// A session that moves the acceptance revision and then raises the
+		// high water within it restarts the count at its finish.
+		gate := filepath.Join(t.TempDir(), "go")
+		c := testConfig(t, "while [ ! -f '"+gate+"' ]; do sleep 0.05; done")
+		q := &fakeQueue{obs: Observation{Tickets: []Ticket{ledgerTicket(1, 3, "1", 1)}}}
+		d, err := Open("prog", c, q, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.WriteFile(gate, nil, 0o600); _ = d.Close() })
+		ctx := context.Background()
+		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+			t.Fatalf("launch: running %d %v", d.Running(), err)
+		}
+		key := q.obs.Tickets[0].ID
+		q.obs.Tickets[0].Obligations = &ObligationsView{Witnessed: 0, Total: 3, HighWaterRevision: "2", HighWater: 0}
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if s := d.ledger.Stall[key]; s == nil || s.Changed || *s.Witnessed != (StallWitnessed{AcceptanceRevision: "2", HighWater: 0}) {
+			t.Fatalf("new revision not rebased: %+v", s)
+		}
+		q.obs.Tickets[0].Obligations = &ObligationsView{Witnessed: 1, Total: 3, HighWaterRevision: "2", HighWater: 1}
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if s := d.ledger.Stall[key]; s == nil || !s.Changed {
+			t.Fatalf("raise within the new revision not kept: %+v", s)
+		}
+		if err := os.WriteFile(gate, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		waitEnded(t, d)
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if ev := eventsOf(t, d, "finished"); len(ev) != 1 || ev[0].Detail["sessionsSinceStatusChange"] != "0" {
+			t.Fatalf("finished = %+v", ev)
+		}
+	})
 }
 
 // TestTOLV0021_PreviousLedgerVersionAdopted: a taskman-dispatch-state/3

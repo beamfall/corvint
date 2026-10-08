@@ -61,7 +61,40 @@ which also owns the spec's intent-status lines) with eight resolutions:
 - Doc gates and `go test ./internal/specindex` ran before commit. Independent review used Codex
   read-only.
 
+## Review
+
+Codex (read-only, `gpt-6-astra`) reviewed `origin/main..HEAD` and reported one P1 and five P2
+findings. All six were fixed, each with a test:
+
+- **P1:** a corrupt chain whose event pointed back at its own storage key looped while the writer
+  lock was held. `ObligationChainEvents` now stops at a revisit and bounds reads, not distinct keys.
+  A case in `TestTOLV0002_EventCanonicalAndChained` covers it.
+- **P2, witness replay:** a retried witness recomputed its credits against the ledger it had
+  already changed, so it returned `written: false` instead of replaying. Credits now come from the
+  ledger before the event that holds the same request ID (`ticket.ObligationLedgerBeforeRequest`).
+  Covered by `TestTOLV0014_WitnessReplay`.
+- **P2, declared commit:** a `DECLARED` witness now has its commit checked at audit. Covered by
+  `TestTOLV0013_DeclaredCommitAudited`.
+- **P2, stall rebase:** a new acceptance revision observed mid-session now rebases the stall
+  baseline, so a later raise inside that revision restarts the count. Covered by a new subtest of
+  `TestTOLV0021_StallRestartsOnRaise`.
+- **P2, match bound:** the per-id 16-match bound now applies only to ids inside `--ids`. Covered by
+  `TestTOLV0009_SubsetIgnoresExcludedMatchBound`.
+- **P2, deferred ids:** a `DEFERRED` id in a declared batch is skipped rather than failing the
+  batch. Covered by `TestTOLV0008_DeclaredWitness`.
+
+The focused run also caught three test-side regressions. The shared issue502 fixtures now carry
+the new optional `obligations` member. The obligation event and plan profiles are rows in the
+CAL-V0-131 newer-version table, and the plan decoder now refuses a newer profile with
+`UNSUPPORTED_VERSION`. The ON-V0-006 derived-event slot test now counts the obligation operations
+among the declaring operations.
+
 ## NOT_RUN and limits
+
+- **Per-id match bound (retained limit).** One credited id holds at most 16 distinct matches in an
+  event (`ticket.MaxObligationMatches`), which keeps a 256-credit witness bounded. An id with more
+  distinct passing matches, such as one test run across more than 16 projects, refuses
+  `LIMIT_EXCEEDED OBLIGATION_EVENT_TOO_LARGE:`, and `--ids` cannot split a single id.
 
 - **Live Playwright 1.63 fixture (TOL-V0-009..013): `NOT_RUN`.** Playwright is not installed on this
   host, and it was not downloaded. The qualified version list stays empty, so any real report

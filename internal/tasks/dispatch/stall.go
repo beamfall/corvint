@@ -50,6 +50,13 @@ func (s *StallState) raised(t *Ticket) bool {
 	return s.Witnessed != nil && b != nil && b.AcceptanceRevision == s.Witnessed.AcceptanceRevision && b.HighWater > s.Witnessed.HighWater
 }
 
+// revisionMoved reports an observed ledger whose acceptance revision is not
+// the baseline's.
+func (s *StallState) revisionMoved(t *Ticket) bool {
+	b := stallBaseline(t)
+	return s.Witnessed != nil && b != nil && b.AcceptanceRevision != s.Witnessed.AcceptanceRevision
+}
+
 // rebase moves the baseline to t's observation: it seeds an absent one and
 // follows a new acceptance revision, neither of which restarts the count.
 func (s *StallState) rebase(t *Ticket) {
@@ -143,8 +150,11 @@ func (d *Dispatcher) pruneStall(obs *Observation) {
 			switch {
 			case t == nil || t.Status != s.Status || s.raised(t):
 				s.Changed = true
-			case s.Witnessed == nil:
-				s.rebase(t) // TOL-V0-021: seed an absent baseline
+			case s.Witnessed == nil || s.revisionMoved(t):
+				// TOL-V0-021: seed an absent baseline, or follow a new
+				// acceptance revision, so a later raise within it during
+				// this session is still seen at the finish.
+				s.rebase(t)
 			}
 		case t == nil || !stallStatuses[t.Status]:
 			delete(d.ledger.Stall, key)

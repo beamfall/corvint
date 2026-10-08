@@ -89,6 +89,7 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 	}
 	rec.AttachedEvidence = []ticket.AttachedEvidence{{AcceptanceRevision: "1", Actor: "russell", Evidence: []wire.Digest{wire.Sum([]byte("evidence"))}, Reason: "focused test log", RecordedAt: "2026-09-06T13:00:00Z"}}
 	rec.KnowHow = issue502KnowHow()
+	rec.ObligationsRef = issue502Obligations(t)
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)
@@ -169,4 +170,15 @@ func issue502KnowHow() []ticket.KnowHowEntry {
 		{Seq: "3", Operation: ticket.KnowHowAdd, Text: "the cache key includes the tree", Anchors: anchor, Routes: []string{}, Commit: commit, Attempt: &attempt, Generation: &gen, EvidencePath: &ev, ActorID: "operator-1", ActorRole: "OPERATOR", RecordedAt: at},
 		{Seq: "4", Operation: ticket.KnowHowRetract, Note: three, Reason: &gone, ActorID: "russell", ActorRole: "OWNER", RecordedAt: at},
 	}
+}
+
+// issue502Obligations is the TOL-V0-001 reference the shared fixture carries.
+func issue502Obligations(t *testing.T) *ticket.ObligationsReference {
+	t.Helper()
+	r := wire.NewReader(tolParse(t, tolRef), "/obligations")
+	ref := ticket.ReadObligationsReference(r)
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return ref
 }

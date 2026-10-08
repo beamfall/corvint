@@ -410,6 +410,87 @@ func TestTOLV0008_DeclaredWitness(t *testing.T) {
 		"--manifest-sha256", strings.Repeat("b", 64), "--test-id", "manual", "--reason", "checked", "--role", "OPERATOR")...); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("OPERATOR declared: %s", x.stdout)
 	}
+	// A DEFERRED entry is not credited: it neither fails a batch that also
+	// names a creditable entry nor writes on its own.
+	if x := atm(t, r.Root, nil, "ticket", "obligations", "set", "--target", id, "--expected-revision", obligationRevision(t, r.Root, id),
+		"--request-id", "set-defer", "--payload", `{"changes":[{"id":"AC-9","state":"DEFERRED","core":null,"reason":"later"}]}`); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("defer: %s", x.stdout)
+	}
+	if x := decl("w-6", "AC-4,AC-9"); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool || strList(x.res.Items[0], "credited") != "AC-4" {
+		t.Fatalf("deferred in a batch: %s", x.stdout)
+	}
+	if st := entryStates(obligationsShow(t, r.Root, id)); st["AC-9"] != "DEFERRED" || st["AC-4"] != "WITNESSED" {
+		t.Fatalf("states after deferred batch: %v", st)
+	}
+	before = fixture.TreeSnapshot(t, r.StateDir)
+	if x := decl("w-7", "AC-9"); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "written").Bool || strList(x.res.Items[0], "credited") != "" {
+		t.Fatalf("deferred only: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
+		t.Fatal("a deferred-only witness wrote state")
+	}
+}
+
+// TestTOLV0014_WitnessReplay: a witness retried with the same request id
+// and issuedAt replays its receipt even though its credits are now
+// WITNESSED (TM-V0-006), for both sources; the same id with other bytes is
+// refused rather than reported as written:false.
+func TestTOLV0014_WitnessReplay(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	rev := obligationRevision(t, r.Root, id)
+	declared := declareArgs(id, "w-decl", rev, head, "AC-2")
+	if x := atm(t, r.Root, nil, declared...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
+		t.Fatalf("declared: %s", x.stdout)
+	}
+	before := fixture.TreeSnapshot(t, r.StateDir)
+	if x := atm(t, r.Root, nil, declared...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("declared retry did not replay: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
+		t.Fatal("a replay wrote state")
+	}
+	if x := atm(t, r.Root, nil, declareArgs(id, "w-decl", rev, head, "AC-3")...); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("same request id with other bytes accepted: %s", x.stdout)
+	}
+	report := obligationCaseReport(t, r.Root)
+	rev = obligationRevision(t, r.Root, id)
+	reported := witnessArgs(id, "w-report", rev, head, "--from-playwright-report", report)
+	if x := atm(t, r.Root, nil, reported...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
+		t.Fatalf("report witness: %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, reported...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("report retry did not replay: %s", x.stdout)
+	}
+	if !auditConsistent(t, r.Root) {
+		t.Fatal("replayed witnesses do not audit")
+	}
+}
+
+// TestTOLV0009_SubsetIgnoresExcludedMatchBound: an id outside --ids whose
+// matches exceed the per-id bound does not refuse a witness of the subset.
+func TestTOLV0009_SubsetIgnoresExcludedMatchBound(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	spec := "e2e/login.spec.ts"
+	specs := []pwSpec{{Title: "AC-1 login", ID: "s1", File: spec, Tests: []pwTest{passed("chromium")}}}
+	var many []pwTest
+	for i := 0; i < 17; i++ {
+		many = append(many, passed("project-"+strconv.Itoa(i)))
+	}
+	specs = append(specs, pwSpec{Title: "AC-2 many projects", ID: "s2", File: spec, Tests: many})
+	report := writeReport(t, t.TempDir(), r.Root, pwVersion, specs...)
+	rev := obligationRevision(t, r.Root, id)
+	if x := atm(t, r.Root, nil, witnessArgs(id, "w-all", rev, head, "--from-playwright-report", report)...); x.res.Outcome == wire.OutcomeOK ||
+		!strings.Contains(string(x.stdout), "OBLIGATION_EVENT_TOO_LARGE:") {
+		t.Fatalf("over-bound id in scope: %s", x.stdout)
+	}
+	x := atm(t, r.Root, nil, witnessArgs(id, "w-sub", rev, head, "--from-playwright-report", report, "--ids", "AC-1")...)
+	if x.res.Outcome != wire.OutcomeOK || strList(x.res.Items[0], "credited") != "AC-1" {
+		t.Fatalf("subset witness: %s", x.stdout)
+	}
 }
 
 // TestTOLV0009_ReportAdmissionAndRetention: an unqualified version refuses

@@ -965,6 +965,36 @@ func FoldObligationChain(id wire.TicketID, ref ObligationsReference, read func(w
 	return l, nil
 }
 
+// ObligationLedgerBeforeRequest folds the chain and, when one of its events
+// retains the request requestID, returns the ledger as it stood before that
+// event (nil before the first event) with found true. A writer that derives a
+// request from ledger state uses it so a retry rebuilds the same bytes and
+// reaches the TM-V0-006 request-id replay (TOL-V0-014).
+func ObligationLedgerBeforeRequest(id wire.TicketID, ref ObligationsReference, read func(wire.Digest) ([]byte, error), requestID string) (*ObligationLedger, bool, error) {
+	l, err := FoldObligationChain(id, ref, read)
+	if err != nil {
+		return nil, false, err
+	}
+	var before *ObligationLedger
+	for _, d := range l.Events {
+		raw, err := read(d)
+		if err != nil {
+			return nil, false, err
+		}
+		ev, err := DecodeObligationEvent(raw)
+		if err != nil {
+			return nil, false, &ChainError{wire.CodeMalformed, "event " + string(d) + " does not decode: " + err.Error()}
+		}
+		if ev.Decoded.RequestID == requestID {
+			return before, true, nil
+		}
+		if before, err = ApplyObligationEvent(before, ev, d); err != nil {
+			return nil, false, &ChainError{wire.CodeMalformed, "event " + string(d) + " does not fold: " + err.Error()}
+		}
+	}
+	return nil, false, nil
+}
+
 // ObligationEventOf returns the decoded event when raw is a ledger event, so
 // a journal reader can recognize the content-addressed blob kind.
 func ObligationEventOf(raw []byte) (*ObligationEvent, bool) {
@@ -976,16 +1006,20 @@ func ObligationEventOf(raw []byte) (*ObligationEvent, bool) {
 }
 
 // ObligationChainEvents collects the ledger chain from ref.Head back to the
-// first event, at most the event bound. It stops at the first absent (nil)
-// or undecodable event; FoldObligationChain then refuses with the typed
-// chain error. A nil ref collects nothing.
+// first event, at most the event bound of reads. It stops at the first
+// absent (nil), undecodable or already-visited event, so a corrupt chain
+// that points back into itself cannot loop; FoldObligationChain then refuses
+// with the typed chain error. A nil ref collects nothing.
 func ObligationChainEvents(read func(wire.Digest) ([]byte, error), ref *ObligationsReference) (map[wire.Digest][]byte, error) {
 	out := map[wire.Digest][]byte{}
 	if ref == nil {
 		return out, nil
 	}
 	head := &ref.Head
-	for head != nil && len(out) < wire.ObligationsMaxEvents {
+	for steps := 0; head != nil && steps < wire.ObligationsMaxEvents; steps++ {
+		if _, seen := out[*head]; seen {
+			return out, nil
+		}
 		raw, err := read(*head)
 		if err != nil || raw == nil {
 			return out, err
