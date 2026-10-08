@@ -51,6 +51,10 @@ func TestSelectionAdmissionIsClosed(t *testing.T) {
 		"empty-part":      {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::::pass")},
 		"edge-colon":      {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default:::pass")},
 		"control":         {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default::pa\nss")},
+		"tab":             {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default::pa\tss")},
+		"escape":          {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default::pa\x1bss")},
+		"delete":          {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default::pa\x7fss")},
+		"c1-control":      {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("tests/sample.js::sample::default::pa\u0085ss")},
 		"length":          {Runner: "nightwatch", ExpectedSelection: nightwatchSelection("m::s::e::" + strings.Repeat("x", maxSelectionKeyBytes))},
 	} {
 		if e := AdmitSelection(r); e == nil {

@@ -3,6 +3,7 @@ package testrunner
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // Selection is a closed, versioned stable test-selection expectation. It is
@@ -64,9 +65,10 @@ func AdmitSelection(r Request) error {
 	return nil
 }
 
-// selectionKey accepts exactly four non-empty, separator-free components.
+// selectionKey accepts exactly four non-empty, separator-free components and
+// no control character (TRE-V0-022).
 func selectionKey(k string) bool {
-	if len(k) > maxSelectionKeyBytes || strings.ContainsAny(k, "\x00\r\n") {
+	if len(k) > maxSelectionKeyBytes || strings.IndexFunc(k, unicode.IsControl) >= 0 {
 		return false
 	}
 	parts := strings.Split(k, "::")
