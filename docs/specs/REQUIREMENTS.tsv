@@ -68,6 +68,7 @@ AFP-V0-034	docs/specs/affected-plan-v0.md	719	(accepted by decision 0439; V1-041
 AFP-V0-035	docs/specs/affected-plan-v0.md	736	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
 AFP-V0-036	docs/specs/affected-plan-v0.md	755	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
 AFP-V0-037	docs/specs/affected-plan-v0.md	774	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
+AFP-V0-038	docs/specs/affected-plan-v0.md	804	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -2509,6 +2510,7 @@ RGV-V0-011	docs/specs/repository-guidance-v0.md	35	Git subprocesses MUST use tru
 RGV-V0-012	docs/specs/repository-guidance-v0.md	36	Real committed fixtures MUST verify immutable evidence, deterministic bytes, ove
 RGV-V0-013	docs/specs/repository-guidance-v0.md	37	Review MUST NOT plan affected advice over an incomplete guidance inventory. When
 RGV-V0-014	docs/specs/repository-guidance-v0.md	38	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the
+RGV-V0-015	docs/specs/repository-guidance-v0.md	39	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	42	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	44	One unit MUST be one repository-relative `.rb` file, the smallest common
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	47	Discovery MUST admit all concurrently present conventional RSpec

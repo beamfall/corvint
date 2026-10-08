@@ -38,7 +38,7 @@
     "path": "docs/specs/affected-plan-v0.md",
     "title": "Affected Plan V0",
     "reqPrefix": "AFP-V0",
-    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); other AFP-V0 requirements proposed",
+    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); other AFP-V0 requirements proposed",
     "delivery": "experimental",
     "claim": "`corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.",
     "dependsOn": [
@@ -2633,7 +2633,7 @@
     "path": "docs/specs/repository-guidance-v0.md",
     "title": "Repository guidance V0",
     "reqPrefix": "RGV-V0",
-    "intent": "accepted (owner first-release instruction, 2026-09-13)",
+    "intent": "accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995)",
     "delivery": "experimental",
     "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
     "dependsOn": [

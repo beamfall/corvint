@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -57,14 +59,27 @@ type guidanceOverlap struct {
 	Paths []string `json:"paths"`
 }
 type guidanceReview struct {
-	CurrentRef      string            `json:"currentRef"`
-	Base            string            `json:"base"`
-	Affected        affectedReceipt   `json:"affected"`
-	ChangedFeatures []guidanceFeature `json:"changedFeatures"`
-	LocalTips       map[string]string `json:"localTips"`
-	Skipped         []guidanceSkip    `json:"skipped"`
-	Overlaps        []guidanceOverlap `json:"overlaps"`
+	CurrentRef      string                 `json:"currentRef"`
+	Base            string                 `json:"base"`
+	Affected        affectedCompactReceipt `json:"affected"`
+	AffectedFull    guidanceAffectedFull   `json:"affectedFull"`
+	ChangedFeatures []guidanceFeature      `json:"changedFeatures"`
+	LocalTips       map[string]string      `json:"localTips"`
+	Skipped         []guidanceSkip         `json:"skipped"`
+	Overlaps        []guidanceOverlap      `json:"overlaps"`
 }
+
+// guidanceAffectedFull resolves the compact review.affected (RGV-V0-015):
+// Digest is "affected-plan:sha256:" plus the SHA-256 of the canonical
+// affected-plan/0 receipt review planned, which is the stdout of Argv without
+// its trailing newline when run over the clean worktree at the revision.
+type guidanceAffectedFull struct {
+	Argv   []string `json:"argv"`
+	Digest string   `json:"digest"`
+}
+
+const guidanceAffectedFullDigestPrefix = "affected-plan:sha256:"
+
 type guidanceReceipt struct {
 	Profile      string             `json:"profile"`
 	Tool         string             `json:"tool"`
@@ -481,15 +496,20 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 	if out.Omissions["inventory"] > 0 || out.Omissions["unread-sources"] > 0 {
 		// A capped inventory cannot support a selection or a gate-absence claim
 		// (RGV-V0-013): plan through the standalone affected path instead.
-		review.Affected, err = compileAffected(ctx, affectedInvocation{Root: in.Root, Base: in.Base})
+		full, err := compileAffected(ctx, affectedInvocation{Root: in.Root, Base: in.Base})
 		if err != nil {
 			return nil, err
 		}
-		if review.Affected.Revision != s.Revision {
+		if full.Revision != s.Revision {
 			return nil, fmt.Errorf("HEAD drift")
 		}
 		out.Unknown = append(out.Unknown, guidanceAffectedFallback(in.Base))
-	} else if review.Affected, err = snapshotReviewAffected(s, in, paths); err != nil {
+		if err := review.setAffected(full); err != nil {
+			return nil, err
+		}
+	} else if full, err := snapshotReviewAffected(s, in, paths); err != nil {
+		return nil, err
+	} else if err := review.setAffected(full); err != nil {
 		return nil, err
 	}
 	current, err := s.CurrentRef(ctx)
@@ -594,6 +614,24 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 		review.Overlaps = append(review.Overlaps, row)
 	}
 	return review, nil
+}
+
+// setAffected embeds the affected-plan/1 projection of the planned
+// affected-plan/0 receipt and the digest and command that reproduce the full
+// receipt (RGV-V0-015).
+func (review *guidanceReview) setAffected(full affectedReceipt) error {
+	compact, err := compactAffected(full)
+	if err != nil {
+		return err
+	}
+	encoded, err := gokernel.CanonicalJSON(full)
+	if err != nil {
+		return err
+	}
+	sum := sha256.Sum256(encoded)
+	review.Affected = compact
+	review.AffectedFull = guidanceAffectedFull{Argv: []string{"corvint", "affected", "--base", full.Range.Base, "--full"}, Digest: guidanceAffectedFullDigestPrefix + hex.EncodeToString(sum[:])}
+	return nil
 }
 
 // guidanceAffectedFallback names why review.affected was planned over the clean
