@@ -148,15 +148,15 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 			}
 		}
 	}()
-	exitErr := leaderUnreaped(leader)
+	exitErr := observeExit(leader)
 	close(stop)
 	<-sampling
 	var c Containment
 	if exitErr != nil {
-		// Without the unreaped leader nothing is provably owned: keep the
-		// legacy order and retire no escaped descendant.
+		// Without the unreaped leader nothing is provably owned: retire no
+		// escaped descendant, and send no group signal, because the leader
+		// may already be reaped and its group ID reused (V1-0652).
 		err := command.Wait()
-		_ = signalGroup(-leader, syscall.SIGKILL)
 		if r != nil {
 			r.Retire()
 		}
