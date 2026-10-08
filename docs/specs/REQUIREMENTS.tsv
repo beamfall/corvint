@@ -2228,6 +2228,7 @@ PGO-V0-004	docs/specs/process-group-owner-v0.md	35	Serialize concurrent Finish a
 PGO-V0-005	docs/specs/process-group-owner-v0.md	36	Preserve existing Wait/Run and callers. Only RELEASED proves cleanup; HOLD must
 PGO-V0-006	docs/specs/process-group-owner-v0.md	37	On Linux, where signal 0 succeeds for a group whose only members are zombies (in
 PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunContained` runs a command as a group leader like `Run` a
+PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,

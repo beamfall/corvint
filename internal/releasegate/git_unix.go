@@ -54,7 +54,9 @@ func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit
 	case err := <-done:
 		runErr = err
 	case <-ctx.Done():
-		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		// Stop kills only the leader where waitid is available; groupreap.Wait
+		// then sweeps the group before the reap (V1-0373).
+		_ = groupreap.Stop(command)
 		<-done
 		runErr = ctx.Err()
 	}

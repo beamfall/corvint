@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
@@ -93,13 +92,8 @@ func runScenario(ctx context.Context, r Request, c Criterion, files map[string][
 // ownGroup puts a child in its own process group, kills that group on
 // cancellation and bounds the pipe drain after the child exits.
 func ownGroup(command *exec.Cmd) {
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error {
-		if command.Process != nil {
-			return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-		}
-		return nil
-	}
+	// Cancellation stops the leader; groupreap.Run sweeps the group before the reap.
+	groupreap.Contain(command)
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	command.WaitDelay = time.Minute
 }

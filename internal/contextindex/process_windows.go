@@ -16,5 +16,3 @@ func configureProcess(command *exec.Cmd) {
 	}
 	command.WaitDelay = pipeDrainDelay
 }
-
-func terminateProcessGroup(_ int) {}
