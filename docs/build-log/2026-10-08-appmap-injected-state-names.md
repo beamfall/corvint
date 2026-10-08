@@ -37,7 +37,9 @@ always be ambiguous.
   re-pointing a registration reads the screen's lineage `STALE`.
 - Fail closed (AMAP-V0-023): a source in scope that is excluded, unreadable or over 4 MiB, or
   that has a `.constant(...)` call whose first argument is not a literal, makes every injected
-  name in that build unknown. Lodash `_.constant(x)` is exempt. Unknown reasons stay
+  name in that build unknown. This also holds for an unclosed call, or a name or object-map
+  argument followed by more expression. Lodash calls (`_.constant(...)`, `lodash.constant(...)`)
+  are never registrations, whatever their arguments. Unknown reasons stay
   `non-literal-name` / `non-literal-value`. Owner question 16 asks whether that poisoned case
   should get its own reason.
 
@@ -58,10 +60,13 @@ The tests are in `internal/appmap/stateinject_test.go`:
 - `TestAMAPV0021DIConstantsManifest`: 7 refusals plus an unchanged literal screen.
 - `TestAMAPV0022InjectedStateNames`: an imported table, a declared table, an inline table and a
   parent, with the anchor order checked and lineage going `STALE` after a re-point. A second
-  app's registration outside the scope is ignored.
+  app's registration outside the scope is ignored, and so are lodash look-alikes.
 - `TestAMAPV0022InjectionAnnotations`: 6 function and annotation shapes.
-- `TestAMAPV0023UnprovableInjectionStaysUnknown`: 28 fail-closed cases plus a control.
+- `TestAMAPV0023UnprovableInjectionStaysUnknown`: 32 fail-closed cases plus a control.
 - `TestAMAPV0023ScopePoisoned`.
 
-The full `internal/appmap` package passes. No adopter-scale re-measurement was run, because the
+The full `internal/appmap` package passes. The independent review found three defects, all now
+fixed with regression cases: a panic on a non-dotted return type, an object-map registration
+followed by more expression that hid a competing registration, and lodash calls read as
+registrations. No adopter-scale re-measurement was run, because the
 reporter's app is not available here.

@@ -128,13 +128,21 @@ func (t *constTable) registrations(name string) []diReg {
 // collect records every `.constant(...)` call of one scope file.
 func (s *diScope) collect(f *constFile) {
 	toks := f.toks
-	for j := 1; j+2 < len(toks); j++ {
+	for j := 1; j+1 < len(toks); j++ {
 		if toks[j].kind != tokIdent || toks[j].text != "constant" || !isPunct(toks[j-1], ".") || !isPunct(toks[j+1], "(") {
 			continue
 		}
 		end := closeParen(toks, j+1)
+		if end == j+1 {
+			s.poison = true // an unclosed call at the end of the file
+			continue
+		}
 		a := toks[j+2]
 		switch {
+		case j >= 2 && toks[j-2].kind == tokIdent && (toks[j-2].text == "_" || toks[j-2].text == "lodash") && (j < 3 || !isPunct(toks[j-3], ".")):
+			// lodash's constant function, whatever its arguments: not a registration
+		case !isPunct(toks[end], ")"):
+			s.poison = true // an unclosed call
 		case isPunct(a, ")"):
 			// no argument: registers nothing
 		case literal(a) && next(toks, j+3, ","):
@@ -153,12 +161,12 @@ func (s *diScope) collect(f *constFile) {
 				r.bad = true
 			}
 			s.regs[a.text] = append(s.regs[a.text], r)
-		case literal(a):
+		case literal(a) && wholeCallArg(toks, j+3, end):
 			s.regs[a.text] = append(s.regs[a.text], diReg{file: f, bad: true}) // a value the reader cannot see
 		case isPunct(a, "{"):
 			// An object map registers each key; its values are not read.
-			v, _ := parseValue(toks, j+2)
-			if v.kind != "object" {
+			v, after := parseValue(toks, j+2)
+			if v.kind != "object" || !wholeCallArg(toks, after, end) {
 				s.poison = true
 				continue
 			}
@@ -169,8 +177,6 @@ func (s *diScope) collect(f *constFile) {
 				}
 				s.regs[p.key] = append(s.regs[p.key], diReg{file: f, bad: true})
 			}
-		case j >= 2 && toks[j-2].kind == tokIdent && (toks[j-2].text == "_" || toks[j-2].text == "lodash") && (j < 3 || !isPunct(toks[j-3], ".")):
-			// lodash's constant function, not a registration
 		default:
 			s.poison = true // a computed name could register anything
 		}
@@ -286,7 +292,9 @@ func (f *constFile) injectable(i int, name string) (diFunc, bool) {
 	}
 	k := closing + 1
 	if next(toks, k, ":") { // a return type
-		k = skipTypeName(toks, k+1)
+		if k = skipTypeName(toks, k+1); k < 0 {
+			return diFunc{}, false // a return type the reader cannot step over
+		}
 	}
 	head, fname, bodyStart := open, "", -1
 	switch {

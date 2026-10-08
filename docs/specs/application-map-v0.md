@@ -303,18 +303,20 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: no `di_constants`;
   no registration of `'X'`, or more than one, in scope; an object-map registration
   `.constant({...})` that names `X` (its value is not read) or has a spread or computed key; a
-  `.constant(...)` call in scope whose first argument is neither a string literal nor an object
-  literal, unless its receiver is `_` or `lodash`; a source in scope the index excluded, could not
-  read as text, or holds over 4 MiB (each of the last three makes every injected name in that
-  build unprovable); `T` written as anything but an object literal or identifier, or an identifier
+  `.constant(...)` call in scope that is unclosed, or whose first argument is not a string literal
+  or object literal read whole, unless its receiver is `_` or `lodash` (whose calls are never
+  registrations); a source in scope the index excluded, could not read as text, or holds over
+  4 MiB (each of the last three makes every injected name in that build unprovable); `T`
+  written as anything but an object literal or identifier, or an identifier that
   AMAP-V0-016 cannot prove (including a use of `T` other than the registration and member reads);
   `X` bound in the router file in any other way (a nested, destructured, defaulted or rest
   parameter, a local declaration, an import, an argument of a call); a member read outside an
-  injectable function's body; an annotation naming another injectable at that position or with a
-  different length; a `$inject` in the router file other than one top-level
-  `F.$inject = [string literals]` statement per function; an unnamed top-level function in a router
-  file that has such a statement; and another use of `F`. Annotations and registrations outside the
-  router file and the scope, a registration through an aliased function
+  injectable function's body; a function whose return type is not a dotted type name; an
+  annotation naming another injectable at that position or with a different length; a
+  `$inject` in the router file other than one top-level `F.$inject = [string literals]` statement
+  per function; an unnamed top-level function in a router file that has such a statement; and
+  another use of `F`. Annotations and registrations outside the router file and the scope, a
+  registration through an aliased function
   (`const c = m.constant; c(...)`), the AngularJS module a registration belongs to, and a
   registration added in a new file after the map revision are not read; a static map cannot see
   them. Status: proposed (V1-1027; GitHub #685).
