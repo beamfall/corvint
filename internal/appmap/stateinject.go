@@ -133,8 +133,8 @@ func (s *diScope) collect(f *constFile) {
 			continue
 		}
 		end := closeParen(toks, j+1)
-		if end == j+1 {
-			s.poison = true // an unclosed call at the end of the file
+		if !balanced(toks, j+1, end) {
+			s.poison = true // an unclosed call: its arguments are unknown
 			continue
 		}
 		a := toks[j+2]
@@ -142,7 +142,7 @@ func (s *diScope) collect(f *constFile) {
 		case j >= 2 && toks[j-2].kind == tokIdent && (toks[j-2].text == "_" || toks[j-2].text == "lodash") && (j < 3 || !isPunct(toks[j-3], ".")):
 			// lodash's constant function, whatever its arguments: not a registration
 		case !isPunct(toks[end], ")"):
-			s.poison = true // an unclosed call
+			s.poison = true // a mismatched closing bracket
 		case isPunct(a, ")"):
 			// no argument: registers nothing
 		case literal(a) && next(toks, j+3, ","):
@@ -181,6 +181,24 @@ func (s *diScope) collect(f *constFile) {
 			s.poison = true // a computed name could register anything
 		}
 	}
+}
+
+// balanced reports whether toks[open..end] is a bracket group that closes at end, as
+// closeParen's file-end fallback does not guarantee.
+func balanced(toks []token, open, end int) bool {
+	depth := 0
+	for k := open; k <= end; k++ {
+		if toks[k].kind != tokPunct {
+			continue
+		}
+		switch toks[k].text {
+		case "(", "[", "{":
+			depth++
+		case ")", "]", "}":
+			depth--
+		}
+	}
+	return end > open && depth == 0
 }
 
 // wholeCallArg reports whether the argument that ended at toks[i] is the call's last, so the

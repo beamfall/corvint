@@ -177,6 +177,7 @@ func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
 		"literal name expression": {`["app/core"]`, plain, map[string]string{reg: good, "app/core/dyn.ts": "angular.module('admin').constant('Na' + suffix, {});\n"}},
 		"unclosed registration":   {`["app/core"]`, plain, map[string]string{reg: good, "app/core/dyn.ts": "angular.module('admin').constant(\n"}},
 		"object return type":      {`["app/core"]`, strings.Replace(plain, ") => {", "): { ok: boolean } => {", 1), map[string]string{reg: good}},
+		"unclosed after a call":   {`["app/core"]`, plain, map[string]string{reg: good, "app/core/dyn.ts": "angular.module('admin').constant('Other', makeValue()\n"}},
 		"control":                 {`["app/core"]`, plain, map[string]string{reg: good}},
 	} {
 		t.Run(name, func(t *testing.T) {

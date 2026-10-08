@@ -62,7 +62,7 @@ The tests are in `internal/appmap/stateinject_test.go`:
   parent, with the anchor order checked and lineage going `STALE` after a re-point. A second
   app's registration outside the scope is ignored, and so are lodash look-alikes.
 - `TestAMAPV0022InjectionAnnotations`: 6 function and annotation shapes.
-- `TestAMAPV0023UnprovableInjectionStaysUnknown`: 32 fail-closed cases plus a control.
+- `TestAMAPV0023UnprovableInjectionStaysUnknown`: 33 fail-closed cases plus a control.
 - `TestAMAPV0023ScopePoisoned`.
 
 The full `internal/appmap` package passes. The independent review found three defects, all now
