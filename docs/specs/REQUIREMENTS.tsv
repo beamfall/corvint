@@ -1952,28 +1952,31 @@ MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	151	The only supported protocol
 MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	170	`server/discover` MUST return only the implemented surface:
 MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	201	`tools/list` is paginated even when one page currently contains all tools. Its c
 MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	210	V0 advertises exactly these three tools, subject to the implementation schemas f
-MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	282	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
-MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	289	`corvint.status` reports only the exact repository binding already defined by th
-MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	299	The dispatcher MUST continue reading frames while a tool request runs. A valid
-MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	314	If a request carries a `progressToken`, the server MAY emit
-MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	320	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
-MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	326	V0 pagination is deterministic, stable within the process, and never used to con
-MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	331	Repository authority comes only from `--root`. The server does not request
-MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	340	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
-MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	346	All calls are read-only. The server MUST NOT write the repository, Git index, Co
-MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	352	Per-call repository and revision identity is acquired once and bound to the Corv
-MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	358	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
-MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	365	`corvint.query` and `corvint.impact` MAY accept an explicit
-MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	392	All four existing MCP commands MUST accept at most one
-MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	398	A legacy connection MUST initialize independently for each Serve invocation. It
-MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	414	Legacy calls MUST reuse each existing command's closed tool registry and native
-MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	478	`corvint.context` MUST compile the same packet as `corvint context` in process,
-MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	490	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
-MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	461	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
-MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	535	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
-MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	543	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	568	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	576	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	283	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
+MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	290	`corvint.status` reports only the exact repository binding already defined by th
+MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	300	The dispatcher MUST continue reading frames while a tool request runs. A valid
+MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	315	If a request carries a `progressToken`, the server MAY emit
+MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	321	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
+MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	327	V0 pagination is deterministic, stable within the process, and never used to con
+MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	332	Repository authority comes only from `--root`. The server does not request
+MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	341	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
+MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	347	All calls are read-only. The server MUST NOT write the repository, Git index, Co
+MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	353	Per-call repository and revision identity is acquired once and bound to the Corv
+MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	359	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
+MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	366	`corvint.query` and `corvint.impact` MAY accept an explicit
+MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	393	All four existing MCP commands MUST accept at most one
+MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	399	A legacy connection MUST initialize independently for each Serve invocation. It
+MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	415	Legacy calls MUST reuse each existing command's closed tool registry and native
+MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	479	`corvint.context` MUST compile the same packet as `corvint context` in process,
+MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	491	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
+MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	462	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
+MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	536	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
+MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	544	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	569	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	577	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	587	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	594	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	601	proposed (V1-0944; no GitHub issue). When a successful tool result carries
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -3040,29 +3043,29 @@ VSC-V0-050	docs/specs/vscode-extension-v0.md	531	Discovery MUST be one complete 
 VSC-V0-051	docs/specs/vscode-extension-v0.md	547	After discovery the client fetches `tools/list` in the same process. Discovery M
 VSC-V0-052	docs/specs/vscode-extension-v0.md	562	The MCP tool calls are closed read-only adapters. `corvint.query` receives the e
 VSC-V0-053	docs/specs/vscode-extension-v0.md	574	`tools/call` MUST return one complete result with `resultType:"complete"`,
-VSC-V0-054	docs/specs/vscode-extension-v0.md	592	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
-VSC-V0-055	docs/specs/vscode-extension-v0.md	607	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
-VSC-V0-056	docs/specs/vscode-extension-v0.md	614	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
-VSC-V0-057	docs/specs/vscode-extension-v0.md	621	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
-VSC-V0-058	docs/specs/vscode-extension-v0.md	664	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
-VSC-V0-059	docs/specs/vscode-extension-v0.md	671	The provider process MUST be started as its own process-group leader (POSIX
-VSC-V0-060	docs/specs/vscode-extension-v0.md	694	Each decoded per-test record's `projection.execution` state MUST map to exactly
-VSC-V0-061	docs/specs/vscode-extension-v0.md	708	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
-VSC-V0-062	docs/specs/vscode-extension-v0.md	719	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
-VSC-V0-063	docs/specs/vscode-extension-v0.md	727	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
-VSC-V0-064	docs/specs/vscode-extension-v0.md	741	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
-VSC-V0-065	docs/specs/vscode-extension-v0.md	755	A provider record that fails to parse (malformed JSON, an unsupported record sha
-VSC-V0-066	docs/specs/vscode-extension-v0.md	770	When the live test-provider cannot be started (an invalid/empty
-VSC-V0-067	docs/specs/vscode-extension-v0.md	785	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
-VSC-V0-068	docs/specs/vscode-extension-v0.md	803	The editor MUST decode a Go session event's session-level `projection`
-VSC-V0-069	docs/specs/vscode-extension-v0.md	814	A Go per-test entry's source location MUST be recovered only from a first
-VSC-V0-070	docs/specs/vscode-extension-v0.md	824	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
-VSC-V0-071	docs/specs/vscode-extension-v0.md	865	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
-VSC-V0-072	docs/specs/vscode-extension-v0.md	871	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
-VSC-V0-073	docs/specs/vscode-extension-v0.md	878	A relevant save, configuration change, disable, root removal or shutdown
-VSC-V0-074	docs/specs/vscode-extension-v0.md	883	Every provider termination, including a normal exit-zero leader, MUST await
-VSC-V0-075	docs/specs/vscode-extension-v0.md	890	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
-VSC-V0-076	docs/specs/vscode-extension-v0.md	901	Only after trust and explicit enablement, resource-scoped/restricted
+VSC-V0-054	docs/specs/vscode-extension-v0.md	593	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
+VSC-V0-055	docs/specs/vscode-extension-v0.md	608	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
+VSC-V0-056	docs/specs/vscode-extension-v0.md	615	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
+VSC-V0-057	docs/specs/vscode-extension-v0.md	622	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
+VSC-V0-058	docs/specs/vscode-extension-v0.md	665	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
+VSC-V0-059	docs/specs/vscode-extension-v0.md	672	The provider process MUST be started as its own process-group leader (POSIX
+VSC-V0-060	docs/specs/vscode-extension-v0.md	695	Each decoded per-test record's `projection.execution` state MUST map to exactly
+VSC-V0-061	docs/specs/vscode-extension-v0.md	709	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
+VSC-V0-062	docs/specs/vscode-extension-v0.md	720	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
+VSC-V0-063	docs/specs/vscode-extension-v0.md	728	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
+VSC-V0-064	docs/specs/vscode-extension-v0.md	742	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
+VSC-V0-065	docs/specs/vscode-extension-v0.md	756	A provider record that fails to parse (malformed JSON, an unsupported record sha
+VSC-V0-066	docs/specs/vscode-extension-v0.md	771	When the live test-provider cannot be started (an invalid/empty
+VSC-V0-067	docs/specs/vscode-extension-v0.md	786	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
+VSC-V0-068	docs/specs/vscode-extension-v0.md	804	The editor MUST decode a Go session event's session-level `projection`
+VSC-V0-069	docs/specs/vscode-extension-v0.md	815	A Go per-test entry's source location MUST be recovered only from a first
+VSC-V0-070	docs/specs/vscode-extension-v0.md	825	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
+VSC-V0-071	docs/specs/vscode-extension-v0.md	866	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
+VSC-V0-072	docs/specs/vscode-extension-v0.md	872	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
+VSC-V0-073	docs/specs/vscode-extension-v0.md	879	A relevant save, configuration change, disable, root removal or shutdown
+VSC-V0-074	docs/specs/vscode-extension-v0.md	884	Every provider termination, including a normal exit-zero leader, MUST await
+VSC-V0-075	docs/specs/vscode-extension-v0.md	891	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
+VSC-V0-076	docs/specs/vscode-extension-v0.md	902	Only after trust and explicit enablement, resource-scoped/restricted
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	258	Every V0 document and nested record MUST implement the exact closed registry in
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	264	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	268	The only authority root is target-tree regular `100644` blob

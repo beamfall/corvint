@@ -222,7 +222,7 @@ no changed path to measure and returns state `OUT_OF_SCOPE` with `changedPathCou
 It applies once the change exists, with `BASE_SHA` the full immutable commit ID immediately before
 the included changes, which must end at captured `HEAD`; `dogfood change` runs it as its
 `coordination-time-impact` step. A result limit is not a byte budget: retain the complete
-response and every omission/uncertainty. Native impact refuses `--budget-bytes` with
+response and every omission/uncertainty. Native range impact refuses `--budget-bytes` with
 `unsupported-impact-option`; never substitute a legacy runtime.
 
 Range impact refuses a modified path or an untracked path that overlaps the Go build (`GPK-V0-060`),

@@ -3,7 +3,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import type { JsonObject } from "../src/json.js";
+import type { JsonObject, JsonValue } from "../src/json.js";
 import { McpFailure, decodeCallResult, runMcpOperation } from "../src/mcp.js";
 import { decodeContextReceipt } from "../src/model.js";
 import { configuredMcpCandidate, pinMcpExecutable, revalidateMcpPin } from "../src/executable.js";
@@ -97,17 +97,20 @@ test("call-result decoder rejects a canonical-copy mismatch", () => {
   assert.throws(() => decodeCallResult(result, "query"), /canonical duplicates/);
 });
 
-test("MCP text is the canonical receipt inside the AHI-004 envelope with hidden characters escaped (VSC-V0-053)", () => {
+test("MCP text is the canonical receipt summary inside the AHI-004 envelope with hidden characters escaped (VSC-V0-053, MCPV0-033)", () => {
   const base = bridgeResult();
   const receipt = base.receipt as JsonObject;
-  const results = receipt.results as JsonObject[];
-  const structured: JsonObject = { ...base, receipt: { ...receipt, results: [{ ...results[0], summary: "root\u2028authority" }] } };
+  const coverage = receipt.coverage as JsonObject;
+  const structured: JsonObject = { ...base, receipt: { ...receipt, coverage: { ...coverage, uncertainty: ["root\u2028authority"] } } };
   const result = callResult(structured);
   const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
   assert.ok(text.includes("root\\u2028authority") && !text.includes("\u2028"));
+  assert.ok(text.includes('"textProfile":"corvint-mcp-text-summary/0"') && !text.includes('"evidence"'));
   assert.equal(decodeCallResult(result, "query").authority.state, "READY");
   const bare = { ...result, content: [{ type: "text", text: canonical(structured) }] };
   assert.throws(() => decodeCallResult(bare, "query"), /canonical duplicates/);
+  const full = { ...result, content: [{ type: "text", text: framed(canonical(structured)) }] };
+  assert.throws(() => decodeCallResult(full, "query"), /canonical duplicates/);
 });
 
 test("MCP admits a closed null-receipt abstention and rejects authority laundering", () => {
@@ -314,7 +317,16 @@ function bridgeResult(): JsonObject {
 }
 
 function callResult(structured: JsonObject, meta = serverMeta()): JsonObject {
-  return { _meta: meta, content: [{ type: "text", text: framed(canonical(structured)) }], isError: false, resultType: "complete", structuredContent: structured };
+  return { _meta: meta, content: [{ type: "text", text: framed(canonical(summary(structured))) }], isError: false, resultType: "complete", structuredContent: structured };
+}
+
+// The MCPV0-033 text summary, written out independently of src/mcp.ts.
+function summary(structured: JsonObject): JsonObject {
+  const receipt = structured.receipt as JsonObject | null;
+  if (receipt === null || !Array.isArray(receipt.results)) return structured;
+  const results = (receipt.results as JsonObject[]).map((row) =>
+    Object.fromEntries(["kind", "id", "score"].filter((key) => key in row).map((key) => [key, row[key] as JsonValue])));
+  return { ...structured, receipt: { ...receipt, results }, textProfile: "corvint-mcp-text-summary/0" };
 }
 
 // The AHI-004 envelope exactly as internal/repoenvelope.Frame builds it.

@@ -196,6 +196,60 @@ func (result Result) CanonicalJSON() ([]byte, *Error) {
 	return encoded, nil
 }
 
+// TextSummaryProfile names the MCP text block that summarizes a receipt whose
+// full rows travel in structuredContent (MCPV0-033, proposed).
+const TextSummaryProfile = "corvint-mcp-text-summary/0"
+
+// TextJSON returns the canonical bytes for the MCP text content block. A
+// receipt carrying a results list is summarized: each row keeps only kind, id
+// and score, and the object names TextSummaryProfile, while every other member,
+// coverage and uncertainty included, is the structuredContent value unchanged.
+// Any other result is the full canonical object, as CanonicalJSON returns.
+func (result Result) TextJSON() ([]byte, *Error) {
+	object, err := result.Object()
+	if err != nil {
+		return nil, err
+	}
+	if rows, ok := receiptRows(result.Receipt["results"]); ok {
+		receipt := make(map[string]any, len(result.Receipt))
+		for key, value := range result.Receipt {
+			receipt[key] = value
+		}
+		summary := make([]any, len(rows))
+		for position, row := range rows {
+			projected := make(map[string]any, 3)
+			for _, key := range []string{"kind", "id", "score"} {
+				if value, present := row[key]; present {
+					projected[key] = value
+				}
+			}
+			summary[position] = projected
+		}
+		receipt["results"] = summary
+		object["receipt"] = receipt
+		object["textProfile"] = TextSummaryProfile
+	}
+	encoded, encodeErr := gokernel.CanonicalJSON(object)
+	if encodeErr != nil {
+		return nil, failure("internal-error")
+	}
+	return encoded, nil
+}
+
+func receiptRows(value any) ([]map[string]any, bool) {
+	switch typed := value.(type) {
+	case []map[string]any:
+		return typed, true
+	case []any:
+		rows := make([]map[string]any, len(typed))
+		for position, raw := range typed {
+			rows[position], _ = raw.(map[string]any)
+		}
+		return rows, true
+	}
+	return nil, false
+}
+
 // Error is a closed, sanitized failure. It never contains repository paths,
 // tool output, or underlying process errors. ReasonClass is the closed status
 // refusal class of decision 0383, empty when none is known.

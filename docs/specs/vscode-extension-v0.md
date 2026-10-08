@@ -584,7 +584,8 @@ license to discard wrapper metadata. The result MUST have exactly one text conte
 text is the canonical compact JSON encoding of the same wrapper inside the MCPV0 untrusted-data
 envelope that `internal/repoenvelope` builds under `AHI-004` (fixed prefix, hidden characters as
 literal lowercase `\uXXXX`, terminator line), and the text bytes MUST equal that framing of the
-canonical encoding of `structuredContent`; a tool error's text is the bare canonical encoding. Neither copy is
+canonical encoding of `structuredContent`, or, when its receipt carries a `results` list, of the
+`MCPV0-033` summary of it (proposed amendment 2026-10-07, V1-0944); a tool error's text is the bare canonical encoding. Neither copy is
 a second receipt. A protocol error, missing structured content, `isError:true`,
 `resultType:"input_required"`, sampling, elicitation, roots, resources, prompts, tasks,
 subscriptions, or a server request is rejected without UI projection or authority upgrade.
