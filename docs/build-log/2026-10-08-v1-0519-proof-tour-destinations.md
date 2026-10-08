@@ -42,6 +42,16 @@ preflight.
   pre-existing symlink and regular `resume-1-ack.txt` destinations both refuse with
   `retain-ack-failed` and keep their bytes.
 
+## Independent review
+
+Codex (`gpt-6-astra`, read-only) reported no P0/P1. Its P2 was that the maintained tests never
+reach the new no-clobber writes, because collisions stop at the preflight and the clean case uses
+a rejected ACK. Disposition: accepted as a coverage limit, not fixed. Reaching either write needs
+an accepted ACK, which the maintained tests deliberately never fabricate, or a race-injection
+hook in the production script. The scratch mutant that keeps no-clobber and removes only the
+preflight (above) isolates that layer. It is unmaintained mechanical evidence, and the spec
+witness row says so.
+
 ## Non-goals and failure modes
 
 This change is not a hostile-filesystem sandbox. A concurrent writer that swaps a destination for

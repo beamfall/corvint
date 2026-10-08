@@ -133,7 +133,7 @@ hostile daemonization/session escape. Tool binary identity and verifier pin stay
 | PT-V0-004,007 | original review-request bindings; negative resume tests; independent operator-supplied ACK |
 | PT-V0-005 | checksum before execution and resumed structural CI receipt after actual review |
 | PT-V0-006 | mock ordinary-process lifecycle tests, explicitly not semantic/reviewer evidence |
-| PT-V0-008 | focused symlink and regular-file collision tests preserving bytes, clean-resume admission test; scratch mock-ACK completion is mechanical only |
+| PT-V0-008 | focused symlink and regular-file collision tests preserving bytes, clean-resume admission test; the no-clobber write clause has only scratch mock-ACK evidence (no maintained test fabricates an accepted ACK), which is mechanical only |
 
 Root integration records the actual tour directory, independent findings, ACK author and
 bindings, final receipts, uncertainty and source review in the common build log. No unit test
