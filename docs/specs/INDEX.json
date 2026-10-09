@@ -901,7 +901,7 @@
     "path": "docs/specs/corvint-tasks-pending-unpause-recovery-v0.md",
     "title": "Corvint Tasks pending UNPAUSE recovery V0",
     "reqPrefix": "PUR-V0",
-    "intent": "proposed (amendment awaiting owner acceptance)",
+    "intent": "accepted (decision 0478)",
     "delivery": "experimental",
     "claim": "An UNPAUSE interrupted after its receipt is linked is settled by retrying a supported command, with the same ticket-divergence tolerance the fresh UNPAUSE had.",
     "dependsOn": [

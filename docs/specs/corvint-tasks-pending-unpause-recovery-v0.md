@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: proposed (amendment awaiting owner acceptance)
+Intent status: accepted (decision 0478)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0309 (panel F2, audit addendum STO-01), the Corvint Tasks contract
 TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md` at `800682d`: "Settled fixture barriers
@@ -12,9 +12,9 @@ in-tree sources under `internal/tasks/store` and `internal/tasks/journal`.
 
 ## Agent digest
 - Claim: An UNPAUSE interrupted after its receipt is linked is settled by retrying a supported command, with the same ticket-divergence tolerance the fresh UNPAUSE had.
-- Status: proposed (amendment awaiting owner acceptance); experimental. PUR-V0-001 through PUR-V0-005 are implemented and tested in tree; the amendment is not accepted.
+- Status: accepted (decision 0478); experimental. PUR-V0-001 through PUR-V0-005 are implemented and tested in tree; live qualification is NOT_RUN.
 - Exists: barrier-command redo, receipt-authorized barrier deletion in redo, the pending UNPAUSE audit mode, and the narrowed redo branch guard.
-- Blocked on: owner acceptance of this amendment and the matching edit to the external TCP-00 barrier clause.
+- Blocked on: the matching edit to the external TCP-00 barrier clause in `beamfall/corvint-tasks` (open, not made).
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -97,5 +97,7 @@ pending UNPAUSE returns to the prior unsupported state.
 
 ## Unresolved decisions
 
-- Owner acceptance of this amendment and the external TCP-00 wording edit.
-- A top-level `recover` verb and a `WRITER_ACTIVE` reader code (owner-pending).
+- The external TCP-00 wording edit in `beamfall/corvint-tasks` (open, not made). Owner acceptance is
+  recorded by decision 0478.
+- A top-level `recover` verb and a `WRITER_ACTIVE` reader code are not added; decision 0478 accepts
+  existing writers as the recovery path. Adding either needs its own owner decision.
