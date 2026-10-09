@@ -8,9 +8,6 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -82,30 +79,29 @@ func runStarved(t *testing.T, configure func(*exec.Cmd), override time.Duration)
 
 // checkHeldPipe: a descendant keeps stdout open after the leader exits; with
 // a finite (injected, short) bound the call still fails with ErrWaitDelay.
+// The descendant holds the pipe until it reads EOF on an inherited release
+// pipe, so cleanup closes that pipe and signals nothing: the leader is
+// reaped by then and its group ID may be reused (V1-1047).
 func checkHeldPipe(t *testing.T, configure func(*exec.Cmd)) {
 	t.Helper()
-	pidPath := filepath.Join(t.TempDir(), "descendant.pid")
-	command := exec.CommandContext(context.Background(), "/bin/sh", "-c", "sleep 30 & echo $! > '"+pidPath+"'; printf ok")
-	configure(command)
-	command.WaitDelay = 200 * time.Millisecond
-	var out bytes.Buffer
-	command.Stdout = &out
-	if err := command.Start(); err != nil {
+	release, hold, err := os.Pipe()
+	if err != nil {
 		t.Fatal(err)
 	}
-	leader := command.Process.Pid
-	t.Cleanup(func() {
-		if raw, err := os.ReadFile(pidPath); err == nil {
-			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && pid > 1 {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
-			}
-		}
-		if command.SysProcAttr != nil && command.SysProcAttr.Setpgid {
-			_ = syscall.Kill(-leader, syscall.SIGKILL)
-		}
-	})
+	t.Cleanup(func() { _ = hold.Close() })
+	command := exec.CommandContext(context.Background(), "/bin/sh", "-c", "(read held <&3) & printf ok")
+	configure(command)
+	command.WaitDelay = 200 * time.Millisecond
+	command.ExtraFiles = []*os.File{release}
+	var out bytes.Buffer
+	command.Stdout = &out
+	err = command.Start()
+	_ = release.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 	began := time.Now()
-	err := command.Wait()
+	err = command.Wait()
 	if !errors.Is(err, exec.ErrWaitDelay) {
 		t.Fatalf("held pipe returned %v, want exec.ErrWaitDelay", err)
 	}

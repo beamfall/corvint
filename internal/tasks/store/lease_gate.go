@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -297,7 +298,10 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 	containGate(cmd)
 	var timedOut bool
 	var mu sync.Mutex
-	out.kill = func() { killGate(cmd) }
+	// Early kills stop only the unreaped leader; groupreap.Wait SIGKILLs the
+	// group while the exited leader is unreaped, so a kill that races the
+	// reap never names a reused group (V1-1047).
+	out.kill = func() { stopGate(cmd) }
 	if err := cmd.Start(); err != nil {
 		return execution{class: "SPAWN_FAILED"}
 	}
@@ -305,10 +309,10 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 		mu.Lock()
 		timedOut = true
 		mu.Unlock()
-		killGate(cmd)
+		stopGate(cmd)
 	})
-	stop := context.AfterFunc(ctx, func() { killGate(cmd) })
-	err := cmd.Wait()
+	stop := context.AfterFunc(ctx, func() { stopGate(cmd) })
+	err := groupreap.Wait(cmd)
 	timer.Stop()
 	stop()
 	mu.Lock()

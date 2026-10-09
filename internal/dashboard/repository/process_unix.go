@@ -27,15 +27,19 @@ func (containment *childContainment) attach(process *os.Process) bool {
 	return true
 }
 
+// groupSignal is syscall.Kill; tests check that terminate and force run only
+// while the leader is unreaped (V1-1047).
+var groupSignal = syscall.Kill
+
 func (containment *childContainment) terminate() {
 	if containment.pid > 0 {
-		_ = syscall.Kill(-containment.pid, syscall.SIGTERM)
+		_ = groupSignal(-containment.pid, syscall.SIGTERM)
 	}
 }
 
 func (containment *childContainment) force() {
 	if containment.pid > 0 {
-		_ = syscall.Kill(-containment.pid, syscall.SIGKILL)
+		_ = groupSignal(-containment.pid, syscall.SIGKILL)
 	}
 }
 
