@@ -78,10 +78,19 @@ func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit
 	return stdout.Bytes(), nil
 }
 
+// groupProbe is syscall.Kill; tests observe that processGroupGone sends
+// signal 0 only.
+var groupProbe = syscall.Kill
+
+// processGroupGone runs after groupreap.Wait has SIGKILLed the group while the
+// leader was unreaped and then reaped it, so it sends signal 0 only and grants
+// no kill authority (PGO-V0-001). After the reap the numeric group ID can name
+// a reused group; that can only make the group look present and refuse the
+// command, never accept it (V1-1036).
 func processGroupGone(pgid int) bool {
 	deadline := time.Now().Add(time.Second)
 	for {
-		err := syscall.Kill(-pgid, 0)
+		err := groupProbe(-pgid, 0)
 		if errors.Is(err, syscall.ESRCH) {
 			return true
 		}

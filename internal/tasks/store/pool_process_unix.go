@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -36,12 +37,21 @@ func poolGroupLive(pid int) (bool, error) {
 	defer cancel()
 	return poolGroupLiveContext(ctx, pid)
 }
+// poolGroupSignal is syscall.Kill; tests observe every signal the pool sends
+// to a process group itself.
+var poolGroupSignal = syscall.Kill
+
+// poolGroupLiveContext observes a pool command's group after its leader was
+// reaped. It sends signal 0 only and never grants kill authority: the group
+// was already SIGKILLed while the leader was held unreaped (groupreap,
+// PGO-V0-008). After the reap the numeric group ID could name a reused group,
+// which can only make the group look live and the run unclean, never clean.
 func poolGroupLiveContext(ctx context.Context, pid int) (bool, error) {
 	// CAL-V0-188: ESRCH from kill(-group, 0) proves the group has no member,
 	// not even a zombie, without the full process-table listing whose fixed
 	// bound a loaded host overruns (V1-0989). Any other answer, including
 	// Darwin's EPERM for a zombie-only group, still needs the listing.
-	if pid > 1 && syscall.Kill(-pid, 0) == syscall.ESRCH {
+	if pid > 1 && poolGroupSignal(-pid, 0) == syscall.ESRCH {
 		return false, nil
 	}
 	raw, e := poolProbe(ctx, "/bin/ps", "-axo", "pgid=,stat=")
@@ -74,8 +84,10 @@ func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root strin
 	cmd.Stdout = pipeWrite
 	cmd.Stderr = pipeWrite
 	cmd.WaitDelay = time.Second
-	containGate(cmd)
-	out.kill = func() { killGate(cmd) }
+	// Early stops kill only the leader; groupreap.Wait then SIGKILLs the
+	// group while the exited leader is unreaped (V1-1036).
+	groupreap.Contain(cmd)
+	out.kill = func() { _ = groupreap.Stop(cmd) }
 	if guard != nil && guard() != nil {
 		pipeWrite.Close()
 		return "SOURCE_CHANGED", true, wire.Sum(nil)
@@ -97,14 +109,14 @@ func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root strin
 		select {
 		case <-ctx.Done():
 			reason <- "INTERRUPTED"
-			killGate(cmd)
+			_ = groupreap.Stop(cmd)
 		case <-timer.C:
 			reason <- "TIMEOUT"
-			killGate(cmd)
+			_ = groupreap.Stop(cmd)
 		case <-stopped:
 		}
 	}()
-	err := cmd.Wait()
+	err := groupreap.Wait(cmd)
 	close(stopped)
 	<-watcherDone
 	class = "EXIT_ZERO"
@@ -120,10 +132,8 @@ func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root strin
 	default:
 	}
 
+	// Observation only: no group signal follows the reap.
 	live, e := poolGroupLive(cmd.Process.Pid)
-	if e == nil && live {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
 	until := time.Now().Add(2 * time.Second)
 	for e == nil && live && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
@@ -236,20 +246,23 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 	cmd.Dir = root
 	cmd.Env = env
 	cmd.WaitDelay = time.Second
-	containGate(cmd)
+	// Cancellation and overflow kill only the leader; Drain SIGKILLs the
+	// group after the output drains (a pipe holder past the delay is still
+	// exec.ErrWaitDelay) and while the exited leader is unreaped (V1-1036).
+	groupreap.Contain(cmd)
 	captured := &sweepCapture{max: snapshot.MaxPoolSweepOutput}
-	captured.kill = func() { killGate(cmd) }
+	captured.kill = func() { _ = groupreap.Stop(cmd) }
 	cmd.Stdout = sweepWriter{true, captured}
 	cmd.Stderr = sweepWriter{false, captured}
-	cmd.Cancel = func() error { killGate(cmd); return nil }
 	if guard != nil && guard() != nil {
 		result.Class = "SOURCE_CHANGED"
 		return result
 	}
-	if e := cmd.Start(); e != nil {
+	wait, e := groupreap.Drain(run, cmd, cmd.WaitDelay)
+	if e != nil {
 		return result
 	}
-	e := cmd.Wait()
+	e = wait()
 	waited = time.Now()
 	result.Class = "EXIT_ZERO"
 	if e != nil {
@@ -277,11 +290,9 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 	}
 	cleanup, cancelCleanup := context.WithTimeout(context.Background(), poolCleanupAllowance)
 	defer cancelCleanup()
+	// Observation only: no group signal follows the reap.
 	live, probeErr := poolGroupLiveContext(cleanup, cmd.Process.Pid)
 	probeUncertain := probeErr != nil
-	if probeErr != nil || live {
-		killGate(cmd)
-	}
 	for (probeErr != nil || live) && cleanup.Err() == nil {
 		select {
 		case <-cleanup.Done():

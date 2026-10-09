@@ -63,6 +63,10 @@ func observeProcs() (map[int]proc, error) {
 // inject an unreadable process table.
 var processIdentity = supervisor.ProcessIdentity
 
+// launchGroupKill is syscall.Kill; tests observe the leader at the moment
+// launch signals an unidentified worker's group.
+var launchGroupKill = syscall.Kill
+
 // launch starts argv as a new session leader so it outlives the dispatcher,
 // with output appended to the worker's log files.
 func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, error) {
@@ -101,14 +105,18 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 	if err == nil && id == "" {
 		err = fmt.Errorf("pid %d has no start identity", pid)
 	}
+	if err != nil {
+		// An unidentified tree cannot be supervised safely; stop it now,
+		// before Wait can reap the leader: the unreaped leader keeps its
+		// session and group ID from naming another group (V1-1036).
+		_ = launchGroupKill(-pid, syscall.SIGKILL)
+	}
 	exit := make(chan int, 1)
 	go func() {
 		_ = cmd.Wait()
 		exit <- cmd.ProcessState.ExitCode()
 	}()
 	if err != nil {
-		// An unidentified tree cannot be supervised safely; stop it now.
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
 		return 0, "", nil, &startedError{pid: pid, exit: exit, err: fmt.Errorf("worker start identity unreadable: %w", err)}
 	}
 	// The leader's identity stays beside its logs, so a directory whose
