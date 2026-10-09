@@ -59,9 +59,11 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 				return nil, err
 			}
 			evaluated, _ = result["completion"].(map[string]any)
+			// The read returns its real blocking result after the deadline has passed, so only
+			// the production deadline enforcement can turn it into the fail-open.
 			expire()
 			<-ctx.Done()
-			return nil, ctx.Err()
+			return result, nil
 		})
 		output := runClaudeAdapterTest(ctx, t, root, "stop", map[string]any{"session_id": "native-session-é", "stop_hook_active": false})
 		if evaluated["decision"] != "block" {

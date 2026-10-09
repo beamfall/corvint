@@ -22,8 +22,10 @@ real-host rerun under `HLQ-V1-009` (`NOT_RUN`).
 ## Change
 
 - New subtest of `TestClaudeNativeDogfoodLifecycle` (`cmd/corvint/local_completion_claude_test.go`):
-  a real enrolled incomplete Stop evaluation completes and decides `block`, then the event deadline
-  is forced to expire (witnessed deadline, no wall-clock race, decision 0082). The adapter output
+  a real enrolled incomplete Stop evaluation completes and decides `block`, the event deadline is
+  forced to expire (witnessed deadline, no wall-clock race, decision 0082), and the injected read
+  then returns that real blocking result, so only production deadline enforcement can turn it
+  into the fail-open (review repair: the first version returned the error itself). The adapter output
   has no `decision` and only `systemMessage` `Corvint FALLBACK degraded:
   corvint-event-rejected:dogfood-event-deadline; coding continues`, which is the rc.2 symptom and
   the shape `HLQ-V1-009` retries.
@@ -34,17 +36,24 @@ real-host rerun under `HLQ-V1-009` (`NOT_RUN`).
 
 ## Evidence
 
-- New subtest PASS. Mutation (the read returns its result instead of expiring) makes it FAIL with
-  `decision:block ... Frontier authority remains unavailable`, so it detects the difference. The
-  subtest does not exist on base `02e84575`.
+- New subtest PASS (also under `-race`); it does not exist on base `02e84575`. Production
+  mutation in `cmd/corvint/local_completion_event.go`: removing both deadline guards
+  (`dogfoodEventWithin`'s `ctx.Done()` select branch and `runLocalCompletionEvent`'s final
+  `ctx.Err()` check before the stdout write) makes it FAIL with `decision:block ... Frontier
+  authority remains unavailable`. Removing either guard alone still passes: each guard alone
+  enforces the deadline, so the subtest pins their combination, not each one.
 - `go test ./conformance/host-lifecycle-v1`: PASS (existing reporting tests unchanged).
 - Live: `go run ./conformance/host-lifecycle-v1 --host claude-code` with a corvint built from
   `02e84575` (not installed to PATH) and the rc.1 build 163 binary as N-1, Claude Code 2.1.293:
   9/9 PASS, no time-bound retry, 8 s, load 9.3.
-- Scratch probe (patched copy of the runner, not committed): 40 enrolled incomplete Stop hook runs
-  on the same host at one-minute load 20–26 on 12 CPUs all returned `block`; elapsed median about
-  320 ms, maximum 553 ms, against the 1.5 s adapter work bound (2 s declared kill − 400 ms reserve
-  − 100 ms grace). Repeated enrolled Stops keep blocking, so the continuation limit is stateless
+- Probe: the runner with `results/2026-10-09-v1-0844-frontier/probe.patch` (reconstructed from the
+  scratch edit; it applies to `02e84575`) ran 40 enrolled incomplete Stop hook runs on the same host;
+  the stderr lines are retained as `probe-timings.tsv` (sha256
+  `80be80dce79e0e92034e476ca805e3d6921378592ce121c2eb93d2423c6c67ec`; patch sha256
+  `bff625a2363b1c222942c85a991660504bf1f45c289bd0e3e8eb99fa9a8e1b3b`). All 40 returned `block`;
+  elapsed median 323 ms, maximum 553 ms (the first run). The one-minute load 26.14 at start and
+  20.44 at end on 12 CPUs is an unretained observation transcribed from the session. The adapter
+  work bound is 1.5 s (2 s declared kill − 400 ms reserve − 100 ms grace). Repeated enrolled Stops keep blocking, so the continuation limit is stateless
   (`stop_hook_active` only) and the `HLQ-V1-009` retry cannot exhaust it.
 
 ## Finding

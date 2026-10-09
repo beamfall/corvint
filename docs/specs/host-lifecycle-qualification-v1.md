@@ -233,9 +233,11 @@ unreleased build on a newer host version, not a tuple result or support promotio
   non-time-bound rejection, an internal error) have no evident load dependence. The
   `TestClaudeNativeDogfoodLifecycle` deadline subtest forces the expiry after a real enrolled
   incomplete evaluation has decided `block` and gets exactly that fail-open output. On 2026-10-09 a
-  real-host run under `HLQ-V1-009` passed (V1-0844 diagnostic run above); a scratch probe of that
-  host timed 40 enrolled incomplete Stop hook runs at one-minute load 20–26 on 12 CPUs: all blocked,
-  median about 320 ms, maximum 553 ms, against the 1.5 s adapter work bound. A slowdown of roughly
+  real-host run under `HLQ-V1-009` passed (V1-0844 diagnostic run above); a probe of that host
+  (runner plus `probe.patch`, timings in `probe-timings.tsv`, both in that results directory) timed
+  40 enrolled incomplete Stop hook runs: all blocked, median 323 ms, maximum 553 ms, against the
+  1.5 s adapter work bound. Its load (one-minute 26.14 at start, 20.44 at end, 12 CPUs) is an
+  unretained observation. A slowdown of roughly
   5x reaches the bound, which the rc.2 load of about 245 makes plausible; the rc.2 output itself
   stays unobserved, so the cause remains the most likely hypothesis, not an observation.
 
