@@ -72,3 +72,25 @@ before the reap. Each site is audited in the V1-1036 build log
   edits that row; the mentions above are for integration.
 
 Rollback: revert this commit. No persisted state or wire contract changes.
+
+## V1-1050: Darwin failed exit observation
+
+This lane merged batch P head 1a9c4b3d, which includes V1-1046.
+
+`process_wait_darwin.go` treated a failed `waitid` observation as `observationFailed`, and that set
+`cleanupRequired`. `stopAndProveDarwin` then sent group SIGTERM/SIGKILL even though the leader might
+already have been reaped elsewhere (ECHILD).
+
+The Darwin wait now uses the same `leaderObservation.pinned` guard as Linux. The type moved to
+`process_unix.go`, with the injectable `observeLeaderExit`. A failed observation sends no group signal
+and reports cleanup unproved. The timeout/cancel and live-residue paths are unchanged while the
+observation is pending or succeeded.
+
+`TestV11047FailedExitObservationSendsNoGroupSignal` now runs on darwin and linux. It fails with the
+pre-fix Darwin behaviour (stop loop run unguarded): `group signals [terminated] sent after a failed exit
+observation`. It passes after the fix. The whole `internal/dashboard/repository` package passes with
+`-race` on Darwin and in the Linux arm64 container. That includes the existing cancellation tests and
+`TestResidueCleanupSignalsOnlyWhileLeaderUnreaped`.
+
+Limit: residue detection on Darwin still uses `kill(-pid, 0)` while the leader is pinned. That is
+unchanged.

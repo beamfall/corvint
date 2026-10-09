@@ -85,37 +85,9 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	}
 }
 
-// observeLeaderExit and linuxGroupLive are the exit observation and the
-// process-table read; tests inject a failed observation (ECHILD) and an
+// linuxGroupLive is the /proc process-table read; tests inject an
 // unreadable /proc.
-var (
-	observeLeaderExit = waitProcessExitUnreaped
-	linuxGroupLive    = linuxGroupHasLiveMembers
-)
-
-// leaderObservation tracks the unreaped-exit observation from the waiting
-// goroutine. It is used by that one goroutine only.
-type leaderObservation struct {
-	result    <-chan error
-	completed bool
-	err       error
-}
-
-// pinned reports whether the leader's PID, and so its group ID, still names
-// this command: the observation is pending (the leader has not exited, so no
-// one can have reaped it) or saw the exit while leaving it unreaped. A failed
-// observation (for example ECHILD after another reaper collected the leader)
-// confers no kill authority (V1-1047, as groupreap's V1-0652).
-func (observation *leaderObservation) pinned() bool {
-	if !observation.completed {
-		select {
-		case observation.err = <-observation.result:
-			observation.completed = true
-		default:
-		}
-	}
-	return !observation.completed || observation.err == nil
-}
+var linuxGroupLive = linuxGroupHasLiveMembers
 
 // waitProcessExitUnreaped blocks until the process exits and leaves it
 // unreaped (waitid WEXITED|WNOWAIT). A trapped, stopped or continued report
