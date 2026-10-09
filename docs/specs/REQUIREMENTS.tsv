@@ -2177,10 +2177,12 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	123	same-change proposed intent MAY be a
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	134	default solo use MUST allow visible unknown obligations; a repository MAY opt in
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	136	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	525	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	548	one dogfood change MAY declare an ordered set of pinned Markdown intent
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	157	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde
 OCM-V0-016	docs/specs/ocm-v0-dogfood.md	172	(accepted 2026-09-25 by decision 0392, V1-0273) when the `OCM-V0-013` dogfood
+OCM-V0-017	docs/specs/ocm-v0-dogfood.md	181	(accepted 2026-10-08, decision 0469; V1-0555) when `ocm link` refuses its candid
+OCM-V0-018	docs/specs/ocm-v0-dogfood.md	191	(accepted 2026-10-08, decision 0469; V1-0520) a Go case anchor's parent test is
 OIF-V0-001	docs/specs/ocm-intent-forms-v0.md	54	`corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requi
 OIF-V0-002	docs/specs/ocm-intent-forms-v0.md	55	A non-default form is recorded as the string member `intentScope.form`; the defa
 OIF-V0-003	docs/specs/ocm-intent-forms-v0.md	56	Every OCM read and write action re-derives requirements, span, and span digest f
@@ -3038,6 +3040,18 @@ TRE-V0-038	docs/specs/test-runner-execution-v0.md	138	A row without an outcome i
 TRE-V0-039	docs/specs/test-runner-execution-v0.md	157	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
 TRE-V0-040	docs/specs/test-runner-execution-v0.md	860	A receipt phase MUST record `exitCode` as the native exit
 TRE-V0-041	docs/specs/test-runner-execution-v0.md	870	Runner plan and receipt decoders (`DecodeDocument` and the CEM
+TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack
+TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO
+TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count
+TRJ-V0-004	docs/specs/trial-replay-journal-v0.md	111	A run with `--output` MUST append one JSON Lines entry to `OUTPUT.journal.jsonl`
+TRJ-V0-005	docs/specs/trial-replay-journal-v0.md	123	A step MAY be replayed only from an entry with an equal key, `replayable: true`,
+TRJ-V0-006	docs/specs/trial-replay-journal-v0.md	127	When reading a journal, a final line without its newline terminator MUST be igno
+TRJ-V0-007	docs/specs/trial-replay-journal-v0.md	131	`--resume` MUST read `OUTPUT.journal.jsonl`. `--reuse SOURCE` MUST accept a jour
+TRJ-V0-008	docs/specs/trial-replay-journal-v0.md	138	Every record in a final report MUST carry its `replay_key` and `record_sha256`.
+TRJ-V0-009	docs/specs/trial-replay-journal-v0.md	145	The report MUST list every distinct replay source as `replay_sources`:
+TRJ-V0-010	docs/specs/trial-replay-journal-v0.md	150	Matching MUST be by key, never by position. With `--workers` above 1 the replay
+TRJ-V0-011	docs/specs/trial-replay-journal-v0.md	152	The key's `upstream` MUST list the `{key, record_sha256}` of every step whose ou
+TRJ-V0-012	docs/specs/trial-replay-journal-v0.md	156	The journal is private derived state of the trial tools. No `corvint` command, a
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

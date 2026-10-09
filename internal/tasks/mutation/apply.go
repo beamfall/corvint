@@ -92,6 +92,16 @@ type Context struct {
 	// names an attempt or generation (KHN-V0-008); nil refuses such a write
 	// PROVENANCE_UNVERIFIED. Other operations ignore it.
 	KnowHowAttempts AttemptLedger
+	// ObligationEvents holds the target's obligation-ledger chain by event
+	// digest, read by the store from evidence/ (TOL-V0-002). A referenced
+	// event without bytes refuses VALIDATION_FAILED/MISSING_EVIDENCE.
+	ObligationEvents map[wire.Digest][]byte
+	// ObligationReport is the writer's recomputation of a Playwright report
+	// for OBLIGATIONS_WITNESS (TOL-V0-013); nil refuses a report witness.
+	ObligationReport *ObligationReportCheck
+	// ObligationReplay marks an audit replay, which cannot recompute the
+	// discarded report (TOL-V0-009) and audits source presence separately.
+	ObligationReplay bool
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -223,6 +233,9 @@ func Apply(ctx Context, env *Envelope) *Plan {
 	if IsReviewOperation(env.Operation) {
 		return ctx.review(plan, env)
 	}
+	if ticket.IsObligationOperation(env.Operation) {
+		return ctx.obligations(plan, env)
+	}
 	pre, ok := ctx.Inventory.Get(env.TargetID.Raw)
 	if !ok {
 		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMalformed, "target %s does not exist in the queue", env.TargetID.Raw))
@@ -268,8 +281,15 @@ func (ctx *Context) permittedOps(role string) []string {
 	if ops, ok := ctx.Policy.Roles[role]; ok {
 		return ops
 	}
-	if role == "WORKER" && ctx.Policy.WorkerKnowHowAdd() {
-		return append(append([]string(nil), intent.DefaultRoleMatrix[role]...), OpKnowHowAdd)
+	if role == "WORKER" {
+		ops := intent.DefaultRoleMatrix[role]
+		if ctx.Policy.WorkerKnowHowAdd() {
+			ops = append(append([]string(nil), ops...), OpKnowHowAdd)
+		}
+		if ctx.Policy.WorkerObligationWitness() {
+			ops = append(append([]string(nil), ops...), ticket.OpObligationsWitness)
+		}
+		return ops
 	}
 	return intent.DefaultRoleMatrix[role]
 }

@@ -42,6 +42,10 @@ func knowHowCommand(env Env, args []string) *wire.Result {
 	return usage([]string{"ticket", "know-how"}, "unknown ticket know-how verb "+args[0])
 }
 
+// pairFlags is the shared `--flag value` parser under a neutral name, for
+// commands outside this file.
+var pairFlags = knowHowFlags
+
 // knowHowFlags parses `--flag value` pairs; names in repeat may repeat and
 // every other flag may appear once.
 func knowHowFlags(cmd, args []string, single map[string]*string, repeat map[string]*[]string, switches map[string]*bool) *wire.Result {
