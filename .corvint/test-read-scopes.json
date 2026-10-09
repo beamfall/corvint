@@ -349,6 +349,7 @@
       "tools/gate-affected-select/readscopes.go"
     ],
     "tools/heading-nav-bench": [],
-    "tools/retrieval-bench": []
+    "tools/retrieval-bench": [],
+    "tools/tasks-scale": []
   }
 }
