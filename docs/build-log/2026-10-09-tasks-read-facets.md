@@ -102,7 +102,7 @@ It is derived state, never authority. It is not built here, for two reasons:
 On the project's own store `.git/taskman.checkpoint.json` is absent, so every `queue status` and
 `ticket list` runs the full receipt audit, about 2 s.
 
-**Diagnosis: no writer-code defect; the deployed runtime predates the checkpoint.**
+**Diagnosis: no in-tree writer defect was found; the installed runtime predated the checkpoint.**
 
 - In-tree writers retain the checkpoint after their audit (`internal/tasks/store/guards.go:107`
   `retainCheckpoint`, called at `store/mutate.go:154`, `store/lease_write.go:471` and
@@ -111,20 +111,27 @@ On the project's own store `.git/taskman.checkpoint.json` is absent, so every `q
 - A read-only in-process audit of the real store at seq 3829 returned `FULL`/`CONSISTENT`, with no
   pending receipt and no staging. `Result.Checkpoint()` (`journal/checkpoint.go:63`) is non-nil, so a
   current writer would retain it.
-- The `corvint-tasks` on PATH reports `0.0.0-tcp01-unverified+build.202`. That is the latest
-  published standalone tag, `tasks-dev-20260929.2` (0f231225, 2026-09-29). The checkpoint work
-  (5802f353, 2026-10-01) is not its ancestor.
-- The binary contains none of these strings: `checkpoint`, `CHECKPOINT_PLUS_TAIL`,
-  `retainCheckpoint`. So every write on this store ran a runtime with no checkpoint at all. Nothing
-  deletes the file, and nothing invalidates it.
+- The `corvint-tasks` on PATH then reported `0.0.0-tcp01-unverified+build.202`, the latest published
+  standalone tag `tasks-dev-20260929.2` (0f231225, 2026-09-29). The checkpoint work (5802f353,
+  2026-10-01) is not its ancestor, and the binary contains none of `checkpoint`,
+  `CHECKPOINT_PLUS_TAIL` or `retainCheckpoint`.
+- That shows the installed runtime predated checkpoints. It does not show which runtime each earlier
+  writer used: no receipt records its writer build. A newer writer whose retention failed would leave
+  the same absence, because `retainCheckpoint` (`guards.go:115-129`) drops a failed create, write or
+  rename silently.
+- That silence is the contract, not a defect. CAL-V0-060 says retention is "best-effort" and that
+  a failure to retain "MUST NOT fail or change the transaction", and CAL-V0-059 says that deleting
+  the checkpoint "costs the next read one complete audit and nothing else". The cost is
+  observability: a persistently failing retention is visible only as slow reads.
 - In-process on the real store, read-only, median of 5: a full audit takes 2.01 s. Resuming from the
   checkpoint the current code derives (`CHECKPOINT_PLUS_TAIL`) takes 0.088 s.
 
-**Remedy (owner fork, not done here).** Publish a Tasks dev release from `origin/main`, or install a
-clean `origin/main` build, so that writes retain the checkpoint. The checkpoint stays verified: a
-read rebinds it, and a stale or forged one falls back to the full audit (CAL-V0-059/060). P0 V1-0841
-(Darwin descriptor exhaustion on a 5000-receipt store) should be checked against a new runtime on
-this store, which holds 3829 receipts.
+**Outcome.** The owner installed a local build, `0.0.0-tcp01-unverified+build.402` from `origin/main`
+dd90cfa6, which contains 5802f353. After later writes on this store,
+`.git/taskman.checkpoint.json` is present. Read-only `queue status` now reports `journalAudit`
+`CHECKPOINT_PLUS_TAIL`, median of 5 0.28 s against about 2.1 s before. This confirms that a current
+writer retains the checkpoint here. P0 V1-0841 (Darwin descriptor exhaustion on a 5000-receipt store)
+still needs checking against this runtime as the store grows past 3829 receipts.
 
 ## Read probe overhead (V1-1051 follow-up)
 
@@ -140,6 +147,20 @@ probes, about 41 ms each, plus a `LoadTree` decode of about 23 ms. Within each p
 - After the change, `statRegular` costs 0.10 s and the 20 reads cost 2.9 s.
 - `TestTMV0008_PinnedTreeDigestParity` gains three phase-1 refusals: a symlink, an empty file and a
   directory record. The pinned and per-file captures refuse identically.
+- **Discriminating the phase (V1-1057).** Phase 2 refuses the same records with the same errors, so
+  comparing final errors could not show that phase 1 refused them. A test-only hook,
+  `beforeTreeCapture`, counts every entry into the content read. The test now requires zero entries
+  for the four phase-1 kinds, in both pinned and per-file modes, and exactly one entry otherwise. It
+  also pins each refusal code: `UNSUPPORTED_FILESYSTEM` for the symlink and `MALFORMED` for the
+  others.
+- Mutant runs of the parity test, each restored afterwards:
+
+  | Mutant | Previous test | New test |
+  |---|---|---|
+  | Skip the empty and directory checks for pinned phase-1 stats only | passes | fails: empty-ticket and directory-ticket reach the read (pinned 1, per-file 0) |
+  | Remove the empty-file check | n/a | fails: empty-ticket reaches the read |
+  | Remove the regular-file check | n/a | fails: directory-ticket reaches the read |
+  | Remove the symlink check | n/a | fails: symlink-ticket refused `MALFORMED`, not `UNSUPPORTED_FILESYSTEM` |
 
 The second probe is the TM-V0-008 stability check. Removing it, or caching the tree across reads,
 needs a contract change. It is not proposed here.
