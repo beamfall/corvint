@@ -150,45 +150,46 @@ AHI-006	docs/specs/agent-harness-integration-v0.md	119	Before a platform declare
 AHI-007	docs/specs/agent-harness-integration-v0.md	124	Change and merge lifecycle points MUST compute drift and re-verification against
 AHI-008	docs/specs/agent-harness-integration-v0.md	126	The adapter MUST obey the host's sandbox, approval, secret, environment, telemet
 AHI-009	docs/specs/agent-harness-integration-v0.md	128	Unsupported or changed host capabilities MUST fail closed for evidence capture a
-AHI-010	docs/specs/agent-harness-integration-v0.md	145	Each release MUST publish tested host-version ranges, adapter and protocol versi
-AHI-011	docs/specs/agent-harness-integration-v0.md	164	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
-AHI-012	docs/specs/agent-harness-integration-v0.md	171	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
-AHI-013	docs/specs/agent-harness-integration-v0.md	179	Default injected context MUST be smaller than the manual-search baseline at equa
-AHI-014	docs/specs/agent-harness-integration-v0.md	182	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
-AHI-015	docs/specs/agent-harness-integration-v0.md	191	Adapter packages MUST share the lifecycle command above, and host admission MUST
-AHI-016	docs/specs/agent-harness-integration-v0.md	195	A native wrapper that receives a trimmed user prompt over either task bound MAY
-AHI-017	docs/specs/agent-harness-integration-v0.md	208	A native adapter that runs as a host-killed process MUST derive every Corvint de
-AHI-018	docs/specs/agent-harness-integration-v0.md	228	A test harness that stands in for the host MAY state a longer host kill only thr
-AHI-019	docs/specs/agent-harness-integration-v0.md	235	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
-AHI-020	docs/specs/agent-harness-integration-v0.md	253	Each host package's own manifest version (`integrations/claude-code/plugins/corv
-AHI-021	docs/specs/agent-harness-integration-v0.md	264	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
-AHI-022	docs/specs/agent-harness-integration-v0.md	296	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	346	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	365	The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapte
-AHI-025	docs/specs/agent-harness-integration-v0.md	442	The owner-requested complete Pi integration MUST expose native model-callable
-AHI-026	docs/specs/agent-harness-integration-v0.md	479	The Claude Code plugin MUST register the compaction hook events the installed ho
-AHI-027	docs/specs/agent-harness-integration-v0.md	489	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
-AHI-028	docs/specs/agent-harness-integration-v0.md	503	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
-AHI-029	docs/specs/agent-harness-integration-v0.md	516	Neither compaction event writes repository, index, trace, or store state; the on
-AHI-030	docs/specs/agent-harness-integration-v0.md	518	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
-AHI-031	docs/specs/agent-harness-integration-v0.md	522	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
-AHI-032	docs/specs/agent-harness-integration-v0.md	558	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
-AHI-033	docs/specs/agent-harness-integration-v0.md	644	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
-AHI-034	docs/specs/agent-harness-integration-v0.md	699	The owner-approved change cockpit (2026-09-28, “do it” after the change
-AHI-035	docs/specs/agent-harness-integration-v0.md	749	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
-AHI-036	docs/specs/agent-harness-integration-v0.md	779	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
-AHI-037	docs/specs/agent-harness-integration-v0.md	786	The workbench MUST show each selected ticket criterion alongside only explicitly
-AHI-038	docs/specs/agent-harness-integration-v0.md	794	An explicit qualification doctor MUST display the installed host version, adapte
-AHI-039	docs/specs/agent-harness-integration-v0.md	799	The workbench MUST derive at most five next actions from recorded ticket blocker
-AHI-040	docs/specs/agent-harness-integration-v0.md	803	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
-AHI-041	docs/specs/agent-harness-integration-v0.md	810	The terminal MUST show at most 16 members of the current OpenCode session family
-AHI-042	docs/specs/agent-harness-integration-v0.md	826	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
-AHI-043	docs/specs/agent-harness-integration-v0.md	834	For an unchanged committed tree, worktree state, hook input and session key, the
-AHI-044	docs/specs/agent-harness-integration-v0.md	851	Every shipped hook adapter MUST fail open under the faults a host or machine can
-AHI-045	docs/specs/agent-harness-integration-v0.md	891	(accepted by decision 0441; V1-0942) The Claude Code and Codex
-AHI-046	docs/specs/agent-harness-integration-v0.md	914	(accepted by decision 0441; V1-0942) Outside a main-thread
-AHI-047	docs/specs/agent-harness-integration-v0.md	924	(accepted by decision 0441; V1-0939) The Claude Code trusted
-AHI-048	docs/specs/agent-harness-integration-v0.md	940	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
+AHI-010	docs/specs/agent-harness-integration-v0.md	144	Each release MUST publish tested host-version ranges, adapter and protocol versi
+AHI-011	docs/specs/agent-harness-integration-v0.md	163	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
+AHI-012	docs/specs/agent-harness-integration-v0.md	170	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
+AHI-013	docs/specs/agent-harness-integration-v0.md	178	Default injected context MUST be smaller than the manual-search baseline at equa
+AHI-014	docs/specs/agent-harness-integration-v0.md	181	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
+AHI-015	docs/specs/agent-harness-integration-v0.md	190	Adapter packages MUST share the lifecycle command above, and host admission MUST
+AHI-016	docs/specs/agent-harness-integration-v0.md	194	A native wrapper that receives a trimmed user prompt over either task bound MAY
+AHI-017	docs/specs/agent-harness-integration-v0.md	207	A native adapter that runs as a host-killed process MUST derive every Corvint de
+AHI-018	docs/specs/agent-harness-integration-v0.md	227	A test harness that stands in for the host MAY state a longer host kill only thr
+AHI-019	docs/specs/agent-harness-integration-v0.md	234	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
+AHI-020	docs/specs/agent-harness-integration-v0.md	252	Each host package's own manifest version (`integrations/claude-code/plugins/corv
+AHI-021	docs/specs/agent-harness-integration-v0.md	263	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
+AHI-022	docs/specs/agent-harness-integration-v0.md	295	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
+AHI-023	docs/specs/agent-harness-integration-v0.md	345	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	364	The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapte
+AHI-025	docs/specs/agent-harness-integration-v0.md	441	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	478	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	488	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	502	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	515	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	517	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
+AHI-031	docs/specs/agent-harness-integration-v0.md	521	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
+AHI-032	docs/specs/agent-harness-integration-v0.md	557	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
+AHI-033	docs/specs/agent-harness-integration-v0.md	643	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+AHI-034	docs/specs/agent-harness-integration-v0.md	698	The owner-approved change cockpit (2026-09-28, “do it” after the change
+AHI-035	docs/specs/agent-harness-integration-v0.md	748	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+AHI-036	docs/specs/agent-harness-integration-v0.md	778	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
+AHI-037	docs/specs/agent-harness-integration-v0.md	785	The workbench MUST show each selected ticket criterion alongside only explicitly
+AHI-038	docs/specs/agent-harness-integration-v0.md	793	An explicit qualification doctor MUST display the installed host version, adapte
+AHI-039	docs/specs/agent-harness-integration-v0.md	798	The workbench MUST derive at most five next actions from recorded ticket blocker
+AHI-040	docs/specs/agent-harness-integration-v0.md	802	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
+AHI-041	docs/specs/agent-harness-integration-v0.md	809	The terminal MUST show at most 16 members of the current OpenCode session family
+AHI-042	docs/specs/agent-harness-integration-v0.md	825	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
+AHI-043	docs/specs/agent-harness-integration-v0.md	833	For an unchanged committed tree, worktree state, hook input and session key, the
+AHI-044	docs/specs/agent-harness-integration-v0.md	850	Every shipped hook adapter MUST fail open under the faults a host or machine can
+AHI-045	docs/specs/agent-harness-integration-v0.md	890	(accepted by decision 0441; V1-0942) The Claude Code and Codex
+AHI-046	docs/specs/agent-harness-integration-v0.md	913	(accepted by decision 0441; V1-0942) Outside a main-thread
+AHI-047	docs/specs/agent-harness-integration-v0.md	923	(accepted by decision 0441; V1-0939) The Claude Code trusted
+AHI-048	docs/specs/agent-harness-integration-v0.md	939	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
+AHI-050	docs/specs/agent-harness-integration-v0.md	975	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
