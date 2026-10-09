@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule; V1-1043) is proposed.
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -303,7 +303,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   check or an unsatisfied finish as success. `status` stays read-only with exit 0 and `ok:true`
   whatever the policy state. Before this, a selected check that exited 1 produced exit 1 but
   `ok:true`. Rollback: revert the change; no persisted state or other envelope member changes.
-- `LCP-V0-018`: (proposed; V1-1043) A `dogfood begin` plan refusal of `invalid-intent-scope` or
+- `LCP-V0-018`: (accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-intent-scope` or
   `plan-bound-exceeded` MUST keep its stable code in the top-level `code` and nested `error.code`,
   and its nested `error.message` MUST be the code followed by `: ` and a fixed remediation naming
   the rule: the plan `intents` array lists 1-16 repository-relative spec paths, sorted in byte
