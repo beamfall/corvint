@@ -9,6 +9,12 @@
 //	tasks-scale gen --root DIR --tickets N
 //	tasks-scale run --store DIR [--fds] [--cpuprofile F] [--memprofile F] [--out F] -- ARGS...
 //	tasks-scale matrix --store DIR [--reps N] [--writes] [--profiles DIR] [--outputs DIR]
+//	tasks-scale contend --store DIR [--writers W] [--readers R] [--seconds S] [--work DIR] [-- READ ARGS...]
+//
+// `contend` reproduces reads under an active writer pool (V1-1060): W child
+// processes create tickets back to back while R goroutines each re-run the
+// read (default `queue status`) as a fresh process, and it reports every
+// read's wall time, CPU, exit and journalAudit mode. It mutates the store.
 //
 // `run` executes one command in-process and prints one JSON line of
 // metrics. `matrix` re-executes this binary once per measurement, so every
@@ -59,6 +65,10 @@ func main() {
 		err = runOne(os.Args[2:])
 	case "matrix":
 		err = matrix(os.Args[2:])
+	case "contend":
+		err = contend(os.Args[2:])
+	case "churn":
+		err = churn(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown subcommand %q", os.Args[1])
 	}
@@ -637,4 +647,155 @@ func row(name string, s []metrics, peak int) {
 	sort.Slice(s, func(i, j int) bool { return s[i].WallMs < s[j].WallMs })
 	x := s[len(s)/2]
 	fmt.Printf("| %s | %.1f | %.1f | %.1f | %d | %.1f | %d | %d |\n", name, x.WallMs, x.UserMs, x.SysMs, x.Mallocs, float64(x.AllocBytes)/(1<<20), peak, x.OutBytes)
+}
+
+// ---------------------------------------------------------------- contend
+
+// churn creates tickets back to back until its deadline; it is one writer
+// of the pool contend starts.
+func churn(args []string) error {
+	fs := flag.NewFlagSet("churn", flag.ExitOnError)
+	store := fs.String("store", "", "store root")
+	id := fs.String("id", "w", "request-id prefix unique to this writer")
+	seconds := fs.Float64("seconds", 30, "how long to keep writing")
+	_ = fs.Parse(args)
+	deadline := time.Now().Add(time.Duration(*seconds * float64(time.Second)))
+	n := 0
+	for time.Now().Before(deadline) {
+		n++
+		if _, err := call(*store, "ticket", "create", "--request-id", fmt.Sprintf("%s-%d", *id, n), "--payload", createPayload(n, nil)); err != nil {
+			// A lock timeout under contention is the pool's business, not a
+			// harness failure; keep the head moving.
+			fmt.Fprintln(os.Stderr, "churn:", err)
+		}
+	}
+	fmt.Printf("{\"writer\":%q,\"creates\":%d}\n", *id, n)
+	return nil
+}
+
+type contendRead struct {
+	Reader  int     `json:"reader"`
+	WallMs  float64 `json:"wallMs"`
+	UserMs  float64 `json:"userMs"`
+	SysMs   float64 `json:"sysMs"`
+	Exit    int     `json:"exit"`
+	Mode    string  `json:"journalAudit"`
+	Code    string  `json:"code,omitempty"`
+	Started float64 `json:"startedMs"`
+}
+
+func contend(args []string) error {
+	fs := flag.NewFlagSet("contend", flag.ExitOnError)
+	store := fs.String("store", "", "store root built by gen (mutated)")
+	writers := fs.Int("writers", 3, "concurrent writer processes")
+	readers := fs.Int("readers", 3, "concurrent reader loops")
+	seconds := fs.Float64("seconds", 30, "writer pool duration")
+	work := fs.String("work", "", "directory for read outputs (must exist)")
+	_ = fs.Parse(args)
+	read := fs.Args()
+	if len(read) == 0 {
+		read = []string{"queue", "status"}
+	}
+	if *store == "" || *work == "" {
+		return errors.New("contend needs --store and --work")
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	var procs []*exec.Cmd
+	for w := 0; w < *writers; w++ {
+		c := exec.Command(self, "churn", "--store", *store, "--id", fmt.Sprintf("x%d-%d", w, start.UnixNano()), "--seconds", fmt.Sprint(*seconds))
+		c.Stdout, c.Stderr = os.Stderr, io.Discard
+		if err := c.Start(); err != nil {
+			return err
+		}
+		procs = append(procs, c)
+	}
+	// Let the pool reach steady state before the first read.
+	time.Sleep(time.Second)
+	var mu sync.Mutex
+	var reads []contendRead
+	var wg sync.WaitGroup
+	deadline := start.Add(time.Duration(*seconds * float64(time.Second)))
+	for r := 0; r < *readers; r++ {
+		wg.Add(1)
+		go func(r int) {
+			defer wg.Done()
+			for k := 0; time.Now().Before(deadline); k++ {
+				out := filepath.Join(*work, fmt.Sprintf("r%d-%d.json", r, k))
+				t0 := time.Since(start)
+				m, err := exec1(self, *store, read, false, "", out)
+				cr := contendRead{Reader: r, Started: ms(t0)}
+				if err != nil {
+					cr.Exit, cr.Code = -1, err.Error()
+				} else {
+					cr.WallMs, cr.UserMs, cr.SysMs, cr.Exit = m.WallMs, m.UserMs, m.SysMs, m.Exit
+					cr.Mode, cr.Code = auditFields(out)
+				}
+				b, _ := json.Marshal(cr)
+				mu.Lock()
+				reads = append(reads, cr)
+				fmt.Println(string(b))
+				mu.Unlock()
+			}
+		}(r)
+	}
+	wg.Wait()
+	for _, c := range procs {
+		_ = c.Wait()
+	}
+	if len(reads) == 0 {
+		return errors.New("no read completed")
+	}
+	sort.Slice(reads, func(i, j int) bool { return reads[i].WallMs < reads[j].WallMs })
+	modes, codes := map[string]int{}, map[string]int{}
+	for _, r := range reads {
+		modes[r.Mode]++
+		codes[r.Code]++
+	}
+	pct := func(p float64) float64 { return reads[int(p*float64(len(reads)-1))].WallMs }
+	sum, _ := json.Marshal(map[string]any{"reads": len(reads), "p50Ms": pct(.5), "p95Ms": pct(.95), "maxMs": reads[len(reads)-1].WallMs, "modes": modes, "codes": codes, "seconds": time.Since(start).Seconds()})
+	fmt.Println(string(sum))
+	return nil
+}
+
+// auditFields extracts the read's journalAudit mode, wherever the command
+// places it, and the envelope's codes.
+func auditFields(path string) (mode, code string) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", "unreadable output"
+	}
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return "", "undecodable output"
+	}
+	var walk func(any)
+	walk = func(x any) {
+		switch t := x.(type) {
+		case map[string]any:
+			for k, e := range t {
+				if s, ok := e.(string); ok && k == "journalAudit" && mode == "" {
+					mode = s
+				}
+				walk(e)
+			}
+		case []any:
+			for _, e := range t {
+				walk(e)
+			}
+		}
+	}
+	walk(v)
+	if env, ok := v.(map[string]any); ok {
+		codes, _ := env["codes"].([]any)
+		for _, c := range codes {
+			if s, ok := c.(string); ok {
+				code = strings.TrimPrefix(code+","+s, ",")
+			}
+		}
+	}
+	return mode, code
 }
