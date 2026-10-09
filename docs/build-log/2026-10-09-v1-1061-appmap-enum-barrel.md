@@ -36,7 +36,9 @@ injector.
   token pass (`auditExports`) adds brackets that do not nest and match (a typed stack), a
   backslash outside a string (an escaped identifier) and any top-level `export` token no reader
   claimed. An unread file never yields a declaration: `reexported` checks `unlisted` before
-  accepting a candidate's declaration, and `onlyRead` is false for every name in it. The re-export
+  accepting a candidate's declaration, `onlyRead` is false for every name in it, and `lookup`
+  checks `unlisted` for a directly imported `export default {...}` object, which has no name for
+  `onlyRead` to check. The re-export
   statement is a new anchor between the declaring line and the import. Re-exports for router-file
   imports (AMAP-V0-016 follow-up 10) stay out of scope.
 - AMAP-V0-026: when the scope holds exactly one registration of the name and a read through it
@@ -113,6 +115,11 @@ injector.
   direct), plus the four router-side cases. Already failing closed there (kept as guards):
   `(<any>X).Y = v`, `X['Y'] = v`, `X.Y += v`, `X.Y++`, `delete X.Y`, `Object.assign(X, ...)`,
   `Object.defineProperty(X, ...)` and the alias `const Y = X; Y.M = v`.
+- Fifth review follow-up (P2: unread default export): `TestAMAPV0025UnreadDeclaringFileFailsClosed`
+  gained a directly imported `export default { REPORTS: 'ledger' }` followed by each of its four
+  unread tails (escaped write, unclosed enum, undecodable re-export, `export enum Other {]`).
+  Against `stateconst.go` from `efd52c9d` all 4 subtests resolve `ledger` silently; all pass with
+  `lookup` checking `unlisted` for the default export (`not-read-whole`).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 

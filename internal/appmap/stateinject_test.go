@@ -588,6 +588,10 @@ func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
 		t.Run("direct "+name, func(t *testing.T) {
 			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1), files, "not-read-whole", "")
 		})
+		t.Run("direct default "+name, func(t *testing.T) {
+			reg := strings.Replace(diRegText, "{ SectionTable } from './tables'", "SectionTable from '../tables/routes/routes.constants'", 1)
+			checkBarrel(t, reg, map[string]string{decl: "export default { REPORTS: 'ledger' };\n" + tail}, "not-read-whole", "")
+		})
 	}
 }
 

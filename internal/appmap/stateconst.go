@@ -174,7 +174,8 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 	case d == nil, imp.exported != "default" && !d.exported:
 		return "", nil, "identifier-not-found"
 	}
-	if name != "default" && !g.onlyRead(name, -1) {
+	// An unread file never yields a declaration, an `export default {...}` object included.
+	if g.unlisted || name != "default" && !g.onlyRead(name, -1) {
 		return "", nil, "not-read-whole"
 	}
 	v, at, why := g.read(d, member, di)
