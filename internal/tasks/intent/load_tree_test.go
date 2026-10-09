@@ -76,7 +76,7 @@ func TestTMV0008_LoadTreeParity(t *testing.T) {
 // pinned descriptor per subdirectory captures the same tree, and reports the
 // same refusal, as opening each record's whole path from the store root.
 func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
-	for _, kind := range []string{"valid", "empty", "release", "unreadable-ticket", "stray-entry"} {
+	for _, kind := range []string{"valid", "empty", "release", "unreadable-ticket", "stray-entry", "symlink-ticket", "empty-ticket", "directory-ticket"} {
 		t.Run(kind, func(t *testing.T) {
 			n := 9
 			if kind == "empty" {
@@ -109,15 +109,49 @@ func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(dir, intent.TicketsDir, "stray"), []byte("x"), 0o644); err != nil {
 					t.Fatal(err)
 				}
+			case "symlink-ticket", "empty-ticket", "directory-ticket":
+				// Phase-1 stat refusals (V1-1051 follow-up): the pinned
+				// subdirectory stat refuses exactly as the per-file one.
+				p := filepath.Join(dir, intent.TicketsDir, fixture.Ticket("T0004").TicketID.Local+".json")
+				if err := os.Remove(p); err != nil {
+					t.Fatal(err)
+				}
+				var err error
+				switch kind {
+				case "symlink-ticket":
+					err = os.Symlink(filepath.Join(dir, intent.TicketsDir, fixture.Ticket("T0003").TicketID.Local+".json"), p)
+				case "empty-ticket":
+					err = os.WriteFile(p, nil, 0o644)
+				default:
+					err = os.Mkdir(p, 0o755)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
+			// Phase 2 refuses these records too, so equal final errors alone
+			// cannot show which phase refused. Count every entry into the
+			// content read: a phase-1 refusal must never reach it (V1-1057).
+			captures := 0
+			defer intent.SetBeforeTreeCaptureForTest(func() { captures++ })()
 			restore := intent.SetPinTreeDirsForTest(false)
 			want, wantErr := intent.TreeDigest(root)
 			restore()
+			perFileCaptures := captures
 			got, gotErr := intent.TreeDigest(root)
 			if fmt.Sprint(gotErr) != fmt.Sprint(wantErr) || !reflect.DeepEqual(got, want) {
 				t.Fatalf("pinned %v / per-file %v", gotErr, wantErr)
 			}
-			if (kind == "unreadable-ticket" || kind == "stray-entry") != (gotErr != nil) {
+			phase1 := kind == "stray-entry" || kind == "symlink-ticket" || kind == "empty-ticket" || kind == "directory-ticket"
+			if pinnedCaptures := captures - perFileCaptures; phase1 && (perFileCaptures != 0 || pinnedCaptures != 0) {
+				t.Fatalf("%s reached the content read (per-file %d, pinned %d); phase 1 must refuse it", kind, perFileCaptures, pinnedCaptures)
+			} else if !phase1 && (perFileCaptures != 1 || pinnedCaptures != 1) {
+				t.Fatalf("%s: content read entered per-file %d, pinned %d times, want 1", kind, perFileCaptures, pinnedCaptures)
+			}
+			if code, ok := map[string]string{"symlink-ticket": wire.CodeUnsupportedFilesystem, "empty-ticket": wire.CodeMalformed, "directory-ticket": wire.CodeMalformed, "stray-entry": wire.CodeMalformed}[kind]; ok && wire.CodeOf(gotErr) != code {
+				t.Fatalf("%s refused %s, want %s: %v", kind, wire.CodeOf(gotErr), code, gotErr)
+			}
+			if (kind != "valid" && kind != "empty" && kind != "release") != (gotErr != nil) {
 				t.Fatalf("%s: %v", kind, gotErr)
 			}
 			t.Logf("%s: %d files, %v", kind, len(got.Files), gotErr)

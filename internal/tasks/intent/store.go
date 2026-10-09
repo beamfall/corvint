@@ -238,6 +238,17 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 			if err != nil {
 				return Tree{}, err
 			}
+			// One root-confined descriptor for the subdirectory makes each
+			// record's Lstat a single no-follow stat beneath it, instead of
+			// root.Lstat reopening the subdirectory per record. Phase 2 reads
+			// and re-checks every record whatever this stat saw.
+			statRoot, statRel := root, name+"/"
+			if pinTreeDirs {
+				if sub, err := root.OpenRoot(name); err == nil {
+					defer sub.Close()
+					statRoot, statRel = sub, ""
+				}
+			}
 			for _, tn := range tnames {
 				rel := name + "/" + tn
 				tfull := filepath.Join(rootPath, name, tn)
@@ -248,7 +259,7 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 				if !ok {
 					return Tree{}, wire.Errorf(wire.CodeMalformed, tfull, "unexpected entry in the intent store (%s/ admits only named JSON records)", name)
 				}
-				size, err := statRegular(root, tfull, rel, bound)
+				size, err := statRegular(statRoot, tfull, statRel+tn, bound)
 				if err != nil {
 					return Tree{}, err
 				}
@@ -270,6 +281,9 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 	// A pinned subdirectory no longer bound to its name when the capture
 	// ends was replaced while it was read, so the capture is repeated with
 	// every record opened by its whole path, as without pinning.
+	if beforeTreeCapture != nil {
+		beforeTreeCapture()
+	}
 	dirs := pinnedTreeDirs{}
 	defer dirs.close()
 	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
@@ -387,6 +401,10 @@ func (d pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, 
 
 // afterTreeDirPin is replaced only by the deterministic directory-swap test.
 var afterTreeDirPin func(sub string)
+
+// beforeTreeCapture is replaced only by the phase-1 refusal test, which
+// proves a refused record is refused before any record is read.
+var beforeTreeCapture func()
 
 // bound reports whether every pinned subdirectory is still the directory its
 // name resolves to beneath root.

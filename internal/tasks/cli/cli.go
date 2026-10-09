@@ -358,13 +358,13 @@ func helpResult() *wire.Result {
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
 		"corvint-tasks pending; corvint-tasks program show",
-		"corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
-		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 		"corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks ticket blockers <ticketId|local>",
 		"corvint-tasks ticket export [--offset N] [--limit N]",
 		"corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
-		"corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 		"corvint-tasks gate list",
 		"corvint-tasks gate show <gateId>",
 		"corvint-tasks archive export [--staging DIR]   (stream on stdout, envelope on stderr)",
@@ -845,7 +845,14 @@ func listStatuses(args []string, fl map[string]string) (map[string]bool, error) 
 
 func ticketList(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "list"}
+	fm, args, err := facetFlags(args, listValueFlags)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
 	fl, p, err := pagedFlags("ticket list", args, "status")
+	if err == nil {
+		err = fm.checkCount(fl)
+	}
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
@@ -856,6 +863,8 @@ func ticketList(env Env, args []string) *wire.Result {
 	var items []wire.Value
 	var pg *wire.Page
 	var hoisted []string
+	var summary *wire.Value
+	matched := 0
 	rc, err := withStore(env, func(rc *readCtx) error {
 		ids := rc.store.Inventory.Sorted()
 		if statuses != nil {
@@ -866,6 +875,14 @@ func ticketList(env Env, args []string) *wire.Result {
 				}
 			}
 			ids = kept
+		}
+		matched = len(ids)
+		if fm.facets || fm.count {
+			s := facetSummary(rc, ids)
+			summary = &s
+		}
+		if fm.count {
+			return nil // no page, so no per-item attempt read (CAL-V0-207)
 		}
 		start, end := p.window(len(ids))
 		ended, err := lastAttemptEnded(rc, ids[start:end])
@@ -883,6 +900,7 @@ func ticketList(env Env, args []string) *wire.Result {
 	res.Page = pg
 	res.Untrusted = len(items) > 0
 	res.Warnings = append(res.Warnings, hoisted...)
+	fm.apply(res, summary, matched)
 	return res
 }
 
@@ -1001,7 +1019,14 @@ func (f searchFilter) matches(rec *ticket.Record) bool {
 // order, paging and the untrusted label are exactly those of `ticket list`.
 func ticketSearch(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "search"}
+	fm, args, err := facetFlags(args, searchValueFlags)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
 	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text")
+	if err == nil {
+		err = fm.checkCount(fl)
+	}
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
@@ -1012,6 +1037,8 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	var items []wire.Value
 	var pg *wire.Page
 	var hoisted []string
+	var summary *wire.Value
+	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		for _, id := range rc.store.Inventory.Sorted() {
@@ -1020,7 +1047,14 @@ func ticketSearch(env Env, args []string) *wire.Result {
 				ids = append(ids, id)
 			}
 		}
-		items, pg, hoisted = listViews(rc, ids, p, nil)
+		matched = len(ids)
+		if fm.facets || fm.count {
+			s := facetSummary(rc, ids)
+			summary = &s
+		}
+		if !fm.count {
+			items, pg, hoisted = listViews(rc, ids, p, nil)
+		}
 		return nil
 	})
 	if err != nil {
@@ -1031,6 +1065,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	res.Page = pg
 	res.Untrusted = len(items) > 0
 	res.Warnings = append(res.Warnings, hoisted...)
+	fm.apply(res, summary, matched)
 	return res
 }
 
@@ -1090,16 +1125,33 @@ func ticketExport(env Env, args []string) *wire.Result {
 // NOT_OBSERVED (invariant 5), never omitted or assumed.
 func roadmap(env Env, args []string) *wire.Result {
 	cmd := []string{"roadmap"}
-	_, p, err := pagedFlags("roadmap", args)
+	fm, args, err := facetFlags(args, pageValueFlags)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	fl, p, err := pagedFlags("roadmap", args)
+	if err == nil {
+		err = fm.checkCount(fl)
+	}
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
 	var items []wire.Value
 	var pg *wire.Page
 	var unmilestoned int64
+	var summary *wire.Value
+	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		unmilestoned = openWithoutMilestone(rc.store.Inventory)
 		ids := rc.store.Inventory.Sorted()
+		matched = len(ids)
+		if fm.facets || fm.count {
+			s := facetSummary(rc, ids)
+			summary = &s
+		}
+		if fm.count {
+			return nil
+		}
 		milestone := func(id string) (string, bool) {
 			rec, _ := rc.store.Inventory.Get(id)
 			if rec.Milestone == nil {
@@ -1149,6 +1201,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	if unmilestoned > 0 {
 		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
 	}
+	fm.apply(res, summary, matched)
 	return res
 }
 

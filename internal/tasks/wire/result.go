@@ -51,6 +51,10 @@ type Result struct {
 	Page      *Page
 	Untrusted bool
 	Warnings  []string
+	// Facets, when non-nil, is the optional facet-count summary a filtering
+	// or paging read renders on request (amendment A26, CAL-V0-206). It is
+	// absent otherwise, so results without it keep their earlier bytes.
+	Facets *Value
 	// NotRetryable forces retryable false on a coded non-OK result whose
 	// command already ran an effect that a retry would repeat (CAL-V0-078).
 	NotRetryable bool
@@ -153,6 +157,9 @@ func (r *Result) Value() Value {
 		o.Set("untrusted", Strings(nil))
 	}
 	o.Set("warnings", Strings(sortedUniqueStrings(r.Warnings)))
+	if r.Facets != nil {
+		o.Set("facets", *r.Facets)
+	}
 	return ObjectValue(o)
 }
 
@@ -212,7 +219,7 @@ func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
 	if err := rd.Profile(ProfileCommandResult); err != nil {
 		return nil, err
 	}
-	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable")...)
+	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable", "facets")...)
 	if err := rd.Err(); err != nil {
 		return nil, err
 	}
@@ -283,6 +290,16 @@ func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
 	ut := rd.Field("untrusted").Strings(1, false, func(c *Reader) string { return c.Exact(UntrustedQueueData) })
 	res.Untrusted = len(ut) == 1
 	res.Warnings = rd.Field("warnings").Strings(-1, false, func(c *Reader) string { return c.Prose(1, MaxProseBytes) })
+	if Has(v, "facets") {
+		f := rd.Field("facets")
+		fv := f.Value()
+		if fv.Kind != KindObject {
+			f.Fail(CodeMalformed, "facets must be an object")
+		} else {
+			decodeFacets(f)
+		}
+		res.Facets = &fv
+	}
 	if err := rd.Err(); err != nil {
 		return nil, err
 	}

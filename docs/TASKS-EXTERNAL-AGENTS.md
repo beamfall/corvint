@@ -576,6 +576,17 @@ unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETE
 omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
 warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
 
+To count rather than list, add `--count` to `ticket search`, `ticket list` or `roadmap`: the result
+carries only a top-level `facets` object (no items, `page` null) counting every matched ticket by
+status, priority, kind, execution class, eligibility, next action, blocker code, milestone and
+label. For example, `ticket search --milestone v1-0 --status OPEN --count` answers "how many open
+tickets are left for 1.0" in one bounded read. `--facets` adds the same object next to a normal
+page; it ignores `--offset` and `--limit`, and `--count` refuses them (CAL-V0-206, CAL-V0-207).
+Without either flag the output is unchanged. `release readiness RELEASE` also reports
+`memberCounts` by status and priority, and `milestoneDrift`: unfinished tickets in the release's
+milestone that are not members, and members outside it. It reads them and never changes membership
+(CAL-V0-208).
+
 To see whether the queue is moving, read `queue status --summary`: `lastCompletion` names the
 latest completed ticket, its time and its receipt (null when nothing is completed), and
 `completions` counts completions in the last hour and day. `ticket list --status COMPLETED,OPEN`
