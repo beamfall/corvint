@@ -171,6 +171,8 @@ func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
 		"defaulted parameter":     {`["app/setup"]`, strings.Replace(plain, "Names)", "Names = {})", 1), map[string]string{reg: good}},
 		"passed along":            {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  use(Names);\n", 1), map[string]string{reg: good}},
 		"written":                 {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.X = 'app.y';\n", 1), map[string]string{reg: good}},
+		"asserted write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  (Names.X as string) = 'app.y';\n", 1), map[string]string{reg: good}},
+		"non-null write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.X! = 'app.y';\n", 1), map[string]string{reg: good}},
 		"local declaration":       {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  { const Names = { X: 'app.y' }; }\n", 1), map[string]string{reg: good}},
 		"not injected position":   {`["app/setup"]`, "angular.module('a').run(function ($stateProvider, Names) {\n  $stateProvider.state(Names.X, { url: 'x' });\n  $stateProvider.state('kid', { parent: Names.X, url: '/k' });\n});\n", map[string]string{reg: good}},
 		"object map expression":   {`["app/setup"]`, plain, map[string]string{reg: good, "app/setup/map.ts": "angular.module('admin').constant({ Other: {} } && dynamicTables);\n"}},
@@ -587,4 +589,54 @@ func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
 			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1), files, "not-read-whole", "")
 		})
 	}
+}
+
+// AMAP-V0-025, AMAP-V0-026: any use of the table in its declaring file that the structural
+// pure-read rule cannot prove is only a read -- an assertion on an assignment target, a computed
+// or compound write, an increment, a delete, a call through the table, a for-in/of head, a
+// destructuring element, an alias -- makes it not read whole, behind a star barrel or imported
+// directly.
+func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
+	for name, write := range map[string]string{
+		"non-null assertion": "SectionTable.REPORTS! = 'other';\n",
+		"as assertion":       "(SectionTable.REPORTS as string) = 'other';\n",
+		"angle assertion":    "(<any>SectionTable).REPORTS = 'other';\n",
+		"computed member":    "SectionTable['REPORTS'] = 'other';\n",
+		"compound":           "SectionTable.REPORTS += '.other';\n",
+		"postfix increment":  "SectionTable.REPORTS++;\n",
+		"delete":             "delete SectionTable.REPORTS;\n",
+		"object assign":      "Object.assign(SectionTable, { REPORTS: 'other' });\n",
+		"define property":    "Object.defineProperty(SectionTable, 'REPORTS', { value: 'other' });\n",
+		"alias":              "const Alias = SectionTable;\nAlias.REPORTS = 'other';\n",
+		"first element":      "[SectionTable.REPORTS, rest] = ['other', 1];\n",
+		"object pattern":     "({ a: SectionTable.REPORTS, b } = { a: 'other', b: 1 });\n",
+		"for of head":        "for (SectionTable.REPORTS of ['other']) {}\n",
+		"method call":        "SectionTable.reset();\n",
+		"export default":     "export default SectionTable.REPORTS = 'other';\n",
+	} {
+		files := map[string]string{decl: table + write}
+		if name == "method call" {
+			files[decl] = "export const SectionTable = { REPORTS: 'ledger', reset: function () { this.REPORTS = 'other'; } };\n" + write
+		}
+		t.Run("star "+name, func(t *testing.T) {
+			all := map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n"}
+			for p, text := range files {
+				all[p] = text
+			}
+			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), all, "not-read-whole", "")
+		})
+		t.Run("direct "+name, func(t *testing.T) {
+			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1), files, "not-read-whole", "")
+		})
+	}
+	// Reads the rule proves stay resolved: comparisons, a ternary, a member of the value, a
+	// parenthesized argument, a nested object value and a statement without a semicolon.
+	t.Run("reads", func(t *testing.T) {
+		reads := "const same = SectionTable.REPORTS === 'x' ? SectionTable.REPORTS : (SectionTable.REPORTS);\n" +
+			"const len = SectionTable.REPORTS.length;\nconst nested = { a: [SectionTable.REPORTS] }\nuse(SectionTable.REPORTS)\n"
+		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), map[string]string{
+			"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: table + reads}, "", "app/tables/routes/index.ts")
+	})
 }

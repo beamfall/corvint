@@ -272,7 +272,7 @@ func (f *constFile) injection(name string) *diBinding {
 		switch {
 		case i > 0 && toks[i-1].kind == tokIdent && toks[i-1].text == "typeof":
 		case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent:
-			if written(toks, i) {
+			if !pureRead(toks, i) {
 				return b
 			}
 		default:

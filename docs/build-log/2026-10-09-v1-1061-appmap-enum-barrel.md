@@ -44,6 +44,20 @@ injector.
   `.constant(...)` call. This is a map unknown, not a refusal, so no error code or
   `diagnostic.Refusal` site is added (error-code ownership and diagnostic coverage unchanged).
   Maps where every injected read resolves, or with no scope, are byte-identical.
+- Pure-read rule (fifth review): write detection no longer names write forms. `pureRead` accepts
+  a member reference `X.Y` in the router, registering or declaring file only when the expression,
+  and then each bracket group it is an element of (climbing through `,` and closing brackets, the
+  way parenthesized targets and destructuring patterns enclose it), is followed by a token of a
+  closed set that cannot make it an assignment target: `;` or end of file, `.`, `[`, `:`, `{`, an
+  identifier other than `as`/`satisfies`/`in`/`of` (a new statement after ASI, or `instanceof`),
+  `==`/`===`/`!==`, or a binary operator `assigned` does not read as an assignment or increment;
+  and no level follows `delete`, `++` or `--`. Everything else is a possible write and makes the
+  table not read whole: `=` and compound assignments, `++`/`--`, TypeScript assertions (`!`,
+  `as`, `satisfies`), for-in/of heads, a call or tagged template through the table (`this` is
+  `X`), `<` (possible type arguments), and any unlisted token. Member references are checked
+  before the `export default X` case, so `export default X.Y = v` is a write. The same rule
+  replaces `written` in the router-side injected-parameter check (AMAP-V0-022/023). This is the
+  spec's "unassigned member read" made conservative; no spec text changes.
 
 ## Evidence
 
@@ -86,6 +100,19 @@ injector.
   a direct import (12 subtests), and `TestAMAPV0025UnlistableExportsFailClosed` gained the
   mismatched bracket in all three positions (3 subtests). Against `stateconst.go` from `baf81e58`
   all 15 resolve `ledger` silently; all pass after the fix.
+- Fifth review follow-up (P2: TypeScript assertions on an assignment target):
+  `TestAMAPV0026PossibleWritesFailClosed` appends one possible write to the declaring file, reached
+  through a star barrel and a direct import (30 subtests, `not-read-whole`), plus a `reads` guard
+  (comparison, ternary, value member, parenthesized and nested-array arguments, a statement
+  without `;`) that still resolves; `TestAMAPV0016UnprovableConstantsStayUnknown` gained `(X.Y as
+  string) = v` in the router and `X.Y! = v` in the declaring file, and
+  `TestAMAPV0023UnprovableInjectionStaysUnknown` gained both on the injected parameter. Against
+  `stateconst.go`/`stateinject.go` from `48bd9601`, 18 subtests fail by resolving silently:
+  `X.Y! = v`, `(X.Y as string) = v`, `[X.Y, rest] = v`, `({ a: X.Y, b } = v)`, `for (X.Y of v)`,
+  `X.reset()` on a table with a function member, and `export default X.Y = v` (each star and
+  direct), plus the four router-side cases. Already failing closed there (kept as guards):
+  `(<any>X).Y = v`, `X['Y'] = v`, `X.Y += v`, `X.Y++`, `delete X.Y`, `Object.assign(X, ...)`,
+  `Object.defineProperty(X, ...)` and the alias `const Y = X; Y.M = v`.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -101,5 +128,11 @@ injector.
   (more uncertainty, never less). A lexing error that keeps brackets balanced, emits no stray
   backslash and still hides a top-level `export` token (for example a misread regular expression
   or template swallowing it) is not detected; an `unread` file also blocks an otherwise
-  well-formed named re-export. No adopter-scale qualification
+  well-formed named re-export. The pure-read rule over-reports: provable reads such as `X.Y < z`,
+  `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y(...)` (any call through the table), a parenthesized
+  group followed by `(` (a semicolon-free IIFE body) or `typeof`-free type positions such as
+  `let s: X.Y = v` make the table not read whole; a block closed without `;` is climbed like a group, so a following `=`
+  at that level also counts. It inherits the lexer's limits (whitespace is not kept, so `X.Y! =
+  v` and `X.Y != v` are one case) and reads only the router, registering and declaring files:
+  writes from a third module stay unread, as the spec states. No adopter-scale qualification
   (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.
