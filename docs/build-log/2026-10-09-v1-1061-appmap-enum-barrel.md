@@ -33,10 +33,12 @@ injector.
   every identifier up to its top-level `;` or the next top-level `export` as an exported name. A
   file whose exports the reader cannot list may export any name (`unread`): every reader exit that
   rejects or cannot decode part of an export statement routes there, and an independent whole-file
-  token pass (`auditExports`) adds unbalanced brackets, a backslash outside a string (an escaped
-  identifier) and any top-level `export` token no reader claimed. The re-export statement is a new
-  anchor between the declaring line and the import. Re-exports for router-file imports
-  (AMAP-V0-016 follow-up 10) stay out of scope.
+  token pass (`auditExports`) adds brackets that do not nest and match (a typed stack), a
+  backslash outside a string (an escaped identifier) and any top-level `export` token no reader
+  claimed. An unread file never yields a declaration: `reexported` checks `unlisted` before
+  accepting a candidate's declaration, and `onlyRead` is false for every name in it. The re-export
+  statement is a new anchor between the declaring line and the import. Re-exports for router-file
+  imports (AMAP-V0-016 follow-up 10) stay out of scope.
 - AMAP-V0-026: when the scope holds exactly one registration of the name and a read through it
   fails, the map carries `{kind: "di-constant", ref: NAME, reason, path, line}` at the
   `.constant(...)` call. This is a map unknown, not a refusal, so no error code or
@@ -77,6 +79,13 @@ injector.
   items -> opaque), the declaration readers (a const, enum, let/var or function/class form not
   read exactly -> `looseExport`, an unnamed or escaped declaration -> unclaimed), skipped bodies
   (`parseValue`, `enumDecl`, `closeParen` to EOF -> bracket audit) and `export` at EOF.
+- Fourth review follow-up (P2: unread declaring file accepted; mismatched brackets):
+  `TestAMAPV0025UnreadDeclaringFileFailsClosed` appends an escaped write
+  (`\u0053ectionTable.REPORTS = 'other';`), an unclosed `export enum`, an undecodable re-export or
+  `export enum Other {]` to the declaring file, reached through a star barrel, a named barrel and
+  a direct import (12 subtests), and `TestAMAPV0025UnlistableExportsFailClosed` gained the
+  mismatched bracket in all three positions (3 subtests). Against `stateconst.go` from `baf81e58`
+  all 15 resolve `ledger` silently; all pass after the fix.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 

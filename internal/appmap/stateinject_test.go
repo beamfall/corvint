@@ -539,6 +539,7 @@ func TestAMAPV0025UnlistableExportsFailClosed(t *testing.T) {
 		"escaped class":      "export class \\u0053ectionTable {}\n",
 		"quoted list name":   "const Local = { REPORTS: 'other' };\nexport { Local as \"SectionTable\" };\n",
 		"dangling export":    "export\n",
+		"mismatched bracket": "export enum Other {]\n",
 	} {
 		other := "export const Unrelated = { A: 'a' };\n"
 		t.Run("barrel "+name, func(t *testing.T) {
@@ -552,6 +553,38 @@ func TestAMAPV0025UnlistableExportsFailClosed(t *testing.T) {
 		t.Run("star source "+name, func(t *testing.T) {
 			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './copy';\n",
 				decl: enum, "app/tables/routes/copy.ts": form, "app/tables/routes/other.ts": other}, "ambiguous-barrel", "")
+		})
+	}
+}
+
+// AMAP-V0-025: an unread declaring file never yields its declaration, whether it is reached
+// through a star or named barrel or imported directly: an escaped identifier can write the table,
+// and a skipped or undecodable statement can hide such a write.
+func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
+	other := "export const Unrelated = { A: 'a' };\n"
+	for name, tail := range map[string]string{
+		"escaped write":      "\\u0053ectionTable.REPORTS = 'other';\n",
+		"unclosed enum":      "export enum Other {\n",
+		"undecodable module": "export * from './\\uD800';\n",
+		"mismatched bracket": "export enum Other {]\n",
+	} {
+		files := map[string]string{decl: table + tail, "app/tables/routes/other.ts": other}
+		for via, barrel := range map[string]string{
+			"star":  "export * from './routes.constants';\n",
+			"named": "export { SectionTable } from './routes.constants';\n",
+		} {
+			t.Run(via+" "+name, func(t *testing.T) {
+				all := map[string]string{"app/tables/routes/index.ts": barrel}
+				for p, text := range files {
+					all[p] = text
+				}
+				checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), all, "identifier-not-found", "")
+			})
+		}
+		t.Run("direct "+name, func(t *testing.T) {
+			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1), files, "not-read-whole", "")
 		})
 	}
 }

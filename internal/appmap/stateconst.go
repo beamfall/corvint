@@ -249,6 +249,8 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 			l = h.dflt
 		}
 		switch d := h.decls[l]; {
+		case h.unlisted:
+			found, unread = found+1, true // an unread candidate may export or write name: never accept its declaration
 		case d != nil && (src == "default" || d.exported):
 			found, hit, local, via = found+1, h, l, r
 		case src != "default" && (h.exports[src] || h.unlisted):
@@ -318,13 +320,14 @@ func (f *constFile) read(d *constDecl, name string, di bool) (string, []Anchor, 
 // onlyRead reports whether every use of name outside import statements and constant declarations
 // is a member read `name.member` that is not assigned, deleted or incremented, a `typeof name`, or
 // an `export { name }` / `export default name`. Any other use could mutate or rebind the table.
-// The token at allow (or none, -1) is exempt: it registers the table for injection.
+// The token at allow (or none, -1) is exempt: it registers the table for injection. Nothing in an
+// unread file is only read: an escaped identifier or a body the reader skipped could write it.
 func (f *constFile) onlyRead(name string, allow int) bool {
 	key := readKey{name, allow}
 	if v, ok := f.reads[key]; ok {
 		return v
 	}
-	ok := true
+	ok := !f.unlisted
 	toks := f.toks
 	for i := 0; i < len(toks) && ok; i++ {
 		if i == allow || f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || (i > 0 && isPunct(toks[i-1], ".")) {
@@ -557,27 +560,28 @@ func (f *constFile) unread() {
 }
 
 // auditExports checks f by one whole-file token pass, independent of the declaration readers
-// (whose skipped bodies could hide what follows): brackets that do not balance, a backslash
+// (whose skipped bodies could hide what follows): brackets that do not nest and match, a backslash
 // outside a string (an escaped identifier the lexer splits), or a top-level `export` that no
 // reader consumed makes the file unread.
 func (f *constFile) auditExports() {
-	depth := 0
+	var open []string // the closer each open bracket expects
 	for k, t := range f.toks {
 		switch {
 		case t.kind == tokPunct && (t.text == "{" || t.text == "[" || t.text == "("):
-			depth++
+			open = append(open, map[string]string{"{": "}", "[": "]", "(": ")"}[t.text])
 		case t.kind == tokPunct && (t.text == "}" || t.text == "]" || t.text == ")"):
-			depth--
-			if depth < 0 {
-				f.unread()
+			if len(open) == 0 || open[len(open)-1] != t.text {
+				f.unread() // a stray or mismatched closer
+				return
 			}
+			open = open[:len(open)-1]
 		case t.kind == tokPunct && t.text == "\\":
 			f.unread()
-		case t.kind == tokIdent && t.text == "export" && depth == 0 && (k == 0 || !isPunct(f.toks[k-1], ".")) && !f.claimed[k]:
+		case t.kind == tokIdent && t.text == "export" && len(open) == 0 && (k == 0 || !isPunct(f.toks[k-1], ".")) && !f.claimed[k]:
 			f.unread()
 		}
 	}
-	if depth != 0 {
+	if len(open) != 0 {
 		f.unread()
 	}
 }
