@@ -65,8 +65,14 @@ nil in the product.
 - Fails on base: with only the updated test and the hook point applied to base `29cc7fd4`, the
   `stopped` case fails with `native transition refused ... Detail:prior program owner not proved
   stopped`. The other three cases pass there. With the change, all four pass.
-- `go test -race -p 1 -count=1` for `./internal/tasks/transaction` and `./internal/tasks/store`:
-  results are in the lane report.
+- `go test -race -p 1 -count=1 -timeout 30m ./internal/tasks/transaction`: ok (52 s).
+- `go test -race -p 1 -count=1 -timeout 30m -run 'TestCALV007[0-9]|TestCALV008[0-9]|TestCALV0197|Program|Supervis|Workflow|NoExec' ./internal/tasks/store`:
+  ok (1428 s on a shared, loaded host). The whole `internal/tasks/store` package under `-race`
+  exceeded the 30-minute per-package hang detector. It was still running
+  `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable` at the time, with no failure reported
+  before the timeout. A full-package race run is therefore `NOT_RUN` to completion.
+- The requirement, traceability, line-citation and receipt doc-gates passed, as did
+  `go test ./internal/specindex`.
 
 ## Limits
 
