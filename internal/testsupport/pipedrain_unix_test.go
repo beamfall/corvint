@@ -3,6 +3,7 @@
 package testsupport
 
 import (
+	"errors"
 	"os/exec"
 	"syscall"
 	"testing"
@@ -18,9 +19,13 @@ func TestExitedUnreapedIgnoresStoppedChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	pid := command.Process.Pid
+	reaped := false
 	t.Cleanup(func() {
-		_ = syscall.Kill(pid, syscall.SIGKILL)
-		_, _ = command.Process.Wait()
+		// Signal only while this test still owns the unreaped PID.
+		if !reaped {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			_, _ = command.Process.Wait()
+		}
 	})
 	if err := syscall.Kill(pid, syscall.SIGSTOP); err != nil {
 		t.Fatal(err)
@@ -33,7 +38,9 @@ func TestExitedUnreapedIgnoresStoppedChild(t *testing.T) {
 		t.Fatalf("wait returned %v for a stopped child", err)
 	case <-time.After(500 * time.Millisecond):
 	}
-	_ = syscall.Kill(pid, syscall.SIGCONT)
+	if err := syscall.Kill(pid, syscall.SIGCONT); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case err := <-returned:
 		t.Fatalf("wait returned %v for a continued child", err)
@@ -50,8 +57,15 @@ func TestExitedUnreapedIgnoresStoppedChild(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("wait did not return after the child exited")
 	}
-	// Still unreaped: Wait must observe the signalled exit.
-	if err := command.Wait(); err == nil {
-		t.Fatal("Wait returned nil for a killed child")
+	// Still unreaped: Wait must collect the SIGKILL status itself, not ECHILD.
+	err := command.Wait()
+	reaped = true
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("Wait = %v, want the child's own exit status", err)
+	}
+	status, ok := exitErr.Sys().(syscall.WaitStatus)
+	if !ok || !status.Signaled() || status.Signal() != syscall.SIGKILL {
+		t.Fatalf("Wait status = %v, want killed by SIGKILL", exitErr.ProcessState)
 	}
 }

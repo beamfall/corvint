@@ -10,7 +10,8 @@ package was out of scope.
 
 Evidence: `TestWaitProcessExitUnreapedIgnoresStoppedChild` and `TestExitedUnreapedIgnoresStoppedChild`
 SIGSTOP a `sleep`, assert the wait does not return within 500 ms, SIGCONT (still blocked), SIGKILL
-(returns), then assert `Wait` still reaps. Both FAIL on the base source ("wait returned <nil> for a
+(returns), then assert `Wait` itself collects the SIGKILL status, which an earlier reap would
+have turned into ECHILD. Cleanup signals the PID only while it is still unreaped. Both FAIL on the base source ("wait returned <nil> for a
 stopped child") and PASS after. `go vet` clean for darwin and GOOS=linux.
 
 Limits: NOT_RUN make gate. Linux waitid already blocks through a stop, so the tests only discriminate
