@@ -266,7 +266,7 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		command.Stdout = stream
 	}
 
-	if err := command.Start(); err != nil {
+	if err := groupreap.StartLive(command); err != nil {
 		return nil, cemcode.NewGitStartFailure(fmt.Sprintf("Git could not start: %v", err), err)
 	}
 	waited := make(chan error, 1)

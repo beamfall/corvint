@@ -184,7 +184,7 @@ func StartWith(command *exec.Cmd, p Primitives) (*Owner, error) {
 		return nil, err
 	}
 	containLeader(command)
-	if err := command.Start(); err != nil {
+	if err := liveGroups.start(command); err != nil {
 		return nil, err
 	}
 	return newOwner(command, command.Process.Pid, p), nil
@@ -408,6 +408,7 @@ func (o *Owner) reapAndProbe(bound RetirementBound) Result {
 	o.recordEvent("reap")
 	if o.reapDone == nil {
 		o.reapDone = make(chan error, 1)
+		liveGroups.release(o.leader)
 		go func() { o.reapDone <- o.p.Reap(o.command) }()
 	}
 	reapDone := o.reapDone

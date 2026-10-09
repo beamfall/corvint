@@ -32,17 +32,8 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 
 // containRead owns the read's process group and bounds its pipe drain.
 func containRead(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return os.ErrProcessDone
-		}
-		e := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		if e == syscall.ESRCH {
-			return os.ErrProcessDone
-		}
-		return e
-	}
+	// Cancellation stops the leader; groupreap.Run sweeps the group before the reap.
+	groupreap.Contain(cmd)
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	cmd.WaitDelay = time.Minute
 }

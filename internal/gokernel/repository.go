@@ -132,7 +132,9 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 	stderr := &boundedBuffer{limit: maxGitErrorBytes}
 	command.Stdout = stdout
 	command.Stderr = stderr
-	if err := command.Start(); err != nil {
+	// StartLive records the private group so an exit that abandons this read
+	// still retires it (AHI-048).
+	if err := groupreap.StartLive(command); err != nil {
 		if ctx.Err() != nil {
 			return nil, probeContextError(ctx)
 		}
