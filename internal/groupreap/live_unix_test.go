@@ -273,6 +273,7 @@ func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() { _ = read.Close(); _ = write.Close() })
 		pipes[i] = pipe{read, write}
 	}
 	proceed := make(chan struct{})
@@ -287,7 +288,6 @@ func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 		r.kill()
 		letProceed()
 		for _, p := range pipes {
-			_ = p.read.Close()
 			_ = p.write.Close()
 		}
 		done := make(chan struct{})
