@@ -145,6 +145,10 @@ type Seen struct {
 	// native store (ESC-V0-009).
 	Requests        map[string][]OpenRequest `json:"requests,omitempty"`
 	RequestsUnknown []string                 `json:"requestsUnknown,omitempty"`
+	// Obligations keeps each observed ledger ticket's TOL-V0-017
+	// "witnessed/total", so status shows it without reading the native
+	// store.
+	Obligations map[string]string `json:"obligations,omitempty"`
 }
 
 // OpenRequest is one current OPEN escalation request: its kind and the
@@ -155,11 +159,13 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/3 file. It is
+// Ledger is the dispatcher's private taskman-dispatch-state/4 file. It is
 // never an input to the native store. Version 1 added the CAL-V0-127 config
 // record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131);
 // version 2 added the CAL-V0-156 budget history and the worker effort and
-// usage members (CAL-V0-160); version 3 adds the CAL-V0-185 stall counts.
+// usage members (CAL-V0-160); version 3 added the CAL-V0-185 stall counts;
+// version 4 adds the TOL-V0-021 stall baseline and the TOL-V0-017 observed
+// obligation counts.
 type Ledger struct {
 	PoolSweeps map[string]*PoolSweepRecord `json:"poolSweeps,omitempty"`
 	Profile    string                      `json:"profile"`
@@ -297,10 +303,11 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // by a build with another format. It is refused as UNSUPPORTED_VERSION and
 // never read or migrated. A member that repeats, or that aliases a known
 // member by case folding, at any depth refuses MALFORMED (exactLedger).
-// The one exception (proposed amendment) is a version 1 or 2 ledger:
+// The one exception (proposed amendment) is a version 1, 2 or 3 ledger:
 // drained names its version, and the caller adopts it as this one once it
 // is drained (CAL-V0-132) or, for version 2, once every worker it records
-// is proven gone (CAL-V0-187).
+// is proven gone (CAL-V0-187). Version 3 differs only by the optional
+// TOL-V0-021 stall baseline, so it is adopted as recorded.
 func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained string, err error) {
 	// The profile is found under any spelling the struct decoder would
 	// read, so an aliased older profile meets its own version's rules.
@@ -341,13 +348,16 @@ func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained strin
 // laterMembers are, for each drained version this build adopts, the
 // members later versions added, by the type that holds them: version 2
 // added the CAL-V0-156 budget history and the worker effort and usage
-// (CAL-V0-160); version 3 added the CAL-V0-185 stall counts.
+// (CAL-V0-160); version 3 added the CAL-V0-185 stall counts; version 4
+// added each count's TOL-V0-021 high-water baseline and the TOL-V0-017
+// observed obligation counts.
 var laterMembers = map[string]map[reflect.Type][]string{
 	drainedStateProfile: {
 		reflect.TypeFor[Ledger](): {"budget", "stall"},
 		reflect.TypeFor[Worker](): {"effort", "usage"},
 	},
 	drainedState2Profile: {reflect.TypeFor[Ledger](): {"stall"}},
+	drainedState3Profile: {reflect.TypeFor[StallState](): {"witnessed"}, reflect.TypeFor[Seen](): {"obligations"}},
 }
 
 // exactLedger walks the ledger's JSON tokens against the Ledger type, because
@@ -606,6 +616,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateSeenLoops(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.validateSeenObligations(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if err := l.validateSeenRequests(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
@@ -723,7 +736,9 @@ func strictProgressJSON(raw []byte) bool {
 			case "ledger":
 				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config", "budget", "stall"}
 			case "stall-state":
-				fields = []string{"status", "sessions", "changed"}
+				fields = []string{"status", "sessions", "changed", "witnessed"}
+			case "stall-witnessed":
+				fields = []string{"acceptanceRevision", "highWater"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -743,7 +758,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "proc":
 				fields = []string{"pid", "identity"}
 			case "seen":
-				fields = []string{"tickets", "claims", "lanes", "escalations", "loops", "requests", "requestsUnknown"}
+				fields = []string{"tickets", "claims", "lanes", "escalations", "loops", "requests", "requestsUnknown", "obligations"}
 			case "open-request":
 				fields = []string{"requestId", "kind", "recordedAt"}
 			case "loop-hold":
@@ -808,7 +823,11 @@ func strictProgressJSON(raw []byte) bool {
 					child = "infra-scalar"
 					if key == "changed" {
 						child = "loop-pending" // written only as true
+					} else if key == "witnessed" {
+						child = "stall-witnessed" // TOL-V0-021
 					}
+				case "stall-witnessed":
+					child = "infra-scalar"
 				case "infra-episode":
 					child = "infra-scalar"
 				case "seen":
@@ -841,6 +860,9 @@ func strictProgressJSON(raw []byte) bool {
 			// Every episode member but launch is written, so an omitted
 			// one cannot decode as zero debt or an elapsed deadline.
 			if schema == "stall-state" && (!seen["status"] || !seen["sessions"]) {
+				return false
+			}
+			if schema == "stall-witnessed" && (!seen["acceptanceRevision"] || !seen["highWater"]) {
 				return false
 			}
 			if schema == "infra-episode" {
@@ -879,7 +901,7 @@ func strictProgressJSON(raw []byte) bool {
 				return token != nil
 			}
 			switch schema {
-			case "loops", "loop-hold", "infraRetry", "infra-episode", "requests", "open-request", "stall", "stall-state":
+			case "loops", "loop-hold", "infraRetry", "infra-episode", "requests", "open-request", "stall", "stall-state", "stall-witnessed":
 				return false // these maps and their records are objects
 			case "infra-scalar":
 				return token != nil // a null would decode as zero
@@ -1409,6 +1431,27 @@ func (l *Ledger) validateSeenEscalations() error {
 			if _, err := wire.ParseIdentifier("escalation request", id); err != nil || (i > 0 && ids[i-1] >= id) {
 				return errors.New("invalid escalation hold")
 			}
+		}
+	}
+	return nil
+}
+
+// validateSeenObligations admits only what diff records for TOL-V0-017:
+// per observed ledger ticket, "witnessed/total" canonical counts with
+// witnessed <= total <= the ledger bound.
+func (l *Ledger) validateSeenObligations() error {
+	if l.Seen == nil {
+		return nil
+	}
+	if l.Seen.Obligations != nil && len(l.Seen.Obligations) == 0 {
+		return errors.New("invalid obligation counts")
+	}
+	for key, v := range l.Seen.Obligations {
+		w, t, ok := strings.Cut(v, "/")
+		wc, werr := wire.ParseCount("witnessed", w)
+		tc, terr := wire.ParseCount("total", t)
+		if _, err := wire.ParseTicketID("obligations key", key); err != nil || !ok || werr != nil || terr != nil || wc.Int() > tc.Int() || tc.Int() > wire.ObligationsMaxEntries {
+			return errors.New("invalid obligation counts")
 		}
 	}
 	return nil

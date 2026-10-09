@@ -1624,6 +1624,12 @@ func (d *Dispatcher) diff(obs *Observation) {
 			}
 			now.Requests[t.ID] = append([]OpenRequest(nil), t.OpenRequests...)
 		}
+		if o := t.Obligations; o != nil {
+			if now.Obligations == nil {
+				now.Obligations = map[string]string{}
+			}
+			now.Obligations[t.ID] = fmt.Sprintf("%d/%d", o.Witnessed, o.Total)
+		}
 		if t.Loop != nil && len(t.Loop.Generations) > 0 {
 			if now.Loops == nil {
 				now.Loops = map[string]LoopHold{}

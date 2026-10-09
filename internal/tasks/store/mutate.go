@@ -227,6 +227,10 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	obligationEvents, err := obligationInputs(repo, env, canonical.Records)
+	if err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
@@ -249,6 +253,8 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 			ExternalReviewPriorEvent: priorReview,
 			ExternalReviewSubject:    reviewSubject,
 			ExternalReviewLater:      reviewLater,
+			ObligationEvents:         obligationEvents,
+			ObligationReport:         obligationReport(ctx),
 		},
 	)
 	report.Outcome = result.Outcome
