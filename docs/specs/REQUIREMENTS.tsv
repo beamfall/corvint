@@ -240,7 +240,7 @@ AMAP-V0-022	docs/specs/application-map-v0.md	287	A `.state()` name (positional o
 AMAP-V0-023	docs/specs/application-map-v0.md	305	A name or parent the injection path cannot prove MUST stay `UNKNOWN`
 AMAP-V0-024	docs/specs/application-map-v0.md	326	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected
 AMAP-V0-025	docs/specs/application-map-v0.md	334	When the tracked file the registering file's import of `T` resolves to (the
-AMAP-V0-026	docs/specs/application-map-v0.md	349	When the `di_constants` scope holds exactly one registration of an injected name
+AMAP-V0-026	docs/specs/application-map-v0.md	354	When the `di_constants` scope holds exactly one registration of an injected name
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read

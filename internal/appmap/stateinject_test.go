@@ -368,34 +368,93 @@ func TestAMAPV0025InjectedTableThroughBarrel(t *testing.T) {
 		"partial behind barrel": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n",
 			decl: "export enum SectionTable {\n  REPORTS = 'ledger',\n  COUNT,\n}\n"}, "non-literal-member", ""},
 	} {
+		t.Run(name, func(t *testing.T) { checkBarrel(t, c.reg, c.files, c.reason, c.via) })
+	}
+}
+
+// checkBarrel builds diRouter with the registration reg and files, and checks that the injected
+// table resolves through the re-export in via (reason "") or stays UNKNOWN with the di-constant reason.
+func checkBarrel(t *testing.T, reg string, files map[string]string, reason, via string) {
+	t.Helper()
+	all := map[string]string{diRegAt: reg}
+	for p, text := range files {
+		all[p] = text
+	}
+	_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := diUnknown(m)
+	if reason == "" {
+		if !diResolved(t, m) || len(got) != 0 {
+			t.Fatalf("barrel did not resolve: %+v", m.Unknowns)
+		}
+		a := screenByID(t, m, "ledger").NameFrom
+		if len(a) != 5 || a[1].Path != via || a[2].Path != diRegAt || a[2].Start != 1 || a[3].Start != 2 || a[4].Path != constRouter {
+			t.Fatalf("barrel anchors %+v", a)
+		}
+		return
+	}
+	if diResolved(t, m) || !nameUnknownIn(m, constRouter) {
+		t.Fatalf("barrel resolved: %+v", m.Unknowns)
+	}
+	if len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: reason, Path: diRegAt, Line: 2}) {
+		t.Fatalf("diagnostic %+v", got)
+	}
+}
+
+// AMAP-V0-025: a name the imported file exports itself through a local export list shadows every
+// `export *`, as in ECMAScript; the reader does not follow the local binding, so the name stays
+// UNKNOWN instead of resolving the star source's table.
+func TestAMAPV0025LocalExportShadowsStar(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
+	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
+	for name, index := range map[string]string{
+		"local alias":    "const Local = { REPORTS: 'other' };\nexport { Local as SectionTable };\nexport * from './routes.constants';\n",
+		"local name":     "let SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\nexport { SectionTable };\n",
+		"imported alias": "import { Other } from './other';\nexport { Other as SectionTable };\nexport * from './routes.constants';\n",
+	} {
 		t.Run(name, func(t *testing.T) {
-			files := map[string]string{diRegAt: c.reg}
-			for p, text := range c.files {
-				files[p] = text
-			}
-			_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, files)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := diUnknown(m)
-			if c.reason == "" {
-				if !diResolved(t, m) || len(got) != 0 {
-					t.Fatalf("barrel did not resolve: %+v", m.Unknowns)
-				}
-				a := screenByID(t, m, "ledger").NameFrom
-				if len(a) != 5 || a[1].Path != c.via || a[2].Path != diRegAt || a[2].Start != 1 || a[3].Start != 2 || a[4].Path != constRouter {
-					t.Fatalf("barrel anchors %+v", a)
-				}
-				return
-			}
-			if diResolved(t, m) || !nameUnknownIn(m, constRouter) {
-				t.Fatalf("barrel resolved: %+v", m.Unknowns)
-			}
-			if len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: c.reason, Path: diRegAt, Line: 2}) {
-				t.Fatalf("diagnostic %+v", got)
-			}
+			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": index, decl: enum,
+				"app/tables/routes/other.ts": "export const Other = { REPORTS: 'other' };\n"}, "identifier-not-found", "")
 		})
 	}
+	// An exported destructuring may export the name; the reader cannot tell.
+	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export const { SectionTable } = tables;\nexport * from './routes.constants';\n",
+		decl: enum}, "ambiguous-barrel", "")
+	// A type-only local export list exports no value and shadows nothing.
+	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "type Local = string;\nexport type { Local as SectionTable };\nexport * from './routes.constants';\n",
+		decl: enum}, "", "app/tables/routes/index.ts")
+}
+
+// AMAP-V0-025: a star source that exports the name in a form the reader does not read as a table
+// (a let, var, function, class, typed const or local export list) is still a candidate, so beside a
+// readable table the name is ambiguous, and alone it is not found.
+func TestAMAPV0025UnreadStarExportIsAmbiguous(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
+	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
+	for name, copy := range map[string]string{
+		"let":         "export let SectionTable = { REPORTS: 'other' };\n",
+		"var":         "export var SectionTable = { REPORTS: 'other' };\n",
+		"function":    "export function SectionTable() {}\n",
+		"async":       "export async function SectionTable() {}\n",
+		"generator":   "export function* SectionTable() {}\n",
+		"class":       "export class SectionTable {}\n",
+		"typed const": "export const SectionTable: Tables = { REPORTS: 'other' };\n",
+		"export list": "const SectionTable = { REPORTS: 'other' };\nexport { SectionTable };\n",
+		"destructure": "export const { SectionTable } = tables;\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './copy';\n",
+				decl: enum, "app/tables/routes/copy.ts": copy}, "ambiguous-barrel", "")
+		})
+	}
+	t.Run("alone", func(t *testing.T) {
+		checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './copy';\n",
+			"app/tables/routes/copy.ts": "export let SectionTable = { REPORTS: 'ledger' };\n"}, "identifier-not-found", "")
+	})
 }
 
 // AMAP-V0-026: when the one in-scope registration of an injected name does not resolve, the map

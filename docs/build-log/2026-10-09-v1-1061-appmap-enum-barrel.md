@@ -24,8 +24,12 @@ injector.
   `export * from` in that file. A named re-export shadows `export *` (ECMAScript). Two candidates
   or an unreadable item -> `ambiguous-barrel`; a candidate that could re-export again ->
   `barrel-depth-exceeded`; a candidate outside the repository index -> `out-of-scope`; none ->
-  `identifier-not-found`. The re-export statement is a new anchor between the declaring line and
-  the import. Re-exports for router-file imports (AMAP-V0-016 follow-up 10) stay out of scope.
+  `identifier-not-found`. A name the imported file exports itself (an exported `let`, `var`,
+  `function`, `class` or unreadable `const`, or a local `export { ... }` list) shadows every
+  re-export and is not followed (`identifier-not-found`); a candidate that exports the name in any
+  form counts toward ambiguity even when it is not a readable table. The re-export statement is
+  a new anchor between the declaring line and the import. Re-exports for router-file imports
+  (AMAP-V0-016 follow-up 10) stay out of scope.
 - AMAP-V0-026: when the scope holds exactly one registration of the name and a read through it
   fails, the map carries `{kind: "di-constant", ref: NAME, reason, path, line}` at the
   `.constant(...)` call. This is a map unknown, not a refusal, so no error code or
@@ -40,6 +44,13 @@ injector.
 - Fails on base `dd90cfa6` (test file copied to a base worktree): 32 subtests fail for the right
   reason: mixed enums resolve (5), barrels do not resolve (5), no `di-constant` unknown (22).
   All pass after the change; existing AMAP-V0-016 and AMAP-V0-021..023 tests pass unchanged.
+- Review follow-up (two P2 fail-open findings): `TestAMAPV0025LocalExportShadowsStar` (3 cases,
+  one a plain `let` guard that already failed closed, plus destructuring and type-only checks) and
+  `TestAMAPV0025UnreadStarExportIsAmbiguous` (9 cases + a lone-`let` guard). Against
+  `stateconst.go` from `720789e8`, 11 subtests and the destructuring check fail because the barrel
+  resolves the star source's table (local alias, imported alias; a `let`/`var`/`function`/async/
+  generator/`class`/typed-`const`/export-list/destructured second star source); all pass after
+  the fix.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -48,4 +59,7 @@ injector.
 - No diagnostic for zero or several registrations, a poisoned scope, or a router-side binding the
   reader cannot prove (owner question 16 stays open); those keep the AMAP-V0-023 unknowns only.
 - `import { X } from './a'; export { X };` (local re-export list) and deeper barrels are not
-  followed. No adopter-scale qualification (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.
+  followed; such a local export only blocks resolution. Export forms the parser does not list
+  (`export declare`/`abstract class`, a second declarator in `export let a = 1, b = 2`, TS
+  `namespace`) are not recorded and could still let a star source resolve. No adopter-scale
+  qualification (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.

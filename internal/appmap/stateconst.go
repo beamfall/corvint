@@ -61,8 +61,13 @@ type constFile struct {
 	// registration's import (AMAP-V0-025); opaque marks one the reader could not read item by item.
 	reexports []reexport
 	opaque    bool
-	skip      []bool // tokens of import and re-export statements and constant declaration headers
-	reads     map[readKey]bool
+	// exports are the names the file exports itself, by an exported declaration of any kind or a
+	// local `export { ... }` list, whether or not the reader can read the value (AMAP-V0-025);
+	// unlisted marks an exported destructuring, whose names the reader does not list.
+	exports  map[string]bool
+	unlisted bool
+	skip     []bool // tokens of import and re-export statements and constant declaration headers
+	reads    map[readKey]bool
 	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
 	inject  map[string]*diBinding
 	depth   []int
@@ -195,8 +200,11 @@ func (t *constTable) target(from, module string) (*constFile, string) {
 // that statement. A named re-export of name shadows every `export *`, as in ECMAScript; anything
 // the reader cannot prove unique fails with its reason.
 func (t *constTable) reexported(g *constFile, name string) (*constFile, string, []Anchor, string) {
-	if g.opaque {
+	if g.opaque || g.unlisted {
 		return nil, "", nil, "ambiguous-barrel"
+	}
+	if g.exports[name] {
+		return nil, "", nil, "identifier-not-found" // a local export the reader does not follow shadows every re-export
 	}
 	var named, stars []reexport
 	for _, r := range g.reexports {
@@ -220,7 +228,7 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 	var hit *constFile
 	var local string
 	var via reexport
-	found, deeper := 0, false
+	found, deeper, unread := 0, false, false
 	for _, r := range cands {
 		h, why := t.target(g.entry.path, r.module)
 		if why != "" {
@@ -237,9 +245,12 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 		if src == "default" {
 			l = h.dflt
 		}
-		if d := h.decls[l]; d != nil && (src == "default" || d.exported) {
+		switch d := h.decls[l]; {
+		case d != nil && (src == "default" || d.exported):
 			found, hit, local, via = found+1, h, l, r
-		} else if h.mayReexport(src) {
+		case src != "default" && (h.exports[src] || h.unlisted):
+			found, unread = found+1, true // exported in a form the reader does not read as a table
+		case h.mayReexport(src):
 			deeper = true // h may re-export it from a further module
 		}
 	}
@@ -248,7 +259,7 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 		return nil, "", nil, "ambiguous-barrel"
 	case deeper:
 		return nil, "", nil, "barrel-depth-exceeded"
-	case found == 0:
+	case found == 0, unread:
 		return nil, "", nil, "identifier-not-found"
 	}
 	return hit, local, []Anchor{spanOf(g.entry, g.data, via.first, via.last)}, ""
@@ -395,7 +406,7 @@ func inExportList(toks []token, i int) bool {
 func parseConstFile(e blobEntry, data []byte) *constFile {
 	toks, _ := lexJS(string(data))
 	f := &constFile{entry: e, data: data, toks: toks, decls: map[string]*constDecl{}, imports: map[string]constImport{},
-		skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
+		exports: map[string]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
 	declare := func(name string, d *constDecl) {
 		if prior, dup := f.decls[name]; dup {
 			prior.bad = true
@@ -453,6 +464,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			i = end - 1
 		case t.text == "const" && i+2 < len(toks) && toks[i+1].kind == tokIdent && toks[i+1].text != "enum":
 			name, k := toks[i+1].text, i+2
+			f.exports[name] = f.exports[name] || exported
 			if !isPunct(toks[k], "=") || k+1 >= len(toks) {
 				declare(name, &constDecl{bad: true}) // a type annotation: not read
 				continue
@@ -487,12 +499,24 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			}
 			d, after := enumDecl(toks, i+2)
 			d.exported = exported
+			f.exports[toks[i+1].text] = f.exports[toks[i+1].text] || exported
 			declare(toks[i+1].text, d)
 			f.mark(start, i+2)
 			i = after - 1
-		case t.text == "let" || t.text == "var" || t.text == "function" || t.text == "class":
-			if i+1 < len(toks) && toks[i+1].kind == tokIdent {
-				declare(toks[i+1].text, &constDecl{bad: true})
+		case t.text == "let" || t.text == "var" || t.text == "const" || t.text == "function" || t.text == "class" || t.text == "async":
+			k := i + 1
+			if t.text == "async" && k < len(toks) && toks[k].kind == tokIdent && toks[k].text == "function" {
+				k++
+			}
+			if k < len(toks) && (t.text == "function" || t.text == "async") && isPunct(toks[k], "*") {
+				k++ // a generator
+			}
+			switch {
+			case k < len(toks) && toks[k].kind == tokIdent && (t.text != "async" || k > i+1):
+				declare(toks[k].text, &constDecl{bad: true})
+				f.exports[toks[k].text] = f.exports[toks[k].text] || exported
+			case exported && k < len(toks) && (isPunct(toks[k], "{") || isPunct(toks[k], "[")):
+				f.unlisted = true
 			}
 		}
 	}
@@ -584,7 +608,7 @@ func (f *constFile) readReexport(i int) (int, bool) {
 	if typeOnly {
 		j++
 	}
-	items, opaque := []reexport{}, false
+	items, opaque, list := []reexport{}, false, next(toks, j, "{")
 	switch {
 	case next(toks, j, "*"):
 		j++
@@ -614,6 +638,14 @@ func (f *constFile) readReexport(i int) (int, bool) {
 		return 0, false
 	}
 	if j+1 >= len(toks) || toks[j].kind != tokIdent || toks[j].text != "from" || !literal(toks[j+1]) {
+		if list && !typeOnly {
+			// a local export list: its names shadow every `export *` though the reader does not
+			// follow them (AMAP-V0-025)
+			for _, r := range items {
+				f.exports[r.exported] = true
+			}
+			f.opaque = f.opaque || opaque
+		}
 		return 0, false // a local export list, or a statement this reader does not follow
 	}
 	if typeOnly {
