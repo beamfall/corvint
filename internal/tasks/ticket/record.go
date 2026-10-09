@@ -164,6 +164,10 @@ type Record struct {
 	// KNOWHOW_ADD, KNOWHOW_RETRACT and KNOWHOW_RECONFIRM, and never feeds
 	// ranking, evidence or authority.
 	KnowHow []KnowHowEntry
+	// ObligationsRef is the optional per-ticket obligation-ledger reference
+	// (TOL-V0-001), present only on a NATIVE record whose ledger was seeded.
+	// It is not acceptance-relevant and is changed only by OBLIGATIONS_*.
+	ObligationsRef *ObligationsReference
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -220,6 +224,9 @@ func FromValue(v wire.Value) (*Record, error) {
 	}
 	if wire.Has(v, "knowHow") {
 		rec.KnowHow = ReadKnowHow(r.Field("knowHow"))
+	}
+	if wire.Has(v, "obligations") {
+		rec.ObligationsRef = ReadObligationsReference(r.Field("obligations"))
 	}
 	rec.TicketID = r.Field("ticketId").TicketID()
 	rec.Revision = r.Field("revision").Count()
@@ -455,6 +462,9 @@ func (rec *Record) validate() error {
 	if err := rec.validateKnowHow(); err != nil {
 		return err
 	}
+	if err := rec.validateObligations(); err != nil {
+		return err
+	}
 	// §3.1 source: IMPORT names its source item; NATIVE has none.
 	if rec.Source.Kind == "IMPORT" && rec.Source.SourceItemID == nil {
 		return wire.Errorf(wire.CodeMalformed, "/source/sourceItemId", "IMPORT source must name sourceItemId")
@@ -540,6 +550,9 @@ func (rec *Record) Value() wire.Value {
 	}
 	if len(rec.KnowHow) > 0 {
 		o.Set("knowHow", KnowHowValue(rec.KnowHow))
+	}
+	if rec.ObligationsRef != nil {
+		o.Set("obligations", rec.ObligationsRef.Value())
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

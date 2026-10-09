@@ -4201,7 +4201,7 @@ evidence and full verification are required after this repair.
 
 Issue 53 adds only an opt-in native producer/reconciler for the existing issue-40 profile. Gate A
 rejected a conditional fallback, a CLI-only proof that stopped before the compiler, and silent
-genericization of the legacy `golf_e2e` wire member. The accepted shape therefore retains
+genericization of the legacy `*_e2e` wire member. The accepted shape therefore retains
 unconditional full-suite fallback and that compatibility field, and proves mapped input through
 separately retained migration/discovery/runtime artifacts into the existing Build/Open boundary.
 Nested evidence objects stay closed; only outer record and scalar/list field names are mapped.
@@ -4226,7 +4226,7 @@ repair passes closed those findings, including independently testable variation-
 variation-to-test and test-to-variation losses; focused adapter and CLI tests passed after repair.
 Gate B then exposed that same-revision lineage rejected ordinary historical comparison and that some
 mapped-input errors named only a logical field rather than its exact JSON pointer. The owner selected
-the backward-compatible interpretation of the vocabulary criterion: `golf_e2e` remains attributed
+the backward-compatible interpretation of the vocabulary criterion: `*_e2e` remains attributed
 legacy caller input, while all new mapping/result/diagnostic vocabulary stays domain-neutral. The
 repair admits only self-consistent earlier revisions of the same repository identities, validates
 retained artifact digests, and reports exact mapped record pointers. The second Gate B pass found

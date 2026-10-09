@@ -66,6 +66,20 @@ type Ticket struct {
 	// nil when the ticket was never noted. Only a native observation sets
 	// it; a workState program cannot supply it.
 	OperatorNote *NoteView
+	// Obligations is the ticket's TOL-V0-017 obligation ledger view as
+	// read at observation, nil when the ticket carries no ledger. Only a
+	// native observation sets it; a workState program cannot supply it.
+	Obligations *ObligationsView
+}
+
+// ObligationsView is the TOL-V0-017 summary of a ticket's obligation
+// ledger reference: its counts and its monotone high-water mark.
+type ObligationsView struct {
+	Witnessed, Total, CoreWitnessed, CoreTotal int64
+	// HighWaterRevision and HighWater are the reference's highWater
+	// acceptance revision and witnessed count.
+	HighWaterRevision string
+	HighWater         int64
 }
 
 // LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
@@ -490,7 +504,14 @@ func baseFingerprint(obs *Observation, key string) string {
 		return hex.EncodeToString(h.Sum(nil))
 	}
 	for _, t := range obs.Tickets {
-		if t.ID == key {
+		if t.ID == key && t.Obligations != nil {
+			// TOL-V0-017: ledger, note and attachment writes move the
+			// revision, so a ledger ticket fingerprints its acceptance
+			// revision and its monotone high-water mark instead.
+			fmt.Fprintf(h, "%s|%s|%s\n", t.Status, t.AcceptanceRevision, t.State)
+			fmt.Fprintf(h, "obligations|%s|%d\n", t.Obligations.HighWaterRevision, t.Obligations.HighWater)
+			gateFingerprint(h, t)
+		} else if t.ID == key {
 			fmt.Fprintf(h, "%s|%s|%s\n", t.Status, t.Revision, t.State)
 			gateFingerprint(h, t)
 		}

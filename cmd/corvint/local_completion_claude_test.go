@@ -45,6 +45,34 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 			}
 		}
 	})
+	// V1-0844: the rc.2 HLQ frontier symptom "enrolled incomplete Stop returned decision <nil>" is
+	// what this enrolled incomplete Stop returns when its event deadline passes after the
+	// evaluation already decided to block. The expiry is forced, so load cannot decide the outcome
+	// (decision 0082); the ten minutes are a hang detector.
+	t.Run("LCP-V0-008 HLQ-V1-009 an enrolled incomplete Stop past its deadline fails open with no decision", func(t *testing.T) {
+		parent, expire := workFinalInterruption("expired")
+		var evaluated map[string]any
+		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute })
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(ctx context.Context, options options, input map[string]any) (map[string]any, error) {
+			result, err := dogfoodEvent(ctx, options, input)
+			if err != nil {
+				return nil, err
+			}
+			evaluated, _ = result["completion"].(map[string]any)
+			// The read returns its real blocking result after the deadline has passed, so only
+			// the production deadline enforcement can turn it into the fail-open.
+			expire()
+			<-ctx.Done()
+			return result, nil
+		})
+		output := runClaudeAdapterTest(ctx, t, root, "stop", map[string]any{"session_id": "native-session-é", "stop_hook_active": false})
+		if evaluated["decision"] != "block" {
+			t.Fatalf("the enrolled Stop evaluation did not decide to block: %v", evaluated)
+		}
+		if _, decided := output["decision"]; decided || output["systemMessage"] != "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues" {
+			t.Fatalf("expired enrolled Stop output %v", output)
+		}
+	})
 	t.Run("LCP-V0-002 native identity is isolated from explicit handoff", func(t *testing.T) {
 		otherKey := localcompletion.HashSession("native-session-é")
 		if key == otherKey {

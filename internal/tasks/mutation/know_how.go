@@ -13,6 +13,11 @@ import (
 // MALFORMED detail (KHN-V0-011). The detail names the field, never the text.
 const KnowHowSecretDetail = "KNOWHOW_SECRET_DETECTED"
 
+// matchesSecretScreen is the one call into the shared secret screen, kept in
+// this file so the decision 0397 V1-0955 import edge stays single-file; the
+// TOL-V0-009 obligation screen reuses it.
+func matchesSecretScreen(s string) bool { return secretscreen.MatchString(s) }
+
 // ScreenKnowHowArgs refuses a know-how command whose raw arguments match the
 // secret screen before any parse or pin error can echo them (KHN-V0-004).
 // The error is SECRET_DETECTED with the KnowHowSecretDetail prefix and never

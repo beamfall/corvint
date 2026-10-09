@@ -78,6 +78,9 @@ func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 // projection states every axis UNSUPPORTED (LPCV-V0-049) instead of implying
 // a pass.
 func runTestValidity(root string, arguments []string, stdout, stderr io.Writer) int {
+	if len(arguments) > 0 && arguments[0] == "negate" {
+		return runTestValidityNegate(root, arguments[1:], stdout, stderr)
+	}
 	options, err := parseTestValidityOptions(arguments)
 	if err != nil {
 		emitError(stderr, err)
@@ -90,7 +93,7 @@ func runTestValidity(root string, arguments []string, stdout, stderr io.Writer) 
 			emitError(stderr, readErr)
 			return 2
 		}
-		document = testvaliditydoc.Project(receipt)
+		document = testvaliditydoc.JoinStepNegation(testvaliditydoc.Project(receipt), receipt, root)
 	}
 	if options.discover {
 		discovered, discoverErr := discoverTestValidity(root)

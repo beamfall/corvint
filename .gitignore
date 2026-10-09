@@ -14,6 +14,7 @@ dist/
 .corvint/dogfood-report.json
 .corvint/index/
 .corvint/test-evidence/
+.corvint/strength-evidence/
 .claude/settings.local.json
 .claude/worktrees/
 

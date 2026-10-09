@@ -32,7 +32,7 @@ func workerAttemptUnadmitted(repo *intent.Repository, r transaction.Request) boo
 		return true
 	}
 	p, err := intent.DecodePolicy(raw)
-	return err != nil || !p.WorkerKnowHowAdd()
+	return err != nil || !transaction.WorkerAttemptAdmitted(r, p)
 }
 
 // Know-how freshness states (KHN-V0-005). They are computed at read time
@@ -553,6 +553,35 @@ func readCatFileObject(out *bufio.Reader) (catFileObject, error) {
 
 func gitObservationFailed(err error) error {
 	return wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
+}
+
+// FilesAtCommit reads paths at rev with the same two Git calls the know-how
+// verifier uses, for the TOL-V0-012 obligation source binding. commit is ""
+// when rev names no commit. present holds every path that is a blob there;
+// content holds its bytes when the blob is small enough to read.
+func FilesAtCommit(root, rev string, paths []string) (commit string, present map[string]bool, content map[string][]byte, err error) {
+	commit, objs, err := catFileAtCommit(root, rev, paths)
+	if err != nil || commit == "" {
+		return commit, nil, nil, err
+	}
+	present, content = map[string]bool{}, map[string][]byte{}
+	var oids []string
+	for i, o := range objs {
+		if o.kind == "blob" {
+			present[paths[i]] = true
+			oids = append(oids, o.oid)
+		}
+	}
+	blobs, err := readKnowHowBlobs(root, oids)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	for i, o := range objs {
+		if b, ok := blobs[o.oid]; ok && o.kind == "blob" {
+			content[paths[i]] = b
+		}
+	}
+	return commit, present, content, nil
 }
 
 // KnowHowRepositoryArg parses one `--repo ALIAS=ROOT` value (KHN-V0-024,

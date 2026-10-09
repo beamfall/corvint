@@ -796,7 +796,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta"}
 )
 
 func knownHost(value string) bool {
@@ -1100,8 +1100,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if root, rest, isFrontier := parseFrontierInvocation(arguments); isFrontier {
 			return runFrontier(ctx, root, rest, stdout, stderr)
 		}
-		if root, rest, isTestValidity := parseTestValidityInvocation(arguments); isTestValidity {
-			return runTestValidity(root, rest, stdout, stderr)
+		if code, isTestCommand := runTestCommand(ctx, arguments, stdout, stderr); isTestCommand {
+			return code
 		}
 		if root, rest, isWitness, witnessErr := parseWitnessInvocation(arguments); isWitness {
 			if witnessErr != nil {

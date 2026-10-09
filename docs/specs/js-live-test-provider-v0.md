@@ -149,7 +149,7 @@ states only the condition checked there.
 | `report-unparseable` | `internal/jstestprovider/runner.go:142` | `ParseVitestJSON` refused the output file; the detail is the parse error |
 | `server-not-ready` | `internal/jstestprovider/runner.go:281` | the E2E server did not become ready at the configured URL within the ready limit (15 s when unset); the server is cancelled and its cleanup recorded in `serverDescendantsGone` first, `appBuildAtPublish` is explicit unknown, and a run whose context was cancelled during the wait reports `cancelled` instead |
 | `start-failed` | `internal/jstestprovider/runner.go:187` | the Vitest process observation reports it never started (checked after timeout, output overflow, and cancellation); the detail is the observation error; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:345`, checked after timeout and output overflow |
-| `wait-not-completed` | `internal/jstestprovider/runner.go:189` | the Vitest process started, did not time out, overflow, or get cancelled, and its wait did not complete; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:347` under the same condition, so its output is never parsed |
+| `wait-not-completed` | `internal/jstestprovider/runner.go:189` | the Vitest process started, did not time out, overflow, or get cancelled, and its wait did not complete; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:367` under the same condition, so its output is never parsed |
 
 The per-test projection also sets one claim reason, outside `infrastructure.reason`:
 

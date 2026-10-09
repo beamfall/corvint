@@ -552,7 +552,24 @@ or `ocm mark` to preserve an honest unknown. A requirement the change does not t
 Go test anchors a requirement by naming its ID in a table case `name` or a `t.Run("...")` literal.
 Include a descriptive word with the ID: numeric-only suffixes disappear during selector
 normalization, so multiple bare IDs in one test function can collide. A whole-function selector
-whose function-name anchor lacks the exact requirement ID is not a substitute. OCM is local-only in V0 and must not be added to its own
+whose function-name anchor lacks the exact requirement ID is not a substitute.
+
+The ID must appear as an exact token: a requirement token continues through `A-Z`, `a-z`, `0-9`, `_`
+and `-`, so the byte on each side of the ID must be some other byte (a space, quote or
+parenthesis) or the anchor edge. Separate the ID from the case words with a space. Selector
+normalization drops that distinction, so both spellings below select
+`test:TestGrammar/case:cvi-v0-strict-grammar`, but only the space-separated one links `CVI-V0-002`:
+
+```go
+func TestGrammar(t *testing.T) {
+	t.Run("CVI-V0-002 strict grammar", func(t *testing.T) { /* links CVI-V0-002 */ })
+	// t.Run("CVI-V0-002-strict-grammar", ...) would be refused claim-obligation-mismatch.
+}
+```
+
+The same rule refuses `_CVI-V0-002_`, `XCVI-V0-002` and `CVI-V0-0021` for `CVI-V0-002`. On such a
+refusal `ocm link` appends which byte adjoins the ID and a space-separated example; the matcher
+itself is unchanged (`OCM-V0-005`, `OCM-V0-017`). OCM is local-only in V0 and must not be added to its own
 mapped patch. Structural closure remains distinct from whether the project gate ran or passed.
 
 ### 6. Review what another reviewer sees

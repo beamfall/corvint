@@ -37,7 +37,13 @@ func LoopHoldOf(attempts map[string]*snapshot.Attempt, rec *ticket.Record, polic
 		return nil
 	}
 	gens := loopGenerations(last)
-	if counted := noProgressRun(gens); int64(len(counted)) > policy.LoopDetection.MaxNoProgressGenerations.Int() {
+	// TOL-V0-018: the generation whose WORKER witness raised the obligation
+	// high water at this acceptance revision is progress.
+	raised := ""
+	if o := rec.ObligationsRef; o != nil && o.LastRaise != nil && o.LastRaise.Attempt == last.AttemptID && o.LastRaise.AcceptanceRevision == rec.AcceptanceRevision {
+		raised = string(o.LastRaise.Generation)
+	}
+	if counted := noProgressRun(gens, raised); int64(len(counted)) > policy.LoopDetection.MaxNoProgressGenerations.Int() {
 		return &ticket.LoopHold{Signal: LoopNoProgress, AcceptanceRevision: rec.AcceptanceRevision, Generations: counted, Limit: policy.LoopDetection.MaxNoProgressGenerations}
 	}
 	if counted, returns := alternatingRun(gens); int64(returns) > policy.LoopDetection.MaxAlternatingReturns.Int() {
@@ -68,8 +74,9 @@ func loopGenerations(a *snapshot.Attempt) []loopGeneration {
 // that each ended in a clean HANDOFF with no gate result, no external
 // review and no new candidate tree: none submitted, or the same tree as the
 // latest earlier one. A generation whose tree cannot be compared because
-// earlier history is UNKNOWN is itself UNKNOWN.
-func noProgressRun(gens []loopGeneration) []string {
+// earlier history is UNKNOWN is itself UNKNOWN. The raised generation, when
+// not empty, raised the obligation high water and is progress (TOL-V0-018).
+func noProgressRun(gens []loopGeneration, raised string) []string {
 	verdicts := make([]bool, len(gens))
 	known := true // the attempt starts at this acceptance revision with no candidate
 	var tree *string
@@ -83,7 +90,7 @@ func noProgressRun(gens []loopGeneration) []string {
 		if e.CandidateTreeOid != nil {
 			tree, known = e.CandidateTreeOid, true
 		}
-		verdicts[i] = e.Disposition == wire.CodeHandoff && e.GateResults.Int() == 0 && e.Reviews.Int() == 0 && comparable
+		verdicts[i] = e.Disposition == wire.CodeHandoff && e.GateResults.Int() == 0 && e.Reviews.Int() == 0 && comparable && (raised == "" || g.generation != raised)
 	}
 	start := len(gens)
 	for start > 0 && verdicts[start-1] {

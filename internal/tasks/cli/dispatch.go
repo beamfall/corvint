@@ -344,6 +344,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if rows, omitted := l.StallRows(); len(rows) > 0 {
 		o.Set("sessionsSinceStatusChange", dispatchStallValue(c, rows, omitted))
 	}
+	if l.Seen != nil && len(l.Seen.Obligations) > 0 {
+		o.Set("obligations", dispatchObligationsValue(l.Seen.Obligations))
+	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
@@ -923,6 +926,10 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 		if h := transaction.LoopHoldOf(in.Attempts, r, in.Policy); h != nil {
 			t.Loop = &dispatch.LoopHold{Signal: h.Signal, AcceptanceRevision: string(h.AcceptanceRevision), Generations: h.Generations}
 		}
+		if o := r.ObligationsRef; o != nil {
+			t.Obligations = &dispatch.ObligationsView{Witnessed: o.Counts.Witnessed, Total: o.Counts.Total, CoreWitnessed: o.Counts.CoreWitnessed,
+				CoreTotal: o.Counts.CoreTotal, HighWaterRevision: string(o.HighWater.AcceptanceRevision), HighWater: o.HighWater.Witnessed}
+		}
 		t.NextStage = dispatch.StateNone
 		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
 			t.NextStage = s.Str
@@ -930,6 +937,22 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 		out = append(out, t)
 	}
 	return out
+}
+
+// dispatchObligationsValue lists, by ticket, the TOL-V0-017
+// "witnessed/total" of each ledger ticket in the dispatcher's last native
+// observation.
+func dispatchObligationsValue(seen map[string]string) wire.Value {
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	items := make([]wire.Value, 0, len(ids))
+	for _, id := range ids {
+		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(id)).Set("witnessed", wire.String(seen[id]))))
+	}
+	return wire.Array(items...)
 }
 
 // dispatchStallValue renders the CAL-V0-185 advisory counts: tickets with at

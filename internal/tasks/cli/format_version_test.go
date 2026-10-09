@@ -163,6 +163,8 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 		ticket.OperatorNoteProfile:      plain(func(b []byte) error { _, e := ticket.DecodeOperatorNoteEvent(b); return e }),
 		ticket.EscalationRequestProfile: plain(func(b []byte) error { _, e := ticket.DecodeEscalationRequest(b); return e }),
 		ticket.EscalationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeEscalationEvent(b); return e }),
+		ticket.ObligationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeObligationEvent(b); return e }),
+		ticket.ObligationPlanProfile:    plain(func(b []byte) error { _, e := ticket.DecodeObligationPlan(b); return e }),
 		release.Profile:                 plain(func(b []byte) error { _, e := release.Decode(b); return e }),
 		release.AttestationProfile: func(t *testing.T, p string) error {
 			_, err := release.Decode(withMember(t, formatRelease(t), "attestations", wire.Array(newerRecord(t, p))))

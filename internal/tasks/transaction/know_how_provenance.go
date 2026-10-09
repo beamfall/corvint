@@ -17,6 +17,12 @@ func knowHowAttemptMutation(r Request) bool {
 	return err == nil && mutation.KnowHowNamesAttempt(env)
 }
 
+// attemptLedgerAt is knowHowLedger under a ledger-neutral name for the
+// TOL-V0-013 obligation audit.
+func attemptLedgerAt(attempts map[string]*snapshot.Attempt, now wire.Timestamp) mutation.AttemptLedger {
+	return knowHowLedger(attempts, now)
+}
+
 // knowHowLedger projects the audited attempt records onto the provenance
 // ledger. A nil map (attempts not loaded) stays nil, so the check refuses.
 // Holder is the lease holder while that lease is unexpired at now; as for

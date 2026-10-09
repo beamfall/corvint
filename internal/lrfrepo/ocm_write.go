@@ -2,6 +2,7 @@ package lrfrepo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -713,7 +714,7 @@ func LinkOCM(ctx context.Context, root string, options LinkOptions) (*LinkResult
 		return nil, err
 	}
 	if _, err := verifyOCMClosure(cem, candidate, payload, intentContext, true); err != nil {
-		return nil, err
+		return nil, withAnchorBoundaryHint(err, intentContext, candidate, obligationID, selected)
 	}
 	destination := options.Output
 	if destination == "" {
@@ -728,6 +729,27 @@ func LinkOCM(ctx context.Context, root string, options LinkOptions) (*LinkResult
 		claimIDs = append(claimIDs, claim.id)
 	}
 	return &LinkResult{MapPath: written, ObligationID: obligationID, HunkIDs: hunkIDs, ClaimIDs: claimIDs}, nil
+}
+
+// withAnchorBoundaryHint explains a link refusal claim-obligation-mismatch whose
+// selected anchor names the obligation ID only inside a longer token (OCM-V0-017,
+// V1-0555). The code, the exact-token matcher, and the verifier's issue message
+// are unchanged; on any doubt the original refusal is returned as is.
+func withAnchorBoundaryHint(err error, intent *ocmIntentContext, candidate *ocmDocument, obligationID string, selected []ocmClaim) error {
+	var refusal *Error
+	if !errors.As(err, &refusal) || refusal.Code != "claim-obligation-mismatch" {
+		return err
+	}
+	anchors, _, anchorErr := verifyClaims(intent.reader, candidate.target, candidate.claims)
+	if anchorErr != nil {
+		return err
+	}
+	for _, claim := range selected {
+		if hint := requirementBoundaryHint(anchors[claim.id], obligationID); hint != "" {
+			return &Error{Code: refusal.Code, Message: refusal.Message + hint}
+		}
+	}
+	return err
 }
 
 // A semantic reader failure has a nil error; mutators must refuse its verdict.
@@ -850,8 +872,8 @@ func resolveClaimSelectors(claims []ocmClaim, selectors []string) ([]ocmClaim, e
 }
 
 // goCaseAnchorShapes names the only Go table shapes goTableCase extracts, so a
-// case miss on an unsupported shape (a map-keyed table, V1-0274) says why.
-const goCaseAnchorShapes = "; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a map key"
+// case miss on an unsupported shape (map key V1-0274, header-line anchor OCM-V0-018) says why.
+const goCaseAnchorShapes = "; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a map key, nor on its parent func header line"
 
 // A miss hint describes normalization only; selection remains exact and the
 // normalized fragment need not identify an existing or unique claim.

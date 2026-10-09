@@ -1,0 +1,7 @@
+<!-- corvint test-consolidation-table/0 input=sha256:63f2e7b0850b269c9ab90ad4da4752ed98265b24a1d7da2904a067afd5051f3e tests=sha256:82a6564112bc37029d3b015453401525faa10b0729c2f72d3032a5f4c13bad51 maps=none revision=0123456789abcdef0123456789abcdef01234567 anchors=NOT_RUN max-steps=8 status=COMPLETE -->
+| test | spec | variation ids | isolated reason |
+| --- | --- | --- | --- |
+| T001 | tests/e2e/teesheet.spec.ts | V1, V4, V2 | - |
+| T002 | tests/e2e/teesheet.spec.ts | V5 | destructive-change |
+| REUSE teesheet-book@chromium | tests/e2e/teesheet.spec.ts | V3 | reused strength=NOT_MEASURED |
+| DUPLICATE V1 | tests/e2e/teesheet.spec.ts | V6 | duplicate |

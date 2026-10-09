@@ -15,10 +15,52 @@ import (
 // a status transition does. Changed records that a tick observed a status
 // other than Status while a session was running, so the session's finish
 // restarts the count even when the status has since returned.
+//
+// Witnessed is the TOL-V0-021 baseline of a ticket that carries an
+// obligation ledger: the high-water mark the count is against. A rise
+// within the same acceptance revision restarts the count as a status change
+// does. It is absent for a ticket without a ledger and in a count adopted
+// from the previous ledger version, and is then seeded from the next
+// observation without a restart.
 type StallState struct {
-	Status   string `json:"status"`
-	Sessions int    `json:"sessions"`
-	Changed  bool   `json:"changed,omitempty"`
+	Status    string          `json:"status"`
+	Sessions  int             `json:"sessions"`
+	Changed   bool            `json:"changed,omitempty"`
+	Witnessed *StallWitnessed `json:"witnessed,omitempty"`
+}
+
+// StallWitnessed is a TOL-V0-021 stall baseline.
+type StallWitnessed struct {
+	AcceptanceRevision string `json:"acceptanceRevision"`
+	HighWater          int64  `json:"highWater"`
+}
+
+// stallBaseline is t's TOL-V0-021 baseline, nil without a ledger.
+func stallBaseline(t *Ticket) *StallWitnessed {
+	if t == nil || t.Obligations == nil {
+		return nil
+	}
+	return &StallWitnessed{AcceptanceRevision: t.Obligations.HighWaterRevision, HighWater: t.Obligations.HighWater}
+}
+
+// raised reports a TOL-V0-021 rise: t's high water exceeds the recorded
+// baseline within the same acceptance revision.
+func (s *StallState) raised(t *Ticket) bool {
+	b := stallBaseline(t)
+	return s.Witnessed != nil && b != nil && b.AcceptanceRevision == s.Witnessed.AcceptanceRevision && b.HighWater > s.Witnessed.HighWater
+}
+
+// revisionMoved reports an observed ledger whose acceptance revision is not
+// the baseline's.
+func (s *StallState) revisionMoved(t *Ticket) bool {
+	b := stallBaseline(t)
+	return s.Witnessed != nil && b != nil && b.AcceptanceRevision != s.Witnessed.AcceptanceRevision
+}
+
+// rebase moves the baseline to t's observation: it seeds an absent one and
+// follows a new acceptance revision, neither of which restarts the count.
+func (s *StallState) rebase(t *Ticket) {
+	s.Witnessed = stallBaseline(t)
 }
 
 // maxStallTickets bounds the ledger's stall map; maxStallSessions saturates
@@ -45,7 +87,7 @@ func (d *Dispatcher) restartStall(t *Ticket, key string) {
 	if d.ledger.Stall == nil {
 		d.ledger.Stall = map[string]*StallState{}
 	}
-	d.ledger.Stall[key] = &StallState{Status: t.Status}
+	d.ledger.Stall[key] = &StallState{Status: t.Status, Witnessed: stallBaseline(t)}
 }
 
 // countStall accounts one finished session of a ticket-keyed worker against
@@ -63,9 +105,10 @@ func (d *Dispatcher) countStall(t *Ticket, w *Worker, detail map[string]string) 
 		detail["sessionsSinceStatusChange"] = "UNKNOWN"
 		d.restartStall(t, w.Key)
 		return nil
-	case s.Changed || s.Status != t.Status:
+	case s.Changed || s.Status != t.Status || s.raised(t):
 		// The session (or another writer during it) changed the status,
-		// possibly and back again.
+		// possibly and back again, or raised the obligation high water
+		// (TOL-V0-021).
 		detail["sessionsSinceStatusChange"] = "0"
 		delete(d.ledger.Stall, w.Key)
 		d.restartStall(t, w.Key)
@@ -73,6 +116,7 @@ func (d *Dispatcher) countStall(t *Ticket, w *Worker, detail map[string]string) 
 	case s.Sessions < maxStallSessions:
 		s.Sessions++
 	}
+	s.rebase(t)
 	detail["sessionsSinceStatusChange"] = strconv.Itoa(s.Sessions)
 	n := d.Config.StalledAfterSessions
 	if n == nil || s.Sessions != *n {
@@ -103,13 +147,22 @@ func (d *Dispatcher) pruneStall(obs *Observation) {
 		t := byID[key]
 		switch {
 		case running[key]:
-			if t == nil || t.Status != s.Status {
+			switch {
+			case t == nil || t.Status != s.Status || s.raised(t):
 				s.Changed = true
+			case s.Witnessed == nil || s.revisionMoved(t):
+				// TOL-V0-021: seed an absent baseline, or follow a new
+				// acceptance revision, so a later raise within it during
+				// this session is still seen at the finish.
+				s.rebase(t)
 			}
 		case t == nil || !stallStatuses[t.Status]:
 			delete(d.ledger.Stall, key)
-		case t.Status != s.Status:
+		case t.Status != s.Status || s.raised(t):
 			s.Status, s.Sessions = t.Status, 0
+			s.rebase(t)
+		default:
+			s.rebase(t)
 		}
 	}
 	if len(d.ledger.Stall) == 0 {
@@ -124,6 +177,11 @@ func (l *Ledger) validateStall() error {
 	for key, s := range l.Stall {
 		if _, err := wire.ParseTicketID("stall key", key); err != nil || s == nil || !stallStatuses[s.Status] || s.Sessions < 0 || s.Sessions > maxStallSessions {
 			return errors.New("invalid stall count")
+		}
+		if w := s.Witnessed; w != nil {
+			if _, err := wire.ParseCount("stall baseline", w.AcceptanceRevision); err != nil || w.HighWater < 0 || w.HighWater > wire.ObligationsMaxEntries {
+				return errors.New("invalid stall baseline")
+			}
 		}
 	}
 	return nil

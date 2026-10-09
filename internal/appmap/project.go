@@ -75,7 +75,20 @@ func LoadMap(filename string) (*Map, error) {
 		return nil, bad("--map changed while being read")
 	}
 	raw, err := io.ReadAll(io.LimitReader(f, maxMapBytes+1))
-	if err != nil || len(raw) > maxMapBytes {
+	if err != nil {
+		return nil, bad("--map is unreadable or exceeds the map bound")
+	}
+	return ParseMap(raw)
+}
+
+// MaxMapBytes bounds one application-map/0 file.
+const MaxMapBytes = maxMapBytes
+
+// ParseMap decodes application-map/0 bytes a caller has already read: bounded, closed JSON,
+// digest checked.
+func ParseMap(raw []byte) (*Map, error) {
+	bad := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-map", Message: msg} }
+	if len(raw) > maxMapBytes {
 		return nil, bad("--map is unreadable or exceeds the map bound")
 	}
 	var m Map

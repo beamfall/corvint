@@ -21,8 +21,9 @@ type AttemptProvenance struct {
 // means the attempt inventory was not observed; the check then refuses.
 type AttemptLedger map[string]AttemptProvenance
 
-// KnowHowNamesAttempt reports a KNOWHOW_ADD or KNOWHOW_RECONFIRM envelope
-// that names an attempt or a generation, so the writer must audit the
+// KnowHowNamesAttempt reports a KNOWHOW_ADD or KNOWHOW_RECONFIRM envelope, or
+// an OBLIGATIONS_WITNESS envelope (TOL-V0-015), that names an attempt or a
+// generation, so the writer must audit the
 // complete attempt inventory and hand the mutation an AttemptLedger
 // (KHN-V0-008, KHN-V0-018).
 func KnowHowNamesAttempt(env *Envelope) bool {
@@ -35,7 +36,23 @@ func KnowHowNamesAttempt(env *Envelope) bool {
 	case *KnowHowReconfirmPayload:
 		return env.Operation == OpKnowHowReconfirm && (p.Attempt != nil || p.Generation != nil)
 	}
-	return false
+	return ObligationsNameAttempt(env)
+}
+
+// CheckAttemptProvenance is CheckKnowHowProvenance under a ledger-neutral
+// name, so the TOL-V0-015 obligation witness reuses the one check without
+// naming the know-how ledger (KHN-V0-017 reader set).
+func CheckAttemptProvenance(ledger AttemptLedger, home wire.TicketID, attempt *string, generation *wire.Size) error {
+	return CheckKnowHowProvenance(ledger, home, attempt, generation)
+}
+
+// AttemptLedgerOf returns the context's audited attempt ledger.
+func (c Context) AttemptLedgerOf() AttemptLedger { return c.KnowHowAttempts }
+
+// WithAttemptLedger returns c with its audited attempt ledger set.
+func (c Context) WithAttemptLedger(l AttemptLedger) Context {
+	c.KnowHowAttempts = l
+	return c
 }
 
 // CheckKnowHowProvenance is the one reusable attempt and generation check
