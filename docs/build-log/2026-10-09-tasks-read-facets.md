@@ -1,10 +1,10 @@
-# Tasks read facets, `--count` and release readiness counts (CAL-V0-206..209, proposed)
+# Tasks read facets, `--count` and release readiness counts (CAL-V0-206..209, accepted by decision 0476)
 
 Date: 2026-10-09
 
 The owner asked in chat that corvint-tasks answer questions like "how many tickets to 1.0"
-instantly, for every kind of search. This lane adds proposed `CAL-V0-206..209` to
-`docs/specs/corvint-tasks-agent-leases-v0.md` and amendment A26. The requirements are not accepted.
+instantly, for every kind of search. This lane adds `CAL-V0-206..209` to
+`docs/specs/corvint-tasks-agent-leases-v0.md` and amendment A26. The owner accepted the requirements in decision 0476.
 
 ## Decisions
 
@@ -192,7 +192,7 @@ all encoded and decoded.
   ticket enums and to the `nextAction` return set in `view.go`.
 - The producer now counts `total` from the views it actually counts rather than from the match
   length, so the encoder's self-validation cannot see a sum mismatch.
-- CAL-V0-206 (proposed) states the decoder refusal.
+- CAL-V0-206 states the decoder refusal.
 
 **Tests.** `TestCALV0206_FacetsMemberIsTheClosedSummary` has 20 negative cases, the reviewer's three
 included, each refused `MALFORMED` by both `Encode` and `DecodeResult`. It also admits 64 labels with
@@ -207,6 +207,8 @@ case encoded and decoded, so the test fails on base. The focused packages pass: 
 
 ## Limits
 
+- Owner acceptance: CAL-V0-206..209 accepted by decision 0476 (intent only); V1-1051, V1-1052 and
+  V1-1057 completion is not done by that decision.
 - Live qualification: NOT_RUN.
 - `make gate`: NOT_RUN, by lane rule.
 - Timings come from one quiet developer host. They are not a performance budget.
