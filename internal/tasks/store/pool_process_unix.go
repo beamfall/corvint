@@ -251,7 +251,17 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 	// exec.ErrWaitDelay) and while the exited leader is unreaped (V1-1036).
 	groupreap.Contain(cmd)
 	captured := &sweepCapture{max: snapshot.MaxPoolSweepOutput}
-	captured.kill = func() { _ = groupreap.Stop(cmd) }
+	// Drain's copiers can deliver an overflow before Start has set
+	// cmd.Process, so kill runs under captured.mu and an early request is
+	// held until Drain returns, while the leader is still unreaped.
+	started, pending := false, false
+	captured.kill = func() {
+		if started {
+			_ = groupreap.Stop(cmd)
+		} else {
+			pending = true
+		}
+	}
 	cmd.Stdout = sweepWriter{true, captured}
 	cmd.Stderr = sweepWriter{false, captured}
 	if guard != nil && guard() != nil {
@@ -262,6 +272,12 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 	if e != nil {
 		return result
 	}
+	captured.mu.Lock()
+	started = true
+	if pending {
+		_ = groupreap.Stop(cmd)
+	}
+	captured.mu.Unlock()
 	e = wait()
 	waited = time.Now()
 	result.Class = "EXIT_ZERO"

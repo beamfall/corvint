@@ -27,7 +27,8 @@ func Wait(command *exec.Cmd) error { return wait(command, nil) }
 // WaitResidue is Wait that also reports residue (WQO-V0-032): whether a
 // group member other than the exited leader may still be live. Where waitid
 // is available, residue is decided while the exited leader is held unreaped,
-// by the owner's quiet proof (Darwin signal 0, Linux /proc, PGO-V0-006), and
+// by residueProof (Linux /proc, PGO-V0-006; Darwin signal 0 confirmed by the
+// process table), and
 // only then is the group SIGKILLed and the leader reaped, so no group signal
 // follows the reap (V1-1036). A failed proof or exit observation reports
 // residue, never a clean group. Without waitid, residue is whether the legacy
@@ -38,9 +39,6 @@ func WaitResidue(command *exec.Cmd) (bool, error) {
 		return err != nil || probe == ProbeLive
 	}, nil)
 }
-
-// residueProof is the owner's pre-reap quiet proof; tests observe or inject it.
-var residueProof = func(leader int) (Probe, error) { return defaultPrimitives().QuietProof(leader) }
 
 // wait runs exited after the group signal and before the reap where waitid
 // allows, so detached-descendant retirement precedes any output-pipe wait. A

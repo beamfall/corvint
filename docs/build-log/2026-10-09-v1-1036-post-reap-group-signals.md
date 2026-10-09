@@ -40,10 +40,19 @@ for the work runner.
   now goes through the `launchGroupKill` seam.
 - `cmd/corvint/work_runner.go` (decision: option (a)):
   - Residue (WQO-V0-032) is decided by `groupreap.WaitResidue` while the
-    exited leader is held unreaped. That function runs the owner's existing
-    quiet proof (Linux `/proc` `procGroupQuiet`, PGO-V0-006; Darwin signal 0,
-    where EPERM means zombie-only). It then SIGKILLs the group and reaps.
-    A failed proof or exit observation reports residue.
+    exited leader is held unreaped, then the group is SIGKILLed and reaped.
+    A failed proof or exit observation reports residue. The proof is the
+    owner's existing quiet proof:
+    - Linux: `/proc` `procGroupQuiet` (PGO-V0-006).
+    - Darwin: signal 0, with a confirmation added after review. EPERM can
+      mean a zombie-only group, or live members this process may not signal
+      (XNU `kern_sig.c`). So a Darwin quiet result counts only when the
+      existing `sysctl kern.proc.all` process table (`readProcessTable`)
+      lists the leader and every group member as a zombie. A table error or
+      a missing leader is residue.
+  - The owner's own `QuietProof` callers do not share this flaw. `Owner`
+    releases only on ESRCH after the reap; an EPERM group keeps polling to
+    HOLD. The shared `QuietProof` is therefore unchanged.
   - Before, `workTerminateGroup` sent a group SIGKILL after the reap and
     treated its success as residue. Before, a deferred `workKillGroup` also
     signalled after the reap. Both are removed.
@@ -69,14 +78,29 @@ for the work runner.
 
 Each new test fails when only its fix is reverted and passes with the change:
 
+- `TestV11036PoolGroupMemberIsKilledBeforeReap` (captured=false/true)
+  observes real process state through `ps` and the `poolProbe` seam, which
+  the base code also has:
+  - The negative control restored `pool_process_unix.go` byte for byte from
+    the base (its original post-reap `syscall.Kill` and `killGate`). The
+    seam test below cannot compile against the base, so it was set aside
+    for that run.
+  - Both subtests fail on the base: "group member was still running at the
+    post-reap listing".
+  - They pass with the change.
 - `TestV11036PoolPostReapObservationSendsNoGroupKill` (captured=false/true):
-  - With the post-reap group SIGKILL restored in both runners, it fails with
-    "post-reap group kill sent to [pid]".
-  - It passes with the change.
+  - It sees only signals sent through the new `poolGroupSignal` seam.
+  - Its earlier negative control restored the post-reap SIGKILL through
+    that seam, not the base's direct `syscall.Kill` and `killGate`. It
+    therefore pins the observation-only rule, not a discrimination from the
+    exact base. Review finding; the test above replaces that claim.
 - `TestV11036LaunchKillsUnidentifiedGroupBeforeReap`:
-  - With the old order restored (Wait goroutine started first, then the kill),
-    it fails with "leader was reaped before the group kill returned: no such
-    process".
+  - The negative control restored the old order (Wait goroutine started
+    first, then the kill) but kept the kill call on the new
+    `launchGroupKill` seam. The exact base has no seam and does not compile
+    with this test.
+  - That control failed: "leader was reaped before the group kill returned:
+    no such process".
   - It passes with the change.
 - `TestV11036WorkRunnerResidueIsObservedBeforeReap` inverts the pre-reap
   observation:
@@ -86,6 +110,14 @@ Each new test fails when only its fix is reverted and passes with the change:
       residue").
     - a quiet group passes ("observed residue not reported").
   - It passes with the change.
+- `TestWaitResidueDarwinDeniedLiveMemberIsResidue` (Darwin) injects into
+  the process table a live group member that signal 0 cannot reach:
+  - With `residueProof` restored to the bare `QuietProof`, it fails: "EPERM
+    was taken as a zombie-only group while a live member remained".
+  - It passes with the change.
+  - `TestTableGroupQuietRequiresZombieOnlyGroup` covers the table decision
+    itself.
+  - A real unsignalable (privileged) member was not reproduced: NOT_RUN.
 - `TestWaitResidueObservesAndSignalsBeforeReap` (live member, quiet group,
   unproved) and `TestWaitResidueAfterFailedObservationIsResidueWithoutSignal`
   check two things:
@@ -108,7 +140,18 @@ Existing focused tests pass:
 - releasegate: `TestRunGit*`
 
 `go vet` passes on Darwin and with GOOS=linux for all five packages. The
-GOOS=windows build of `cmd/corvint` and `internal/...` passes.
+GOOS=windows build of `cmd/corvint` and `internal/...` passes. GOOS=windows
+`go vet` passes for four packages; `internal/tasks/dispatch` fails on
+`prompt_fragments_test.go` (`testConfig` is defined only in a darwin||linux
+test file), identically at base `b2a0b8c6`, so it is out of scope here.
+
+Review fix (race): under `-race`, the captured runner's overflow kill read
+`cmd.Process` from Drain's copy goroutine while Drain's Start was still
+setting it (`TestPSRCapturedOutputLimit`). The base's plain `cmd.Start` set
+it before the copiers started. The kill now runs under the capture mutex
+and an overflow seen before Drain returns is held, then sent by `Stop`
+once Drain returns, with the leader still unreaped. The focused store
+selection passes under `-race`.
 
 ## Audit outcome (no edits)
 
