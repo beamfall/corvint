@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 
-Batch P carries five lane branches onto main 02e84575:
+Batch P carries five lane branches onto main 29cc7fd4 (lanes cut at 02e84575; batch J merged in between):
 
 - V1-1046 (`claude/v1-1046-lane`, b056326d and review fix adb60e14): the Darwin dashboard process
   wait and the `internal/testsupport` pipe drain treated waitid stop/continue reports (si_code 4..6)
