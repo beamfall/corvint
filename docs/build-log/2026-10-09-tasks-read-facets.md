@@ -97,11 +97,62 @@ It is derived state, never authority. It is not built here, for two reasons:
 - A read must not create or refresh it, and only writers would keep it current.
 - It needs its own requirement, format and benchmark gate (AGENTS.md invariant 7).
 
-## Finding (out of scope)
+## Finding: absent read checkpoint (V1-1051)
 
 On the project's own store `.git/taskman.checkpoint.json` is absent, so every `queue status` and
-`ticket list` runs the full receipt audit, about 2–3 s. Only writers retain that checkpoint
-(`store/guards.go` `retainCheckpoint`). The orchestrator should file this.
+`ticket list` runs the full receipt audit, about 2 s.
+
+**Diagnosis: no writer-code defect; the deployed runtime predates the checkpoint.**
+
+- In-tree writers retain the checkpoint after their audit (`internal/tasks/store/guards.go:107`
+  `retainCheckpoint`, called at `store/mutate.go:154`, `store/lease_write.go:471` and
+  `store/writer_route.go:127,267`). `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` covers
+  that.
+- A read-only in-process audit of the real store at seq 3829 returned `FULL`/`CONSISTENT`, with no
+  pending receipt and no staging. `Result.Checkpoint()` (`journal/checkpoint.go:63`) is non-nil, so a
+  current writer would retain it.
+- The `corvint-tasks` on PATH reports `0.0.0-tcp01-unverified+build.202`. That is the latest
+  published standalone tag, `tasks-dev-20260929.2` (0f231225, 2026-09-29). The checkpoint work
+  (5802f353, 2026-10-01) is not its ancestor.
+- The binary contains none of these strings: `checkpoint`, `CHECKPOINT_PLUS_TAIL`,
+  `retainCheckpoint`. So every write on this store ran a runtime with no checkpoint at all. Nothing
+  deletes the file, and nothing invalidates it.
+- In-process on the real store, read-only, median of 5: a full audit takes 2.01 s. Resuming from the
+  checkpoint the current code derives (`CHECKPOINT_PLUS_TAIL`) takes 0.088 s.
+
+**Remedy (owner fork, not done here).** Publish a Tasks dev release from `origin/main`, or install a
+clean `origin/main` build, so that writes retain the checkpoint. The checkpoint stays verified: a
+read rebinds it, and a stale or forged one falls back to the full audit (CAL-V0-059/060). P0 V1-0841
+(Darwin descriptor exhaustion on a 5000-receipt store) should be checked against a new runtime on
+this store, which holds 3829 receipts.
+
+## Read probe overhead (V1-1051 follow-up)
+
+A CPU profile of 20 in-process `ticket search --milestone v1-0 --status OPEN --count` reads on the
+real store (1081 intent files) attributes most of each read to TM-V0-008's two `intent.TreeDigest`
+probes, about 41 ms each, plus a `LoadTree` decode of about 23 ms. Within each probe:
+
+- Phase 1 `statRegular` went through `root.Lstat("tickets/<id>.json")`, which reopens `tickets/` for
+  every record: 0.56 s of the 3.6 s total.
+- The change opens one `os.Root` for each subdirectory and stats each record beneath it. This uses
+  the same no-follow Lstat and the same refusals, and only while `pinTreeDirs` is set.
+- Phase 2 still reads and re-checks every record and keeps the pinned-directory rebind check.
+- After the change, `statRegular` costs 0.10 s and the 20 reads cost 2.9 s.
+- `TestTMV0008_PinnedTreeDigestParity` gains three phase-1 refusals: a symlink, an empty file and a
+  directory record. The pinned and per-file captures refuse identically.
+
+The second probe is the TM-V0-008 stability check. Removing it, or caching the tree across reads,
+needs a contract change. It is not proposed here.
+
+Interleaved medians of 5, real store, read-only, before and after this step:
+
+| Read | Before | After |
+|---|---|---|
+| `queue status` (full audit, no checkpoint) | 2.131 s | 2.160 s |
+| `ticket list --count` | 0.189 s | 0.167 s |
+| `ticket search --milestone v1-0 --status OPEN --count` | 0.173 s | 0.144 s |
+| `roadmap --count` | 0.168 s | 0.150 s |
+| `ticket search --milestone v1-0 --status OPEN` | 0.190 s | 0.163 s |
 
 ## Limits
 

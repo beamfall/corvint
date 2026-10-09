@@ -76,7 +76,7 @@ func TestTMV0008_LoadTreeParity(t *testing.T) {
 // pinned descriptor per subdirectory captures the same tree, and reports the
 // same refusal, as opening each record's whole path from the store root.
 func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
-	for _, kind := range []string{"valid", "empty", "release", "unreadable-ticket", "stray-entry"} {
+	for _, kind := range []string{"valid", "empty", "release", "unreadable-ticket", "stray-entry", "symlink-ticket", "empty-ticket", "directory-ticket"} {
 		t.Run(kind, func(t *testing.T) {
 			n := 9
 			if kind == "empty" {
@@ -109,6 +109,25 @@ func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(dir, intent.TicketsDir, "stray"), []byte("x"), 0o644); err != nil {
 					t.Fatal(err)
 				}
+			case "symlink-ticket", "empty-ticket", "directory-ticket":
+				// Phase-1 stat refusals (V1-1051 follow-up): the pinned
+				// subdirectory stat refuses exactly as the per-file one.
+				p := filepath.Join(dir, intent.TicketsDir, fixture.Ticket("T0004").TicketID.Local+".json")
+				if err := os.Remove(p); err != nil {
+					t.Fatal(err)
+				}
+				var err error
+				switch kind {
+				case "symlink-ticket":
+					err = os.Symlink(filepath.Join(dir, intent.TicketsDir, fixture.Ticket("T0003").TicketID.Local+".json"), p)
+				case "empty-ticket":
+					err = os.WriteFile(p, nil, 0o644)
+				default:
+					err = os.Mkdir(p, 0o755)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 			restore := intent.SetPinTreeDirsForTest(false)
 			want, wantErr := intent.TreeDigest(root)
@@ -117,7 +136,7 @@ func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
 			if fmt.Sprint(gotErr) != fmt.Sprint(wantErr) || !reflect.DeepEqual(got, want) {
 				t.Fatalf("pinned %v / per-file %v", gotErr, wantErr)
 			}
-			if (kind == "unreadable-ticket" || kind == "stray-entry") != (gotErr != nil) {
+			if (kind != "valid" && kind != "empty" && kind != "release") != (gotErr != nil) {
 				t.Fatalf("%s: %v", kind, gotErr)
 			}
 			t.Logf("%s: %d files, %v", kind, len(got.Files), gotErr)
