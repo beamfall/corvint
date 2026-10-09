@@ -54,6 +54,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if r.writerCache {
 		result.RequestDigests = map[string]wire.Digest{}
 	}
+	if r.ReceiptFold != nil {
+		result.fold = r.ReceiptFold()
+	}
 	if r.handoffPolicy != nil {
 		result.HandoffPolicy = &HandoffPolicyHistory{Selector: *r.handoffPolicy, Compatible: true}
 	}
@@ -308,7 +311,19 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	st.generation = rc.HeadGeneration.Uint64()
 	result.LastSeq = rc.Seq
 	result.LastReceiptSha256 = digest
+	if result.fold != nil && result.foldErr == nil {
+		if result.foldErr = result.fold(rc, digest); result.foldErr == nil {
+			result.folded = seq
+		}
+	}
 	return nil
+}
+
+// ReceiptFold reports the Reader.ReceiptFold outcome of a complete audit:
+// the last sequence folded without error, contiguously from 1 (0 when no
+// fold ran), and the fold's first error.
+func (r *Result) ReceiptFold() (folded uint64, err error) {
+	return r.folded, r.foldErr
 }
 
 func observeHandoffPolicy(h *HandoffPolicyHistory, st *chain, rc *snapshot.Receipt, p snapshot.PostEntry, raw []byte, receipt wire.Digest, lim limits) error {

@@ -155,14 +155,23 @@ func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (
 // redo use it, so a rehashed but untrue review or escalation event refuses
 // as JOURNAL_FORKED.
 func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
+	return foldReceipts(repo, last, pending, ReceiptBindingFold(repo))
+}
+
+// ReceiptBindingFold returns a fresh FoldReceiptBindings step for receipts
+// supplied in sequence order from 1, so a complete journal audit can fold
+// the receipts it has just validated instead of reading them again. Each
+// ticket post is read and decoded once for both binding audits.
+func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Digest) error {
 	blob := ExternalReviewBlob(repo)
 	reviews, escalations := &transaction.ExternalReviewReceiptAudit{}, &transaction.EscalationReceiptAudit{}
-	return foldReceipts(repo, last, pending, func(rc *snapshot.Receipt, sum wire.Digest) error {
-		if err := reviews.Step(rc, sum, blob); err != nil {
+	memo := &transaction.TicketPosts{}
+	return func(rc *snapshot.Receipt, sum wire.Digest) error {
+		if err := reviews.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
 		}
-		return escalations.Step(rc, sum, blob)
-	})
+		return escalations.StepPosts(rc, sum, blob, memo)
+	}
 }
 
 func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {

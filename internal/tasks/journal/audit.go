@@ -76,6 +76,9 @@ type Result struct {
 	IntentError error
 	// Mode is ModeFull for an audit that walked every retained receipt.
 	Mode          string
+	fold          func(*snapshot.Receipt, wire.Digest) error
+	folded        uint64
+	foldErr       error
 	chain         *chain
 	request       *snapshot.Request
 	requestTicket string
@@ -110,7 +113,14 @@ type Reader struct {
 	// stats every intent file into its inventory, and a file whose size
 	// differs is read afresh, so a changed tree still moves the audit or
 	// fails the outer snapshot's comparison.
-	IntentTree      *intent.Tree
+	IntentTree *intent.Tree
+	// ReceiptFold, when set, starts one fold per complete (ModeFull) audit
+	// attempt over the receipts that attempt validates, in sequence order
+	// from 1, so a caller that must fold every retained receipt does not
+	// read and decode the journal again. The fold sees a receipt only after
+	// the walk has fully validated it, is not called again after its first
+	// error, and never changes the audit; Result.ReceiptFold reports it.
+	ReceiptFold     func() func(rc *snapshot.Receipt, sum wire.Digest) error
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
