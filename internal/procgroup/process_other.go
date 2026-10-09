@@ -3,7 +3,6 @@
 package procgroup
 
 import (
-	"context"
 	"errors"
 	"os/exec"
 	"syscall"
@@ -24,16 +23,16 @@ func waitProcessExitUnreaped(int) error {
 	return errors.New("unreaped process observation is unsupported on this platform")
 }
 
-func terminateProcessGroup(int, bool, bool) (bool, error) {
+func terminateProcessGroup(int, bool, bool, func(int, syscall.Signal) error) (bool, error) {
 	return false, errors.New("owned process-group cleanup is unsupported on this platform")
 }
 
-func cleanupProcessGroupBeforeReap(int, bool, bool, bool, time.Time) error {
+func cleanupProcessGroupBeforeReap(int, bool, bool, bool, func(int, syscall.Signal) error, time.Time) error {
 	return errors.New("owned process-group cleanup is unsupported on this platform")
 }
 
-func proveProcessGroupQuiescent(int, string, func(context.Context, int) (string, error), func(int, syscall.Signal) error, bool, time.Time) (error, bool) {
-	return errors.New("owned process-group cleanup is unsupported on this platform"), false
+func proveProcessGroupQuiescent(int, bool, func(int) (bool, error), time.Time) error {
+	return errors.New("owned process-group cleanup is unsupported on this platform")
 }
 
 func processExists(int) bool { return false }

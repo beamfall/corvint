@@ -4,6 +4,7 @@ package procgroup
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // killTestProcessGroup sends SIGKILL straight to the OS process group led by
@@ -187,4 +190,63 @@ func processErrorHasCode(err error, code string) bool {
 		}
 	}
 	return false
+}
+
+// V1-1055: once Run releases the group for the reap, ownership of the numeric
+// PGID has ended and the PGID may be reused, so no numeric group operation —
+// not even the signal-0 quiescence probe — may follow. The group's sleeping
+// member is killed and its quiescence is proved before the reap.
+func TestV11055NoNumericGroupProbeAfterReap(t *testing.T) {
+	previous := releaseProcessCommand
+	t.Cleanup(func() { releaseProcessCommand = previous })
+	var released atomic.Bool
+	releaseProcessCommand = func(pid int) { released.Store(true); previous(pid) }
+	var late atomic.Int64
+	observation := run(context.Background(), Spec{
+		Argv: []string{"/bin/sh", "-c", "/bin/sleep 30 & exit 0"}, Dir: t.TempDir(),
+		Env: []string{"PATH=/usr/bin:/bin"}, Timeout: 10 * time.Second, ShutdownTimeout: 5 * time.Second,
+	}, processWaitChannels{groupProbe: func(pid int, signal syscall.Signal) error {
+		if released.Load() {
+			late.Add(1)
+		}
+		return signalOwnedProcessGroup(pid, signal)
+	}})
+	if n := late.Load(); n != 0 {
+		t.Fatalf("%d numeric group operations after the group was released for the reap", n)
+	}
+	if observation.Err != nil || !observation.OwnedProcessGroupCleanup {
+		t.Fatalf("pre-reap cleanup not proved: %+v", observation)
+	}
+}
+
+// V1-1055: the quiescence proof runs while the exited leader is still
+// unreaped and before the group is released, and a failed proof leaves the
+// cleanup unproved.
+func TestV11055QuiescenceProvedWhileLeaderHeld(t *testing.T) {
+	previous := releaseProcessCommand
+	t.Cleanup(func() { releaseProcessCommand = previous })
+	var released atomic.Bool
+	releaseProcessCommand = func(pid int) { released.Store(true); previous(pid) }
+	spec := Spec{Argv: []string{"/bin/sh", "-c", "exit 0"}, Dir: t.TempDir(), Timeout: 10 * time.Second, ShutdownTimeout: 5 * time.Second}
+	var proofs, unheld atomic.Int64
+	observation := run(context.Background(), spec, processWaitChannels{quietProof: func(pid int) (bool, error) {
+		proofs.Add(1)
+		if released.Load() || waitProcessExitUnreaped(pid) != nil {
+			unheld.Add(1)
+		}
+		return groupreap.HeldGroupQuiet(pid)
+	}})
+	if proofs.Load() == 0 || unheld.Load() != 0 {
+		t.Fatalf("proofs %d, %d after the leader was released or reaped", proofs.Load(), unheld.Load())
+	}
+	if observation.Err != nil || !observation.OwnedProcessGroupCleanup {
+		t.Fatalf("held-group proof did not prove cleanup: %+v", observation)
+	}
+
+	failed := run(context.Background(), spec, processWaitChannels{quietProof: func(int) (bool, error) {
+		return false, errors.New("proof unavailable")
+	}})
+	if failed.OwnedProcessGroupCleanup || !processErrorHasCode(failed.Err, "process-cleanup-failed") {
+		t.Fatalf("a failed proof was not reported unproved: %+v", failed)
+	}
 }

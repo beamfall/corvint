@@ -3,8 +3,8 @@
 package procgroup
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"syscall"
 	"time"
@@ -17,14 +17,10 @@ const (
 	processGroupPollInterval = 5 * time.Millisecond
 	processGroupGracePeriod  = 100 * time.Millisecond
 	processGroupQuietPeriod  = 10 * time.Millisecond
-	// processGroupIdentityBackoffCap bounds how far the identity-read backoff
-	// below can widen. The group-presence probe (groupProbe, a signal-0 kill)
-	// still runs every processGroupPollInterval so ESRCH/quiet-period exit
-	// detection is unaffected; only the identity fork (ps on darwin,
-	// /proc/<pid>/stat on linux) backs off while the group keeps reading
-	// present, since re-confirming an unchanged identity every 5ms buys
-	// nothing but fork volume for the whole child lifetime.
-	processGroupIdentityBackoffCap = 50 * time.Millisecond
+	// processGroupProofBackoffCap bounds how far the interval between
+	// held-group quiescence proofs widens; each Linux proof scans /proc and a
+	// Darwin proof that sees only zombies reads the process table.
+	processGroupProofBackoffCap = 50 * time.Millisecond
 )
 
 func processPlatformSupported() bool { return true }
@@ -72,7 +68,15 @@ func waitProcessExitUnreaped(pid int) error {
 	}
 }
 
-func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool) (bool, error) {
+// groupSignal is override when a test sets one, else the termination signal.
+func groupSignal(override func(int, syscall.Signal) error, joinAncestorGroup bool) func(int, syscall.Signal) error {
+	if override != nil {
+		return override
+	}
+	return processTerminationSignal(joinAncestorGroup)
+}
+
+func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error) (bool, error) {
 	if pid <= 0 {
 		return false, errors.New("process group has no leader")
 	}
@@ -80,7 +84,7 @@ func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool) (bool,
 	if leaderExited {
 		signal = syscall.SIGKILL
 	}
-	err := processTerminationSignal(joinAncestorGroup)(pid, signal)
+	err := groupSignal(override, joinAncestorGroup)(pid, signal)
 	if errors.Is(err, syscall.ESRCH) {
 		return false, nil
 	}
@@ -90,7 +94,7 @@ func terminateProcessGroup(pid int, leaderExited, joinAncestorGroup bool) (bool,
 	return err == nil, err
 }
 
-func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, deadline time.Time) error {
+func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAncestorGroup bool, override func(int, syscall.Signal) error, deadline time.Time) error {
 	if pid <= 0 {
 		return errors.New("process group has no leader")
 	}
@@ -104,9 +108,8 @@ func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAnce
 	if graceDeadline.After(deadline) {
 		graceDeadline = deadline
 	}
-	signal := processTerminationSignal(joinAncestorGroup)
-	quiescent, _ := processGroupQuiescentBy(pid, graceDeadline, "", nil, signal)
-	if quiescent {
+	signal := groupSignal(override, joinAncestorGroup)
+	if processGroupQuiescentBy(pid, graceDeadline, signal) {
 		return nil
 	}
 	err := signal(pid, syscall.SIGKILL)
@@ -116,56 +119,60 @@ func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAnce
 	return nil
 }
 
-func proveProcessGroupQuiescent(pid int, leaderStart string, identityReader func(context.Context, int) (string, error), groupProbe func(int, syscall.Signal) error, joinAncestorGroup bool, deadline time.Time) (error, bool) {
-	if groupProbe == nil {
-		groupProbe = processTerminationSignal(joinAncestorGroup)
+// proveProcessGroupQuiescent runs before the reap, while the exited leader is
+// held unreaped and its PID pins the group ID, so it never probes a numeric
+// group ID that may since name another group (V1-1055). A leader that joined
+// an ancestor's group leads none, and its observed exit is its quiescence.
+// Otherwise it polls quietProof (groupreap.HeldGroupQuiet: Linux /proc,
+// Darwin signal 0 confirmed by the process table) until deadline. A live
+// member at the deadline or a proof failure leaves the cleanup unproved.
+func proveProcessGroupQuiescent(pid int, joinAncestorGroup bool, quietProof func(int) (bool, error), deadline time.Time) error {
+	if joinAncestorGroup {
+		return nil
 	}
-	quiescent, identityFallback := processGroupQuiescentBy(pid, deadline, leaderStart, identityReader, groupProbe)
-	if quiescent {
-		return nil, identityFallback
+	if quietProof == nil {
+		quietProof = groupreap.HeldGroupQuiet
 	}
-	return errors.New("owned process group did not quiesce before shutdown deadline"), identityFallback
+	interval := processGroupPollInterval
+	for {
+		quiet, err := quietProof(pid)
+		if err != nil {
+			return fmt.Errorf("owned process group quiescence unproved: %w", err)
+		}
+		if quiet {
+			return nil
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return errors.New("owned process group did not quiesce before shutdown deadline")
+		}
+		time.Sleep(min(interval, remaining))
+		interval = min(2*interval, processGroupProofBackoffCap)
+	}
 }
 
-func processGroupQuiescentBy(pid int, deadline time.Time, leaderStart string, identityReader func(context.Context, int) (string, error), groupProbe func(int, syscall.Signal) error) (bool, bool) {
+// processGroupQuiescentBy polls the live leader's group with signal 0 during
+// the pre-reap grace period; ESRCH held for the quiet period is quiescence.
+func processGroupQuiescentBy(pid int, deadline time.Time, groupProbe func(int, syscall.Signal) error) bool {
 	quietSince := time.Time{}
-	identityFallback := false
-	nextIdentityCheck := time.Time{}
-	identityBackoff := processGroupPollInterval
 	for {
 		err := groupProbe(pid, 0)
-		if (err == nil || errors.Is(err, syscall.EPERM)) && leaderStart != "" && identityReader != nil && !time.Now().Before(nextIdentityCheck) {
-			identityContext, cancelIdentity := context.WithDeadline(context.Background(), deadline)
-			currentStart, identityErr := identityReader(identityContext, pid)
-			cancelIdentity()
-			identityFallback = identityFallback || identityErr != nil
-			if identityErr == nil && currentStart != leaderStart {
-				return true, identityFallback
-			}
-			nextIdentityCheck = time.Now().Add(identityBackoff)
-			if identityBackoff < processGroupIdentityBackoffCap {
-				identityBackoff *= 2
-				if identityBackoff > processGroupIdentityBackoffCap {
-					identityBackoff = processGroupIdentityBackoffCap
-				}
-			}
-		}
 		if errors.Is(err, syscall.ESRCH) {
 			if quietSince.IsZero() {
 				quietSince = time.Now()
 			}
 			if time.Since(quietSince) >= processGroupQuietPeriod {
-				return true, identityFallback
+				return true
 			}
 		} else {
 			quietSince = time.Time{}
 			if err != nil && !errors.Is(err, syscall.EPERM) {
-				return false, identityFallback
+				return false
 			}
 		}
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return false, identityFallback
+			return false
 		}
 		time.Sleep(min(processGroupPollInterval, remaining))
 	}

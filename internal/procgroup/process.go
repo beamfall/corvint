@@ -13,8 +13,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/Beamfall/corvint/internal/liveverify/processidentity"
 )
 
 const (
@@ -145,11 +143,19 @@ type processCapture struct {
 // observation, when the group is neither signalled nor probed.
 var errUnobservedGroupNotSignalled = errors.New("exit observation failed: owned process group not signalled, cleanup unproved")
 
+// errUnheldGroupUnproved is the quiescence error when the leader's exit was
+// not observed before the shutdown deadline, so no pre-reap proof was made.
+var errUnheldGroupUnproved = errors.New("leader exit not observed before shutdown deadline: owned process group quiescence unproved")
+
+// processWaitChannels holds test hooks; production passes none. groupProbe
+// replaces the signal function of every group signal run sends itself (the
+// termination signal, the pre-reap grace probe and SIGKILL); quietProof
+// replaces groupreap.HeldGroupQuiet.
 type processWaitChannels struct {
 	exitObserved <-chan error
 	waitDone     <-chan error
-	identity     func(context.Context, int) (string, error)
 	groupProbe   func(int, syscall.Signal) error
+	quietProof   func(int) (bool, error)
 }
 
 func newProcessCapture(limit int, notify chan struct{}, policy OverflowPolicy) *processCapture {
@@ -278,16 +284,6 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	go drainProcessPipe(stdoutReader, dialogue.destination(stdout), drains)
 	go drainProcessPipe(stderrReader, stderr, drains)
 
-	identityReader := waitChannels.identity
-	if identityReader == nil {
-		identityReader = processidentity.Start
-	}
-	identityContext, cancelIdentity := context.WithTimeout(context.Background(), min(spec.ShutdownTimeout, 250*time.Millisecond))
-	leaderStart, identityErr := identityReader(identityContext, command.Process.Pid)
-	cancelIdentity()
-	if identityErr != nil {
-		observation.DescendantCleanupQualification = processVerdictPartial
-	}
 	var afterStartErr error
 	var descendants *descendantObserver
 	if spec.ObserveDescendants {
@@ -374,11 +370,11 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		release(command.Process.Pid)
 		terminationErr = errUnobservedGroupNotSignalled
 	} else {
-		groupPresent, terminationErr = terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup)
+		groupPresent, terminationErr = terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup, waitChannels.groupProbe)
 		if terminationErr != nil {
 			terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
 		}
-		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, shutdownDeadline)
+		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, waitChannels.groupProbe, shutdownDeadline)
 		if cleanupErr != nil {
 			cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
 		}
@@ -389,24 +385,33 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	if !exitObservationCompleted {
 		exitObservationErr, exitObservationCompleted = waitForProcessEvent(selectedExitObserved, shutdownDeadline)
 	}
-	// The group's record for the exit kill ends before the reap (AHI-049).
-	release(command.Process.Pid)
-	close(reapAllowed)
-	waitErr, waitCompleted := waitForProcessEvent(selectedWaitDone, shutdownDeadline)
-	observation.WaitCompleted = waitCompleted
+	// Quiescence is proved while the exited leader is held unreaped, because
+	// its PID pins the group ID; after the reap that ID may name another
+	// group, so nothing probes it (V1-1055). An exit not observed by the
+	// deadline leaves the group unproved.
 	var quiescenceErr error
-	if exitObservationCompleted && exitObservationErr != nil {
+	switch {
+	case exitObservationCompleted && exitObservationErr != nil:
 		quiescenceErr = errUnobservedGroupNotSignalled
-	} else {
-		var identityFallback bool
-		quiescenceErr, identityFallback = proveProcessGroupQuiescent(command.Process.Pid, leaderStart, identityReader, waitChannels.groupProbe, spec.JoinAncestorProcessGroup, shutdownDeadline)
-		if identityFallback {
-			observation.DescendantCleanupQualification = processVerdictPartial
-		}
+	case !exitObservationCompleted:
+		quiescenceErr = errUnheldGroupUnproved
+	default:
+		quiescenceErr = proveProcessGroupQuiescent(command.Process.Pid, spec.JoinAncestorProcessGroup, waitChannels.quietProof, shutdownDeadline)
 	}
 	if quiescenceErr != nil {
 		quiescenceErr = fmt.Errorf("prove owned process group quiescence: %w", quiescenceErr)
 	}
+	// The group's record for the exit kill ends before the reap (AHI-049).
+	release(command.Process.Pid)
+	close(reapAllowed)
+	reapDeadline := shutdownDeadline
+	if exitObservationCompleted && exitObservationErr == nil {
+		// An exited leader's reap is immediate, so a proof that used up the
+		// shutdown deadline does not forfeit the exit status.
+		reapDeadline = later(reapDeadline, time.Now().Add(exitedLeaderReapBound))
+	}
+	waitErr, waitCompleted := waitForProcessEvent(selectedWaitDone, reapDeadline)
+	observation.WaitCompleted = waitCompleted
 	observation.OwnedProcessGroupCleanup = !spec.JoinAncestorProcessGroup && terminationErr == nil && cleanupErr == nil && quiescenceErr == nil && observation.WaitCompleted
 	var descendantErr error
 	if descendants != nil {
@@ -526,6 +531,16 @@ func drainProcessPipe(reader *os.File, destination io.Writer, result chan<- erro
 	}
 	_ = reader.Close()
 	result <- err
+}
+
+// exitedLeaderReapBound bounds the reap of a leader whose exit was observed.
+const exitedLeaderReapBound = 100 * time.Millisecond
+
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
 }
 
 func waitForProcessEvent(done <-chan error, deadline time.Time) (error, bool) {

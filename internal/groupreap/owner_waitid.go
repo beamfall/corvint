@@ -68,6 +68,16 @@ var residueProof = func(leader int) (Probe, error) {
 	return tableGroupQuiet(residueTable, leader)
 }
 
+// HeldGroupQuiet is residueProof for a caller that reaps its own leader
+// (internal/procgroup, V1-1055): leader must be this process's exited child,
+// still held unreaped, leading its own group, so its PID pins the group ID.
+// It reports true only for a proved zombie-only group and sends no signal
+// other than Darwin's signal 0. It must not be called after the reap.
+func HeldGroupQuiet(leader int) (bool, error) {
+	probe, err := residueProof(leader)
+	return err == nil && probe == ProbeQuiet, err
+}
+
 // residueTable is readProcessTable; tests inject a member signal 0 cannot see.
 var residueTable = readProcessTable
 

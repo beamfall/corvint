@@ -832,10 +832,10 @@ CRB-V0-019	docs/specs/corvint-rebrand-v0.md	126	The current core companion write
 CRR-V0-001	docs/specs/compat-replay-runner-v0.md	50	Descriptor validation, fail-closed before any launch.
 CRR-V0-002	docs/specs/compat-replay-runner-v0.md	133	Environment allow-list, reconciled with the mandatory determinism variables.
 CRR-V0-003	docs/specs/compat-replay-runner-v0.md	144	Process-group containment, its regression, its limit, and its required change.
-CRR-V0-004	docs/specs/compat-replay-runner-v0.md	330	Byte-exact comparison. Per `CTR-V0-002` the runner MUST run three repetitions pe
-CRR-V0-005	docs/specs/compat-replay-runner-v0.md	338	Bounded IO and bounded time, refused rather than truncated or overrun.
-CRR-V0-006	docs/specs/compat-replay-runner-v0.md	375	Four separate vocabularies, none derived from another.
-CRR-V0-007	docs/specs/compat-replay-runner-v0.md	608	Unexecuted, interrupted and unobserved cases stay distinct.
+CRR-V0-004	docs/specs/compat-replay-runner-v0.md	334	Byte-exact comparison. Per `CTR-V0-002` the runner MUST run three repetitions pe
+CRR-V0-005	docs/specs/compat-replay-runner-v0.md	342	Bounded IO and bounded time, refused rather than truncated or overrun.
+CRR-V0-006	docs/specs/compat-replay-runner-v0.md	379	Four separate vocabularies, none derived from another.
+CRR-V0-007	docs/specs/compat-replay-runner-v0.md	612	Unexecuted, interrupted and unobserved cases stay distinct.
 CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
 CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source

@@ -207,80 +207,21 @@ func TestRunProcessFastExitDoesNotSignalReusedProcessGroups(t *testing.T) {
 	}
 }
 
-func TestRunProcessQuiescenceIgnoresReusedPIDIdentity(t *testing.T) {
-	spec := processHelperSpec(t, t.TempDir(), "fast")
-	spec.ShutdownTimeout = 20 * time.Millisecond
-	reads := 0
-	observation := run(context.Background(), spec, processWaitChannels{
-		identity: func(context.Context, int) (string, error) {
-			reads++
-			if reads == 1 {
-				return "original-start", nil
-			}
-			return "reused-start", nil
-		},
-		groupProbe: func(int, syscall.Signal) error { return nil },
-	})
-	if observation.Err != nil || !observation.OwnedProcessGroupCleanup {
-		t.Fatalf("reused PID identity caused a false cleanup failure: %+v", observation)
-	}
-}
-
-// TestRunProcessQuiescenceTreatsPermissionDeniedAsPresent: a post-reap
-// signal-0 probe answering EPERM means a group member still exists that this
-// process cannot signal; with an unchanged leader identity that is not a
-// quiescence proof (CRR-V0-003).
+// TestRunProcessQuiescenceTreatsPermissionDeniedAsPresent: a held-group proof
+// that cannot show the group zombie-only (as when Darwin signal 0 answers
+// EPERM and the process table shows a live member) is presence, never a
+// quiescence proof (CRR-V0-003). The cleanup is reported unproved.
 func TestRunProcessQuiescenceTreatsPermissionDeniedAsPresent(t *testing.T) {
 	spec := processHelperSpec(t, t.TempDir(), "fast")
 	spec.ShutdownTimeout = 30 * time.Millisecond
 	observation := run(context.Background(), spec, processWaitChannels{
-		identity:   func(context.Context, int) (string, error) { return "original-start", nil },
-		groupProbe: func(int, syscall.Signal) error { return syscall.EPERM },
+		quietProof: func(int) (bool, error) { return false, nil },
 	})
 	if observation.OwnedProcessGroupCleanup || observation.Err == nil {
-		t.Fatalf("an EPERM group probe was reported as owned cleanup: %+v", observation)
+		t.Fatalf("an unproved group was reported as owned cleanup: %+v", observation)
 	}
-}
-
-func TestRunProcessQuiescenceDisclosesIdentityFallback(t *testing.T) {
-	t.Run("initial read unavailable", func(t *testing.T) {
-		assertProcessIdentityFallback(t,
-			func(context.Context, int) (string, error) { return "", errors.New("unavailable") },
-			func(int, syscall.Signal) error { return syscall.ESRCH },
-		)
-	})
-	t.Run("post-reap read unavailable", func(t *testing.T) {
-		reads := 0
-		probes := 0
-		assertProcessIdentityFallback(t,
-			func(context.Context, int) (string, error) {
-				reads++
-				if reads == 1 {
-					return "original-start", nil
-				}
-				return "", errors.New("unavailable")
-			},
-			func(int, syscall.Signal) error {
-				probes++
-				if probes == 1 {
-					return nil
-				}
-				return syscall.ESRCH
-			},
-		)
-	})
-}
-
-func assertProcessIdentityFallback(t *testing.T, identity func(context.Context, int) (string, error), groupProbe func(int, syscall.Signal) error) {
-	t.Helper()
-	spec := processHelperSpec(t, t.TempDir(), "fast")
-	spec.ShutdownTimeout = 30 * time.Millisecond
-	observation := run(context.Background(), spec, processWaitChannels{identity: identity, groupProbe: groupProbe})
-	if observation.Err != nil || !observation.OwnedProcessGroupCleanup {
-		t.Fatalf("signal-only fallback failed: %+v", observation)
-	}
-	if observation.DescendantCleanupQualification != processVerdictPartial {
-		t.Fatalf("fallback qualification = %q, want %q", observation.DescendantCleanupQualification, processVerdictPartial)
+	if !observation.ExitObserved || observation.ExitStatus != 0 {
+		t.Fatalf("an unproved group lost the leader's exit status: %+v", observation)
 	}
 }
 
