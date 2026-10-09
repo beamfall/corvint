@@ -1,4 +1,4 @@
-# Batch P integration (V1-1046, V1-1039, V1-0977, V1-0844, decision 0472)
+# Batch P integration (V1-1046, V1-1039, V1-0977, V1-0844)
 
 Date: 2026-10-09
 
@@ -20,6 +20,13 @@ Batch P carries five lane branches onto main 29cc7fd4 (lanes cut at 02e84575; ba
   `LCP-V0-018` and the V1-0500 outcome (`SESSION-V0-020..022`) in chat on 2026-10-09.
 
 The lanes merged without conflicts.
+
+Decision 0472 was merged here too, but the batch then reached 276 obligations across five intent
+specs (agent leases 193, local completion policy 18, session context dividend 22, MCP server 34,
+host lifecycle 9), over the change-evidence binder's 256 cap. Commit "batch P: defer decision 0472"
+restores every path the decision 0472 merge changed to `29cc7fd4`, so the batch carries two intent
+specs (43 obligations). Decision 0472 comes back in a follow-up PR that reverts that commit on top
+of this batch, as V1-1028 did after batch H. Its lane head `df494abb` stays in this history.
 
 Evidence:
 

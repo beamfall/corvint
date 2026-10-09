@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed; SESSION-V0-020..022 portable task bundle accepted (decision 0472; V1-0500)
+Intent status: proposed
 Delivery status: partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/DOGFOOD.md`, `docs/specs/technical-brain-dogfood.md`
 
 ## Agent digest
 - Claim: Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.
-- Status: proposed; SESSION-V0-020..022 portable task bundle accepted (decision 0472; V1-0500)/partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)
+- Status: proposed/partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)
 - Exists: the contract; the read-only `corvint dogfood handoff` receipt and re-resolution (SESSION-V0-017..019, ticket V1-0199); additive caller-state bundles (SESSION-V0-020..022, ticket V1-0500).
 - Blocked on: Genesis authority, access-context identity, CEM/OCM binding, SESSION-V0-001..016 implementation, and outcome trials.
 - Read next: Verified current state; Requirements; Traceability.
@@ -218,13 +218,11 @@ else changes.
 
 The owner requested “Switch agents without losing the task” on 2026-09-30 (V1-0500).
 The additive experimental bundle composes the existing receipt with caller-authored state.
-Status: SESSION-V0-020..022 accepted (decision 0472; V1-0500) as the delivered V1-0500 outcome;
-delivery stays experimental until a receiving host and cross-provider continuity are qualified.
 It activates none of SESSION-V0-001..016. “Portable” means another agent explicitly reading the
 bundle in the **same checkout and access context**, using the original session key. It does not
 mean moving a host session, checkout, lease, authority, or verification result.
 
-- `SESSION-V0-020`: (accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
+- `SESSION-V0-020`: `corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
   MUST emit a read-only `corvint-task-handoff/0` bundle containing the existing receipt and caller
   state: `taskId`, `scope`, `decisions`, `feedback`, `unknowns`, `nextActions`. Every field is required;
   the five arrays contain at most 32 nonempty strings, each at most 2048 UTF-8 bytes; `taskId` is at
@@ -233,14 +231,14 @@ mean moving a host session, checkout, lease, authority, or verification result.
   duplicate/unknown/case-folded keys and malformed state MUST refuse. Input is a non-symlink regular
   file bounded to 64 KiB; the fully framed emitted bundle MUST also fit 64 KiB. Export MUST require
   a clean committed candidate. Scope is caller-reported context, never an accepted grant.
-- `SESSION-V0-021`: (accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and state by a content SHA-256 and
+- `SESSION-V0-021`: The bundle MUST bind the complete receipt and state by a content SHA-256 and
   duplicate that content in the untrusted repository-data envelope. Authority remains `none`.
   Decisions, feedback and next actions MUST remain inert caller reports; no command, task-store,
   lease, enrollment, index, trace or host mutation occurs. Digests provide identity, not authenticity.
   A same-user rewrite can create an equally untrusted bundle. Existing SESSION-V0-017..019 receipt
   bytes and behavior MUST remain compatible. Remove only the additive bundle options to roll back;
   no persistent-state migration is needed.
-- `SESSION-V0-022`: (accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
+- `SESSION-V0-022`: `corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
   explicitly selected original session key and the bounded regular-file input rule. It MUST reject
   noncanonical, malformed, duplicate/unknown-member, envelope/digest-inconsistent bundles and
   combinations with `--receipt`, `--task-state` or `--anchors`. It MUST re-resolve the existing
