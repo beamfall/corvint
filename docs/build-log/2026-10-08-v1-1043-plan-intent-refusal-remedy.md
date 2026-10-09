@@ -52,3 +52,7 @@ After the change, the same reproduction with the lane binary:
 - A saved enrollment that fails `validatePlan` on reload also emits `invalid-intent-scope`; it now
   carries the same remediation text, which describes the rule but not that the saved state drifted.
 - `LCP-V0-018` is proposed, not accepted.
+
+## Independent review
+
+Codex (gpt-6-astra, read-only) reviewed a4acc6f6..3b761f4c: no concrete defects; VERDICT: PASS.
