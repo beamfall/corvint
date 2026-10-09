@@ -3,9 +3,11 @@
 package procgroup
 
 import (
+	"context"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -31,7 +33,7 @@ func TestWaitProcessExitUnreapedIgnoresStopAndContinue(t *testing.T) {
 		t.Fatal(err)
 	}
 	leader := command.Process.Pid
-	t.Cleanup(func() { _ = command.Process.Kill(); _ = command.Wait() })
+	t.Cleanup(func() { _ = command.Process.Kill(); releaseProcessCommand(leader); _ = command.Wait() })
 	if err := syscall.Kill(leader, syscall.SIGSTOP); err != nil {
 		t.Fatal(err)
 	}
@@ -82,4 +84,35 @@ func processStoppedForTest(t *testing.T, pid int) bool {
 		t.Fatal(err)
 	}
 	return strings.HasPrefix(strings.TrimSpace(string(out)), "T")
+}
+
+// AHI-049: Run records a group it leads for the adapter exit kill and releases
+// that record once, after its pre-reap group cleanup and while the exited
+// leader is still unreaped, so groupreap.KillLive never names a reaped
+// leader's group.
+func TestAHI049RunReleasesGroupBeforeReap(t *testing.T) {
+	previous := releaseProcessCommand
+	t.Cleanup(func() { releaseProcessCommand = previous })
+	var leader atomic.Int64
+	var released []int
+	var unreaped []error
+	releaseProcessCommand = func(pid int) {
+		released = append(released, pid)
+		// Returns at once for an exited, unreaped leader; ECHILD once it is reaped.
+		unreaped = append(unreaped, waitProcessExitUnreaped(pid))
+		previous(pid)
+	}
+	observation := Run(context.Background(), Spec{
+		Argv: []string{"/bin/sh", "-c", "exit 0"}, Dir: t.TempDir(), Timeout: 10 * time.Second,
+		AfterStart: func(_ context.Context, pid int) error { leader.Store(int64(pid)); return nil },
+	})
+	if observation.Err != nil {
+		t.Fatal(observation.Err)
+	}
+	if len(released) != 1 || int64(released[0]) != leader.Load() {
+		t.Fatalf("released %v, want the leader %d once", released, leader.Load())
+	}
+	if unreaped[0] != nil {
+		t.Fatalf("group released after its leader was reaped: %v", unreaped[0])
+	}
 }

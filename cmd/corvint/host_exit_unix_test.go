@@ -4,9 +4,11 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -14,16 +16,33 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
+	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
-const exitKillHelperEnvironment = "CORVINT_AHI048_EXIT_HELPER"
+const (
+	exitKillHelperEnvironment    = "CORVINT_AHI048_EXIT_HELPER"
+	exitKillProcgroupEnvironment = "CORVINT_AHI049_PROCGROUP_PIDS"
+)
 
 // AHI-048: exitProcess SIGKILLs a live child group before os.Exit, so neither the abandoned leader
 // nor a sleeping member it started outlives the process. Without the kill both would run on for
 // minutes, since os.Exit neither cancels contexts nor signals children.
 func TestAHI048ExitProcessKillsLiveChildGroups(t *testing.T) {
-	helper := exec.Command(os.Args[0], "-test.run=^TestAHI048ExitProcessHelper$")
-	helper.Env = append(os.Environ(), exitKillHelperEnvironment+"=1")
+	requireExitProcessKillsHelperChildren(t, "^TestAHI048ExitProcessHelper$", exitKillHelperEnvironment+"=1")
+}
+
+// AHI-049: a non-Git group started by internal/procgroup, the runner of the Claude Code source
+// handoff's Git reads, is recorded too, so exitProcess kills it while the abandoned Run still holds
+// it. Before V1-1040 procgroup started with plain command.Start and both children outlived the exit.
+func TestAHI049ExitProcessKillsProcgroupGroup(t *testing.T) {
+	pids := filepath.Join(t.TempDir(), "pids")
+	requireExitProcessKillsHelperChildren(t, "^TestAHI049ExitProcessProcgroupHelper$", exitKillProcgroupEnvironment+"="+pids)
+}
+
+func requireExitProcessKillsHelperChildren(t *testing.T, run, environment string) {
+	t.Helper()
+	helper := exec.Command(os.Args[0], "-test.run="+run)
+	helper.Env = append(os.Environ(), environment)
 	stdout, err := helper.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -78,4 +97,32 @@ func TestAHI048ExitProcessHelper(t *testing.T) {
 	}
 	fmt.Printf("%d\n%s", command.Process.Pid, member)
 	exitProcess(0)
+}
+
+// TestAHI049ExitProcessProcgroupHelper is the helper process: procgroup.Run starts a shell that
+// leads its own group and writes its PID and a sleeping member's to a file; the helper prints both
+// and exits through exitProcess while Run is still waiting on the shell.
+func TestAHI049ExitProcessProcgroupHelper(t *testing.T) {
+	pids := os.Getenv(exitKillProcgroupEnvironment)
+	if pids == "" {
+		t.Skip("helper process only")
+	}
+	script := `sleep 300 >/dev/null 2>&1 & echo "$$ $!" >"$1.tmp" && mv "$1.tmp" "$1"; wait`
+	go procgroup.Run(context.Background(), procgroup.Spec{
+		Argv: []string{"/bin/sh", "-c", script, "sh", pids}, Dir: filepath.Dir(pids),
+		Env: []string{"PATH=/usr/bin:/bin"}, Timeout: 10 * time.Minute,
+	})
+	// A hang detector, not a budget (decision 0082).
+	deadline := time.Now().Add(time.Minute)
+	for {
+		data, err := os.ReadFile(pids)
+		if err == nil {
+			fmt.Println(strings.Join(strings.Fields(string(data)), "\n"))
+			exitProcess(0)
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("procgroup child did not report its PIDs")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }

@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 const (
@@ -31,9 +33,16 @@ func configureProcessCommand(command *exec.Cmd, joinAncestorGroup bool) {
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: !joinAncestorGroup}
 }
 
+// startProcessCommand records a group the command leads for the adapter exit
+// kill (AHI-048, AHI-049) until releaseProcessCommand, which run calls after
+// its pre-reap group cleanup and before it allows the reap. A start after that
+// kill is refused with groupreap.ErrExiting.
 func startProcessCommand(command *exec.Cmd) error {
-	return command.Start()
+	return groupreap.StartLive(command)
 }
+
+// releaseProcessCommand is groupreap.ReleaseLive; tests observe when run calls it.
+var releaseProcessCommand = groupreap.ReleaseLive
 
 func waitProcessExitUnreaped(pid int) error {
 	if pid <= 0 {

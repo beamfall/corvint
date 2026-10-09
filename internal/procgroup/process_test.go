@@ -575,6 +575,7 @@ func TestSupervisorSignalReapsNestedOwnedGroup(t *testing.T) {
 	if err = startProcessCommand(command); err != nil {
 		t.Fatal(err)
 	}
+	releaseProcessCommand(command.Process.Pid) // reaped by command.Wait, not run: no exit-kill record
 	finished := false
 	done := make(chan error, 1)
 	go func() { done <- command.Wait() }()
@@ -644,6 +645,7 @@ func TestForcefulAncestorKillReapsJoinedNestedGroup(t *testing.T) {
 	if err = startProcessCommand(command); err != nil {
 		t.Fatal(err)
 	}
+	releaseProcessCommand(command.Process.Pid) // reaped by command.Wait, not run: no exit-kill record
 	leaderGroup := command.Process.Pid
 	finished := false
 	done := make(chan error, 1)

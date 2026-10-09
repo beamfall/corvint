@@ -30,9 +30,17 @@ var liveGroups = &liveRegistry{groups: map[int]struct{}{}, signal: signalLiveGro
 // StartLive starts command and, where Wait signals the group before reaping
 // its leader (waitid), records a group the command leads until Wait releases
 // it. A command that leads its own group must then be reaped by Wait, never by
-// command.Wait alone, or the record would outlive the reap. Drain and Start
-// record and release the same way.
+// command.Wait alone, or the record would outlive the reap; a caller that holds
+// its exited leader unreaped itself releases it with ReleaseLive instead. Drain
+// and Start record and release the same way.
 func StartLive(command *exec.Cmd) error { return liveGroups.start(command) }
+
+// ReleaseLive forgets the group StartLive recorded for leader. A caller that
+// reaps its own leader instead of through Wait (internal/procgroup, AHI-049)
+// calls it after its last pre-reap group signal and before the reap, so
+// KillLive never names a reaped leader's group. It is a no-op for an
+// unrecorded leader.
+func ReleaseLive(leader int) { liveGroups.release(leader) }
 
 // KillLive SIGKILLs every recorded process group synchronously and refuses
 // later StartLive calls. It is for a process exit that skips deferred

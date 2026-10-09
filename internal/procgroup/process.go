@@ -357,6 +357,8 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	if !exitObservationCompleted {
 		exitObservationErr, _ = waitForProcessEvent(selectedExitObserved, shutdownDeadline)
 	}
+	// The group's record for the exit kill ends before the reap (AHI-049).
+	releaseProcessCommand(command.Process.Pid)
 	close(reapAllowed)
 	waitErr, waitCompleted := waitForProcessEvent(selectedWaitDone, shutdownDeadline)
 	observation.WaitCompleted = waitCompleted

@@ -217,7 +217,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     retains the signal-only quiet-period probe and records `DescendantCleanupQualification` as
     `PARTIAL`. This adds no exported field and changes no frozen wire shape or bytes.
     An unobserved exit and a
-    signalled exit both read as numeric `ExitStatus` -1 — `internal/procgroup/process.go:385-391` assigns `ExitStatus` only when
+    signalled exit both read as numeric `ExitStatus` -1 — `internal/procgroup/process.go:387-393` assigns `ExitStatus` only when
     `WaitCompleted` is true and `ProcessState` is non-nil, and `ExitCode()` is -1 for a
     signalled process — which is exactly the collapse `CTR-V0-002` forbids
     (`docs/specs/compat-trial-v0.md:40`); and its one shared `OutputOverflow` cannot name the
@@ -228,9 +228,9 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     `SIGKILL`/`KILL` — so two conforming runners emit the identical `signal:killed` union value
     for the same kill; and
     `StdoutOverflow bool`/`StderrOverflow bool` carrying each capture's own `exceeded`
-    (capture result and per-stream assignment at `internal/procgroup/process.go:378-383`,
+    (capture result and per-stream assignment at `internal/procgroup/process.go:380-385`,
     the exported observation fields at `internal/procgroup/process.go:87-107`) in addition to
-    their aggregate at `internal/procgroup/process.go:384`. `Cmd.Env`
+    their aggregate at `internal/procgroup/process.go:386`. `Cmd.Env`
     (`internal/procgroup/process.go:231`) MUST likewise be non-nil even when the `env` allowlist is empty,
     per `CRR-V0-002`(a). The extraction MUST also expose (e)'s adjudication as a pure function
     over the case's planned count, its pre-launch refusal and its observations —
@@ -320,11 +320,11 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     inconclusive state compilation/setup failure and zero records, per `CRR-V0-007`(a), and the
     acceptance table below is evaluated only once this extraction has landed.
   - (e) Joined-group scope: a `Spec.JoinAncestorProcessGroup` leader inherits its starter's
-    process group instead of creating one (`internal/procgroup/process_posix.go:187-192`), so it
+    process group instead of creating one (`internal/procgroup/process_posix.go:196-201`), so it
     signals and probes only its own pid and holds no evidence about its descendants. Its
     `Observation` MUST report `DescendantCleanupStatus` `ancestor-process-group`, qualification
     `PARTIAL`, and `OwnedProcessGroupCleanup` false (`internal/procgroup/process.go:223-226`,
-    `internal/procgroup/process.go:370`), so `Adjudicate` never counts it as a completed
+    `internal/procgroup/process.go:372`), so `Adjudicate` never counts it as a completed
     observation; the owning ancestor's `Run` carries the descendant cleanup proof. The flag is
     trusted caller intent: nothing verifies that the starter runs inside an owned group.
 - `CRR-V0-004`: Byte-exact comparison. Per `CTR-V0-002` the runner MUST run three repetitions per
@@ -343,7 +343,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     and `processSpec.InputLimit` == 64 KiB, never left zero. This is the same hazard (d) gates on
     `ShutdownTimeout`: `normalizeProcessSpec` substitutes `defaultProcessInputLimit` and
     `DefaultOutputLimit`, both `16 << 20` (`internal/procgroup/process.go:21-22`),
-    for a zero value (`internal/procgroup/process.go:439-449`), so a runner leaving either zero silently gets 16 MiB and never
+    for a zero value (`internal/procgroup/process.go:441-451`), so a runner leaving either zero silently gets 16 MiB and never
     refuses at this requirement's bounds — as `runner.go:289` already does by passing
     `defaultProcessOutputLimit`. The 10 MiB aggregate and the 100-entry fixture bound are the
     runner's own pre-launch checks and have no package default to inherit.
@@ -351,7 +351,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     with stderr one byte over MUST be refused naming stderr, and the mirror naming stdout; 1 MiB
     on stdout *and* 1 MiB on stderr MUST be accepted, never refused as 2 MiB combined. Naming the
     stream requires `CRR-V0-003`(d)'s `StdoutOverflow`/`StderrOverflow`. The shared supervisor
-    preserves these flags and their aggregate `OutputOverflow` (`internal/procgroup/process.go:378-384`).
+    preserves these flags and their aggregate `OutputOverflow` (`internal/procgroup/process.go:380-386`).
     Replay retains the zero-value `OverflowFail` policy: the trial adapters' explicit
     `OverflowTruncate` policy MUST NOT be reused for byte-equality judgments.
   - (c) Stdin: supply `stdin{path,sha256}` from the descriptor rather than hard-code
@@ -367,7 +367,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     the `ShutdownTimeout` deadline (`internal/procgroup/process.go:344`) bounding cleanup.
     `ShutdownTimeout` MUST be positive and <= 1 s here. It is not left to the package default:
     `normalizeProcessSpec` substitutes `defaultProcessShutdownLimit`, 2 s
-    (`internal/procgroup/process.go:23`), for a zero value (`internal/procgroup/process.go:433-437`),
+    (`internal/procgroup/process.go:23`), for a zero value (`internal/procgroup/process.go:435-439`),
     which would let a kill at the 120 s deadline run to 122 s. A repetition never launched because
     its task entry's cumulative budget expired is `budget-expired`; when no repetition in that entry
     launched, the case is `NOT_RUN` per (e). Each later entry receives a fresh budget derived from
@@ -379,9 +379,9 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     amendment at `compat-trial-v0.md:64` (decision 0052) is what reconciles that with `CTR-V0-012`'s
     "every executed repetition MUST produce one record". It has exactly two sites, both reachable
     only after `Started` is set (`internal/procgroup/process.go:265`): an incomplete wait
-    (`WaitCompleted` false at `internal/procgroup/process.go:361-362`) and an absent `ProcessState` (`internal/procgroup/process.go:385`). Both are
+    (`WaitCompleted` false at `internal/procgroup/process.go:363-364`) and an absent `ProcessState` (`internal/procgroup/process.go:387`). Both are
     `CRR-V0-003`(d)'s `ExitObserved` false; with `ExitObserved` true the record's `exit` is the
-    integer `ExitStatus` (`internal/procgroup/process.go:388`) or `signal:` plus `Signal`, never -1 standing for either.
+    integer `ExitStatus` (`internal/procgroup/process.go:390`) or `signal:` plus `Signal`, never -1 standing for either.
     A failed `Cmd.Start` (`internal/procgroup/process.go:260-263`) returns
     before `internal/procgroup/process.go:265` ever sets `Started`, so it is not a launch and not an unobserved launch: it is a
     pre-launch compilation/setup failure adjudicated by (e)'s never-launched rows. Each site is
@@ -524,11 +524,11 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     (`internal/procgroup/process.go:265`); *runner-terminated* = a `Started` repetition with
     `TimedOut` (`internal/procgroup/process.go:329`) or `Cancelled` (`internal/procgroup/process.go:326`);
     *overflowed* = a `Started` repetition with either per-stream overflow flag of
-    `CRR-V0-003`(d) (`internal/procgroup/process.go:382-383`); *incomplete* = any planned
+    `CRR-V0-003`(d) (`internal/procgroup/process.go:384-385`); *incomplete* = any planned
     repetition that did not complete per (d), whether it never set `Started` or then failed
-    `ExitObserved` (`internal/procgroup/process.go:385-392`), `PipesDrained`
-    (`internal/procgroup/process.go:376-377`) or `OwnedProcessGroupCleanup`
-    (`internal/procgroup/process.go:370`); *unobserved* = the `ExitObserved`-false subcase alone,
+    `ExitObserved` (`internal/procgroup/process.go:387-394`), `PipesDrained`
+    (`internal/procgroup/process.go:378-379`) or `OwnedProcessGroupCleanup`
+    (`internal/procgroup/process.go:372`); *unobserved* = the `ExitObserved`-false subcase alone,
     which is what `CRR-V0-007`(b)'s counter reads; *fully observed*
     = every planned repetition completed per (d). Every case MUST match exactly one row.
 
@@ -565,7 +565,7 @@ that no row above it matched, so the twelve are mutually exclusive and jointly e
   post-launch `Cancelled` at `internal/procgroup/process.go:326` sits in a select the code reaches only after `Started`
   at `internal/procgroup/process.go:265`, so `!Started && Cancelled` is empty; `internal/procgroup/process.go:326` belongs to row 6 alone.
 - Row 5: some repetition has `Started` and either per-stream overflow flag (`internal/procgroup/process.go:331`,
-  `internal/procgroup/process.go:382-383`), regardless of causes present in other repetitions — (c)'s order does not
+  `internal/procgroup/process.go:384-385`), regardless of causes present in other repetitions — (c)'s order does not
   reach across repetitions to displace this row.
 - Row 6: some repetition has `Started && (TimedOut || Cancelled)` and no
   repetition overflowed, likewise regardless of causes present in other repetitions. Unlike
@@ -626,7 +626,7 @@ only when (c) is null.
     zero records is explained rather than ambiguous, each case's runner envelope carries
     `unobserved_launches` (integer): the count of repetitions that set `Started`
     (`internal/procgroup/process.go:265`) and ended with `CRR-V0-003`(d)'s `ExitObserved`
-    false (`WaitCompleted` false at `internal/procgroup/process.go:361-362`, or a nil `ProcessState` at `internal/procgroup/process.go:385`); the flag, not
+    false (`WaitCompleted` false at `internal/procgroup/process.go:363-364`, or a nil `ProcessState` at `internal/procgroup/process.go:387`); the flag, not
     `ExitStatus` == -1, is what the counter reads.
     A failed `Cmd.Start` never sets `Started` and never increments it, so a case refused
     that way carries `unobserved_launches` == 0. The envelope also carries `launches` (integer):
@@ -692,20 +692,20 @@ several.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `process-after-start-failed` | `internal/procgroup/process.go:400` | the `AfterStart` hook returned an error; joined to any run error |
-| `process-before-stop-failed` | `internal/procgroup/process.go:397` | the `BeforeStop` hook returned an error; joined to any run error |
+| `process-after-start-failed` | `internal/procgroup/process.go:402` | the `AfterStart` hook returned an error; joined to any run error |
+| `process-before-stop-failed` | `internal/procgroup/process.go:399` | the `BeforeStop` hook returned an error; joined to any run error |
 | `process-cancelled` | `internal/procgroup/process.go:219` | the context is already done before the command is built; after start it is joined again when the context finished first |
-| `process-cleanup-failed` | `internal/procgroup/process.go:566` | termination, group cleanup, or quiescence reported an error |
-| `process-exit-observation-failed` | `internal/procgroup/process.go:547` | the exit observer reported an error |
-| `process-output-overflow` | `internal/procgroup/process.go:563` | output overflowed and the spec overflow policy is `OverflowFail` |
-| `process-pipe-drain-failed` | `internal/procgroup/process.go:569` | the output pipes were not fully drained or draining reported an error |
+| `process-cleanup-failed` | `internal/procgroup/process.go:568` | termination, group cleanup, or quiescence reported an error |
+| `process-exit-observation-failed` | `internal/procgroup/process.go:549` | the exit observer reported an error |
+| `process-output-overflow` | `internal/procgroup/process.go:565` | output overflowed and the spec overflow policy is `OverflowFail` |
+| `process-pipe-drain-failed` | `internal/procgroup/process.go:571` | the output pipes were not fully drained or draining reported an error |
 | `process-pipe-failed` | `internal/procgroup/process.go:247` | creating the stdout or stderr pipe failed |
 | `process-platform-unsupported` | `internal/procgroup/process.go:203` | `processPlatformSupported` is false; descendant cleanup is recorded unsupported and partial |
 | `process-spec-invalid` | `internal/procgroup/process.go:197` | the context is nil, or `normalizeProcessSpec` refused the spec |
 | `process-start-failed` | `internal/procgroup/process.go:262` | starting the command failed |
-| `process-timeout` | `internal/procgroup/process.go:560` | the run timer fired before exit was observed |
-| `process-wait-failed` | `internal/procgroup/process.go:554` | wait returned an error that is not an `*exec.ExitError` |
-| `process-wait-timeout` | `internal/procgroup/process.go:550` | waiting for the process did not complete |
+| `process-timeout` | `internal/procgroup/process.go:562` | the run timer fired before exit was observed |
+| `process-wait-failed` | `internal/procgroup/process.go:556` | wait returned an error that is not an `*exec.ExitError` |
+| `process-wait-timeout` | `internal/procgroup/process.go:552` | waiting for the process did not complete |
 
 ## Acceptance evidence and traceability
 
@@ -746,11 +746,11 @@ thing deterministically.
 | CRR-V0-004 | helper whose `old` repetition 2 alone differs from `new`: `instability`, never `different` |
 | CRR-V0-005(a) | at-bound accepted; 65537 stdin, 1 MiB+1 out, 101 entries, 10 MiB+1 refused |
 | CRR-V0-005(b) | stdout at bound with stderr at bound+1, and the mirror: both refused by stream |
-| CRR-V0-005(a) | every launch's `Spec.OutputLimit` == 1 MiB and `Spec.InputLimit` == 64 KiB, each set explicitly and never left zero, so neither inherits the 16 MiB `DefaultOutputLimit`/`defaultProcessInputLimit` `normalizeProcessSpec` would substitute (`internal/procgroup/process.go:21-22`, `internal/procgroup/process.go:439-449`) |
+| CRR-V0-005(a) | every launch's `Spec.OutputLimit` == 1 MiB and `Spec.InputLimit` == 64 KiB, each set explicitly and never left zero, so neither inherits the 16 MiB `DefaultOutputLimit`/`defaultProcessInputLimit` `normalizeProcessSpec` would substitute (`internal/procgroup/process.go:21-22`, `internal/procgroup/process.go:441-451`) |
 | CRR-V0-005(b) | 1 MiB stdout and 1 MiB stderr in one repetition: accepted and compared |
 | CRR-V0-005(c) | pinned stdin echoed byte-identical; copy mutated after pinning refused early |
 | CRR-V0-005(d) | helper launched at 119 s: terminated by 121 s, group gone, rest `NOT_RUN` |
-| CRR-V0-005(d) | every launch's `Spec.ShutdownTimeout` is positive and <= 1 s, never left zero and never the 2 s `defaultProcessShutdownLimit` `normalizeProcessSpec` would substitute (`internal/procgroup/process.go:23`, `internal/procgroup/process.go:433-437`) |
+| CRR-V0-005(d) | every launch's `Spec.ShutdownTimeout` is positive and <= 1 s, never left zero and never the 2 s `defaultProcessShutdownLimit` `normalizeProcessSpec` would substitute (`internal/procgroup/process.go:23`, `internal/procgroup/process.go:435-439`) |
 | CRR-V0-006 | `SIGKILL`, `Start`-failure, `different` and timeout helpers each match one (e) row |
 | CRR-V0-006(e) row 6 | `procgroup.Adjudicate(6, none, …)` over six `Started && TimedOut` completed observations: `FAIL`, row 6, timeout, `Launches` == 6 — never an aborted-case `Launches` == 2. A per-process-timeout helper run end to end MUST also show repetition 3 still launched after repetition 1's timeout, never a case aborted on the first timeout |
 | CRR-V0-006(a) | no `exit` outside integer/`signal:`; an unobserved repetition emits no record |
@@ -765,7 +765,7 @@ thing deterministically.
 | CRR-V0-006(e) rows 8-12 | `procgroup.Adjudicate(6, none, …)` over six `procgroup.Observation` values completed per (d) (`Started`, `ExitObserved`, `PipesDrained` and `OwnedProcessGroupCleanup` all true): the returned `Adjudication` has `FullyObserved` true with `Status`, `Outcome` and `CaseInconclusiveState` all zero, `RecordCount` == 6, `Launches` == 6, `UnobservedLaunches` == 0 — a runner that returns a `PASS`/`FAIL` status here, or that leaves `FullyObserved` false, fails the row |
 | CRR-V0-006(a), CRR-V0-007(b) | `procgroup.Adjudicate(6, none, …)` over a mixed set: three `Started` observations of which two are `ExitObserved` true and completed and one is `ExitObserved` false, and three never-`Started` ones — `Launches` == 3, `UnobservedLaunches` == 1, `RecordCount` == 2, `FAIL`, row 7. A runner deriving `RecordCount` from `planned`, from `len(observations)` or from `Launches` fails it |
 | CRR-V0-006(e) row 7, `planned` | `procgroup.Adjudicate(6, none, …)` over exactly three observations, all completed per (d): `FAIL`, row 7, inconsistent run, `Launches` == 3 — the three unpassed planned repetitions are incomplete because `planned` is 6. A runner reading `len(observations)` in place of `planned` returns `FullyObserved` here and fails the row |
-| CRR-V0-006(e) row 7, CRR-V0-007(b) | `procgroup.Adjudicate(6, none, …)` called directly, no process launched, over six synthetic `procgroup.Observation{Started: true, ExitObserved: false, TimedOut: false, Cancelled: false}` values: the returned `Adjudication` carries `Status` `FAIL`, `CaseInconclusiveState` inconsistent run, `RecordCount` == 0, `Launches` == 6, `UnobservedLaunches` == 6 and `FullyObserved` false, never `NOT_RUN` — every one of those read off the returned struct's exported fields, not off the fixture. No timing-dependent process fixture is used for this row: a real 1 ns `ShutdownTimeout` stub is a scheduler race at `internal/procgroup/process.go:361-362` against `waitForProcessEvent`'s expired-deadline branch (`internal/procgroup/process.go:491-499`) and proves nothing repeatably |
+| CRR-V0-006(e) row 7, CRR-V0-007(b) | `procgroup.Adjudicate(6, none, …)` called directly, no process launched, over six synthetic `procgroup.Observation{Started: true, ExitObserved: false, TimedOut: false, Cancelled: false}` values: the returned `Adjudication` carries `Status` `FAIL`, `CaseInconclusiveState` inconsistent run, `RecordCount` == 0, `Launches` == 6, `UnobservedLaunches` == 6 and `FullyObserved` false, never `NOT_RUN` — every one of those read off the returned struct's exported fields, not off the fixture. No timing-dependent process fixture is used for this row: a real 1 ns `ShutdownTimeout` stub is a scheduler race at `internal/procgroup/process.go:363-364` against `waitForProcessEvent`'s expired-deadline branch (`internal/procgroup/process.go:493-501`) and proves nothing repeatably |
 | CRR-V0-006(e) row 7, (c) subcases | `procgroup.Adjudicate(6, none, …)` over synthetic `procgroup.Observation` sets mixing one completed repetition with a later incomplete one: a never-`Started` `Cmd.Start` failure yields compilation/setup failure, an expired-budget refusal before `Started` (`internal/procgroup/process.go:217-220`) yields timeout, and `PipesDrained` or `OwnedProcessGroupCleanup` false yields inconsistent run — each `FAIL`, each row 7, and the returned `Adjudication`'s `UnobservedLaunches` counting only the `ExitObserved`-false repetitions while `Launches` counts every `Started` one |
 | CRR-V0-007(a) | 001 and 005(c) refusals appear as `NOT_RUN` with a reason and zero records |
 | CRR-V0-007(a) | unexecutable `old` binary, `Cmd.Start` fails: `NOT_RUN`, compilation/setup failure, zero records, `unobserved_launches` == 0 |
