@@ -17,7 +17,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
 - Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
+- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
 ## Requirements
 
@@ -30,6 +30,133 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 - `PWP-V0-007`: Qualification runs checked-in real Playwright browser fixtures covering pass, assertion failure, timeout, browser infrastructure, two projects, a standard `devices['Desktop Chrome']` spread, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
 - `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser tuple; another tuple remains diagnostic-only. A configured executable binds its exact version, channel/path and headless-shell availability. A Playwright-bundled executable additionally binds the registry executable name, package-pinned browser revision and manifest version, absolute executable path and executable SHA-256. Any missing or changed field abstains. Additional Node or browser tuples require an explicit qualification record and the complete live matrix below; matching only the package version never admits them. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
 - `PWP-V0-009`: (accepted by decision 0448; V1-0976) exactly one more tuple is admitted under `PWP-V0-008`: Darwin arm64 / Node `v24.11.1` / `@playwright/test@1.63.0` with the bundled headless shell named below, for the base `/0` profile only, on the retained live run recorded for issue #665. Node `v24.11.0` and every other `v24.x` release, the system-Chrome tuple on Node 24, and `/1`, `/2` and `/3` on Node 24 stay unqualified until their own live run. Every retained external receipt classifies its runner/Node pair as `candidate`, `unqualified` or `unobserved` through `ReceiptRuntimeTuple`, the same closed values the passing predicate applies first; discovery reports an `unqualified` or `unobserved` pair as `LPCV-V0-056` states. The live matrix MAY run against an explicitly provided Node binary (`CORVINT_PLAYWRIGHT_NODE`, an absolute path whose directory also holds `npx`), placed first on that test's `PATH` only, and MUST then observe that exact version; an optional `CORVINT_PLAYWRIGHT_CONTROL_NODE` names an unqualified Node whose run MUST abstain and be reported as `runtime-tuple-unqualified`.
+
+### Keep-reporters option (proposed; V1-0986; GitHub #670)
+
+- `PWP-V0-010`: (proposed (V1-0986; GitHub #670)) The opt-in `--keep-reporters` option, available only in external-server mode on `/0` to `/3`, keeps the project's original `reporter` list beside the provider reporter instead of replacing that list; `PWP-V0-014` fixes the order. The original value is normalized: undefined keeps no entries, a string keeps one entry, and an array keeps entries that are each a name or `[name]` or `[name, options]`. Any other value refuses `project-reporters-invalid` when the controlled config loads. A name beginning with `.` or an absolute name resolves against the original config directory. Any other name that is not one of the built-in reporters (`blob`, `dot`, `github`, `html`, `json`, `junit`, `line`, `list`, `null`) resolves through Node module resolution from that directory, or stays unchanged when it cannot be resolved. The built-in `blob`, `html`, `json` and `junit` reporters receive the original config directory as `configDir` unless the project set one, so their default and environment-named outputs stay where the project would put them. Their string `outputFile`, `outputFolder` and `outputDir` options resolve against the original config directory. No other option value is changed. Without the option, the controlled config and the receipt bytes are byte-identical to the replace-only form. An owned-server or freshness run with the option refuses `keep-reporters-unsupported-mode`.
+- `PWP-V0-011`: (proposed (V1-0986; GitHub #670)) A keep-reporters receipt binds `receipt.external.projectReporters` with two members. `entries` lists every kept entry in order, at most 32. `effects` is described in `PWP-V0-012`. Each entry carries its resolved `name`, a `module` value and an `options` value:
+  - `module` is `builtin` for a built-in reporter. It is `bound` when the exact module path is a reporter-observed config input; its `moduleDigest` must then equal that input's digest, so `PWP-V0-002` drift detection covers it. Otherwise it is `unknown`.
+  - `options` is `absent` when the entry has no options. It is `bound` when the options are plain JSON data; the entry then carries `optionsDigest`, the SHA-256 of the sorted-key canonical JSON. It is `unknown` for functions, class instances, cycles, non-finite numbers, array holes or depth 32 and beyond.
+
+  Option values themselves are never retained. The retained controlled config (`PWP-V0-002`) identifies keep-reporters mode.
+- `PWP-V0-012`: (proposed (V1-0986; GitHub #670)) The provider never observes what a kept reporter does: files written, output, reporter errors or mutation of shared result objects. `effects` is therefore always `unknown`, which is recorded and never trusted. A keep-reporters receipt therefore never projects passing execution unless it carries a matching qualification record (`PWP-V0-016`); without one it stays retained, decodable and readable, as with `/2`. The binding can only remove passing authority, never add it. It must agree with the controlled config in both directions and use only the closed values above. Any violation refuses `project-reporters-invalid` at encoding and prevents a passing projection. A keep-reporters run whose reporter did not report the kept entries is the infrastructure failure `project-reporters-unobserved`. Unobserved (`null`) entries are valid only beside a run-level infrastructure failure. A replace-only report that carries entries is `report-unparseable`. The qualified runtime tuple (`PWP-V0-008`, `PWP-V0-009`), the `/2` sensitive-input policy and redaction, the `/3` attempt details and every existing passing prerequisite are unchanged. Kept-reporter output counts toward the 4 MiB output bound.
+- `PWP-V0-013`: (proposed (V1-0986; GitHub #670)) Test-validity decoding and MCP discovery accept a canonical keep-reporters receipt on the same terms as a replace-only receipt and recompute its projections. A changed binding fails the canonical or shape check. Non-goals:
+  - ingesting the outputs of kept reporters (foreign JSON or blob reports)
+  - qualifying any kept reporter
+  - changing which reporters run without the option
+
+  Known limits:
+  - A kept custom reporter that reads `config.configFile` sees the controlled config path.
+  - ESM, `node_modules` or symlinked reporter modules may record `module` as `unknown`.
+  - Live Playwright qualification of the option is `NOT_RUN`. It is unverified that Playwright 1.60 to 1.63 lets the injected `configDir` override its own, and that `FullConfig.reporter` reaches `onBegin` in the normalized shape. If either fails, outputs land in scratch or the run fails closed as `project-reporters-unobserved`.
+
+  Owner questions:
+  - This adds an opt-in member to the existing profiles rather than a new profile revision (see Acceptance and rollback).
+  - The provider reporter runs last, after kept reporters could alter shared result objects. Should it run first, so that a qualified keep-reporters mode could later project passing? Proposed answer: yes, `PWP-V0-014`.
+  - `optionsDigest` of a low-entropy secret option value would be guessable.
+
+### Keep-reporters qualification (accepted (decision 0461); V1-1028; GitHub #686)
+
+Intent: an adopter who must keep the project's own reporters can record, on the adopter's own host, local
+evidence that the kept reporters did not change what the provider observed, and so get a passing
+keep-reporters receipt on that exact runtime and reporter set.
+
+- `PWP-V0-014`: (accepted (decision 0461; V1-1028; GitHub #686)) In keep-reporters mode the provider reporter is the first
+  entry of the controlled `reporter` list, followed by the kept entries in their original order
+  (`reporter: [[provider, {...}], ...keptReporters(original.reporter)]`). Playwright calls reporters in list
+  order, so the provider copies every value it reports from `onBegin`, `onTestEnd` and `onEnd` before a kept
+  reporter receives the same callback. The provider reports the kept entries after its own first entry. A
+  retained receipt whose controlled config has the earlier provider-last order stays readable and never
+  projects passing.
+- `PWP-V0-015`: (accepted (decision 0461; V1-1028; GitHub #686)) `corvint-js-test-provider qualify-keep-reporters` takes the
+  external-server e2e flags. It refuses watch mode, `--keep-reporters`, `--keep-reporters-qualification` and
+  any run without `--external-server`, before any process starts. It runs the configuration once
+  replace-only (the control run) and, only when the control run completed, once in keep-reporters mode (the
+  keep run). It compares the two receipts and prints one canonical record with profile
+  `corvint-playwright-keep-reporters-qualification/0` on stdout. It exits zero only for verdict `qualified`.
+  With `--retain` each produced receipt is retained as its canonical document, and the record's
+  `controlReceiptSha256` and `keepReceiptSha256` are the SHA-256 of those bytes. The verdict is `qualified`
+  only when all of these hold:
+  - Both runs are complete: no error, no run-level infrastructure failure, not cancelled, an external
+    lifecycle, project reporters bound only in the keep run, and at most 256 config inputs, each an absolute
+    path with a 64-hex digest.
+  - The keep run's config is provider-first and every kept entry is observed with neither `module` nor
+    `options` `unknown`.
+  - Profile, runner and Node versions, config file and digest, test-file digests, package digest and declared
+    environment are equal. Every control config input has the same digest in the keep run. Every config input
+    of the keep run is recorded as `configInputs`, including the kept reporter modules and any file that both
+    the config and a kept reporter load.
+  - Every control outcome is fully qualified and every keep outcome meets every prerequisite except the
+    keep-reporters one.
+  - At least one outcome exists, and the outcomes correspond one to one by project name, full name and anchor.
+    For each pair, name, state, retries, each attempt's state, retry and failure kind, project browser,
+    device, config digest and `use`, and the artifact count are equal. Test IDs are not compared, because
+    they bind the config inputs.
+- `PWP-V0-016`: (accepted (decision 0461; V1-1028; GitHub #686)) `e2e --keep-reporters --keep-reporters-qualification FILE`
+  reads at most 256 KiB, decodes the record strictly and refuses any record whose verdict is not
+  `qualified`. Without `--keep-reporters` it refuses `keep-reporters-qualification-requires-keep-reporters`.
+  The receipt carries the record unchanged as `receipt.external.projectReporters.qualification`. A carried
+  record must be valid and qualified and sit beside a provider-first config, or encoding refuses
+  `project-reporters-invalid`. A keep-reporters receipt projects passing only when it carries a qualification
+  that matches it exactly and every existing prerequisite holds. "Matches exactly" means the same receipt
+  profile, runner version and Node version, entries equal in order, and config inputs exactly equal to
+  `configInputs`: no input changed, added or removed. Any change to the runtime, the reporter set, options, the
+  config or any file it or a kept reporter loads abstains until the adopter qualifies again. The record never admits a
+  runtime tuple: `PWP-V0-008` and `PWP-V0-009` still decide which runtimes are qualified (decision 0448).
+- `PWP-V0-017`: (accepted (decision 0461; V1-1028; GitHub #686)) The record is closed. It has exactly these members:
+  `profile`, `verdict`, `reasons`, `receiptProfile`, `runnerVersion`, `nodeVersion`, `entries`,
+  `configInputs`, `tests`, `controlReceiptSha256` and `keepReceiptSha256`, in that order.
+  - `reasons` is a sorted, unique array from the closed set below, and it is empty exactly when the verdict
+    is `qualified`. A `not-run` reason makes the verdict `not-run`; otherwise any reason makes it
+    `not-qualified`.
+  - `entries` uses the `PWP-V0-011` entry shape, or is `null` when the keep run did not observe it.
+  - `configInputs` holds at most 256 absolute paths, each with a 64-hex digest.
+  - A `qualified` record additionally needs an external receipt profile, both versions, at least one test,
+    both receipt digests, no `unknown` entry, and each `bound` module's digest equal to its `configInputs`
+    value.
+  - Encoding refuses a secret-shaped record. Decoding accepts only the exact canonical bytes with one
+    trailing newline, and every refusal is the value-free `keep-reporters-qualification-invalid`.
+
+  Reasons, `not-run`: `keep-reporters-control-run-incomplete`, `keep-reporters-keep-run-incomplete`.
+  Reasons, `not-qualified`: `keep-reporters-control-unqualified`, `keep-reporters-keep-unqualified`,
+  `keep-reporters-order-unsupported`, `keep-reporters-entries-unknown`, `keep-reporters-inputs-differ`,
+  `keep-reporters-observation-differs`, `keep-reporters-no-tests`.
+- `PWP-V0-018`: (accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes a qualification. Each of
+  these is reported on stderr and records `not-run` with a named incomplete-run reason, never `qualified`:
+  - missing Playwright, an unqualified runtime or any other control-run failure (the keep run is then not
+    started and is reported as `keep-reporters-keep-run-skipped`)
+  - a kept reporter that refuses to load or makes the keep run fail
+  - unobserved entries, or config inputs the record cannot bind
+  - a cancelled, interrupted or partial run
+
+  A mismatch is `not-qualified`. The command never retries, never infers a missing run and never signals
+  processes it did not start.
+
+Adopter steps: run `qualify-keep-reporters` with the same flags as the intended e2e run and save stdout as the
+record. Then run `e2e --keep-reporters --keep-reporters-qualification <record>` with those flags. After any
+runtime, reporter, option or reporter-file change, qualify again.
+
+Non-goals: admitting Node or Playwright tuples; observing or trusting kept reporters' effects (`effects`
+stays `unknown`); ingesting kept reporters' outputs; qualifying ESM, `node_modules` or other reporters whose
+module stays `unknown`; a shared or signed qualification registry.
+
+Known limits:
+- Provider-first order protects only the values of the callback the provider has already copied. Mutation of
+  objects that persist across callbacks is caught only by the differential comparison.
+- Suites whose outcomes are not repeatable fail closed as `keep-reporters-observation-differs`.
+- The record is local evidence with the same trust as a retained receipt. It proves that one pair of runs
+  matched, not that a kept reporter can never interfere.
+- The command, the flag and the passing keep-reporters projection are experimental while these requirements
+  are experimental (intent accepted by decision 0461); they are not promoted or advertised as
+  delivered until a live `qualified` record on a qualified tuple.
+- Live Playwright qualification of the command is `NOT_RUN` (`docs/build-log/2026-10-08-gh686-playwright-keep-reporters-qualification.md`).
+
+Owner questions:
+- Answered by decision 0461: accept provider-first order (`PWP-V0-014`) as the answer to the `PWP-V0-013` ordering question.
+- Decision 0448 rejected consumer-side qualification records that add Node tuples. This record adds no tuple
+  and qualifies only reporter non-interference on an already qualified tuple. Is that within 0448's intent?
+- Is a local, unsigned record enough authority for a passing keep-reporters projection, given that it has
+  the same trust as the receipts it binds?
 
 ### Application-attested revision
 
@@ -111,7 +238,18 @@ The provider's closed refusal codes are:
 - `external-server-command-forbidden`
 - `input-identity-changed`
 - `no-tests-observed`
+- `keep-reporters-unsupported-mode`
+- `keep-reporters-qualification-invalid`
+- `keep-reporters-qualification-not-qualified`
+- `keep-reporters-qualification-requires-keep-reporters`
+- `keep-reporters-keep-run-skipped`
+- `keep-reporters-control-run-incomplete`, `keep-reporters-keep-run-incomplete` (`not-run` record reasons)
+- `keep-reporters-control-unqualified`, `keep-reporters-keep-unqualified`, `keep-reporters-order-unsupported`,
+  `keep-reporters-entries-unknown`, `keep-reporters-inputs-differ`, `keep-reporters-observation-differs`,
+  `keep-reporters-no-tests` (`not-qualified` record reasons)
 - `project-location-unknown`
+- `project-reporters-invalid`
+- `project-reporters-unobserved`
 - `qualified-document-output-overflow`
 - `qualified-document-secret-shaped`
 - `report-identity-unknown`
@@ -156,6 +294,16 @@ changes rerun live qualification. Acceptance and passing qualification are both 
 `/2` therefore remains readable and conformance-tested but non-promotable while its live reporter
 matrix is `NOT_RUN`; `/0` and `/1` retain their existing qualification. `/3` is the one revision
 that carries `attemptDetails`; rolling it back removes the option, and retained `/3` receipts are
+neither deleted nor rewritten.
+The proposed keep-reporters option (`PWP-V0-010`..`013`) is an opt-in exception to the revision rule. Its
+`projectReporters` member appears only with the keep-reporters controlled config, and a reader that predates
+it fails closed through the canonical re-encoding check. Rolling it back removes the option. Retained
+keep-reporters receipts are neither deleted nor rewritten.
+The accepted qualification (`PWP-V0-014`..`018`, decision 0461) adds the optional `qualification` member under
+`projectReporters`, the record profile and the `qualify-keep-reporters` command. Acceptance evidence is the
+Go and Node tests in Traceability plus one live `qualified` record on a qualified tuple, which is `NOT_RUN`.
+Rolling it back removes the command, the flag and the member, and restores provider-last order. Receipts
+carrying a qualification then fail closed through the canonical check, and retained records and receipts are
 neither deleted nor rewritten.
 
 ## Traceability
@@ -240,6 +388,8 @@ browser-path override. With the bundled path, the exact command is:
 |---|---|---|
 | PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightLiveDevicesSpread`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains`, `TestPlaywright163BundledBrowserTupleAbstainsOnDrift` |
 | PWP-V0-009 (accepted, decision 0448) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/testvaliditydoc/discover.go` | `TestPlaywright163Node24TupleAdmissionIsExact`, `TestReceiptRuntimeTupleClassification`, `TestDiscoverAbstentionReasons`; live `TestQualifiedPlaywrightLive` and `TestQualifiedPlaywrightLiveDevicesSpread` on Node v24.11.1 with the v22.23.3 control (`docs/build-log/2026-10-07-gh665-playwright-node-tuple-abstention.md`) |
+| PWP-V0-010..013 (proposed, V1-0986; GitHub #670) | `internal/jstestprovider/project_reporters.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/projection.go`, `cmd/corvint-js-test-provider/main.go` | `TestExternalCommandDefaultConfigUnchanged`, `TestKeptReporterListResolution`, `TestKeptProjectReporterRunsBesideProvider`, `TestProjectReportersBindingShape`, `TestKeepReportersUnsupportedMode`, `TestKeepReportersFlagRequiresExternalServer`, `TestKeepReportersRetainedReceiptAccepted`, `TestQualifiedReporterSensitiveRedaction` (Node case `PWP-V0-011 keep mode reports kept entries`); live Playwright `NOT_RUN` (`docs/build-log/2026-10-07-gh670-playwright-keep-reporters.md`) |
+| PWP-V0-014..018 (accepted, decision 0461; V1-1028; GitHub #686) | `internal/jstestprovider/keep_reporters_qualification.go`, `internal/jstestprovider/project_reporters.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/runner.go`, `cmd/corvint-js-test-provider/main.go` | `TestKeptReporterListResolution`, `TestQualifyKeepReportersQualified`, `TestQualifyKeepReportersReasons`, `TestKeepReportersQualificationRecordClosed`, `TestKeepReportersQualifiedProjection`, `TestKeepReportersQualificationRunGuards`, `TestQualifyKeepReportersRunOrderAndNotRun`, `TestKeepReportersQualificationFlags`, `TestKeepReportersQualifiedReceiptProjects`, Node case `PWP-V0-011 PWP-V0-014 keep mode reports kept entries`; live Playwright `NOT_RUN` (`docs/build-log/2026-10-08-gh686-playwright-keep-reporters-qualification.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -252,21 +402,21 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:180@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:186@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:237@ae7d4bc6` |
-| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:94@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:360@2fb84e28` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:254@ae7d4bc6` |
+| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:97@d5db6c8b` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:374@2fb84e28` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
-| `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:75@d7cd2a65` |
+| `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:78@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
 | `file-replaced` | The opened attestation input is not the file that was inspected before opening. | `internal/jstestprovider/application_attestation.go:160@1bec3465` |
 | `invalid-canonical-input` | Canonical input is empty, oversized, or secret-shaped. | `internal/jstestprovider/application_attestation.go:171@12f8b66b` |
-| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:87@751bcb11` |
+| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:90@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:199@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:205@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

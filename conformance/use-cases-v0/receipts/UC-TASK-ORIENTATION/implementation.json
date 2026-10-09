@@ -6,13 +6,13 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "e8771913610afe72ff799b0bd782046cdfe792ae",
+  "repositoryRevision": "ea2f48ff5bdad899d3d0f45b3f7193fe2541706d",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/main.go",
-      "sha256": "fda56b917615eb9b3dbfbb0bdefb23047c1eb16d97025d9351d042b0626a15de"
+      "sha256": "e5e576a890aaef010312f03d3f440d65fb6070d3273b342119adc295be566bed"
     },
     {
       "path": "cmd/corvint/context_lookup.go",
@@ -20,7 +20,7 @@
     },
     {
       "path": "cmd/corvint/taskcontext.go",
-      "sha256": "b197b5d645718724b9e876c9a6274b5f1a18a31aad1b5b5a70a95f43c4d7c8aa"
+      "sha256": "825057e5dfd3d51eaa2826d8f685fbe63e1eba301c012c0770542e0ab19e89c5"
     }
   ],
   "useCaseId": "UC-TASK-ORIENTATION"

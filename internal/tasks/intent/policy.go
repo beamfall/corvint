@@ -16,7 +16,7 @@ var Operations = []string{
 	"HOLD", "RELEASE_HOLD", "REOPEN", "ARCHIVE", "RESTORE", "COMPLETE_MANUAL", "GRANT_APPROVAL", "REVOKE_APPROVAL",
 	"RELEASE_CREATE", "RELEASE_UPDATE", "RELEASE_CANDIDATE", "RELEASE_EXTERNAL_ATTEST", "RELEASE_MANUAL_ATTEST", "RELEASE_PROMOTE",
 	"ESCALATE", "ANSWER", "NOTE_SET", "NOTE_CLEAR", "REVIEW_RECORD", "REVIEW_RESUBMIT",
-	"ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT",
+	"ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM",
 }
 
 // TicketKinds mirrors ticket.Kinds for policy kind lists.
@@ -126,8 +126,39 @@ type Policy struct {
 	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
 	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
 	HolderLiveness *HolderLiveness
-	Raw            []byte
+	// KnowHow is the optional KHN-V0-021 know-how policy; nil (the key
+	// absent) keeps WORKER without KNOWHOW_ADD.
+	KnowHow *KnowHowPolicy
+	// Milestones is the optional CAL-V0-195 milestone policy; nil (the key
+	// absent) keeps milestone optional on CREATE and REFINE.
+	Milestones *MilestonePolicy
+	Raw        []byte
 }
+
+// MilestonePolicy is the CAL-V0-195 opt-in. Required makes CREATE without a
+// milestone, and REFINE that sets milestone to null, refuse
+// MILESTONE_REQUIRED. It never touches existing records.
+type MilestonePolicy struct {
+	Required bool
+}
+
+// MilestoneRequired reports whether policy requires a milestone on CREATE
+// and forbids REFINE from clearing one (CAL-V0-195). Absent or false keeps
+// the default.
+func (p *Policy) MilestoneRequired() bool {
+	return p != nil && p.Milestones != nil && p.Milestones.Required
+}
+
+// KnowHowPolicy is the KHN-V0-021 opt-in. WorkerAdd lets a WORKER issue
+// KNOWHOW_ADD on the ticket of the live attempt it holds, within the scope
+// KHN-V0-022 checks; it grants nothing else.
+type KnowHowPolicy struct {
+	WorkerAdd bool
+}
+
+// WorkerKnowHowAdd reports whether policy opts WORKER into scoped
+// KNOWHOW_ADD (KHN-V0-021). Absent or false keeps the default refusal.
+func (p *Policy) WorkerKnowHowAdd() bool { return p.KnowHow != nil && p.KnowHow.WorkerAdd }
 
 // HolderLiveness sets the CAL-V0-120 heartbeat observation TTL. It changes
 // only how reads classify a recorded heartbeat; it never fences, renews,
@@ -245,7 +276,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "milestones")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -423,6 +454,22 @@ func DecodePolicy(data []byte) (*Policy, error) {
 			return nil, err
 		}
 	}
+	if wire.Has(v, "knowHow") {
+		k := r.Field("knowHow")
+		k.Closed("workerAdd")
+		p.KnowHow = &KnowHowPolicy{WorkerAdd: k.Field("workerAdd").Bool()}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "milestones") {
+		m := r.Field("milestones")
+		m.Closed("required")
+		p.Milestones = &MilestonePolicy{Required: m.Field("required").Bool()}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
 	return p, nil
 }
 
@@ -452,9 +499,9 @@ func (p *Policy) PolicySha256() wire.Digest {
 // although that role's default row omits them: an OPERATOR gets a note verb
 // (ON-V0-004) or an escalation verb (ESC-V0-001, ESC-V0-004) only through an
 // explicit policy.roles.OPERATOR row, never by default; the same holds for
-// ATTACH_EVIDENCE (TEA-V0-001) and the know-how verbs (KHN-V0-003). No other
-// role may be granted them.
-var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT"}}
+// ATTACH_EVIDENCE (TEA-V0-001) and the know-how verbs (KHN-V0-003,
+// KHN-V0-018). No other role may be granted them.
+var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER", "ATTACH_EVIDENCE", "KNOWHOW_ADD", "KNOWHOW_RETRACT", "KNOWHOW_RECONFIRM"}}
 
 // PolicyGrantable is the closed set a policy row for role may list: its
 // default row plus its explicit-only grants.

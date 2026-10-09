@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)
 Delivery status: not-started
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,9 +10,9 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04)/not-started
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)/not-started
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
-- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence.
+- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Accepted step-level negative controls (`LPCV-V0-057..070`, decision 0458; V1-1024) await implementation and their live matrix.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
 
 ## User and measurable job
@@ -562,3 +562,265 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-054` discovered freshness is bound to current digests | delivered at experimental tier; Go events stay preview and never `CURRENT` | `TestDiscoverUnmatchedIdentityIsNeverCurrent` (changed and removed test file `STALE`, outside-worktree path and Go session `UNKNOWN`, stale Go session `STALE`, each with its reason) and `TestDiscoverSelectsNewestRetainedEvidence` (matched digest `CURRENT`); package and app-build digests are not recomputed, so they are `UNKNOWN` by construction, not measured. |
 | `LPCV-V0-055` opt-in bounded atomic producer retention | delivered at experimental tier (decision 0218); no real-provider Electron run and no qualified Go session matrix has retained evidence (`NOT_RUN`) | `cmd/corvint-js-test-provider`'s `TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink` and `cmd/corvint-go-test-provider`'s `TestSessionRetainsCompletedEventBytesPrunesAndRefusesSymlink` (retained bytes equal stdout, 32 kept, a foreign entry untouched, a symlinked `.corvint` refused with stdout still emitted); `internal/testevidence`'s `TestRetainReportsDocumentItsPruneRemoved` (a document named behind 32 own names is pruned and reported as a failure) and `TestRetainPrunesCrashLeftoverTemporaries` (225 own temporaries named below the oldest kept document are removed, a newer and a foreign temporary kept); `cmd/corvint`'s `TestTestValidityDiscoverSelectsProducerRetainedDocument` (a retained document is the one `test-validity --discover` selects, `CURRENT`).; the VS Code extension passes the flag only behind `corvint.liveTests.retainEvidence` (decision 0230, `VSC-V0-070`), unit-tested, with no Electron run. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
+| `LPCV-V0-057..070` step-level negative controls by fault injection | accepted (decision 0458; V1-1024, GitHub #682); not-started | `NOT_RUN`: Go derivation/pass-rule/codec/retention/join tests and the `LPCV-V0-070` live matrix are required before any result joins the strength axis. |
+
+## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
+
+Intent (owner request, GitHub #682): the strength axis needs a negative control, a run in which the
+witnessed outcome is altered and the named assertion fails. Today a Playwright receipt's strength
+reads `NOT_MEASURED` (`no-mutation-run`, `LPCV-V0-048`) unless a hand-authored control is approved
+and joined: an approved behavior-falsification plan (`NEA-V0-003`) or the single served-response
+`ChangedFixtureValue` delta of `PTF-V0-007`. The issue reports that the Flow-Proof repository needs
+about 3,600 such controls for 3,614 core rows, the largest remaining cost of test verification (its
+G2), and that a control is not reusable across revisions. Those figures are the owner's report; Corvint
+has not observed them (`NOT_OBSERVED`). `LPCV-V0-057` to `LPCV-V0-070` specify generating one control
+per Playwright `test.step` by injecting a derived fault into the observable that step's assertion
+reads. The owner accepted this intent in chat on 2026-10-08 (decision 0458; AGENTS.md invariant 8),
+but nothing here is implemented, and nothing may be advertised as delivered before the live
+qualification of `LPCV-V0-070`.
+
+Terms. A *step* is a reporter step of category `test.step` in the selected test. Its *assertions* are
+the `expect`-category steps whose innermost enclosing `test.step` is that step. The *witnessed
+assertion* is the first of them, in reporter order, for which a fault can be derived.
+
+- `LPCV-V0-057`: (accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validity negate
+  --provider ABSOLUTE_FILE --spec S --test T [--project P] (--step TITLE | --all-steps)` plus the
+  external-server provider options is the only `test-validity` mode that executes tests or writes. It
+  is a proposed exception to the "runs no test and writes nothing" clause of `LPCV-V0-051`, which stays
+  binding on `--receipt`, `--discover` and the no-input mode, whose bytes are unchanged. It is not a
+  read command under AGENTS.md invariant 4. `S` is a worktree-relative spec file, `T` the exact full
+  title, `P` the project and `TITLE` an exact step title. Exactly one of `--step` and `--all-steps` is
+  required. The core binary never loads Node or Playwright (invariant 7): it execs only the regular
+  file named by `--provider`, never one found on `PATH` (`LPCV-V0-042`), with structured arguments
+  (`LPCV-V0-037`), and that companion (`corvint-js-test-provider`) runs Playwright. A selection that
+  matches no test or more than one refuses `negate-test-ambiguous` before any run. The MCP profile
+  (`MTV-V0`) gains no executing tool.
+- `LPCV-V0-058`: (accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright external-server
+  mode on profile `/0` or `/1` (`PWP-V0-001`, `PWP-V1-007`: the application is never started, stopped
+  or restarted) and only on a qualified runtime tuple (`PWP-V0-008`, `PWP-V0-009`). It refuses an
+  unqualified tuple with `runtime-tuple-unqualified`. It refuses `/2`, `/3`, `--keep-reporters`,
+  owned-server and per-test-freshness modes with `negate-mode-unsupported`, all before any run. Every
+  run uses the provider's controlled config (`PWP-V0-002`) selecting the one test, with retries `0`
+  and one worker. It also uses the existing per-run bounds, the owned process group and the
+  cancellation join (`PWP-V0-006`, `LPCV-V0-038`). `--max-runs N` (default 3 for `--step` and 2 for
+  `--all-steps`) caps the runs. A fault run the cap prevents is not executed, and its step reads
+  `NOT_MEASURED` with reason `run-budget-exhausted`.
+- `LPCV-V0-059`: (accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the unfaulted test
+  `--baseline-repeat N` times (1 to 5, default 1) with Playwright trace recording on. A fault is derived
+  only when every baseline run is `passed` with one attempt, no failed step of any category, no
+  infrastructure classification (browser, fixture or hook failure, as the reporter already classifies
+  it) and the requested identity. Otherwise no fault run starts, and every requested step reads
+  `NOT_MEASURED` with reason `baseline-not-passing` or `baseline-infrastructure`, never `KILLED` or
+  `SURVIVED`. A failed repeat among passed ones is a flaky baseline and reads `baseline-not-passing`.
+  The named step must occur exactly once in the baseline step tree (`step-not-found`,
+  `step-title-ambiguous`) and own at least one assertion (`step-has-no-assertion`). Trace files,
+  baseline reports, request and response bytes stay in a private `0700` scratch directory and are
+  never retained (PWP lists trace content as a non-goal; `LPCV-V0-039`).
+- `LPCV-V0-060`: (accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvint-owned injection
+  module whose SHA-256 is bound in the result. It is loaded through the provider's controlled config or
+  worker start-up, never by editing test or application source. For each fault it observes and reports
+  an application count: route fulfilments for a network fault, and element alterations in force when
+  the witnessed assertion settled for a DOM fault. A count of zero makes that fault's outcome
+  `NOT_MEASURED` with reason `fault-not-applied`, never `SURVIVED`. The exact hook is an implementation
+  choice for live qualification. If no hook works without editing test source, derivation abstains
+  (`fault-not-installable`) rather than editing it.
+- `LPCV-V0-061`: (accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The witnessed assertion
+  must use a matcher in the closed set `toHaveText`, `toContainText` or `toHaveValue`, not negated with
+  `.not`, with a nonempty literal string expected value recorded for that assertion in the baseline
+  trace. A negated assertion gives no fault of either kind (`negated-assertion-unsupported`). A regular-expression,
+  function, array or non-literal expected value gives no network fault (`expected-value-not-literal`).
+  A candidate is a response recorded in the baseline trace that meets four conditions. Its request
+  origin equals the declared external application origin (the readiness URL origin). It completed
+  before the witnessed assertion started. Its body is text or JSON of at most 1 MiB. Its body contains
+  the expected value, or the JSON string encoding of it, exactly once. Dependency is established only
+  when exactly one candidate exists: zero gives `no-network-dependency` and more than one gives
+  `network-dependency-ambiguous`. A dependency on any other origin is never faulted
+  (`dependency-outside-application-origin`). The fault replaces that one occurrence with a
+  deterministic marker `corvint-fault-` plus 8 lowercase hex digits taken from a seed digest,
+  JSON-escaped where needed. The seed digest is the SHA-256 of the canonical test identity, step
+  title, witnessed assertion location and fault kind. It is computed before injection and never
+  includes the plan, and the plan digest is computed afterwards over the completed plan. It fetches the real response once for that request instead of the
+  browser's own fetch and fulfils it rewritten. Every other request passes unchanged. The plan binds
+  the method and the SHA-256 of origin plus path (never the query string), the request ordinal among
+  equal requests, the SHA-256 and length of the replaced value, the marker, and the body SHA-256
+  before and after. The derived dependency is a hypothesis: co-occurrence of a value never establishes
+  it, and only the faulted run's outcome under `LPCV-V0-063` is evidence.
+- `LPCV-V0-062`: (accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies when no network
+  fault is derivable, or when the network fault did not yield `KILLED`. The fault acts on the elements
+  that the witnessed assertion's recorded locator resolves to while that assertion runs. For
+  `toHaveText`, `toContainText` and `toHaveValue` it replaces the text or value with the marker, under
+  the same non-negated, nonempty-literal restriction as `LPCV-V0-061`. Derivation also checks that the
+  marker does not satisfy the recorded expectation, and gives `fault-does-not-falsify` otherwise. For a
+  non-negated `toBeVisible` it hides the element. The module applies the fault when the assertion starts and
+  reapplies it after DOM changes until the assertion settles. Any other matcher, or a locator that
+  cannot be recovered from the trace, gives `no-dom-fault`. A DOM fault establishes only that the
+  assertion evaluates the element state it names. It does not show dependence on application data, so
+  it is recorded as the weaker witness kind `dom`. Following `LPCV-V0-047`, a kill establishes only the
+  witnessed distinction.
+- `LPCV-V0-063`: (accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each faulted run has
+  exactly one fault active. It yields `KILLED` only when all of the following hold:
+  1. the fault-applied count is nonzero;
+  2. the run failed in one attempt with no infrastructure classification, test timeout or
+     interruption;
+  3. every failing assertion belongs to the named step, and an ancestor step fails only by
+     propagating that same error;
+  4. the witnessed assertion failed, and its transient error output shows the marker as the received
+     value. A visibility fault instead needs the module to have observed the element hidden, plus at
+     least two baseline passes;
+  5. every step before the named step passed as it did in the baseline;
+  6. every step after it either was not reached (a hard `expect` ended the test) or passed (`expect.soft`).
+
+  `SURVIVED` requires a nonzero applied count and a run that passed with every step passing. A
+  failed soft assertion fails the test, so a pass means none failed. Every other outcome reads
+  `NOT_MEASURED` with one of the reasons `fault-not-applied`, `fault-not-step-isolated` (another step
+  failed), `unattributed-failure` (no marker or visibility evidence), `faulted-run-infrastructure`,
+  `faulted-run-timeout` or `faulted-run-retried`. The network fault runs first. A network `KILLED` is
+  final with witness `network`. Otherwise the DOM fault runs. A DOM `KILLED` is final with witness
+  `dom`, and when the network fault survived the result also carries reason `network-fault-survived`.
+  A DOM `SURVIVED` is `SURVIVED`. A network survival alone is never `SURVIVED`, because its dependency
+  may have been spurious: it reads `NOT_MEASURED` (`network-fault-survived`) and needs a manual control.
+- `LPCV-V0-064`: (accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the baseline and then one
+  joint faulted run for the test. In that run every step's derivable network or text/value DOM fault
+  is active, each with a step-unique marker. A step whose only fault is a visibility fault, or whose
+  fault would rewrite the same occurrence as another step's fault, gets no fault and reads `NOT_MEASURED`
+  (`requires-single-step-run`). The "only that step fails" clause of `LPCV-V0-063` cannot hold in a
+  joint run, so attribution relies on markers instead. A step is `KILLED` with witness `joint-network`
+  or `joint-dom` when its witnessed assertion failed showing its own marker, its fault applied, and the
+  run had no infrastructure classification, timeout or retry. If any failing assertion does not show the
+  marker of its own step, every step of that run reads `NOT_MEASURED` (`joint-attribution-failed`). A
+  step not reached after an earlier hard assertion failed reads `step-not-reached`. A step whose fault
+  applied and whose assertions passed reads `joint-survival-unconfirmed`: another fault may have masked
+  it, so `SURVIVED` comes only from single-step runs. Corvint never rewrites hard assertions into soft
+  ones, so one run covers every step only when the test's step assertions already use `expect.soft`. The
+  result states the run count it actually used.
+- `LPCV-V0-065`: (accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonical
+  `corvint-step-negation/0` document. Its encoding is compact Go encoding/json UTF-8 plus LF. Readers
+  reject unknown fields and noncanonical bytes, and the document is at most 4 MiB. It carries:
+  - `binding` (`LPCV-V0-066`);
+  - `mode` (`step` or `all-steps`);
+  - `runs`;
+  - `inventory`: the complete baseline step tree as `{title, ordinal, assertions}` per `test.step`,
+    plus `assertionsOutsideSteps`, the count of `expect` steps with no enclosing `test.step`. Every
+    negate run records it, whichever steps it measured;
+  - `steps[]`, each with `planDigest`, `title`, `ordinal`, `witness` (`network`, `dom`, `joint-network`, `joint-dom`
+    or `none`), `strength`, and an optional `requires` (`manual-control` or `single-step-run`).
+
+  `strength` uses the existing `Axis` shape and only the existing states `KILLED`, `SURVIVED`,
+  `NOT_MEASURED` and `UNSUPPORTED`. No new axis state is added, so the shared vectors and the VS Code
+  mirror (`LPCV-V0-050`) are unchanged. A step with no derivable fault reads `NOT_MEASURED` with reason
+  `step-fault-underivable` and `requires: "manual-control"`. The command's human summary renders it as
+  `strength: UNPROVEN (manual control needed)`. A `KILLED` reason is `witnessed-step-fault-kill`,
+  anchored by the fault plan digest and the witnessed assertion location. It is never presented as test
+  adequacy or as a source mutation (`LPCV-V0-047`). Exit status is 0 whenever a document was emitted,
+  whatever its states. A refusal before the baseline exits 2 with a typed code and no stdout. A
+  retention failure is reported as in `LPCV-V0-055`.
+- `LPCV-V0-066`: (accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records the execution
+  context shared by every step entry. Each step entry carries its own `planDigest` instead, so the
+  binding does not depend on which steps were measured. The binding records:
+  - the test repository's root commit, revision and tree, which must be clean (a dirty tree refuses
+    `negate-dirty-test-repository`);
+  - the original config and spec-file digests (`PWP-V0-002`);
+  - the full test identity: file, full title, project and resolved browser/device configuration
+    (`PWP-V0-003`);
+  - the runner tuple;
+  - the application identity: the `/0` declared label, which stays a caller assertion, or the `/1`
+    attested commit, revision, tree and instance;
+  - the readiness origin;
+  - the injection module digest.
+
+  Test-repository identity is observed before the baseline and after the last run, and `/1`
+  attestation and readiness surround every run. Any drift sets every step to `NOT_MEASURED`
+  (`negate-identity-drift`).
+- `LPCV-V0-067`: (accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confined under the
+  discipline of `LPCV-V0-055`: `0600` files and `0700` directories, an exclusive temporary file, fsync
+  and rename, and no symlinked component. It writes `.corvint/strength-evidence/<SHA-256 of the
+  canonical test identity>.json`, one file per test identity, outside `.corvint/test-evidence`, so the
+  listing, bounds and bytes of `LPCV-V0-053` discovery are unchanged. A later negate for the same
+  identity with an equal common binding (`LPCV-V0-066`) replaces only the step entries it measured,
+  each with its own `planDigest`, and keeps the others. A different common binding or a different
+  `inventory` replaces the whole file. A concurrent writer for the same identity refuses `negate-evidence-busy`.
+  The file is local derived state, never authority, ranking or learning input.
+- `LPCV-V0-068`: (accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers projection join and reuse.
+  The `--receipt` and `--discover` modes and the MCP `discover` argument (`MTV-V0-009`) join a stored
+  step-negation document only under three conditions. Its test identity, runner tuple and application
+  identity must equal the selected receipt's. Every bound test-side digest must equal both the
+  receipt's and the worktree's current digests, read through the `LPCV-V0-054` reader. The joining
+  build must be qualified (`LPCV-V0-070`). After a join, the test's strength follows the
+  `PTF-V0-006` aggregation over the retained `inventory` denominator:
+  - `KILLED` (`step-controls-killed`) requires one `KILLED` entry for every inventory step with
+    assertions, at least one such step, and `assertionsOutsideSteps` equal to zero. An inventory
+    with no assertion-bearing step reads `NOT_MEASURED` (`step-controls-incomplete`);
+  - any `SURVIVED` step gives `SURVIVED`;
+  - otherwise the result is `NOT_MEASURED` (`step-controls-incomplete`), anchored to the unproven
+    steps. Assertions outside every step also give `NOT_MEASURED` (`assertions-outside-steps`).
+
+  Without a joinable document, every existing output byte is unchanged. Reuse across revisions means
+  regeneration, not carrying a witness forward. A later negate re-derives each plan from its own
+  baseline. When the derived plan digest equals the stored one, it reports `planReused: true`. A
+  witness never survives a changed binding, so a new attested application revision needs a new run.
+- `LPCV-V0-069`: (accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's test code at
+  repository-code trust and is not a sandbox (`LPCV-V0-041`). It starts only from an explicit user
+  action, never from watch, affected selection, agent hooks or MCP. It makes no network request beyond
+  the test's own. A network fault replaces the browser's single fetch of an application-origin
+  response and never targets another origin. A DOM fault touches only the page. It never edits test or
+  application source, but each run repeats the test's own side effects on the external application, up
+  to `--max-runs` times per invocation, and the operator owns that. Request and response bytes, trace
+  content and error messages are handled only transiently. Retained titles and locator strings first
+  pass `internal/secretscreen`, and a flagged string is retained only as its SHA-256. The scratch
+  directory and every owned process group are removed or joined on success, failure, timeout,
+  interruption and termination. Incomplete cleanup is retained as `cleanupIncomplete` and makes the exit
+  nonzero.
+- `LPCV-V0-070`: (accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnostic, and
+  `LPCV-V0-068` joins nothing, until a live matrix on a `PWP-V0-008` qualified tuple is retained.
+  The matrix uses checked-in fixtures against a locally owned external application and covers:
+  - a network-dependent `toHaveText` step `KILLED`;
+  - a static-element step `KILLED` by a DOM fault;
+  - an unawaited or caught assertion `SURVIVED`;
+  - a regular-expression assertion and an assertion-free step, each read as UNPROVEN;
+  - an `expect.soft` test proven in one `--all-steps` run;
+  - a hard-assertion test whose later steps read `step-not-reached`;
+  - a failing fixture as `baseline-infrastructure`;
+  - a flaky baseline;
+  - a collateral-failure step as `fault-not-step-isolated`;
+  - interruption cleanup with no observed survivors;
+  - a third-party-origin dependency left unfaulted.
+
+  A skipped live fixture is never qualification success.
+
+Acceptance evidence (all `NOT_RUN` at proposal) has four parts. The first is Go unit and conformance
+tests for derivation, pass-rule, joint attribution, canonical codec, retention and join vectors,
+including the no-document byte-identity case. The second is the live matrix of `LPCV-V0-070`. The third
+is a sample comparison on an owner repository where hand-authored controls exist: a generated `KILLED`
+whose hand control `SURVIVED`, or the reverse, is investigated before promotion. The fourth is the
+owner's G2 cost measurement, the hand-authored control count before and after, which stays owner-run.
+
+Non-goals: Vitest, Go, Swift, .NET and other runners in v0. Mutation of application source.
+Rewriting test source, including turning hard assertions into soft ones. Faults on third-party
+origins. Retaining traces, bodies or failure messages. Owned-server, `/2`, `/3` and keep-reporters
+composition. Changing the `NEA-V0` or `PTF-V0` acceptance verdicts, which keep their approved
+controls until a separate accepted slice admits generated ones. Treating a kill as test adequacy.
+
+Failure modes, each prevented by the cited requirement:
+
+| Failure mode | Prevented by |
+|---|---|
+| A fault that never applied reads as a weak test. | `fault-not-applied`, `LPCV-V0-060` |
+| A spurious response match reads as `SURVIVED`. | `LPCV-V0-063` network-survival rule |
+| A flaky failure reads as `KILLED`. | Marker attribution, two baseline passes for visibility faults, retries `0` |
+| One fault masks another in a joint run. | `LPCV-V0-064` |
+| A stale witness reads as current. | `LPCV-V0-068` digest join |
+| A trace leaks secrets. | `LPCV-V0-059`, `LPCV-V0-069` |
+| A side-effecting test against a shared application repeats its writes. | Documented operator responsibility and `--max-runs` |
+| `.corvint/test-evidence` discovery is crowded out. | Separate directory, `LPCV-V0-067` |
+
+Rollback: the slice is additive. Remove the negate mode and the `LPCV-V0-068` join. Readers ignore
+`.corvint/strength-evidence`, and deleting that directory restores the prior state. Every `--receipt`,
+`--discover`, no-input and MCP byte is unchanged when no joinable document exists.
+
+Open owner questions:
+1. Whether the executing verb should stay on `corvint test-validity` as requested or move to
+   `corvint-js-test-provider negate` alone, keeping the core command read-only.
+2. Whether a controlled-config conversion of hard assertions to soft ones is acceptable for
+   `--all-steps`.
+3. Whether `/1` attestation should be required, because under `/0` the application identity is only a
+   caller label.

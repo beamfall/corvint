@@ -20,7 +20,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, experimental, V1-0414).
-- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`).
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`). TCP-V0-063 (record-data gate, V1-0859 and V1-0431, 2026-10-08) is proposed on the same development evidence and awaits the same validation (`docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`).
 - Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
@@ -1044,6 +1044,51 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   limit cut a reservation the task matched (the verdict withdraws no reservation, so that row is
   omitted by the limit) and in its place otherwise; the share line is absent. With nothing
   omitted the member is absent, so a packet that carried every hit keeps its bytes.
+- `TCP-V0-062`: (proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+  one positional argument after `context` is the task, so `corvint context TEXT` and `corvint
+  context --task TEXT` with the same other flags write byte-identical stdout, stderr and exit
+  status. A positional given with `--task`, or more than one positional, is refused before any read
+  with exit 2 and `invalid-arguments`; the message names `--task` and carries the copyable example
+  `corvint context --task "fix the parser"`. Neither form still refuses with the unchanged
+  `the following arguments are required: --task`. A first positional that names a lookup mode
+  (`grep`, `defs`, `refs`) stays the lookup surface, and a positional counts as a task for the
+  `--expand` exclusion. Under `--corpus` the positional is the corpus search query as `--task` is.
+  Compatibility: additive under CCF-V1-006, since `context` is not a `cli-parity-v0` output and the
+  change only accepts an input that was refused; no packet member, identifier or enumeration moves.
+- `TCP-V0-063`: (proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose path
+  ends, case-insensitively, in `.json`, `.jsonl`, `.ndjson`, `.csv` or `.tsv` is record data
+  (`isRecordDataSuffix`): structured records such as receipts, run outputs, fixtures, manifests
+  and task stores, whose short field-dense bodies BM25 at `b` 0.3 ranks above the code that
+  produces or reads them. YAML, TOML and XML stay code, since they commonly carry the build, CI
+  and project configuration a change edits. Record data keeps its kind `lexical`, its TCP-V0-060
+  score and its reason, but in TCP-V0-013's fill it takes no head position and no documentation
+  share position, and it counts as code only for TCP-V0-059's lead. It takes a merged position
+  when it outscores every other code hit competing for the fill (a held row sets no lead; with no
+  such code hit every record-data hit leads), or as one of the first two record-data hits in
+  TCP-V0-014 order that do not (`contextRecordDataQuota`, a chosen constant mirroring
+  `contextDocumentationQuota`, not a calibration); every other record-data hit follows every code
+  hit and every deferred documentation hit, in TCP-V0-014 order. A held record-data hit spends no
+  quota. TCP-V0-061's first line counts record data as code; when record-data hits the packet does
+  not carry outscore the weakest carried code hit that competed for the fill, a further line,
+  after the share line, states `K record-data rows that outscore a carried code row are omitted
+  by the record-data gate (Q admitted below the strongest code row); the strongest is \`path\`
+  (bm25 X)`, `Q` being the quota; it is absent when TCP-V0-016 withholds the ordinary rows. The
+  gate reads no new input, widens no walk and changes no slot other than the lexical fill. Under
+  TCP-V0-035 record data reorders only inside the positions the gate gave it, and the line reads
+  every record-data hit against the carried rows. Falsifier: a held-out orientation run whose gold record-data file the gate defers while a
+  weaker code row is carried, or whose critical rows carried fall against the TCP-V0-059 packet.
+  The development replay already shows one such deferral at limit 50 (`docs/specs/INDEX.json` in
+  pull request 557, behind two task-store records) against two code rows gained.
+- `TCP-V0-064`: (accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observes its request
+  context at fixed compile boundaries (before the pair slot, before the mention slots, before the
+  subject slots, after the co-change history join, per lexical term, after the lexical walk inside
+  the lexical fill, after the fill) and once more after the packet, spans and snapshot refusal are
+  complete. A context that has ended at any boundary returns the existing cancellation refusal
+  (`Git repository index was cancelled`, or its deadline form) and no packet; it never returns a
+  READY or abstaining packet. The co-change history and recency readers are joined before
+  `TaskContext` returns on every path, and the history error is read only after its reader is
+  joined. The slot generators between two adjacent boundaries run to completion, so the retirement
+  bound is the work between adjacent checks, not a constant; that worst case is not measured. An uncancelled request keeps its packet bytes.
 
 ## Non-goals and authority
 
@@ -1115,8 +1160,8 @@ file or accept the warning. It does not screen homoglyphs, U+00AD soft hyphens, 
 selectors or other format characters outside the named sets, does not screen ordinary rows,
 `query`/`impact` wires or `external` rows, and does not add a `--base` option: a committed range is
 `cem status`'s to report (CEM-CB-026). It does not change what CCF-V1-005 freezes; the
-`governance_refused` member keeps its name and type, and its relation and trust register is the
-owner's to review under CCF-V1-006 now that a generator writes rows there. `AGENTS.override.md` and
+`governance_refused` member keeps its name and type, and decision 0468 (V1-0653) registers its
+relation, trust and warning values under CCF-V1-007 (d). `AGENTS.override.md` and
 other names `documentKind` does not classify as `instructions` are outside the screen, as they are
 outside TCP-V0-008.
 
@@ -1132,6 +1177,11 @@ outside TCP-V0-008.
   quota of two otherwise, and the documentation hits it deferred are stated in
   `coverage.uncertainty` (TCP-V0-061); the packet does not claim the carried code rows are the
   strongest matches.
+- A task whose words fill a record-rich tree's receipts, fixtures or task stores: record-data hits
+  outscore the code that writes or reads them; the gate (TCP-V0-063) carries those that outscore
+  every code hit and two more, defers the rest past the code, and states the deferred ones that
+  outscore a carried code row in `coverage.uncertainty`. A task whose gold is a record file the
+  gate deferred loses it to the limit before a weaker code row (the falsifier).
 - A repository whose grammar the index does not parse: `definition` and `reverse-import` are
   empty for it (Swift excepted: its symbols are extracted and its module edge is the rule above,
   so a Swift subject outside the SwiftPM layout has no `reverse-import` row) and the packet says
@@ -1347,6 +1397,31 @@ are development evidence for this amendment
 (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
 the held-out validation that V1-0859 and V1-0431 require is a repository frozen after this change.
 
+TCP-V0-063 (V1-0859, V1-0431): `TestTaskContextRecordDataIsGatedLikeDocumentation`
+(`taskcontext_recorddata_test.go`) pins a record-data flood that no longer displaces weaker code
+and its gate line, a record-data hit that outscores every code hit keeping its position without
+spending the quota, deferred record data following the deferred documentation, YAML staying code,
+a held record-data path spending no quota, record data without competing code ranked by strength,
+and the gate line absent under TCP-V0-016's verdict; `TestTaskContextRecencyKeepsTheRecordDataGate`
+pins a recent record reordered only inside the record-data positions under TCP-V0-035, with the
+gate line read from the carried rows; `TestIsRecordDataSuffix` pins the class.
+Measured development evidence (rc.2 cases and the five-PR replay, before and after) is in
+`docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`; held-out validation is not run.
+
+TCP-V0-062 (V1-0993): `TestTaskContextPositionalTaskMatchesTheFlagBytes`
+(`taskcontext_positional_test.go`) compares `context TEXT`, with the positional before and after
+`--limit`, byte for byte with `context --task TEXT`; `TestTaskContextRefusesAmbiguousPositionalTasks`
+pins the refusal for both forms in either order and for two positionals, and keeps the neither-form
+refusal unchanged (`docs/build-log/2026-10-07-v1-0993-context-positional-task.md`).
+
+TCP-V0-064 (V1-0485): `TestTaskContextCancellationNeverReturnsAPacket`
+(`taskcontext_cancel_test.go`) cancels the request at each boundary, with recency off and on,
+including inside the lexical fill where the defect returned READY on `f33ea8ef`; each returns the
+cancellation refusal with no surviving reader, and the uncancelled packet afterwards is
+byte-identical to the one before. `TestTaskContextPreCancelledRequestReturnsCancellation` covers a
+context cancelled before the call for the subject and retrieval shapes
+(`docs/build-log/2026-10-08-v1-0485-late-cancellation.md`).
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -1400,6 +1475,21 @@ fields and `taskcontext_documentation_test.go`, move the reservation back into `
 re-capture
 the recipe golden. No state persists.
 
+The record-data gate (TCP-V0-063) rolls back alone: delete `isRecordDataSuffix`,
+`contextRecordDataQuota`, the `data` field of `lexicalHit`, the `lexicalCode`, `lexicalData` and
+`lexicalRecords` fields, the record-data branch and lead in `lexicalRows`, the record-data line in
+`lexicalCoverage`, the record-data class in `recencyLexical` and `taskcontext_recorddata_test.go`,
+and restore the `!item.documentation` head and count conditions. No state persists.
+
+The positional task (TCP-V0-062) rolls back alone: delete the positional collection, the switch
+before `checkContextViewArguments` and `contextPositionalTaskRefusal` in `cmd/corvint/taskcontext.go`,
+the `context` query override in `runCorpusIntegration`, and `taskcontext_positional_test.go`; a
+positional is then `unrecognized arguments` again. No state persists and no packet changed.
+
+The cancellation boundaries (TCP-V0-064) roll back alone: delete `stopped`, `join`, the
+`ctx`/`cancelled` compiler fields, the boundary checks and `taskcontext_cancel_test.go`. A late
+cancellation then returns its packet again; no state persists and no uncancelled packet changes.
+
 ## Traceability
 
 | Requirement | Implementation | Test |
@@ -1442,7 +1532,7 @@ the recipe golden. No state persists.
 | TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
 | TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
 | TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
-| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderClass`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
@@ -1466,3 +1556,6 @@ the recipe golden. No state persists.
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
 | TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
 | TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
+| TCP-V0-063 | `isRecordDataSuffix`, `lexicalRows` (`contextRecordDataQuota`, `lexicalData`, `lexicalRecords`), `lexicalCoverage` (`lexicalCode`), `recencyLexical` (`internal/contextindex/recency.go`) | `TestTaskContextRecordDataIsGatedLikeDocumentation`, `TestTaskContextRecencyKeepsTheRecordDataGate`, `TestIsRecordDataSuffix` |
+| TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
+| TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |

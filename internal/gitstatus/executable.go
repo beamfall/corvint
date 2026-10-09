@@ -1,6 +1,7 @@
 package gitstatus
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // appleGitShim is the xcrun shim macOS installs as `git`. It resolves the active
@@ -70,14 +73,30 @@ func resolveExecutable() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "/usr/bin/xcrun", "--find", "git").Output()
-	if err != nil {
+	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "--find", "git")
+	var output bytes.Buffer
+	command.Stdout = &output
+	if err := runLookup(command); err != nil {
 		return resolved
 	}
-	target := strings.TrimSpace(string(output))
+	target := strings.TrimSpace(output.String())
 	info, err := os.Stat(target)
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return resolved
 	}
 	return target
+}
+
+// runLookup runs a lookup child in its own recorded group, so an exit that
+// abandons the lookup retires it (AHI-048). An owned worker's child stays in
+// the worker's group for the enclosing runner to retire, as its Git does.
+func runLookup(command *exec.Cmd) error {
+	if OwnedWorker() {
+		return command.Run()
+	}
+	groupreap.Contain(command)
+	if err := groupreap.StartLive(command); err != nil {
+		return err
+	}
+	return groupreap.Wait(command)
 }

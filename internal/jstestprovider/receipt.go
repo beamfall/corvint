@@ -208,6 +208,32 @@ type ExternalLifecycle struct {
 	RunnerDescendantsGone bool   `json:"runnerDescendantsGone"`
 	InputsUnchanged       bool   `json:"inputsUnchanged"`
 	ConfigOverride        string `json:"configOverride"`
+	// ProjectReporters is present only for an explicit keep-reporters run
+	// (PWP-V0-010); the default replace-only receipt bytes are unchanged.
+	ProjectReporters *ProjectReporters `json:"projectReporters,omitempty"`
+}
+
+// ProjectReporters binds the project-owned reporter entries that ran beside the
+// provider reporter. Their writes, output and in-process effects are never
+// observed, so Effects is always "unknown" (PWP-V0-011).
+type ProjectReporters struct {
+	Entries []ProjectReporter `json:"entries"`
+	Effects string            `json:"effects"`
+	// Qualification is the caller-supplied keep-reporters qualification
+	// record (PWP-V0-016). It is present only when the run was given one, and
+	// the projection recomputes whether it matches this receipt.
+	Qualification *KeepReportersQualification `json:"qualification,omitempty"`
+}
+
+// ProjectReporter is one kept entry as Playwright received it. Module is
+// "builtin", "bound" (its source digest is a bound config input) or "unknown";
+// Options is "absent", "bound" (canonical JSON digest) or "unknown".
+type ProjectReporter struct {
+	Name          string `json:"name"`
+	Module        string `json:"module"`
+	ModuleDigest  string `json:"moduleDigest,omitempty"`
+	Options       string `json:"options"`
+	OptionsDigest string `json:"optionsDigest,omitempty"`
 }
 
 type ApplicationAttestationReceipt struct {

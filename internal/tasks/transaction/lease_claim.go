@@ -25,14 +25,26 @@ func pathResources(paths []string) []ticket.Resource {
 // declares: its touchPaths and its PATH resources (CAL-V0-021). It is empty
 // for any other coverage, and for a QUALIFIED ticket that declares no path.
 func Declared(rec *ticket.Record) []string {
-	if rec.Effects.Coverage != "QUALIFIED" {
+	return declaredPaths(rec.Effects)
+}
+
+// UnboundedEffects reports whether effects e leave a claim and the plan
+// with the WHOLE_REPOSITORY fallback scope: they declare no PATH scope under
+// QUALIFIED coverage and are not externalUnbounded, which is ineligible
+// anyway (CAL-V0-192).
+func UnboundedEffects(e ticket.Effects) bool {
+	return !e.ExternalUnbounded && len(declaredPaths(e)) == 0
+}
+
+func declaredPaths(e ticket.Effects) []string {
+	if e.Coverage != "QUALIFIED" {
 		return nil
 	}
 	set := map[string]bool{}
-	for _, p := range rec.Effects.TouchPaths {
+	for _, p := range e.TouchPaths {
 		set[p] = true
 	}
-	for _, r := range rec.Effects.Resources {
+	for _, r := range e.Resources {
 		if r.Class == "PATH" {
 			set[r.Key] = true
 		}
@@ -279,7 +291,13 @@ func endedHistory(prior *snapshot.Attempt) *snapshot.GenerationHistory {
 		stage := prior.Stage
 		h.Stage = &stage
 	}
-	if x := prior.PoolAllocation; x != nil {
+	// CAL-V0-203: a generation that returned its allocation early still
+	// records the member it held.
+	x := prior.PoolAllocation
+	if x == nil && prior.ReleasedPoolAllocation != nil {
+		x = &prior.ReleasedPoolAllocation.Allocation
+	}
+	if x != nil {
 		pool, member := x.PoolID, x.MemberID
 		h.PoolID, h.MemberID = &pool, &member
 	}

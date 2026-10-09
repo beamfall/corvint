@@ -134,6 +134,12 @@ separators=(',', ':')`, then add one LF; sort only fields documented as sets. Ea
 `--help` lists its closed payload keys. `ticket create --template` prints a canonical CREATE payload for
 this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
 fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
+A queue whose policy sets `{"milestones":{"required":true}}` refuses CREATE without a milestone,
+and REFINE that sets `milestone` to null, `VALIDATION_FAILED` `MILESTONE_REQUIRED` (CAL-V0-195);
+the template then lists `milestone` in `fill`. Absent or false keeps milestone optional, and existing
+unmilestoned tickets stay valid. `queue status` reports `openWithoutMilestone` and `roadmap` warns
+with the same count (CAL-V0-196) on every policy. Adding the key is a policy change and fences live
+evidence handoffs `STALE_POLICY`.
 
 A ticket that only some stages must wait for carries optional `executionPrerequisites`, set with
 `ticket refine` (for example `{"executionPrerequisites":[{"gateId":null,"obligation":"COMPLETED",
@@ -297,6 +303,21 @@ for the byte string `"sharedAllocation"` in `.git/taskman` tells whether a share
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
+
+An attempt claimed without `--pool` can take one member later and return it early, while it stays
+live (CAL-V0-198..204):
+
+```sh
+corvint-tasks pool acquire --attempt ATTEMPT --generation G --pool db --request-id acquire-0
+corvint-tasks pool release --attempt ATTEMPT --generation G --allocation ALLOCATION_SHA256 --request-id return-0
+```
+
+`pool acquire` admits for the attempt's own holder and stage by the pooled-claim rules, accepts
+`--exclude-member` and (review or integrate attempts) `--exclude-authors`, and reports
+`poolAllocation`, null when it is refused. `pool release` quarantines the exact current allocation and
+reports `releasedPoolAllocation`. Each generation takes at most one allocation, a shared allocation
+is not returned early, and an attempt that returned one cannot attach to a supervisor or be released
+lane-untouched. Ending an attempt that still holds an acquired allocation quarantines it as usual.
 
 Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
 `health`/`cleanup` commands. Each command has `argv`, `cwd`, declared `env` names and
@@ -671,7 +692,12 @@ version on: a build that writes `/2` adopts only a drained `/1` ledger, starts i
 at the adoption time (`historyFrom` in `dispatch status`), and refuses a `/0` ledger. An earlier
 build refuses `/2`, so drain before rolling back. The ledger moved from `/2` to `/3` when it
 gained the per-ticket stall counts (CAL-V0-185, proposed): a build that writes `/3` adopts a
-drained `/1` or `/2` ledger and an earlier build refuses `/3`. A store `VERSION` another
+drained `/1` or `/2` ledger and an earlier build refuses `/3`. It also adopts a `/2` ledger whose
+recorded workers are all gone, proven by the same process check the `/2` build reaps by, and its
+first tick reaps them as usual (CAL-V0-187, proposed). If a recorded worker is still running or
+cannot be proven gone, the refusal names it and the clearing step: with the `/2` build, set every
+role `cap` and escalate tier `cap` to 0 in a copy of the configuration and run
+`corvint-tasks dispatch --program P --config COPY --once` until `dispatch status` lists no worker. A store `VERSION` another
 build wrote refuses every lease verb with `UNSUPPORTED_VERSION`, and so does any record (attempt,
 run record, receipt, ticket and the rest of `formats`) whose profile is another version of its own;
 reads never migrate. A build N process that outlived the swap, such as an attempt runner, keeps

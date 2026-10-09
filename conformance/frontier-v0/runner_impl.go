@@ -65,7 +65,7 @@ func (repoRunner) Run(f Fixture, c Case) (Outcome, error) {
 // that shared a stem would silently intersect and turn a declared rejection
 // into a qualifying basis.
 var (
-	hunkWords     = []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel"}
+	hunkWords     = []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "gamma", "hotel"}
 	evidenceWords = []string{"kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo"}
 )
 

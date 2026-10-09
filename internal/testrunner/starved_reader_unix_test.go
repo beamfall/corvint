@@ -13,5 +13,5 @@ import (
 // exit, the old one-second bound fails that run, and a held pipe still fails
 // within a finite bound (V1-0391).
 func TestContainPhasePipeDrainBound(t *testing.T) {
-	testsupport.CheckPipeDrainBound(t, func(c *exec.Cmd) { containPhase(c, false) })
+	testsupport.CheckPipeDrainBound(t, func(c *exec.Cmd) { containPhase(c, false, nil) })
 }

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,9 +73,9 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
-	"ticket know-how add", "ticket know-how retract", "ticket know-how list",
+	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
@@ -192,7 +193,7 @@ func Run(env Env) int {
 		if len(args) == 2 && args[1] == "--help" {
 			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
 		}
-		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover") {
+		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
@@ -379,9 +380,11 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
+		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]]",
+		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
-		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
+		"corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
@@ -1088,7 +1091,9 @@ func roadmap(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
+	var unmilestoned int64
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+		unmilestoned = openWithoutMilestone(rc.store.Inventory)
 		ids := rc.store.Inventory.Sorted()
 		milestone := func(id string) (string, bool) {
 			rec, _ := rc.store.Inventory.Get(id)
@@ -1136,7 +1141,22 @@ func roadmap(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	if unmilestoned > 0 {
+		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
+	}
 	return res
+}
+
+// openWithoutMilestone counts OPEN tickets whose milestone is null
+// (CAL-V0-196), over the whole inventory, independent of paging.
+func openWithoutMilestone(inv *ticket.Inventory) int64 {
+	n := int64(0)
+	for _, id := range inv.IDs() {
+		if rec, ok := inv.Get(id); ok && rec.Status == ticket.StatusOpen && rec.Milestone == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // gateValue renders one policy gate definition with the §3.1 field names.
@@ -1389,6 +1409,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 		o.Set("byStatus", wire.ObjectValue(bo))
 		o.Set("intentChecksPassed", wire.String(string(wire.CountOf(int64(unknown)))))
 		o.Set("blocked", wire.String(string(wire.CountOf(int64(blocked)))))
+		o.Set("openWithoutMilestone", wire.String(string(wire.CountOf(openWithoutMilestone(st.Inventory)))))
 		last, completions := completionSummary(rc, observedAt)
 		o.Set("lastCompletion", last)
 		o.Set("completions", completions)
@@ -1428,13 +1449,16 @@ func queueStatus(env Env, args []string) *wire.Result {
 			o.Set("pools", occupancy)
 		}
 		attempts := map[string]*snapshot.Attempt{}
+		fallback := wire.Null()
 		if !rc.journalAbsent {
 			in, _, e := planInput(rc)
 			if e != nil {
 				return e
 			}
 			attempts = in.Attempts
+			fallback = serialFallbackDeferredValue(in)
 		}
+		o.Set("serialFallbackDeferred", fallback)
 		// The per-ticket retry map dominates the bytes on a large queue, so
 		// it is opt-in (CAL-V0-169); the attempt audit above still runs.
 		if withRetries {
@@ -1461,6 +1485,21 @@ func queueStatus(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// serialFallbackDeferredValue is the CAL-V0-193 queue-status list of the
+// tickets the default plan defers only by the WHOLE_REPOSITORY serial
+// fallback, in plan order. It plans only when some OPEN or HELD ticket has
+// unbounded effects, so a queue whose tickets all declare a scope reads no
+// plan and reports an empty list.
+func serialFallbackDeferredValue(in transaction.PlanInput) wire.Value {
+	for _, id := range in.Tickets.IDs() {
+		rec, _ := in.Tickets.Get(id)
+		if (rec.Status == ticket.StatusOpen || rec.Status == ticket.StatusHeld) && transaction.UnboundedEffects(rec.Effects) {
+			return wire.Strings(transaction.PriorityFirst(in).SerialFallbackDeferred())
+		}
+	}
+	return wire.Strings([]string{})
 }
 
 // completionSummary is the CAL-V0-184 queue-status throughput view, derived

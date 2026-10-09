@@ -337,8 +337,9 @@ func regexEnd(text string, i int) int {
 // jsValue is a literal value read from an object or array literal; kind "other" is anything the
 // compiler would have to evaluate.
 type jsValue struct {
-	kind  string // string, bool, number, object, array, other
+	kind  string // string, bool, number, object, array, member (`X.Y`, str "X.Y"), other
 	str   string
+	tok   int // a member's token index: which binding of `X` it reads (AMAP-V0-022)
 	obj   []jsPair
 	arr   []jsValue
 	line  int
@@ -394,6 +395,10 @@ func parseValue(toks []token, i int) (jsValue, int) {
 	case t.kind == tokIdent && (t.text == "true" || t.text == "false"):
 		if next(toks, i+1, ",", "}", "]", ")") {
 			return jsValue{kind: "bool", str: t.text, line: t.line}, i + 1
+		}
+	case t.kind == tokIdent && next(toks, i+1, ".") && i+2 < len(toks) && toks[i+2].kind == tokIdent:
+		if next(toks, i+3, ",", "}", "]", ")") {
+			return jsValue{kind: "member", str: t.text + "." + toks[i+2].text, line: t.line, tok: i}, i + 3
 		}
 	case t.kind == tokPunct && t.text == "{":
 		return parseObject(toks, i)

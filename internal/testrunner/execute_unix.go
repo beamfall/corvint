@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,6 +29,11 @@ import (
 func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, retErr error) {
 	out = Execution{Profile: "corvint-test-runner-execution/0", Runner: r.Runner, InputSha256: Identity(r.InputFiles), InvocationSha256: Identity(inv), ReportSha256: map[string]string{}, ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}
 	out.Input = Input{Target: r.Target, SourceRoot: r.Root, Selectors: append([]string{}, r.Selectors...), SourceFile: r.Project, Runner: r.Runner, Reports: map[string][]byte{}, Expected: append([]string{}, r.ExpectedTests...), OutcomeNeutralExitCodes: inv.OutcomeNeutralExitCodes, SuccessExitCodes: inv.SuccessExitCodes, FailureExitCodes: inv.FailureExitCodes, ExitCode: -1}
+	if r.ExpectedSelection != nil {
+		s := *r.ExpectedSelection
+		s.Tests = append([]string{}, s.Tests...)
+		out.Input.ExpectedSelection = &s
+	}
 	defer func() {
 		if retErr != nil {
 			detail := retErr.Error()
@@ -39,6 +45,15 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 	}()
 	if err := exitProfile(inv.SuccessExitCodes, inv.FailureExitCodes, inv.OutcomeNeutralExitCodes); err != nil {
 		return out, err
+	}
+	if inv.RetireDetachedDescendants {
+		if inv.GracefulInterrupt {
+			return out, fmt.Errorf("detached retirement excludes graceful interrupt")
+		}
+		if !groupreap.RetirementSupported {
+			return out, fmt.Errorf("detached descendant retirement unsupported on this platform")
+		}
+		out.Retirement = &groupreap.Retirement{Retired: []groupreap.RetiredProcess{}, Unretired: []groupreap.RetiredProcess{}, Problems: []string{}}
 	}
 	if !filepath.IsAbs(r.Root) || !filepath.IsAbs(r.ReportDir) || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 1800 || len(r.InputFiles) == 0 || len(r.InputFiles) > 4096 {
 		return out, fmt.Errorf("incomplete execution admission")
@@ -187,17 +202,25 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		phaseCtx, phaseCancel := context.WithCancel(limited)
 		cmd := exec.CommandContext(phaseCtx, t.Executable, p.Argv...)
 		cmd.Dir = r.Root
-		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": filepath.Join(r.ReportDir, ".tmp"), "LANG": "C.UTF-8", "TZ": "UTC"}
+		env := map[string]string{"PATH": declaredPath(r), "HOME": filepath.Join(r.ReportDir, ".home"), "TMPDIR": ExecutionTempDir(r.ReportDir), "LANG": "C.UTF-8", "TZ": "UTC"}
 		for k, v := range p.Environment {
 			if k == "" || strings.ContainsAny(k, "=\x00") || strings.ContainsRune(v, 0) {
 				phaseCancel()
 				return out, fmt.Errorf("invalid environment")
 			}
-			if k == "HOME" || k == "TMPDIR" || k == "PATH" {
+			if k == "HOME" || k == "TMPDIR" || k == "PATH" || k == groupreap.OwnerEnvironmentKey {
 				phaseCancel()
 				return out, fmt.Errorf("reserved execution environment")
 			}
 			env[k] = v
+		}
+		var retirer *groupreap.Retirer
+		if inv.RetireDetachedDescendants {
+			if retirer, err = groupreap.NewRetirer(); err != nil {
+				phaseCancel()
+				return out, err
+			}
+			env[groupreap.OwnerEnvironmentKey] = retirer.Token()
 		}
 		keys := make([]string, 0, len(env))
 		for k := range env {
@@ -207,11 +230,24 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		for _, k := range keys {
 			cmd.Env = append(cmd.Env, k+"="+env[k])
 		}
-		containPhase(cmd, inv.GracefulInterrupt)
+		containPhase(cmd, inv.GracefulInterrupt, retirer)
 		stdout, stderr := &limitedBuffer{cancel: phaseCancel}, &limitedBuffer{cancel: phaseCancel}
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
-		runErr := groupreap.Run(cmd)
+		containment, runErr := groupreap.RunContainedRetiring(cmd, retirer)
+		if !containment.Complete() {
+			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"process-containment", containmentDetail(i, containment)})
+		}
+		var retireErr error
+		if retirer != nil {
+			// Retain the record before any fallible post-processing, so a
+			// later binding or write failure cannot discard it (TRE-V0-030).
+			got := retirer.Result()
+			out.Retirement.Merge(got)
+			if !got.Clean() {
+				retireErr = fmt.Errorf("detached descendant retirement incomplete: %d unretired, %d problems", len(got.Unretired), len(got.Problems))
+			}
+		}
 		a, ovA := stdout.value()
 		b, ovB := stderr.value()
 		code := -1
@@ -245,6 +281,11 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 			out.Input.TimedOut = result.TimedOut
 			out.Input.Interrupted = result.Interrupted
 			out.Input.Overflow = result.Overflow
+		}
+		if retireErr != nil {
+			// A cleanup failure is an execution problem, so no complete or
+			// passing observation can hide it (TRE-V0-030).
+			return out, retireErr
 		}
 		if result.TimedOut || result.Interrupted || result.Overflow || code < 0 || (p.Kind != "TEST" && runErr != nil) {
 			out.Input.TimedOut = result.TimedOut
@@ -314,7 +355,7 @@ func checkTool(t Tool) error {
 	if e != nil || !s.Mode().IsRegular() || s.Size() > 256<<20 {
 		return fmt.Errorf("tool must be bounded regular file")
 	}
-	f, e := os.Open(t.Executable)
+	f, _, e := openCheckedRegular(t.Executable, s)
 	if e != nil {
 		return e
 	}
@@ -343,6 +384,33 @@ func regularPath(root *os.Root, n string) error {
 		}
 	}
 	return nil
+}
+
+// regularAbsolutePath is regularPath for an absolute pinned file: each prefix
+// takes a no-follow Lstat and the final one is returned for the open. A root
+// opened at "/" would contain nothing and needs read access to "/" itself,
+// which a sandbox such as Landlock denies (V1-0624). The open then goes through
+// openCheckedRegular, because os.Root follows a final symlink even with
+// O_NOFOLLOW.
+func regularAbsolutePath(name string) (os.FileInfo, error) {
+	parts := strings.Split(strings.TrimPrefix(name, string(filepath.Separator)), string(filepath.Separator))
+	var s os.FileInfo
+	for i := range parts {
+		var e error
+		if s, e = os.Lstat(string(filepath.Separator) + filepath.Join(parts[:i+1]...)); e != nil {
+			return nil, e
+		}
+		if s.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("symlink input refused")
+		}
+		if i < len(parts)-1 && !s.IsDir() {
+			return nil, fmt.Errorf("non-directory segment")
+		}
+		if i == len(parts)-1 && !s.Mode().IsRegular() {
+			return nil, fmt.Errorf("nonregular file refused")
+		}
+	}
+	return s, nil
 }
 func checkInputs(root *os.Root, files map[string]string) error {
 	for n, h := range files {
@@ -422,6 +490,26 @@ func declaredPath(r Request) string {
 	}
 	return strings.Join(dirs, string(os.PathListSeparator))
 }
+
+// openCheckedRegular opens a path whose no-follow check saw before. O_NONBLOCK
+// keeps a FIFO swapped in after that check from blocking admission, O_NOFOLLOW
+// refuses a final symlink swapped in, and the same-file check refuses any other
+// replacement (V1-0624).
+func openCheckedRegular(name string, before os.FileInfo) (*os.File, os.FileInfo, error) {
+	f, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() || !before.Mode().IsRegular() || !os.SameFile(before, st) {
+		f.Close()
+		return nil, nil, fmt.Errorf("nonregular file refused")
+	}
+	return f, st, nil
+}
 func checkPinnedFile(base, name, digest string) error {
 	if name == "" && digest == "" {
 		return nil
@@ -435,25 +523,20 @@ func checkPinnedFile(base, name, digest string) error {
 		}
 		name = filepath.Join(base, filepath.FromSlash(name))
 	}
-	root, err := os.OpenRoot(string(filepath.Separator))
+	name = filepath.Clean(name)
+	if err := relative(strings.TrimPrefix(name, string(filepath.Separator))); err != nil {
+		return err
+	}
+	before, err := regularAbsolutePath(name)
 	if err != nil {
 		return err
 	}
-	defer root.Close()
-	rel := strings.TrimPrefix(filepath.Clean(name), string(filepath.Separator))
-	if err = relative(rel); err != nil {
-		return err
-	}
-	if err = regularPath(root, rel); err != nil {
-		return err
-	}
-	f, err := root.Open(rel)
+	f, st, err := openCheckedRegular(name, before)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || st.Size() > MaxPinnedArtifactBytes {
+	if st.Size() > MaxPinnedArtifactBytes {
 		return fmt.Errorf("pinned artifact byte bound")
 	}
 	h := sha256.New()
@@ -595,16 +678,24 @@ func boundedReportGlob(ctx context.Context, root *os.Root, pattern string, scann
 
 // containPhase owns a phase's process group, chooses its cancellation signal
 // and bounds its pipe drain.
-func containPhase(cmd *exec.Cmd, graceful bool) {
+func containPhase(cmd *exec.Cmd, graceful bool, retirer *groupreap.Retirer) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	// Playwright owns detached browser groups. Interrupt its leader so native
 	// worker teardown can close them before the bounded hard-kill fallback.
+	// Cancellation signals only the leader: groupreap.RunContained then stops
+	// the remaining group, retires descendants that left it while their owned
+	// parents are stopped, and kills the group (TRE-V0-034, V1-0608).
 	cmd.Cancel = func() error {
 		if cmd.Process != nil {
 			if graceful {
 				return cmd.Process.Signal(syscall.SIGINT)
 			}
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			if retirer != nil {
+				// Stop and retire owned detached descendants while the
+				// leader still proves their ancestry (TRE-V0-030).
+				retirer.Retire()
+			}
+			return cmd.Process.Kill()
 		}
 		return nil
 	}
@@ -615,4 +706,24 @@ func containPhase(cmd *exec.Cmd, graceful bool) {
 	if graceful {
 		cmd.WaitDelay = 5 * time.Second
 	}
+}
+
+// containmentDetail names the phase and the bounded escaped-descendant
+// outcome; survivors are listed, never signalled again.
+func containmentDetail(phase int, c groupreap.Containment) string {
+	detail := fmt.Sprintf("phase %d: escaped descendants retired=%d survivors=%d", phase, len(c.Retired), len(c.Survivors))
+	for i, p := range c.Survivors {
+		if i == 8 {
+			detail += " ..."
+			break
+		}
+		detail += " [" + p.String() + "]"
+	}
+	if c.Err != nil {
+		detail += ": " + c.Err.Error()
+	}
+	if len(detail) > 1024 {
+		detail = detail[:1024]
+	}
+	return detail
 }

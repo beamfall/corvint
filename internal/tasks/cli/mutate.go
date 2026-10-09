@@ -10,6 +10,8 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -217,6 +219,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
+	if operation == mutation.OpCreate || operation == mutation.OpRefine {
+		o.Set("milestoneRule", wire.String("When policy sets milestones.required true, CREATE without a milestone and REFINE that sets milestone to null refuse VALIDATION_FAILED MILESTONE_REQUIRED (CAL-V0-195); existing records are never rewritten. Absent or false keeps milestone optional."))
+	}
 	if operation == mutation.OpAttachEvidence {
 		o.Set("attachEvidence", wire.String("Records 1..16 sha256 digests (sorted unique; the CLI sorts them) and a nonblank reason of at most 512 bytes on an OPEN native ticket (TEA-V0-001). Revision advances by one; acceptanceRevision, status, gates, attempts and every other record field are unchanged, so attached evidence never satisfies a gate or acceptance criterion. A digest already attached at the current acceptanceRevision refuses DUPLICATE_ID; at most 32 entries per ticket. OWNER by default; OPERATOR only through an explicit policy row. Retry with the same --request-id and --issued-at to replay."))
 	}
@@ -316,5 +321,62 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	return mutateResult(cmd, report)
+	res := mutateResult(cmd, report)
+	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
+			res.Warnings = append(res.Warnings, w)
+		}
+	}
+	if operation == mutation.OpCompleteManual && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		res.Warnings = append(res.Warnings, unmetDependencyWarnings(store0.Inventory, report.Ticket)...)
+	}
+	return res
+}
+
+// WarningEffectsUnbounded prefixes the CAL-V0-192 warning, so a caller can
+// match it without parsing the prose that follows.
+const WarningEffectsUnbounded = "EFFECTS_UNBOUNDED"
+
+// unboundedEffectsWarning is the CAL-V0-192 warning for a fresh CREATE,
+// REFINE or SET_EFFECTS commit whose resulting effects leave the ticket with
+// the WHOLE_REPOSITORY fallback scope, or "" otherwise. CREATE and
+// SET_EFFECTS read the effects from the committed payload; REFINE never
+// changes effects, so it reads the record loaded before the write.
+func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Value, ticketID string) string {
+	var e ticket.Effects
+	switch operation {
+	case mutation.OpCreate, mutation.OpSetEffects:
+		var ok bool
+		if e, ok = mutation.PayloadEffects(operation, payload); !ok {
+			return ""
+		}
+	case mutation.OpRefine:
+		rec, ok := st.Inventory.Get(ticketID)
+		if !ok {
+			return ""
+		}
+		e = rec.Effects
+	default:
+		return ""
+	}
+	if !transaction.UnboundedEffects(e) {
+		return ""
+	}
+	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage QUALIFIED (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects",
+		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
+}
+
+// unmetDependencyWarnings names each COMPLETED-obligation dependency that a
+// committed COMPLETE_MANUAL overrode (CAL-V0-186). It reads the intent store
+// the command loaded before the write; the receipt and journal are unchanged.
+func unmetDependencyWarnings(inv *ticket.Inventory, target string) []string {
+	var out []string
+	for _, d := range inv.UnmetCompletedDependencies(target) {
+		status := d.Status
+		if status == "" {
+			status = "not found"
+		}
+		out = append(out, fmt.Sprintf("COMPLETE_MANUAL overrode an unsatisfied dependency: %s (obligation COMPLETED) is %s", d.TicketID, status))
+	}
+	return out
 }

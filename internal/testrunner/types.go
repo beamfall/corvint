@@ -46,6 +46,9 @@ type Request struct {
 	Tools            map[string]Tool   `json:"tools"`
 	ReportDir        string            `json:"reportDir"`
 	TimeoutSeconds   int               `json:"timeoutSeconds"`
+	// ExpectedSelection is omitted when absent so historical plan bytes and
+	// identities are unchanged.
+	ExpectedSelection *Selection `json:"expectedSelection,omitempty"`
 }
 type Phase struct {
 	StdoutReport string            `json:"stdoutReport"`
@@ -66,6 +69,10 @@ type Invocation struct {
 	Environment             map[string]string `json:"environment"`
 	Format                  string            `json:"format"`
 	GracefulInterrupt       bool              `json:"gracefulInterrupt,omitempty"`
+	// RetireDetachedDescendants proves and retires processes that left the
+	// leader's group (TRE-V0-030); omitted when false, so older plans keep
+	// their bytes.
+	RetireDetachedDescendants bool `json:"retireDetachedDescendants,omitempty"`
 }
 type Input struct {
 	Target                  string            `json:"target"`
@@ -85,6 +92,7 @@ type Input struct {
 	Interrupted             bool              `json:"interrupted"`
 	Overflow                bool              `json:"overflow"`
 	Expected                []string          `json:"expected"`
+	ExpectedSelection       *Selection        `json:"expectedSelection,omitempty"`
 }
 type Attempt struct {
 	State       string `json:"state"`

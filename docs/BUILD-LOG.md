@@ -3618,7 +3618,7 @@ stricter implementation and adds a separate real-browser regression for the orig
 
 The retained fixture requires project/browser identity, config digest, stable test ID, nonempty user
 agent, 1280×720 viewport, bundled browser version/path and a passing projection in one receipt. It
-passed with the pinned Playwright 1.63.0 modules and browser. The exact Golf checkout and hosted CI
+passed with the pinned Playwright 1.63.0 modules and browser. The exact ExampleApp checkout and hosted CI
 remain `NOT_OBSERVED`; the minimal checked-in fixture proves the reported configuration shape, not
 the unavailable consumer repository.
 
@@ -3775,7 +3775,7 @@ retained MCP discovery, setup dependencies, global use, project inheritance, two
 and repeat-each identities. Executable option metadata and a custom `page` fixture both produced
 unknown identity/infrastructure and never a passing projection. Other Playwright versions remain
 unqualified; Playwright 1.63 on another Node/platform/browser path also remains diagnostic-only.
-The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `golf-e2e` checkout does not
+The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `example-app-e2e` checkout does not
 exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVED`. The externally
 managed application command for `http://127.0.0.1:3002` is recorded in
 the accepted profile; its config owns the bound system-Chrome executable path, and the provider
@@ -3803,7 +3803,7 @@ input receipt and CLI outputs are retained under `/private/tmp/issue-41-list*` a
 `/private/tmp/issue-41-real-discovery.json`; no consumer-checkout or runtime-execution claim follows.
 Frozen synthetic 117-file qualification also requires an independent 353-pair receipt. Canonical
 repeatability, mismatch differences, stale bindings, malformed inputs, strict bounds and fallback
-regressions pass focused checks. The exact golf-e2e checkout remains `NOT_OBSERVED`.
+regressions pass focused checks. The exact example-app-e2e checkout remains `NOT_OBSERVED`.
 
 Corvint pre-change context and required dogfood preparation were used. Initial preparation retained
 missing citation/scope/outcome reasons; final reports and the parent-owned serialized gate remain
@@ -3814,7 +3814,7 @@ global-setup helper change to select nothing despite matched discovery. Repair e
 every admitted physical test to the selected config; a custom `e2e.config.ts` regression requires
 the entire matched suite for its setup-helper change without making helpers executable units.
 
-## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
+## 2026-09-20 TJAA-V0-012..017: example-app-shaped Playwright selection (issue 41)
 
 The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig
 baseUrl/paths resolution and global setup/teardown dependency edges to the opt-in profile. The
@@ -3822,9 +3822,9 @@ shared default adapter retains its previous alias frontier. Unsupported inherita
 resolution, ambiguous or missing targets, computed imports and config still widen; application state
 remains an execution unknown. No JavaScript/config is executed.
 
-The synthetic golf-shaped qualification proves 41 selected units out of 353 for one changed cohort,
+The synthetic example-app-shaped qualification proves 41 selected units out of 353 for one changed cohort,
 all 353 for global-setup helpers/config, distinct Chromium/Angular/React units, setup/cleanup closure,
-and identical canonical bytes for identical inputs. The actual golf-e2e checkout was unavailable:
+and identical canonical bytes for identical inputs. The actual example-app-e2e checkout was unavailable:
 consumer configuration and consumer recall remain `NOT_OBSERVED`, with no runtime promotion claim.
 The original qualification fixture and all shared TypeScript tests remain required gate inputs.
 

@@ -124,7 +124,7 @@ local path, branch name, display name, or record filename is never an identity.
 
 ## Non-goals and simpler baseline
 
-- A Golf- or product-specific adapter, hosting-service synchronization, automatic clone or fetch,
+- An example-app- or product-specific adapter, hosting-service synchronization, automatic clone or fetch,
   remote transport, test-selection policy, CEM or Change Frontier integration, embeddings, and
   automatic relationship repair.
 - Path-to-path composition. Relate each path to an entity instead; the opt-in V2 profile

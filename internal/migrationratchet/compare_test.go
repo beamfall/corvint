@@ -319,7 +319,7 @@ func fixtureProfile() Profile {
 		InvalidateEvidenceOnContentChange: true, UnresolvedDenominatorCannotGrow: true,
 	}
 	policy.SHA256 = PolicyDigest(policy)
-	provider := ProviderBinding{ID: "provider:migration", Schema: "golf-e2e-migration/1", SHA256: Digest("provider")}
+	provider := ProviderBinding{ID: "provider:migration", Schema: "example-app-e2e-migration/1", SHA256: Digest("provider")}
 	review := record("review", "review:checkout", "reviewed")
 	contract := record("behavior-contract", "contract:checkout", "reviewed")
 	test := record("test-execution", "test:checkout:chromium", "reviewed")
@@ -340,7 +340,7 @@ func fixtureProfile() Profile {
 	for i := range records {
 		sealRecord(&records[i])
 	}
-	baseline := Snapshot{Schema: SnapshotSchema, Repository: RepositoryBinding{ID: "repository:golf-e2e", Revision: hexID('1'), Tree: hexID('2')}, Policy: policy, Provider: provider, Complete: true, Fresh: true, Records: records, Exceptions: []Exception{}}
+	baseline := Snapshot{Schema: SnapshotSchema, Repository: RepositoryBinding{ID: "repository:example-app-e2e", Revision: hexID('1'), Tree: hexID('2')}, Policy: policy, Provider: provider, Complete: true, Fresh: true, Records: records, Exceptions: []Exception{}}
 	sealSnapshot(&baseline)
 	candidate := baseline
 	candidate.Repository.Revision = hexID('3')

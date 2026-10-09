@@ -53,6 +53,7 @@ type options struct {
 	impactProviders []string
 	impactCheckouts []extevidence.Checkout
 	impactLimit     int
+	impactBudget    *int
 	impactWorktree  bool
 	impactBase      string
 	impactBaseSet   bool
@@ -313,7 +314,30 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 		}
 		name, value, inline := strings.Cut(argument, "=")
 		if !positionalOnly && name == "--budget-bytes" {
-			return result, impactBudgetOptionRefusal()
+			// MCPV0-032 (proposed): path impact honours a byte budget.
+			if result.impactBudget != nil {
+				return result, argumentError("argument --budget-bytes: may not be repeated")
+			}
+			if !inline {
+				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
+					return result, argumentError("argument --budget-bytes: expected one argument")
+				}
+				value = arguments[index+1]
+				index += 2
+			} else {
+				index++
+			}
+			budget, ok := pythonBoundedInteger(value, contextindex.MaxPacketBytes)
+			if !ok {
+				return result, argumentError("argument --budget-bytes: invalid literal for int() with base 10: " + pythonRepr(value))
+			}
+			if budget < contextindex.MinPacketBytes || budget > contextindex.MaxPacketBytes {
+				return result, argumentError(fmt.Sprintf(
+					"argument --budget-bytes: budget_bytes must be between %d and %d",
+					contextindex.MinPacketBytes, contextindex.MaxPacketBytes))
+			}
+			result.impactBudget = &budget
+			continue
 		}
 		if !positionalOnly && name == "--working-tree-untracked" {
 			if inline || result.impactWorktree {
@@ -454,6 +478,12 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 	}
 	if len(result.impactCheckouts) != 0 && len(result.impactProviders) == 0 {
 		return result, argumentError("--repository requires --provider")
+	}
+	if result.impactBudget != nil && (result.impactBaseSet || result.impactWorktree) {
+		return result, impactBudgetOptionRefusal()
+	}
+	if result.impactBudget != nil && len(result.impactProviders) != 0 {
+		return result, argumentError("--budget-bytes cannot bound the --provider external section")
 	}
 	if len(result.impactProviders) != 0 && (result.impactBaseSet || result.impactWorktree) {
 		return result, argumentError("--provider is available only for the default path profile, not --base or --working-tree-untracked")
@@ -1180,9 +1210,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			var contextReceipt map[string]any
 			var err error
 			if options.impactLanguage != "" {
-				contextReceipt, err = standaloneImpactSyntaxContext(index, options.impactPaths, options.impactLimit)
+				contextReceipt, err = standaloneImpactSyntaxContext(index, options.impactPaths, options.impactLimit, options.impactBudget)
 			} else {
-				contextReceipt, err = standaloneImpactContext(index, options.impactPaths, options.impactLimit)
+				contextReceipt, err = standaloneImpactContext(index, options.impactPaths, options.impactLimit, options.impactBudget)
 			}
 			if err != nil || len(options.impactProviders) == 0 {
 				return contextReceipt, err
@@ -1268,24 +1298,34 @@ func validateImpactPathAdmission(value string) error {
 	return impactPathSuffixRefusal(value)
 }
 
-func standaloneImpactContext(index *contextindex.Index, paths []string, limit int) (map[string]any, error) {
-	for _, value := range paths {
-		if !contextindex.ImpactRuleNamed(value) {
-			budget := defaultHarnessBudgetBytes - gokernel.OutputOverheadBytes
-			return contextindex.EvalImpact(index, paths, limit, &budget)
-		}
+// standaloneImpactContext compiles path impact. A caller budget (MCPV0-032,
+// proposed) compiles under that budget; without one, a path no reverse-import
+// rule names keeps the harness default budget it has always had.
+func standaloneImpactContext(index *contextindex.Index, paths []string, limit int, budget *int) (map[string]any, error) {
+	if budget = impactBudget(paths, budget); budget != nil {
+		return contextindex.EvalImpact(index, paths, limit, budget)
 	}
 	return contextindex.Impact(index, paths, limit)
 }
 
-func standaloneImpactSyntaxContext(index *contextindex.Index, paths []string, limit int) (map[string]any, error) {
-	for _, value := range paths {
-		if !contextindex.ImpactRuleNamed(value) {
-			budget := defaultHarnessBudgetBytes - gokernel.OutputOverheadBytes
-			return contextindex.EvalImpactSyntax(index, paths, limit, &budget)
-		}
+func standaloneImpactSyntaxContext(index *contextindex.Index, paths []string, limit int, budget *int) (map[string]any, error) {
+	if budget = impactBudget(paths, budget); budget != nil {
+		return contextindex.EvalImpactSyntax(index, paths, limit, budget)
 	}
 	return contextindex.ImpactSyntax(index, paths, limit)
+}
+
+func impactBudget(paths []string, budget *int) *int {
+	if budget != nil {
+		return budget
+	}
+	for _, value := range paths {
+		if !contextindex.ImpactRuleNamed(value) {
+			fallback := defaultHarnessBudgetBytes - gokernel.OutputOverheadBytes
+			return &fallback
+		}
+	}
+	return nil
 }
 
 // standaloneQueryContext dispatches the standalone query profiles. An optional

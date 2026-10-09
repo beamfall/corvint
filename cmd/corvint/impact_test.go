@@ -105,7 +105,7 @@ func TestImpactRejectsUnsupportedInputsWithoutReadingStdin(t *testing.T) {
 		// GPK-V0-027 retains the typed refusal for suffixes the index does not
 		// admit; admitted-but-unruled suffixes are covered separately below.
 		{"unadmitted-text", "unsupported-impact-path-suffix", []string{"--root", root, "impact", "README.csv"}},
-		{"budget", "unsupported-impact-option", []string{"--root", root, "impact", "pkg/main.go", "--budget-bytes", "1024"}},
+		{"budget-with-base", "unsupported-impact-option", []string{"--root", root, "impact", "--base", "HEAD", "--budget-bytes", "2048"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reader := &forbiddenImpactReader{}
@@ -385,4 +385,53 @@ func TestCommittedRangeImpactRejectsAmbiguousCLIForms(t *testing.T) {
 			t.Fatalf("args=%v exit=%d stdout=%q stderr=%q", arguments, exit, &stdout, &stderr)
 		}
 	}
+}
+
+// TestMCPV0032PathImpactHonoursBudgetBytes: path impact compiles its receipt
+// under --budget-bytes and records the budget; --provider with a budget is an
+// argument error because the external section is not budgeted.
+func TestMCPV0032PathImpactHonoursBudgetBytes(t *testing.T) {
+	t.Run("MCPV0-032", func(t *testing.T) {
+		root := impactCLIRepository(t)
+		var stdout, stderr bytes.Buffer
+		if exit := run([]string{"--root", root, "impact", "pkg/main.go", "--budget-bytes=2048"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 0 {
+			t.Fatalf("exit=%d stderr=%s", exit, &stderr)
+		}
+		var receipt struct {
+			Context struct {
+				Coverage struct {
+					BudgetBytes *int `json:"budget_bytes"`
+					PacketBytes int  `json:"packet_bytes"`
+				} `json:"coverage"`
+			} `json:"context"`
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
+			t.Fatal(err)
+		}
+		if coverage := receipt.Context.Coverage; coverage.BudgetBytes == nil || *coverage.BudgetBytes != 2048 || coverage.PacketBytes > 2048 {
+			t.Fatalf("coverage=%+v", coverage)
+		}
+		for _, arguments := range [][]string{
+			{"--root", root, "impact", "pkg/main.go", "--budget-bytes", "2048", "--budget-bytes", "2048"},
+			{"--root", root, "impact", "pkg/main.go", "--budget-bytes", "2048", "--provider", "gopls"},
+		} {
+			stdout.Reset()
+			stderr.Reset()
+			if exit := run(arguments, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 {
+				t.Fatalf("%v exit=%d stdout=%s stderr=%s", arguments, exit, &stdout, &stderr)
+			}
+		}
+	})
+}
+
+// TestMCPV0032ProveRefusesBudgetBytes: prove embeds the unbudgeted impact
+// packet (FPK-V0-010), so it refuses --budget-bytes instead of ignoring it.
+func TestMCPV0032ProveRefusesBudgetBytes(t *testing.T) {
+	t.Run("MCPV0-032", func(t *testing.T) {
+		root := impactCLIRepository(t)
+		var stdout, stderr bytes.Buffer
+		if exit := run([]string{"--root", root, "prove", "pkg/main.go", "--budget-bytes", "2048"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "prove does not support --budget-bytes") {
+			t.Fatalf("exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
+		}
+	})
 }

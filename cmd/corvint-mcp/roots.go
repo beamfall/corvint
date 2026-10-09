@@ -4,19 +4,17 @@ import (
 	"context"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 const (
 	// maxRoots caps the repositories one process may declare (MMR-V0-002).
-	maxRoots = 32
-	// maxAliasBytes bounds one alias; aliases are [a-z][a-z0-9-]* (MMR-V0-002).
-	maxAliasBytes = 32
+	maxRoots = rootalias.MaxRoots
 	// repositoryArgument is the one tool argument multi-root mode adds (MMR-V0-004).
 	repositoryArgument = "repository"
 	// multiRootStatusSchema is the all-repositories status object (MMR-V0-006).
@@ -24,33 +22,8 @@ const (
 )
 
 // rootDeclaration is one --root value: a plain ABSOLUTE_ROOT, whose alias is
-// empty, or ALIAS=ABSOLUTE_ROOT (MMR-V0-001).
+// empty, or ALIAS=ABSOLUTE_ROOT (MMR-V0-001), read by rootalias.Split.
 type rootDeclaration struct{ alias, root string }
-
-// splitAlias reads ALIAS=ABSOLUTE_ROOT. A value is aliased only when the text
-// before its first '=' is a valid alias; an absolute path starts with '/' or a
-// drive letter followed by ':', neither of which an alias admits, so no plain
-// absolute root is ever read as an alias.
-func splitAlias(value string) (alias, root string, aliased bool) {
-	alias, root, found := strings.Cut(value, "=")
-	if !found || !validAlias(alias) {
-		return "", value, false
-	}
-	return alias, root, true
-}
-
-func validAlias(alias string) bool {
-	if alias == "" || len(alias) > maxAliasBytes || alias[0] < 'a' || alias[0] > 'z' {
-		return false
-	}
-	for index := 1; index < len(alias); index++ {
-		character := alias[index]
-		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '-' {
-			return false
-		}
-	}
-	return true
-}
 
 // openRepositories validates and pins every declared root at startup with the
 // single-root MCPV0-001 rules (MMR-V0-003). A root that fails is "repository

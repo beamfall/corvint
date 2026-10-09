@@ -272,3 +272,120 @@ func TestLocalCompletionCLIRejectsUnknownAndSecretInputs(t *testing.T) {
 		}
 	}
 }
+
+// TestLocalCompletionVerifyOKMirrorsCheckResult pins LCP-V0-017 (V1-1012):
+// a selected check that exits 1 yields exit 1 and top-level ok:false, with the
+// observation still reporting qualified:false and the observed exit; a passing
+// check yields exit 0 and ok:true.
+func TestLocalCompletionVerifyOKMirrorsCheckResult(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, ".gitignore", ".corvint/\n")
+	cemWrite(t, root, "intent.md", "# Intent\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	plan := localcompletion.Plan{Base: cemGit(t, root, "rev-parse", "HEAD"), Intents: []string{"intent.md"}, Checks: []localcompletion.Check{
+		{ID: "fails", Argv: []string{"sh", "-c", "exit 1"}, TimeoutSeconds: 30},
+		{ID: "passes", Argv: []string{"sh", "-c", "exit 0"}, TimeoutSeconds: 30},
+	}}
+	raw, _ := json.Marshal(plan)
+	planPath := filepath.Join(t.TempDir(), "plan.json")
+	if err = os.WriteFile(planPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := localcompletion.HashSession(t.Name())
+	run := func(args ...string) (int, map[string]any) {
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, append(args, "--session-key", key), strings.NewReader(""), &stdout, &stderr)
+		var envelope map[string]any
+		if err := json.Unmarshal([]byte(stdout.String()), &envelope); err != nil {
+			t.Fatalf("%v exit=%d stdout=%s stderr=%s: %v", args, code, stdout.String(), stderr.String(), err)
+		}
+		return code, envelope
+	}
+	if code, _ := run("begin", "--plan", planPath); code != 0 {
+		t.Fatalf("begin exit %d", code)
+	}
+	for _, want := range []struct {
+		check     string
+		code      int
+		qualified bool
+		exit      float64
+	}{{"fails", 1, false, 1}, {"passes", 0, true, 0}} {
+		code, envelope := run("verify", "--check", want.check)
+		if code != want.code || envelope["ok"] != (want.code == 0) || envelope["tool"] != "dogfood-verify" {
+			t.Fatalf("%s: exit=%d envelope=%v", want.check, code, envelope)
+		}
+		found := false
+		for _, item := range envelope["policy"].(map[string]any)["checks"].([]any) {
+			check := item.(map[string]any)
+			if check["id"] == want.check {
+				found = check["qualified"] == want.qualified && check["exit"] == want.exit
+			}
+		}
+		if !found {
+			t.Fatalf("%s: check observation hidden or wrong: %v", want.check, envelope["policy"])
+		}
+	}
+}
+
+// TestDogfoodBeginPlanIntentRefusalNamesTheRule pins LCP-V0-018 (V1-1043): an
+// unsorted, duplicated, empty or over-long plan intents array keeps its stable
+// code and names the sorted, de-duplicated 1-16 repository-relative spec path
+// rule in the nested message.
+func TestDogfoodBeginPlanIntentRefusalNamesTheRule(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.md", "# A\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	many := make([]string, 17)
+	for i := range many {
+		many[i] = "docs/spec-" + string(rune('a'+i)) + ".md"
+	}
+	for _, tc := range []struct {
+		name    string
+		intents []string
+		code    string
+	}{
+		{"unsorted", []string{"docs/b.md", "docs/a.md"}, "invalid-intent-scope"},
+		{"duplicated", []string{"docs/a.md", "docs/a.md"}, "invalid-intent-scope"},
+		{"empty", []string{}, "plan-bound-exceeded"},
+		{"over-long", many, "plan-bound-exceeded"},
+	} {
+		plan := localcompletion.Plan{Base: base, Intents: tc.intents, Checks: []localcompletion.Check{{ID: "c", Argv: []string{"true"}, TimeoutSeconds: 30}}}
+		raw, _ := json.Marshal(plan)
+		planPath := filepath.Join(t.TempDir(), "plan.json")
+		if err = os.WriteFile(planPath, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, []string{"begin", "--plan", planPath, "--session-key", localcompletion.HashSession(t.Name())}, strings.NewReader(""), &stdout, &stderr)
+		var envelope struct {
+			Code  string `json:"code"`
+			Error struct {
+				Code, Message string
+			} `json:"error"`
+		}
+		if err = json.Unmarshal([]byte(stderr.String()), &envelope); err != nil || code != 2 || stdout.Len() != 0 {
+			t.Fatalf("%s: exit=%d stdout=%q stderr=%q: %v", tc.name, code, stdout.String(), stderr.String(), err)
+		}
+		if envelope.Code != tc.code || envelope.Error.Code != tc.code || !strings.HasPrefix(envelope.Error.Message, tc.code+": ") {
+			t.Fatalf("%s: envelope %+v", tc.name, envelope)
+		}
+		for _, want := range []string{"1-16 repository-relative spec paths", "sorted in byte order with no duplicates"} {
+			if !strings.Contains(envelope.Error.Message, want) {
+				t.Fatalf("%s: message %q lacks %q", tc.name, envelope.Error.Message, want)
+			}
+		}
+	}
+}

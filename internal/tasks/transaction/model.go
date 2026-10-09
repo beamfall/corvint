@@ -237,13 +237,17 @@ func canonical(raw []byte) error {
 // model. OWNER and OPERATOR may; REVIEWER and WORKER may only for a
 // REVIEW_RECORD or REVIEW_RESUBMIT mutation, whose authority is the external
 // review reducer's recorder roles and live leases, never the role matrix
-// (ERG-V0-001).
+// (ERG-V0-001). WORKER may also enter for KNOWHOW_ADD, which Model refuses
+// exactly as an unadmitted actor unless policy knowHow.workerAdd is true
+// (KHN-V0-021).
 func ActorAdmitted(r Request) bool {
 	switch r.Actor.Role {
 	case "OWNER", "OPERATOR":
 		return true
-	case "REVIEWER", "WORKER":
+	case "REVIEWER":
 		return reviewMutation(r)
+	case "WORKER":
+		return reviewMutation(r) || workerKnowHowMutation(r)
 	}
 	return false
 }
@@ -526,6 +530,11 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
+	if workerKnowHowMutation(r) && !state.policy.WorkerKnowHowAdd() {
+		// KHN-V0-021: without the policy opt-in the WORKER write is refused
+		// as it was before the key existed.
+		return WorkerAttemptRefusal(r)
+	}
 	if r.Operation == Init && state.head != nil {
 		return refused(r.RequestID, mutation.OutcomeBlocked, "", "already initialized")
 	}
@@ -644,6 +653,9 @@ func Model(r Request, in Input) Result {
 		ctx.PriorNoteEvent = in.PriorNoteEvent
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
+		}
+		if mutation.KnowHowNamesAttempt(env) {
+			ctx.KnowHowAttempts = knowHowLedger(state.attempts, in.RecordedAt)
 		}
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
@@ -786,7 +798,7 @@ func (absentIndex) Lookup(string) (mutation.IndexEntry, bool, error) {
 // Cancels reports a lease release or reap, which an ALL barrier lets through
 // as it does cancel (TCP-00 §3.4).
 func Cancels(r Request) bool {
-	return r.Operation == Lease && (r.Lease.Verb == LeasePoolSweepFinish || r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap || r.Lease.Verb == LeasePoolObserve || r.Lease.Verb == LeasePoolRecover || r.Lease.Verb == LeasePoolCleanup || r.Lease.Verb == LeasePoolSafe)
+	return r.Operation == Lease && (r.Lease.Verb == LeasePoolSweepFinish || r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap || r.Lease.Verb == LeasePoolObserve || r.Lease.Verb == LeasePoolRecover || r.Lease.Verb == LeasePoolCleanup || r.Lease.Verb == LeasePoolSafe || r.Lease.Verb == LeasePoolRelease)
 }
 
 func emptyReservations(q string) []byte {
@@ -960,13 +972,36 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r)) && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || knowHowAttemptMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
 		st.pools, e = loadPools(r, in, st)
 	}
 	return st, e
+}
+
+// WorkerAttemptMutation reports a WORKER KNOWHOW_ADD (KHN-V0-021): the one
+// WORKER write outside review that reads attempt history. The store screens
+// it against policy before the lock and keeps it off the writer-checkpoint
+// route, which models without attempts.
+func WorkerAttemptMutation(r Request) bool { return workerKnowHowMutation(r) }
+
+// WorkerAttemptRefusal is the refusal a WORKER KNOWHOW_ADD meets when policy
+// does not opt in (KHN-V0-021): the outcome and detail an unadmitted actor
+// received before the key existed.
+func WorkerAttemptRefusal(r Request) Result {
+	return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
+}
+
+// workerKnowHowMutation reports a WORKER KNOWHOW_ADD, whose scope check
+// (KHN-V0-022) needs the audited attempt records.
+func workerKnowHowMutation(r Request) bool {
+	if r.Operation != Mutate || r.Actor.Role != "WORKER" {
+		return false
+	}
+	env, err := mutation.Decode(r.Envelope)
+	return err == nil && env.Operation == mutation.OpKnowHowAdd
 }
 
 func cloneRequest(r Request) Request {
@@ -1293,9 +1328,9 @@ func importAttachedEvidence(post, pre *ticket.Record, where string) error {
 }
 
 // importKnowHow keeps an IMPORT batch from adding, rewriting or dropping
-// know-how entries (KHN-V0-003): only KNOWHOW_ADD and KNOWHOW_RETRACT write
-// them, so an imported record carries exactly the ledger of the record it
-// replaces.
+// know-how entries (KHN-V0-003): only KNOWHOW_ADD, KNOWHOW_RETRACT and
+// KNOWHOW_RECONFIRM write them, so an imported record carries exactly the
+// ledger of the record it replaces.
 func importKnowHow(post, pre *ticket.Record, where string) error {
 	var want []ticket.KnowHowEntry
 	if pre != nil {

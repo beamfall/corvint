@@ -263,7 +263,8 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	}
 	stderr := &boundedBuffer{limit: maxGitErrorBytes}
 	command.Stdout, command.Stderr = stdout, stderr
-	if err := command.Start(); err != nil {
+	wait, err := startDrained(ctx, command)
+	if err != nil {
 		if ctx.Err() != nil {
 			return nil, contextError(ctx)
 		}
@@ -272,9 +273,10 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 			gitFailure: &GitFailure{Arguments: arguments, ExitCode: -1, StartError: err},
 		}
 	}
-	processID := command.Process.Pid
-	defer terminateProcessGroup(processID)
-	err := command.Wait()
+	// The group sweep follows the pipe drain and precedes the reap (V1-0373);
+	// Drain records the group from start until that reap, so an exit that
+	// abandons this read still retires it (AHI-048).
+	err = wait()
 	if ctx.Err() != nil {
 		return nil, contextError(ctx)
 	}

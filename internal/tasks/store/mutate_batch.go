@@ -84,6 +84,11 @@ func MutateBatch(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 			out.Entries[i].Report = &Report{Outcome: result.Outcome, Coverage: result.Coverage, Detail: result.Detail, Kind: result.Kind}
 			return out, nil
 		}
+		if workerAttemptUnadmitted(repo, request) {
+			result := transaction.WorkerAttemptRefusal(request)
+			out.Entries[i].Report = &Report{Outcome: result.Outcome, Coverage: result.Coverage, Detail: result.Detail, Kind: result.Kind}
+			return out, nil
+		}
 	}
 	if _, err := os.Stat(repo.StateDir); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

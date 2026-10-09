@@ -158,6 +158,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", root, "context", "--task", "Where does docs/specs/queue.md define the work queue", "--limit", "1"}
 		}, 0,
 			map[string]any{"tool": "context", "schema_version": float64(1)}},
+		{"context downgraded governing row", func(t *testing.T) []string {
+			// A governing file hiding bidirectional controls is downgraded and named in
+			// coverage.governance_refused (TCP-V0-056; decision 0468, V1-0653).
+			agents := map[string]string{"AGENTS.md": "# Project instructions\n\nThe roadmap is the only active work queue.\u202E hidden\u202C\n"}
+			root := coreFreezeCommit(t, queryCLIRepository(t), agents)
+			return []string{"--root", root, "context", "--task", "Where is the active work queue defined"}
+		}, 0,
+			map[string]any{"tool": "context", "schema_version": float64(1)}},
 		{"impact path", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "impact", "pkg/main.go"}
 		}, 0,
@@ -180,10 +188,16 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", root, "impact", "--working-tree-untracked", "pkg/extra.go"}
 		}, 0, map[string]any{"tool": "impact", "context.profile": "corvint-working-tree-impact/0"}},
 		{"affected worktree", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "affected"} }, 0,
-			map[string]any{"tool": "affected", "profile": "affected-plan/0"}},
+			map[string]any{"tool": "affected", "profile": "affected-plan/1"}},
 		{"affected committed range", func(t *testing.T) []string {
 			root := impactCLIRepository(t)
 			return []string{"--root", root, "affected", "--base", coreFreezeParent(t, root)}
+		}, 0, map[string]any{"tool": "affected", "profile": "affected-plan/1"}},
+		{"affected full worktree", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "affected", "--full"} }, 0,
+			map[string]any{"tool": "affected", "profile": "affected-plan/0"}},
+		{"affected full committed range", func(t *testing.T) []string {
+			root := impactCLIRepository(t)
+			return []string{"--root", root, "affected", "--full", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "affected", "profile": "affected-plan/0"}},
 		{"prove task", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "prove", "--task", task}
@@ -247,8 +261,18 @@ func checkCoreWant(t *testing.T, document map[string]any, want map[string]any) {
 
 // coreN1Skips names the modes the N-1 replay cannot run, and why.
 var coreN1Skips = map[string]string{
-	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh":   "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
-	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source": "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
+	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh":        "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
+	"TestCoreVerbsEmitTheFrozenProfiles/context_downgraded_governing_row": "0.8.1 has no authority screen; TCP-V0-055..058 (V1-0414) added coverage.governance_refused rows after it (decision 0468)",
+	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source":      "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":                "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":         "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
+}
+
+// coreN1WithoutFull names the modes whose N-1 equivalent is the same command line without
+// `--full`: N-1 had no such option and emitted the affected-plan/0 wire by default (AFP-V0-035).
+var coreN1WithoutFull = map[string]bool{
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_full_worktree":        true,
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_full_committed_range": true,
 }
 
 // replayCoreModeN1 is the opt-in CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from
@@ -261,7 +285,11 @@ func replayCoreModeN1(t *testing.T, binary string, invoke func(*testing.T) []str
 		t.Skip(reason)
 	}
 	var stdout, stderr bytes.Buffer
-	command := exec.Command(binary, invoke(t)...)
+	arguments := invoke(t)
+	if coreN1WithoutFull[strings.TrimSuffix(t.Name(), "/N-1")] {
+		arguments = slices.DeleteFunc(arguments, func(argument string) bool { return argument == "--full" })
+	}
+	command := exec.Command(binary, arguments...)
 	command.Stdout, command.Stderr = &stdout, &stderr
 	var exited *exec.ExitError
 	if err := command.Run(); err != nil && !errors.As(err, &exited) {
@@ -548,6 +576,21 @@ func checkPromisorObjectRefusals(t *testing.T) {
 			t.Errorf("%v: envelope %v, want repository-object-unavailable naming one of %v with git.fetch-promisor-objects", test.arguments, envelope, test.objects)
 		}
 	}
+	// affected reads only tree-level Git data and the checked-out files, never a blob, so it plans
+	// rather than refuses (V1-0349). The sparse clone has no pkg/ checked out, so its plan stays
+	// UNKNOWN instead of claiming a selection.
+	for root, scope := range map[string]string{sparse: "UNKNOWN", full: ""} {
+		code, stdout, stderr := runCLI(t, "--root", root, "affected", "--base", base)
+		var report struct {
+			OK   bool `json:"ok"`
+			Plan struct {
+				Scope string `json:"scope"`
+			} `json:"plan"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &report); err != nil || code != 0 || !report.OK || scope != "" && report.Plan.Scope != scope {
+			t.Errorf("affected over %s: exit %d stdout %s stderr %s, want a plan with scope %q", root, code, stdout, stderr, scope)
+		}
+	}
 	lazyRead := func(environment ...string) {
 		command := exec.Command("git", "-C", full, "cat-file", "-p", baseBlob[0])
 		command.Env = append(os.Environ(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
@@ -563,6 +606,50 @@ func checkPromisorObjectRefusals(t *testing.T) {
 	lazyRead()
 	if _, err := os.Stat(sentinel); err != nil {
 		t.Fatalf("a lazy fetch with the file transport allowed left no sentinel, so the sentinel proves nothing: %v", err)
+	}
+}
+
+// TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching extends V1-0349 to the map-first reads,
+// whose object reads go through internal/cem/gitauth rather than the kernel: cem status and verify
+// over a blob:none clone missing the base blob refuse with repository-object-unavailable, and no
+// fetch reaches the promisor remote, also through a Git that drops GIT_NO_LAZY_FETCH. It sets
+// PATH, so it cannot run in parallel.
+func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, base, target := cemRepo(t)
+	completionCandidate(t, source, base, target)
+	cemGit(t, source, "config", "uploadpack.allowFilter", "true")
+	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+	clone, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "file://"+source, clone)
+	cemGit(t, clone, "config", "remote.origin.uploadpack", "touch '"+strings.ReplaceAll(sentinel, "'", `'\''`)+"' && git-upload-pack")
+	if err := os.RemoveAll(source); err != nil {
+		t.Fatal(err)
+	}
+	for _, dropsLazyFetchGuard := range []bool{false, true} {
+		if dropsLazyFetchGuard {
+			shim := t.TempDir()
+			script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
+			if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		}
+		for _, verb := range []string{"status", "verify"} {
+			code, stdout, stderr := runCLI(t, "--root", clone, "cem", verb, "--map", completionMap, "--expected-base", base, "--target", "HEAD")
+			if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("drops guard %v: cem %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, verb, err)
+			}
+			if code != 2 || stdout != "" || !strings.Contains(stderr, "repository-object-unavailable") {
+				t.Errorf("drops guard %v: cem %s exit %d stdout %q stderr %s, want 2 with repository-object-unavailable", dropsLazyFetchGuard, verb, code, stdout, stderr)
+			}
+		}
 	}
 }
 

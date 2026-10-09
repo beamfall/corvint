@@ -65,6 +65,20 @@ type failOpenRun struct {
 // and pre-compact read the repository with 15 Git processes.
 const failOpenSpawnLimit = 15
 
+// failOpenSlowGitSleep is how long every slow Git shim sleeps before running Git, far past the
+// declared host kill (at most 2 s), so an unsignalled slow Git outlives the adapter by at least
+// failOpenSlowGitSleep minus the adapter's elapsed time.
+const failOpenSlowGitSleep = 30 * time.Second
+
+// failOpenOutliveBound is how long a slow Git child may stay observable after an adapter that ran
+// for elapsed exits (AHI-048, V1-1041). The adapter SIGKILLs every live child group before exiting,
+// so the orphan is gone once its new parent reaps it; left running, it would outlive the adapter by
+// at least failOpenSlowGitSleep-elapsed. Half that natural remainder still proves the kill while
+// leaving seconds of headroom for scheduler and reap latency under host load (decision 0082).
+func failOpenOutliveBound(elapsed time.Duration) time.Duration {
+	return (failOpenSlowGitSleep - elapsed) / 2
+}
+
 // failOpenShells are the shells a hook adapter might reach through PATH or $SHELL. Each is shimmed
 // to record the spawn and fail, so a login shell (or any shell) cannot run unseen.
 var failOpenShells = []string{"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
@@ -133,6 +147,12 @@ func TestAHI044HookAdaptersFailOpen(t *testing.T) {
 					ledgerWrites.Add(1)
 				}
 				t.Logf("%s/%s: %d PATH spawns, %s, Git outlived the adapter by %s", invocation.name, test.name, len(run.spawns), run.elapsed.Round(time.Millisecond), run.outlived.Round(time.Millisecond))
+				// AHI-048: the exit path kills every live child group before os.Exit, so a sleeping
+				// slow Git is gone once its new parent reaps it. A running Git can take longer to act
+				// on the SIGKILL under host load, so other cases log the time (decision 0082).
+				if bound := failOpenOutliveBound(run.elapsed); test.slowGit && run.outlived >= bound {
+					t.Fatalf("Git outlived the adapter by %s, at or above the %s exit-kill bound", run.outlived, bound)
+				}
 				test.check(t, invocation, run)
 			})
 		}
@@ -255,7 +275,7 @@ func runFailOpenCase(t *testing.T, binary, realGit string, invocation failOpenIn
 	log, pids := filepath.Join(base, "spawns.log"), filepath.Join(base, "pids.log")
 	delay := ""
 	if test.slowGit {
-		delay = "/bin/sleep 5\n" // PATH holds only the shims
+		delay = fmt.Sprintf("/bin/sleep %d\n", int(failOpenSlowGitSleep/time.Second)) // PATH holds only the shims
 	}
 	// exec keeps the shim's pid, so pids.log names every Git process the adapter started.
 	writeFailOpenShim(t, filepath.Join(shims, "git"), fmt.Sprintf("printf 'git %%s\\n' \"$*\" >> %s\necho $$ >> %s\n%sexec %s \"$@\"\n", shellQuote(log), shellQuote(pids), delay, shellQuote(realGit)))
@@ -329,8 +349,8 @@ func runFailOpenCase(t *testing.T, binary, realGit string, invocation failOpenIn
 	if !test.closeStdout && !plain && !json.Valid(bytes.TrimSpace(stdout.Bytes())) {
 		t.Fatalf("stdout is not one hook JSON value: %q", stdout.String())
 	}
-	// A Git child the adapter abandoned at its deadline can outlive it; wait for it before reading
-	// the tree, so a write it makes after the adapter exits still counts.
+	// A Git child the adapter abandoned at its deadline is killed as the adapter exits (AHI-048);
+	// wait for it before reading the tree, so a write it makes after the adapter exits still counts.
 	outlived := waitFailOpenOrphans(t, pids)
 	spawns := failOpenSpawns(t, log)
 	for _, spawn := range spawns {
@@ -369,7 +389,7 @@ func writeFailOpenRepository(t *testing.T, realGit, repository, home string) {
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command(realGit, arguments...)
+		command := exec.Command(realGit, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = repository
 		// The explicit Env drops TestMain's GIT_CONFIG_PARAMETERS, so the fixture restores it:
 		// detached auto maintenance after the commit races failOpenTree's walk of .git (V1-0351).

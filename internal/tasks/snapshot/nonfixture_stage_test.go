@@ -96,6 +96,9 @@ func testCALV0027_CompletedStageReceiptKinds(t *testing.T) {
 		{StageMutate, "MUTATION"}, {StageMutate, "ARCHIVE"}, {StageMutate, "RESTORE"},
 		{StageLease, "ADMIT"}, {StageLease, "TRANSITION"}, {StageLease, "GATE_RESULT"}, {StageLease, "MANIFEST"},
 		{StageRelease, "RELEASE"}, {StageRelease, "RECONCILE"},
+		// V1-0466: exact direct and reconciliation aliases stay bounded.
+		{StageKeepJournal, "RECONCILE"}, {StageAdoptFile, "RECONCILE"}, {StageEscalation, "TRANSITION"},
+		{StagePolicyUpdate, "POLICY_UPDATE"}, {StageImportApply, "IMPORT_APPLY"}, {StageAuthoritySwitch, "AUTHORITY_SWITCH"}, {StageQualification, "QUALIFICATION"},
 	} {
 		t.Run(tc.op+"/"+tc.kind, func(t *testing.T) {
 			o, b := completedStageBinding(t, tc.op, tc.kind)
@@ -122,6 +125,8 @@ func testCALV0027_CompletedStageReceiptKinds(t *testing.T) {
 	for _, tc := range []struct{ op, kind string }{
 		{StageMutate, "ADMIT"}, {StageLease, "MUTATION"}, {StageRelease, "MANIFEST"},
 		{StageMutate, "RECONCILE"}, {StageLease, "RELEASE"}, {StageRelease, "ARCHIVE"},
+		{StageEscalation, "ADMIT"}, {StageKeepJournal, "RELEASE"},
+		{StagePolicyUpdate, "MUTATION"}, {StageQualification, "TRANSITION"}, {StageImportApply, "IMPORT_PLAN"},
 	} {
 		t.Run("refuse/"+tc.op+"/"+tc.kind, func(t *testing.T) {
 			o, b := completedStageBinding(t, tc.op, tc.kind)
@@ -138,6 +143,8 @@ func testCALV0027_CompletedStageReceiptKinds(t *testing.T) {
 			}
 		})
 	}
+	// FENCED and unknown labels are not receipt kinds: decoding refuses them first, and
+	// the mapping itself abstains.
 	if stageReceiptKind("UNKNOWN", "UNKNOWN") || stageReceiptKind(StageLease, "FENCED") || stageReceiptKind(StageMutate, "UNKNOWN") {
 		t.Fatal("unknown pair admitted")
 	}

@@ -86,7 +86,7 @@ func TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord(t *testing.T) {
 	root := repository(t, record("alpha", "middle", "reader", "zeta"))
 	git := func(args ...string) {
 		t.Helper()
-		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "commit.gpgsign=false"}, args...)...)
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {

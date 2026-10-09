@@ -67,6 +67,9 @@ const (
 	// (KHN-V0-003). Neither changes acceptance.
 	OpKnowHowAdd     = "KNOWHOW_ADD"
 	OpKnowHowRetract = "KNOWHOW_RETRACT"
+	// OpKnowHowReconfirm re-pins a STALE active note's anchors to a later
+	// commit (KHN-V0-018). It changes no text, active set or acceptance.
+	OpKnowHowReconfirm = "KNOWHOW_RECONFIRM"
 )
 
 // Actor is the envelope's untrusted actor claim. It is compared against the
@@ -284,6 +287,10 @@ type KnowHowAddPayload struct {
 	Attempt      *string
 	Generation   *wire.Size
 	EvidencePath *string
+	// Repository is the optional alias of the repository the anchors are
+	// pinned in (KHN-V0-025); "" means the key is absent, which keeps the
+	// payload's earlier bytes.
+	Repository string
 }
 
 func (*KnowHowAddPayload) operation() string { return OpKnowHowAdd }
@@ -295,6 +302,20 @@ type KnowHowRetractPayload struct {
 }
 
 func (*KnowHowRetractPayload) operation() string { return OpKnowHowRetract }
+
+// KnowHowReconfirmPayload is {note, anchors, commit, attempt, generation}
+// (KHN-V0-018): the note's anchors re-pinned at commit, with the same paths
+// and symbols in the same order, and writer-asserted provenance. Actor,
+// time and seq come from the writer, never from here.
+type KnowHowReconfirmPayload struct {
+	Note       wire.Count
+	Anchors    []ticket.KnowHowAnchor
+	Commit     string
+	Attempt    *string
+	Generation *wire.Size
+}
+
+func (*KnowHowReconfirmPayload) operation() string { return OpKnowHowReconfirm }
 
 var envelopeKeys = []string{
 	"profile", "requestId", "actor", "queueId", "targetId", "expectedRevision", "operation", "payload", "issuedAt",
@@ -332,6 +353,8 @@ var PayloadKeys = map[string][]string{
 	OpNoteClear:       {"supersedes"},
 	OpReviewRecord:    {"request"},
 	OpReviewResubmit:  {"request"},
+	// KHN-V0-018.
+	OpKnowHowReconfirm: {"anchors", "attempt", "commit", "generation", "note"},
 }
 
 // Decode parses and validates one mutation envelope (canonical bytes with
@@ -423,6 +446,27 @@ func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
 	return v, nil
 }
 
+// PayloadEffects is the effects a valid CREATE or SET_EFFECTS payload
+// declares; ok is false for any other operation or an invalid payload. It
+// lets a caller describe committed effects without re-reading the store
+// (CAL-V0-192).
+func PayloadEffects(op string, v wire.Value) (ticket.Effects, bool) {
+	if op != OpCreate && op != OpSetEffects {
+		return ticket.Effects{}, false
+	}
+	p, err := decodePayload(op, wire.NewReader(v, "/payload"))
+	if err != nil {
+		return ticket.Effects{}, false
+	}
+	switch x := p.(type) {
+	case *CreatePayload:
+		return x.Effects, true
+	case *SetEffectsPayload:
+		return x.Effects, true
+	}
+	return ticket.Effects{}, false
+}
+
 // readRequestID validates an Identifier bounded to the §1 requestId limit.
 func readRequestID(r *wire.Reader) string {
 	s := r.Identifier()
@@ -500,8 +544,15 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		r.Closed(PayloadKeys[op]...)
 		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
 	case OpKnowHowAdd:
-		r.Closed(PayloadKeys[op]...)
+		repository := ""
+		if wire.Has(r.Value(), "repository") {
+			r.Closed(append([]string{"repository"}, PayloadKeys[op]...)...)
+			repository = ticket.ReadKnowHowRepository(r.Field("repository"))
+		} else {
+			r.Closed(PayloadKeys[op]...)
+		}
 		k := &KnowHowAddPayload{
+			Repository:   repository,
 			Text:         ticket.ReadKnowHowText(r.Field("text")),
 			Anchors:      ticket.ReadKnowHowAnchors(r.Field("anchors")),
 			Routes:       ticket.ReadKnowHowRoutes(r.Field("routes")),
@@ -515,10 +566,24 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		if r.Err() == nil && (k.Supersedes == nil) != (k.Reason == nil) {
 			r.Field("reason").Fail(wire.CodeMalformed, "reason is required exactly when supersedes names a note")
 		}
+		if r.Err() == nil && repository != "" {
+			if why := ticket.KnowHowRepositoryRefusal(repository, k.Anchors); why != "" {
+				r.Field("anchors").Fail(wire.CodeMalformed, "%s", why)
+			}
+		}
 		p = k
 	case OpKnowHowRetract:
 		r.Closed(PayloadKeys[op]...)
 		p = &KnowHowRetractPayload{Note: r.Field("note").Count(), Reason: ticket.ReadKnowHowReason(r.Field("reason"))}
+	case OpKnowHowReconfirm:
+		r.Closed(PayloadKeys[op]...)
+		p = &KnowHowReconfirmPayload{
+			Note:       r.Field("note").Count(),
+			Anchors:    ticket.ReadKnowHowAnchors(r.Field("anchors")),
+			Commit:     r.Field("commit").OID(),
+			Attempt:    r.Field("attempt").StringOrNull((*wire.Reader).Identifier),
+			Generation: r.Field("generation").SizeOrNull(),
+		}
 	case OpNoteSet, OpNoteClear:
 		p = readNote(op, r)
 	case OpReviewRecord, OpReviewResubmit:
@@ -915,9 +980,22 @@ func PayloadValue(p Payload) wire.Value {
 			o.Set("generation", wire.String(string(*p.Generation)))
 		}
 		o.Set("evidencePath", wire.StringOrNull(p.EvidencePath))
+		if p.Repository != "" {
+			o.Set("repository", wire.String(p.Repository))
+		}
 	case *KnowHowRetractPayload:
 		o.Set("note", wire.String(string(p.Note)))
 		o.Set("reason", wire.String(p.Reason))
+	case *KnowHowReconfirmPayload:
+		o.Set("note", wire.String(string(p.Note)))
+		o.Set("anchors", ticket.KnowHowAnchorsValue(p.Anchors))
+		o.Set("commit", wire.String(p.Commit))
+		o.Set("attempt", wire.StringOrNull(p.Attempt))
+		if p.Generation == nil {
+			o.Set("generation", wire.Null())
+		} else {
+			o.Set("generation", wire.String(string(*p.Generation)))
+		}
 	case *NotePayload:
 		if p.Op == OpNoteSet {
 			o.Set("text", wire.String(p.Text))

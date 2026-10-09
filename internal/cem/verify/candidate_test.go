@@ -31,7 +31,7 @@ type candidateCase struct {
 
 func candidateGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "git", args...)
+	cmd := exec.CommandContext(t.Context(), "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_AUTHOR_NAME=Candidate Proof", "GIT_AUTHOR_EMAIL=proof@example.invalid", "GIT_COMMITTER_NAME=Candidate Proof", "GIT_COMMITTER_EMAIL=proof@example.invalid", "GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z"}
 	b, e := cmd.Output()

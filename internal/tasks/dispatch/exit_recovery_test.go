@@ -20,6 +20,25 @@ type refusingQueue struct {
 	// failAfterWrite fails the observation that follows any write, so the
 	// tick ends after heal and before the ended worker is accounted.
 	failAfterWrite, wrote bool
+	// beforeReap and afterReap run around each CAL-V0-191 store reap.
+	beforeReap, afterReap func(a Attempt)
+}
+
+func (q *refusingQueue) ReapExpired(ctx context.Context, a Attempt, request string) (bool, error) {
+	q.requests, q.wrote = append(q.requests, request), true
+	if q.reapFails != 0 {
+		q.reapFails--
+		q.reaped = append(q.reaped, "refused:"+a.ID)
+		return false, errors.New("LOCK_TIMEOUT")
+	}
+	if q.beforeReap != nil {
+		q.beforeReap(a)
+	}
+	reaped, err := q.fakeQueue.ReapExpired(ctx, a, request)
+	if q.afterReap != nil {
+		q.afterReap(a)
+	}
+	return reaped, err
 }
 
 func (q *refusingQueue) Observe(ctx context.Context) (*Observation, error) {

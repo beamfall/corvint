@@ -26,8 +26,13 @@ import (
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 )
 
-// affectedProfile names the wire this command emits (AFP-V0-003).
-const affectedProfile = "affected-plan/0"
+// affectedProfile names the full wire `--full` emits (AFP-V0-003), which is
+// also the N-1 default; affectedCompactProfile names the compact default wire
+// (AFP-V0-035).
+const (
+	affectedProfile        = "affected-plan/0"
+	affectedCompactProfile = "affected-plan/1"
+)
 
 // affectedReceipt is the stdout document. The plan is the selector's own
 // canonical plan; provider is the derived, non-authoritative input an operator
@@ -65,6 +70,9 @@ type affectedInvocation struct {
 	SelectionProfile    string
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
+	// Full selects the affected-plan/0 wire: every exclusion and every
+	// selected test file (AFP-V0-035).
+	Full bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -116,6 +124,7 @@ const (
 	adviceKindMandatory      = "mandatory"
 	adviceKindAdvisory       = "advisory"
 	adviceSourcePlan         = "affected-plan"
+	adviceAdvisoryGoTest     = "GOTOOLCHAIN=local go test -count=1"
 	adviceMakefileName       = "Makefile"
 	adviceAgentsName         = "AGENTS.md"
 	adviceMaxSourceBytes     = 256 << 10
@@ -188,6 +197,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	invocation := affectedInvocation{}
 	baseSet := false
 	for index := 0; index < len(rest); {
+		if rest[index] == "--full" {
+			if invocation.Full {
+				return affectedInvocation{}, argumentError("--full may be given once")
+			}
+			invocation.Full = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if !affectedOptionNames[name] {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
@@ -234,6 +251,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
+	}
+	if invocation.Full && invocation.PlaywrightConfig != "" {
+		return affectedInvocation{}, argumentError("--full cannot be combined with --playwright-config")
 	}
 	if invocation.PlaywrightConfig != "" && len(invocation.Providers) != 0 {
 		return affectedInvocation{}, argumentError("--playwright-config cannot be combined with --provider")
@@ -336,6 +356,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		receipt, err = compilePlaywrightAffected(ctx, invocation)
 	} else {
 		receipt, err = compileAffected(ctx, invocation)
+	}
+	if err == nil && !invocation.Full {
+		receipt, err = compactAffectedReceipt(receipt)
 	}
 	if err != nil {
 		emitError(stderr, err)
@@ -673,7 +696,7 @@ func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]
 	if provider.State != providerStateRunnable {
 		return nil, []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is " + provider.State}
 	}
-	command := "GOTOOLCHAIN=local go test -count=1 " + shellQuoteJoin(provider.Packages)
+	command := adviceAdvisoryGoTest + " " + shellQuoteJoin(provider.Packages)
 	reason := fmt.Sprintf("the plan selected %d unit(s) over %d dirty path(s), so these packages are the plausible first pass", len(plan.Selected), len(plan.Dirty))
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }

@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -53,7 +53,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `impact PATH...` | `tool=impact`; `context.schema_version` = 1; `context.mode` = `impact` |
   | `impact --base FULL_COMMIT_ID` | `context.profile` = `corvint-range-impact/0`; `context.mode` = `range-impact` |
   | `impact --working-tree-untracked PATH...` | `context.profile` = `corvint-working-tree-impact/0` |
-  | `affected`, default and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/0` |
+  | `affected`, default and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/1` (proposed; V1-0943, AFP-V0-035; needs a CCF-V1-006 decision record) |
+  | `affected --full`, worktree and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/0` (the previous default, byte-identical) |
   | `prove --task`, `prove PATH...`, `prove --base FULL_COMMIT_ID` | `tool=prove`; `profile` = `falsifiable-packet/0`; with `--base`, `packet.profile` = `corvint-range-impact/0` |
   | `index` | `command=index`; `profile` = `corvint-index-snapshot/1`; `mutates=true` (the snapshot write) |
   | `index --if-stale` with a fresh snapshot | `state=fresh`, `mutates=false`; no `ok`, `profile` or `command` member |
@@ -90,13 +91,13 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
-  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:835@e2ed60e2`); they
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:865@e2ed60e2`); they
   are absent from root help and outside the freeze. (accepted 2026-09-26, decision 0422; from decision 0398) The `cem/0.3` profile and the
   modes that write it, `cem cover`, `cem discriminate` and `cem mark` with a structural reason, are
   experimental and outside the freeze, not among the Core modes listed under CCF-V1-002; they never
   write over the Core sidecar `.corvint/change.cem.json` or their `cem/0.2` input (`CEM-SM-006`).
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
-  `emitError` (`cmd/corvint/main.go:1421@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
+  `emitError` (`cmd/corvint/main.go:1461@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
   converted. Frozen code families are `invalid-*` (argument, revision and repository-root validation),
   `unsupported-*` (a well-formed request outside the qualified profile, including
@@ -160,7 +161,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   unexamined, budget_shortage, governance, governance_refused, answerability}`. `init` / `adopt`:
   `inventory.operationalState`, `gaps`, `denominator`, `dirtyState`, `semanticFrontier` and
   `samplesTruncated`. `affected`: `plan.scope`, `plan.unknown`, `plan.excluded`, `advice.status` and
-  `provider.go.state` (AFP-V0-003/004). `prove`: `state` and `proof.{counts, proven_results,
+  `provider.go.state` (AFP-V0-003/004). (proposed; V1-0943) In the `affected-plan/1` default,
+  `plan.excluded` is `{count, digest, groups}` and the registered `plan.excluded[].reason` and
+  `[].invalidation` values appear at `plan.excluded.groups[]` (AFP-V0-035); `--full` keeps the array. `prove`: `state` and `proof.{counts, proven_results,
   unproven_results, failed_results}` with every row's falsifier verdict (FPK-V0). A frozen
   enumeration may gain a value only under CCF-V1-006. For `index`, `cem`, `ocm`, `frontier` and
   `dogfood status` this contract lists no further members: NOT_PRODUCED; their owning specs
@@ -208,8 +211,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
   | Member | `tool` | Values | Status | Source |
   |---|---|---|---|---|
-  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:2402@3f21cab9` |
-  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:2167@9847248b` |
+  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:2555@3f21cab9` |
+  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:2320@9847248b` |
   | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
   | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
   | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |
@@ -220,10 +223,10 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:58@884d7796` |
-  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:115@7320d4cb` |
-  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:135@797e536b` |
-  | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1727@b984fed9` |
-  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3264@c020e4b8` |
+  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:123@7320d4cb` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:144@797e536b` |
+  | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1730@b984fed9` |
+  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3417@c020e4b8` |
   | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:201@56442382` |
   | `context.intent.confidence` | `query` | `default`, `high` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:497@1f684e46` |
   | `context.learning.local_trace_state` | `query` | `absent`, `ready`, `blocked-mixed-worktree` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:62@4b83d4fe` |
@@ -231,17 +234,20 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `context.omissions.samples[].reason` | `impact` | `non-Go path outside native Go range profile` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:142@7b21b9c6` |
   | `plan.unknown[].reason` | `affected` | `UNINDEXED_SOURCE_PATH`, `UNOWNED_DIRTY_PATH`, `LANGUAGE_FRONTIER`, `NO_SELECTABLE_TEST` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:42@644f277c` |
   | `plan.excluded[].reason` | `affected` | `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:33@93004a33` |
-  | `plan.excluded[].invalidation` | `affected` | `NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:152@b74c00a2` |
+  | `plan.excluded[].invalidation` | `affected` | `NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:154@b74c00a2` |
   | `inventory.semanticFrontier[].reason` | `init`, `adopt` | `mechanical-inventory-only`, `declared-source-absent` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/inventory.go:419@9ce6e141`, `internal/genesis/inventory.go:427@dc024f8c` |
   | `inventory.semanticFrontier[].sourceClass` | `init`, `adopt` | `INSTRUCTIONS`, `DOCUMENTATION`, `SPECIFICATION`, `TEST`, `E2E_TEST`, `CI`, `MANIFEST`, `OWNERSHIP`, `RUNBOOK`, `INCIDENT`, `SCHEMA`, `CONFIGURATION`, `CODE`, `OTHER_TEXT` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/classifier.go:14@40a932fe` |
   | `inventory.gaps[].code` | `init`, `adopt` | `binary-asset`, `binary-content`, `blob-budget-exhausted`, `blob-size-unavailable`, `blob-too-large`, `blob-unavailable`, `dirty-worktree`, `entry-budget-exhausted`, `git-budget-exceeded`, `git-input-budget-exceeded`, `git-output-budget-exceeded`, `git-read-failed`, `git-timeout`, `git-unavailable`, `gitlink`, `invalid-activation`, `invalid-authority-id`, `invalid-commit-object`, `invalid-exclusions`, `invalid-git-output-budget`, `invalid-repository`, `invalid-revision`, `invalid-tree-object`, `malformed-blob-batch`, `malformed-tree-entry`, `non-utf8-or-binary`, `receipt-budget-exceeded`, `special-tree-entry`, `symlink`, `unsafe-or-non-utf8-path`, `HISTORY_NOT_SCANNED` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/inventory.go:477@a7d278da`, `docs/specs/genesis-backfill.md:269@3cb61d7d` |
   | `packet.mode` | `prove` | `query`, `impact`, `range-impact` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:212@c076902a`, `internal/contextindex/receipt.go:549@d6f9a459` |
   | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:42@f81f3f8e` |
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:48@7313a787` |
-  | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:681@f6741c9b`, `internal/liveverify/affected/select.go:58@884d7796` |
-  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:435@56698a09`, `internal/contextindex/index.go:1314@f6b4c05b`, `internal/contextindex/index.go:1318@14914a09`, `internal/contextindex/index.go:1321@f91f4e9c`, `internal/contextindex/index.go:510@4b59a221`, `internal/contextindex/index.go:696@e27ec283`, `internal/contextindex/index.go:35@b7c4315f` |
-  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2249@f3806eef`, `internal/contextindex/taskcontext.go:240@7b32d74a`, `internal/contextindex/taskcontext.go:241@4da20476`, `internal/contextindex/taskcontext.go:242@73a4650c` |
-  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2249@f3806eef`, `internal/contextindex/taskcontext.go:241@4da20476`, `internal/contextindex/taskcontext.go:242@73a4650c` |
+  | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:684@f6741c9b`, `internal/liveverify/affected/select.go:58@884d7796` |
+  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:437@56698a09`, `internal/contextindex/index.go:1314@f6b4c05b`, `internal/contextindex/index.go:1318@14914a09`, `internal/contextindex/index.go:1321@f91f4e9c`, `internal/contextindex/index.go:510@4b59a221`, `internal/contextindex/index.go:696@e27ec283`, `internal/contextindex/index.go:35@b7c4315f` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2402@f3806eef`, `internal/contextindex/taskcontext.go:300@7b32d74a`, `internal/contextindex/taskcontext.go:301@4da20476`, `internal/contextindex/taskcontext.go:302@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2402@f3806eef`, `internal/contextindex/taskcontext.go:301@4da20476`, `internal/contextindex/taskcontext.go:302@73a4650c` |
+  | `coverage.governance_refused[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:100@35a83646`, `internal/contextindex/taskcontext.go:300@7b32d74a`, `internal/contextindex/taskcontext.go:301@4da20476`, `internal/contextindex/taskcontext.go:302@73a4650c` |
+  | `coverage.governance_refused[].trust` | `context` | `repository-content`, `external-provider`, `tool-output` | closed | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:100@35a83646`, `internal/contextindex/trust.go:13@b8cc52f2`, `internal/contextindex/trust.go:19@e4aee023`, `internal/contextindex/trust.go:23@e580f876` |
+  | `coverage.governance_refused[].warnings[]` | `context` | `hidden-unicode`, `hidden-unicode-unscreened`, `self-modified-authority` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/authority_screen.go:19@6a804eb8`, `internal/contextindex/authority_screen.go:22@184ddd00`, `internal/contextindex/authority_screen.go:25@000b28cc` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -275,22 +281,17 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   With subject ancestors, additional `governing` rows can be missing at that limit (V1-0411).
   Both relation rows remain `open`: a reader decides on
   `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
-  no `trust` member (`internal/contextindex/taskcontext.go:2249@f3806eef`). Commit 53c02369 (panel B9,
+  no `trust` member (`internal/contextindex/taskcontext.go:2402@f3806eef`). Commit 53c02369 (panel B9,
   IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
   a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
-  addition is compatible. NOT_PRODUCED: the `relation` and `trust` of `coverage.governance_refused`,
-  because no generator writes such a row. `compiler.reserved` is set only from `reservedRows`
-  (`internal/contextindex/taskcontext.go:316@fa0fd17b`), whose rows carry the authorities
-  `project-instructions`, `instruction-reference` and `repository-spec`
-  (`internal/contextindex/taskcontext.go:1716@63777acc`,
-  `internal/contextindex/taskcontext.go:1841@311e8949`,
-  `internal/contextindex/taskcontext.go:2020@fb467aad`).
-  `trustByAuthority` maps all three to `project-authority`
-  (`internal/contextindex/trust.go:30@85e0d739`, `internal/contextindex/trust.go:31@cf0b32e7`,
-  `internal/contextindex/trust.go:32@5fc23f25`), which is not
-  tainted, so `governanceRefused` skips every row (`internal/contextindex/trust.go:95@54a15b24`).
-  Registering it needs a generator that reserves a tainted row; until then CCF-V1-006 decides a value
-  there by review. Two further changes after 0.8.1 reached members this register now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
+  addition is compatible. (accepted 2026-10-08, decision 0468; V1-0653) The rows marked V1-0653 register the `relation`,
+  `trust` and `warnings` of `coverage.governance_refused`. Before V1-0414 no generator wrote such a row,
+  because every reserved authority maps to the untainted `project-authority`. The authority screen
+  (TCP-V0-055..058) now names a downgraded reserved row there with `trust` `repository-content` and its
+  warning codes; a tainted class (`external-provider`, `tool-output`) is named the same way. The
+  frozen mode `context downgraded governing row` commits a governing `AGENTS.md` hiding bidirectional
+  controls, so the rows are reached. 0.8.1 has no screen and emits an empty array, so the member stays
+  additive and that mode skips the N-1 replay. `reason` is free text and stays outside the register. Two further changes after 0.8.1 reached members this register now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
   row, which is compatible; that value is absent from the `v0.8.1` tree. V1-0340 (ec50af2d) removed
   the `plan.excluded[].reason` value `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which 0.8.1
   writes (AFP-V0-012). Both shipped before the register reached their member. Decision 0422
@@ -305,7 +306,10 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   register. `index --if-stale` on a fresh snapshot is skipped: its setup writes the snapshot with this
   build, and an engine mismatch is a miss by design under (a). (accepted 2026-09-26, decision 0424)
   `impact path non-utf8 source` is also skipped: 0.8.1 refuses a repository with a non-UTF-8 path,
-  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. The target
+  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. (proposed;
+  V1-0943) The `affected worktree` and `affected committed range` defaults are skipped because 0.8.1
+  predates `affected-plan/1`; their `affected full` counterparts replay without `--full`, which is the
+  N-1 default and the same `affected-plan/0` document. The target
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
   above. A member, value or order that no fixture exercises stays unreplayed.
@@ -316,6 +320,14 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `topLevelCommands` verb in `Commands:`. The only verbs dispatched outside `topLevelCommands` are the
   three CCF-V1-003 plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
+- **CCF-V1-009:** (proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
+  index of at most `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines
+  (`COMMAND [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has exactly one
+  line per `topLevelCommands` verb, the verb and a short gloss; and it carries no per-verb option.
+  Per-verb usage, options and writes stay in each verb's shared help topic (GPK-V0-059). The
+  CCF-V1-008 `Command maturity:` section and the support boundary's local-only, read-only,
+  self-observation-ledger and writer disclosures stay. Help invocations still read no stdin and
+  inspect no repository. Root help bytes are not pinned by `conformance/cli-parity-v0`.
 
 ## Non-goals
 
@@ -372,7 +384,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway`, `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` (both also run `affected`, which reads no blob and plans without a fetch), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cem status` and `cem verify`), `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -380,6 +392,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
 | CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches, including the rows of the `prove` `packet`); (accepted 2026-09-26, decision 0422; from decision 0398) the same test under `make core-n1-replay` (`replayCoreModeN1`) for the N-1 replay |
 | CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
+| CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
 
 ## Rollback
 
@@ -397,6 +410,8 @@ statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-
 rows (accepted 2026-09-26, decision 0422; V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
 reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
 N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
+Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
+stdout text only, so no stored state changes.
 
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 

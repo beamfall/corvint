@@ -227,8 +227,9 @@ under `AHI-004`: hidden characters become literal `\uXXXX` text, and a receipt c
 terminator is refused as a tool error with code `corvint-envelope-terminator-collision` rather than
 emitted. This is because repository-authored `title`, `summary`, and `evidence[].reason` fields reach
 a model through this text block exactly as they do through the harness hook path. `structuredContent` carries the
-identical parsed object unwrapped, for programmatic callers that do not read it as model input. The
-closed bridge object is:
+identical parsed object unwrapped, for programmatic callers that do not read it as model input; when
+the receipt carries a `results` list, the text block instead carries the `MCPV0-033` summary of that
+object. The closed bridge object is:
 
 ```text
 schema: "corvint-mcp-bridge-result/0"
@@ -556,11 +557,11 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:384@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:393@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:626@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:626@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:627@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:438@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:447@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:685@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:685@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:686@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -582,6 +583,41 @@ Each row cites the first emitting site and states only the condition checked the
   while repository/index/trace writes, automatic install, downloads and persistent servers remain
   prohibited. Gopls telemetry is disabled in the child environment. Required qualification is
   TCP-V0-053, plus real cancellation/descendant cleanup and executable-replacement regressions.
+
+- `MCPV0-031`: proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+  `evidence` rows and at most four `references`. A result that had more carries
+  `evidence_omitted` or `references_omitted` with the count of rows removed, so no cut is silent;
+  a result under both caps carries neither key. The cap applies inside the impact receipt itself,
+  so CLI impact, MCP `corvint.impact`, and every consumer that embeds the impact packet (for
+  example `FPK-V0-010`) see the same rows. Builder-level `MAX_EVIDENCE` truncation before this
+  cap is unchanged and is not counted.
+- `MCPV0-032`: proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+  (inline or as the next argument, once, within the `query` packet bounds) and compiles the
+  receipt under that byte budget with the same `BUDGETED` / `CRITICAL_EVIDENCE_OVERFLOW` states
+  and omission disclosures as `query`. Range (`--base`) and `--working-tree-untracked` impact
+  keep refusing it as `unsupported-impact-option`, and `--provider` with `--budget-bytes` is an
+  argument error because the external section is not budgeted. `prove` refuses `--budget-bytes`
+  because it embeds the unbudgeted impact packet (`FPK-V0-010`). This amends the
+  `GPK-V0` "only `--limit`" impact-option clause for path impact only.
+- `MCPV0-033`: proposed (V1-0944; no GitHub issue). When a successful tool result carries
+  `structuredContent` and its receipt has a `results` list, the text block carries the framed
+  canonical summary profile `corvint-mcp-text-summary/0`: the full bridge object with each
+  `receipt.results` row projected to its `kind`, `id` and `score` keys and a top-level
+  `textProfile` naming the profile. `structuredContent` keeps the full object. The terminator
+  refusal of `MCPV0-008` is still decided on the full object. Results without a `results` list,
+  tool errors and flows results keep the full framed text. This deliberately departs from the MCP
+  SHOULD that a structured result also returns its serialized JSON as text; a text-only client
+  sees the ranked rows but not their evidence. A client that validates the text block MUST also
+  admit the full framed object, which servers predating this requirement emit.
+- `MCPV0-034`: accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` checks the request context
+  again after the tool operation returns and before the root-identity check: a call whose context
+  ended at any point before that check returns the `cancelled` failure and no result, never a
+  READY receipt or an abstention built before the cancellation was observed. `invalid-arguments`
+  and an operation's own `cancelled` keep their precedence. An uncancelled call keeps its result,
+  abstention and evidence binding byte for byte. This closes the in-process bridge path (used
+  directly by the LSP context adapter); `MCPV0-011`'s server-side output race is unchanged, and a
+  cancellation observed only after the check is a completed call under that rule. The compile
+  side of `corvint.context` stops at its own stage boundaries (`TCP-V0-064`).
 
 ## Acceptance matrix
 
@@ -631,7 +667,10 @@ manifest and tests; the default three-tool output never changed, and no stored s
 `--error-profile` selector, the `/1` object, the class plumbing and the `/2` manifest and tests; the
 default tool-error bytes never changed. Rolling back the flows profile (`AFU-V1-034..035`) removes the
 `flows` selector value, `internal/mcp/bridge/flows.go`, its bridge cases and tests; the default and
-task-review tool lists never changed. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
+task-review tool lists never changed. Rolling back the post-operation cancellation check
+(`MCPV0-034`) deletes the `ctx.Err()` check after the dispatch switch in `Registry.Call` and
+`internal/mcp/bridge/context_cancel_test.go`; a late-cancelled call then returns its completed
+result again, and no state depends on it. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
 `LICENSING.md`; the rest of Corvint retains its repository license.
 
 ## Traceability
@@ -641,7 +680,7 @@ task-review tool lists never changed. Protocol and conformance paths retain thei
 | `MCPV0-001..006` | `cmd/corvint-mcp`, `internal/mcp/protocol`, `internal/mcp/server` | protocol/discovery/framing/version vectors; `TestDuplicateInFlightIDOmitsID`, `TestIDReusableOnceResponseIsRead`, `TestUnencodableResultIsRequestError`, and `TestLegacyLifecycleMethodsWithoutMetadataAreNotFound` observed; official-schema digest pinned; opt-in `TestServerTrafficMatchesOfficialSchema` passed on 2026-09-23 |
 | `MCPV0-007..010` | `internal/mcp/bridge` | tool registry, closed-schema, receipt, budget, and abstention tests |
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
-| `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; no promisor fetch (V1-0349) observed by `TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching` (every read tool over a blob:none sparse clone, also through a Git that drops `GIT_NO_LAZY_FETCH`); fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
+| `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; no promisor fetch (V1-0349) observed by `TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching` (every read tool over a blob:none sparse clone, also through a Git that drops `GIT_NO_LAZY_FETCH`) and `TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching` (`corvint.flows.coverage`, with a full blob:none clone as the serving control); fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
 | `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
 | `MCPV0-024`, `MCPV0-025` | `internal/mcp/bridge` (`NewTaskReview`), `internal/cem/workflow` (`report-preview`), `internal/cem/gitrun` (`PinBinary`) | `TestContextToolReturnsBoundPacketWithoutWrites`, `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolRefusesMapsOutsideTheRoot`, `TestNewToolsAbstainOverTheBridgeBudget`, `TestCEMReportToolAbstainsWhenTheCheckoutMoves`; compiled-process `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestContextAndCEMReportRefuseInvalidArgumentsAndEscapes`, `TestCEMReportRefusesTerminatorAndAbstainsOverBudget`, `TestTaskReviewCEMReportNeverRunsPlantedGit`, `TestTaskReviewToolsRefuseExecutableConfigAndWorktreeRedirects` and `TestTaskReviewTrafficMatchesOfficialSchema`, all under the task-review selector (decision 0374); official-schema exchanges passed on 2026-09-23 |
 | `MCPV0-026` | `cmd/corvint-mcp` (`extractToolProfile`), `internal/mcp/bridge` (`Registry.advertises`) | `TestMCPV0026ToolProfileSelectorIsClosed`, `TestToolsExposeOnlyDeliveredClosedReadSurface`; compiled-process profile `/1` `TestTaskReviewCaseInventoryIsClosed`, `TestTaskReviewSelectorIsClosed`, `TestTaskReviewDefaultProfileUnchanged`, `TestTaskReviewToolCatalogue`, `TestTaskReviewLegacyProtocol`; profile `/0` `TestToolCatalogueAndResourceOmission` still lists exactly three tools; flows value (`AFU-V1-034`): `TestAFUV1034FlowsToolProfile` (golden default and task-review bytes, closed selector, read-only flows list) and `TestAFUV1034FlowsToolsMatchCLIVerbs` |
@@ -661,6 +700,10 @@ that focused run.
 
 | `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
 | `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
+| `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
+| `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
+| `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
+| `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
 

@@ -129,7 +129,7 @@ func (s *Session) start(options Options, args []string) bool {
 	command.Stderr = s.stderr
 	command.WaitDelay = pipeDrainDelay
 	containChild(command)
-	err = command.Start()
+	err = groupreap.StartLive(command)
 	stdinRead.Close()
 	stdoutWrite.Close()
 	if err != nil {

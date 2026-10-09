@@ -44,7 +44,11 @@ func createTemplate(env Env, cmd []string) *wire.Result {
 	o.Set("queueId", wire.String(queueID))
 	o.Set("payload", payload)
 	o.Set("payloadCanonical", wire.String(string(wire.Encode(payload))))
-	o.Set("fill", wire.Strings(createTemplateFill))
+	fill := createTemplateFill
+	if st.Policy.MilestoneRequired() {
+		fill = []string{"acceptanceCriteria", "body", "milestone", "title"}
+	}
+	o.Set("fill", wire.Strings(fill))
 	o.Set("fields", wire.ObjectValue(fields))
 	o.Set("nullableKeys", wire.Strings(nullable))
 	o.Set("optionalKeys", wire.Strings([]string{"localToken", "requiredRoles", "requiresPool"}))
@@ -130,7 +134,11 @@ func createTemplateFields(queueID string, policy *intent.Policy) *wire.Object {
 	f.Set("kind", templateField("enum", false, ticket.Kinds, ""))
 	f.Set("labels", templateField(set("Label", wire.MaxLabels), false, nil, ""))
 	f.Set("localToken", templateField("optional queue-local token string", false, nil, "omit for automatic allocation; collisions refuse"))
-	f.Set("milestone", templateField("Label", true, nil, ""))
+	if policy.MilestoneRequired() {
+		f.Set("milestone", templateField("Label", false, nil, "required by policy milestones.required (CAL-V0-195)"))
+	} else {
+		f.Set("milestone", templateField("Label", true, nil, ""))
+	}
 	f.Set("order", templateField("Count decimal string", false, nil, "rank within priority; a string such as \"0\", not a number"))
 	f.Set("owner", templateField("Label", true, nil, ""))
 	f.Set("priority", templateField("enum", false, ticket.Priorities, ""))

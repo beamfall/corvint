@@ -18,7 +18,7 @@ import (
 
 func gitTest(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", args...)
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	c.Dir = root
 	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()
@@ -1364,6 +1364,6 @@ func TestAMAPV0007RegexAfterControlCondition(t *testing.T) {
 // AMAP-V0-002: a router file truncated inside a state call reads, never panics.
 func TestAMAPV0002TruncatedStateCall(t *testing.T) {
 	for _, src := range []string{"app.state('home',", "app.state('home', ", "app.state({"} {
-		parseRouter(blobEntry{path: "r.js"}, []byte(src))
+		parseRouter(blobEntry{path: "r.js"}, []byte(src), nil)
 	}
 }

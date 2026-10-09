@@ -297,8 +297,10 @@ func ProgramDir(c *Config, program string) string { return filepath.Join(c.State
 // by a build with another format. It is refused as UNSUPPORTED_VERSION and
 // never read or migrated. A member that repeats, or that aliases a known
 // member by case folding, at any depth refuses MALFORMED (exactLedger).
-// The one exception (proposed amendment) is a drained version 1 or 2
-// ledger: drained names its version, and the caller adopts it as this one.
+// The one exception (proposed amendment) is a version 1 or 2 ledger:
+// drained names its version, and the caller adopts it as this one once it
+// is drained (CAL-V0-132) or, for version 2, once every worker it records
+// is proven gone (CAL-V0-187).
 func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained string, err error) {
 	// The profile is found under any spelling the struct decoder would
 	// read, so an aliased older profile meets its own version's rules.
@@ -317,12 +319,6 @@ func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained strin
 		return "", err
 	}
 	if drained != "" {
-		// The walk refused duplicates and aliases, so this is the only
-		// workers member the decoder will read.
-		var workers []json.RawMessage
-		if json.Unmarshal(members["workers"], &workers) != nil || len(workers) > 0 {
-			return "", wire.Errorf(wire.CodeUnsupportedVersion, "/workers", "a %s ledger that records workers must be drained by the build that wrote it", drained)
-		}
 		return drained, nil
 	}
 	known := reflect.TypeFor[Ledger]()
@@ -518,6 +514,19 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err != nil {
 		return nil, err
 	}
+	if drained != "" {
+		// The walk refused duplicates and aliases, so this is the only
+		// workers member the decoder will read. A missing or unreadable
+		// list proves nothing and refuses; a version 1 ledger must record
+		// none, and a version 2 ledger's workers must be proven gone below.
+		var workers []json.RawMessage
+		if json.Unmarshal(members["workers"], &workers) != nil {
+			return nil, undrainedLedger(drained, program, "lacks a readable workers list")
+		}
+		if drained == drainedStateProfile && len(workers) > 0 {
+			return nil, undrainedLedger(drained, program, "records a worker")
+		}
+	}
 	// Detect aliases before struct decoding: encoding/json folds field names,
 	// so an uppercase-only member must not fall back to legacy loading.
 	for name := range members {
@@ -620,6 +629,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 			return nil, fmt.Errorf("dispatch state: worker %s: %w", w.ID, err)
 		}
 	}
+	if drained == drainedState2Profile {
+		if err := provenGone(l.Workers, drained, program); err != nil {
+			return nil, err
+		}
+	}
 	if l.Backoff == nil {
 		l.Backoff = map[string]*BackoffState{}
 	}
@@ -627,6 +641,53 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		l.Workers = []*Worker{}
 	}
 	return &l, nil
+}
+
+// provenGone is the CAL-V0-187 adoption proof for the workers a version 2
+// ledger records. Each worker's tree must be empty under refreshTree, the
+// check by which the build that wrote the ledger reaps a worker: every
+// recorded process is absent or carries another start identity, and no
+// process remains in the leader's group or session. It runs without that
+// build's detached-run exemption, so it can only find more processes than
+// that build would. A worker still running, one whose record lacks a
+// process identity, or a process table this build cannot read refuses, and
+// the refusal names the clearing command. The read leaves the workers as
+// recorded: the first tick reaps them as it reaps any adopted worker.
+func provenGone(workers []*Worker, drained, program string) error {
+	if len(workers) == 0 {
+		return nil
+	}
+	procs, err := observeProcs()
+	if err != nil {
+		return undrainedLedger(drained, program, fmt.Sprintf("records %d worker(s) whose end cannot be proven: %v", len(workers), err))
+	}
+	for _, w := range workers {
+		provable := w.PID > 1 && w.LeaderIdentity != ""
+		for _, m := range w.Members {
+			provable = provable && m.PID > 1 && m.Identity != ""
+		}
+		what := fmt.Sprintf("records worker %q (pid %d)", w.ID, w.PID)
+		if !provable {
+			return undrainedLedger(drained, program, what+" whose end cannot be proven: the record lacks a process identity")
+		}
+		probe := *w
+		probe.Members = slices.Clone(w.Members)
+		if err := refreshTree(&probe, procs, nil); err != nil {
+			return undrainedLedger(drained, program, fmt.Sprintf("%s whose end cannot be proven: %v", what, err))
+		}
+		if len(probe.Members) > 0 {
+			return undrainedLedger(drained, program, fmt.Sprintf("%s that is still running (%d process(es))", what, len(probe.Members)))
+		}
+	}
+	return nil
+}
+
+// undrainedLedger is the CAL-V0-132 and CAL-V0-187 refusal of an older
+// ledger this build cannot adopt. It names the build that can clear it and
+// the command that does, with launches held so the tick that reaps the
+// ended workers launches no new one.
+func undrainedLedger(drained, program, what string) error {
+	return wire.Errorf(wire.CodeUnsupportedVersion, "/workers", "a %s ledger %s; clear it with the build that wrote it (a corvint-tasks build whose `version` formats list %s): set every role cap and escalate tier cap to 0 in a copy CONFIG of the program's configuration, so nothing launches, run `corvint-tasks dispatch --program %s --config CONFIG --once` with that build until `dispatch status` lists no worker, then start this build", drained, what, drained, program)
 }
 
 func validProgressDigest(s string) bool {
@@ -1060,7 +1121,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled", "lease-expired"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.

@@ -102,7 +102,7 @@ func commitAllPublicationTest(t *testing.T, root, message string) {
 
 func gitOutputPublicationTest(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, arguments...)...)
 	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 	output, err := command.Output()
 	if err != nil {

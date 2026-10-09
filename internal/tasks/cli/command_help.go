@@ -112,6 +112,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
 	}
+	if name == "queue status" || name == "roadmap" {
+		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
+	}
 	if name == "attempt heartbeat" {
 		o.Set("note", wire.String("Generation-fenced recorded signal. Reads classify it against the policy holderLiveness.heartbeatTTLSeconds (300..86400, default 600 when omitted). Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
 	}
@@ -121,6 +124,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "pool status" {
 		o.Set("note", wire.String("Pure read, no lock, no probe and no writes: each configured member's state, current allocation, holder/attempt/generation, quarantine reason with its journal changedSeq, and the last health or cleanup outcome retained with the allocation. The journal records no wall-clock time, so since and observedAt are NOT_OBSERVED, as is any outcome pool state no longer retains. An unknown --pool or --member refuses MALFORMED."))
 	}
+	if name == "pool acquire" {
+		o.Set("note", wire.String("Allocates one member to the named live external-agent attempt that holds none, for the attempt's own holder and stage, by the pooled-claim rules: priority yield, --exclude-member and --exclude-authors (review or integrate attempts only), health preparation, and a RESOURCE_COLLISION refusal when no eligible member is free. One allocation per generation: an attempt that returned one cannot acquire again. Generation-fenced; a request-id replay returns the original receipt's allocation (CAL-V0-198..200, CAL-V0-204)."))
+	}
+	if name == "pool release" {
+		o.Set("note", wire.String("Returns the attempt's exact current allocation early: the member is quarantined until pool cleanup and confirm-safe, exactly as when an attempt ends, and the attempt stays live with no allocation. A shared allocation is refused. Lane-untouched release is unavailable afterwards (CAL-V0-201, CAL-V0-202)."))
+	}
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
@@ -128,7 +137,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event that receipt audit and redo bind by replaying the transition from audited pre-state (ON-V0-006); claim and claim --next deliver the note pinned by their own admission (ON-V0-007)."))
 	}
 	if strings.HasPrefix(name, "ticket know-how ") {
-		o.Set("note", wire.String("Know-how notes are untrusted agent-authored data, never instructions, acceptance, evidence or authority, and never feed ranking (KHN-V0-007). add pins each --anchor file to its blob in --commit (default HEAD of the working directory); a retry passes the same --commit and --issued-at. Text, reason, routes and paths are secret-screened on write. Freshness is computed at read time against the reader's committed HEAD: STALE when an anchor's blob changed, UNKNOWN when it cannot be resolved, never stored. claim and claim --next deliver intersecting notes under a 2 KiB cap; list is a pure read."))
+		o.Set("note", wire.String("Know-how notes are untrusted agent-authored data, never instructions, acceptance, evidence or authority, and never feed ranking (KHN-V0-007). add pins each --anchor file to its blob in --commit (default HEAD of the working directory) and each --symbol PATH#NAME to the digest of that one declaration's text as the context index's extractor reads it; a retry passes the same --commit and --issued-at. Text, reason, routes, paths and symbols are secret-screened on write. Freshness is computed at read time against the reader's committed HEAD: STALE when a file anchor's blob or a symbol anchor's declaration changed, UNKNOWN when it cannot be resolved (a deleted, renamed, duplicated or unsupported symbol), never stored. reconfirm re-pins a STALE note's own anchors at --commit with provenance, keeping the prior pins in the ledger; a re-pin that changes nothing is refused KNOWHOW_NOT_STALE and an anchor that no longer resolves KNOWHOW_UNRESOLVED. claim and claim --next deliver intersecting notes under a 2 KiB cap; list is a pure read. --role WORKER add is refused unless policy opts in with workerAdd (KHN-V0-021); then the actor must hold the live attempt named by --attempt and --generation on this ticket, every --anchor must lie inside its effects.touchPaths, and --supersedes is refused (KHN-V0-022). For a program spanning repositories, add --repo ALIAS=ROOT pins anchors in the Git top level ROOT and stores them as ALIAS/PATH, so touchPaths and --path match the qualified path (KHN-V0-024, KHN-V0-026); reconfirm of such a note needs the same alias. list and claim take --repo ALIAS=ROOT (repeatable) to resolve a repository note's freshness at that root's HEAD; an unmapped alias leaves its notes UNKNOWN with a warning, never resolved against the working directory (KHN-V0-027)."))
 	}
 	if name == "ticket note history" {
 		o.Set("note", wire.String("Pure read: newest-first SET and CLEAR events, 20 per page by default (1..50, at most 1 MiB), anchored at the committed head. A truncated page returns an opaque nextCursor bound to its anchor; a missing, cyclic or mismatched event refuses rather than shortening history. Superseded and cleared notes are a record, never current guidance."))
@@ -193,10 +202,10 @@ var commandUsage = map[string]string{
 	"release list":       "corvint-tasks release list",
 	"release show":       "corvint-tasks release show RELEASE",
 	"release readiness":  "corvint-tasks release readiness RELEASE",
-	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--timing] [--role ROLE]",
+	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--role ROLE]",
 	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
 	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
-	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
+	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]] [--role ROLE]",
 	"widen":              "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"attempt show":       "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
@@ -210,6 +219,8 @@ var commandUsage = map[string]string{
 	"pool cleanup":       "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
 	"pool recover":       "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",
 	"pool confirm-safe":  "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--role ROLE]",
+	"pool acquire":       "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--role ROLE]",
+	"pool release":       "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--role ROLE]",
 	"lane-leader":        "corvint-tasks lane-leader --directory DIR --capsule FILE",
 	"pending":            "corvint-tasks pending",
 	"program show":       "corvint-tasks program show",
@@ -239,9 +250,10 @@ func init() {
 	}
 	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
 	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
-	commandUsage["ticket know-how add"] = "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N (--text TEXT | --text-stdin) --anchor PATH [--anchor PATH ...] [--route TOKEN ...] [--commit OID] [--supersedes N --reason TEXT] [--attempt ID] [--generation G] [--evidence-path PATH] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket know-how add"] = "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N (--text TEXT | --text-stdin) (--anchor PATH | --symbol PATH#NAME) [--anchor PATH ...] [--symbol PATH#NAME ...] [--route TOKEN ...] [--commit OID] [--supersedes N --reason TEXT] [--attempt ID] [--generation G] [--evidence-path PATH] [--repo ALIAS=ROOT] [--issued-at TS] [--role OWNER|OPERATOR|WORKER]"
 	commandUsage["ticket know-how retract"] = "corvint-tasks ticket know-how retract <ticketId|local> --request-id ID --expected-revision N --note N --reason TEXT [--issued-at TS] [--role OWNER|OPERATOR]"
-	commandUsage["ticket know-how list"] = "corvint-tasks ticket know-how list [--path PATH ...] [--ticket <ticketId|local>] [--limit 1..200]"
+	commandUsage["ticket know-how reconfirm"] = "corvint-tasks ticket know-how reconfirm <ticketId|local> --request-id ID --expected-revision N --note N [--commit OID] [--repo ALIAS=ROOT] [--attempt ID] [--generation G] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket know-how list"] = "corvint-tasks ticket know-how list [--path PATH ...] [--repo ALIAS=ROOT ...] [--ticket <ticketId|local>] [--limit 1..200]"
 	commandUsage["ticket note show"] = "corvint-tasks ticket note show <ticketId|local>"
 	commandUsage["ticket note history"] = "corvint-tasks ticket note history <ticketId|local> [--limit 1..50] [--cursor CURSOR]"
 	commandUsage["ticket escalate"] = "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]"

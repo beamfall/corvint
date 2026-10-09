@@ -123,6 +123,26 @@ new timeout/interruption qualification remain unobserved. See the CMocka
 provenance fixture and TRE-V0-015..017. Unity and complete C-family coverage are
 not delivered by this profile.
 
+## Boost.Test 1.92.0 (experimental dedicated tuple)
+
+`boost-test-junit` runs a separately built and pinned Boost.Test executable with
+11 fixed argv elements that write the JUNIT log sink to a fresh
+`boost-junit.xml`, with no randomization, colour, progress or debugger. Selection
+adds one colon-joined `--run_test=` element. JUnit was chosen because the
+detailed XML report omits disabled cases and the XML log has no per-case status.
+Identity is `Module::suite/.../case`, from the normalized `classname` and name.
+Assertion failures, including several per case and fatal `REQUIRE` failures,
+are `FAILED`/`ASSERTION`; disabled and filtered-out cases are
+`SKIPPED`; uncaught exceptions, other failure types, suite-fixture pseudo rows,
+counter or exit contradictions, missing or surplus cases and exit 200 are
+incomplete. The pins (official archive SHA-256, release commit, BSL-1.0), the
+fixture source and actual runner-generated reports from Apple clang 21.0.0 on
+macOS arm64 are in `testdata/boosttest-provenance.json`. The opt-in
+`TestBoostTestLiveExecution` (`CORVINT_BOOST_ROOT=<boost_1_92_0 source tree>`)
+compiles the fixture against the header-only variant and runs it through the
+shared executor. See the Boost.Test subsection of
+`docs/specs/test-runner-execution-v0.md` (`TRE-V0-036..039`).
+
 ## Ginkgo v2 (experimental, unqualified)
 
 `ginkgo-v2` runs one separately built and pinned Ginkgo v2 suite binary (a

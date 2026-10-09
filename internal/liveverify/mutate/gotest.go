@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -308,10 +309,45 @@ func reportsTestFailure(output string) bool {
 		strings.Contains(output, `"FAIL\t`)
 }
 
+// ErrSandboxUnavailable is a broken run whose sandbox launcher refused to
+// apply its profile before go test started, as an enclosing sandbox that
+// forbids nesting does. It is never a verdict, and its text is fixed.
+var ErrSandboxUnavailable = errors.New("mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile")
+
+// launcherRefusal is the line /usr/bin/sandbox-exec writes, before it starts
+// the command, when the kernel refuses its profile; the errno text follows.
+const launcherRefusal = "sandbox-exec: sandbox_apply: "
+
+// launcherRefusalLimit bounds the whole output a launcher refusal may be.
+const launcherRefusalLimit = 160
+
 // inconclusive turns a broken run into the infrastructure error it is without
-// exposing repository-controlled test output.
-func inconclusive(_ string) error {
+// exposing repository-controlled test output. Only an output that is nothing
+// but the launcher's own refusal line is read as an unavailable sandbox; any
+// other output, which go test or a test may have written, is the generic
+// error, and no byte of either is echoed.
+func inconclusive(output string) error {
+	if launcherRefused(output) {
+		return ErrSandboxUnavailable
+	}
 	return fmt.Errorf("mutate: run ended without a verdict")
+}
+
+func launcherRefused(output string) bool {
+	line, found := strings.CutSuffix(output, "\n")
+	if !found || len(output) > launcherRefusalLimit {
+		return false
+	}
+	reason, refused := strings.CutPrefix(line, launcherRefusal)
+	if !refused || reason == "" {
+		return false
+	}
+	for _, character := range reason {
+		if character < ' ' || character > '~' {
+			return false
+		}
+	}
+	return true
 }
 
 // goEnvironment pins the toolchain, forbids module downloads, and keeps the

@@ -85,9 +85,12 @@ type LoopHold struct {
 // Attempt is the dispatcher's view of one attempt.
 type Attempt struct {
 	ID, Ticket, Phase, Stage, Generation, Holder, Candidate string
-	LeaseExpires                                            time.Time
-	Live                                                    bool
-	Gates, Reviews                                          int
+	// Cause is a terminal attempt's native cause (LEASE_EXPIRED after a
+	// reap); empty otherwise.
+	Cause          string
+	LeaseExpires   time.Time
+	Live           bool
+	Gates, Reviews int
 
 	// Pool and Member name the attempt's pool allocation; empty without one.
 	Pool, Member string
@@ -174,6 +177,11 @@ type Queue interface {
 	Observe(ctx context.Context) (*Observation, error)
 	Release(ctx context.Context, a Attempt, evidence, requestID string) error
 	Reap(ctx context.Context, a Attempt, requestID string) error
+	// ReapExpired reaps a while its lease still expires at a.LeaseExpires
+	// (CAL-V0-191). reaped is true only when this request moved the attempt,
+	// now or in the replayed original; an attempt that is no longer live
+	// gives false and no error.
+	ReapExpired(ctx context.Context, a Attempt, requestID string) (reaped bool, err error)
 }
 
 // Assignment is one roster decision: a role slot bound to one work key at

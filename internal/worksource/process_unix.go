@@ -6,25 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 func setupGitProcess(command *exec.Cmd) {
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error {
-		if command.Process == nil {
-			return os.ErrProcessDone
-		}
-		err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-		if err == syscall.ESRCH {
-			return os.ErrProcessDone
-		}
-		return err
-	}
-}
-func cleanupGitProcess(command *exec.Cmd) {
-	if command.Process != nil {
-		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-	}
+	// Cancellation stops the leader; groupreap.Drain sweeps the group
+	// before the reap, after the output pipes drain or their bound expires.
+	groupreap.Contain(command)
 }
 func fileDevice(info os.FileInfo) uint64 { return uint64(info.Sys().(*syscall.Stat_t).Dev) }
 func fileLinks(info os.FileInfo) uint64  { return uint64(info.Sys().(*syscall.Stat_t).Nlink) }

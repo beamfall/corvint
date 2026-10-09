@@ -94,6 +94,8 @@ func Parse(in tr.Input) (tr.Observation, error) {
 				err = parseWDIO(b, &o)
 			case "nightwatch":
 				err = parseNightwatch(b, &o)
+			case "jasmine":
+				err = parseJasmine(b, &o, in)
 			}
 			if err != nil {
 				return o, fmt.Errorf("%s: %w", n, err)
@@ -156,6 +158,7 @@ func Parse(in tr.Input) (tr.Observation, error) {
 	if in.Overflow {
 		problem(&o, "output-overflow", "process output exceeded bound")
 	}
+	reconcileMochaSelection(in, &o)
 	o.Complete = len(o.Problems) == 0
 	return o, nil
 }

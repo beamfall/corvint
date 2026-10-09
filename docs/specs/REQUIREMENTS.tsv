@@ -35,36 +35,41 @@ ACP-010	docs/specs/analyzer-candidate-profiles.md	124	Integration MUST require a
 ACP-011	docs/specs/analyzer-candidate-profiles.md	128	A candidate CLI MUST NOT silently analyze stdin when invoked with an unexpected
 ACP-012	docs/specs/analyzer-candidate-profiles.md	142	A candidate CLI that reads its request from standard input MUST classify the two
 AFP-V0-001	docs/specs/affected-plan-v0.md	31	The command MUST be read-only: one bounded `git status`, one HEAD identity read,
-AFP-V0-002	docs/specs/affected-plan-v0.md	36	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
-AFP-V0-003	docs/specs/affected-plan-v0.md	47	Stdout MUST be one canonical JSON line with exactly the members `advice`
-AFP-V0-004	docs/specs/affected-plan-v0.md	57	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
-AFP-V0-005	docs/specs/affected-plan-v0.md	86	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
-AFP-V0-006	docs/specs/affected-plan-v0.md	101	Failures MUST exit 2 with a typed code on stderr and no partial document:
-AFP-V0-007	docs/specs/affected-plan-v0.md	107	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
-AFP-V0-008	docs/specs/affected-plan-v0.md	116	The Go plugin's unit universe is the root module, or, when the root holds a
-AFP-V0-009	docs/specs/affected-plan-v0.md	143	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
-AFP-V0-010	docs/specs/affected-plan-v0.md	182	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
-AFP-V0-011	docs/specs/affected-plan-v0.md	195	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
-AFP-V0-012	docs/specs/affected-plan-v0.md	228	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	288	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	301	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	318	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	356	(accepted by decision 0320; ruleset and consent amended by decision 0390)
-AFP-V0-017	docs/specs/affected-plan-v0.md	371	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	379	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	394	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	420	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	431	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
-AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
-AFP-V0-023	docs/specs/affected-plan-v0.md	517	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
-AFP-V0-024	docs/specs/affected-plan-v0.md	555	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
-AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
-AFP-V0-026	docs/specs/affected-plan-v0.md	616	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
-AFP-V0-027	docs/specs/affected-plan-v0.md	641	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-031	docs/specs/affected-plan-v0.md	654	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-AFP-V0-032	docs/specs/affected-plan-v0.md	692	(accepted by decision 0438; V1-0865) Only a declaration path that
-AFP-V0-033	docs/specs/affected-plan-v0.md	701	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	717	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-002	docs/specs/affected-plan-v0.md	37	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
+AFP-V0-003	docs/specs/affected-plan-v0.md	48	Stdout MUST be one canonical JSON line with exactly the members `advice`
+AFP-V0-004	docs/specs/affected-plan-v0.md	59	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
+AFP-V0-005	docs/specs/affected-plan-v0.md	88	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
+AFP-V0-006	docs/specs/affected-plan-v0.md	103	Failures MUST exit 2 with a typed code on stderr and no partial document:
+AFP-V0-007	docs/specs/affected-plan-v0.md	109	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
+AFP-V0-008	docs/specs/affected-plan-v0.md	118	The Go plugin's unit universe is the root module, or, when the root holds a
+AFP-V0-009	docs/specs/affected-plan-v0.md	145	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
+AFP-V0-010	docs/specs/affected-plan-v0.md	184	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
+AFP-V0-011	docs/specs/affected-plan-v0.md	197	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
+AFP-V0-012	docs/specs/affected-plan-v0.md	230	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
+AFP-V0-013	docs/specs/affected-plan-v0.md	290	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	303	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	320	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	358	(accepted by decision 0320; ruleset and consent amended by decision 0390)
+AFP-V0-017	docs/specs/affected-plan-v0.md	373	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	381	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	396	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	422	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	433	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-022	docs/specs/affected-plan-v0.md	482	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
+AFP-V0-023	docs/specs/affected-plan-v0.md	519	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	557	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	583	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	618	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
+AFP-V0-027	docs/specs/affected-plan-v0.md	643	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+AFP-V0-031	docs/specs/affected-plan-v0.md	656	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+AFP-V0-032	docs/specs/affected-plan-v0.md	694	(accepted by decision 0438; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	703	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	719	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	736	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+AFP-V0-036	docs/specs/affected-plan-v0.md	755	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+AFP-V0-037	docs/specs/affected-plan-v0.md	774	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
+AFP-V0-038	docs/specs/affected-plan-v0.md	804	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+AFP-V0-039	docs/specs/affected-plan-v0.md	815	(proposed (V1-0662); no GitHub issue) A Go test fixture under
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -106,30 +111,33 @@ AFU-V1-026	docs/specs/application-flow-understanding-v1.md	491	Locators MUST com
 AFU-V1-027	docs/specs/application-flow-understanding-v1.md	493	Every transition MUST carry an effect class. A declared class MAY be raised by
 AFU-V1-028	docs/specs/application-flow-understanding-v1.md	496	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
 AFU-V1-029	docs/specs/application-flow-understanding-v1.md	501	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	546	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	549	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	556	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	606	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	613	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	618	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	623	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	625	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	631	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	634	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	555	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	558	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	562	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	612	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	619	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	624	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	629	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	631	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	637	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	640	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	838	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	846	Logical flow and paragraph IDs depend on provider namespace, repository-relative
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	852	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	858	Materialization requires a new directory under existing nonsymlink parents and
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	864	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	870	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	907	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	914	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	923	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	929	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	935	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	848	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	856	Logical flow and paragraph IDs depend on provider namespace, repository-relative
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	862	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	868	Materialization requires a new directory under existing nonsymlink parents and
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	874	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	880	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	917	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	924	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	933	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	939	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	945	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	977	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	981	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	985	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
@@ -180,6 +188,7 @@ AHI-044	docs/specs/agent-harness-integration-v0.md	851	Every shipped hook adapte
 AHI-045	docs/specs/agent-harness-integration-v0.md	891	(accepted by decision 0441; V1-0942) The Claude Code and Codex
 AHI-046	docs/specs/agent-harness-integration-v0.md	914	(accepted by decision 0441; V1-0942) Outside a main-thread
 AHI-047	docs/specs/agent-harness-integration-v0.md	924	(accepted by decision 0441; V1-0939) The Claude Code trusted
+AHI-048	docs/specs/agent-harness-integration-v0.md	940	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -206,21 +215,29 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
-AMAP-V0-001	docs/specs/application-map-v0.md	68	The map MUST be compiled from a closed `application-map-manifest/0` document
-AMAP-V0-002	docs/specs/application-map-v0.md	77	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
-AMAP-V0-003	docs/specs/application-map-v0.md	89	Screens MUST be keyed by app plus template. Two resolved screens with the same
-AMAP-V0-004	docs/specs/application-map-v0.md	97	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
-AMAP-V0-005	docs/specs/application-map-v0.md	104	Test files MUST be joined to screens through the contextindex import graph:
-AMAP-V0-006	docs/specs/application-map-v0.md	119	Each screen MUST aggregate permissions and flags (inherited from the nearest
-AMAP-V0-007	docs/specs/application-map-v0.md	123	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
-AMAP-V0-008	docs/specs/application-map-v0.md	142	Edges MUST come only from evidence: `flow-step` edges between adjacent
-AMAP-V0-009	docs/specs/application-map-v0.md	147	The map MUST be deterministic for one revision: sorted nodes, edges, files and
-AMAP-V0-010	docs/specs/application-map-v0.md	151	Every element MUST be pinned to the anchor it was read from. A projection MUST
-AMAP-V0-011	docs/specs/application-map-v0.md	166	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
-AMAP-V0-012	docs/specs/application-map-v0.md	176	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
-AMAP-V0-013	docs/specs/application-map-v0.md	181	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
-AMAP-V0-014	docs/specs/application-map-v0.md	207	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
-AMAP-V0-015	docs/specs/application-map-v0.md	216	Building and projecting MUST NOT write to the repository, the index, or any
+AMAP-V0-001	docs/specs/application-map-v0.md	74	The map MUST be compiled from a closed `application-map-manifest/0` document
+AMAP-V0-002	docs/specs/application-map-v0.md	83	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
+AMAP-V0-003	docs/specs/application-map-v0.md	95	Screens MUST be keyed by app plus template. Two resolved screens with the same
+AMAP-V0-004	docs/specs/application-map-v0.md	103	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
+AMAP-V0-005	docs/specs/application-map-v0.md	110	Test files MUST be joined to screens through the contextindex import graph:
+AMAP-V0-006	docs/specs/application-map-v0.md	125	Each screen MUST aggregate permissions and flags (inherited from the nearest
+AMAP-V0-007	docs/specs/application-map-v0.md	129	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
+AMAP-V0-008	docs/specs/application-map-v0.md	148	Edges MUST come only from evidence: `flow-step` edges between adjacent
+AMAP-V0-009	docs/specs/application-map-v0.md	153	The map MUST be deterministic for one revision: sorted nodes, edges, files and
+AMAP-V0-010	docs/specs/application-map-v0.md	157	Every element MUST be pinned to the anchor it was read from. A projection MUST
+AMAP-V0-011	docs/specs/application-map-v0.md	172	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
+AMAP-V0-012	docs/specs/application-map-v0.md	182	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
+AMAP-V0-013	docs/specs/application-map-v0.md	187	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
+AMAP-V0-014	docs/specs/application-map-v0.md	213	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
+AMAP-V0-015	docs/specs/application-map-v0.md	222	Building and projecting MUST NOT write to the repository, the index, or any
+AMAP-V0-016	docs/specs/application-map-v0.md	227	A `.state()` name (positional or `name:`) or `parent` written as a member
+AMAP-V0-017	docs/specs/application-map-v0.md	246	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo
+AMAP-V0-018	docs/specs/application-map-v0.md	255	A map built with an aliased root MUST pin it in `roots`
+AMAP-V0-019	docs/specs/application-map-v0.md	260	A build MUST refuse rather than join part of a tree when an alias the manifest
+AMAP-V0-020	docs/specs/application-map-v0.md	267	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+AMAP-V0-021	docs/specs/application-map-v0.md	274	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths
+AMAP-V0-022	docs/specs/application-map-v0.md	284	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
+AMAP-V0-023	docs/specs/application-map-v0.md	302	A name or parent the injection path cannot prove MUST stay `UNKNOWN`
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
@@ -352,179 +369,199 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling
-CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	143	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
-CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	147	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
-CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	150	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
-CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	155	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
-CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	163	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
-CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	165	The switch MUST leave every record file byte-identical: imported records keep th
-CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	170	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
-CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	177	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
-CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	186	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
-CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	190	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
-CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	192	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
-CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	201	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
-CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	210	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
-CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	436	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
-CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	457	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
-CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	460	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	465	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
-CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	474	A first import MUST cost one full audit plus work proportional to the records it
-CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	571	A named test suite MUST show, for `external-agent` attempts: two concurrent
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	576	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
-CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	488	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
-CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	496	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
-CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	510	Two live attempts MUST collide exactly when their resource sets collide under
-CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	516	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
-CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	519	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
-CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	524	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
-CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	587	A non-fixture queue with null `importMapSha256` MUST admit release creation,
-CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	615	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
-CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	623	Claim and claim-next MUST atomically reserve one eligible free member of an
-CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	634	By default, release, expiry/reap and completion MUST quarantine the exact alloca
-CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	648	A configured health command MUST acquire durable PREPARING ownership before
-CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	654	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
-CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	661	Pool commands MUST use bounded trusted operator argv, declared environment keys,
-CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	668	Queue occupancy and plan preview MUST remain read-only and execute no probes.
-CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	706	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
-CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	710	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	718	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	723	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	727	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	733	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	739	Foreground role workers MUST pull eligible work without a daemon, select existin
-CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	605	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
-CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	756	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
-CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	223	Only an upgraded writer's verified terminal external-agent handoff MAY preserve
-CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	317	Claim (explicit and next), pure plan preview (including pool/stage selection), a
-CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	328	An external-agent `release --reason HANDOFF --evidence REF` MUST support work
-CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	354	Every implemented and omitted public command path and command family MUST return
-CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	366	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST
-CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	383	`ticket show`, full `plan preview` entries and `queue status --retries` (CAL-V0-
-CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	415	Read-only `policy show` MUST return effective canonical policy, policyVersion
-CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	422	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
-CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	842	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
-CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	866	The optional per-ticket work state MUST come from either a `status-line` reader
-CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	871	The roster MUST be a pure function of the configuration, one observation, the
-CAL-V0-055	docs/specs/corvint-tasks-agent-leases-v0.md	883	Each assignment MUST launch one independent process in its own session, with
-CAL-V0-056	docs/specs/corvint-tasks-agent-leases-v0.md	895	Supervision MUST track every process in the worker's session, process group or
-CAL-V0-057	docs/specs/corvint-tasks-agent-leases-v0.md	911	An ended worker made progress exactly when the key's durable fingerprint changed
-CAL-V0-058	docs/specs/corvint-tasks-agent-leases-v0.md	932	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
-CAL-V0-059	docs/specs/corvint-tasks-agent-leases-v0.md	980	The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
-CAL-V0-060	docs/specs/corvint-tasks-agent-leases-v0.md	992	Only a writer retains a checkpoint: after its complete settled audit, while it
-CAL-V0-061	docs/specs/corvint-tasks-agent-leases-v0.md	998	A read command MUST perform at most one journal audit and derive every
-CAL-V0-062	docs/specs/corvint-tasks-agent-leases-v0.md	1055	The optional policy `supervision` object MAY carry `efforts`, a closed object wh
-CAL-V0-063	docs/specs/corvint-tasks-agent-leases-v0.md	1068	The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
-CAL-V0-064	docs/specs/corvint-tasks-agent-leases-v0.md	1103	A command work-state reader MAY return a legacy state string or a closed object
-CAL-V0-065	docs/specs/corvint-tasks-agent-leases-v0.md	1168	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of
-CAL-V0-067	docs/specs/corvint-tasks-agent-leases-v0.md	1200	RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under
-CAL-V0-068	docs/specs/corvint-tasks-agent-leases-v0.md	1265	The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
-CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	558	`claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolea
-CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1420	`store.Mutate` MUST take its request lookup and its canonical intent records fro
-CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1819	The optional policy `supervision` object MAY carry `repositories`, a closed obje
-CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1837	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	5343	`corvint-tasks ticket create --template` MUST return, in one
-CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	1999	The optional policy `supervision` object MAY carry `host`, whose admitted
-CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2075	A `claude-code` stage MUST invoke the pinned executable with the prompt on
-CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2209	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
-CAL-V0-077	docs/specs/corvint-tasks-agent-leases-v0.md	2219	An `opencode` stage MUST invoke the pinned executable with the prompt on standar
-CAL-V0-078	docs/specs/corvint-tasks-agent-leases-v0.md	2856	Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
-CAL-V0-079	docs/specs/corvint-tasks-agent-leases-v0.md	2379	`corvint-tasks critical-path <ticketId|local>` MUST return one
-CAL-V0-080	docs/specs/corvint-tasks-agent-leases-v0.md	2395	The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
-CAL-V0-081	docs/specs/corvint-tasks-agent-leases-v0.md	2406	The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
-CAL-V0-082	docs/specs/corvint-tasks-agent-leases-v0.md	2481	`release` MUST accept `--handoff-to implement|review|integrate` (the closed
-CAL-V0-083	docs/specs/corvint-tasks-agent-leases-v0.md	2494	The `--handoff-reason` set is closed: `CHANGES_REQUESTED` returns review or
-CAL-V0-084	docs/specs/corvint-tasks-agent-leases-v0.md	2499	`ticket show`, each `plan preview` entry and the dispatcher's native ticket
-CAL-V0-085	docs/specs/corvint-tasks-agent-leases-v0.md	2509	A release without the new flags MUST keep its exact request preimage, replay and
-CAL-V0-086	docs/specs/corvint-tasks-agent-leases-v0.md	3013	An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
-CAL-V0-087	docs/specs/corvint-tasks-agent-leases-v0.md	1846	A config `repositories` entry MAY carry `integrationBranch`, a label naming the
-CAL-V0-088	docs/specs/corvint-tasks-agent-leases-v0.md	1884	Every stage of a multi-repository program MUST obtain, besides the primary packe
-CAL-V0-089	docs/specs/corvint-tasks-agent-leases-v0.md	1889	The optional policy `supervision` object MAY carry `continuations`, a canonical
-CAL-V0-095	docs/specs/corvint-tasks-agent-leases-v0.md	2603	`queue status` MUST add one `preparationAdmission` object to its item, observed
-CAL-V0-096	docs/specs/corvint-tasks-agent-leases-v0.md	2432	When a CLAIM or CLAIM_NEXT admits the next generation of an
-CAL-V0-097	docs/specs/corvint-tasks-agent-leases-v0.md	2553	In the default plan (no `--pool`), a ticket whose `requiresPool` names a pool th
-CAL-V0-098	docs/specs/corvint-tasks-agent-leases-v0.md	2747	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusi
-CAL-V0-099	docs/specs/corvint-tasks-agent-leases-v0.md	2642	A ticket record MAY carry the optional key `executionPrerequisites`. Its value i
-CAL-V0-101	docs/specs/corvint-tasks-agent-leases-v0.md	2786	A policy pool MAY set the optional boolean `priorityAdmission`; omission and
-CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2894	A policy MAY carry the optional top-level key `loopDetection`, a closed object
-CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2928	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
-CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3052	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
-CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3108	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	5526	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
-CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3149	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
-CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3195	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
-CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1320	On macOS the memory signal MUST be the kernel memory-pressure level
-CAL-V0-110	docs/specs/corvint-tasks-agent-leases-v0.md	1331	When the level changes, the pressure state MUST record as `reason` the sorted
-CAL-V0-111	docs/specs/corvint-tasks-agent-leases-v0.md	3248	`release` and `attempt heartbeat` MUST accept `--lock-wait SECONDS`, whole secon
-CAL-V0-112	docs/specs/corvint-tasks-agent-leases-v0.md	3257	An evidence HANDOFF release refused LOCK_TIMEOUT MUST leave the store unchanged,
-CAL-V0-113	docs/specs/corvint-tasks-agent-leases-v0.md	3263	No release path MAY convert a plain release into a HANDOFF. A plain release afte
-CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	3297	When the journal audit (complete or checkpoint-resumed) finds more than one faul
-CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3395	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der
-CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3445	(accepted by decision 0439) Writer audit and fast route.
-CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3507	(accepted by decision 0439) Counts, advance and scheduled refresh.
-CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3544	(accepted by decision 0439) Writer cost measurement. The opt-in profile
-CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3560	(accepted by decision 0439) Read checkpoint from a writer audit.
-CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	3333	A policy MAY carry the optional top-level key `holderLiveness`, a closed object
-CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	3345	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s
-CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3683	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,
-CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3695	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option
-CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3700	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU
-CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3753	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST
-CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3775	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr
-CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3812	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r
-CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3839	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role
-CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3845	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond
-CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3882	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N
-CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3894	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats
-CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3918	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof
-CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	3944	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive
-CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	3954	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code
-CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	3992	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin
-CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	3999	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the
-CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4007	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap
-CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4011	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di
-CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4025	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos
-CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4042	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea
-CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4048	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result
-CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4056	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d
-CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4114	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c
-CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4129	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a
-CAL-V0-145	docs/specs/corvint-tasks-agent-leases-v0.md	4422	(accepted by decision 0441; V1-0936, V1-0858) On Darwin and Linux, the
-CAL-V0-146	docs/specs/corvint-tasks-agent-leases-v0.md	4436	(accepted by decision 0441; V1-0936) When `heal.handoff` is on and a
-CAL-V0-147	docs/specs/corvint-tasks-agent-leases-v0.md	4454	(accepted by decision 0441; V1-0936) Each deferral MUST be recorded before
-CAL-V0-148	docs/specs/corvint-tasks-agent-leases-v0.md	4472	(accepted by decision 0441; V1-0936) The `finished` event of a worker whose
-CAL-V0-149	docs/specs/corvint-tasks-agent-leases-v0.md	4479	(accepted by decision 0441; V1-0936) When a deferred run is `FINISHED` and
-CAL-V0-150	docs/specs/corvint-tasks-agent-leases-v0.md	4501	(accepted by decision 0441; V1-0936) `corvint-tasks dispatch status` MUST
-CAL-V0-151	docs/specs/corvint-tasks-agent-leases-v0.md	4507	(accepted by decision 0441; V1-0936) A record that fails any CAL-V0-145
-CAL-V0-152	docs/specs/corvint-tasks-agent-leases-v0.md	4511	(accepted by decision 0441; V1-0936) The CAL-V0-139 idle gate MUST NOT
-CAL-V0-153	docs/specs/corvint-tasks-agent-leases-v0.md	4513	(accepted by decision 0441; V1-0936) On other platforms no supervisor is
-CAL-V0-154	docs/specs/corvint-tasks-agent-leases-v0.md	4519	(accepted by decision 0441; V1-0936) The dispatcher MUST NOT signal, adopt,
-CAL-V0-155	docs/specs/corvint-tasks-agent-leases-v0.md	4236	(accepted by decision 0441; V1-0937) A role MAY declare `budget` and the
-CAL-V0-156	docs/specs/corvint-tasks-agent-leases-v0.md	4273	(accepted by decision 0441; V1-0937) The dispatcher MUST record every
-CAL-V0-157	docs/specs/corvint-tasks-agent-leases-v0.md	4283	(accepted by decision 0441; V1-0937) A role MAY declare `usageFormat`:
-CAL-V0-158	docs/specs/corvint-tasks-agent-leases-v0.md	4317	(accepted by decision 0441; V1-0937) A launch tick MUST record each
-CAL-V0-159	docs/specs/corvint-tasks-agent-leases-v0.md	4337	(accepted by decision 0441; V1-0937) A role MAY declare `effort`, matching
-CAL-V0-160	docs/specs/corvint-tasks-agent-leases-v0.md	4345	(accepted by decision 0441; V1-0937) Configuration validation MUST refuse
-CAL-V0-161	docs/specs/corvint-tasks-agent-leases-v0.md	4354	(accepted by decision 0441; V1-0937) The dispatcher ledger moves to
-CAL-V0-165	docs/specs/corvint-tasks-agent-leases-v0.md	4590	(accepted by decision 0441; V1-0935) `queue status`, `attempt show`,
-CAL-V0-166	docs/specs/corvint-tasks-agent-leases-v0.md	4596	(accepted by decision 0441; V1-0935) A `--fields` value MUST hold 1 to 32
-CAL-V0-167	docs/specs/corvint-tasks-agent-leases-v0.md	4605	(accepted by decision 0441; V1-0935) `--summary` on the same four reads
-CAL-V0-168	docs/specs/corvint-tasks-agent-leases-v0.md	4622	(accepted by decision 0441; V1-0935) Projection and summary MUST run only
-CAL-V0-169	docs/specs/corvint-tasks-agent-leases-v0.md	4626	(accepted by decision 0441; V1-0935) `queue status` MUST omit the
-CAL-V0-170	docs/specs/corvint-tasks-agent-leases-v0.md	4632	(accepted by decision 0441; V1-0935 and V1-0941) An exact trailing
-CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4643	(accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be
-CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4645	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
-CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4648	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
-CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4654	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
-CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	4833	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`
-CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	4840	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and
-CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	4845	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the
-CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	4851	(accepted by decision 0442; V1-0954) Every role prompt check (known
-CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4715	(accepted by decision 0447; V1-0966) `ticket list` MUST accept
-CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4722	(accepted by decision 0447; V1-0966) `ticket list` and `ticket search`
-CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4728	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry
-CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4734	(accepted by decision 0447; V1-0966) `queue status` and
-CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4745	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	149	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	153	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	156	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	161	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	169	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	171	The switch MUST leave every record file byte-identical: imported records keep th
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	176	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	183	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	192	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	196	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	198	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	207	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	216	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	442	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	463	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	466	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	471	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	480	A first import MUST cost one full audit plus work proportional to the records it
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	577	A named test suite MUST show, for `external-agent` attempts: two concurrent
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	582	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
+CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	494	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
+CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	502	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	516	Two live attempts MUST collide exactly when their resource sets collide under
+CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	522	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	525	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
+CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	530	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	593	A non-fixture queue with null `importMapSha256` MUST admit release creation,
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	626	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	634	Claim and claim-next MUST atomically reserve one eligible free member of an
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	645	By default, release, expiry/reap and completion MUST quarantine the exact alloca
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	659	A configured health command MUST acquire durable PREPARING ownership before
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	665	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	672	Pool commands MUST use bounded trusted operator argv, declared environment keys,
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	679	Queue occupancy and plan preview MUST remain read-only and execute no probes.
+CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	717	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	721	Implement, independent review, repair and integrate MUST be native attempt stage
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	729	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	734	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	738	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	744	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	750	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	616	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	767	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
+CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	229	Only an upgraded writer's verified terminal external-agent handoff MAY preserve
+CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	323	Claim (explicit and next), pure plan preview (including pool/stage selection), a
+CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	334	An external-agent `release --reason HANDOFF --evidence REF` MUST support work
+CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	360	Every implemented and omitted public command path and command family MUST return
+CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	372	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST
+CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	389	`ticket show`, full `plan preview` entries and `queue status --retries` (CAL-V0-
+CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	421	Read-only `policy show` MUST return effective canonical policy, policyVersion
+CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	428	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
+CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	853	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
+CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	877	The optional per-ticket work state MUST come from either a `status-line` reader
+CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	882	The roster MUST be a pure function of the configuration, one observation, the
+CAL-V0-055	docs/specs/corvint-tasks-agent-leases-v0.md	894	Each assignment MUST launch one independent process in its own session, with
+CAL-V0-056	docs/specs/corvint-tasks-agent-leases-v0.md	906	Supervision MUST track every process in the worker's session, process group or
+CAL-V0-057	docs/specs/corvint-tasks-agent-leases-v0.md	922	An ended worker made progress exactly when the key's durable fingerprint changed
+CAL-V0-058	docs/specs/corvint-tasks-agent-leases-v0.md	943	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
+CAL-V0-059	docs/specs/corvint-tasks-agent-leases-v0.md	991	The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
+CAL-V0-060	docs/specs/corvint-tasks-agent-leases-v0.md	1003	Only a writer retains a checkpoint: after its complete settled audit, while it
+CAL-V0-061	docs/specs/corvint-tasks-agent-leases-v0.md	1009	A read command MUST perform at most one journal audit and derive every
+CAL-V0-062	docs/specs/corvint-tasks-agent-leases-v0.md	1066	The optional policy `supervision` object MAY carry `efforts`, a closed object wh
+CAL-V0-063	docs/specs/corvint-tasks-agent-leases-v0.md	1079	The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
+CAL-V0-064	docs/specs/corvint-tasks-agent-leases-v0.md	1114	A command work-state reader MAY return a legacy state string or a closed object
+CAL-V0-065	docs/specs/corvint-tasks-agent-leases-v0.md	1179	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of
+CAL-V0-067	docs/specs/corvint-tasks-agent-leases-v0.md	1211	RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under
+CAL-V0-068	docs/specs/corvint-tasks-agent-leases-v0.md	1276	The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
+CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	564	`claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolea
+CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1431	`store.Mutate` MUST take its request lookup and its canonical intent records fro
+CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1830	The optional policy `supervision` object MAY carry `repositories`, a closed obje
+CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1848	After `implement`, each repository with changes MUST receive a candidate commit
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6030	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2010	The optional policy `supervision` object MAY carry `host`, whose admitted
+CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2086	A `claude-code` stage MUST invoke the pinned executable with the prompt on
+CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2220	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
+CAL-V0-077	docs/specs/corvint-tasks-agent-leases-v0.md	2230	An `opencode` stage MUST invoke the pinned executable with the prompt on standar
+CAL-V0-078	docs/specs/corvint-tasks-agent-leases-v0.md	2867	Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
+CAL-V0-079	docs/specs/corvint-tasks-agent-leases-v0.md	2390	`corvint-tasks critical-path <ticketId|local>` MUST return one
+CAL-V0-080	docs/specs/corvint-tasks-agent-leases-v0.md	2406	The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
+CAL-V0-081	docs/specs/corvint-tasks-agent-leases-v0.md	2417	The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
+CAL-V0-082	docs/specs/corvint-tasks-agent-leases-v0.md	2492	`release` MUST accept `--handoff-to implement|review|integrate` (the closed
+CAL-V0-083	docs/specs/corvint-tasks-agent-leases-v0.md	2505	The `--handoff-reason` set is closed: `CHANGES_REQUESTED` returns review or
+CAL-V0-084	docs/specs/corvint-tasks-agent-leases-v0.md	2510	`ticket show`, each `plan preview` entry and the dispatcher's native ticket
+CAL-V0-085	docs/specs/corvint-tasks-agent-leases-v0.md	2520	A release without the new flags MUST keep its exact request preimage, replay and
+CAL-V0-086	docs/specs/corvint-tasks-agent-leases-v0.md	3024	An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
+CAL-V0-087	docs/specs/corvint-tasks-agent-leases-v0.md	1857	A config `repositories` entry MAY carry `integrationBranch`, a label naming the
+CAL-V0-088	docs/specs/corvint-tasks-agent-leases-v0.md	1895	Every stage of a multi-repository program MUST obtain, besides the primary packe
+CAL-V0-089	docs/specs/corvint-tasks-agent-leases-v0.md	1900	The optional policy `supervision` object MAY carry `continuations`, a canonical
+CAL-V0-095	docs/specs/corvint-tasks-agent-leases-v0.md	2614	`queue status` MUST add one `preparationAdmission` object to its item, observed
+CAL-V0-096	docs/specs/corvint-tasks-agent-leases-v0.md	2443	When a CLAIM or CLAIM_NEXT admits the next generation of an
+CAL-V0-097	docs/specs/corvint-tasks-agent-leases-v0.md	2564	In the default plan (no `--pool`), a ticket whose `requiresPool` names a pool th
+CAL-V0-098	docs/specs/corvint-tasks-agent-leases-v0.md	2758	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusi
+CAL-V0-099	docs/specs/corvint-tasks-agent-leases-v0.md	2653	A ticket record MAY carry the optional key `executionPrerequisites`. Its value i
+CAL-V0-101	docs/specs/corvint-tasks-agent-leases-v0.md	2797	A policy pool MAY set the optional boolean `priorityAdmission`; omission and
+CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2905	A policy MAY carry the optional top-level key `loopDetection`, a closed object
+CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2939	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
+CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3063	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
+CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3119	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6213	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3160	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
+CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3206	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
+CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1331	On macOS the memory signal MUST be the kernel memory-pressure level
+CAL-V0-110	docs/specs/corvint-tasks-agent-leases-v0.md	1342	When the level changes, the pressure state MUST record as `reason` the sorted
+CAL-V0-111	docs/specs/corvint-tasks-agent-leases-v0.md	3259	`release` and `attempt heartbeat` MUST accept `--lock-wait SECONDS`, whole secon
+CAL-V0-112	docs/specs/corvint-tasks-agent-leases-v0.md	3268	An evidence HANDOFF release refused LOCK_TIMEOUT MUST leave the store unchanged,
+CAL-V0-113	docs/specs/corvint-tasks-agent-leases-v0.md	3274	No release path MAY convert a plain release into a HANDOFF. A plain release afte
+CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	3308	When the journal audit (complete or checkpoint-resumed) finds more than one faul
+CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3406	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der
+CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3458	(accepted by decision 0439) Writer audit and fast route.
+CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3522	(accepted by decision 0439) Counts, advance and scheduled refresh.
+CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3559	(accepted by decision 0439) Writer cost measurement. The opt-in profile
+CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3575	(accepted by decision 0439) Read checkpoint from a writer audit.
+CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	3344	A policy MAY carry the optional top-level key `holderLiveness`, a closed object
+CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	3356	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s
+CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3698	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,
+CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3710	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option
+CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3715	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU
+CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3768	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST
+CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3790	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr
+CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3827	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r
+CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3854	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role
+CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3860	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond
+CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3897	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N
+CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3909	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats
+CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3933	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof
+CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	3959	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive
+CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	3969	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code
+CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	4007	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin
+CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	4014	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the
+CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4022	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap
+CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4026	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di
+CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4040	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos
+CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4057	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea
+CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4063	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result
+CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4071	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d
+CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4129	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c
+CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4144	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a
+CAL-V0-145	docs/specs/corvint-tasks-agent-leases-v0.md	4437	(accepted by decision 0441; V1-0936, V1-0858) On Darwin and Linux, the
+CAL-V0-146	docs/specs/corvint-tasks-agent-leases-v0.md	4451	(accepted by decision 0441; V1-0936) When `heal.handoff` is on and a
+CAL-V0-147	docs/specs/corvint-tasks-agent-leases-v0.md	4469	(accepted by decision 0441; V1-0936) Each deferral MUST be recorded before
+CAL-V0-148	docs/specs/corvint-tasks-agent-leases-v0.md	4487	(accepted by decision 0441; V1-0936) The `finished` event of a worker whose
+CAL-V0-149	docs/specs/corvint-tasks-agent-leases-v0.md	4494	(accepted by decision 0441; V1-0936) When a deferred run is `FINISHED` and
+CAL-V0-150	docs/specs/corvint-tasks-agent-leases-v0.md	4516	(accepted by decision 0441; V1-0936) `corvint-tasks dispatch status` MUST
+CAL-V0-151	docs/specs/corvint-tasks-agent-leases-v0.md	4522	(accepted by decision 0441; V1-0936) A record that fails any CAL-V0-145
+CAL-V0-152	docs/specs/corvint-tasks-agent-leases-v0.md	4526	(accepted by decision 0441; V1-0936) The CAL-V0-139 idle gate MUST NOT
+CAL-V0-153	docs/specs/corvint-tasks-agent-leases-v0.md	4528	(accepted by decision 0441; V1-0936) On other platforms no supervisor is
+CAL-V0-154	docs/specs/corvint-tasks-agent-leases-v0.md	4534	(accepted by decision 0441; V1-0936) The dispatcher MUST NOT signal, adopt,
+CAL-V0-155	docs/specs/corvint-tasks-agent-leases-v0.md	4251	(accepted by decision 0441; V1-0937) A role MAY declare `budget` and the
+CAL-V0-156	docs/specs/corvint-tasks-agent-leases-v0.md	4288	(accepted by decision 0441; V1-0937) The dispatcher MUST record every
+CAL-V0-157	docs/specs/corvint-tasks-agent-leases-v0.md	4298	(accepted by decision 0441; V1-0937) A role MAY declare `usageFormat`:
+CAL-V0-158	docs/specs/corvint-tasks-agent-leases-v0.md	4332	(accepted by decision 0441; V1-0937) A launch tick MUST record each
+CAL-V0-159	docs/specs/corvint-tasks-agent-leases-v0.md	4352	(accepted by decision 0441; V1-0937) A role MAY declare `effort`, matching
+CAL-V0-160	docs/specs/corvint-tasks-agent-leases-v0.md	4360	(accepted by decision 0441; V1-0937) Configuration validation MUST refuse
+CAL-V0-161	docs/specs/corvint-tasks-agent-leases-v0.md	4369	(accepted by decision 0441; V1-0937) The dispatcher ledger moves to
+CAL-V0-165	docs/specs/corvint-tasks-agent-leases-v0.md	4605	(accepted by decision 0441; V1-0935) `queue status`, `attempt show`,
+CAL-V0-166	docs/specs/corvint-tasks-agent-leases-v0.md	4611	(accepted by decision 0441; V1-0935) A `--fields` value MUST hold 1 to 32
+CAL-V0-167	docs/specs/corvint-tasks-agent-leases-v0.md	4620	(accepted by decision 0441; V1-0935) `--summary` on the same four reads
+CAL-V0-168	docs/specs/corvint-tasks-agent-leases-v0.md	4637	(accepted by decision 0441; V1-0935) Projection and summary MUST run only
+CAL-V0-169	docs/specs/corvint-tasks-agent-leases-v0.md	4641	(accepted by decision 0441; V1-0935) `queue status` MUST omit the
+CAL-V0-170	docs/specs/corvint-tasks-agent-leases-v0.md	4647	(accepted by decision 0441; V1-0935 and V1-0941) An exact trailing
+CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4658	(accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be
+CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4660	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
+CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4663	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
+CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4669	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
+CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	5017	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`
+CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	5024	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and
+CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	5029	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the
+CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	5035	(accepted by decision 0442; V1-0954) Every role prompt check (known
+CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4730	(accepted by decision 0447; V1-0966) `ticket list` MUST accept
+CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4737	(accepted by decision 0447; V1-0966) `ticket list` and `ticket search`
+CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4743	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry
+CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4749	(accepted by decision 0447; V1-0966) `queue status` and
+CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4760	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per
+CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5063	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
+CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4852	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6280	(proposed; V1-0989) Before listing processes, the owned process-group check afte
+CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4904	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A
+CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4917	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
+CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5100	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer
+CAL-V0-192	docs/specs/corvint-tasks-agent-leases-v0.md	5191	(proposed (V1-1021, issue 679)) When `corvint-tasks ticket create`,
+CAL-V0-193	docs/specs/corvint-tasks-agent-leases-v0.md	5203	(proposed (V1-1021, issue 679)) A `plan preview` entry deferred for
+CAL-V0-194	docs/specs/corvint-tasks-agent-leases-v0.md	5304	(proposed; V1-0672) When a tick's final ledger save fails (any step of the write
+CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5246	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke
+CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5260	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles
+CAL-V0-197	docs/specs/corvint-tasks-agent-leases-v0.md	5364	(accepted (decision 0467; V1-0827)) `run --role ROLE` and `admit --role ROLE` MU
+CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5407	(proposed (V1-1042)) `corvint-tasks pool acquire --attempt ID --generation G --p
+CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5418	(proposed (V1-1042)) Acquire MUST admit a member by the pooled-claim steps, with
+CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5428	(proposed (V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-
+CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5432	(proposed (V1-1042)) `corvint-tasks pool release --attempt ID --generation G
+CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5446	(proposed (V1-1042)) The lifecycle verbs (renew, heartbeat, run, gate run, submi
+CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5452	(proposed (V1-1042)) An ended generation that returned its allocation early MUST
+CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5456	(proposed (V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null w
+CAL-V0-205	docs/specs/corvint-tasks-agent-leases-v0.md	5502	(accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -542,12 +579,13 @@ CATN-V0-014	docs/specs/cross-audience-truth-nondivergence-v0.md	137	A `CONFLICTE
 CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-digest input and the canonical bundle bytes MUST be exactly the
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
-CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	85	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	152	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	169	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	179	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	312	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	86	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	99	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	153	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	172	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	182	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	316	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	323	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -642,18 +680,19 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	142	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	145	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	148	when prepare refuses an existing map under `CEM-PILOT-002`, the
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	156	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	201	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	207	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	213	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	222	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	230	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	236	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	239	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	245	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	206	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	212	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	218	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	227	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	235	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	241	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	244	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	250	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
 CEM-PILOT-028	docs/specs/cem-pilot-kit.md	170	`cem report --format json` MUST emit a read-only `cem-review/0` projection
 CEM-PILOT-029	docs/specs/cem-pilot-kit.md	177	An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader
 CEM-PILOT-030	docs/specs/cem-pilot-kit.md	185	JSON and the published Markdown report MUST bind the same `recordSetSha256`,
 CEM-PILOT-031	docs/specs/cem-pilot-kit.md	193	A missing coverage witness MUST state `NOT_PRODUCED` /
+CEM-PILOT-032	docs/specs/cem-pilot-kit.md	198	(proposed 2026-10-08, V1-0513, not accepted) When a supplied OCM is invalid,
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
@@ -815,6 +854,7 @@ CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, ow
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
 CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, issue 433) A journal-backed read (`withStore` verbs and
+CTS-V0-007	docs/specs/corvint-tasks-store-init-v0.md	102	(proposed (V1-0759)) A re-import that writes the next revision of an `IMPORT` re
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	41	The intent root is the checkout whose `.taskman/` is the intent projection. Ever
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	47	When the primary worktree's HEAD does not name the intent branch from
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	54	The intent branch and queue ID used for routing are read from the primary worktr
@@ -1551,6 +1591,7 @@ GPK-V0-078	docs/specs/go-production-kernel-migration-v0.md	1522	(accepted by dec
 GPK-V0-079	docs/specs/go-production-kernel-migration-v0.md	1542	(accepted by decision 0445; V1-0958) A web reverse-import row whose
 GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	1550	(accepted by decision 0445; V1-0958) A bare specifier that resolves to
 GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	1568	(accepted by decision 0445; V1-0958) The alias arm reads only the
+GPK-V0-082	docs/specs/go-production-kernel-migration-v0.md	1601	(accepted 2026-10-08, decision 0464; V1-0967) In `GPK-V0-077` and
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1656,19 +1697,22 @@ IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	148	`corvint [--root PATH] index
 IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	158	the Claude Code plugin's lifecycle hooks do not automatically invoke a
 IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	187	During committed-source pinning, a blob whose bytes begin with
 IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	214	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	255	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	329	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	367	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	258	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	355	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	393	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
 IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	192	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	398	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	416	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	443	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	471	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	485	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	507	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
-IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	551	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
-IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	522	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
-IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	584	(accepted by decision 0440; V1-0928) after an `index`
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	424	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	442	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	469	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	497	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	511	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	533	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	577	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store
+IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	548	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa
+IDX-SNAP-V0-027	docs/specs/index-snapshot-v0.md	610	(accepted by decision 0440; V1-0928) after an `index`
+IDX-SNAP-V0-028	docs/specs/index-snapshot-v0.md	653	(proposed (V1-0983)) each pack or sectioned mapping MUST carry an explicit
+IDX-SNAP-V0-029	docs/specs/index-snapshot-v0.md	666	(proposed (V1-0983)) every string a pack read hands out (Source `Path`,
+IDX-SNAP-V0-030	docs/specs/index-snapshot-v0.md	676	(proposed (V1-0983)) a process that reads and releases more distinct pack or
 IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the
@@ -1696,11 +1740,31 @@ KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	45	Unparsed source, dynamic
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	48	Fixed inputs MUST reproduce byte-identical graph and selection bodies
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	46	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	56	A ticket record MAY carry the optional member `knowHow`. When present it is a
-KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	72	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
-KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	87	Before an entry is appended, the writer MUST screen the text, the reason, the
-KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	91	Freshness MUST be computed at read time against the reader's committed `HEAD`,
-KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	100	`claim` and `claim --next` MUST add a `knowHow` member to their result.
-KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	117	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	73	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,
+KHN-V0-004	docs/specs/corvint-tasks-know-how-notes-v0.md	89	Before an entry is appended, the writer MUST screen the text, the reason, the
+KHN-V0-005	docs/specs/corvint-tasks-know-how-notes-v0.md	95	Freshness MUST be computed at read time against the reader's committed `HEAD`,
+KHN-V0-006	docs/specs/corvint-tasks-know-how-notes-v0.md	104	`claim` and `claim --next` MUST add a `knowHow` member to their result.
+KHN-V0-007	docs/specs/corvint-tasks-know-how-notes-v0.md	121	Every delivered projection MUST carry `trust: UNTRUSTED_AGENT_AUTHORED_DATA`, an
+KHN-V0-008	docs/specs/corvint-tasks-know-how-notes-v0.md	130	A `KNOWHOW_ADD` that names `attempt` or `generation` MUST be verified against th
+KHN-V0-009	docs/specs/corvint-tasks-know-how-notes-v0.md	141	The writer MUST load and audit the complete attempt inventory for any
+KHN-V0-010	docs/specs/corvint-tasks-know-how-notes-v0.md	147	A secret hit in a know-how argument or payload MUST be refused with the owned §1
+KHN-V0-011	docs/specs/corvint-tasks-know-how-notes-v0.md	153	The transition MUST keep the detail prefix `KNOWHOW_SECRET_DETECTED:` on every
+KHN-V0-012	docs/specs/corvint-tasks-know-how-notes-v0.md	160	A native archive export of a store whose tickets carry know-how ledgers MUST
+KHN-V0-013	docs/specs/corvint-tasks-know-how-notes-v0.md	163	Competing know-how writers MUST resolve through the writer lock and the
+KHN-V0-014	docs/specs/corvint-tasks-know-how-notes-v0.md	169	When the inventory cannot be loaded while a claim response is built, the claim
+KHN-V0-015	docs/specs/corvint-tasks-know-how-notes-v0.md	173	A commit that moves `HEAD` after a pin's commit was resolved and before its path
+KHN-V0-016	docs/specs/corvint-tasks-know-how-notes-v0.md	181	`ticket know-how add` MUST accept `--symbol PATH#NAME`, repeatable and combinabl
+KHN-V0-017	docs/specs/corvint-tasks-know-how-notes-v0.md	195	Freshness of a symbol anchor MUST follow the declaration's digest. A blob equal
+KHN-V0-018	docs/specs/corvint-tasks-know-how-notes-v0.md	202	`ticket know-how reconfirm T --note N` MUST append one RECONFIRM entry
+KHN-V0-019	docs/specs/corvint-tasks-know-how-notes-v0.md	215	A re-confirm of a note that is not STALE MUST be refused, not treated as a no-op
+KHN-V0-020	docs/specs/corvint-tasks-know-how-notes-v0.md	221	The change MUST be wire-compatible. A record whose ledger holds only file anchor
+KHN-V0-021	docs/specs/corvint-tasks-know-how-notes-v0.md	231	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.
+KHN-V0-022	docs/specs/corvint-tasks-know-how-notes-v0.md	245	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-021 MUST be checked, after request
+KHN-V0-023	docs/specs/corvint-tasks-know-how-notes-v0.md	268	An entry written under KHN-V0-022 MUST record actor role WORKER together with th
+KHN-V0-024	docs/specs/corvint-tasks-know-how-notes-v0.md	282	`ticket know-how add` MUST accept at most one `--repo ALIAS=ROOT`. ALIAS is a
+KHN-V0-025	docs/specs/corvint-tasks-know-how-notes-v0.md	296	The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key
+KHN-V0-026	docs/specs/corvint-tasks-know-how-notes-v0.md	304	A repository note's anchors are matched in their stored, qualified form by the
+KHN-V0-027	docs/specs/corvint-tasks-know-how-notes-v0.md	309	`ticket know-how list` and `claim` (with or without `--next`) MUST accept a
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation
@@ -1755,6 +1819,8 @@ LCP-V0-013	docs/specs/local-completion-policy-v0.md	242	Prompt context MUST acce
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
+LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple
+LCP-V0-018	docs/specs/local-completion-policy-v0.md	306	(proposed; V1-1043) A `dogfood begin` plan refusal of `invalid-intent-scope` or
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
@@ -1867,6 +1933,20 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.
 LPCV-V0-056	docs/specs/live-proof-carrying-verification-v0.md	397	(accepted by decision 0448; V1-0976) discovery MUST say why it yields no
+LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	586	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi
+LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	598	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright
+LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	608	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the
+LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	619	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi
+LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	627	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	648	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	660	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	682	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	696	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	717	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	734	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	743	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	761	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	773	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj
@@ -1928,6 +2008,7 @@ LTA-V0-011	docs/specs/learned-trace-admission-v0.md	149	(decision 0368, accepted
 LTA-V0-012	docs/specs/learned-trace-admission-v0.md	167	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
 LTA-V0-013	docs/specs/learned-trace-admission-v0.md	175	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	197	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
+LTA-V0-015	docs/specs/learned-trace-admission-v0.md	212	The writer screen MUST treat the structural `PASS:` prefix inside one complete
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1952,28 +2033,32 @@ MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	151	The only supported protocol
 MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	170	`server/discover` MUST return only the implemented surface:
 MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	201	`tools/list` is paginated even when one page currently contains all tools. Its c
 MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	210	V0 advertises exactly these three tools, subject to the implementation schemas f
-MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	282	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
-MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	289	`corvint.status` reports only the exact repository binding already defined by th
-MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	299	The dispatcher MUST continue reading frames while a tool request runs. A valid
-MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	314	If a request carries a `progressToken`, the server MAY emit
-MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	320	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
-MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	326	V0 pagination is deterministic, stable within the process, and never used to con
-MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	331	Repository authority comes only from `--root`. The server does not request
-MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	340	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
-MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	346	All calls are read-only. The server MUST NOT write the repository, Git index, Co
-MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	352	Per-call repository and revision identity is acquired once and bound to the Corv
-MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	358	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
-MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	365	`corvint.query` and `corvint.impact` MAY accept an explicit
-MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	392	All four existing MCP commands MUST accept at most one
-MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	398	A legacy connection MUST initialize independently for each Serve invocation. It
-MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	414	Legacy calls MUST reuse each existing command's closed tool registry and native
-MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	478	`corvint.context` MUST compile the same packet as `corvint context` in process,
-MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	490	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
-MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	461	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
-MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	535	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
-MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	543	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	568	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	576	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	283	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
+MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	290	`corvint.status` reports only the exact repository binding already defined by th
+MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	300	The dispatcher MUST continue reading frames while a tool request runs. A valid
+MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	315	If a request carries a `progressToken`, the server MAY emit
+MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	321	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
+MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	327	V0 pagination is deterministic, stable within the process, and never used to con
+MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	332	Repository authority comes only from `--root`. The server does not request
+MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	341	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
+MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	347	All calls are read-only. The server MUST NOT write the repository, Git index, Co
+MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	353	Per-call repository and revision identity is acquired once and bound to the Corv
+MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	359	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
+MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	366	`corvint.query` and `corvint.impact` MAY accept an explicit
+MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	393	All four existing MCP commands MUST accept at most one
+MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	399	A legacy connection MUST initialize independently for each Serve invocation. It
+MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	415	Legacy calls MUST reuse each existing command's closed tool registry and native
+MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	479	`corvint.context` MUST compile the same packet as `corvint context` in process,
+MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	491	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
+MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	462	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
+MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	536	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
+MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	544	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	569	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	577	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	587	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	594	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	602	proposed (V1-0944; no GitHub issue). When a successful tool result carries
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	612	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -2020,6 +2105,13 @@ NEC-V0-005	docs/specs/necessity-labels-v0.md	62	Counterfactual work MUST be boun
 NEC-V0-006	docs/specs/necessity-labels-v0.md	65	When the packet carries no answer — `state` is not `READY`, or the answerability
 NEC-V0-007	docs/specs/necessity-labels-v0.md	68	Every emitted `necessity` block MUST carry the fixed disclosure stating that the
 NEC-V0-008	docs/specs/necessity-labels-v0.md	71	The verb MUST be read-only: no index, snapshot, trace, ledger or self-observatio
+NEX-V0-001	docs/specs/application-flow-navigation-execution-v0.md	23	Execution MUST require explicit experimental, trusted-local and observe flags, a
+NEX-V0-002	docs/specs/application-flow-navigation-execution-v0.md	26	The execution input MUST be a separate closed committed document with exact
+NEX-V0-003	docs/specs/application-flow-navigation-execution-v0.md	30	Every effect and request MUST pass the independent grant and committed origins
+NEX-V0-004	docs/specs/application-flow-navigation-execution-v0.md	35	Preconditions MUST follow packet order. At most one declared recovery may execut
+NEX-V0-005	docs/specs/application-flow-navigation-execution-v0.md	38	The bounded receipt MUST bind revision/tree, packet, execution input, committed
+NEX-V0-006	docs/specs/application-flow-navigation-execution-v0.md	41	Receipts MUST contain only closed results/reasons and bounded IDs/methods, never
+NEX-V0-007	docs/specs/application-flow-navigation-execution-v0.md	44	The compiled companion MUST prove real-browser success and pre-dispatch refusal,
 NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,
 NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path
 NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic
@@ -2149,6 +2241,8 @@ PGO-V0-003	docs/specs/process-group-owner-v0.md	34	Check the original retirement
 PGO-V0-004	docs/specs/process-group-owner-v0.md	35	Serialize concurrent Finish and Stop so signalling and reaping occur once. Refus
 PGO-V0-005	docs/specs/process-group-owner-v0.md	36	Preserve existing Wait/Run and callers. Only RELEASED proves cleanup; HOLD must
 PGO-V0-006	docs/specs/process-group-owner-v0.md	37	On Linux, where signal 0 succeeds for a group whose only members are zombies (in
+PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunContained` runs a command as a group leader like `Run` a
+PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
@@ -2325,6 +2419,7 @@ PT-V0-004	docs/specs/proof-tour-v0.md	75	Fresh completion MUST pause with NOT_RU
 PT-V0-005	docs/specs/proof-tour-v0.md	85	Only after the exact supplied accepted ACK may resume rerun strict readiness
 PT-V0-006	docs/specs/proof-tour-v0.md	91	Every owned command MUST run in its own ordinary process group with a bounded
 PT-V0-007	docs/specs/proof-tour-v0.md	96	Focused tests MUST cover syntax/help, populated and symlink output refusal,
+PT-V0-008	docs/specs/proof-tour-v0.md	101	Before writing any resume receipt (proposed, V1-0519), resume MUST admit every
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	36	The profile is explicit, separate and bounded to trusted local source-direct ser
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	41	Capture clean product/test repository and file identities before and after execu
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	47	Record the actual reporter-selected semantic test identity, source anchor/digest
@@ -2359,8 +2454,8 @@ PUB-V0-021	docs/specs/public-release-v0.md	356	Every new Corvint version created
 PUB-V0-022	docs/specs/public-release-v0.md	371	A versioned release candidate MUST be assembled only from the closed seven-file
 PUB-V0-023	docs/specs/public-release-v0.md	377	The candidate MUST carry a closed machine-readable manifest with the exact versi
 PUB-V0-024	docs/specs/public-release-v0.md	391	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
-PUB-V0-025	docs/specs/public-release-v0.md	399	The candidate installer MUST reverify the closed candidate, select only the exac
-PUB-V0-026	docs/specs/public-release-v0.md	413	Candidate assembly or installation MUST fail without retained output when any co
+PUB-V0-025	docs/specs/public-release-v0.md	402	The candidate installer MUST reverify the closed candidate, select only the exac
+PUB-V0-026	docs/specs/public-release-v0.md	416	Candidate assembly or installation MUST fail without retained output when any co
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	24	External mode requires readiness URL and declared app identity, rejects server c
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	25	A controlled config imports the original, disables webServer and selects the pro
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	26	Each outcome identifies source location, full title, project name, resolved brow
@@ -2370,27 +2465,36 @@ PWP-V0-006	docs/specs/playwright-external-provider-v0.md	29	Cancellation joins o
 PWP-V0-007	docs/specs/playwright-external-provider-v0.md	30	Qualification runs checked-in real Playwright browser fixtures covering pass, as
 PWP-V0-008	docs/specs/playwright-external-provider-v0.md	31	Playwright 1.63 qualification is consuming-path specific. A passing projection r
 PWP-V0-009	docs/specs/playwright-external-provider-v0.md	32	(accepted by decision 0448; V1-0976) exactly one more tuple is admitted under `P
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	36	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	37	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	38	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	39	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	40	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	41	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	42	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	43	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	47	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	48	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	49	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	50	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	51	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	52	The conformance fixture contains a deliberately leaking payload that is rejected
-PWP-V3-001	docs/specs/playwright-external-provider-v0.md	59	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
-PWP-V3-002	docs/specs/playwright-external-provider-v0.md	60	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
-PWP-V3-003	docs/specs/playwright-external-provider-v0.md	61	The existing per-attempt classification is unchanged: browser or fixture failure
-PWP-V3-004	docs/specs/playwright-external-provider-v0.md	62	Every `/3` attempt failure message and artifact is subject to the same report-wi
-PWP-V3-005	docs/specs/playwright-external-provider-v0.md	63	The reporter emits `attemptDetails` only under `/3`; the provider validates the
-PWP-V3-006	docs/specs/playwright-external-provider-v0.md	64	`/3` is non-promotable until the changed reporter completes the live matrix of `
-PWP-V3-007	docs/specs/playwright-external-provider-v0.md	273	The `/3` exact project identity permits an explicitly observed empty project nam
+PWP-V0-010	docs/specs/playwright-external-provider-v0.md	36	(proposed (V1-0986; GitHub #670)) The opt-in `--keep-reporters` option, availabl
+PWP-V0-011	docs/specs/playwright-external-provider-v0.md	37	(proposed (V1-0986; GitHub #670)) A keep-reporters receipt binds `receipt.extern
+PWP-V0-012	docs/specs/playwright-external-provider-v0.md	42	(proposed (V1-0986; GitHub #670)) The provider never observes what a kept report
+PWP-V0-013	docs/specs/playwright-external-provider-v0.md	43	(proposed (V1-0986; GitHub #670)) Test-validity decoding and MCP discovery accep
+PWP-V0-014	docs/specs/playwright-external-provider-v0.md	64	(accepted (decision 0461; V1-1028; GitHub #686)) In keep-reporters mode the prov
+PWP-V0-015	docs/specs/playwright-external-provider-v0.md	71	(accepted (decision 0461; V1-1028; GitHub #686)) `corvint-js-test-provider quali
+PWP-V0-016	docs/specs/playwright-external-provider-v0.md	95	(accepted (decision 0461; V1-1028; GitHub #686)) `e2e --keep-reporters --keep-re
+PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision 0461; V1-1028; GitHub #686)) The record is closed. It has ex
+PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	163	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	164	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	165	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	166	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	167	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	168	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	169	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	170	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	174	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	175	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	176	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	177	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	178	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	179	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	186	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	187	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	188	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	189	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	190	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	191	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	423	The `/3` exact project identity permits an explicitly observed empty project nam
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process
@@ -2490,6 +2594,7 @@ RGV-V0-011	docs/specs/repository-guidance-v0.md	35	Git subprocesses MUST use tru
 RGV-V0-012	docs/specs/repository-guidance-v0.md	36	Real committed fixtures MUST verify immutable evidence, deterministic bytes, ove
 RGV-V0-013	docs/specs/repository-guidance-v0.md	37	Review MUST NOT plan affected advice over an incomplete guidance inventory. When
 RGV-V0-014	docs/specs/repository-guidance-v0.md	38	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the
+RGV-V0-015	docs/specs/repository-guidance-v0.md	39	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	42	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	44	One unit MUST be one repository-relative `.rb` file, the smallest common
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	47	Discovery MUST admit all concurrently present conventional RSpec
@@ -2713,6 +2818,18 @@ TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	23	`criterion-binding verify
 TCB-V0-004	docs/specs/tasks-criterion-binding-v0.md	26	Verify outer current snapshot MUST be null; carried snapshot MUST be explicitly
 TCB-V0-005	docs/specs/tasks-criterion-binding-v0.md	29	The CEM companion MUST use only independently configured, pinned Tasks executabl
 TCB-V0-006	docs/specs/tasks-criterion-binding-v0.md	33	Unknown/repeated arguments, malformed/trailing/oversize payloads, nonregular exe
+TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate
+TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo
+TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
+TCN-V0-004	docs/specs/test-consolidation-planner-v0.md	135	Reuse MUST be decided only from `--tests` files (0..8), each one original provid
+TCN-V0-005	docs/specs/test-consolidation-planner-v0.md	158	Among non-abstained variations, duplicates MUST be classed by equal context, equ
+TCN-V0-006	docs/specs/test-consolidation-planner-v0.md	166	The remaining variations (not abstained, reused or duplicate) MUST be partitione
+TCN-V0-007	docs/specs/test-consolidation-planner-v0.md	174	Within one context the variations MUST be split into compatible sets, each with
+TCN-V0-008	docs/specs/test-consolidation-planner-v0.md	187	Each set's ordered steps MUST be cut into consecutive tests of at most `--max-st
+TCN-V0-009	docs/specs/test-consolidation-planner-v0.md	193	`--format json` MUST print one closed `test-consolidation-plan/0` document: `sch
+TCN-V0-010	docs/specs/test-consolidation-planner-v0.md	208	`--format table` MUST print exactly: one header line `<!-- corvint
+TCN-V0-011	docs/specs/test-consolidation-planner-v0.md	220	`corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]
+TCN-V0-012	docs/specs/test-consolidation-planner-v0.md	233	When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
@@ -2774,6 +2891,9 @@ TCP-V0-058	docs/specs/task-context-packet-v0.md	979	(experimental, V1-0414) The 
 TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;
 TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o
 TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
+TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat
+TCP-V0-064	docs/specs/task-context-packet-v0.md	1082	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
@@ -2832,6 +2952,7 @@ TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	673	`corvint cem discrimina
 TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one optional hunk member `discriminates` admitted only on
 TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a
 TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a
+TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
@@ -2850,6 +2971,27 @@ TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	133	Project 
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	137	Per-file commands require a matching complete caller-owned discovery receipt.
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	144	The profile MUST be read-only and bounded by the shared source-walk and source-r
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	152	Qualification requires a fixture with Chromium plus Angular/React project varian
+TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	55	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
+TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	64	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	81	A folded obligation entry MUST be the closed object `{id, title, core, state,
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	90	Witness evidence MUST be the closed object `{source, eventSha256, commit,
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	104	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	112	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	117	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	126	`corvint-tasks ticket obligations witness` MUST apply operation
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	137	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	151	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	163	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	170	Each match MUST pass a source presence check. Its `spec.file` (relative to
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	176	Validation and audit are source-specific.
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	194	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	205	Roles are as follows.
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	220	`highWater` MUST be monotone within one acceptance revision.
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	226	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	236	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	247	`queue status` and `queue status --summary` MUST add the key `obligations`
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	255	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
+TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	266	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed
@@ -2866,16 +3008,36 @@ TRE-V0-007	docs/specs/test-runner-execution-v0.md	46	Parsing MUST verify native 
 TRE-V0-008	docs/specs/test-runner-execution-v0.md	49	Execution MUST enforce bounded time/output and retire owned ordinary descendants
 TRE-V0-009	docs/specs/test-runner-execution-v0.md	52	Each supported tuple MUST have actual runner-generated fixture evidence for pass
 TRE-V0-010	docs/specs/test-runner-execution-v0.md	56	Provider-neutral receipts MUST compose with canonical CEM hunks and Tasks criter
-TRE-V0-011	docs/specs/test-runner-execution-v0.md	133	SQL assertion/suite profiles use explicit independently pinned native tools and
-TRE-V0-012	docs/specs/test-runner-execution-v0.md	134	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
-TRE-V0-013	docs/specs/test-runner-execution-v0.md	153	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
-TRE-V0-014	docs/specs/test-runner-execution-v0.md	154	Native observations MUST contain exactly the declared device and one canonical s
-TRE-V0-015	docs/specs/test-runner-execution-v0.md	254	An argument-free invocation MUST use exactly one explicitly
-TRE-V0-016	docs/specs/test-runner-execution-v0.md	266	`cmocka-xml` MUST execute one caller-prepared, independently pinned
-TRE-V0-017	docs/specs/test-runner-execution-v0.md	274	The dedicated parser MUST validate the native group against
-TRE-V0-018	docs/specs/test-runner-execution-v0.md	321	`ginkgo-v2` MUST execute one independently pinned suite binary
-TRE-V0-019	docs/specs/test-runner-execution-v0.md	336	Selection MUST add exactly one 18th element,
-TRE-V0-020	docs/specs/test-runner-execution-v0.md	344	The dedicated parser MUST accept exactly one `ginkgo.json`
+TRE-V0-011	docs/specs/test-runner-execution-v0.md	232	SQL assertion/suite profiles use explicit independently pinned native tools and
+TRE-V0-012	docs/specs/test-runner-execution-v0.md	233	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
+TRE-V0-013	docs/specs/test-runner-execution-v0.md	252	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
+TRE-V0-014	docs/specs/test-runner-execution-v0.md	253	Native observations MUST contain exactly the declared device and one canonical s
+TRE-V0-015	docs/specs/test-runner-execution-v0.md	371	An argument-free invocation MUST use exactly one explicitly
+TRE-V0-016	docs/specs/test-runner-execution-v0.md	383	`cmocka-xml` MUST execute one caller-prepared, independently pinned
+TRE-V0-017	docs/specs/test-runner-execution-v0.md	391	The dedicated parser MUST validate the native group against
+TRE-V0-018	docs/specs/test-runner-execution-v0.md	438	`ginkgo-v2` MUST execute one independently pinned suite binary
+TRE-V0-019	docs/specs/test-runner-execution-v0.md	453	Selection MUST add exactly one 18th element,
+TRE-V0-020	docs/specs/test-runner-execution-v0.md	461	The dedicated parser MUST accept exactly one `ginkgo.json`
+TRE-V0-021	docs/specs/test-runner-execution-v0.md	531	A request MAY carry `expectedSelection` `{version, matcher,
+TRE-V0-022	docs/specs/test-runner-execution-v0.md	537	Plan and run admission MUST refuse, before any launch, a
+TRE-V0-023	docs/specs/test-runner-execution-v0.md	544	After native observation, shared `Normalize` MUST project each
+TRE-V0-024	docs/specs/test-runner-execution-v0.md	597	For runner `mocha`, `Parse` MUST reconcile the native inventory
+TRE-V0-025	docs/specs/test-runner-execution-v0.md	608	Every concrete JavaScript/TypeScript affected runner ID MUST
+TRE-V0-026	docs/specs/test-runner-execution-v0.md	645	VSTest and MTP TRX parsing MUST admit only the qualified
+TRE-V0-027	docs/specs/test-runner-execution-v0.md	678	The MTP profiles MUST refuse at build time, before launch, any
+TRE-V0-028	docs/specs/test-runner-execution-v0.md	705	The companion MUST refuse a request, plan or tools document that
+TRE-V0-029	docs/specs/test-runner-execution-v0.md	735	SwiftPM XCTest execution evidence MUST come only from the
+TRE-V0-030	docs/specs/test-runner-execution-v0.md	743	A plan whose invocation sets `retireDetachedDescendants` MUST,
+TRE-V0-031	docs/specs/test-runner-execution-v0.md	804	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
+TRE-V0-032	docs/specs/test-runner-execution-v0.md	818	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
+TRE-V0-033	docs/specs/test-runner-execution-v0.md	831	When selectors are present, every reported spec file MUST be one of the
+TRE-V0-034	docs/specs/test-runner-execution-v0.md	556	The Unix executor MUST run every phase through `groupreap.RunContained`
+TRE-V0-036	docs/specs/test-runner-execution-v0.md	112	`boost-test-junit` MUST execute the pinned test executable with
+TRE-V0-037	docs/specs/test-runner-execution-v0.md	127	The dedicated parser MUST accept exactly one `boost-junit.xml`
+TRE-V0-038	docs/specs/test-runner-execution-v0.md	138	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a
+TRE-V0-039	docs/specs/test-runner-execution-v0.md	157	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
+TRE-V0-040	docs/specs/test-runner-execution-v0.md	860	A receipt phase MUST record `exitCode` as the native exit
+TRE-V0-041	docs/specs/test-runner-execution-v0.md	870	Runner plan and receipt decoders (`DecodeDocument` and the CEM
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count
@@ -3052,29 +3214,29 @@ VSC-V0-050	docs/specs/vscode-extension-v0.md	531	Discovery MUST be one complete 
 VSC-V0-051	docs/specs/vscode-extension-v0.md	547	After discovery the client fetches `tools/list` in the same process. Discovery M
 VSC-V0-052	docs/specs/vscode-extension-v0.md	562	The MCP tool calls are closed read-only adapters. `corvint.query` receives the e
 VSC-V0-053	docs/specs/vscode-extension-v0.md	574	`tools/call` MUST return one complete result with `resultType:"complete"`,
-VSC-V0-054	docs/specs/vscode-extension-v0.md	592	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
-VSC-V0-055	docs/specs/vscode-extension-v0.md	607	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
-VSC-V0-056	docs/specs/vscode-extension-v0.md	614	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
-VSC-V0-057	docs/specs/vscode-extension-v0.md	621	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
-VSC-V0-058	docs/specs/vscode-extension-v0.md	664	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
-VSC-V0-059	docs/specs/vscode-extension-v0.md	671	The provider process MUST be started as its own process-group leader (POSIX
-VSC-V0-060	docs/specs/vscode-extension-v0.md	694	Each decoded per-test record's `projection.execution` state MUST map to exactly
-VSC-V0-061	docs/specs/vscode-extension-v0.md	708	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
-VSC-V0-062	docs/specs/vscode-extension-v0.md	719	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
-VSC-V0-063	docs/specs/vscode-extension-v0.md	727	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
-VSC-V0-064	docs/specs/vscode-extension-v0.md	741	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
-VSC-V0-065	docs/specs/vscode-extension-v0.md	755	A provider record that fails to parse (malformed JSON, an unsupported record sha
-VSC-V0-066	docs/specs/vscode-extension-v0.md	770	When the live test-provider cannot be started (an invalid/empty
-VSC-V0-067	docs/specs/vscode-extension-v0.md	785	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
-VSC-V0-068	docs/specs/vscode-extension-v0.md	803	The editor MUST decode a Go session event's session-level `projection`
-VSC-V0-069	docs/specs/vscode-extension-v0.md	814	A Go per-test entry's source location MUST be recovered only from a first
-VSC-V0-070	docs/specs/vscode-extension-v0.md	824	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
-VSC-V0-071	docs/specs/vscode-extension-v0.md	865	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
-VSC-V0-072	docs/specs/vscode-extension-v0.md	871	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
-VSC-V0-073	docs/specs/vscode-extension-v0.md	878	A relevant save, configuration change, disable, root removal or shutdown
-VSC-V0-074	docs/specs/vscode-extension-v0.md	883	Every provider termination, including a normal exit-zero leader, MUST await
-VSC-V0-075	docs/specs/vscode-extension-v0.md	890	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
-VSC-V0-076	docs/specs/vscode-extension-v0.md	901	Only after trust and explicit enablement, resource-scoped/restricted
+VSC-V0-054	docs/specs/vscode-extension-v0.md	593	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
+VSC-V0-055	docs/specs/vscode-extension-v0.md	608	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
+VSC-V0-056	docs/specs/vscode-extension-v0.md	615	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
+VSC-V0-057	docs/specs/vscode-extension-v0.md	622	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
+VSC-V0-058	docs/specs/vscode-extension-v0.md	665	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
+VSC-V0-059	docs/specs/vscode-extension-v0.md	672	The provider process MUST be started as its own process-group leader (POSIX
+VSC-V0-060	docs/specs/vscode-extension-v0.md	695	Each decoded per-test record's `projection.execution` state MUST map to exactly
+VSC-V0-061	docs/specs/vscode-extension-v0.md	709	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
+VSC-V0-062	docs/specs/vscode-extension-v0.md	720	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
+VSC-V0-063	docs/specs/vscode-extension-v0.md	728	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
+VSC-V0-064	docs/specs/vscode-extension-v0.md	742	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
+VSC-V0-065	docs/specs/vscode-extension-v0.md	756	A provider record that fails to parse (malformed JSON, an unsupported record sha
+VSC-V0-066	docs/specs/vscode-extension-v0.md	771	When the live test-provider cannot be started (an invalid/empty
+VSC-V0-067	docs/specs/vscode-extension-v0.md	786	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
+VSC-V0-068	docs/specs/vscode-extension-v0.md	804	The editor MUST decode a Go session event's session-level `projection`
+VSC-V0-069	docs/specs/vscode-extension-v0.md	815	A Go per-test entry's source location MUST be recovered only from a first
+VSC-V0-070	docs/specs/vscode-extension-v0.md	825	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
+VSC-V0-071	docs/specs/vscode-extension-v0.md	866	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
+VSC-V0-072	docs/specs/vscode-extension-v0.md	872	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
+VSC-V0-073	docs/specs/vscode-extension-v0.md	879	A relevant save, configuration change, disable, root removal or shutdown
+VSC-V0-074	docs/specs/vscode-extension-v0.md	884	Every provider termination, including a normal exit-zero leader, MUST await
+VSC-V0-075	docs/specs/vscode-extension-v0.md	891	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
+VSC-V0-076	docs/specs/vscode-extension-v0.md	902	Only after trust and explicit enablement, resource-scoped/restricted
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	258	Every V0 document and nested record MUST implement the exact closed registry in
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	264	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	268	The only authority root is target-tree regular `100644` blob

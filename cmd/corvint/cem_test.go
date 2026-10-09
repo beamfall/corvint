@@ -17,7 +17,7 @@ import (
 // leak into a revision or blob the test hands back to the CLI.
 func cemGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = dir
 	command.Env = append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
@@ -73,7 +73,7 @@ func runCLI(t *testing.T, args ...string) (int, string, string) {
 func TestCEMHelpSurfaces(t *testing.T) {
 	t.Parallel()
 	code, out, _ := runCLI(t, "--help")
-	if code != 0 || !strings.Contains(out, "cem ACTION") {
+	if code != 0 || !strings.Contains(out, "\n  cem  ") {
 		t.Fatalf("root help omits cem: %d", code)
 	}
 	for _, invocation := range [][]string{{"help", "cem"}, {"cem", "--help"}} {
@@ -320,8 +320,9 @@ func TestRootHelpMutationBoundary(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("help exited %d", code)
 	}
-	for _, required := range []string{"query, impact, docs, harness, and lrf read without mutating", "write local CEM artifacts", "cem\n  report writes the local review report"} {
-		if !strings.Contains(out, required) {
+	flowed := strings.Join(strings.Fields(out), " ")
+	for _, required := range []string{"query, impact, docs, harness, and lrf read without mutating", "write local CEM artifacts", "cem report, ocm, record"} {
+		if !strings.Contains(flowed, required) {
 			t.Fatalf("support boundary lost %q", required)
 		}
 	}

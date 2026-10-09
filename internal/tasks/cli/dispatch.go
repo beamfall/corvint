@@ -682,6 +682,9 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if a.CandidateTreeOid != nil {
 				x.Candidate = *a.CandidateTreeOid
 			}
+			if a.Cause != nil {
+				x.Cause = *a.Cause
+			}
 			if a.PoolAllocation != nil {
 				x.Pool, x.Member = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
 			}
@@ -718,6 +721,28 @@ func (q dispatchQueue) Release(ctx context.Context, a dispatch.Attempt, evidence
 
 func (q dispatchQueue) Reap(ctx context.Context, a dispatch.Attempt, requestID string) error {
 	return leaseOutcome(leaseCommand(q.quiet(), "reap", []string{"--attempt", a.ID, "--generation", a.Generation, "--request-id", requestID}))
+}
+
+// ReapExpired is the CAL-V0-191 reap fenced on the observed lease expiry.
+func (q dispatchQueue) ReapExpired(ctx context.Context, a dispatch.Attempt, requestID string) (bool, error) {
+	expires := a.LeaseExpires.UTC().Format("2006-01-02T15:04:05Z")
+	return reapedOutcome(leaseCommand(q.quiet(), "reap", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-expires-at", expires, "--request-id", requestID}))
+}
+
+// reapedOutcome reports whether a per-attempt reap moved its attempt: a
+// fresh receipt or the replay of one. A completed reap without either is
+// the no-change answer for an attempt that is no longer live.
+func reapedOutcome(r *wire.Result) (bool, error) {
+	if err := leaseOutcome(r); err != nil {
+		return false, err
+	}
+	if len(r.Items) == 0 || r.Items[0].Obj == nil {
+		return false, fmt.Errorf("reap result has no item")
+	}
+	o := r.Items[0].Obj
+	receipt, _ := o.Get("receipt")
+	replayed, _ := o.Get("replayed")
+	return receipt.Str != "" || replayed.Bool, nil
 }
 
 func (q dispatchQueue) quiet() Env {

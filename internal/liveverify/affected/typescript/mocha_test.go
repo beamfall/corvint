@@ -1,8 +1,10 @@
 package typescript
 
 import (
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/testrunner/dynamic"
 )
 
 func TestMochaLiteralEvidenceAndUnknowns(t *testing.T) {
@@ -152,5 +154,23 @@ func TestMochaCompetingImportAndConfigurationRetainsEdges(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Every concrete JavaScript/TypeScript affected registration names a dynamic
+// execution profile with the same runner ID; "unknown" never executes.
+func TestRunnerRegistrationsHaveExecutionProfiles(t *testing.T) {
+	profiles := map[string]bool{}
+	for _, r := range dynamic.Runners() {
+		profiles[r] = true
+	}
+	registered := []string{runnerVitest, runnerJest, runnerMocha, runnerAVA, runnerNode, runnerPlaywright, runnerBun, runnerDeno, runnerCypress, runnerWebdriverIO, runnerTestCafe, runnerNightwatch, runnerDetox, runnerStorybook, runnerStorybookVitest}
+	for _, r := range registered {
+		if !profiles[r] {
+			t.Errorf("affected runner %q has no execution profile", r)
+		}
+	}
+	if profiles[runnerUnknown] {
+		t.Error("unknown runner must not execute")
 	}
 }

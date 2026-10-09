@@ -17,9 +17,13 @@ cd "$repo"
 export GOTOOLCHAIN=local GOCACHE=${GOCACHE:-/tmp/corvint-go-build-cache}
 go build -o "$scratch/corvint" ./cmd/corvint
 go build -o "$scratch/corvint-web-flows" ./cmd/corvint-web-flows
-node --test tools/web-flows/test/scan.test.mjs tools/web-flows/test/lifecycle.test.mjs
+node --test tools/web-flows/test/scan.test.mjs tools/web-flows/test/lifecycle.test.mjs tools/web-flows/test/navigation.test.mjs
 export CORVINT_CORE_BIN="$scratch/corvint" CORVINT_FLOW_BIN="$scratch/corvint-web-flows"
 node tools/web-flows/test/e2e.mjs &
+runner=$!
+wait "$runner"
+runner=
+node tools/web-flows/test/navigation-e2e.mjs &
 runner=$!
 wait "$runner"
 runner=

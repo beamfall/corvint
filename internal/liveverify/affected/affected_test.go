@@ -274,6 +274,78 @@ func TestSelectOnATestFileNamesADirectTestWitness(t *testing.T) {
 	}
 }
 
+// AFP-V0-036 (V1-0984): a change touching only a Go package's own _test.go
+// files selects that package's tests and reaches neither its importers nor the
+// units whose tests import it; a non-test change still reaches both, a mixed
+// change is witnessed by its source path, an unbounded reader is still selected
+// on any dirty path, and a non-Go plugin keeps the conservative traversal.
+func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.T) {
+	language := fake{name: "go", units: []Unit{
+		{ID: "go:core", Sources: []string{"core/core.go"}, Tests: []string{"core/core_test.go", "core/export_test.go"}},
+		{ID: "go:mid", Sources: []string{"mid/mid.go"}, Tests: []string{"mid/mid_test.go"}, Imports: []string{"go:core"}},
+		{ID: "go:testuser", Sources: []string{"testuser/user.go"}, Tests: []string{"testuser/user_test.go"}, TestImports: []string{"go:core"}},
+		{ID: "go:reader", Sources: []string{"reader/reader.go"}, Tests: []string{"reader/reader_test.go"}, UnboundedReads: "runtime.Caller"},
+		{ID: "go:solo", Sources: []string{"solo/solo.go"}, Tests: []string{"solo/solo_test.go"}},
+	}}
+	graph, err := Build(t.TempDir(), language)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name  string
+		dirty []string
+		want  map[string]Witness
+	}{
+		{"test only", []string{"core/core_test.go", "core/export_test.go"}, map[string]Witness{
+			"go:core":   {Kind: WitnessDirectTest, DirtyPath: "core/core_test.go", Via: []string{"go:core"}},
+			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}},
+		}},
+		{"source", []string{"core/core.go"}, map[string]Witness{
+			"go:core":     {Kind: WitnessDirectSource, DirtyPath: "core/core.go", Via: []string{"go:core"}},
+			"go:mid":      {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:mid"}},
+			"go:testuser": {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:testuser"}},
+			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}},
+		}},
+		{"source and test", []string{"core/core.go", "core/core_test.go"}, map[string]Witness{
+			"go:core":     {Kind: WitnessDirectSource, DirtyPath: "core/core.go", Via: []string{"go:core"}},
+			"go:mid":      {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:mid"}},
+			"go:testuser": {Kind: WitnessDependency, DirtyPath: "core/core.go", Via: []string{"go:core", "go:testuser"}},
+			"go:reader":   {Kind: WitnessUnboundedReader, DirtyPath: "core/core.go", Via: []string{"go:reader"}},
+		}},
+		{"test here, source below", []string{"core/core_test.go", "mid/mid.go"}, map[string]Witness{
+			"go:core":   {Kind: WitnessDirectTest, DirtyPath: "core/core_test.go", Via: []string{"go:core"}},
+			"go:mid":    {Kind: WitnessDirectSource, DirtyPath: "mid/mid.go", Via: []string{"go:mid"}},
+			"go:reader": {Kind: WitnessUnboundedReader, DirtyPath: "core/core_test.go", Via: []string{"go:reader"}},
+		}},
+	}
+	for _, tc := range cases {
+		plan := Select(graph, tc.dirty)
+		if got := witnesses(plan); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: selected=%v want %v", tc.name, got, tc.want)
+		}
+		if plan.Scope != ScopeBounded {
+			t.Errorf("%s: scope=%s unknown=%v", tc.name, plan.Scope, plan.Unknown)
+		}
+		for _, exclusion := range plan.Excluded {
+			if exclusion.Reason != ExcludedNoDependencyPath {
+				t.Errorf("%s: exclusion=%+v", tc.name, exclusion)
+			}
+		}
+		if len(plan.Selected)+len(plan.Excluded) != 5 {
+			t.Errorf("%s: selected=%d excluded=%d want 5 in all", tc.name, len(plan.Selected), len(plan.Excluded))
+		}
+	}
+
+	other, err := Build(t.TempDir(), chain())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := witnesses(Select(other, []string{"core_test.x"}))
+	if _, kept := selected["x:mid"]; !kept {
+		t.Fatalf("a non-Go test-only change must keep the conservative traversal: %v", selected)
+	}
+}
+
 func TestSelectWithNoDirtyPathsSelectsNothingAndExcludesEverything(t *testing.T) {
 	graph, err := Build(t.TempDir(), chain())
 	if err != nil {

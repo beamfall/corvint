@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -16,19 +17,75 @@ import (
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 // blobEntry is one regular committed file at the evaluated revision.
 type blobEntry struct {
+	repo string // the alias of the root read; empty is --root
 	path string
 	oid  string
 	size int
 }
 
 // repo reads committed objects only: never the working tree, never the network (AMAP-V0-015).
+// alias names an operator-declared second root (AMAP-V0-017); empty is --root.
 type repo struct {
-	ctx  context.Context
-	root string
+	ctx   context.Context
+	root  string
+	alias string
+}
+
+func rootUnavailable(alias, why string) error {
+	return &gokernel.Error{Code: "appmap-root-unavailable", Message: fmt.Sprintf("root %s %s", alias, why)}
+}
+
+// openRoot binds a manifest alias to its operator-declared root and pins that root's HEAD commit
+// (AMAP-V0-017). The root keeps the MCPV0-001 bounds the multi-root MCP server applies
+// (MMR-V0-002), must be the top of a Git worktree, and must not be --root itself (MMR-V0-003).
+func openRoot(ctx context.Context, primary, alias, root string) (repo, string, error) {
+	if root == "" {
+		return repo{}, "", rootUnavailable(alias, "is not declared: pass --repo "+alias+"=ABSOLUTE_ROOT")
+	}
+	if !rootalias.ValidRoot(root) {
+		return repo{}, "", rootUnavailable(alias, "must be an absolute, clean path")
+	}
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return repo{}, "", rootUnavailable(alias, "is unreadable")
+	}
+	info, err := os.Stat(resolved)
+	if err != nil || !info.IsDir() {
+		return repo{}, "", rootUnavailable(alias, "is not a directory")
+	}
+	if p, err := os.Stat(primary); err == nil && os.SameFile(info, p) {
+		return repo{}, "", rootUnavailable(alias, "is the --root repository")
+	}
+	r := repo{ctx: ctx, root: resolved, alias: alias}
+	top, err := r.git(4096, nil, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return repo{}, "", rootUnavailable(alias, "is not a Git worktree")
+	}
+	if t, err := os.Stat(strings.TrimSuffix(string(top), "\n")); err != nil || !os.SameFile(info, t) {
+		return repo{}, "", rootUnavailable(alias, "is not the top of a Git worktree")
+	}
+	rev, err := r.resolve("HEAD")
+	if err != nil {
+		return repo{}, "", rootUnavailable(alias, "has no HEAD commit")
+	}
+	return r, rev, nil
+}
+
+// dirty reports whether the worktree differs from HEAD under any of paths: a staged, unstaged or
+// untracked change (ignored files do not count). It writes nothing: --no-optional-locks keeps
+// status from refreshing the index.
+func (r repo) dirty(paths []string) (bool, error) {
+	args := append([]string{"--literal-pathspecs", "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--"}, paths...)
+	out, err := r.git(1<<20, nil, args...)
+	if err != nil {
+		return false, err
+	}
+	return len(out) > 0, nil
 }
 
 func (r repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
@@ -85,7 +142,7 @@ func (r repo) tree(rev string, prefixes []string, limit int) ([]blobEntry, error
 		if err != nil {
 			return nil, fmt.Errorf("%s: committed input unavailable", name)
 		}
-		entries = append(entries, blobEntry{path: name, oid: fields[2], size: size})
+		entries = append(entries, blobEntry{repo: r.alias, path: name, oid: fields[2], size: size})
 		if len(entries) > limit {
 			return nil, bound(fmt.Sprintf("more than %d files under the declared test root", limit))
 		}
@@ -213,7 +270,7 @@ func spanOf(e blobEntry, data []byte, start, end int) Anchor {
 	if start <= len(lines) {
 		span = bytes.Join(lines[start-1:end], nil)
 	}
-	return Anchor{Path: e.path, Start: start, End: end, Blob: e.oid, SpanSHA256: digest(span)}
+	return Anchor{Repo: e.repo, Path: e.path, Start: start, End: end, Blob: e.oid, SpanSHA256: digest(span)}
 }
 
 // wholeFile anchors every line of a committed file.

@@ -63,12 +63,16 @@ const MaxPathsPerUnit = 20_000
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
+// Execs name the command units whose built binary the unit's code or tests
+// run (AFP-V0-037): no import edge reaches the unit from the command, so a
+// change to the command's build selects the unit through this edge instead.
 type Unit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
 	Tests             []string `json:"tests"`
 	Imports           []string `json:"imports"`
 	TestImports       []string `json:"testImports,omitempty"`
+	Execs             []string `json:"execs,omitempty"`
 	PathTokens        []string `json:"pathTokens,omitempty"`
 	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
 	Embeds            bool     `json:"embeds,omitempty"`
@@ -134,6 +138,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.TestImports); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.Execs); err != nil {
 		return err
 	}
 	if err := validIdentifierList(unit.Frontier); err != nil {

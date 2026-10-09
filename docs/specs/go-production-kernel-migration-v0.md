@@ -224,7 +224,7 @@ requirements below have evidence. File existence is not parity.
   Go module path MUST contain `/` when any changed path is `.go`, because only rule (a) resolves
   through the module path; `.py` and web paths are admitted in any Git repository, as the oracle
   admits them; decision 0015), and one or more normalized paths whose suffix the immutable index
-  admits, with only `--limit` as an impact option. The named reverse-import rules are exactly three:
+  admits, with only `--limit` as an impact option (proposed amendment 2026-10-07, `MCPV0-032`, V1-0944: path impact also accepts `--budget-bytes`; range and untracked impact still refuse it). The named reverse-import rules are exactly three:
   (a) `.go` — resolution to the containing Go package's import path, which for
   a root-package file is the module path itself (decision 0023; the oracle spells it `module/.`
   and so finds no importer, DR-0017); (b) `.py` —
@@ -244,8 +244,8 @@ requirements below have evidence. File existence is not parity.
   freshness, remain read-only/local-only, bound aggregate source admission to 128 MiB, and reject
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
-  `unsupported-impact-platform` and `--budget-bytes` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:298,310`). Every evidence array MUST be emitted in a deterministic total order derived
+  `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
+  (`cmd/corvint/main.go:299,311`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -1589,3 +1589,25 @@ the `webGraph` merge, the type-only weakening and the disclosure from `impact` i
 `internal/contextindex/impact.go` and the `bare-import-unresolved` row from
 `nonGoImpactUnknowns`; `reverseImporters` and the index were never changed, so no snapshot,
 receipt or trace needs migration.
+
+## Proposed amendment: whole-segment relative web specifiers
+
+Source: V1-0958 review finding P2 (native V1-0967). `GPK-V0-077` excludes `.`-relative specifiers
+from the alias arm, and the implementation read that as any specifier whose first character is
+`.`. TypeScript reads a specifier as relative only when it matches `^\.\.?($|[\\/])`, so a
+`paths` key such as `.api/*` claims `.api/client` as a bare name; Corvint skipped it, `impact`
+missed the importer, and nothing was disclosed.
+
+- `GPK-V0-082`: (accepted 2026-10-08, decision 0464; V1-0967) In `GPK-V0-077` and
+  `NewWebImportResolver(index).Resolve`, a web specifier is relative only when it is `.` or `..`
+  alone or followed by `/` or `\`, as TypeScript's `pathIsRelative` reads it. Every other
+  specifier that starts with a dot is bare: it goes through `paths`, `baseUrl` and the
+  `GPK-V0-080` package test, a resolved importer is a `reverse-import` row, and an unresolved
+  one is counted in the `GPK-V0-080` disclosure. The rule (c) oracle arm
+  (`webSpecifierAdmitted`, `GPK-V0-027`) is unchanged and still admits any leading dot, because
+  its rows are the frozen parity corpus's bytes; the two arms' rows are merged by importer path,
+  so an importer both arms find appears once. Evidence:
+  `TestImpactResolvesDotPrefixedAliasImporters` (`internal/contextindex/webresolve_test.go`),
+  which FAILS without the whole-segment rule and, on the disclosure count, with a rule that
+  accepts only `/`. Rollback: restore the leading-dot test in `Resolve` and
+  `buildWebImportGraph`; no index, snapshot, receipt or trace changes.

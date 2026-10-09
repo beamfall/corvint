@@ -3,6 +3,7 @@ package tcq
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -200,5 +201,29 @@ func requireCode(t *testing.T, err error, code string) {
 	typed, ok := err.(*Error)
 	if !ok || typed.Code != code {
 		t.Fatalf("error = %v, want code %s", err, code)
+	}
+}
+
+// TestSwiftPMXUnitRowsStayUnkeyed binds TRE-V0-029 on the import side: the
+// actual SwiftPM 6.4 parallel xUnit rows carry no file attribute, so the
+// skip reported as pass can never key criterion evidence.
+func TestSwiftPMXUnitRowsStayUnkeyed(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "testrunner", "platform", "testdata", "native-report-fixtures.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inventory map[string]struct {
+		Bytes []byte `json:"bytesBase64"`
+	}
+	if err = json.Unmarshal(raw, &inventory); err != nil {
+		t.Fatal(err)
+	}
+	xml := inventory["swiftpm-xunit-parallel.xml"].Bytes
+	if len(xml) == 0 {
+		t.Fatal("SwiftPM xUnit witness missing")
+	}
+	report, err := parseJUnit(junitFixtureRepository(), junitTarget, xml)
+	if err != nil || len(report.keyed) != 0 || report.unkeyedCount != 3 || !report.hasNonPassing {
+		t.Fatalf("report=%+v err=%v", report, err)
 	}
 }

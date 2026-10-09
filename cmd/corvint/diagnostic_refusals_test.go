@@ -120,8 +120,8 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			return refusalRun{exit: exit, stdout: stdout.String(), stderr: stderr.String(), want: platformEnvelope("unsupported-genesis-platform", "native Go Genesis inventory is qualified only on Darwin and Linux")}
 		},
 		"impact budget option": func(t *testing.T) refusalRun {
-			want := refusalEnvelope("unsupported-impact-option", "--budget-bytes is not implemented for native Go impact", subjectOf("argument", "--budget-bytes"), evidenceOf(), fixesOf("impact.omit-budget-bytes"), "")
-			return cliRun(want, "--root", impactCLIRepository(t), "impact", "pkg/main.go", "--budget-bytes", "1024")(t)
+			want := refusalEnvelope("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base or --working-tree-untracked", subjectOf("argument", "--budget-bytes"), evidenceOf(), fixesOf("impact.omit-budget-bytes"), "")
+			return cliRun(want, "--root", impactCLIRepository(t), "impact", "--working-tree-untracked", "--budget-bytes", "2048")(t)
 		},
 		"batch without snapshot": func(t *testing.T) refusalRun {
 			exit, stdout, stderr := runBatchForTest(t, batchRepository(t), `{"operations":[{"id":"a","verb":"query","task":"does Split keep empty demux keys"}]}`)

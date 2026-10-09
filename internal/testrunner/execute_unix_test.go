@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,6 +16,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 func TestExecutorHelper(t *testing.T) {
@@ -55,6 +58,45 @@ func TestExecutorHelper(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 
+	case "escape":
+		// A Playwright-shaped tree: this leader's worker launches a detached
+		// browser in its own session (V1-0608).
+		signal.Ignore(os.Interrupt)
+		exe, _ := os.Executable()
+		worker := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		worker.Env = append(os.Environ(), "CORVINT_EXEC_MODE=escape-worker")
+		if e := worker.Start(); e != nil {
+			os.Exit(9)
+		}
+		for os.Getenv("CORVINT_ESCAPE_EXIT") == "1" {
+			if _, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET") + ".pid"); e == nil {
+				fmt.Print("native result")
+				os.Exit(0)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		for {
+			time.Sleep(time.Second)
+		}
+	case "escape-worker":
+		exe, _ := os.Executable()
+		browser := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		browser.Env = append(os.Environ(), "CORVINT_EXEC_MODE=child")
+		browser.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if e := browser.Start(); e != nil {
+			os.Exit(9)
+		}
+		// Publish the browser PID only after its first heartbeat.
+		for {
+			if st, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET")); e == nil && st.Size() > 0 {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		_ = os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET")+".pid", []byte(fmt.Sprint(browser.Process.Pid)), 0600)
+		for {
+			time.Sleep(time.Second)
+		}
 	case "mutate":
 		if err := os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET"), []byte("changed"), 0700); err != nil {
 			os.Exit(9)
@@ -83,6 +125,48 @@ func TestExecutorHelper(t *testing.T) {
 			_, _ = f.Write([]byte("x"))
 			time.Sleep(10 * time.Millisecond)
 		}
+	case "detach":
+		// A Setpgid child leaves the leader's group; its setsid child leaves
+		// the session too. The marker is the readiness signal.
+		exe, _ := os.Executable()
+		child := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		child.Env = append(os.Environ(), "CORVINT_EXEC_MODE=orphaner")
+		child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if child.Start() != nil {
+			os.Exit(9)
+		}
+		if os.Getenv("CORVINT_EXEC_EXIT") == "1" {
+			for {
+				if _, e := os.Stat(os.Getenv("CORVINT_EXEC_TARGET")); e == nil {
+					if m := os.Getenv("CORVINT_EXEC_MUTATE"); m != "" {
+						_ = os.WriteFile(m, []byte("changed"), 0600)
+					}
+					fmt.Print("native result")
+					os.Exit(0)
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+		for {
+			time.Sleep(time.Second)
+		}
+	case "orphaner":
+		exe, _ := os.Executable()
+		sleeper := exec.Command(exe, "-test.run=^TestExecutorHelper$")
+		sleeper.Env = append(os.Environ(), "CORVINT_EXEC_MODE=sleep")
+		sleeper.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if sleeper.Start() != nil {
+			os.Exit(9)
+		}
+		target := os.Getenv("CORVINT_EXEC_TARGET")
+		_ = os.WriteFile(target+".tmp", []byte(fmt.Sprintf("%d %d", os.Getpid(), sleeper.Process.Pid)), 0600)
+		_ = os.Rename(target+".tmp", target)
+		for {
+			time.Sleep(time.Second)
+		}
+	case "sleep":
+		time.Sleep(10 * time.Minute)
+		os.Exit(0)
 	case "env":
 		fmt.Print(os.Getenv("PATH") + "\n" + os.Getenv("JAVA_HOME") + "\n" + os.Getenv("CORVINT_HOST_SECRET"))
 	}
@@ -481,6 +565,80 @@ func TestGracefulInterruptLifecycle(t *testing.T) {
 	}
 }
 
+// V1-0608: a detached browser that leaves the runner's process group is
+// retired on timeout, interruption and normal completion, for graceful and
+// hard cancellation alike, and the executor reports no containment problem.
+func TestExecuteRetiresEscapedDetachedDescendants(t *testing.T) {
+	for _, mode := range []string{"timeout", "timeout-graceful", "interrupt", "normal"} {
+		t.Run(mode, func(t *testing.T) {
+			r, inv := executorRequest(t)
+			// Three helper processes start under a loaded host before the bound.
+			r.TimeoutSeconds = 4
+			target := filepath.Join(r.Root, "heartbeat")
+			inv.Environment["CORVINT_EXEC_TARGET"] = target
+			inv.Environment["CORVINT_EXEC_MODE"] = "escape"
+			inv.GracefulInterrupt = mode == "timeout-graceful" || mode == "interrupt"
+			if mode == "normal" {
+				r.TimeoutSeconds = 30
+				inv.Environment["CORVINT_ESCAPE_EXIT"] = "1"
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var browser int
+			ready := make(chan struct{})
+			go func() {
+				defer close(ready)
+				for ctx.Err() == nil {
+					if b, e := os.ReadFile(target + ".pid"); e == nil {
+						fmt.Sscan(string(b), &browser)
+						if mode == "interrupt" {
+							cancel()
+						}
+						return
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+			}()
+			out, e := Execute(ctx, r, inv)
+			cancel()
+			<-ready
+			if e != nil {
+				t.Fatal(e)
+			}
+			if browser <= 1 {
+				t.Fatal("detached browser never started")
+			}
+			a, _ := os.ReadFile(target)
+			time.Sleep(100 * time.Millisecond)
+			b, _ := os.ReadFile(target)
+			if len(a) != len(b) {
+				// The browser is this test's own descendant; retire it.
+				_ = syscall.Kill(browser, syscall.SIGKILL)
+				t.Fatalf("detached browser %d survived the executor", browser)
+			}
+			for _, p := range out.Input.ExecutionProblems {
+				if p.Code == "process-containment" {
+					t.Fatalf("containment problem: %+v", p)
+				}
+			}
+			switch mode {
+			case "normal":
+				if out.Input.ExitCode != 0 || out.Input.TimedOut || out.Input.Interrupted {
+					t.Fatal(out.Input)
+				}
+			case "interrupt":
+				if !out.Input.Interrupted {
+					t.Fatal("missing interruption")
+				}
+			default:
+				if !out.Input.TimedOut {
+					t.Fatal("missing timeout")
+				}
+			}
+		})
+	}
+}
+
 func TestHistoricalPlanByteIdentity(t *testing.T) {
 	// Original retained Go and Playwright plans predate gracefulInterrupt.
 	for _, raw := range []string{
@@ -516,6 +674,16 @@ func TestHistoricalPlanByteIdentity(t *testing.T) {
 		encoded, _ = json.Marshal(plan)
 		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"gracefulInterrupt":true`)) {
 			t.Fatal("new lifecycle not bound into plan identity")
+		}
+		plan.Invocation.GracefulInterrupt = false
+		plan.Invocation.RetireDetachedDescendants = false
+		if encoded, _ = json.Marshal(plan); !bytes.Equal(before, encoded) {
+			t.Fatal("explicit false retirement changed old identity")
+		}
+		plan.Invocation.RetireDetachedDescendants = true
+		encoded, _ = json.Marshal(plan)
+		if bytes.Equal(before, encoded) || !bytes.Contains(encoded, []byte(`"retireDetachedDescendants":true`)) {
+			t.Fatal("detached retirement not bound into plan identity")
 		}
 	}
 }
@@ -566,5 +734,80 @@ func TestExecuteExplicitPrimaryTestWithoutArguments(t *testing.T) {
 				t.Fatal(result, err)
 			}
 		})
+	}
+}
+
+// TestExecuteRefusesUnprovenRetirement keeps TRE-V0-030 closed off Darwin:
+// a plan requesting detached retirement is refused before launch.
+func TestExecuteRefusesUnprovenRetirement(t *testing.T) {
+	if groupreap.RetirementSupported {
+		t.Skip("platform retirement is proved by the Darwin tests")
+	}
+	r, inv := executorRequest(t)
+	inv.RetireDetachedDescendants = true
+	if _, err := Execute(context.Background(), r, inv); err == nil || !strings.Contains(err.Error(), "unsupported") {
+		t.Fatalf("unproven retirement admitted: %v", err)
+	}
+	if _, err := os.Stat(r.ReportDir); err == nil {
+		t.Fatal("refusal created the report directory")
+	}
+}
+
+// TestKilledRunReceiptRoundTrip covers V1-1025: a runner-killed TEST phase
+// records exitCode -1, its receipt decodes and re-encodes byte-identically,
+// and the decoded observation can never be complete.
+func TestKilledRunReceiptRoundTrip(t *testing.T) {
+	r, inv := executorRequest(t)
+	r.TimeoutSeconds = 1
+	inv.Environment["CORVINT_EXEC_MODE"] = "parent"
+	inv.Environment["CORVINT_EXEC_TARGET"] = filepath.Join(r.Root, "heartbeat")
+	x, err := Execute(context.Background(), r, inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(x.Phases) != 1 || x.Phases[0].ExitCode != KilledExitCode || !x.Phases[0].TimedOut || x.Input.ExitCode != KilledExitCode {
+		t.Fatalf("killed phase not retained: %+v", x.Phases)
+	}
+	o := Normalize(x.Input, Observation{Tests: []Test{{ID: "probe", State: Passed}}})
+	if o.Complete {
+		t.Fatal("killed run normalized as complete")
+	}
+	raw, err := json.Marshal(ReceiptDocument{Profile: "corvint-test-runner-receipt/0", PlanSha256: Digest([]byte("plan")), Execution: x, Observation: o})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got ReceiptDocument
+	if err = DecodeDocument(raw, &got); err != nil {
+		t.Fatalf("killed-run receipt refused: %v", err)
+	}
+	again, _ := json.Marshal(got)
+	if !bytes.Equal(again, raw) || got.Execution.Phases[0].ExitCode != KilledExitCode || got.Observation.Complete {
+		t.Fatalf("killed-run receipt did not round-trip:\n%s\n%s", again, raw)
+	}
+	// Only the killed-run sentinel is admitted, only as an exitCode member, and
+	// never alongside a complete observation.
+	killed := bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":-2`), 1)
+	for name, c := range map[string]struct {
+		raw  []byte
+		want error
+	}{
+		"below sentinel":    {killed, ErrNegativeInteger},
+		"other member":      {bytes.Replace(raw, []byte(`"id":"probe"`), []byte(`"executedCount":-1,"id":"probe"`), 1), ErrNegativeInteger},
+		"fraction":          {bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":-1.0`), 1), ErrNegativeInteger},
+		"complete claim":    {bytes.Replace(raw, []byte(`"complete":false`), []byte(`"complete":true`), 1), ErrKilledRunComplete},
+		"array element":     {bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":[-1]`), 1), ErrNegativeInteger},
+		"timeout no killed": {bytes.Replace(bytes.Replace(raw, []byte(`"exitCode":-1`), []byte(`"exitCode":0`), 1), []byte(`"complete":false`), []byte(`"complete":true`), 1), ErrKilledRunComplete},
+	} {
+		if !bytes.Equal(c.raw, raw) {
+			if e := DecodeDocument(c.raw, new(ReceiptDocument)); !errors.Is(e, c.want) {
+				t.Errorf("%s: got %v, want %v", name, e, c.want)
+			}
+		} else {
+			t.Errorf("%s: mutation did not apply", name)
+		}
+	}
+	// A string containing the sentinel text is data, not a number.
+	if e := DecodeDocument([]byte(`{"profile":"\"exitCode\":-1","planSha256":"","execution":{},"observation":{},"error":"-1"}`), new(ReceiptDocument)); e != nil {
+		t.Fatal(e)
 	}
 }

@@ -237,7 +237,7 @@ func stableResultDebug(result StableResult) string {
 
 func stableRepositoryGit(t *testing.T, repo, stdin string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = repo
 	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@invalid",

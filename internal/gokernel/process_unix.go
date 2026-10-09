@@ -3,11 +3,10 @@
 package gokernel
 
 import (
-	"errors"
-	"github.com/Beamfall/corvint/internal/gitstatus"
-	"os"
 	"os/exec"
-	"syscall"
+
+	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 func configureProcess(command *exec.Cmd) {
@@ -16,16 +15,7 @@ func configureProcess(command *exec.Cmd) {
 		command.WaitDelay = pipeDrainDelay
 		return
 	}
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error {
-		if command.Process == nil {
-			return os.ErrProcessDone
-		}
-		err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-		if errors.Is(err, syscall.ESRCH) {
-			return os.ErrProcessDone
-		}
-		return err
-	}
+	// Cancellation stops the leader; groupreap.Wait sweeps the group before the reap.
+	groupreap.Contain(command)
 	command.WaitDelay = pipeDrainDelay
 }

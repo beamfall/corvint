@@ -195,6 +195,17 @@ func record(sourceQueue string, item Item, st Store, current map[string]*ticket.
 	} else if pre != nil && len(pre.ExecutionPrerequisites) > 0 {
 		o.Set("executionPrerequisites", ticket.PrerequisitesValue(pre.ExecutionPrerequisites))
 	}
+	// CTS-V0-007: requiresPool and requiredRoles are tool-local optional keys
+	// a REFINE may set and the export cannot carry (TicketKeys); a re-import
+	// keeps them before chain() compares acceptance-relevant fields.
+	if pre != nil {
+		old := pre.Value().Obj
+		for _, k := range []string{"requiresPool", "requiredRoles"} {
+			if v, ok := old.Get(k); ok {
+				o.Set(k, v)
+			}
+		}
+	}
 	o.Set("profile", wire.String(ticket.Profile))
 	o.Set("ticketId", wire.String(id.Raw))
 	o.Set("source", wire.ObjectValue(source(sourceQueue, item.SourceItemID, revision)))

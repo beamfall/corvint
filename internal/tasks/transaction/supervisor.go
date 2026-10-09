@@ -85,6 +85,11 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		if c.sharesAllocation(a) {
 			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt on a shared allocation cannot attach to a supervisor"))
 		}
+		// CAL-V0-203: a supervised generation records no member history, so
+		// one that returned an allocation early stays external.
+		if a.ReleasedPoolAllocation != nil {
+			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt that returned its allocation early cannot attach to a supervisor"))
+		}
 		if a.Supervision != nil || a.RuntimeID != snapshot.RuntimeExternalAgent || a.Phase != "RUNNING" {
 			return c.fail(malformed("supervised attach phase"))
 		}
@@ -433,6 +438,9 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		}
 	}
 	if next.Phase == "WAITING" && (a.Supervision == nil || a.Phase != "WAITING" || next.Supervision.Question != a.Supervision.Question) {
+		// A new question carries no answer: an answer left from the wait a
+		// stage resumed would make `run --role` reselect it (CAL-V0-197).
+		next.Supervision.Answer = ""
 		next.Supervision.QuestionRevision = a.TicketRevision
 		next.Supervision.QuestionID = string(wire.Sum([]byte(a.AttemptID + ":" + string(a.Generation) + ":" + string(a.TicketRevision) + ":" + string(c.seq) + ":" + next.Supervision.Question)))
 	}

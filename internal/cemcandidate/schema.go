@@ -44,10 +44,16 @@ type Request struct {
 // decoder can coerce null into a zero-valued string or integer. Native nullable
 // slices/maps and optional pointers remain nullable, preserving their ABI.
 func Decode(raw []byte, out any) error {
+	return decode(raw, raw, out)
+}
+
+// decode checks structure on structural bytes, which differ from raw only in
+// signs a profile owner admitted (testrunner.StructuralBytes), and decodes raw.
+func decode(structural, raw []byte, out any) error {
 	if len(raw) > MaxDocument {
 		return fmt.Errorf("document exceeds bound")
 	}
-	value, e := cw.Parse(raw)
+	value, e := cw.Parse(structural)
 	if e != nil {
 		return e
 	}

@@ -50,6 +50,10 @@ const CodeLockTimeout = "LOCK_TIMEOUT"
 // opt-in loopDetection policy (TCP-00 amendment A23).
 const CodeLoopDetected = "LOOP_DETECTED"
 const CodeMalformed = "MALFORMED"
+
+// CodeMilestoneRequired refuses a CREATE without a milestone, or a REFINE
+// that clears one, under the CAL-V0-195 policy opt-in.
+const CodeMilestoneRequired = "MILESTONE_REQUIRED"
 const CodeMissingEvidence = "MISSING_EVIDENCE"
 const CodeMissingGate = "MISSING_GATE"
 const CodeNoexec = "NOEXEC"
@@ -57,6 +61,10 @@ const CodeOcmMissing = "OCM_MISSING"
 const CodeOutOfScope = "OUT_OF_SCOPE"
 const CodePaused = "PAUSED"
 const CodePlanStale = "PLAN_STALE"
+
+// CodeProvenanceUnverified refuses a know-how write whose attempt or
+// generation is not proved by the native attempt ledger (KHN-V0-008).
+const CodeProvenanceUnverified = "PROVENANCE_UNVERIFIED"
 
 // CodePrerequisiteUnsatisfied names a stage-scoped execution prerequisite
 // (CAL-V0-099) that blocks a claim or plan for a listed stage.
@@ -71,6 +79,11 @@ const CodeRetryExhausted = "RETRY_EXHAUSTED"
 const CodeReviewIncomplete = "REVIEW_INCOMPLETE"
 const CodeReviewRejected = "REVIEW_REJECTED"
 const CodeReviewReturned = "REVIEW_RETURNED"
+
+// CodeSecretDetected refuses a know-how write whose free text, route or path
+// matches the shared secret screen (KHN-V0-010); it replaces the MALFORMED
+// refusal with the KNOWHOW_SECRET_DETECTED detail prefix.
+const CodeSecretDetected = "SECRET_DETECTED"
 const CodeSignalRefusedIdentity = "SIGNAL_REFUSED_IDENTITY"
 const CodeSnapshotMoved = "SNAPSHOT_MOVED"
 const CodeStalePolicy = "STALE_POLICY"
@@ -98,11 +111,11 @@ var Codes = []string{
 	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
-	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
-	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied,
+	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMilestoneRequired, CodeMissingEvidence, CodeMissingGate,
+	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied, CodeProvenanceUnverified,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
-	CodeReviewRejected, CodeReviewReturned, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
+	CodeReviewRejected, CodeReviewReturned, CodeSecretDetected, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
 	CodeStaleTicket, CodeStaleTree, CodeSupervisorLost, CodeSurvivors, CodeTicketHeld,
 	CodeTicketState, CodeUncertainEffect, CodeUninitialized, CodeUnpublished,
 	CodeUnresolvedFinding, CodeUnsupported, CodeUnsupportedFilesystem, CodeUnsupportedVersion,

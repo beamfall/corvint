@@ -28,7 +28,8 @@ import (
 // the verification read yields a patch that fails the proof. The bodies read
 // for the proof are neither retained nor charged to the blob budget.
 //
-// Failures keep their types: derivation maps a Git exit to git-diff-failed and
+// Failures keep their types: derivation maps a Git exit to git-diff-failed,
+// unless a needed object is missing locally (repository-object-unavailable), and
 // a per-operation timeout to git-diff-timeout, while cancellation, output, and
 // budget failures keep their own registered codes.
 func (r *Repository) CanonicalDiff(ctx context.Context, baseOID, targetOID string) ([]byte, error) {
@@ -60,7 +61,7 @@ func (r *Repository) CanonicalDiff(ctx context.Context, baseOID, targetOID strin
 	}
 	out, err := r.git(ctx, patch.MaxPatchBytes, arguments...)
 	if err != nil {
-		return nil, canonicalDiffError(err)
+		return nil, r.diffExitError(ctx, err, baseOID, targetOID)
 	}
 	changed, err := r.verifiedChangeSet(ctx, baseOID, targetOID)
 	if err != nil {
@@ -97,7 +98,7 @@ func (r *Repository) CanonicalDiffWithCreateDestinations(ctx context.Context, ba
 	}
 	out, err := r.git(ctx, patch.MaxPatchBytes, arguments...)
 	if err != nil {
-		return nil, nil, canonicalDiffError(err)
+		return nil, nil, r.diffExitError(ctx, err, baseOID, targetOID)
 	}
 	changed, err := r.verifiedChangeSet(ctx, baseOID, targetOID)
 	if err != nil {
@@ -122,6 +123,58 @@ func (r *Repository) CanonicalDiffWithCreateDestinations(ctx context.Context, ba
 		return nil, nil, cemcode.New(cemcode.GitCancelled, "canonical create inventory cancelled")
 	}
 	return out, createDestinations, nil
+}
+
+// diffExitError classifies a failed diff read. Git exits unsuccessfully when a blob the diff needs
+// is a promised object that is not present locally, because the read environment forbids the lazy
+// fetch. CEM-CB-019 codes that as repository-object-unavailable, not as a patch-derivation
+// failure, so on a Git exit the verified change set and its blobs are walked, without fetching,
+// and their missing-object refusal is returned when they have one (V1-0349). A cancellation,
+// timeout or budget failure during that walk is returned through the same mapping as a diff
+// failure. Any other outcome keeps the diff's own code.
+func (r *Repository) diffExitError(ctx context.Context, err error, baseOID, targetOID string) error {
+	if cemcode.CodeOf(err) != cemcode.GitExitFailure {
+		return canonicalDiffError(err)
+	}
+	changed, walkErr := r.verifiedChangeSet(ctx, baseOID, targetOID)
+	if walkErr == nil {
+		walkErr = r.missingPatchBlob(ctx, patchSections(changed))
+	}
+	switch cemcode.CodeOf(walkErr) {
+	case cemcode.RepositoryObjectUnavailable, cemcode.GitCancelled, cemcode.GitTimeout, cemcode.GitBudgetExceeded:
+		return canonicalDiffError(walkErr)
+	}
+	return canonicalDiffError(err)
+}
+
+// missingPatchBlob returns the error that reading the sections' blobs fails with. A Git that
+// ignores GIT_NO_LAZY_FETCH exits from the batch read instead of reporting the object missing, so
+// each distinct blob is then probed alone with cat-file -e, where an exit names the object. The
+// probe reads no content, so it charges no blob budget and fills no memo.
+func (r *Repository) missingPatchBlob(ctx context.Context, sections []patchSection) error {
+	_, err := r.verifiedBlobs(ctx, sections)
+	if cemcode.CodeOf(err) != cemcode.GitExitFailure {
+		return err
+	}
+	probed := map[string]bool{}
+	for _, section := range sections {
+		if section.old.OID == section.new.OID {
+			continue
+		}
+		for _, side := range []TreeEntry{section.old, section.new} {
+			if side.OID == "" || side.Type != "blob" || probed[side.OID] {
+				continue
+			}
+			probed[side.OID] = true
+			if _, probeErr := r.git(ctx, 64, "cat-file", "-e", side.OID); probeErr != nil {
+				if cemcode.CodeOf(probeErr) == cemcode.GitExitFailure {
+					return unavailable("patch input %s does not resolve locally", side.OID)
+				}
+				return probeErr
+			}
+		}
+	}
+	return err
 }
 
 func canonicalDiffError(err error) error {

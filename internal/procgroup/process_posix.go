@@ -51,7 +51,11 @@ func waitProcessExitUnreaped(pid int) error {
 			0,
 		)
 		if errno == 0 {
-			return nil
+			if !waitidStateChangeOnly(info) {
+				return nil
+			}
+			time.Sleep(processGroupPollInterval)
+			continue
 		}
 		if errno != syscall.EINTR {
 			return errno
@@ -189,4 +193,15 @@ func processTerminationSignal(joinAncestorGroup bool) func(int, syscall.Signal) 
 
 func signalProcess(pid int, signal syscall.Signal) error {
 	return syscall.Kill(pid, signal)
+}
+
+// waitidStateChangeOnly reports a waitid record that is not an exit. Darwin's
+// waitid also returns for a stopped or continued child despite WEXITED
+// (golang/go#19314), so waitProcessExitUnreaped polls past such a record, as
+// internal/groupreap's leaderUnreaped does (V1-1037). si_code, after si_signo
+// and si_errno, is CLD_TRAPPED (4), CLD_STOPPED (5) or CLD_CONTINUED (6) on
+// both Darwin and Linux.
+func waitidStateChangeOnly(info [128]byte) bool {
+	code := *(*int32)(unsafe.Pointer(&info[8]))
+	return code >= 4 && code <= 6
 }

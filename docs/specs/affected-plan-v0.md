@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); other AFP-V0 requirements proposed/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -30,7 +30,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
 
 - **AFP-V0-001:** The command MUST be read-only: one bounded `git status`, one HEAD identity read,
   one source walk, at most two bounded advice-declaration reads (AFP-V0-009), one bounded
-  read-scope declaration read (AFP-V0-023), with `--base` one
+  read-scope declaration read (AFP-V0-023), one bounded binary-exec declaration read
+  (AFP-V0-037), with `--base` one
   bounded base identity read and one bounded `git diff --name-only` (AFP-V0-010), no test
   execution, no index, trace, cache, or ledger write, and no `observeUnsupported` call on failure.
 - **AFP-V0-002:** The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
@@ -46,7 +47,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   the graph are two observations of one mutable worktree.
 - **AFP-V0-003:** Stdout MUST be one canonical JSON line with exactly the members `advice`
   (AFP-V0-009), `mutates=false`,
-  `ok=true`, `plan` (the selector's canonical `affected.Plan`), `profile="affected-plan/0"`,
+  `ok=true`, `plan` (the selector's canonical `affected.Plan`), `profile="affected-plan/0"`
+  (this is the `--full` document; the default is its AFP-V0-035 `affected-plan/1` projection),
   `provider.go.{packages,state}`, `range.{base,paths}` (AFP-V0-010), `revision` (HEAD commit id),
   and `tool="affected"`.
   `provider.go.state` MUST be one of `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, or
@@ -90,9 +92,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
   names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
   `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
-  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023) and `frontier`, every member always present
-  except `readScoped` and `readScope`, which appear only for a declared unit so that an undeclared
-  graph keeps its digest (`digestBody` and `digestUnit` in
+  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023), `execs` (AFP-V0-037) and `frontier`, every
+  member always present except `readScoped` and `readScope`, which appear only for a declared unit,
+  and `execs`, which appears only when non-empty, so that a graph without them keeps its digest (`digestBody` and `digestUnit` in
   `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
   `Unit` struct, so a new internal field changes the digest only when it is added to the
   projection, and a unit field left out of it fails the test. The value is an identity, not a
@@ -731,6 +733,97 @@ and container qualification; full fallback remains available.
   directory or FIFO at a unit path that is read rather than refused, or a sparse file over the
   bound that is read. Rollback: delete `read_unix.go` and `read_other.go` and restore the
   `Lstat` body of `ReadSource` in `walk.go`.
+- **AFP-V0-035:** (proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+  `--base` and `--snapshot` forms MUST write `profile="affected-plan/1"`: the AFP-V0-003 document
+  with every member except `plan` unchanged and `plan` projected as follows. `graphDigest`,
+  `dirty`, `scope` and `unknown` are unchanged; each `selected` entry keeps `unitId` and `witness`
+  and replaces `tests` with `testCount`, the length of that list; `excluded` becomes one object
+  `{count, digest, groups}`, where `count` is the number of exclusions, `digest` is
+  `affected-excluded:sha256:` plus the lowercase hex SHA-256 of the exact `plan.excluded` bytes
+  of the `--full` document for the same inputs (`gokernel.CanonicalJSON`, an empty array when
+  nothing is excluded), and `groups` states each distinct `{reason, universe, invalidation}` once
+  with its `count`, sorted by reason, universe, then invalidation. A bare `--full` (at most once)
+  MUST write the `affected-plan/0` document byte-for-byte as before; `--full` with
+  `--playwright-config` is `invalid-arguments`, and the Playwright profile is unchanged. In-repo
+  readers that check the profile (`internal/companionrelease` core smoke, `.github/cishards`,
+  `tools/corvint-pr-tests`) MUST accept both identifiers; a reader that needs test files
+  (`tools/retrieval-bench`) MUST pass `--full`. Falsifier: a default document whose digest differs
+  from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
+  `--full` document that differs from the previous default. Rollback: delete
+  `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
+  default, and restore the renamed core-freeze goldens.
+- **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+  indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
+  `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose
+  tests import P are not reached through P, because Go compiles a test file only into P's own
+  test binary and no other package can import it. They stay excluded with
+  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` unless another dirty path reaches them. A non-test dirty
+  path in P, a deleted or unindexed Go path in P's directory (AFP-V0-012 rule (a)), or a data
+  path that traverses from P (rule (b)) keeps P a traversal root, and P's witness then names its
+  smallest dirty source path rather than a test path. The rule is Go-only; every other plugin
+  keeps the conservative traversal. Path-literal readers (AFP-V0-021), unbounded readers
+  (rule (d)), declared read scopes (AFP-V0-023), language frontiers and `UNKNOWN` scope are
+  attributed per dirty path exactly as before. Measured on this repository at `0b5096ca` with
+  one new `internal/contextindex` test file: 99 selected (72 `DEPENDENCY_PATH`) before, 43
+  selected (0 `DEPENDENCY_PATH`) after; see
+  `docs/build-log/2026-10-07-v1-0984-affected-test-only-changes.md`. Falsifier: a test-only Go
+  change that selects an importer through a `DEPENDENCY_PATH` witness, or a non-test change in
+  P that does not. Rollback: remove `testOnlyGoUnits` and its use in `reach`, and the
+  source-first witness preference in `seed`, in `internal/liveverify/affected/select.go`.
+
+- **AFP-V0-037:** (proposed (V1-0991); no GitHub issue) A package whose code or tests run the built
+  binary of a command, a `package main` of the root module, depends on that command's whole build
+  though no import edge says so. The Go plugin MUST record such a command edge as the unit's
+  `execs` member (sorted command unit ids, part of the AFP-V0-005 projection when non-empty) from
+  either source: a path token of the unit (AFP-V0-021) that names a command's directory exactly,
+  resolved against the module root when anchored or plain (`go build ./cmd/corvint` runs there)
+  and against the unit's directory when climbing, never the unit itself; or the project-owned
+  declaration `.corvint/test-binary-execs.json`, the closed object
+  `{"profile":"corvint-test-binary-execs/0","packages":{DIR:[COMMAND_DIR...]}}`, at most 1 MiB,
+  4096 packages and 1 to 256 strictly ascending entries per package, for a package that runs a
+  binary it is handed (a `--corvint` flag) and so names no literal. Every `DIR` must hold an observed
+  Go package and every entry an observed command other than `DIR`. A declaration that is present but
+  unreadable, oversized, not a regular file or invalid in any member keeps no declared edge and
+  raises the module-level frontier `go:test-binary-execs-invalid`; literal edges stay. Selection
+  MUST then select, with witness `BINARY_EXEC` and `via` ending in the command then the consumer,
+  every consumer of a command that the dirty set reaches through the dependency closure
+  (traverse) or the enclosing-package rule, before the read-path rules; the consumer is selected
+  one edge past the command and not traversed further, like `testUsersOf`. A command reached only
+  as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
+  names a command directory as data over-selects; a command at the module root (`.`) is never a
+  literal target; an exec consumer's importers are not selected through it; a dirty
+  `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
+  `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
+  missed `conformance/host-lifecycle-v1` on a `cmd/corvint/help.go` change, with no import edge and
+  no stated uncertainty (`docs/build-log/2026-10-07-v1-0991-affected-binary-readers.md`).
+  Falsifier: a package that runs a command's binary and is excluded on a change the command's build
+  reaches, or a `BINARY_EXEC` selection on a change that reaches no command. Rollback: delete
+  `execs.go`, `golang/binaryexecs.go` and `.corvint/test-binary-execs.json`, the `Execs` member and
+  its digest field, the `execUsersOf` call in `reach`, and the gate tool's frontier entry.
+
+- **AFP-V0-038:** (proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+  advisory check whose `source` is `affected-plan` MUST NOT repeat `provider.go.packages`: when its
+  `affected-plan/0` command is exactly `GOTOOLCHAIN=local go test -count=1` followed by every
+  `provider.go.packages` entry POSIX single-quoted and joined by one space, the check MUST carry
+  `command="GOTOOLCHAIN=local go test -count=1"` and `arguments="provider.go.packages"`, and appending
+  those entries the same way MUST reproduce the `affected-plan/0` command exactly. Every other check,
+  and any command that does not have that form, MUST be kept whole without `arguments`; `--full` and
+  the mandatory checks are unchanged. Falsifier: a default document whose advice names a package
+  path, or whose resolved advice differs from the `--full` advice. Rollback: drop
+  `compactAffectedAdvice` and copy the `affected-plan/0` advice into the default again.
+
+- **AFP-V0-039:** (proposed (V1-0662); no GitHub issue) A Go test fixture under
+  `internal/liveverify` that hides the host's global Git config (`GIT_CONFIG_GLOBAL` or a `HOME=`
+  override) and runs a Git subcommand that ends by launching automatic maintenance (`am`,
+  `cherry-pick`, `commit`, `fetch`, `merge`, `pull`, `rebase`, `revert`) MUST pass
+  `-c maintenance.auto=false -c gc.auto=0` on that command, because CI's global settings no longer
+  reach it and a detached `git maintenance` can outlive the test and fail its `TempDir` cleanup.
+  Config isolation, assertions and cleanup are unchanged. A source-level guard over
+  `internal/liveverify` MUST fail any such file that lacks either string literal. Falsifier: a
+  fixture test under `internal/liveverify` whose Git trace records a `git maintenance` child
+  launch, or such a fixture that passes the guard without both literals. Rollback: delete
+  `internal/liveverify/affected/fixture_maintenance_test.go` and the two config arguments in each
+  fixture helper.
 
 ## Non-goals and authority
 
@@ -763,7 +856,7 @@ compilation: `unsupported-affected-drift`. A `--base` that is not a full commit 
 `invalid-arguments`; one that is not a commit here: `unsupported-affected-revision`; a range diff
 over its bound: `unsupported-affected-status`. In the fast tier every one of these, a plan the
 script cannot read, a module-level Go frontier (including an invalid AFP-V0-023 read-scope
-declaration), a dirty root module definition, or an empty
+declaration or AFP-V0-037 binary-exec declaration), a dirty root module definition, or an empty
 selection over a non-empty diff, or a repository the selector cannot index (AFP-V0-012) runs the
 full `./...` command instead of a narrowed one, so the
 worst case of `make gate-affected` is the cost of `make go-test`, never a skipped package.
@@ -803,6 +896,11 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 | AFP-V0-034 | `readSourceFile` (`internal/liveverify/affected/read_unix.go`, `read_other.go`), `ReadSource` (`walk.go`) | `TestReadSourceRefusesNonRegularFilesOnOpenDescriptor` (regular file read; symlink, directory, FIFO, unix socket and mode-0 directory refused as `ErrInvalidUnit` without blocking; a sparse body over `MaxSourceBytes` refused as `ErrWalkLimit`; a missing path reports `fs.ErrNotExist`) |
+| AFP-V0-035 | `compactAffectedReceipt`, `summarizeAffectedExclusions` in `cmd/corvint/affected_compact.go`; `--full` in `parseAffectedOptions`; profile checks in `internal/companionrelease/core_smoke.go`, `.github/cishards/order.go`, `tools/corvint-pr-tests/main.go`; `--full` in `tools/retrieval-bench/main.go` | `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the `--snapshot` default/`--full` parity in `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`; `TestAFPV0035OrderReadsTheCompactDefaultPlan`; core-freeze goldens `affected-*.json` and `affected-full-*.json` |
+| AFP-V0-036 | `testOnlyGoUnits`, `reach`, `seed` in `internal/liveverify/affected/select.go` | `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984` in `internal/liveverify/affected/affected_test.go` (a test-only change selects its package alone plus the unbounded reader; a source change, and a source-and-test change witnessed by the source path, reach the importer and the test user; a test change beside a dependent's source change does not reach the test user; a non-Go plugin's test-only change still traverses) |
+| AFP-V0-037 | `Unit.Execs`, `Graph.execUsers`, `Graph.builtCommands`, `Graph.execUsersOf`, `WitnessBinaryExec`, `BinaryExecsPath` in `internal/liveverify/affected` (`unit.go`, `graph.go`, `execs.go`, `select.go`); `applyBinaryExecs`, `literalExecs`, `commandDirectory`, `readBinaryExecs`, `matchBinaryExecs`, `FrontierBinaryExecsInvalid` in `internal/liveverify/affected/golang/binaryexecs.go`; `moduleLevelFrontiers` in `tools/gate-affected-select/main.go`; `.corvint/test-binary-execs.json` | `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` (anchored, plain, climbing and module-path literals and a declared runner become `execs`; a change to the command or a package it imports selects every consumer as `BINARY_EXEC` through the command; a literal naming a file under the command directory is no edge; an unrelated change selects no consumer; byte-identical plans), `TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037` (nine invalid declarations raise only the frontier, drop declared edges and keep literal ones; a missing one raises nothing) |
+| AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
+| AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

@@ -10,11 +10,15 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 `docs/specs/documentation-corpus-v1.md`, and the orchestrator notes of 2026-10-07 on
 [issue 659](https://github.com/beamfall/corvint/issues/659) (V1-0958, TypeScript path aliases),
 [issue 658](https://github.com/beamfall/corvint/issues/658) (V1-0957, run-verified steps) and
-[issue 660](https://github.com/beamfall/corvint/issues/660) (V1-0959, scenario planner).
+[issue 660](https://github.com/beamfall/corvint/issues/660) (V1-0959, scenario planner), and
+[issue 669](https://github.com/beamfall/corvint/issues/669) part 2 (V1-0982, tests in a second
+repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982)), and
+[issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
+through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -63,7 +67,9 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 ## Requirements
 
-Every requirement below is (accepted by decision 0446; V1-0956).
+AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
+(V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
+(decision 0460; V1-1027; GitHub #685).
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -218,10 +224,112 @@ Every requirement below is (accepted by decision 0446; V1-0956).
   bounded (64 router files, 4 MiB per router, 20000 states and test files, 1 MiB per test file,
   128 MiB of test source, 64 MiB map) and a breach refuses with `appmap-bound-exceeded`.
   (accepted by decision 0446; V1-0956)
+- `AMAP-V0-016`: A `.state()` name (positional or `name:`) or `parent` written as a member
+  expression `X.Y` MUST resolve to the string literal `Y` holds when `X` is a constant table the map
+  reads whole: a top-level `const X = {Y: '...'}` (optionally `as const` or wrapped in
+  `Object.freeze(...)`) or `enum X {Y = '...'}`, declared in the router file itself or exported
+  from the tracked file that a static ES `import` of `X` (named, aliased, or default via
+  `export default {...}` / `export default X`) resolves to at the map revision through the
+  contextindex web import resolver (relative paths and tsconfig/jsconfig `baseUrl`/`paths`). The
+  screen MUST carry the declaring line, then the import statement for an imported table, as
+  `name_from` / `parent_from` (AMAP-V0-010 anchors at the map revision, omitted for literals, so
+  literal-only maps are byte-identical), and those anchors join the screen's lineage freshness. Anything the map cannot prove MUST stay `UNKNOWN`
+  `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: a computed key,
+  spread or repeated key in the table; a non-string or missing member; a `let`/`var`, typed or
+  non-literal initializer; a duplicate declaration of `X` (including a merged enum); `X` both
+  declared and imported; any use of `X` in the router or declaring file other than an unassigned
+  member read, `typeof X`, `export default X` or `export { X }` (an assignment, `delete`, `++`, or
+  passing `X` along could change it); a type-only, namespace, CommonJS or re-exported binding; and
+  an import that resolves to no tracked, indexed and readable file. Each declaring file is lexed at
+  most once per build and only when a router references it. Mutation from a third module is not
+  read. Status: proposed (V1-0981; GitHub #669).
+- `AMAP-V0-017`: A manifest MAY name the repository that holds its tests with `tests.repo`, a root
+  alias matching `^[a-z][a-z0-9-]{0,31}$` (otherwise `appmap-invalid-manifest`). `build` binds
+  aliases with repeatable `--repo ALIAS=ABSOLUTE_ROOT`, the MMR-V0-001/002 spelling and bounds
+  (shared code `internal/rootalias`), and MAY read the manifest itself from an aliased root with
+  `--manifest-repo ALIAS`. Routers and flows always come from `--root` at `--revision`; `tests.*`
+  directories, the test import index and test files come from the aliased root at its `HEAD`
+  commit. The join, unknowns and strengths are the same as when both trees share one repository.
+  A single-root manifest compiles to the same bytes whether or not `--repo` is passed.
+  (proposed (V1-0982; GitHub #669))
+- `AMAP-V0-018`: A map built with an aliased root MUST pin it in `roots`
+  (`{repo, revision, inputs}`, sorted by alias; `inputs` names `manifest` and/or `tests`) and MUST
+  name the root on every anchor and unknown read from it with `repo`; an anchor or unknown without
+  `repo` comes from `--root`. A single-root map carries neither member, so its bytes and digest are
+  unchanged. (proposed (V1-0982; GitHub #669))
+- `AMAP-V0-019`: A build MUST refuse rather than join part of a tree when an alias the manifest
+  needs is not declared, or its root is not absolute and clean, does not exist, is not the top of a
+  Git worktree, has no `HEAD` commit, is the `--root` repository, or its worktree status cannot be
+  read (`appmap-root-unavailable`); or when it has staged, unstaged or untracked changes under the
+  manifest or `tests.root` it is read for (`appmap-root-dirty`), because `HEAD` would then differ
+  from the checkout an agent edits. Changes elsewhere in that root do not refuse. Status is read
+  with `--no-optional-locks` and nothing is written. (proposed (V1-0982; GitHub #669))
+- `AMAP-V0-020`: Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+  only `--root`. An anchor with `repo` MUST read freshness `UNKNOWN` and print its `repo`, never
+  `FRESH` or `STALE` from a same-named path in `--root`; router, flow and manifest anchors in
+  `--root` keep AMAP-V0-010. `find` items, planner method and spec references and anchor views
+  print `repo` for evidence from an aliased root. The scaffold prints `proposed_repo` when its
+  closest spec comes from an aliased root. RVN step anchors are router lineage and stay in `--root`.
+  (proposed (V1-0982; GitHub #669))
+- `AMAP-V0-021`: A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths
+  (directories or files) whose tracked JavaScript and TypeScript sources hold the app's AngularJS
+  `.constant(...)` registrations; this scope is project-owned authority for which registrations
+  belong to the app. An empty list, or a malformed, escaping or repeated path, MUST refuse with
+  `appmap-invalid-manifest`, as MUST a path under which the revision's index holds no such source.
+  More than 20000 sources in scope, or more than 128 MiB of their text read, refuses with
+  `appmap-bound-exceeded`. The scope is read from the `--root` index at the map revision, only
+  when a router reads a name through injection. Without the member no name resolves through
+  injection, so an existing manifest compiles to the same bytes. Status: accepted (decision 0460; V1-1027;
+  GitHub #685).
+- `AMAP-V0-022`: A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
+  file that neither declares nor imports `X` MUST resolve through AngularJS injection when all of
+  these hold: every binding of `X` in the router file is a plain parameter (an identifier,
+  optionally `?` or typed `: T`) of an injectable function -- a top-level arrow or function, or the
+  direct argument of `.config(...)`, alone or as the last element of an inline array annotation of
+  string literals; the member read lies in the body of such a function; an inline annotation, or
+  an `F.$inject = ['...', ...]` statement for the top-level function `F` in the router file, has
+  one entry per parameter and names `'X'` at the parameter's position, and `F` is used nowhere in
+  the router file but its declaration, that statement, `.config(F)` or an export; the
+  `di_constants` scope holds exactly one registration of `'X'`, written `.constant('X', T)` with a
+  literal name; and `T` is an object literal argument read whole, or an identifier that the
+  AMAP-V0-016 rules read whole in the registering file (declared there, or imported by it), the
+  registration being the one use of `T` there beyond member reads. The screen MUST carry, in
+  `name_from` / `parent_from`, the table's declaring line, the import statement in the registering
+  file for an imported `T`, the `.constant(...)` call and the router function's parameter list, in
+  that order (AMAP-V0-010 anchors at the map revision; a declaring line equal to the call's span is
+  carried once); they join the screen's lineage freshness.
+  Status: accepted (decision 0460; V1-1027; GitHub #685).
+- `AMAP-V0-023`: A name or parent the injection path cannot prove MUST stay `UNKNOWN`
+  `non-literal-name` (a name) or `non-literal-value` (a parent), never guessed: no `di_constants`;
+  no registration of `'X'`, or more than one, in scope; an object-map registration
+  `.constant({...})` that names `X` (its value is not read) or has a spread or computed key; a
+  `.constant(...)` call in scope that is unclosed, or whose first argument is not a string literal
+  or object literal read whole, unless its receiver is `_` or `lodash` (whose calls are never
+  registrations); a source in scope the index excluded, could not read as text, or holds over
+  4 MiB (each of the last three makes every injected name in that build unprovable); `T`
+  written as anything but an object literal or identifier, or an identifier that
+  AMAP-V0-016 cannot prove (including a use of `T` other than the registration and member reads);
+  `X` bound in the router file in any other way (a nested, destructured, defaulted or rest
+  parameter, a local declaration, an import, an argument of a call); a member read outside an
+  injectable function's body; a function whose return type is not a dotted type name; an
+  annotation naming another injectable at that position or with a different length; a
+  `$inject` in the router file other than one top-level `F.$inject = [string literals]` statement
+  per function; an unnamed top-level function in a router file that has such a statement; and
+  another use of `F`. Annotations and registrations outside the router file and the scope, a
+  registration through an aliased function
+  (`const c = m.constant; c(...)`), the AngularJS module a registration belongs to, and a
+  registration added in a new file after the map revision are not read; a static map cannot see
+  them. Status: accepted (decision 0460; V1-1027; GitHub #685).
 
 ## Wire contract
 
-`corvint flows appmap build --manifest FILE [--revision REV]` writes `application-map/0` to stdout.
+`corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
+[--manifest-repo ALIAS]` writes `application-map/0` to stdout. The manifest's optional
+`di_constants` array (AMAP-V0-021) adds no map member: a name it resolves carries `name_from` /
+`parent_from` as AMAP-V0-016 does. With an aliased tests root the map
+adds `roots: [{repo, revision, inputs}]` after `revision`, and `repo` as the first member of each
+anchor and unknown read from that root (AMAP-V0-017/017); projections print `repo` on
+those anchors.
 `corvint flows appmap screen|flow|find|scaffold --map FILE --screen|--flow|--text VALUE
 [--budget N | --full] [--revision REV]` writes `application-map-screen/0`,
 `application-map-flow/0`, `application-map-find/0` or `application-map-scaffold/0`. Refusals exit 2
@@ -238,6 +346,8 @@ with one coded JSON error on stderr and nothing on stdout.
 | `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, or a `find` query is not 2..128 bytes. |
 | `appmap-budget-too-small` | The budget cannot hold the projection head. |
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
+| `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-019). |
+| `appmap-root-dirty` | An aliased root has staged, unstaged or untracked changes under the manifest or `tests.root` read from it (AMAP-V0-019). |
 
 ### Unknown reasons
 
@@ -268,6 +378,11 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   follow-ups. No Cypress `cy.visit` or Playwright fixture-injected page objects.
 - No TypeScript `paths`/`baseUrl` alias resolution (V1-0958 owns it).
 - No MCP tools, documentation-corpus records or persisted index; the map is an explicit file.
+- No revision other than `HEAD` for an aliased root, and no projection, planner or run-verification
+  read of an aliased root (its anchors read `UNKNOWN`, AMAP-V0-020); routers and flows never come
+  from an aliased root.
+- No AngularJS evaluation or module graph: an injected state-name table is read only from the
+  router file and the manifest's `di_constants` scope (AMAP-V0-021..023).
 - No ranking or learning; overlays are advisory. Run verification is RVN-V0, opt-in per call.
 - No browser execution and no write of the scaffold.
 - Simpler baseline: grep specs by URL. It misses click-through specs and is unbounded; the
@@ -302,7 +417,15 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   outside the class body (not callable), an import statement over 8 lines (`unread-statement`, no
   partial copy), a scheme URL whose query names a path (the root), a regular expression after a
   control-statement condition (no selector), and a router file truncated inside a state call
-  (non-literal, no panic).
+  (non-literal, no panic), and a state name or parent read through a constant table the map cannot
+  prove whole (AMAP-V0-016; `non-literal-name` / `non-literal-value`), or one another module
+  mutates at run time (not read; a static map cannot see it), and a state name or parent read
+  through an injected `.constant(...)` table the map cannot prove unique and whole within the
+  `di_constants` scope (AMAP-V0-023; `non-literal-name` / `non-literal-value`), or re-annotated
+  outside the router file (not read).
+- Second repository (AMAP-V0-017..019): an undeclared alias or an unusable root refuses with
+  `appmap-root-unavailable`; uncommitted changes under what the map reads from it refuse with
+  `appmap-root-dirty`; a same-named path in `--root` never makes an aliased anchor `FRESH`.
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
 
@@ -325,9 +448,20 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
+| AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |
+| AMAP-V0-017 | `TestAMAPV0017TwoRootJoin`, `TestAMAPV0017RootUnavailable`, `TestAMAPV0017RootPathKeepsTrailingSpace` |
+| AMAP-V0-018 | `TestAMAPV0017TwoRootJoin`, `TestAMAPV0018SingleRootUnchanged` |
+| AMAP-V0-019 | `TestAMAPV0017RootUnavailable`, `TestAMAPV0019DirtySecondRoot` |
+| AMAP-V0-020 | `TestAMAPV0020ProjectionsReadAliasedAnchorsUnknown` |
+| AMAP-V0-021 | `TestAMAPV0021DIConstantsManifest`, `TestAMAPV0022InjectedStateNames` |
+| AMAP-V0-022 | `TestAMAPV0022InjectedStateNames`, `TestAMAPV0022InjectionAnnotations` |
+| AMAP-V0-023 | `TestAMAPV0023UnprovableInjectionStaysUnknown`, `TestAMAPV0023ScopePoisoned` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
-`cmd/corvint/flows_appmap.go`. Build log: `docs/build-log/2026-10-07-application-map.md`.
+`cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
+`docs/build-log/2026-10-07-application-map.md`, `docs/build-log/2026-10-07-appmap-second-root.md`,
+`docs/build-log/2026-10-08-appmap-injected-state-names.md` (AMAP-V0-021..023,
+`internal/appmap/stateinject.go`).
 
 ## Rollout, rollback and compatibility
 
@@ -336,6 +470,17 @@ wrapper and one `flows` subcommand. Rollback removes `internal/appmap`,
 `cmd/corvint/flows_appmap.go`, `internal/contextindex/webimport_api.go`, the `flowsAppmapHelp`
 reference in `cmd/corvint/help.go` and this spec's index rows; no stored state, schema or ledger
 needs migration. Map files are explicit outputs and may be discarded.
+AMAP-V0-016 adds two optional screen members (`name_from`, `parent_from`) that literal-only maps
+omit; rolling it back removes `internal/appmap/stateconst.go`, the `member` value kind in
+`internal/appmap/jslex.go` and the lookup argument of `parseRouter`, after which those names read
+`non-literal-name` again and a map that carries the members still decodes in a build with them.
+The second-root requirements AMAP-V0-017..020 are additive: rolling them back
+ removes the `repo`/`roots` members, `BuildRoots`, the two refusal codes
+and the `--repo`/`--manifest-repo` flags; `internal/rootalias` may stay as the MMR-V0 helper.
+The injection requirements AMAP-V0-021..023 are additive and opt-in: rolling them back removes
+`internal/appmap/stateinject.go`, the `di_constants` manifest member and the token position the
+`member` value carries; a manifest that declares the member is then refused as not closed, and
+names it resolved read `non-literal-name` again.
 
 ## Follow-ups (proposed tickets)
 
@@ -348,6 +493,14 @@ needs migration. Map files are explicit outputs and may be discarded.
 7. A precomputed find index for maps beyond fixture size.
 8. Re-test alias-imported specs once V1-0958 lands.
 9. Fall back to the next reuse candidate when the first page object's binding collides.
+10. AMAP-V0-016 extensions: CommonJS `require` bindings, re-exports and namespace imports
+    (`C.X.Y`). (A table reached through AngularJS dependency injection is AMAP-V0-021..023.)
+11. Let projections, `flows plan` and the corpus MCP map tools accept `--repo` so aliased anchors
+    read `FRESH`/`STALE` instead of `UNKNOWN` (AMAP-V0-020).
+12. A per-root revision (`--repo-revision ALIAS=REV`) instead of `HEAD` only.
+13. Carry `repo` on scaffold and planner unknowns and exploration refs that cite aliased files.
+14. AMAP-V0-022 extensions: annotations in another file (`module.config(['$stateProvider', 'X',
+    Routes])`), `.run(...)` and provider functions, and per-module registration scoping.
 
 ## Owner questions
 
@@ -379,3 +532,10 @@ Decision 0446 keeps every V0 default below; each question stays open for a later
     parser; review rounds 1 to 6 each found further edge cases, each repaired fail-closed. Should
     an adopter-scale qualification on real test repositories (follow-up) decide whether a full
     parser is needed before promotion?
+15. For a second repository (V1-0982): is `HEAD` plus a dirty refusal scoped to the read inputs the
+    right policy, or should an aliased root take an explicit revision, or allow a dirty tree and
+    read `UNKNOWN`?
+16. For injected state-name tables (V1-1027): is an explicit manifest scope (`di_constants`) the
+    right way to say which `.constant(...)` registrations belong to the app, or should the map
+    infer the scope from AngularJS module names or the router's import closure, and should a
+    poisoned scope report its own unknown instead of leaving each name `non-literal-name`?

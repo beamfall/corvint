@@ -195,6 +195,11 @@ composes existing CEM/OCM verification; it supplies no semantic proof or test ex
   identity and exact unrun reason. Every hunk MUST state test execution `NOT_RUN` /
   `review-does-not-execute-tests`. Structural test claims, retained caller witnesses and operator
   outcomes MUST NOT be presented as a current passing test or semantic support.
+- `CEM-PILOT-032`: (proposed 2026-10-08, V1-0513, not accepted) When a supplied OCM is invalid,
+  the published Markdown report MUST state the OCM validity, the native OCM state and every
+  verification issue code and message as inert code spans, alongside the same `recordSetSha256` as
+  the JSON projection, and MUST NOT render a ready state, a valid verdict or any obligation join.
+  An OCM that is not a JSON object MUST be refused without publishing a report.
 
 ### Portable CI verifier
 
@@ -355,6 +360,7 @@ command boundary; a standalone CEM consumer without it reports unavailable expli
 | CEM-PILOT-029 | per-call `ReviewOCMReader`; `internal/lrfrepo/ocm_read.go` `ReadOCMReview` | `TestReviewProjectionOCMJoinAndInvalidRefusal`, `TestReviewProjectionNativeOCMAdapterUnknownOnly`, `TestReviewProjectionPerCallResolver` |
 | CEM-PILOT-030 | retained-input projection digest and inert Markdown rendering | `TestReviewProjectionParityAndReadOnly`, `TestReviewProjectionHostileText` |
 | CEM-PILOT-031 | retained coverage/discrimination fields and explicit execution boundary | `TestReviewProjectionParityAndReadOnly`; existing coverage/discrimination report regressions |
+| CEM-PILOT-032 | `renderReviewProjection` OCM validity/state/issue lines (proposed, V1-0513) | `TestReviewProjectionNativeInvalidOCMMarkdownParity` (native wrong-base, noncanonical, malformed and non-JSON OCM) |
 
 The deterministic qualification is a real producer CEM/OCM fixture, JSON/Markdown digest parity,
 all derived hunks on an invalid-map fixture, explicit callback OCM joins and native unknown reasons, hostile

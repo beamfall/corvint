@@ -21,12 +21,34 @@ type rawState struct {
 	reason             string
 	anchor             Anchor
 	duplicate          bool
+	// nameFrom and parentFrom anchor a name or parent read through a constant table (AMAP-V0-016).
+	nameFrom, parentFrom []Anchor
+}
+
+// constLookup resolves a member expression `X.Y`, read at token index tok, to the string literal a
+// constant table declares for it, with the declaration's anchor and, for an imported table, the
+// import binding's (AMAP-V0-016), or the injection's (AMAP-V0-022); ok is false when it cannot.
+type constLookup func(ref string, tok int) (value string, at []Anchor, ok bool)
+
+// literalName reads a name or parent: a string literal, or a member expression a constant table
+// resolves. Anything else reads "".
+func literalName(v jsValue, lookup constLookup) (string, []Anchor) {
+	switch {
+	case v.kind == "string":
+		return v.str, nil
+	case v.kind == "member" && lookup != nil:
+		if s, at, ok := lookup(v.str, v.tok); ok {
+			return s, at
+		}
+	}
+	return "", nil
 }
 
 // parseRouter reads every `.state('name', {...})` and `.state({name: ...})` call of one
 // ui-router-states/0 file (AMAP-V0-002). Only literal names, parents, URLs and data are read; a
-// call it cannot read literally is reported, never guessed.
-func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
+// call it cannot read literally is reported, never guessed. A name or parent written `X.Y` is read
+// through lookup (AMAP-V0-016); a nil lookup resolves none.
+func parseRouter(e blobEntry, data []byte, lookup constLookup) ([]rawState, []Unknown) {
 	toks, _ := lexJS(string(data))
 	states, unknowns := []rawState{}, []Unknown{}
 	for j := 1; j+2 < len(toks); j++ {
@@ -44,15 +66,20 @@ func parseRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 			config = wholeArg(toks, j+4, end)
 		case isPunct(arg, "{"):
 			config = wholeArg(toks, j+2, end)
-			if n, ok := config.get("name"); ok && n.kind == "string" {
-				s.name = n.str
+			if n, ok := config.get("name"); ok {
+				s.name, s.nameFrom = literalName(n, lookup)
+			}
+		default:
+			if v, after := parseValue(toks, j+2); v.kind == "member" && next(toks, after, ",") {
+				s.name, s.nameFrom = literalName(v, lookup)
+				config = wholeArg(toks, after+1, end)
 			}
 		}
 		if s.name == "" {
 			unknowns = append(unknowns, Unknown{Kind: "state", Ref: fmt.Sprintf("%s:%d", e.path, toks[j].line), Reason: "non-literal-name", Path: e.path, Line: toks[j].line})
 			continue
 		}
-		readConfig(&s, config)
+		readConfig(&s, config, lookup)
 		states = append(states, s)
 	}
 	return states, unknowns
@@ -73,7 +100,7 @@ func wholeArg(toks []token, i, end int) jsValue {
 
 func isPunct(t token, p string) bool { return t.kind == tokPunct && t.text == p }
 
-func readConfig(s *rawState, config jsValue) {
+func readConfig(s *rawState, config jsValue, lookup constLookup) {
 	if config.kind != "object" {
 		s.reason = "non-literal-value"
 		return
@@ -86,10 +113,10 @@ func readConfig(s *rawState, config jsValue) {
 			s.reason = "non-literal-value"
 		case "parent":
 			s.parentSet = true
-			if v.kind != "string" {
+			s.parent, s.parentFrom = literalName(v, lookup)
+			if v.kind != "string" && s.parentFrom == nil {
 				s.reason = "non-literal-value"
 			}
-			s.parent = v.str
 		case "url":
 			s.urlSet = true
 			if v.kind != "string" {
@@ -256,6 +283,7 @@ func resolveScreens(app string, raws []rawState) ([]Screen, []Unknown) {
 		if s.parent != "" {
 			sc.Parent = screenID(app, s.parent)
 		}
+		sc.NameFrom, sc.ParentFrom = s.nameFrom, s.parentFrom
 		if r.status == StatusResolved {
 			sc.Template, sc.Params = normalizeTemplate(r.path)
 			sc.Key = templateKey(sc.Template)

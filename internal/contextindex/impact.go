@@ -325,6 +325,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	}
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
+	capImpactRows(deduplicated[:min(len(deduplicated), limit)])
 	unresolvedImports := 0
 	if webGraph != nil && webGraph.unresolved != 0 && (syntaxFrontier || webManifestIndexed(index)) {
 		// GPK-V0-080 (proposed): a bare specifier that names no repository
@@ -340,6 +341,31 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports)
 	}
 	return result, disclosures, err
+}
+
+// Per-result row caps for the path impact receipt (MCPV0-031, proposed). A
+// result keeps its first rows, which carry its inclusion reason, and names how
+// many it carried past the cap, so an omission stays visible rather than
+// reading as absent evidence.
+const (
+	maxImpactEvidenceRows  = 4
+	maxImpactReferenceRows = 4
+)
+
+// capImpactRows bounds each emitted result's evidence and references lists in
+// place and records the count of the rest as evidence_omitted and
+// references_omitted. The keys appear only when something was omitted.
+func capImpactRows(results []map[string]any) {
+	for _, result := range results {
+		if rows := anySlice(result["evidence"]); len(rows) > maxImpactEvidenceRows {
+			result["evidence"] = rows[:maxImpactEvidenceRows:maxImpactEvidenceRows]
+			result["evidence_omitted"] = len(rows) - maxImpactEvidenceRows
+		}
+		if references, ok := result["references"].([]string); ok && len(references) > maxImpactReferenceRows {
+			result["references"] = references[:maxImpactReferenceRows:maxImpactReferenceRows]
+			result["references_omitted"] = len(references) - maxImpactReferenceRows
+		}
+	}
 }
 
 // reserveTestConventionTail keeps same-package convention tests ahead of broad

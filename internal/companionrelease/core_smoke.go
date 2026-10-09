@@ -81,7 +81,7 @@ func smokeAffectedSelection(ctx context.Context, binary, root string) error {
 	if err := decodeClosedJSON(stdout, &receipt); err != nil {
 		return err
 	}
-	if !receipt.OK || receipt.Profile != "affected-plan/0" || len(receipt.Plan.Selected) == 0 {
+	if !receipt.OK || (receipt.Profile != "affected-plan/1" && receipt.Profile != "affected-plan/0") || len(receipt.Plan.Selected) == 0 {
 		return fmt.Errorf("affected selection did not select the committed fixture test")
 	}
 	return nil
@@ -268,9 +268,10 @@ func decodeClosedJSON(raw []byte, target any) error {
 	if err := decoder.Decode(target); err != nil {
 		return err
 	}
-	var extra any
-	if err := decoder.Decode(&extra); err == nil {
-		return fmt.Errorf("trailing JSON value")
+	// Exactly one JSON value followed only by JSON whitespace: any other
+	// trailing byte, including a malformed or incomplete second value, is refused.
+	if rest := raw[decoder.InputOffset():]; len(strings.Trim(string(rest), " \t\r\n")) != 0 {
+		return fmt.Errorf("trailing bytes after JSON value")
 	}
 	return nil
 }

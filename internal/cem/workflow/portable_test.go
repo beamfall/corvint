@@ -31,7 +31,7 @@ type portableCase struct {
 
 func portableGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	command := exec.CommandContext(t.Context(), "git", args...)
+	command := exec.CommandContext(t.Context(), "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = root
 	command.Env = []string{"PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull,
 		"GIT_AUTHOR_NAME=Portable Proof", "GIT_AUTHOR_EMAIL=proof@example.invalid",

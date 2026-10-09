@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -68,6 +69,100 @@ func TestSensitiveInputPolicyRequiresExplicitProfileSelection(t *testing.T) {
 			t.Fatalf("non-external sensitive-input selection err=%v", err)
 		}
 	})
+}
+
+// PWP-V0-010: the CLI option reaches RunE2E, which refuses it outside
+// external-server mode.
+func TestKeepReportersFlagRequiresExternalServer(t *testing.T) {
+	if err := runE2E([]string{"--keep-reporters"}); err == nil || !strings.Contains(err.Error(), "keep-reporters-unsupported-mode") {
+		t.Fatalf("keep-reporters without external mode err=%v", err)
+	}
+}
+
+// PWP-V0-015, PWP-V0-018: qualify-keep-reporters runs the control run replace-only, runs
+// the keep run only after a complete control run, prints a canonical record
+// and never reports an incomplete pair as qualified.
+func TestQualifyKeepReportersRunOrderAndNotRun(t *testing.T) {
+	saved := runE2EReceipt
+	t.Cleanup(func() { runE2EReceipt = saved })
+	for name, test := range map[string]struct {
+		control   jstestprovider.Receipt
+		controlEr error
+		modes     []bool
+		reason    string
+	}{
+		"playwright-missing": {controlEr: errors.New("runner-unavailable"), modes: []bool{false}, reason: "keep-reporters-control-run-incomplete"},
+		"control-partial":    {control: jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, External: &jstestprovider.ExternalLifecycle{}, Cancelled: true}, modes: []bool{false}, reason: "keep-reporters-control-run-incomplete"},
+		"reporter-refused":   {control: jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, External: &jstestprovider.ExternalLifecycle{}}, modes: []bool{false, true}, reason: "keep-reporters-keep-run-incomplete"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var modes []bool
+			runE2EReceipt = func(_ context.Context, cfg jstestprovider.E2EConfig) (jstestprovider.Receipt, error) {
+				modes = append(modes, cfg.KeepReporters)
+				if cfg.KeepReportersQualification != nil {
+					t.Fatal("qualification run carried a record")
+				}
+				if !cfg.KeepReporters {
+					return test.control, test.controlEr
+				}
+				return jstestprovider.Receipt{}, errors.New("project-reporters-invalid")
+			}
+			var stdout, stderr bytes.Buffer
+			err := qualifyKeepReporters(context.Background(), jstestprovider.E2EConfig{ExternalServer: true, KeepReporters: true}, &stdout, &stderr, "")
+			if !errors.Is(err, errNotQualified) || fmt.Sprint(modes) != fmt.Sprint(test.modes) {
+				t.Fatalf("err=%v modes=%v", err, modes)
+			}
+			record, decodeErr := jstestprovider.DecodeKeepReportersQualification(stdout.Bytes())
+			if decodeErr != nil || record.Verdict != jstestprovider.KeepReportersNotRun || !strings.Contains(strings.Join(record.Reasons, ","), test.reason) {
+				t.Fatalf("record %+v %v\n%s", record, decodeErr, stdout.Bytes())
+			}
+			if !strings.Contains(stderr.String(), "keep-reporters not-run") {
+				t.Fatalf("stderr %q", stderr.String())
+			}
+		})
+	}
+}
+
+// PWP-V0-015, PWP-V0-016: the subcommand needs external-server mode and
+// selects both reporter modes itself; e2e accepts only a qualified record.
+func TestKeepReportersQualificationFlags(t *testing.T) {
+	saved := runE2EReceipt
+	t.Cleanup(func() { runE2EReceipt = saved })
+	runE2EReceipt = func(context.Context, jstestprovider.E2EConfig) (jstestprovider.Receipt, error) {
+		t.Fatal("a refused invocation started a run")
+		return jstestprovider.Receipt{}, nil
+	}
+	for _, args := range [][]string{nil, {"--external-server", "--keep-reporters"}, {"--external-server", "--watch", "a.spec.ts", "--foreground", "--experimental", "--trusted-local"}} {
+		if err := runQualifyKeepReporters(args); err == nil || !strings.Contains(err.Error(), "external-server only") {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	dir := t.TempDir()
+	notRun, err := jstestprovider.EncodeKeepReportersQualification(jstestprovider.QualifyKeepReporters(jstestprovider.Receipt{}, errors.New("x"), jstestprovider.Receipt{}, errors.New("x")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, test := range map[string]struct {
+		body string
+		want string
+	}{
+		"not-qualified": {string(notRun), "keep-reporters-qualification-not-qualified"},
+		"invalid":       {"{}\n", "keep-reporters-qualification-invalid"},
+	} {
+		path := filepath.Join(dir, name+".json")
+		if err := os.WriteFile(path, []byte(test.body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := runE2E([]string{"--external-server", "--keep-reporters", "--keep-reporters-qualification", path}); err == nil || err.Error() != test.want {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err := runQualifyKeepReporters([]string{"--external-server", "--keep-reporters-qualification", path}); err == nil || !strings.Contains(err.Error(), "takes no --keep-reporters-qualification") {
+			t.Fatalf("%s qualify: %v", name, err)
+		}
+	}
+	if err := runE2E([]string{"--external-server", "--keep-reporters-qualification", filepath.Join(dir, "missing.json")}); err == nil {
+		t.Fatal("missing record accepted")
+	}
 }
 
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit

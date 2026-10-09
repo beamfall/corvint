@@ -35,7 +35,7 @@ func newRepository(t *testing.T) repository {
 		}
 	}
 	git := func(args ...string) string {
-		command := exec.Command("git", args...)
+		command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		command.Dir = root
 		output, err := command.CombinedOutput()
 		if err != nil {
@@ -509,7 +509,7 @@ func TestReferenceVerificationDeleted(t *testing.T) {
 
 func gitOutput(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {

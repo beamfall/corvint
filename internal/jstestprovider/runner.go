@@ -218,6 +218,12 @@ type E2EConfig struct {
 	ApplicationAttestation *ApplicationAttestationProvider
 	SensitiveInputPolicy   *SensitiveInputPolicy
 	RetainAttemptDetails   bool
+	// KeepReporters appends the provider reporter to the project's reporter
+	// list instead of replacing it (PWP-V0-010); external mode only.
+	KeepReporters bool
+	// KeepReportersQualification is a decoded qualified record carried into
+	// the keep-reporters receipt (PWP-V0-016); keep-reporters mode only.
+	KeepReportersQualification *KeepReportersQualification
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
@@ -227,6 +233,17 @@ type E2EConfig struct {
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if cfg.KeepReporters && (!cfg.ExternalServer || cfg.Freshness != nil) {
+		return Receipt{}, errors.New("keep-reporters-unsupported-mode")
+	}
+	if q := cfg.KeepReportersQualification; q != nil {
+		if !cfg.KeepReporters {
+			return Receipt{}, errors.New("keep-reporters-qualification-requires-keep-reporters")
+		}
+		if q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil {
+			return Receipt{}, errors.New(keepReportersQualificationInvalid)
+		}
+	}
 	if cfg.Freshness != nil {
 		return RunFreshE2E(ctx, cfg)
 	}

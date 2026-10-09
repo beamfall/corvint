@@ -116,12 +116,9 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		if len(p.Request.Tools) > 0 && tr.Identity(p.Request.Tools) != tr.Identity(trustedTools) {
 			return fail(fmt.Errorf("plan auxiliary tools disagree with independent pins"))
 		}
-		v, e := registry.Build(p.Request)
+		v, e := admittedInvocation(p)
 		if e != nil {
 			return fail(e)
-		}
-		if tr.Identity(v) != tr.Identity(p.Invocation) {
-			return fail(fmt.Errorf("plan does not match current fixed runner profile"))
 		}
 		if *output == "" || !filepath.IsAbs(*output) {
 			return fail(fmt.Errorf("run requires a new absolute receipt file"))
@@ -175,14 +172,46 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		return fail(fmt.Errorf("unknown command"))
 	}
 }
+
+// admittedInvocation rebuilds the fixed profile and requires the plan to match
+// it exactly. A plan from before TRE-V0-030 keeps its identity, so its
+// receipts still bind, but it is refused for new execution: running it
+// without retirement could hide a detached-process leak, and running it with
+// retirement would break its receipt's invocation binding. Re-plan instead.
+func admittedInvocation(p plan) (tr.Invocation, error) {
+	v, e := registry.Build(p.Request)
+	if e != nil {
+		return v, e
+	}
+	if tr.Identity(v) == tr.Identity(p.Invocation) {
+		return v, nil
+	}
+	compare := v
+	compare.RetireDetachedDescendants = false
+	if v.RetireDetachedDescendants && tr.Identity(compare) == tr.Identity(p.Invocation) {
+		return v, fmt.Errorf("plan predates detached descendant retirement; re-plan it")
+	}
+	return v, fmt.Errorf("plan does not match current fixed runner profile")
+}
+
+// read refuses a nonregular document before any blocking open (V1-0624): a
+// FIFO without a writer would otherwise block os.Open, which a signal context
+// cannot interrupt. The nonblocking open and same-file check close the swap race.
 func read(path string, dst any) error {
-	f, e := os.Open(path)
+	before, e := os.Stat(path)
+	if e != nil {
+		return e
+	}
+	if !before.Mode().IsRegular() {
+		return fmt.Errorf("regular document required")
+	}
+	f, e := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if e != nil {
 		return e
 	}
 	defer f.Close()
 	s, e := f.Stat()
-	if e != nil || !s.Mode().IsRegular() {
+	if e != nil || !s.Mode().IsRegular() || !os.SameFile(before, s) {
 		return fmt.Errorf("regular document required")
 	}
 	b, e := io.ReadAll(io.LimitReader(f, tr.MaxReportBytes+1))

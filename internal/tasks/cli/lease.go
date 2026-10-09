@@ -24,7 +24,9 @@ import (
 // CAL-V0-013, CAL-V0-025).
 var leaseVerbs = map[string]string{
 	"pool confirm-safe": transaction.LeasePoolSafe,
-	"pool cleanup":      transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
+	// CAL-V0-198..202: a live attempt acquires or returns one member.
+	"pool acquire": transaction.LeasePoolAcquire, "pool release": transaction.LeasePoolRelease,
+	"pool cleanup": transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
 	"claim":             transaction.LeaseClaim,
 	"renew":             transaction.LeaseRenew,
 	"attempt heartbeat": transaction.LeaseHeartbeat,
@@ -48,6 +50,7 @@ type leaseArgs struct {
 	whole         bool
 	next          bool
 	timing        bool
+	repos         []string
 	pos           []string
 }
 
@@ -57,7 +60,7 @@ var leaseValueFlags = map[string]bool{
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
 	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
-	"--lock-wait": true,
+	"--lock-wait": true, "--lease-expires-at": true,
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait.
@@ -107,6 +110,12 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 				return out, err
 			}
 			out.authors = mode
+		case a == "--repo":
+			if i+1 >= len(args) {
+				return out, wire.Errorf(wire.CodeMalformed, "argv", "flag --repo has no value")
+			}
+			i++
+			out.repos = append(out.repos, args[i])
 		case a == "--scope":
 			n := scopeRun(args[i+1:])
 			if n == 0 {
@@ -175,7 +184,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -211,6 +220,10 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if value, supplied := parsed.values["--share-allocation"]; supplied && value == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--share-allocation needs an allocation id"))
 	}
+	// CAL-V0-191: an empty expiry must not read as an unfenced reap.
+	if value, supplied := parsed.values["--lease-expires-at"]; supplied && (name != "reap" || value == "") {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--lease-expires-at belongs to reap and needs a timestamp"))
+	}
 	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
 		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "%s belongs to release and needs a value", flag))
@@ -222,6 +235,16 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	}
 	if parsed.timing && !timingVerbs[name] {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--timing belongs to claim, renew, attempt heartbeat and release"))
+	}
+	// KHN-V0-027: --repo maps know-how repository aliases for the claim's
+	// delivery; it is parsed and checked before anything commits and never
+	// enters the lease request, so a replay is unaffected.
+	if len(parsed.repos) > 0 && name != "claim" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--repo belongs to claim"))
+	}
+	knowHowRepos, err := store.KnowHowRepositoryArgs(env.Cwd, parsed.repos)
+	if err != nil {
+		return fail(err)
 	}
 	var lockWait time.Duration
 	if value, supplied := parsed.values["--lock-wait"]; supplied {
@@ -261,7 +284,7 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return fail(err)
 	}
-	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
+	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver, KnowHowRepos: knowHowRepos}
 	var report *store.Report
 	if name == "health" || name == "pool cleanup" {
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
@@ -312,10 +335,18 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o := res.Items[0].Obj
 	if report.PoolAllocation != nil {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
-	} else if cmd[0] == "claim" {
+	} else if cmd[0] == "claim" || strings.Join(cmd, " ") == "pool acquire" {
 		// CAL-V0-096: every claim result, a refusal included, names its
-		// allocation.
+		// allocation; so does every acquire (CAL-V0-204).
 		o.Set("poolAllocation", wire.Null())
+	}
+	if strings.Join(cmd, " ") == "pool release" {
+		// CAL-V0-204: the returned allocation, null unless one was returned.
+		released := wire.Null()
+		if report.ReleasedPoolAllocation != nil {
+			released = snapshot.ReleasedPoolAllocationValue(report.ReleasedPoolAllocation)
+		}
+		o.Set("releasedPoolAllocation", released)
 	}
 	if report.SharedAllocation != nil {
 		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))
@@ -615,6 +646,7 @@ func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
 		res.Warnings = append(res.Warnings, "escalation answers unavailable ("+wire.CodeOf(escalationReadError(d.EscalationAnswers.Err))+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
 	}
 	res.Items[0].Obj.Set("knowHow", claimedKnowHowValue(d.KnowHow))
+	res.Warnings = append(res.Warnings, d.KnowHow.Warnings...)
 	if d.KnowHow.Err != nil {
 		res.Warnings = append(res.Warnings, "know-how notes unavailable ("+wire.CodeOf(d.KnowHow.Err)+"): the claim is committed; read them with ticket know-how list")
 	}

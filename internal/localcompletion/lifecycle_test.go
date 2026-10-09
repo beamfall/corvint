@@ -414,6 +414,39 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 			t.Fatal("secret in verbose Go pass test name was not screened")
 		}
 	})
+	// LTA-V0-015: the same marker as a `go test -json` output event. The argv
+	// splits the marker so the plan itself is not secret-shaped.
+	jsonEvent := func(test, tail string) []string {
+		return []string{"sh", "-c", "printf '%s%s\\n' '{\"Action\":\"output\",\"Test\":\"" + test + "\",\"Output\":\"--- PA' 'SS: " + tail + " (0.00s)\\n\",\"OutputType\":\"frame\"}'"}
+	}
+	t.Run("go-json-pass-log", func(t *testing.T) {
+		root, key, plan := fixture(t, jsonEvent("TestExample", "TestExample"))
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("go test -json pass output did not qualify: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if saved.Observations[0].SecretScreened {
+			t.Fatal("go test -json pass event was secret-screened")
+		}
+		output, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+		if err != nil || string(output) != `{"Action":"output","Test":"TestExample","Output":"--- PASS: TestExample (0.00s)\n","OutputType":"frame"}`+"\n" {
+			t.Fatalf("go test -json pass output = %q, %v", output, err)
+		}
+	})
+	t.Run("go-json-pass-log-with-embedded-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, jsonEvent("TestExample/pa'ss=synthetic'123", "TestExample/pa'ss=synthetic'123"))
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("secret in go test -json pass test name qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("secret in go test -json pass test name was not screened")
+		}
+	})
 }
 
 func TestExplicitSidecarReuseRequiresCanonicalMap(t *testing.T) {

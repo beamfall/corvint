@@ -81,6 +81,7 @@
     "cmd/corvint-release-gate": [],
     "cmd/corvint-test-runner": [],
     "cmd/corvint-tests-accept": [],
+    "cmd/corvint-web-flows": [],
     "cmd/corvint-work-queue": [
       ".corvint/work-queue-policy.json"
     ],
@@ -295,7 +296,9 @@
     "internal/tasks/store": [
       "go.mod"
     ],
-    "internal/tcq": [],
+    "internal/tcq": [
+      "internal/testrunner/platform/testdata/native-report-fixtures.json"
+    ],
     "internal/testacceptance": [],
     "internal/testevidence": [],
     "internal/testrunner/dynamic": [],
@@ -331,6 +334,13 @@
     ],
     "tools/cw-trial": [
       "benchmarks/results/"
+    ],
+    "tools/fixture-maintenance-check": [
+      "cmd/",
+      "conformance/",
+      "internal/",
+      "interop/",
+      "tools/"
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
