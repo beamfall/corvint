@@ -711,6 +711,14 @@ func errCheckpoint(where, why string) error {
 	return wire.Errorf(wire.CodeUnsupported, where, "checkpoint unusable: %s", why)
 }
 
+// inFlight marks a checkpoint refusal that a writer between its receipt
+// link-in and its head rename causes: the head is moving, so the resumed read
+// is retried within the CAL-V0-061 movement bound before the complete audit
+// classifies what remains. Its code is the wrapped refusal's.
+type inFlight struct{ error }
+
+func (e inFlight) Unwrap() error { return e.error }
+
 // walkTail resumes the chain at a checkpoint (CAL-V0-059..061). It rebinds
 // the checkpoint to the retained receipt it names, validates every later
 // receipt exactly as walk does, and compares every non-request latest
@@ -719,6 +727,12 @@ func errCheckpoint(where, why string) error {
 func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]bool, lim limits) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeCheckpoint, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
 	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
+		if o.head != nil {
+			// A stage beside a head is a writer in flight (or one that
+			// crashed there): retried like a moved head, then classified by
+			// the complete audit (CAL-V0-061, V1-1060).
+			return result, inFlight{errCheckpoint("/", "journal is not plainly settled")}
+		}
 		return result, errCheckpoint("/", "journal is not plainly settled")
 	}
 	head := o.head
@@ -759,7 +773,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		if err != nil {
 			return result, err
 		}
-		return result, errCheckpoint(next, "receipt beyond head")
+		return result, inFlight{errCheckpoint(next, "receipt beyond head")}
 	}
 	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64()}
 	for _, e := range cp.Entries {
