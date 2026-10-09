@@ -152,13 +152,15 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 
 // writerLeaseVerb reports whether the writer-checkpoint route serves the
 // request: the liveness and claim writes that dominate queue traffic
-// (V1-0887). Every other lease verb keeps the complete route.
+// (V1-0887), and pool confirm-safe, which otherwise ran the complete-history
+// audit under the preparation gate (CAL-V0-205, V1-1045). Every
+// other lease verb keeps the complete route.
 func writerLeaseVerb(request transaction.Request) bool {
 	if request.Operation != transaction.Lease || request.Lease == nil {
 		return false
 	}
 	switch request.Lease.Verb {
-	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat, transaction.LeaseRelease:
+	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat, transaction.LeaseRelease, transaction.LeasePoolSafe:
 		return true
 	}
 	return false
