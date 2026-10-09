@@ -29,3 +29,10 @@ with no other edit. This is a one-time redaction exception, not a reopening of t
 
 Git history still contains the name; no history rewrite or force-push was done. Behavior and test
 coverage are unchanged (test file renamed with `git mv`; test and function identifiers renamed).
+
+## Follow-up (2026-10-09)
+
+Remaining BUILD-LOG mentions of the frozen `/1` wire member (two lines) were redacted to `*_e2e`; this is
+again a privacy exception to the closed log (decision 0423), name-only. Residual tracked hits: the frozen
+member in `internal/doccorpus/behavior.go` (V1-0985) and one sealed CEM under `.corvint/changes/`
+(not edited). Docs only; no Go code changed, so no Go tests were affected.
