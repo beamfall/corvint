@@ -162,7 +162,7 @@ func (s *diScope) collect(f *constFile) {
 			}
 			s.regs[a.text] = append(s.regs[a.text], r)
 		case literal(a) && wholeCallArg(toks, j+3, end):
-			s.regs[a.text] = append(s.regs[a.text], diReg{file: f, bad: true}) // a value the reader cannot see
+			s.regs[a.text] = append(s.regs[a.text], diReg{file: f, first: toks[j].line, last: toks[end].line, bad: true}) // a value the reader cannot see
 		case isPunct(a, "{"):
 			// An object map registers each key; its values are not read.
 			v, after := parseValue(toks, j+2)
@@ -175,7 +175,7 @@ func (s *diScope) collect(f *constFile) {
 					s.poison = true
 					continue
 				}
-				s.regs[p.key] = append(s.regs[p.key], diReg{file: f, bad: true})
+				s.regs[p.key] = append(s.regs[p.key], diReg{file: f, first: toks[j].line, last: toks[end].line, bad: true})
 			}
 		default:
 			s.poison = true // a computed name could register anything
@@ -225,19 +225,23 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 		return "", nil, false
 	}
 	regs := t.registrations(local)
-	if t.di.err != nil || t.di.poison || len(regs) != 1 || regs[0].bad {
+	if t.di.err != nil || t.di.poison || len(regs) != 1 {
 		return "", nil, false
 	}
 	r := regs[0]
-	var v string
+	var v, why string
 	var at []Anchor
-	var ok bool
-	if r.table != nil {
-		v, at, ok = r.file.member(r.table, member)
-	} else {
-		v, at, ok = t.resolve(r.file, r.ident, member, r.at)
+	switch {
+	case r.bad:
+		why = "unreadable-registration"
+	case r.table != nil:
+		v, at, why = r.file.read(r.table, member, true)
+	default:
+		v, at, why = t.lookup(r.file, r.ident, member, r.at, true)
 	}
-	if !ok {
+	if why != "" {
+		// The one in-scope binding of local did not resolve: say why (AMAP-V0-026).
+		t.diag = append(t.diag, Unknown{Kind: "di-constant", Ref: local, Reason: why, Path: r.file.entry.path, Line: r.first})
 		return "", nil, false
 	}
 	if reg := spanOf(r.file.entry, r.file.data, r.first, r.last); len(at) == 0 || at[len(at)-1] != reg {

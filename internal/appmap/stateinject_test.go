@@ -250,3 +250,198 @@ func TestAMAPV0021DIConstantsManifest(t *testing.T) {
 		t.Fatalf("literal screen: %+v", s)
 	}
 }
+
+// diRouter reads two injected names; diRegText registers SectionNames from the module ./tables.
+const (
+	diRouter  = "const R = ($stateProvider, SectionNames) => {\n  $stateProvider.state(SectionNames.REPORTS, { url: 'ledger' });\n  $stateProvider.state('kid', { parent: SectionNames.REPORTS, url: '/k' });\n};\n"
+	diRegText = "import { SectionTable } from './tables';\nangular.module('admin').constant('SectionNames', SectionTable);\n"
+	diRegAt   = "app/setup/setup.module.ts"
+)
+
+// diUnknown returns the di-constant unknowns of a map.
+func diUnknown(m *Map) []Unknown {
+	out := []Unknown{}
+	for _, u := range m.Unknowns {
+		if u.Kind == "di-constant" {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// diResolved reports whether both injected reads of diRouter resolved.
+func diResolved(t *testing.T, m *Map) bool {
+	t.Helper()
+	s := m.screen(screenID(m.App, "kid"))
+	return m.screen(screenID(m.App, "ledger")) != nil && s != nil && s.Status == StatusResolved && s.Template == "/ledger/k"
+}
+
+// AMAP-V0-024: an injected string enum is a table only when every member has a literal string
+// initializer; one numeric, computed or auto-numbered member makes it no table, and the build says
+// so with a di-constant non-literal-member unknown.
+func TestAMAPV0024InjectedStringEnum(t *testing.T) {
+	for name, c := range map[string]struct {
+		table string
+		ok    bool
+	}{
+		"string enum":      {"export enum SectionTable {\n  REPORTS = 'ledger',\n  HOME = 'home',\n}\n", true},
+		"const enum":       {"export const enum SectionTable {\n  REPORTS = `ledger`,\n  'QUOTED' = 'quoted'\n}\n", true},
+		"auto member":      {"export enum SectionTable {\n  REPORTS = 'ledger',\n  COUNT,\n}\n", false},
+		"numeric member":   {"export enum SectionTable {\n  REPORTS = 'ledger',\n  LIMIT = 4,\n}\n", false},
+		"computed member":  {"export enum SectionTable {\n  REPORTS = 'ledger',\n  OTHER = prefix + 'other',\n}\n", false},
+		"template subst":   {"export enum SectionTable {\n  REPORTS = 'ledger',\n  OTHER = `${prefix}other`,\n}\n", false},
+		"computed key":     {"export enum SectionTable {\n  REPORTS = 'ledger',\n  [key] = 'other',\n}\n", false},
+		"member reference": {"export enum SectionTable {\n  REPORTS = 'ledger',\n  ALIAS = REPORTS,\n}\n", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, map[string]string{diRegAt: diRegText, "app/setup/tables.ts": c.table})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := diUnknown(m)
+			if c.ok {
+				if !diResolved(t, m) || len(got) != 0 {
+					t.Fatalf("enum did not resolve: %+v", m.Unknowns)
+				}
+				if a := screenByID(t, m, "ledger").NameFrom; len(a) != 4 || a[0].Path != "app/setup/tables.ts" || a[0].Start != 2 || a[1].Path != diRegAt || a[2].Start != 2 || a[3].Path != constRouter {
+					t.Fatalf("enum anchors %+v", a)
+				}
+				return
+			}
+			if diResolved(t, m) || !nameUnknownIn(m, constRouter) {
+				t.Fatalf("partial enum resolved: %+v", m.Unknowns)
+			}
+			if len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: "non-literal-member", Path: diRegAt, Line: 2}) {
+				t.Fatalf("diagnostic %+v", got)
+			}
+		})
+	}
+	// A router's own imported enum keeps the AMAP-V0-016 rule: a member without a string
+	// initializer is absent, the others still resolve.
+	router := "import { Areas } from './consts/areas';\n$stateProvider.state(Areas.REPORTS, { url: 'ledger' });\n"
+	_, _, m, err := injectRepo(t, "", router, map[string]string{"app/consts/areas.ts": "export enum Areas {\n  REPORTS = 'ledger',\n  COUNT,\n}\n"})
+	if err != nil || m.screen(screenID(m.App, "ledger")) == nil {
+		t.Fatalf("AMAP-V0-016 enum: %v %+v", err, m.Unknowns)
+	}
+}
+
+// AMAP-V0-025: the registering file's import of T may reach the table through one re-export in
+// the imported file (a directory index or the file itself): `export *`, `export { T }` or
+// `export { S as T }` from a module that declares it. The re-export statement joins the anchors
+// between the declaration and the import; a second candidate, a second level, or a module the
+// reader cannot see stays UNKNOWN with its reason.
+func TestAMAPV0025InjectedTableThroughBarrel(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
+	object := "export const SectionTable = {\n  REPORTS: 'ledger',\n} as const;\n"
+	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
+	for name, c := range map[string]struct {
+		reg    string
+		files  map[string]string
+		reason string // "" resolves
+		via    string // the re-export's file when it resolves
+	}{
+		"star index enum": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: enum}, "", "app/tables/routes/index.ts"},
+		"named index object": {reg, map[string]string{"app/tables/routes/index.ts": "export { SectionTable } from './routes.constants';\nexport * from './other';\n",
+			decl: object, "app/tables/routes/other.ts": "export const SectionTable = { REPORTS: 'other' };\n"}, "", "app/tables/routes/index.ts"},
+		"renamed": {reg, map[string]string{"app/tables/routes/index.ts": "export {\n  Inner as SectionTable,\n} from './routes.constants';\n",
+			decl: strings.Replace(enum, "SectionTable", "Inner", 1)}, "", "app/tables/routes/index.ts"},
+		"default as name": {reg, map[string]string{"app/tables/routes/index.ts": "export { default as SectionTable } from './routes.constants';\n",
+			decl: "export default {\n  REPORTS: 'ledger',\n};\n"}, "", "app/tables/routes/index.ts"},
+		"imported file": {strings.Replace(diRegText, "'./tables'", "'../tables/all'", 1), map[string]string{"app/tables/all.ts": "export * from './routes/routes.constants';\nexport * from './empty';\n",
+			decl: enum, "app/tables/empty.ts": "export const Unrelated = { A: 'a' };\n"}, "", "app/tables/all.ts"},
+		"two stars": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './copy';\n",
+			decl: enum, "app/tables/routes/copy.ts": enum}, "ambiguous-barrel", ""},
+		"two named": {reg, map[string]string{"app/tables/routes/index.ts": "export { SectionTable } from './routes.constants';\nexport { SectionTable } from './copy';\n",
+			decl: enum, "app/tables/routes/copy.ts": enum}, "ambiguous-barrel", ""},
+		"unread item": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport { a.b } from './copy';\n", decl: enum}, "ambiguous-barrel", ""},
+		"second level": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './inner';\n",
+			"app/tables/routes/inner.ts": "export * from './routes.constants';\n", decl: enum}, "barrel-depth-exceeded", ""},
+		"second level beside": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './inner';\n",
+			"app/tables/routes/inner.ts": "export * from './more';\n", decl: enum}, "barrel-depth-exceeded", ""},
+		"package star":   {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from 'some-package';\n", decl: enum}, "out-of-scope", ""},
+		"missing module": {reg, map[string]string{"app/tables/routes/index.ts": "export { SectionTable } from './missing';\n", decl: enum}, "out-of-scope", ""},
+		"package import": {strings.Replace(diRegText, "'./tables'", "'some-package'", 1), map[string]string{decl: enum}, "out-of-scope", ""},
+		"not exported":   {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: "enum SectionTable {\n  REPORTS = 'ledger',\n}\n"}, "identifier-not-found", ""},
+		"type only":      {reg, map[string]string{"app/tables/routes/index.ts": "export type { SectionTable } from './routes.constants';\n", decl: enum}, "identifier-not-found", ""},
+		"namespace":      {reg, map[string]string{"app/tables/routes/index.ts": "export * as SectionTable from './routes.constants';\n", decl: enum}, "identifier-not-found", ""},
+		"partial behind barrel": {reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n",
+			decl: "export enum SectionTable {\n  REPORTS = 'ledger',\n  COUNT,\n}\n"}, "non-literal-member", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			files := map[string]string{diRegAt: c.reg}
+			for p, text := range c.files {
+				files[p] = text
+			}
+			_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, files)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := diUnknown(m)
+			if c.reason == "" {
+				if !diResolved(t, m) || len(got) != 0 {
+					t.Fatalf("barrel did not resolve: %+v", m.Unknowns)
+				}
+				a := screenByID(t, m, "ledger").NameFrom
+				if len(a) != 5 || a[1].Path != c.via || a[2].Path != diRegAt || a[2].Start != 1 || a[3].Start != 2 || a[4].Path != constRouter {
+					t.Fatalf("barrel anchors %+v", a)
+				}
+				return
+			}
+			if diResolved(t, m) || !nameUnknownIn(m, constRouter) {
+				t.Fatalf("barrel resolved: %+v", m.Unknowns)
+			}
+			if len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: c.reason, Path: diRegAt, Line: 2}) {
+				t.Fatalf("diagnostic %+v", got)
+			}
+		})
+	}
+}
+
+// AMAP-V0-026: when the one in-scope registration of an injected name does not resolve, the map
+// carries a di-constant unknown naming the registration and why; a resolving build, a build
+// without the scope and an unregistered name carry none.
+func TestAMAPV0026DIConstantDiagnostics(t *testing.T) {
+	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
+	for name, c := range map[string]struct {
+		reg, table, reason string
+	}{
+		"identifier not found":  {"angular.module('admin')\n  .constant('SectionNames', Missing);\n", table, "identifier-not-found"},
+		"member not found":      {diRegText, "export const SectionTable = { HOME: 'home' };\n", "member-not-found"},
+		"call value":            {"angular.module('admin')\n  .constant('SectionNames', makeNames());\n", table, "unreadable-registration"},
+		"object map":            {"angular.module('admin')\n  .constant({ SectionNames: {} });\n", table, "unreadable-registration"},
+		"mutated":               {diRegText, table + "SectionTable.REPORTS = 'other';\n", "not-read-whole"},
+		"passed along":          {diRegText + "use(SectionTable);\n", table, "not-read-whole"},
+		"spread":                {diRegText, "export const SectionTable = { ...Base, REPORTS: 'ledger' };\n", "non-literal-member"},
+		"inline spread":         {"angular.module('admin')\n  .constant('SectionNames', { ...Base, REPORTS: 'ledger' });\n", table, "non-literal-member"},
+		"declared and imported": {diRegText + "const SectionTable = { REPORTS: 'ledger' };\n", table, "ambiguous-binding"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, map[string]string{diRegAt: c.reg, "app/setup/tables.ts": c.table})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diResolved(t, m) {
+				t.Fatalf("resolved: %+v", m.Unknowns)
+			}
+			if got := diUnknown(m); len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: c.reason, Path: diRegAt, Line: 2}) {
+				t.Fatalf("diagnostic %+v", got)
+			}
+		})
+	}
+	for name, c := range map[string]struct{ scope, reg string }{
+		"resolves":     {`["app/setup"]`, diRegText},
+		"no scope":     {"", diRegText},
+		"unregistered": {`["app/setup"]`, strings.Replace(diRegText, "'SectionNames'", "'Other'", 1)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, m, err := injectRepo(t, c.scope, diRouter, map[string]string{diRegAt: c.reg, "app/setup/tables.ts": table})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := diUnknown(m); len(got) != 0 || diResolved(t, m) != (name == "resolves") {
+				t.Fatalf("%+v", m.Unknowns)
+			}
+		})
+	}
+}

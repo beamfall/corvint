@@ -20,6 +20,7 @@ type constTable struct {
 	resolver *contextindex.WebImportResolver
 	files    map[string]*constFile // tracked path -> parsed file; nil when unreadable
 	di       *diScope              // the manifest's di_constants scope (AMAP-V0-021); nil without one
+	diag     []Unknown             // why an in-scope registration did not resolve (AMAP-V0-026)
 }
 
 // newConstTable prepares one build's constant resolution; a di_constants scope that names no
@@ -56,8 +57,12 @@ type constFile struct {
 	decls   map[string]*constDecl // local name -> declaration; "default" for `export default {...}`
 	dflt    string                // the local name `export default NAME` exports, or "default"
 	imports map[string]constImport
-	skip    []bool // tokens of import statements and constant declaration headers
-	reads   map[readKey]bool
+	// reexports are the file's `export ... from` statements, read only through an injected
+	// registration's import (AMAP-V0-025); opaque marks one the reader could not read item by item.
+	reexports []reexport
+	opaque    bool
+	skip      []bool // tokens of import and re-export statements and constant declaration headers
+	reads     map[readKey]bool
 	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
 	inject  map[string]*diBinding
 	depth   []int
@@ -75,6 +80,7 @@ type constDecl struct {
 	members  map[string]constMember
 	exported bool
 	bad      bool // spread or computed member, unreadable initializer, or declared more than once
+	partial  bool // an enum member without a literal string initializer (AMAP-V0-024)
 }
 
 type constMember struct {
@@ -86,6 +92,13 @@ type constImport struct {
 	module, exported string
 	first, last      int  // the import statement's lines
 	bad              bool // the local name is bound more than once
+}
+
+// reexport is one name an `export ... from 'module'` statement exports: `export { source as
+// exported }`, `export * as exported` (source "*"), or every name, `export *` (exported "").
+type reexport struct {
+	exported, source, module string
+	first, last              int
 }
 
 // forRouter returns the resolver a router file's `X.Y` references go through.
@@ -111,44 +124,144 @@ func (t *constTable) forRouter(e blobEntry, data []byte) constLookup {
 // resolve reads local.member through a table f declares or imports; allow is the one token (or -1)
 // that may pass the table along, the `.constant(...)` argument that registers it (AMAP-V0-022).
 func (t *constTable) resolve(f *constFile, local, member string, allow int) (string, []Anchor, bool) {
+	v, at, why := t.lookup(f, local, member, allow, false)
+	return v, at, why == ""
+}
+
+// lookup is resolve with the reason it fails (AMAP-V0-026). An injected registration (di) also
+// reads an enum only when every member is a literal string (AMAP-V0-024) and follows one level of
+// re-export in the imported file (AMAP-V0-025); a router's own tables keep the AMAP-V0-016 rules.
+func (t *constTable) lookup(f *constFile, local, member string, allow int, di bool) (string, []Anchor, string) {
 	if !f.onlyRead(local, allow) {
-		return "", nil, false
+		return "", nil, "not-read-whole"
 	}
 	decl, declared := f.decls[local]
 	imp, imported := f.imports[local]
 	switch {
-	case declared && imported:
-		return "", nil, false // two bindings for one name: ambiguous
+	case declared && imported, imported && imp.bad:
+		return "", nil, "ambiguous-binding" // two bindings for one name
 	case declared:
-		return f.member(decl, member)
-	case imported && !imp.bad && t.resolver != nil:
-		res := t.resolver.Resolve(f.entry.path, imp.module)
-		if res.State != contextindex.WebImportRepository {
-			return "", nil, false
-		}
-		g := t.file(res.Target)
-		if g == nil {
-			return "", nil, false
-		}
-		name := imp.exported
-		if name == "default" {
-			name = g.dflt // the default export: an object literal, or a table declared under a name
-		}
-		d := g.decls[name]
-		switch {
-		case d == nil, imp.exported != "default" && !d.exported:
-			return "", nil, false
-		case name != "default" && !g.onlyRead(name, -1):
-			return "", nil, false
-		}
-		v, at, ok := g.member(d, member)
-		if !ok {
-			return "", nil, false
-		}
-		// The binding is evidence too: re-pointing the import changes what the name reads.
-		return v, append(at, spanOf(f.entry, f.data, imp.first, imp.last)), true
+		return f.read(decl, member, di)
+	case !imported:
+		return "", nil, "identifier-not-found"
+	case t.resolver == nil:
+		return "", nil, "out-of-scope"
 	}
-	return "", nil, false
+	g, why := t.target(f.entry.path, imp.module)
+	if why != "" {
+		return "", nil, why
+	}
+	name := imp.exported
+	if name == "default" {
+		name = g.dflt // the default export: an object literal, or a table declared under a name
+	}
+	d := g.decls[name]
+	var via []Anchor // the re-export statement, when the table is one level behind the import
+	switch {
+	case d == nil && di:
+		if g, name, via, why = t.reexported(g, imp.exported); why != "" {
+			return "", nil, why
+		}
+		d = g.decls[name]
+	case d == nil, imp.exported != "default" && !d.exported:
+		return "", nil, "identifier-not-found"
+	}
+	if name != "default" && !g.onlyRead(name, -1) {
+		return "", nil, "not-read-whole"
+	}
+	v, at, why := g.read(d, member, di)
+	if why != "" {
+		return "", nil, why
+	}
+	// The bindings are evidence too: re-pointing the import or the re-export changes what the name reads.
+	return v, append(append(at, via...), spanOf(f.entry, f.data, imp.first, imp.last)), ""
+}
+
+// target reads the tracked file an import of module from path resolves to.
+func (t *constTable) target(from, module string) (*constFile, string) {
+	res := t.resolver.Resolve(from, module)
+	if res.State != contextindex.WebImportRepository {
+		return nil, "out-of-scope"
+	}
+	g := t.file(res.Target)
+	if g == nil {
+		return nil, "out-of-scope"
+	}
+	return g, ""
+}
+
+// reexported finds the file and local name of the table g exports as name through exactly one of
+// its `export ... from` statements, whose module must declare it (AMAP-V0-025), and the anchor of
+// that statement. A named re-export of name shadows every `export *`, as in ECMAScript; anything
+// the reader cannot prove unique fails with its reason.
+func (t *constTable) reexported(g *constFile, name string) (*constFile, string, []Anchor, string) {
+	if g.opaque {
+		return nil, "", nil, "ambiguous-barrel"
+	}
+	var named, stars []reexport
+	for _, r := range g.reexports {
+		switch r.exported {
+		case name:
+			named = append(named, r)
+		case "":
+			stars = append(stars, r)
+		}
+	}
+	if len(named) > 1 {
+		return nil, "", nil, "ambiguous-barrel"
+	}
+	if len(named) == 0 && (name == "default" || len(stars) == 0) {
+		return nil, "", nil, "identifier-not-found" // `export *` never re-exports a default
+	}
+	cands := named
+	if len(named) == 0 {
+		cands = stars
+	}
+	var hit *constFile
+	var local string
+	var via reexport
+	found, deeper := 0, false
+	for _, r := range cands {
+		h, why := t.target(g.entry.path, r.module)
+		if why != "" {
+			return nil, "", nil, why // a module the reader cannot see could export name
+		}
+		src := r.source
+		if src == "" {
+			src = name
+		}
+		if src == "*" {
+			return nil, "", nil, "identifier-not-found" // a namespace object, not a table
+		}
+		l := src
+		if src == "default" {
+			l = h.dflt
+		}
+		if d := h.decls[l]; d != nil && (src == "default" || d.exported) {
+			found, hit, local, via = found+1, h, l, r
+		} else if h.mayReexport(src) {
+			deeper = true // h may re-export it from a further module
+		}
+	}
+	switch {
+	case found > 1:
+		return nil, "", nil, "ambiguous-barrel"
+	case deeper:
+		return nil, "", nil, "barrel-depth-exceeded"
+	case found == 0:
+		return nil, "", nil, "identifier-not-found"
+	}
+	return hit, local, []Anchor{spanOf(g.entry, g.data, via.first, via.last)}, ""
+}
+
+// mayReexport reports whether f could export name through one of its own re-exports.
+func (f *constFile) mayReexport(name string) bool {
+	for _, r := range f.reexports {
+		if r.exported == name || r.exported == "" && name != "default" {
+			return true
+		}
+	}
+	return f.opaque
 }
 
 // file reads one tracked source from the revision's index, once.
@@ -171,14 +284,21 @@ func (t *constTable) file(p string) *constFile {
 }
 
 func (f *constFile) member(d *constDecl, name string) (string, []Anchor, bool) {
-	if d.bad {
-		return "", nil, false
+	v, at, why := f.read(d, name, false)
+	return v, at, why == ""
+}
+
+// read is member with the reason it fails; an injected table (di) must be read whole, so an enum
+// with any member that is not a literal string is no table (AMAP-V0-024).
+func (f *constFile) read(d *constDecl, name string, di bool) (string, []Anchor, string) {
+	if d.bad || di && d.partial {
+		return "", nil, "non-literal-member"
 	}
 	m, ok := d.members[name]
 	if !ok {
-		return "", nil, false
+		return "", nil, "member-not-found"
 	}
-	return m.value, []Anchor{spanOf(f.entry, f.data, m.line, m.line)}, true
+	return m.value, []Anchor{spanOf(f.entry, f.data, m.line, m.line)}, ""
 }
 
 // onlyRead reports whether every use of name outside import statements and constant declarations
@@ -301,6 +421,11 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			continue
 		}
 		if t.text == "export" {
+			if end, ok := f.readReexport(i); ok {
+				f.mark(i, end)
+				i = end - 1
+				continue
+			}
 			exportAt = i
 			continue
 		}
@@ -413,7 +538,8 @@ func objectMembers(v jsValue) *constDecl {
 }
 
 // enumDecl reads `{ A = 'a', B = 'b' }` at toks[i]; a member without a string initializer is
-// absent, and anything the reader cannot follow makes the whole enum unreadable.
+// absent and marks the enum partial, and anything the reader cannot follow makes the whole enum
+// unreadable.
 func enumDecl(toks []token, i int) (*constDecl, int) {
 	d := &constDecl{members: map[string]constMember{}}
 	end := closeParen(toks, i)
@@ -427,11 +553,16 @@ func enumDecl(toks []token, i int) (*constDecl, int) {
 			d.bad = true
 		}
 		k++
+		literalInit := false
 		if next(toks, k, "=") {
 			if k+1 < end && literal(toks[k+1]) && next(toks, k+2, ",", "}") {
 				d.members[key.text] = constMember{value: toks[k+1].text, line: toks[k+1].line}
+				literalInit = true
 			}
 			k = skipValue(toks, k+1)
+		}
+		if !literalInit {
+			d.partial = true // a numeric, computed or auto-numbered member (AMAP-V0-024)
 		}
 		if next(toks, k, ",") {
 			k++
@@ -441,6 +572,59 @@ func enumDecl(toks []token, i int) (*constDecl, int) {
 		}
 	}
 	return d, end + 1
+}
+
+// readReexport reads one `export * [as N] from 'm'` or `export { a [as b], ... } from 'm'` statement
+// at toks[i] and returns the index after it; ok is false for any other export. A type-only
+// statement or item exports no value; an item the reader cannot read marks the file opaque.
+func (f *constFile) readReexport(i int) (int, bool) {
+	toks := f.toks
+	j := i + 1
+	typeOnly := j+1 < len(toks) && toks[j].kind == tokIdent && toks[j].text == "type" && (isPunct(toks[j+1], "{") || isPunct(toks[j+1], "*"))
+	if typeOnly {
+		j++
+	}
+	items, opaque := []reexport{}, false
+	switch {
+	case next(toks, j, "*"):
+		j++
+		if j+1 < len(toks) && toks[j].kind == tokIdent && toks[j].text == "as" && toks[j+1].kind == tokIdent {
+			items = append(items, reexport{exported: toks[j+1].text, source: "*"})
+			j += 2
+		} else {
+			items = append(items, reexport{})
+		}
+	case next(toks, j, "{"):
+		end := closeParen(toks, j)
+		for k := j + 1; k < end; k = skipValue(toks, k) + 1 {
+			name := func(t token) bool { return t.kind == tokIdent || literal(t) }
+			switch {
+			case toks[k].text == "type" && k+1 < end && toks[k+1].kind == tokIdent && toks[k+1].text != "as":
+				// a type-only item exports no value
+			case name(toks[k]) && next(toks, k+1, ",", "}"):
+				items = append(items, reexport{exported: toks[k].text, source: toks[k].text})
+			case name(toks[k]) && k+3 <= end && toks[k+1].text == "as" && name(toks[k+2]) && next(toks, k+3, ",", "}"):
+				items = append(items, reexport{exported: toks[k+2].text, source: toks[k].text})
+			default:
+				opaque = true
+			}
+		}
+		j = end + 1
+	default:
+		return 0, false
+	}
+	if j+1 >= len(toks) || toks[j].kind != tokIdent || toks[j].text != "from" || !literal(toks[j+1]) {
+		return 0, false // a local export list, or a statement this reader does not follow
+	}
+	if typeOnly {
+		return j + 2, true
+	}
+	f.opaque = f.opaque || opaque
+	for _, r := range items {
+		r.module, r.first, r.last = toks[j+1].text, toks[i].line, toks[j+1].line
+		f.reexports = append(f.reexports, r)
+	}
+	return j + 2, true
 }
 
 // readImport reads one static `import` statement at toks[i] and returns the index after it. Only
