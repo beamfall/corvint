@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
@@ -29,7 +30,7 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
-	root, artifact, maps, versionOnly, ok := parseArguments(arguments)
+	root, artifact, maps, consolidation, versionOnly, ok := parseArguments(arguments)
 	if !ok || !protocolOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: invalid arguments")
 		return 2
@@ -49,6 +50,14 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		return 2
 	}
 	handler := &toolHandler{registry: registry, planner: planner}
+	if consolidation {
+		absolute, err := filepath.Abs(root)
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: repository unavailable")
+			return 2
+		}
+		handler.consolidator = &consolidator{root: absolute}
+	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
 		Name:            serverName, Version: serverVersion,
@@ -68,29 +77,36 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 }
 
 // parseArguments accepts --version, or --root R --artifact A followed by up to eight --map FILE
-// pairs naming root-relative application maps for corvint.map_plan (AMSP-V0-010).
-func parseArguments(arguments []string) (root, artifact string, maps []string, versionOnly, ok bool) {
+// pairs naming root-relative application maps for corvint.map_plan (AMSP-V0-010) and at most one
+// --consolidation, which lists corvint.consolidate_tests (TCN-V0-012).
+func parseArguments(arguments []string) (root, artifact string, maps []string, consolidation, versionOnly, ok bool) {
 	if len(arguments) == 1 && arguments[0] == "--version" {
-		return "", "", nil, true, true
+		return "", "", nil, false, true, true
 	}
-	if len(arguments) < 4 || len(arguments)%2 != 0 || arguments[0] != "--root" || arguments[1] == "" || arguments[2] != "--artifact" || arguments[3] == "" {
-		return "", "", nil, false, false
+	if len(arguments) < 4 || arguments[0] != "--root" || arguments[1] == "" || arguments[2] != "--artifact" || arguments[3] == "" {
+		return "", "", nil, false, false, false
 	}
-	for i := 4; i < len(arguments); i += 2 {
-		if arguments[i] != "--map" || arguments[i+1] == "" {
-			return "", "", nil, false, false
+	for i := 4; i < len(arguments); i++ {
+		switch {
+		case arguments[i] == "--consolidation" && !consolidation:
+			consolidation = true
+		case arguments[i] == "--map" && i+1 < len(arguments) && arguments[i+1] != "":
+			maps = append(maps, arguments[i+1])
+			i++
+		default:
+			return "", "", nil, false, false, false
 		}
-		maps = append(maps, arguments[i+1])
 	}
 	if len(maps) > maxConfiguredMaps {
-		return "", "", nil, false, false
+		return "", "", nil, false, false, false
 	}
-	return arguments[1], arguments[3], maps, false, true
+	return arguments[1], arguments[3], maps, consolidation, false, true
 }
 
 type toolHandler struct {
-	registry *corpusbridge.Registry
-	planner  *mapPlanner
+	registry     *corpusbridge.Registry
+	planner      *mapPlanner
+	consolidator *consolidator
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -107,6 +123,9 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 		tools := handler.registry.Tools()
 		if handler.planner != nil {
 			tools = append(tools, handler.planner.descriptor())
+		}
+		if handler.consolidator != nil {
+			tools = append(tools, handler.consolidator.descriptor())
 		}
 		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
@@ -141,6 +160,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	}
 	if name == mapPlanTool && handler.planner != nil {
 		return handler.callMapPlan(ctx, raw)
+	}
+	if name == consolidateTool && handler.consolidator != nil {
+		return handler.callConsolidate(ctx, raw)
 	}
 	structured, text, toolFailure, transportErr := handler.registry.Call(ctx, name, raw)
 	if transportErr != nil {

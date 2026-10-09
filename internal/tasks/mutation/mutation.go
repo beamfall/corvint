@@ -355,6 +355,10 @@ var PayloadKeys = map[string][]string{
 	OpReviewResubmit:  {"request"},
 	// KHN-V0-018.
 	OpKnowHowReconfirm: {"anchors", "attempt", "commit", "generation", "note"},
+	// TOL-V0-005, TOL-V0-007, TOL-V0-008.
+	ticket.OpObligationsSeed:    {"obligations", "prefix"},
+	ticket.OpObligationsSet:     {"changes"},
+	ticket.OpObligationsWitness: {"attempt", "commit", "credits", "declaration", "generation", "playwrightVersion", "reportSha256", "source"},
 }
 
 // Decode parses and validates one mutation envelope (canonical bytes with
@@ -588,6 +592,8 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		p = readNote(op, r)
 	case OpReviewRecord, OpReviewResubmit:
 		p = readReview(op, r)
+	case ticket.OpObligationsSeed, ticket.OpObligationsSet, ticket.OpObligationsWitness:
+		p = readObligations(op, r)
 	default:
 		return nil, wire.Errorf(wire.CodeMalformed, r.Where(), "unknown operation %q", op)
 	}
@@ -1003,6 +1009,8 @@ func PayloadValue(p Payload) wire.Value {
 		o.Set("supersedes", countOrNull(p.Supersedes))
 	case *ReviewPayload:
 		o.Set("request", p.Request)
+	case *ObligationsPayload:
+		return p.value()
 	}
 	return wire.ObjectValue(o)
 }
@@ -1096,8 +1104,10 @@ func readNote(op string, r *wire.Reader) *NotePayload {
 }
 
 // DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent:
-// NOTE_SET and NOTE_CLEAR (ON-V0-006) and REVIEW_RECORD and REVIEW_RESUBMIT,
-// whose event the receipt audit binds to its ticket post (ERG-V0-009). Before
-// another operation is added here, its redo and receipt audit must bind its
-// event.
-func DeclaresDerivedEvent(op string) bool { return IsNoteOperation(op) || IsReviewOperation(op) }
+// NOTE_SET and NOTE_CLEAR (ON-V0-006), REVIEW_RECORD and REVIEW_RESUBMIT,
+// whose event the receipt audit binds to its ticket post (ERG-V0-009), and
+// the OBLIGATIONS_* ledger writes (TOL-V0-002, TOL-V0-013). Before another
+// operation is added here, its redo and receipt audit must bind its event.
+func DeclaresDerivedEvent(op string) bool {
+	return IsNoteOperation(op) || IsReviewOperation(op) || ticket.IsObligationOperation(op)
+}

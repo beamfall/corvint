@@ -288,6 +288,11 @@ func TestOCMLinkRejectsClaimWithoutExactObligationIDBeforePublication(t *testing
 		if candidate.exit != 2 || len(candidate.stdout) != 0 || !bytes.Contains(candidate.stderr, []byte(`"code": "claim-obligation-mismatch"`)) {
 			t.Errorf("candidate=%#v", candidate)
 		}
+		// OCM-V0-017: the refusal names the adjoining token byte and a separated example.
+		if !bytes.Contains(candidate.stderr, []byte(`TM-V0-008 occurs only inside a longer token ('_' before it)`)) ||
+			!bytes.Contains(candidate.stderr, []byte(`t.Run(\"TM-V0-008 case name\", ...)`)) {
+			t.Errorf("refusal lacks the token-boundary explanation: %s", candidate.stderr)
+		}
 		if after := repositoryBytesDigest(t, candidateFixture.root); after != candidateBefore {
 			t.Error("rejected candidate changed repository or Git bytes")
 		}

@@ -185,9 +185,9 @@ func observationKey(t TestOutcome) (string, bool) {
 	return string(key), true
 }
 
-// observation is what the provider observed about one outcome; durations and
+// outcomeObservation is what the provider observed about one outcome; durations and
 // failure text are excluded because they legitimately vary between runs.
-func observation(t TestOutcome) string {
+func outcomeObservation(t TestOutcome) string {
 	attempts := make([][]any, 0, len(t.Attempts))
 	for _, a := range t.Attempts {
 		attempts = append(attempts, []any{a.State, a.Retry, a.FailureKind})
@@ -207,12 +207,12 @@ func sameObservations(control, keep []TestOutcome) bool {
 		if _, duplicate := observed[key]; !ok || duplicate {
 			return false
 		}
-		observed[key] = observation(t)
+		observed[key] = outcomeObservation(t)
 	}
 	for _, t := range keep {
 		key, ok := observationKey(t)
 		want, found := observed[key]
-		if !ok || !found || want != observation(t) {
+		if !ok || !found || want != outcomeObservation(t) {
 			return false
 		}
 		delete(observed, key)
