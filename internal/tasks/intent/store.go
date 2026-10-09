@@ -238,6 +238,17 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 			if err != nil {
 				return Tree{}, err
 			}
+			// One root-confined descriptor for the subdirectory makes each
+			// record's Lstat a single no-follow stat beneath it, instead of
+			// root.Lstat reopening the subdirectory per record. Phase 2 reads
+			// and re-checks every record whatever this stat saw.
+			statRoot, statRel := root, name+"/"
+			if pinTreeDirs {
+				if sub, err := root.OpenRoot(name); err == nil {
+					defer sub.Close()
+					statRoot, statRel = sub, ""
+				}
+			}
 			for _, tn := range tnames {
 				rel := name + "/" + tn
 				tfull := filepath.Join(rootPath, name, tn)
@@ -248,7 +259,7 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 				if !ok {
 					return Tree{}, wire.Errorf(wire.CodeMalformed, tfull, "unexpected entry in the intent store (%s/ admits only named JSON records)", name)
 				}
-				size, err := statRegular(root, tfull, rel, bound)
+				size, err := statRegular(statRoot, tfull, statRel+tn, bound)
 				if err != nil {
 					return Tree{}, err
 				}

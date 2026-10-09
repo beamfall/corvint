@@ -295,6 +295,8 @@ func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
 		fv := f.Value()
 		if fv.Kind != KindObject {
 			f.Fail(CodeMalformed, "facets must be an object")
+		} else {
+			decodeFacets(f)
 		}
 		res.Facets = &fv
 	}

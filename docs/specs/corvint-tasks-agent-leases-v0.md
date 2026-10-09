@@ -5548,7 +5548,13 @@ a release's progress is visible from its readiness read.
   64 most frequent keys with ties in byte order, plus `milestonesOmitted` and `labelsOmitted`; and
   `withoutMilestone`. Every count is a wire Count. The same store and arguments MUST give the same
   bytes. Without the flag the result MUST keep its earlier bytes. A repeated `--facets` refuses
-  `MALFORMED`; a value-flag value spelled `--facets` stays a value.
+  `MALFORMED`; a value-flag value spelled `--facets` stays a value. A result decoder MUST refuse
+  `MALFORMED` any `facets` member that is not this summary: a missing or unknown member, a
+  non-Count, a closed map missing or adding a value or not summing to `total`, a `byNextAction` key
+  outside the next-action set or counts not summing to `total`, a blocker key that is not a detail
+  code, an open-map key that is not a label, a zero or above-`total` open count, `withoutMilestone`
+  plus milestone counts above `total`, or an open map over 64 keys or under 64 with a non-zero
+  omitted count (V1-1052).
 - `CAL-V0-207`: (proposed) The same verbs MUST accept `--count`, which returns the CAL-V0-206
   summary with no items and `page` null, without rendering items. `ticket list --count` MUST NOT
   read attempt receipts for `lastAttemptEndedAt`. `--count` with `--offset` or `--limit` or a
