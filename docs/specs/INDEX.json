@@ -898,6 +898,24 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-pending-unpause-recovery-v0.md",
+    "title": "Corvint Tasks pending UNPAUSE recovery V0",
+    "reqPrefix": "PUR-V0",
+    "intent": "proposed (amendment awaiting owner acceptance)",
+    "delivery": "experimental",
+    "claim": "An UNPAUSE interrupted after its receipt is linked is settled by retrying a supported command, with the same ticket-divergence tolerance the fresh UNPAUSE had.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-intent-worktree-v0.md",
+      "docs/specs/corvint-tasks-store-init-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/journal",
+      "internal/tasks/store"
+    ]
+  },
+  {
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
     "title": "Corvint Tasks store initialization V0",
     "reqPrefix": "CTS-V0",

@@ -113,7 +113,8 @@ type Reader struct {
 	IntentTree      *intent.Tree
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
-	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
+	unpauseTickets  bool   // set only on a value copy by BarrierRemoval or PendingBarrierRemoval
+	pendingUnpause  bool   // set only on a value copy by PendingBarrierRemoval
 	physical        *PhysicalObservation
 	writerCache     bool
 	intentOnly      bool
@@ -190,6 +191,17 @@ func (r Reader) Audit(paths ...string) (*Result, error) {
 // projection. Queue, policy, private state and untracked tickets remain strict.
 func (r Reader) BarrierRemoval(paths ...string) (*Result, error) {
 	r.unpauseTickets = true
+	return r.Audit(paths...)
+}
+
+// PendingBarrierRemoval is BarrierRemoval for redo of an interrupted UNPAUSE
+// (V1-0309): it also admits the one pending receipt, so recovery tolerates the
+// ticket divergence the fresh UNPAUSE allowed. The caller must establish that
+// the pending receipt is an UNPAUSE that posts no intent path; a pending
+// observation still returns REDO_PENDING, with ProjectionAgreement
+// TICKETS_NOT_COMPARED (every other projection holds its pre or post value).
+func (r Reader) PendingBarrierRemoval(paths ...string) (*Result, error) {
+	r.unpauseTickets, r.pendingUnpause = true, true
 	return r.Audit(paths...)
 }
 

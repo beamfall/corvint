@@ -49,8 +49,16 @@ func redoPendingFor(repo *intent.Repository, session *authority.Session, operati
 		return false, err
 	}
 	// Only the terminal, fully validated PRE_OR_POST result authorizes redo.
-	proof, auditErr := journalReader(repo, head).Audit("intent/queue.json")
-	if wire.CodeOf(auditErr) != wire.CodeRedoPending || proof == nil || !proof.Pending || proof.StructuralConsistency != "CONSISTENT" || proof.ProjectionAgreement != "PRE_OR_POST" {
+	// An interrupted UNPAUSE that posts no intent path is audited as the fresh
+	// UNPAUSE was, so the unrelated ticket divergence it admitted does not
+	// block its own recovery (V1-0309). The classification only selects the
+	// audit; the audited receipt digest is bound to these bytes below.
+	audit, agreement, unpause := journalReader(repo, head).Audit, "PRE_OR_POST", pendingUnpause(raw)
+	if unpause {
+		audit, agreement = journalReader(repo, head).PendingBarrierRemoval, "TICKETS_NOT_COMPARED"
+	}
+	proof, auditErr := audit("intent/queue.json")
+	if wire.CodeOf(auditErr) != wire.CodeRedoPending || proof == nil || !proof.Pending || proof.StructuralConsistency != "CONSISTENT" || proof.ProjectionAgreement != agreement {
 		if auditErr != nil {
 			return false, auditErr
 		}
@@ -63,7 +71,21 @@ func redoPendingFor(repo *intent.Repository, session *authority.Session, operati
 	if err != nil {
 		return false, err
 	}
-	if err = bindObservation(repo, proof.Identity, operation); err != nil {
+	if unpause {
+		// The intent tree digest refuses the malformed ticket edits the fresh
+		// UNPAUSE admitted, so the observation is rebound as that command
+		// binds it: a second audit of the same mode must see one identity.
+		again, err := audit("intent/queue.json")
+		if err != nil && wire.CodeOf(err) != wire.CodeRedoPending {
+			return false, err
+		}
+		if err == nil || again == nil || again.Identity != proof.Identity {
+			return false, wire.Errorf(wire.CodeSnapshotMoved, "receipts", "validated pending observation changed")
+		}
+		if _, err = writerGuards(repo, operation); err != nil {
+			return false, err
+		}
+	} else if err = bindObservation(repo, proof.Identity, operation); err != nil {
 		return false, err
 	}
 	current, found, err := receiptBytes(repo, last+1)
@@ -120,6 +142,13 @@ func checkChainBounds(repo *intent.Repository, head *snapshot.Head) error {
 		return wire.Errorf(wire.CodeJournalForked, receiptPath(last+2), "a receipt beyond the pending one exists")
 	}
 	return nil
+}
+
+// pendingUnpause reports whether raw decodes as an UNPAUSE receipt that
+// publishes no intent path. Undecodable bytes are left to the strict audit.
+func pendingUnpause(raw []byte) bool {
+	receipt, err := snapshot.DecodeReceipt(raw)
+	return err == nil && receipt.Kind == transaction.Unpause && !writesIntent(receipt)
 }
 
 func writesIntent(receipt *snapshot.Receipt) bool {
@@ -209,10 +238,27 @@ func redoBarrierDeletion(repo *intent.Repository, session *authority.Session, pa
 	if current != nil && *current != *pre {
 		return wire.Errorf(wire.CodeJournalForked, path, "barrier holds neither the pre nor the post state")
 	}
-	// An absent barrier is synced as absent; present pre bytes are unlinked
-	// under a CAS on exactly those bytes.
-	return session.RemoveBarrier(*pre)
+	if redoBarrierObserved != nil {
+		if err = redoBarrierObserved(); err != nil {
+			return err
+		}
+	}
+	// An absent barrier is synced as absent. Present bytes are unlinked only
+	// after the session re-checks their identity and digest under the lock;
+	// the unlink itself is by name, so this protects against cooperating
+	// writers only, as the barrier contract assumes.
+	if err = session.RemoveBarrier(*pre); err != nil {
+		if now, readErr := currentDigest(repo, path); readErr == nil && now != nil && *now != *pre {
+			return wire.Errorf(wire.CodeJournalForked, path, "barrier changed to a third value before removal")
+		}
+		return err
+	}
+	return nil
 }
+
+// redoBarrierObserved runs between the barrier observation and its removal.
+// It is nil outside tests.
+var redoBarrierObserved func() error
 
 // postBytes recovers one post entry's bytes: inline for a record, from the
 // published blob otherwise. The bytes are checked against the digest the
