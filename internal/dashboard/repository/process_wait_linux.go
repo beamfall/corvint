@@ -25,21 +25,22 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	reapAllowed := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		exitObserved <- waitProcessExitUnreaped(command.Process.Pid)
+		exitObserved <- observeLeaderExit(command.Process.Pid)
 		<-reapAllowed
 		done <- command.Wait()
 	}()
+	observation := &leaderObservation{result: exitObserved}
 
-	var observationErr error
-	exitObservationCompleted := false
 	timedOutOrCancelled := false
 	select {
-	case observationErr = <-exitObserved:
-		exitObservationCompleted = true
+	case observation.err = <-exitObserved:
+		observation.completed = true
 	case <-childContext.Done():
 		timedOutOrCancelled = true
 	}
 
+	exitObservationCompleted := observation.completed
+	observationErr := observation.err
 	observationFailed := exitObservationCompleted && observationErr != nil
 	executableStable := true
 	if exitObservationCompleted && observationErr == nil && !timedOutOrCancelled {
@@ -51,18 +52,20 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	// group counts as residue.
 	residueAfterLeader := false
 	if exitObservationCompleted && observationErr == nil {
-		live, err := linuxGroupHasLiveMembers(containment.pid)
+		live, err := linuxGroupLive(containment.pid)
 		residueAfterLeader = live || err != nil
 	}
 	cleanupRequired := timedOutOrCancelled || observationFailed || residueAfterLeader
 	cleanupProven := true
 	if cleanupRequired {
 		closeReader(stdin)
-		cleanupProven = containment.stopAndProveLinux(cleanupDeadline)
+		cleanupProven = containment.stopAndProveLinux(cleanupDeadline, observation.pinned)
 	}
-	if !exitObservationCompleted {
-		observationErr = <-exitObserved
+	if !observation.completed {
+		observation.err = <-exitObserved
+		observation.completed = true
 	}
+	observationErr = observation.err
 	close(reapAllowed)
 	waitErr := <-done
 	if timedOutOrCancelled || observationErr != nil {
@@ -80,6 +83,38 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 		groupQuiescent: groupQuiescent, observationFailed: observationFailed,
 		executableStable: executableStable,
 	}
+}
+
+// observeLeaderExit and linuxGroupLive are the exit observation and the
+// process-table read; tests inject a failed observation (ECHILD) and an
+// unreadable /proc.
+var (
+	observeLeaderExit = waitProcessExitUnreaped
+	linuxGroupLive    = linuxGroupHasLiveMembers
+)
+
+// leaderObservation tracks the unreaped-exit observation from the waiting
+// goroutine. It is used by that one goroutine only.
+type leaderObservation struct {
+	result    <-chan error
+	completed bool
+	err       error
+}
+
+// pinned reports whether the leader's PID, and so its group ID, still names
+// this command: the observation is pending (the leader has not exited, so no
+// one can have reaped it) or saw the exit while leaving it unreaped. A failed
+// observation (for example ECHILD after another reaper collected the leader)
+// confers no kill authority (V1-1047, as groupreap's V1-0652).
+func (observation *leaderObservation) pinned() bool {
+	if !observation.completed {
+		select {
+		case observation.err = <-observation.result:
+			observation.completed = true
+		default:
+		}
+	}
+	return !observation.completed || observation.err == nil
 }
 
 // waitProcessExitUnreaped blocks until the process exits and leaves it
@@ -107,17 +142,24 @@ func waitProcessExitUnreaped(pid int) error {
 }
 
 // stopAndProveLinux stops the group while the exited or running leader is
-// unreaped. It proves quiescence from /proc and reports an unreadable group
-// as unproved instead of signalling forever.
-func (containment *childContainment) stopAndProveLinux(grace time.Duration) bool {
-	if containment.pid <= 0 {
+// pinned unreaped, and sends nothing once pinned reports that the leader may
+// have been reaped elsewhere. It proves quiescence from /proc. An unreadable
+// process table leaves cleanup unproved but still SIGKILLs the pinned group,
+// so a TERM-ignoring leader cannot block the wait and no residue is left
+// merely because /proc failed.
+func (containment *childContainment) stopAndProveLinux(grace time.Duration, pinned func() bool) bool {
+	if containment.pid <= 0 || !pinned() {
 		return false
 	}
 	containment.terminate()
 	until := time.Now().Add(grace)
 	for {
-		live, err := linuxGroupHasLiveMembers(containment.pid)
+		live, err := linuxGroupLive(containment.pid)
+		if !pinned() {
+			return false
+		}
 		if err != nil {
+			containment.force()
 			return false
 		}
 		if !live {

@@ -17,4 +17,6 @@ func killGate(cmd *exec.Cmd) {
 
 func stopGate(cmd *exec.Cmd) { killGate(cmd) }
 
+func reapGate(cmd *exec.Cmd) error { return cmd.Wait() }
+
 func gateSignal(*os.ProcessState) string { return "" }

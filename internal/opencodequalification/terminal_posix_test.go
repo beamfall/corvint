@@ -18,6 +18,36 @@ import (
 // order reaped it first and then sent the deferred group SIGTERM and the
 // final group SIGKILL to a group ID that could have been reused.
 func TestV11047TerminalSignalsOnlyAnUnreapedChild(t *testing.T) {
+	sent, afterReap := runRecordedTerminal(t)
+	if len(afterReap) != 0 {
+		t.Fatalf("signals %v were sent after the child was reaped (all: %v)", afterReap, sent)
+	}
+	if len(sent) < 2 {
+		t.Fatalf("cleanup sent %v, want the group SIGTERM and SIGKILL", sent)
+	}
+}
+
+// V1-1047 review P1: an exit observation that fails with ECHILD (another
+// reaper collected the child) unpins the PID, so the harness sends no group
+// signal at all.
+func TestV11047TerminalFailedObservationSendsNoSignal(t *testing.T) {
+	previous := observeTerminalExit
+	t.Cleanup(func() { observeTerminalExit = previous })
+	observeTerminalExit = func(pid int) error {
+		if err := previous(pid); err != nil {
+			return err
+		}
+		return syscall.ECHILD
+	}
+	if sent, _ := runRecordedTerminal(t); len(sent) != 0 {
+		t.Fatalf("signals %v sent after a failed exit observation", sent)
+	}
+}
+
+// runRecordedTerminal runs a host that exits at once and returns every
+// signal sent and those sent after the child was reaped.
+func runRecordedTerminal(t *testing.T) (sent, afterReap []syscall.Signal) {
+	t.Helper()
 	dir := t.TempDir()
 	host := filepath.Join(dir, "host")
 	if err := os.WriteFile(host, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
@@ -38,7 +68,6 @@ func TestV11047TerminalSignalsOnlyAnUnreapedChild(t *testing.T) {
 		_ = hold.Close()
 	})
 	var mu sync.Mutex
-	var sent, afterReap []syscall.Signal
 	terminalSignal = func(pid int, signal syscall.Signal) error {
 		mu.Lock()
 		sent = append(sent, signal)
@@ -55,12 +84,7 @@ func TestV11047TerminalSignalsOnlyAnUnreapedChild(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(afterReap) != 0 {
-		t.Fatalf("signals %v were sent after the child was reaped (all: %v)", afterReap, sent)
-	}
-	if len(sent) < 2 {
-		t.Fatalf("cleanup sent %v, want the group SIGTERM and SIGKILL", sent)
-	}
+	return sent, afterReap
 }
 
 // reaped reports that pid is no longer this process's unreaped child:

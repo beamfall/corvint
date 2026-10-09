@@ -58,10 +58,13 @@ func runTerminal(ctx context.Context, path string) error {
 	}
 	slave.Close()
 	// The child is reaped only after the deferred cleanup, so every group
-	// (and SIGWINCH) signal is sent while its PID is pinned (V1-1047).
+	// (and SIGWINCH) signal is sent while its PID is pinned (V1-1047). A
+	// failed exit observation (for example ECHILD after another reaper
+	// collected the child) unpins the PID, and no signal follows it.
 	exited, reapAllowed, waited := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var observeErr error
 	go func() {
-		_ = exitedUnreaped(child.Pid)
+		observeErr = observeTerminalExit(child.Pid)
 		close(exited)
 		<-reapAllowed
 		_, _ = child.Wait()
@@ -87,15 +90,28 @@ func runTerminal(ctx context.Context, path string) error {
 			}
 		}
 	}()
+	pinned := func() bool {
+		select {
+		case <-exited:
+			return observeErr == nil
+		default:
+			return true
+		}
+	}
+	signal := func(pid int, sig syscall.Signal) {
+		if pinned() {
+			_ = terminalSignal(pid, sig)
+		}
+	}
 	defer func() {
-		_ = terminalSignal(-child.Pid, syscall.SIGTERM)
+		signal(-child.Pid, syscall.SIGTERM)
 		select {
 		case <-exited:
 		case <-time.After(2 * time.Second):
-			_ = terminalSignal(-child.Pid, syscall.SIGKILL)
+			signal(-child.Pid, syscall.SIGKILL)
 			<-exited
 		}
-		_ = terminalSignal(-child.Pid, syscall.SIGKILL)
+		signal(-child.Pid, syscall.SIGKILL)
 		close(reapAllowed)
 		<-waited
 		master.Close()
@@ -123,15 +139,19 @@ func runTerminal(ctx context.Context, path string) error {
 				if e = resize(int(number(dims[0])), int(number(dims[1]))); e != nil {
 					return e
 				}
-				_ = terminalSignal(child.Pid, syscall.SIGWINCH)
+				signal(child.Pid, syscall.SIGWINCH)
 			}
 		}
 	}
 }
 
 // terminalSignal is syscall.Kill; tests check that every signal precedes the
-// child's reap.
-var terminalSignal = syscall.Kill
+// child's reap. observeTerminalExit is exitedUnreaped; tests inject a failed
+// observation.
+var (
+	terminalSignal      = syscall.Kill
+	observeTerminalExit = exitedUnreaped
+)
 
 // exitedUnreaped blocks until the process exits and leaves it unreaped
 // (waitid WEXITED|WNOWAIT). Darwin's waitid also reports a trapped, stopped
