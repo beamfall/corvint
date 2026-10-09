@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule; V1-1043) is proposed.
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -303,6 +303,15 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   check or an unsatisfied finish as success. `status` stays read-only with exit 0 and `ok:true`
   whatever the policy state. Before this, a selected check that exited 1 produced exit 1 but
   `ok:true`. Rollback: revert the change; no persisted state or other envelope member changes.
+- `LCP-V0-018`: (proposed; V1-1043) A `dogfood begin` plan refusal of `invalid-intent-scope` or
+  `plan-bound-exceeded` MUST keep its stable code in the top-level `code` and nested `error.code`,
+  and its nested `error.message` MUST be the code followed by `: ` and a fixed remediation naming
+  the rule: the plan `intents` array lists 1-16 repository-relative spec paths, sorted in byte
+  order with no duplicates, the same rule `DOGFOOD_INTENTS_FILE` follows for `dogfood change`
+  (whose `missing-intent-scope` fix line names it). The text is fixed, so the message still carries
+  no path or command text; every other refusal keeps `message` equal to its code. Before this, an
+  unsorted or duplicated intents array printed only the bare code. Rollback: revert the change; no
+  code, exit class or persisted state changes.
 
 ## Non-goals and simpler baseline
 
@@ -377,7 +386,7 @@ elsewhere are not repeated.
 | `invalid-enrollment-generation` | `internal/localcompletion/storage.go:305` | the saved generation is not 68 bytes prefixed by the plan digest and `-` |
 | `invalid-enrollment-pointer` | `internal/localcompletion/storage.go:329` | a saved intent pointer names another path than its plan intent, or a revision or blob hash that is not a Git object id |
 | `invalid-execution-path` | `internal/localcompletion/storage.go:316` | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
-| `invalid-intent-scope` | `internal/localcompletion/storage.go:145` | a plan intent is not a valid path or is not strictly after the previous intent |
+| `invalid-intent-scope` | `internal/localcompletion/storage.go:145` | a plan intent is not a valid path or is not strictly after the previous intent; `error.message` names the sorted, de-duplicated 1-16 path rule (`LCP-V0-018`) |
 | `invalid-lifecycle` | `internal/localcompletion/storage.go:309` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
 | `invalid-local-completion-action` | `cmd/corvint/local_completion.go:146` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
 | `invalid-local-completion-json` | `internal/localcompletion/storage.go:50` | strict JSON input does not parse |
@@ -408,7 +417,7 @@ elsewhere are not repeated.
 | `operation-lock-permission-denied` | `internal/localcompletion/storage.go` (`operationLockFailure`) | permission denied creating the lock or its parent; underlying cause retained |
 | `operation-lock-create-failed` | `internal/localcompletion/storage.go` (`operationLockFailure`) | another lock creation failure; underlying cause retained |
 | `output-bound-exceeded` | `internal/localcompletion/finish.go:243` | a bounded output buffer would exceed the artifact byte bound |
-| `plan-bound-exceeded` | `internal/localcompletion/storage.go:140` | the plan has fewer than 1 or more than 16 intents or checks |
+| `plan-bound-exceeded` | `internal/localcompletion/storage.go:140` | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
 | `plan-unavailable` | `internal/localcompletion/storage.go:236` | the plan file's parent directory does not resolve |
 | `prior-completion-stale` | `internal/localcompletion/lifecycle.go:77` | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
 | `public-command-output-bound` | `internal/localcompletion/finish.go:184` | a public evidence command overflowed its stdout or stderr bound |
@@ -479,6 +488,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-015 | `storage.go` `runsDogfoodCheck` guard; `final-check-not-prerequisite` refusal row; `TestValidatePlanRefusesFinalCheckInAnyForm` (script name, make target, `dogfood check` and `dogfood seal` refused; `dogfood change` and a non-adjacent pair admitted) |
 | LCP-V0-016 | `localEventRead` in `cmd/corvint/local_completion_event.go` running its reads inside `gokernel.ProbeRepositoryAround` (`GPK-V0-076`), and `localEventContext` loading the snapshot through `contextindex.LoadSnapshotObserved` against the opening observation | `TestDogfoodEventSpawnsOneBracket` (`cmd/corvint/dogfood_event_bracket_test.go`), which counts four Git spawns through a PATH shim for `stop`, `user-prompt` and both `session-start` sources over clean and dirty snapshot-present fixtures; `TestDogfoodEventRefusesRepositoryDriftInsideTheBracket`, which writes a file during the miss build and pins the `dogfood-event-repository-drift` error and the native surface's refusal; `TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift` (`internal/gokernel/repository_around_test.go`); the before/after hook timings in `docs/build-log/2026-10-06-v1-0881-single-event-bracket.md` |
 | LCP-V0-017 | `localCompletionExit` and the shared envelope in `cmd/corvint/local_completion.go`; `TestLocalCompletionVerifyOKMirrorsCheckResult` (a selected check exiting 1 yields exit 1, `ok:false`, `qualified:false`, `exit:1`; a passing check yields exit 0 and `ok:true`); `TestDogfoodFinishRunsFromBinaryInForeignRepository` (pre-review finish exit 1 with `ok:false`, satisfied finish `ok:true`); the before/after envelopes in `docs/build-log/2026-10-08-v1-1012-verify-ok-mirrors-exit.md` |
+| LCP-V0-018 | `localCompletionRemedies` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginPlanIntentRefusalNamesTheRule` (`cmd/corvint/local_completion_test.go`) over unsorted, duplicated, empty and 17-path intents arrays |
 
 ## Rollout, rollback and remaining gates
 
