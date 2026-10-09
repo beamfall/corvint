@@ -393,6 +393,74 @@ for(const host of ['opencode','gemini']) {
  })
 }
 
+// V1-0371: libuv reaps every exited child before it dispatches any exit callback, so inside a sibling's
+// exit callback the adapter's reaped leader still reads exitCode === null. The witness is ps, never the
+// exit event: both children are blocked into zombies first so one reap batch takes them together.
+const psRows=pids=>{try{return execFileSync('ps',['-o','pid=,stat=','-p',pids.join(',')],{encoding:'utf8'}).trim().split('\n').filter(Boolean).map(row=>row.trim().split(/\s+/))}catch{return []}}
+function blockUntilZombies(pids) {
+ for(const deadline=Date.now()+10000;;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10)){
+  const rows=psRows(pids);if(rows.length===pids.length&&rows.every(([,stat])=>stat.startsWith('Z')))return
+  if(Date.now()>deadline)throw new Error('children did not exit')
+ }
+}
+function siblingBatchProbe(blockUntilZombies,psRows,ChildProcess,spawnChild,log,onSiblingExit) {
+ // Records the leader's state in the sibling's exit callback and every non-zero signal sent to its group.
+ const original=ChildProcess.prototype.spawn,kill=process.kill,write=row=>log(JSON.stringify(row))
+ let leader
+ ChildProcess.prototype.spawn=function(...rest){
+  if(leader)return original.apply(this,rest)
+  leader=this;ChildProcess.prototype.spawn=original
+  const sibling=spawnChild('/bin/sleep',['0.2'],{stdio:'ignore'}),result=original.apply(this,rest)
+  sibling.once('exit',()=>{write({exitCode:leader.exitCode,signalCode:leader.signalCode,listed:psRows([leader.pid]).length});onSiblingExit()})
+  blockUntilZombies([sibling.pid,leader.pid])
+  return result
+ }
+ process.kill=function(pid,signal){if(leader&&pid===-leader.pid&&signal!==0)write({signalled:signal});return kill.call(process,pid,signal)}
+ return ()=>{ChildProcess.prototype.spawn=original;process.kill=kill}
+}
+const reapedInBatch={exitCode:null,signalCode:null,listed:0}
+test('V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit',async t=>{
+ const f=fixture(t),controller=new AbortController(),rows=[]
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 0.2\n',{mode:0o700})
+ const restore=siblingBatchProbe(blockUntilZombies,psRows,ChildProcess,spawn,row=>rows.push(JSON.parse(row)),()=>controller.abort());t.after(restore)
+ const result=await f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+ await new Promise(r=>setTimeout(r,50));restore()
+ assert.deepEqual(rows[0],reapedInBatch,'the leader was reaped before its exit was recorded')
+ assert.deepEqual(rows.slice(1),[],'a reaped leader\'s group was signalled')
+ assert.equal(result.code,'host-aborted')
+})
+test('V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'corvint-batch-')),log=join(dir,'batch.log'),preload=join(dir,'batch-probe.cjs');t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ writeFileSync(preload,`const {execFileSync,spawn,ChildProcess}=require('node:child_process'),{appendFileSync}=require('node:fs');const psRows=${psRows};const blockUntilZombies=${blockUntilZombies};(${siblingBatchProbe})(blockUntilZombies,psRows,ChildProcess,spawn,row=>appendFileSync(${JSON.stringify(log)},row+'\\n'),()=>process.emit('SIGTERM','SIGTERM'))\n`)
+ const f=fixture(t,'valid',undefined,{NODE_OPTIONS:`--require=${preload}`})
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 0.2\n',{mode:0o700})
+ const result=await f.gemini('user-prompt')
+ const rows=readFileSync(log,'utf8').split('\n').filter(Boolean).map(JSON.parse)
+ assert.deepEqual(rows[0],reapedInBatch,'the leader was reaped before its exit was recorded')
+ assert.deepEqual(rows.slice(1),[],'a reaped leader\'s group was signalled')
+ assert.equal(result.code,143)
+})
+test('V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader\'s stdout open',async t=>{
+ // The leader exits at once while a same-group descendant inherits its stdout, so close cannot arrive
+ // before the descendant ends. The group is never signalled after the reap, and the hook still completes.
+ const f=fixture(t),witness=join(f.dir,'descendant.pid')
+ writeFileSync(f.binary,`#!/bin/sh\n/bin/sleep 20 &\necho $! > ${shellQuote(witness)}\nexit 0\n`,{mode:0o700})
+ t.after(()=>{if(existsSync(witness))try{process.kill(Number(readFileSync(witness,'utf8')),'SIGKILL')}catch{}})
+ const started=performance.now(),result=await f.gemini('user-prompt',{},undefined,1500)
+ assert.ok(performance.now()-started<1500+5000,'the hook waited for the descendant\'s inherited pipe')
+ assert.match(result.output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+ assert.doesNotThrow(()=>process.kill(Number(readFileSync(witness,'utf8')),0),'the reported descendant is the survivor')
+})
+test('V1-0371 OpenCode concurrent cancellations share one SIGTERM grace',async t=>{
+ const f=fixture(t),controller=new AbortController(),holds=[],wait=Atomics.wait
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+ Atomics.wait=function(...rest){holds.push(rest[3]);return wait.apply(Atomics,rest)};t.after(()=>{Atomics.wait=wait})
+ const pending=Array.from({length:16},()=>f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal}))
+ await new Promise(r=>setTimeout(r,100));controller.abort()
+ const results=await Promise.all(pending);Atomics.wait=wait
+ assert.deepEqual(results.map(result=>result.code),Array(16).fill('host-aborted'))
+ assert.equal(holds.length,1,'each cancellation blocked the thread for its own grace')
+})
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)
  for(const raw of ['{','[]',JSON.stringify({hook_event_name:'Wrong',cwd:f.root}),JSON.stringify({hook_event_name:'SessionStart',cwd:f.root,padding:'x'.repeat(140000)})]) {

@@ -297,9 +297,12 @@ function eventInput(adapterEvent, input, cwd) {
   return [adapterEvent, common];
 }
 
-// signalGroup signals the owned group only while the leader's exit is unrecorded. Node reaps a child
-// just before it records the exit, so until then the leader holds its group ID; after it the numeric ID
-// may name another process's group and is never signalled (V1-0371).
+// signalGroup signals the owned group only while the leader's exit is unrecorded. That proves the
+// leader unreaped only outside libuv's reap batch: uv__wait_children reaps every exited child before it
+// dispatches any exit callback, so inside another child's exit callback, or a tick or microtask between
+// two of them, a reaped leader still reads exitCode and signalCode null. It is therefore called only
+// from terminateGroup in a setImmediate, whose check phase runs after the poll phase has dispatched the
+// whole batch. After the reap the numeric ID may name another process's group (V1-0371).
 function signalGroup(child, signal) {
   if (child.pid === undefined) {
     return "ESRCH";
@@ -330,7 +333,16 @@ function holdUnreaped(milliseconds) {
   }
 }
 
-// cleanupConfirmed decides the owned group's cleanup at close. A SIGKILL delivered while the leader was
+/** SIGTERM, a held grace so the leader stays unreaped, then SIGKILL to the group it still names. */
+function terminateGroup(child) {
+  const term = signalGroup(child, "SIGTERM");
+  if (term === "DELIVERED") {
+    holdUnreaped(TERMINATION_GRACE_MS);
+  }
+  return term === "DELIVERED" || term === "EPERM" ? signalGroup(child, "SIGKILL") : term;
+}
+
+// cleanupConfirmed decides the owned group's cleanup at completion. A SIGKILL delivered while the leader was
 // unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before termination, or EPERM
 // (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0: it delivers
 // nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives, confirms it.
@@ -390,20 +402,27 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
     let failureCode;
     let interruptedSignal;
     let cleanup;
+    let terminating = false;
+    let settled = false;
+    let closeBound;
 
     // The leader's close does not end its group: a same-group descendant that ignored SIGTERM and
-    // closed its stdio still runs. So termination sends SIGTERM, holds the event loop through the
-    // grace so the leader stays unreaped, then sends SIGKILL to the group it still names (V1-0371).
+    // closed its stdio still runs, and one that kept the leader's stdout open delays close until it
+    // ends. So termination is decided in a later turn (see signalGroup), signals the group only while
+    // the leader is unreaped, and completes within one more grace even if close never arrives (V1-0371).
     const terminate = (code) => {
       failureCode ??= code;
-      if (cleanup !== undefined) {
+      if (terminating) {
         return;
       }
-      const term = signalGroup(child, "SIGTERM");
-      if (term === "DELIVERED") {
-        holdUnreaped(TERMINATION_GRACE_MS);
-      }
-      cleanup = term === "DELIVERED" || term === "EPERM" ? signalGroup(child, "SIGKILL") : term;
+      terminating = true;
+      setImmediate(() => {
+        if (settled) {
+          return;
+        }
+        cleanup = terminateGroup(child);
+        closeBound = setTimeout(() => settle(child.exitCode), TERMINATION_GRACE_MS);
+      });
     };
     const interrupt = (signal) => {
       interruptedSignal = signal;
@@ -439,8 +458,16 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
       failureCode = error.code === "ENOENT" ? "corvint-missing" : "corvint-exec-failed";
     });
     const timeout = setTimeout(() => terminate("corvint-timeout"), timeoutMs);
-    child.once("close", (status) => {
+    const settle = (status) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timeout);
+      clearTimeout(closeBound);
+      // An inherited pipe a descendant still holds must not keep this hook alive after it reports.
+      child.stdout.destroy();
+      child.stderr.destroy();
       const cleaned = cleanupConfirmed(child, cleanup);
       for (const [signal, handler] of signalHandlers) {
         process.removeListener(signal, handler);
@@ -452,7 +479,8 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
         stderr: Buffer.concat(stderr).toString("utf8"),
         stdout: Buffer.concat(stdout).toString("utf8"),
       });
-    });
+    };
+    child.once("close", settle);
     child.stdin.on("error", () => {});
     child.stdin.end(`${JSON.stringify(input)}\n`);
   });

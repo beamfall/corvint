@@ -299,10 +299,13 @@ A reproduced Gemini group-signal race now preserves unexpected cleanup errors as
 `EPERM` for a group whose members have all exited but are not yet reaped, so an `EPERM` before the
 leader's exit is observed is decided at close by a signal-0 probe of the group: only `ESRCH` confirms
 cleanup, and a repeated `EPERM` stays unconfirmed. The adapter still
-waits for close and pipe drain; it does not report uncertain cleanup as successful containment.
+waits for close and pipe drain, except that after a termination it completes one grace after its group
+decision even when a descendant holds an inherited pipe; it does not report uncertain cleanup as
+successful containment.
 Close is not group exit: a same-group descendant that ignores SIGTERM and closes its stdio outlives
-it. Gemini and OpenCode now signal the owned group only while its leader is unreaped, holding the
-event loop through the SIGTERM grace so the group SIGKILL follows before Node can reap. After a reap
+it. Gemini and OpenCode now signal the owned group only while its leader is unreaped, deciding in a
+`setImmediate` turn after libuv's reap batch and holding the event loop through the SIGTERM grace so
+the group SIGKILL follows before Node can reap. After a reap
 they only probe the group with signal 0, and a surviving descendant at a normal exit completes as
 `corvint-process-cleanup-unconfirmed` rather than being signalled through a possibly reused group ID
 (proposed `AHI-050`, V1-0371).

@@ -974,38 +974,53 @@ do not reinterpret this Frontier result.
   Rollback: revert `internal/groupreap/live.go`, the `StartLive` call sites and the `KillLive`
   call in `exitProcess`. Children again outlive an exiting adapter until their own deadline.
 - `AHI-050`: (proposed; V1-0371) The OpenCode and Gemini adapters MUST send a numeric process-group
-  signal to their owned group only while the group's leader is unreaped. For Node, which reaps a child
-  only on its event-loop thread and records `exitCode` or `signalCode` before it emits `exit`, an
-  unrecorded exit is that proof. On a timeout or a cancellation the adapter sends SIGTERM to the group
-  and holds the event loop for its termination grace (`Atomics.wait`; OpenCode 25 ms, Gemini 10 ms),
-  so the leader cannot be reaped between that SIGTERM and the group SIGKILL that follows. A delivered
+  signal to their owned group only while the group's leader is unreaped. For Node, an unrecorded
+  `exitCode` and `signalCode` is that proof only when read outside libuv's reap batch: libuv reaps
+  every exited child before it dispatches any exit callback, so inside another child's exit callback,
+  or a tick or microtask between two of them, a reaped leader still reads as unrecorded. The adapter
+  therefore decides every group signal in a later `setImmediate` turn, after the poll phase has
+  dispatched the whole batch, and rereads the exit fields there. On a timeout or a cancellation it
+  sends SIGTERM to the group in that turn and holds the event loop for its termination grace
+  (`Atomics.wait`; OpenCode 25 ms, Gemini 10 ms), so the leader cannot be reaped between that SIGTERM
+  and the group SIGKILL that follows. OpenCode terminations requested before that turn share one hold.
+  A delivered
   pre-reap SIGKILL confirms cleanup, since a SIGKILL cannot be caught. After the leader is reaped the
   adapter MUST NOT signal the group: a `kill(-pid, 0)` probe, which delivers nothing, confirms cleanup
   only on `ESRCH`. A normal leader exit sends no signal. A same-group descendant still alive at close
   completes as the visible degradation `corvint-process-cleanup-unconfirmed`, never as the receipt,
-  and is not killed. Any other signal or probe answer, including Darwin `EPERM`, completes as that
+  and is not killed. Completion after a termination does not wait for close: OpenCode completes 100 ms
+  after the request and Gemini one grace after its group decision, so a descendant holding an inherited
+  pipe cannot hold the adapter; Gemini then closes its pipe ends. Any other signal or probe answer, including Darwin `EPERM`, completes as that
   degradation instead of the timeout, cancellation or receipt. The host deadline and the `FALLBACK`
   shapes are unchanged.
   This refines the accepted `AHI-009` sentence that requires a SIGKILL before completing a normal
   leader exit, and conflicts with it for that case: after a normal exit the leader is already reaped,
   so that SIGKILL could reach a reused group ID. The `AHI-009` text stands until the owner accepts or
   rejects this refinement.
-  Acceptance: the six `V1-0371` tests in `integrations/host-adapters.test.mjs`, under
-  `TestHostAdapterJavaScriptHosts`, fail on the base and pass after. They install a spy that records
+  Acceptance: the ten `V1-0371` tests in `integrations/host-adapters.test.mjs`, under
+  `TestHostAdapterJavaScriptHosts`, fail on the base and pass after. Six install a spy that records
   any non-zero group signal sent after the leader's `exit` was emitted, and require none. For each host
   they require that a timeout and a cancellation leave the TERM-ignoring `orphan-hang` descendant gone,
   with the unchanged `deadlineMs`, `FALLBACK` and exit codes. A normal exit leaving the `orphan-valid`
   descendant alive must report `corvint-process-cleanup-unconfirmed`, and an injected failure of the
-  group SIGKILL must name that degradation instead of the timeout.
+  group SIGKILL must name that degradation instead of the timeout. For each host, a sibling child and
+  the leader are blocked into zombies so one libuv batch reaps both, and the termination is requested
+  from the sibling's exit callback: `ps` must show the leader reaped with its exit unrecorded, and no
+  non-zero signal may reach its group. A Gemini leader that exits at once while a same-group descendant
+  keeps its stdout open must complete within the deadline as `corvint-process-cleanup-unconfirmed`.
+  Sixteen OpenCode runners cancelled together must block the event loop for one grace, not sixteen.
   Non-goals: no shell or sentinel wrapper, no immediate SIGKILL that skips the Corvint SIGTERM
   cleanup, and no change to the Pi or Go process owners. Descendants that left the owned group are not
   covered.
-  Failure modes: the event loop is blocked for the grace on each termination. Another child's
-  exit dispatch, a foreign in-process `waitpid(-1)`, or a runtime that reaps off the event-loop thread
-  (Bun's behaviour inside OpenCode was not observed) could reap the leader early. A reused group ID can
+  Failure modes: the event loop is blocked for one grace per termination turn. Sixteen OpenCode
+  cancellations in one turn measured 25.5 to 30.4 ms; cancellations in separate turns each block for
+  25 ms. A foreign in-process `waitpid(-1)`, or a runtime that reaps off the event-loop thread or
+  outside the poll phase (Bun's behaviour inside OpenCode was not observed), could reap the leader
+  early. A reused group ID can
   then only produce a false unconfirmed result through the probe, never a false success. A killed
   member that init has not yet reaped also reads as unconfirmed.
-  Rollback: revert the `signalGroup`, `holdUnreaped` and `cleanupConfirmed` changes in
+  Rollback: revert the `requestGroupTermination`, `terminateGroup`, `signalGroup`, `holdUnreaped` and
+  `cleanupConfirmed` changes in
   `integrations/opencode/src/runtime.js` and `integrations/gemini-cli/hooks/corvint-hook.mjs`, and
   their tests. The adapters then again send a group SIGKILL after the leader is reaped.
 
@@ -1220,7 +1235,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
-| `AHI-050` (proposed; V1-0371) | `signalGroup`, `holdUnreaped`, `cleanupConfirmed` and `groupGone` in `integrations/opencode/src/runtime.js`; `signalGroup`, `holdUnreaped` and `cleanupConfirmed` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`: `V1-0371 <host> timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`, `V1-0371 <host> normal exit with a surviving descendant reports unconfirmed cleanup, never success`, `V1-0371 <host> timeout names a failed group kill instead of the timeout`, for `opencode` and `gemini` |
+| `AHI-050` (proposed; V1-0371) | `requestGroupTermination`, `terminatePendingGroups`, `signalGroup`, `holdUnreaped`, `cleanupConfirmed` and `groupGone` in `integrations/opencode/src/runtime.js`; `terminateGroup`, `signalGroup`, `holdUnreaped` and `cleanupConfirmed` and the bounded `settle` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`: `V1-0371 <host> timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`, `V1-0371 <host> normal exit with a surviving descendant reports unconfirmed cleanup, never success`, `V1-0371 <host> timeout names a failed group kill instead of the timeout`, for `opencode` and `gemini`; `V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader's stdout open`, `V1-0371 OpenCode concurrent cancellations share one SIGTERM grace` |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
@@ -1231,7 +1246,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
-| `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the `AHI-009` owned-group kill as refined by the proposed `AHI-050`, the `V1-0371` OpenCode and Gemini timeout-and-cancellation, normal-exit and failed-kill tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |
+| `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the `AHI-009` owned-group kill as refined by the proposed `AHI-050`, the `V1-0371` OpenCode and Gemini timeout-and-cancellation, normal-exit, failed-kill, same-batch, inherited-pipe and shared-grace tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |
 | `AHI-016` | `cmd/corvint/prompt_bound.go`, Claude and Codex native wrappers; `integrations/gemini-cli/hooks/prompt-bound.mjs` and `integrations/opencode/src/prompt-bound.js` in the Gemini CLI hook and OpenCode `corvint_context` tool | `TestAHI016OverBoundPromptDerivesVerbatimAnchorQuery`, `TestAHI016OverBoundPromptKeepsRefusalWhenAnchorsCannotServe`, `TestAHI016ClaudeOverBoundPromptInjectsDisclosedContextWithoutStoring`, `TestAHI016OverBoundPromptMatchesCrossHostBoundaryCases`, and the `AHI-016` cross-host test in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts` |
 | `AHI-017` | `cmd/corvint/host_adapter.go` declared-kill table and watchdog; `integrations/gemini-cli/hooks/corvint-hook.mjs` derived budget | `TestAHI017AdapterHostKillMatchesDeclaredHooks` (which also fails on a matcherless `FileChanged` group), `TestAHI017HostAdapterWatchdogDegradesBeforeHostKill`, `TestHostAdapterPanicDegradesInsteadOfBlocking`, and the two `AHI-017` Gemini tests in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts` |
 | `AHI-018` | `integrations/gemini-cli/hooks/corvint-hook.mjs` argument parser and the `host-adapters.test.mjs` fixture harness | the `AHI-017` Gemini declared-kill test, which pins the shipped command to carry no override, under `TestHostAdapterJavaScriptHosts` |
