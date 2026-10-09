@@ -403,48 +403,67 @@ func checkBarrel(t *testing.T, reg string, files map[string]string, reason, via 
 	}
 }
 
-// AMAP-V0-025: a name the imported file exports itself through a local export list shadows every
-// `export *`, as in ECMAScript; the reader does not follow the local binding, so the name stays
-// UNKNOWN instead of resolving the star source's table.
+// AMAP-V0-025: a name the imported file exports itself (a local export list, or any declaration
+// form, read loosely when the reader does not read it name by name) shadows every `export *`, as
+// in ECMAScript; the reader does not follow it, so the name stays UNKNOWN instead of resolving the
+// star source's table.
 func TestAMAPV0025LocalExportShadowsStar(t *testing.T) {
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
 	for name, index := range map[string]string{
-		"local alias":    "const Local = { REPORTS: 'other' };\nexport { Local as SectionTable };\nexport * from './routes.constants';\n",
-		"local name":     "let SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\nexport { SectionTable };\n",
-		"imported alias": "import { Other } from './other';\nexport { Other as SectionTable };\nexport * from './routes.constants';\n",
+		"local alias":      "const Local = { REPORTS: 'other' };\nexport { Local as SectionTable };\nexport * from './routes.constants';\n",
+		"local name":       "let SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\nexport { SectionTable };\n",
+		"imported alias":   "import { Other } from './other';\nexport { Other as SectionTable };\nexport * from './routes.constants';\n",
+		"declare":          "export declare const SectionTable: { REPORTS: string };\nexport * from './routes.constants';\n",
+		"abstract":         "export abstract class SectionTable {}\nexport * from './routes.constants';\n",
+		"let declarator":   "export let a = 1, SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\n",
+		"declarator":       "export const a = 1, SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\n",
+		"table declarator": "export const a = { A: 'a' }, SectionTable = { REPORTS: 'other' };\nexport * from './routes.constants';\n",
+		"namespace":        "export namespace SectionTable {\n  export const REPORTS = 'other';\n}\nexport * from './routes.constants';\n",
+		"destructure":      "export const { SectionTable } = tables;\nexport * from './routes.constants';\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": index, decl: enum,
 				"app/tables/routes/other.ts": "export const Other = { REPORTS: 'other' };\n"}, "identifier-not-found", "")
 		})
 	}
-	// An exported destructuring may export the name; the reader cannot tell.
-	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export const { SectionTable } = tables;\nexport * from './routes.constants';\n",
+	// A barrel whose brackets do not balance may hide an export statement.
+	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nwrap(\n",
 		decl: enum}, "ambiguous-barrel", "")
+	// A loose export that does not mention the name shadows nothing.
+	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export declare const Other: string;\nexport let a = 1, b = 2;\nexport * from './routes.constants';\n",
+		decl: enum}, "", "app/tables/routes/index.ts")
 	// A type-only local export list exports no value and shadows nothing.
 	checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "type Local = string;\nexport type { Local as SectionTable };\nexport * from './routes.constants';\n",
 		decl: enum}, "", "app/tables/routes/index.ts")
 }
 
 // AMAP-V0-025: a star source that exports the name in a form the reader does not read as a table
-// (a let, var, function, class, typed const or local export list) is still a candidate, so beside a
-// readable table the name is ambiguous, and alone it is not found.
+// (a let, var, function, class, typed, declared or later-declarator const, abstract class,
+// namespace, destructuring or local export list), or whose brackets do not balance, is still a
+// candidate, so beside a readable table the name is ambiguous, and alone it is not found.
 func TestAMAPV0025UnreadStarExportIsAmbiguous(t *testing.T) {
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
 	for name, copy := range map[string]string{
-		"let":         "export let SectionTable = { REPORTS: 'other' };\n",
-		"var":         "export var SectionTable = { REPORTS: 'other' };\n",
-		"function":    "export function SectionTable() {}\n",
-		"async":       "export async function SectionTable() {}\n",
-		"generator":   "export function* SectionTable() {}\n",
-		"class":       "export class SectionTable {}\n",
-		"typed const": "export const SectionTable: Tables = { REPORTS: 'other' };\n",
-		"export list": "const SectionTable = { REPORTS: 'other' };\nexport { SectionTable };\n",
-		"destructure": "export const { SectionTable } = tables;\n",
+		"let":              "export let SectionTable = { REPORTS: 'other' };\n",
+		"var":              "export var SectionTable = { REPORTS: 'other' };\n",
+		"function":         "export function SectionTable() {}\n",
+		"async":            "export async function SectionTable() {}\n",
+		"generator":        "export function* SectionTable() {}\n",
+		"class":            "export class SectionTable {}\n",
+		"typed const":      "export const SectionTable: Tables = { REPORTS: 'other' };\n",
+		"export list":      "const SectionTable = { REPORTS: 'other' };\nexport { SectionTable };\n",
+		"destructure":      "export const { SectionTable } = tables;\n",
+		"declare":          "export declare const SectionTable: { REPORTS: string };\n",
+		"abstract":         "export abstract class SectionTable {}\n",
+		"let declarator":   "export let a = 1, SectionTable = { REPORTS: 'other' };\n",
+		"declarator":       "export const a = 1, SectionTable = { REPORTS: 'other' };\n",
+		"table declarator": "export const a = { A: 'a' }, SectionTable = { REPORTS: 'other' };\n",
+		"namespace":        "export namespace SectionTable {\n  export const REPORTS = 'other';\n}\n",
+		"unbalanced":       "wrap(\nexport const SectionTable = { REPORTS: 'other' };\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './copy';\n",

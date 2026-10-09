@@ -25,9 +25,13 @@ injector.
   or an unreadable item -> `ambiguous-barrel`; a candidate that could re-export again ->
   `barrel-depth-exceeded`; a candidate outside the repository index -> `out-of-scope`; none ->
   `identifier-not-found`. A name the imported file exports itself (an exported `let`, `var`,
-  `function`, `class` or unreadable `const`, or a local `export { ... }` list) shadows every
-  re-export and is not followed (`identifier-not-found`); a candidate that exports the name in any
-  form counts toward ambiguity even when it is not a readable table. The re-export statement is
+  `function`, `class` or unreadable `const`, a local `export { ... }` list, or any other export
+  statement) shadows every re-export and is not followed (`identifier-not-found`); a candidate
+  that exports the name in any form counts toward ambiguity even when it is not a readable table.
+  Fail-closed by construction: an export statement the parser does not read name by name
+  (`declare`, `abstract`, `namespace`, `export =`, destructuring, several declarators) counts every
+  identifier up to its top-level `;` or the next top-level `export` as an exported name, and a
+  file whose brackets do not balance may export any name. The re-export statement is
   a new anchor between the declaring line and the import. Re-exports for router-file imports
   (AMAP-V0-016 follow-up 10) stay out of scope.
 - AMAP-V0-026: when the scope holds exactly one registration of the name and a read through it
@@ -51,6 +55,14 @@ injector.
   resolves the star source's table (local alias, imported alias; a `let`/`var`/`function`/async/
   generator/`class`/typed-`const`/export-list/destructured second star source); all pass after
   the fix.
+- Second review follow-up (P2: unrecorded export forms): both tests gained `declare const`,
+  `abstract class`, second-declarator `let`/`const` (scalar and table first declarator),
+  `namespace` and unbalanced-bracket cases, as star source and as the barrel's own export, plus a
+  guard that a loose export not naming the table still resolves. Against `stateconst.go` from
+  `2962ca8c`, 11 subtests and the unbalanced-barrel check fail because the barrel resolves
+  (`declare`/`abstract`/declarators/`namespace`/unbalanced as star source; declarators and
+  `namespace` as the barrel's export), and the barrel-destructuring subtest fails on its reason
+  (`ambiguous-barrel`, now `identifier-not-found`); all pass after the fix.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -59,7 +71,10 @@ injector.
 - No diagnostic for zero or several registrations, a poisoned scope, or a router-side binding the
   reader cannot prove (owner question 16 stays open); those keep the AMAP-V0-023 unknowns only.
 - `import { X } from './a'; export { X };` (local re-export list) and deeper barrels are not
-  followed; such a local export only blocks resolution. Export forms the parser does not list
-  (`export declare`/`abstract class`, a second declarator in `export let a = 1, b = 2`, TS
-  `namespace`) are not recorded and could still let a star source resolve. No adopter-scale
-  qualification (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.
+  followed; such a local export only blocks resolution. Loose export reading over-approximates:
+  any identifier in such a statement (an initializer's reference, a namespace member) also counts,
+  so a barrel can stay `UNKNOWN` where ECMAScript would resolve. The statement end is a top-level
+  `;` or the next top-level `export`; without semicolons later non-exported code is scanned too
+  (more uncertainty, never less). Detection relies on the existing lexer: a lexing error that
+  keeps brackets balanced while hiding an export is not detected. No adopter-scale qualification
+  (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.

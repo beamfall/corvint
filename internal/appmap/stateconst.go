@@ -61,9 +61,10 @@ type constFile struct {
 	// registration's import (AMAP-V0-025); opaque marks one the reader could not read item by item.
 	reexports []reexport
 	opaque    bool
-	// exports are the names the file exports itself, by an exported declaration of any kind or a
-	// local `export { ... }` list, whether or not the reader can read the value (AMAP-V0-025);
-	// unlisted marks an exported destructuring, whose names the reader does not list.
+	// exports are the names the file may export itself, by an exported declaration of any kind or a
+	// local `export { ... }` list, whether or not the reader can read the value (AMAP-V0-025): every
+	// identifier of an export statement the reader does not read name by name counts. unlisted
+	// marks a file whose brackets do not balance, so an export statement may have gone unseen.
 	exports  map[string]bool
 	unlisted bool
 	skip     []bool // tokens of import and re-export statements and constant declaration headers
@@ -437,6 +438,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 				i = end - 1
 				continue
 			}
+			if !exactExport(toks, i) {
+				f.looseExport(i)
+			}
 			exportAt = i
 			continue
 		}
@@ -467,6 +471,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			f.exports[name] = f.exports[name] || exported
 			if !isPunct(toks[k], "=") || k+1 >= len(toks) {
 				declare(name, &constDecl{bad: true}) // a type annotation: not read
+				if exported {
+					f.looseExport(start)
+				}
 				continue
 			}
 			k++
@@ -476,6 +483,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			}
 			if !isPunct(toks[k], "{") {
 				declare(name, &constDecl{bad: true})
+				if exported {
+					f.looseExport(start)
+				}
 				continue
 			}
 			v, after := parseValue(toks, k)
@@ -487,6 +497,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			}
 			d := objectDecl(v, toks, after)
 			d.exported = exported
+			if exported && d.bad {
+				f.looseExport(start) // a second declarator, or a table the reader does not read
+			}
 			declare(name, d)
 			f.mark(start, i+2) // the header only: the initializer may alias another table
 			i = after - 1
@@ -495,6 +508,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 				i++
 			}
 			if i+2 >= len(toks) || toks[i+1].kind != tokIdent || !isPunct(toks[i+2], "{") {
+				if exported {
+					f.looseExport(start)
+				}
 				continue
 			}
 			d, after := enumDecl(toks, i+2)
@@ -511,16 +527,68 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			if k < len(toks) && (t.text == "function" || t.text == "async") && isPunct(toks[k], "*") {
 				k++ // a generator
 			}
-			switch {
-			case k < len(toks) && toks[k].kind == tokIdent && (t.text != "async" || k > i+1):
+			if k < len(toks) && toks[k].kind == tokIdent && (t.text != "async" || k > i+1) {
 				declare(toks[k].text, &constDecl{bad: true})
 				f.exports[toks[k].text] = f.exports[toks[k].text] || exported
-			case exported && k < len(toks) && (isPunct(toks[k], "{") || isPunct(toks[k], "[")):
-				f.unlisted = true
+			}
+			if exported && (t.text == "let" || t.text == "var" || t.text == "const") {
+				f.looseExport(start) // further declarators or a destructuring bind more names
 			}
 		}
 	}
+	f.unlisted = depth != 0
 	return f
+}
+
+// exactExport reports whether the export statement at toks[i] is one whose exported names the
+// parser reads exactly: a re-export or local list, a default export, an enum, a function or class,
+// a type, or a declaration the declaration cases read (and widen through looseExport when they
+// cannot). Any other form (`declare`, `abstract`, `namespace`, `export =`, ...) is read loosely.
+func exactExport(toks []token, i int) bool {
+	if i+1 >= len(toks) {
+		return true
+	}
+	n := toks[i+1]
+	if n.kind == tokPunct {
+		return n.text == "{" || n.text == "*"
+	}
+	switch n.text {
+	case "default", "enum", "function", "class", "interface", "type", "let", "var", "const":
+		return n.kind == tokIdent
+	case "async":
+		return i+2 < len(toks) && toks[i+2].kind == tokIdent && toks[i+2].text == "function"
+	}
+	return false
+}
+
+// looseExport counts every identifier of the export statement at toks[i], up to its top-level `;`
+// or the next top-level `export`, as a name the file may export (AMAP-V0-025): a form the reader
+// does not read name by name must keep its uncertainty, never let a star source resolve.
+func (f *constFile) looseExport(i int) {
+	toks, depth := f.toks, 0
+	for k := i + 1; k < len(toks); k++ {
+		t := toks[k]
+		if t.kind == tokPunct {
+			switch t.text {
+			case "{", "[", "(":
+				depth++
+			case "}", "]", ")":
+				depth--
+			case ";":
+				if depth <= 0 {
+					return
+				}
+			}
+			continue
+		}
+		if t.kind != tokIdent {
+			continue
+		}
+		if depth <= 0 && t.text == "export" && !isPunct(toks[k-1], ".") {
+			return
+		}
+		f.exports[t.text] = true
+	}
 }
 
 func (f *constFile) mark(from, to int) {

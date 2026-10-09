@@ -336,21 +336,25 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   import resolution) does not declare the imported name, an injected registration MUST follow
   exactly one level of its `export ... from 'M'` statements: `export { T }`, `export { S as T }`,
   `export { default as T }` or `export * from 'M'`. A named re-export of the name shadows every
-  `export *`, as in ECMAScript; so does a name the imported file exports itself (an exported `let`,
-  `var`, `function`, `class` or unreadable `const`, or a local `export { ... }` list), which the
-  reader does not follow. A candidate module that exports the name in any form counts as a
-  candidate, whether or not the reader can read it as a table. The table resolves only when exactly
-  one candidate module, itself a tracked, indexed and readable file of the repository, declares and
-  exports it (or holds the default export it names) under the AMAP-V0-016 and AMAP-V0-024 rules; the
-  re-export statement joins the anchors between the declaring line and the registering file's
-  import. Otherwise the name stays `UNKNOWN` with the AMAP-V0-026 reason: two candidates, a
-  re-export item the reader cannot read, or an exported destructuring in the imported file,
-  `ambiguous-barrel`; a candidate module that does not declare the name but could re-export it
-  again, `barrel-depth-exceeded`; a candidate module outside the repository index (a package, an
-  unresolved or unreadable path), `out-of-scope`; no candidate, a type-only re-export,
-  `export * as T`, the imported file's own unfollowed export of the name, or one candidate that
-  does not export it as a readable table, `identifier-not-found`. Re-exports are not followed for a router file's
-  own imports (AMAP-V0-016). Status: proposed (V1-1061; GitHub #705).
+  `export *`, as in ECMAScript; so does a name the imported file exports itself in any other form
+  (an exported `let`, `var`, `function`, `class` or unreadable `const`, a local `export { ... }`
+  list, or any other export statement), which the reader does not follow. A candidate module that
+  exports the name in any form counts as a candidate, whether or not the reader can read it as a
+  table. An export statement the reader does not read name by name (a `declare`, `abstract` or
+  `namespace` export, a destructuring, a declaration with several declarators) counts every
+  identifier in it as a name it may export, and a file whose brackets do not balance may export any
+  name. The table resolves only when exactly one candidate module, itself a tracked, indexed and
+  readable file of the repository, declares and exports it (or holds the default export it names)
+  under the AMAP-V0-016 and AMAP-V0-024 rules; the re-export statement joins the anchors between the
+  declaring line and the registering file's import. Otherwise the name stays `UNKNOWN` with the
+  AMAP-V0-026 reason: two candidates, a re-export item the reader cannot read, or an imported file
+  whose brackets do not balance, `ambiguous-barrel`; a candidate module that does not declare the
+  name but could re-export it again, `barrel-depth-exceeded`; a candidate module outside the
+  repository index (a package, an unresolved or unreadable path), `out-of-scope`; no candidate, a
+  type-only re-export, `export * as T`, the imported file's own unfollowed export of the name, or
+  one candidate that does not export it as a readable table, `identifier-not-found`. Re-exports are
+  not followed for a router file's own imports (AMAP-V0-016). Status: proposed (V1-1061; GitHub
+  #705).
 - `AMAP-V0-026`: When the `di_constants` scope holds exactly one registration of an injected name
   `X`, the scope is not poisoned, and a member read through it does not resolve, the map MUST carry
   one unknown `{kind: "di-constant", ref: X, reason, path, line}` naming the registering file and
