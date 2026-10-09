@@ -523,3 +523,35 @@ func TestAMAPV0026DIConstantDiagnostics(t *testing.T) {
 		})
 	}
 }
+
+// AMAP-V0-025: a file whose exports the reader cannot list -- an export statement a reader
+// rejects or cannot decode (a string export name, an undecodable module name), a body that does
+// not close, or an escaped identifier the lexer splits -- may export any name, so the table never
+// resolves through it by elimination, as the barrel or as a competing star source.
+func TestAMAPV0025UnlistableExportsFailClosed(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
+	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
+	for name, form := range map[string]string{
+		"quoted namespace":   "export * as \"SectionTable\" from './other';\n",
+		"undecodable module": "export * from './\\uD800';\n",
+		"unclosed enum":      "export enum Other {\n",
+		"escaped class":      "export class \\u0053ectionTable {}\n",
+		"quoted list name":   "const Local = { REPORTS: 'other' };\nexport { Local as \"SectionTable\" };\n",
+		"dangling export":    "export\n",
+	} {
+		other := "export const Unrelated = { A: 'a' };\n"
+		t.Run("barrel "+name, func(t *testing.T) {
+			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n" + form,
+				decl: enum, "app/tables/routes/other.ts": other}, "ambiguous-barrel", "")
+		})
+		t.Run("named "+name, func(t *testing.T) {
+			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export { SectionTable } from './routes.constants';\n" + form,
+				decl: enum, "app/tables/routes/other.ts": other}, "ambiguous-barrel", "")
+		})
+		t.Run("star source "+name, func(t *testing.T) {
+			checkBarrel(t, reg, map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\nexport * from './copy';\n",
+				decl: enum, "app/tables/routes/copy.ts": form, "app/tables/routes/other.ts": other}, "ambiguous-barrel", "")
+		})
+	}
+}

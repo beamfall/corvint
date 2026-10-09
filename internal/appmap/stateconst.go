@@ -64,9 +64,11 @@ type constFile struct {
 	// exports are the names the file may export itself, by an exported declaration of any kind or a
 	// local `export { ... }` list, whether or not the reader can read the value (AMAP-V0-025): every
 	// identifier of an export statement the reader does not read name by name counts. unlisted
-	// marks a file whose brackets do not balance, so an export statement may have gone unseen.
+	// marks a file whose exports the reader cannot list (see unread), so it may export any name;
+	// claimed holds the `export` tokens a reader consumed, for that check.
 	exports  map[string]bool
 	unlisted bool
+	claimed  map[int]bool
 	skip     []bool // tokens of import and re-export statements and constant declaration headers
 	reads    map[readKey]bool
 	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
@@ -407,7 +409,7 @@ func inExportList(toks []token, i int) bool {
 func parseConstFile(e blobEntry, data []byte) *constFile {
 	toks, _ := lexJS(string(data))
 	f := &constFile{entry: e, data: data, toks: toks, decls: map[string]*constDecl{}, imports: map[string]constImport{},
-		exports: map[string]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
+		exports: map[string]bool{}, claimed: map[int]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
 	declare := func(name string, d *constDecl) {
 		if prior, dup := f.decls[name]; dup {
 			prior.bad = true
@@ -438,8 +440,11 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 				i = end - 1
 				continue
 			}
-			if !exactExport(toks, i) {
+			switch {
+			case !exactExport(toks, i):
 				f.looseExport(i)
+			case i+2 < len(toks) && (toks[i+1].text == "type" || toks[i+1].text == "interface") && toks[i+2].kind == tokIdent:
+				f.claimed[i] = true // a type exports no value
 			}
 			exportAt = i
 			continue
@@ -451,6 +456,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		exportAt = -1
 		switch {
 		case t.text == "default" && exported && i+1 < len(toks):
+			f.claimed[start] = true // `export *` never re-exports a default
 			if isPunct(toks[i+1], "{") {
 				v, after := parseValue(toks, i+1)
 				d := objectDecl(v, toks, after)
@@ -500,6 +506,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			if exported && d.bad {
 				f.looseExport(start) // a second declarator, or a table the reader does not read
 			}
+			f.claimed[start] = exported
 			declare(name, d)
 			f.mark(start, i+2) // the header only: the initializer may alias another table
 			i = after - 1
@@ -516,6 +523,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			d, after := enumDecl(toks, i+2)
 			d.exported = exported
 			f.exports[toks[i+1].text] = f.exports[toks[i+1].text] || exported
+			f.claimed[start] = exported
 			declare(toks[i+1].text, d)
 			f.mark(start, i+2)
 			i = after - 1
@@ -530,14 +538,48 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			if k < len(toks) && toks[k].kind == tokIdent && (t.text != "async" || k > i+1) {
 				declare(toks[k].text, &constDecl{bad: true})
 				f.exports[toks[k].text] = f.exports[toks[k].text] || exported
+				f.claimed[start] = exported
 			}
 			if exported && (t.text == "let" || t.text == "var" || t.text == "const") {
 				f.looseExport(start) // further declarators or a destructuring bind more names
 			}
 		}
 	}
-	f.unlisted = depth != 0
+	f.auditExports()
 	return f
+}
+
+// unread marks f as a file whose exports the reader cannot list, so it may export any name
+// (AMAP-V0-025): every reader path that rejects, skips or cannot decode part of an export
+// statement ends here, and an injected table never resolves through such a file by elimination.
+func (f *constFile) unread() {
+	f.unlisted = true
+}
+
+// auditExports checks f by one whole-file token pass, independent of the declaration readers
+// (whose skipped bodies could hide what follows): brackets that do not balance, a backslash
+// outside a string (an escaped identifier the lexer splits), or a top-level `export` that no
+// reader consumed makes the file unread.
+func (f *constFile) auditExports() {
+	depth := 0
+	for k, t := range f.toks {
+		switch {
+		case t.kind == tokPunct && (t.text == "{" || t.text == "[" || t.text == "("):
+			depth++
+		case t.kind == tokPunct && (t.text == "}" || t.text == "]" || t.text == ")"):
+			depth--
+			if depth < 0 {
+				f.unread()
+			}
+		case t.kind == tokPunct && t.text == "\\":
+			f.unread()
+		case t.kind == tokIdent && t.text == "export" && depth == 0 && (k == 0 || !isPunct(f.toks[k-1], ".")) && !f.claimed[k]:
+			f.unread()
+		}
+	}
+	if depth != 0 {
+		f.unread()
+	}
 }
 
 // exactExport reports whether the export statement at toks[i] is one whose exported names the
@@ -565,6 +607,7 @@ func exactExport(toks []token, i int) bool {
 // or the next top-level `export`, as a name the file may export (AMAP-V0-025): a form the reader
 // does not read name by name must keep its uncertainty, never let a star source resolve.
 func (f *constFile) looseExport(i int) {
+	f.claimed[i] = true
 	toks, depth := f.toks, 0
 	for k := i + 1; k < len(toks); k++ {
 		t := toks[k]
@@ -676,7 +719,7 @@ func (f *constFile) readReexport(i int) (int, bool) {
 	if typeOnly {
 		j++
 	}
-	items, opaque, list := []reexport{}, false, next(toks, j, "{")
+	items, opaque, list, quoted := []reexport{}, false, next(toks, j, "{"), false
 	switch {
 	case next(toks, j, "*"):
 		j++
@@ -695,8 +738,10 @@ func (f *constFile) readReexport(i int) (int, bool) {
 				// a type-only item exports no value
 			case name(toks[k]) && next(toks, k+1, ",", "}"):
 				items = append(items, reexport{exported: toks[k].text, source: toks[k].text})
+				quoted = quoted || toks[k].kind != tokIdent
 			case name(toks[k]) && k+3 <= end && toks[k+1].text == "as" && name(toks[k+2]) && next(toks, k+3, ",", "}"):
 				items = append(items, reexport{exported: toks[k+2].text, source: toks[k].text})
+				quoted = quoted || toks[k+2].kind != tokIdent
 			default:
 				opaque = true
 			}
@@ -705,19 +750,32 @@ func (f *constFile) readReexport(i int) (int, bool) {
 	default:
 		return 0, false
 	}
-	if j+1 >= len(toks) || toks[j].kind != tokIdent || toks[j].text != "from" || !literal(toks[j+1]) {
-		if list && !typeOnly {
-			// a local export list: its names shadow every `export *` though the reader does not
-			// follow them (AMAP-V0-025)
+	from := j < len(toks) && toks[j].kind == tokIdent && toks[j].text == "from"
+	if !from && list {
+		// a local export list: its names shadow every `export *` though the reader does not
+		// follow them (AMAP-V0-025)
+		f.claimed[i] = true
+		if !typeOnly {
 			for _, r := range items {
 				f.exports[r.exported] = true
 			}
 			f.opaque = f.opaque || opaque
+			if quoted {
+				f.unread() // a string export name
+			}
 		}
-		return 0, false // a local export list, or a statement this reader does not follow
+		return 0, false
 	}
+	if !from || j+1 >= len(toks) || !literal(toks[j+1]) {
+		f.unread() // `export * as "N"`, or a module name the lexer cannot decode exactly
+		return 0, false
+	}
+	f.claimed[i] = true
 	if typeOnly {
 		return j + 2, true
+	}
+	if quoted {
+		f.unread() // a string export name
 	}
 	f.opaque = f.opaque || opaque
 	for _, r := range items {
