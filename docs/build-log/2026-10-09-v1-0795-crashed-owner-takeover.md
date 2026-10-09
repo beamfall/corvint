@@ -22,7 +22,7 @@ proves the stop (no worker, no lane, quiescence `PROVED`), but no rule admitted 
 ## Decision
 
 The ticket left the choice open between a combined attempt+program transition and a takeover
-rule. This lane takes the takeover rule, recorded as proposed `CAL-V0-210` (V1-0795;
+rule. This lane takes the takeover rule, recorded as `CAL-V0-210` (accepted by decision 0473) (V1-0795;
 `docs/specs/corvint-tasks-agent-leases-v0.md`). A combined transition would change the journal
 write shape. The takeover rule reuses the existing program record and the existing fencing:
 expected-inventory binding, `PreviousOwnerGone` from a dead owner identity, epoch plus one and an
@@ -76,8 +76,8 @@ nil in the product.
 
 ## Limits
 
-- `CAL-V0-210` is proposed and not accepted. The implementation is experimental until the owner
-  accepts it.
+- `CAL-V0-210` was accepted by the owner on 2026-10-09 (decision 0473). Live host qualification
+  remains `NOT_RUN`.
 - No transaction-level unit test forges a `FINISHED` takeover over an unproved attempt, because no
   public path reaches `planProgram` with one. The store refuses the worker case first. The
   transaction predicate is exercised only through the store test.

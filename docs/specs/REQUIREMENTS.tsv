@@ -562,7 +562,7 @@ CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5449	(proposed (V1-1042))
 CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5455	(proposed (V1-1042)) An ended generation that returned its allocation early MUST
 CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5459	(proposed (V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null w
 CAL-V0-205	docs/specs/corvint-tasks-agent-leases-v0.md	5505	(accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the
-CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5544	(proposed (V1-0795)) A program transition that changes the owner of a program in
+CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5544	(accepted (decision 0473; V1-0795)) A program transition that changes the owner
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
