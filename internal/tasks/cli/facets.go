@@ -101,13 +101,14 @@ func facetSummary(rc *readCtx, ids []string) wire.Value {
 	byBlocker := map[string]int64{}
 	byMilestone := map[string]int64{}
 	byLabel := map[string]int64{}
-	without := int64(0)
+	without, total := int64(0), int64(0)
 	for _, id := range ids {
 		v, ok := inv.View(id, ctx)
 		if !ok || v.Record == nil {
 			continue
 		}
 		rec := v.Record
+		total++
 		byStatus[rec.Status]++
 		byPriority[rec.Priority]++
 		byKind[rec.Kind]++
@@ -133,7 +134,7 @@ func facetSummary(rc *readCtx, ids []string) wire.Value {
 		}
 	}
 	o := wire.NewObject()
-	o.Set("total", countValue(int64(len(ids))))
+	o.Set("total", countValue(total))
 	o.Set("byStatus", countsValue(byStatus))
 	o.Set("byPriority", countsValue(byPriority))
 	o.Set("byKind", countsValue(byKind))

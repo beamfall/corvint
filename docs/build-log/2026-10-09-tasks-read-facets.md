@@ -154,6 +154,36 @@ Interleaved medians of 5, real store, read-only, before and after this step:
 | `roadmap --count` | 0.168 s | 0.150 s |
 | `ticket search --milestone v1-0 --status OPEN` | 0.190 s | 0.163 s |
 
+## Closed facets decoder (V1-1052)
+
+The independent review of afea0709 failed with one P2. The result decoder (`wire/result.go`) checked
+only that `facets` was an object, so `{}`, a boolean `total` with an extra key, or a `"-1"` total
+all encoded and decoded.
+
+- `wire/facets.go` now decodes the closed summary. It requires exactly the thirteen members and wire
+  Counts throughout. Each of the five closed maps must hold exactly its enum values and sum to
+  `total`. `byNextAction` keys come from the next-action set, with non-zero counts summing to
+  `total`. `byBlockerCode` keys are detail codes, and `byMilestone` and `byLabel` keys are labels.
+  Open counts are 1..`total`, and `withoutMilestone` plus the milestone counts stays at or below
+  `total`. An open map holds at most 64 keys, and exactly 64 whenever its omitted count is non-zero.
+- `wire` cannot import `ticket`, so the enum lists are duplicated in `wire`.
+  `TestCALV0206_WireFacetKeysMatchTicketEnums` (`internal/tasks/ticket`) keeps them equal to the
+  ticket enums and to the `nextAction` return set in `view.go`.
+- The producer now counts `total` from the views it actually counts rather than from the match
+  length, so the encoder's self-validation cannot see a sum mismatch.
+- CAL-V0-206 (proposed) states the decoder refusal.
+
+**Tests.** `TestCALV0206_FacetsMemberIsTheClosedSummary` has 20 negative cases, the reviewer's three
+included, each refused `MALFORMED` by both `Encode` and `DecodeResult`. It also admits 64 labels with
+one omitted. On a worktree at afea0709 with the same tests and a test-only enum file, every negative
+case encoded and decoded, so the test fails on base. The focused packages pass: `wire`, `ticket`,
+`intent`, `cli`, `companionrelease`, `console` and `dashboard/roadmap`. `go vet` is clean.
+
+**Real store.** The strict encoder accepted every real read, read-only: `roadmap --count` (1074),
+`ticket list --count` (1074), `ticket search --milestone v1-0 --status OPEN --count` (63),
+`ticket search --status OPEN --facets --limit 1` (519) and `ticket search --label bugs --count`
+(384).
+
 ## Limits
 
 - Live qualification: NOT_RUN.
