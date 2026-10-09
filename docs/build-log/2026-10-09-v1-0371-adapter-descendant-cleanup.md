@@ -2,8 +2,8 @@
 
 Date: 2026-10-09
 Ticket: V1-0371
-Requirement: AHI-050 (proposed; acceptance is human-owned). It refines the accepted AHI-009
-normal-exit sentence and conflicts with it.
+Requirement: AHI-050 (accepted by decision 0474 on the c05bf0a4 text). It supersedes the earlier
+AHI-009 normal-exit SIGKILL and EPERM-as-confirmed text, which now points to AHI-050.
 
 ## Intent
 

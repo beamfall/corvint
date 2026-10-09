@@ -308,6 +308,6 @@ it. Gemini and OpenCode now signal the owned group only while its leader is unre
 the group SIGKILL follows before Node can reap. After a reap
 they only probe the group with signal 0, and a surviving descendant at a normal exit completes as
 `corvint-process-cleanup-unconfirmed` rather than being signalled through a possibly reused group ID
-(proposed `AHI-050`, V1-0371).
+(`AHI-050`, accepted by decision 0474, V1-0371).
 The test supervisor composes caller cancellation with shutdown and includes an outer-supervisor
 interruption regression proving its detached native descendant exits.
