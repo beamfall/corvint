@@ -227,58 +227,115 @@ func TestContainKeepsPlainCommandStartable(t *testing.T) {
 }
 
 // AHI-048: concurrent starts, releases and one exit kill never signal a group
-// whose leader was reaped, and nothing is recorded after the kill. Every
-// worker keeps starting until the kill refuses it, so starts and releases
-// overlap the kill. Run under -race.
+// whose leader was reaped, and nothing is recorded after the kill (V1-1041).
+// Every worker starts through the registry and reaps through the production
+// wait, so its release precedes the reap exactly as Wait orders them. A
+// barrier proves the first starts overlap: every first group is recorded at
+// once. Half of those first children stay blocked on stdin, so the kill must
+// signal live recorded groups, while the other half are released at the same
+// moment and keep starting and releasing until the kill refuses them. Run
+// under -race.
 func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
 	var mu sync.Mutex
 	reaped := map[int]bool{}
+	signalled := map[int]bool{}
 	r := newLiveRegistry(func(group int, signal syscall.Signal) error {
 		mu.Lock()
 		defer mu.Unlock()
 		if reaped[-group] {
 			t.Errorf("signalled the group of reaped leader %d", -group)
 		}
+		signalled[-group] = true
 		return syscall.Kill(group, signal)
 	})
+	previous := liveGroups
+	liveGroups = r
+	t.Cleanup(func() { liveGroups = previous })
+
 	const workers = 8
-	var started sync.WaitGroup
-	started.Add(workers)
-	refused := make(chan bool, workers)
+	type first struct {
+		leader int
+		stdin  *os.File
+	}
+	firsts := make(chan first, workers)
+	proceed := make(chan struct{})
+	refused := make(chan error, workers)
+	reap := func(command *exec.Cmd) {
+		_ = wait(command, nil)
+		mu.Lock()
+		reaped[command.Process.Pid] = true
+		mu.Unlock()
+	}
 	for range workers {
 		go func() {
-			first := true
+			read, write, err := os.Pipe()
+			if err != nil {
+				refused <- err
+				return
+			}
+			command := exec.Command("/bin/sh", "-c", "read _")
+			command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			command.Stdin = read
+			err = r.start(command)
+			read.Close()
+			if err != nil {
+				write.Close()
+				refused <- err
+				return
+			}
+			firsts <- first{leader: command.Process.Pid, stdin: write}
+			<-proceed
+			reap(command)
 			for {
 				command := exec.Command("/bin/sh", "-c", "exit 0")
 				command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-				err := r.start(command)
-				if first {
-					first = false
-					started.Done()
-				}
-				if errors.Is(err, ErrExiting) {
-					refused <- true
-					return
-				} else if err != nil {
-					t.Error(err)
-					refused <- false
+				if err := r.start(command); err != nil {
+					refused <- err
 					return
 				}
-				leader := command.Process.Pid
-				// The order Wait keeps: release, then reap.
-				r.release(leader)
-				_ = command.Wait()
-				mu.Lock()
-				reaped[leader] = true
-				mu.Unlock()
+				reap(command)
 			}
 		}()
 	}
-	started.Wait()
+	var held []first
+	for i := range workers {
+		select {
+		case started := <-firsts:
+			if !r.recorded(started.leader) {
+				t.Fatalf("first start %d was not recorded", started.leader)
+			}
+			held = append(held, started)
+		case err := <-refused:
+			t.Fatalf("worker %d failed its first start: %v", i, err)
+		}
+	}
+	// A hang detector for a kill that misses a held group (decision 0082).
+	t.Cleanup(func() {
+		for _, h := range held {
+			_ = h.stdin.Close()
+		}
+	})
+	r.mu.Lock()
+	overlapping := len(r.groups)
+	r.mu.Unlock()
+	if overlapping != workers {
+		t.Fatalf("%d groups recorded at the barrier, want all %d first starts to overlap", overlapping, workers)
+	}
+	close(proceed)
+	for _, h := range held[:workers/2] {
+		_ = h.stdin.Close()
+	}
 	r.kill()
 	for range workers {
-		if !<-refused {
-			t.Fatal("a worker stopped before the kill refused it")
+		if err := <-refused; !errors.Is(err, ErrExiting) {
+			t.Fatalf("a worker stopped before the kill refused it: %v", err)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, h := range held[workers/2:] {
+		if !signalled[h.leader] {
+			t.Fatalf("the kill did not signal live recorded group %d", h.leader)
 		}
 	}
 	if len(r.groups) != 0 {
