@@ -24,6 +24,24 @@ func signalLiveGroup(group int, signal syscall.Signal) error { return syscall.Ki
 // leader is still unreaped; elsewhere it is signalled after Wait.
 func Wait(command *exec.Cmd) error { return wait(command, nil) }
 
+// WaitResidue is Wait that also reports residue (WQO-V0-032): whether a
+// group member other than the exited leader may still be live. Where waitid
+// is available, residue is decided while the exited leader is held unreaped,
+// by the owner's quiet proof (Darwin signal 0, Linux /proc, PGO-V0-006), and
+// only then is the group SIGKILLed and the leader reaped, so no group signal
+// follows the reap (V1-1036). A failed proof or exit observation reports
+// residue, never a clean group. Without waitid, residue is whether the legacy
+// post-reap group SIGKILL reached a process.
+func WaitResidue(command *exec.Cmd) (bool, error) {
+	return waitHeld(command, func(leader int) bool {
+		probe, err := residueProof(leader)
+		return err != nil || probe == ProbeLive
+	}, nil)
+}
+
+// residueProof is the owner's pre-reap quiet proof; tests observe or inject it.
+var residueProof = func(leader int) (Probe, error) { return defaultPrimitives().QuietProof(leader) }
+
 // wait runs exited after the group signal and before the reap where waitid
 // allows, so detached-descendant retirement precedes any output-pipe wait. A
 // group recorded by StartLive is released after that signal and before the
@@ -34,25 +52,36 @@ func Wait(command *exec.Cmd) error { return wait(command, nil) }
 // already be reaped, so its numeric group ID confers no kill authority
 // (V1-0652). Only platforms without waitid keep the legacy post-reap signal.
 func wait(command *exec.Cmd, exited func()) error {
+	_, err := waitHeld(command, nil, exited)
+	return err
+}
+
+// waitHeld is wait that first runs held, if any, while the exited leader is
+// held unreaped and before the group signal, and returns its result. After a
+// failed exit observation the result is true (unproved); without waitid it is
+// whether the legacy post-reap group SIGKILL reached a process.
+func waitHeld(command *exec.Cmd, held func(int) bool, exited func()) (bool, error) {
 	processID := command.Process.Pid
 	observed := observeExit(processID)
 	if observed == nil {
+		result := held != nil && held(processID)
 		_ = signalGroup(-processID, syscall.SIGKILL)
 		liveGroups.release(processID)
 		if exited != nil {
 			exited()
 		}
-		return command.Wait()
+		return result, command.Wait()
 	}
 	liveGroups.release(processID)
 	err := command.Wait()
+	result := true
 	if errors.Is(observed, errors.ErrUnsupported) {
-		_ = signalGroup(-processID, syscall.SIGKILL)
+		result = signalGroup(-processID, syscall.SIGKILL) == nil
 	}
 	if exited != nil {
 		exited()
 	}
-	return err
+	return result, err
 }
 
 // Contain places command in its own process group and, for a command made by

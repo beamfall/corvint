@@ -7,19 +7,20 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/workqueue"
 )
 
 func workContain(command *exec.Cmd) { command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} }
 func workKillGroup(command *exec.Cmd) {
-	workTerminateGroup(command)
-}
-func workTerminateGroup(command *exec.Cmd) bool {
 	if command.Process != nil {
-		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL) == nil
+		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 	}
-	return false
 }
+
+// workStop stops the work runner's leader early; groupreap sweeps its group
+// once the exit is observed and before the reap.
+func workStop(command *exec.Cmd) { _ = groupreap.Stop(command) }
 
 func workOpenExecutable(path string) (*os.File, error) {
 	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_CLOEXEC|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
