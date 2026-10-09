@@ -67,8 +67,8 @@ func waitProcessExitUnreaped(pid int) error {
 	if pid <= 0 {
 		return syscall.ESRCH
 	}
-	var info [128]byte
 	for {
+		var info [128]byte
 		_, _, errno := syscall.Syscall6(
 			syscall.SYS_WAITID,
 			uintptr(1),
@@ -79,12 +79,29 @@ func waitProcessExitUnreaped(pid int) error {
 			0,
 		)
 		if errno == 0 {
-			return nil
+			if !waitidStateChangeOnly(info) {
+				return nil
+			}
+			time.Sleep(waitidStopPoll)
+			continue
 		}
 		if errno != syscall.EINTR {
 			return errno
 		}
 	}
+}
+
+// waitidStopPoll paces waitProcessExitUnreaped while a child is stopped.
+const waitidStopPoll = 10 * time.Millisecond
+
+// waitidStateChangeOnly reports a waitid record that is not an exit. Darwin's
+// waitid also returns for a trapped, stopped or continued child despite
+// WEXITED (golang/go#19314); si_code, after si_signo and si_errno, is
+// CLD_TRAPPED (4), CLD_STOPPED (5) or CLD_CONTINUED (6). Mirrors
+// internal/groupreap and internal/procgroup (V1-1037).
+func waitidStateChangeOnly(info [128]byte) bool {
+	code := *(*int32)(unsafe.Pointer(&info[8]))
+	return code >= 4 && code <= 6
 }
 
 func (containment *childContainment) stopAndProveDarwin(grace time.Duration) bool {

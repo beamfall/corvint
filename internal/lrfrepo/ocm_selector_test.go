@@ -31,7 +31,8 @@ func TestOCMClaimSelectorMiss(t *testing.T) {
 			if err == nil || err.Error() != want {
 				t.Fatalf("got %v want %s", err, want)
 			}
-			if len(err.Error()) > 320 {
+			// Bounded fragment plus the fixed shape list (OCM-V0-018 lengthened it).
+			if len(err.Error()) > 360 {
 				t.Fatalf("unbounded diagnostic: %d", len(err.Error()))
 			}
 		}
@@ -108,6 +109,54 @@ func TestOCMRequirementIDSelectorsProduceClaims(t *testing.T) {
 			anchor := source[selected[0].span.start:selected[0].span.end]
 			if !containsExactRequirement([]byte(anchor), "TFC-V0-001") {
 				t.Fatalf("%s: anchor %q lacks the exact obligation id", path, anchor)
+			}
+		}
+	})
+}
+
+// V1-0520: identical source, inline vs multi-line. The verifier derives a case
+// anchor's parent from the text before the anchor's line, so an anchor on its
+// parent's func header line is intentionally unsupported syntax (OCM-V0-018).
+func TestOCMInlineGoRunCaseBoundary(t *testing.T) {
+	const header = "package p\nimport \"testing\"\n"
+	const call = "t.Run(\"TM-V0-008 exact anchor\", func(t *testing.T) {})"
+	const selector = "test:TestOCMLinkFixture/case:tm-v0-exact-anchor"
+	extract := func(t *testing.T, source string) []ocmClaim {
+		t.Helper()
+		claims, err := enumerateClaims("fixture_test.go", strings.Repeat("a", 40), []byte(source))
+		if err != nil {
+			t.Fatalf("enumerate: %v", err)
+		}
+		return claims
+	}
+	t.Run("OCM-V0-018 multi-line anchor extracts and links", func(t *testing.T) {
+		for _, source := range []string{
+			header + "func TestOCMLinkFixture(t *testing.T) {\n\t" + call + "\n}\n",
+			header + "func TestOCMLinkFixture(t *testing.T) {\n\t" + call + " }\n",
+		} {
+			claims := extract(t, source)
+			if got, err := resolveClaimSelectors(claims, []string{selector}); err != nil || len(got) != 1 {
+				t.Fatalf("multi-line anchor did not link: %v %v", got, err)
+			}
+		}
+	})
+	t.Run("OCM-V0-018 anchor on the parent func header line is no case claim", func(t *testing.T) {
+		for _, source := range []string{
+			header + "func TestOCMLinkFixture(t *testing.T) { " + call + " }\n",
+			header + "func TestA(t *testing.T) {}\nfunc TestOCMLinkFixture(t *testing.T) { " + call + " }\n",
+		} {
+			claims := extract(t, source)
+			for _, claim := range claims {
+				if strings.Contains(claim.selector, "/case:") {
+					t.Fatalf("inline anchor extracted as %q", claim.selector)
+				}
+			}
+			if _, err := resolveClaimSelectors(claims, []string{"test:TestOCMLinkFixture"}); err != nil {
+				t.Fatalf("test function claim lost: %v", err)
+			}
+			_, err := resolveClaimSelectors(claims, []string{selector})
+			if CodeOf(err) != "claim-selector-out-of-range" || !strings.HasSuffix(err.Error(), ", nor on its parent func header line") {
+				t.Fatalf("inline miss does not name the boundary: %v", err)
 			}
 		}
 	})

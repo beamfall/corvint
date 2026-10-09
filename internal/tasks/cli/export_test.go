@@ -8,6 +8,10 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // SetAttemptBeatInterval shortens the attempt runner's heartbeat interval for
@@ -86,4 +90,32 @@ func DispatchQueueForTest(cwd string) dispatch.Queue {
 func DecodeRunRecord(raw []byte) error {
 	_, err := decodeRunRecord(raw)
 	return err
+}
+
+// SetObligationQualifiedVersions replaces the TOL-V0-009 qualified Playwright
+// version list for a test and returns the restore function.
+func SetObligationQualifiedVersions(v []string) func() {
+	was := obligationQualifiedVersions
+	obligationQualifiedVersions = func() []string { return append([]string(nil), v...) }
+	return func() { obligationQualifiedVersions = was }
+}
+
+// SubmitObligationWitness submits a caller-composed OBLIGATIONS_WITNESS
+// payload as OWNER with the given writer report check (nil for none), so a
+// test can present a payload that differs from the recomputation.
+func SubmitObligationWitness(env Env, target, expected, requestID string, check *mutation.ObligationReportCheck, payload wire.Value) *wire.Result {
+	cmd := []string{"ticket", "obligations", "witness"}
+	actor, err := initActor("OWNER")
+	if err == nil {
+		payload, err = mutation.CanonicalPayload(ticket.OpObligationsWitness, payload)
+	}
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	ctx := writerContext()
+	if check != nil {
+		ctx = store.WithObligationReport(ctx, check)
+	}
+	f := mutateFlags{role: "OWNER", requestID: requestID, target: target, expected: expected}
+	return submitMutationContext(ctx, env, cmd, ticket.OpObligationsWitness, actor, f, payload)
 }
