@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -23,6 +24,13 @@ import (
 // completing it needs nothing but the receipt itself. Redo is applied by the
 // same rule as a first write, and it never overwrites a third value.
 func redoPending(repo *intent.Repository, session *authority.Session) (bool, error) {
+	return redoPendingFor(repo, session, transaction.Mutate)
+}
+
+// redoPendingFor is redoPending under the writer guards of operation, so the
+// barrier command, which an ALL barrier admits, can settle a pending receipt
+// (V1-0309).
+func redoPendingFor(repo *intent.Repository, session *authority.Session, operation string) (bool, error) {
 	// A writer killed part-way leaves staging slots that every reader refuses
 	// as unassigned; under the lock they are orphans (CAL-V0-019).
 	if _, err := session.RemoveOrphanStages(); err != nil {
@@ -55,10 +63,7 @@ func redoPending(repo *intent.Repository, session *authority.Session) (bool, err
 	if err != nil {
 		return false, err
 	}
-	if err = requireBranch(repo, queue.IntentBranch); err != nil {
-		return false, err
-	}
-	if err = bindObservation(repo, proof.Identity, transaction.Mutate); err != nil {
+	if err = bindObservation(repo, proof.Identity, operation); err != nil {
 		return false, err
 	}
 	current, found, err := receiptBytes(repo, last+1)
@@ -77,6 +82,14 @@ func redoPending(repo *intent.Repository, session *authority.Session) (bool, err
 	}
 	if receipt.Prev == nil || head.LastReceiptSha256 == nil || *receipt.Prev != *head.LastReceiptSha256 {
 		return false, wire.Errorf(wire.CodeJournalForked, receiptPath(last+1), "pending receipt does not chain to the head")
+	}
+	// The branch guard protects the intent projection. Redo replays committed
+	// bytes, so a receipt that publishes no intent path is settled from any
+	// branch (V1-0309).
+	if writesIntent(receipt) {
+		if err = requireBranch(repo, queue.IntentBranch); err != nil {
+			return false, err
+		}
 	}
 	if err = redoReviewBinding(repo, receipt, raw); err != nil {
 		return false, err
@@ -109,9 +122,18 @@ func checkChainBounds(repo *intent.Repository, head *snapshot.Head) error {
 	return nil
 }
 
+func writesIntent(receipt *snapshot.Receipt) bool {
+	for _, entry := range receipt.Post {
+		if strings.HasPrefix(entry.Path, "intent/") {
+			return true
+		}
+	}
+	return false
+}
+
 // redoPosts republishes every post entry of a pending receipt. A deletion
-// (null post digest) is the UNPAUSE barrier removal, which this slice does
-// not write and therefore refuses rather than guesses at.
+// (null post digest) is the UNPAUSE barrier removal; it is redone after the
+// other posts and before the head, as a first write orders it.
 func redoPosts(repo *intent.Repository, session *authority.Session, receipt *snapshot.Receipt) error {
 	pre := make(map[string]*wire.Digest, len(receipt.Pre))
 	for _, entry := range receipt.Pre {
@@ -126,9 +148,11 @@ func redoPosts(repo *intent.Repository, session *authority.Session, receipt *sna
 			}
 		}
 	}()
+	var deletion *snapshot.PostEntry
 	for _, entry := range receipt.Post {
 		if entry.Sha256 == nil {
-			return wire.Errorf(wire.CodeUnsupported, entry.Path, "redo of a deletion is outside this slice")
+			deletion = &entry
+			continue
 		}
 		raw, err := postBytes(repo, entry)
 		if err != nil {
@@ -164,7 +188,30 @@ func redoPosts(repo *intent.Repository, session *authority.Session, receipt *sna
 			occupied[name] = false
 		}
 	}
+	if deletion != nil {
+		return redoBarrierDeletion(repo, session, deletion.Path, pre[deletion.Path])
+	}
 	return nil
+}
+
+// redoBarrierDeletion settles the receipt-authorized barrier removal: the
+// exact pre bytes are deleted and the deletion synced, an absent barrier is
+// already the post state, and any third value is refused unchanged.
+func redoBarrierDeletion(repo *intent.Repository, session *authority.Session, path string, pre *wire.Digest) error {
+	// DecodeReceipt admits only the paired UNPAUSE barrier deletion.
+	if path != "barrier.json" || pre == nil {
+		return wire.Errorf(wire.CodeJournalForked, path, "deletion post is not a receipt-authorized barrier removal")
+	}
+	current, err := currentDigest(repo, path)
+	if err != nil {
+		return err
+	}
+	if current != nil && *current != *pre {
+		return wire.Errorf(wire.CodeJournalForked, path, "barrier holds neither the pre nor the post state")
+	}
+	// An absent barrier is synced as absent; present pre bytes are unlinked
+	// under a CAS on exactly those bytes.
+	return session.RemoveBarrier(*pre)
 }
 
 // postBytes recovers one post entry's bytes: inline for a record, from the
