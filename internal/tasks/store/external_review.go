@@ -150,10 +150,10 @@ func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (
 }
 
 // FoldReceiptBindings folds receipts 1..last, then pending when it is not
-// nil, through both material binding audits in one pass: the ERG-V0-009
-// review binding and the ESC-V0-010 escalation binding. Receipt audit and
-// redo use it, so a rehashed but untrue review or escalation event refuses
-// as JOURNAL_FORKED.
+// nil, through every material binding audit in one pass: the ERG-V0-009
+// review binding, the ESC-V0-010 escalation binding and the TOL-V0-013
+// obligation-ledger binding. Receipt audit and redo use it, so a rehashed
+// but untrue review, escalation or ledger event refuses as JOURNAL_FORKED.
 func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
 	return foldReceipts(repo, last, pending, ReceiptBindingFold(repo))
 }
@@ -161,16 +161,22 @@ func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) e
 // ReceiptBindingFold returns a fresh FoldReceiptBindings step for receipts
 // supplied in sequence order from 1, so a complete journal audit can fold
 // the receipts it has just validated instead of reading them again. Each
-// ticket post is read and decoded once for both binding audits.
+// ticket post is read and decoded once for the review and escalation audits.
 func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Digest) error {
 	blob := ExternalReviewBlob(repo)
 	reviews, escalations := &transaction.ExternalReviewReceiptAudit{}, &transaction.EscalationReceiptAudit{}
+	obligations := &transaction.ObligationReceiptAudit{Source: func(commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
+		return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
+	}}
 	memo := &transaction.TicketPosts{}
 	return func(rc *snapshot.Receipt, sum wire.Digest) error {
 		if err := reviews.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
 		}
-		return escalations.StepPosts(rc, sum, blob, memo)
+		if err := escalations.StepPosts(rc, sum, blob, memo); err != nil {
+			return err
+		}
+		return obligations.Step(rc, sum, blob)
 	}
 }
 

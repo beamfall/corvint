@@ -281,6 +281,9 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 	// A pinned subdirectory no longer bound to its name when the capture
 	// ends was replaced while it was read, so the capture is repeated with
 	// every record opened by its whole path, as without pinning.
+	if beforeTreeCapture != nil {
+		beforeTreeCapture()
+	}
 	dirs := pinnedTreeDirs{}
 	defer dirs.close()
 	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
@@ -398,6 +401,10 @@ func (d pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, 
 
 // afterTreeDirPin is replaced only by the deterministic directory-swap test.
 var afterTreeDirPin func(sub string)
+
+// beforeTreeCapture is replaced only by the phase-1 refusal test, which
+// proves a refused record is refused before any record is read.
+var beforeTreeCapture func()
 
 // bound reports whether every pinned subdirectory is still the directory its
 // name resolves to beneath root.

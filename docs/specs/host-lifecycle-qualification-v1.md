@@ -192,6 +192,20 @@ Raw reports and matching `claude-code-N-load.txt` readings are retained under
 | 2 | `claude-code-2.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `557c1c2844f7f984016f534c016ee51e4a08ac865c0f572bdb543de9fd7fcfc3` |
 | 3 | `claude-code-3.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `7c0c9971cd32f19dd0c403c7c60fc73b722cee60317736df56a62fe03a898980` |
 
+### V1-0844 diagnostic run, 2026-10-09
+
+One Claude Code 2.1.293 / adapter 0.2.3 run on darwin/arm64 under `HLQ-V1-009` passed all nine
+cases with exit 0 and no time-bound retry, 20:36:24–20:36:32 UTC, one-minute load 9.31/9.68 on 12
+CPUs. Source `02e84575088cfd8a6126f8bb927425891e2a5e1a`; candidate built from it
+(`Corvint 1.0.0-rc.2 (build 0)`, SHA-256
+`037611665826fb5f9b91127fcf285db09ceabf69002b40750d057f6ecce64484`); prior binary
+`Corvint 1.0.0-rc.1 (build 163)`, SHA-256
+`baac338555524a741fe70327cd95d56b5abf0186cac0cc14e199239639053ebf`. This is a diagnostic of an
+unreleased build on a newer host version, not a tuple result or support promotion. The report is
+`results/2026-10-09-v1-0844-frontier/claude-code.tsv` (SHA-256
+`a9c910258fa5cf8637a91dd0e9028f31ce17b8fb8310b6868221dd79f14b2356`) with its boundary load reading
+`claude-code-load.txt` (SHA-256 `016f857b03aa77fbf5cf8a558ceca8d86e1c7cb0168273cb302fc8784cfbbaf8`).
+
 ## Known gaps
 
 - V1-0397: the historical Claude Code 2.1.267 / adapter 0.2.3 upgrade failure on
@@ -216,8 +230,16 @@ Raw reports and matching `claude-code-N-load.txt` readings are retained under
   pre-`HLQ-V1-009` runner reported as exactly that line; the watchdog path is the same shape with
   `adapter-host-kill-deadline`. Hypothesis, not observed: the rc.2 failure was that time-bound
   fail-open. The other no-decision outputs (no enrollment for the key, another session's notice, a
-  non-time-bound rejection, an internal error) have no evident load dependence. A real-host rerun
-  under `HLQ-V1-009` is `NOT_RUN`.
+  non-time-bound rejection, an internal error) have no evident load dependence. The
+  `TestClaudeNativeDogfoodLifecycle` deadline subtest forces the expiry after a real enrolled
+  incomplete evaluation has decided `block` and gets exactly that fail-open output. On 2026-10-09 a
+  real-host run under `HLQ-V1-009` passed (V1-0844 diagnostic run above); a probe of that host
+  (runner plus `probe.patch`, timings in `probe-timings.tsv`, both in that results directory) timed
+  40 enrolled incomplete Stop hook runs: all blocked, median 323 ms, maximum 553 ms, against the
+  1.5 s adapter work bound. Its load (one-minute 26.14 at start, 20.44 at end, 12 CPUs) is an
+  unretained observation. A slowdown of roughly
+  5x reaches the bound, which the rc.2 load of about 245 makes plausible; the rc.2 output itself
+  stays unobserved, so the cause remains the most likely hypothesis, not an observation.
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
@@ -239,7 +261,7 @@ Raw reports and matching `claude-code-N-load.txt` readings are retained under
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
-| HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` in `cmd/corvint` pins the fail-open Stop shape the retry keys on |
+| HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` and the enrolled-Stop deadline subtest of `TestClaudeNativeDogfoodLifecycle` in `cmd/corvint` pin the fail-open Stop shape the retry keys on |
 
 ## Rollback
 

@@ -129,12 +129,27 @@ func TestTMV0008_PinnedTreeDigestParity(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			// Phase 2 refuses these records too, so equal final errors alone
+			// cannot show which phase refused. Count every entry into the
+			// content read: a phase-1 refusal must never reach it (V1-1057).
+			captures := 0
+			defer intent.SetBeforeTreeCaptureForTest(func() { captures++ })()
 			restore := intent.SetPinTreeDirsForTest(false)
 			want, wantErr := intent.TreeDigest(root)
 			restore()
+			perFileCaptures := captures
 			got, gotErr := intent.TreeDigest(root)
 			if fmt.Sprint(gotErr) != fmt.Sprint(wantErr) || !reflect.DeepEqual(got, want) {
 				t.Fatalf("pinned %v / per-file %v", gotErr, wantErr)
+			}
+			phase1 := kind == "stray-entry" || kind == "symlink-ticket" || kind == "empty-ticket" || kind == "directory-ticket"
+			if pinnedCaptures := captures - perFileCaptures; phase1 && (perFileCaptures != 0 || pinnedCaptures != 0) {
+				t.Fatalf("%s reached the content read (per-file %d, pinned %d); phase 1 must refuse it", kind, perFileCaptures, pinnedCaptures)
+			} else if !phase1 && (perFileCaptures != 1 || pinnedCaptures != 1) {
+				t.Fatalf("%s: content read entered per-file %d, pinned %d times, want 1", kind, perFileCaptures, pinnedCaptures)
+			}
+			if code, ok := map[string]string{"symlink-ticket": wire.CodeUnsupportedFilesystem, "empty-ticket": wire.CodeMalformed, "directory-ticket": wire.CodeMalformed, "stray-entry": wire.CodeMalformed}[kind]; ok && wire.CodeOf(gotErr) != code {
+				t.Fatalf("%s refused %s, want %s: %v", kind, wire.CodeOf(gotErr), code, gotErr)
 			}
 			if (kind != "valid" && kind != "empty" && kind != "release") != (gotErr != nil) {
 				t.Fatalf("%s: %v", kind, gotErr)

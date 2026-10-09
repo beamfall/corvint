@@ -3,9 +3,11 @@ package lrfrepo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -144,13 +146,20 @@ func TestOCMLinkMutatesTheVerifiedMapBytes(t *testing.T) {
 
 func makeOCMAnchorFixture(t *testing.T) (string, LinkOptions, wire.Value, []ocmClaim) {
 	t.Helper()
+	return makeOCMAnchorFixtureCase(t, "OCM-TEST-001 exact anchor")
+}
+
+// makeOCMAnchorFixtureCase is makeOCMAnchorFixture with the one t.Run case
+// literal supplied, so token-boundary tests vary only the anchor bytes.
+func makeOCMAnchorFixtureCase(t *testing.T, caseName string) (string, LinkOptions, wire.Value, []ocmClaim) {
+	t.Helper()
 	root, base, _ := makeOCMPrepareRepository(t)
 	const testPath = "example_test.go"
-	const source = `package example
+	source := `package example
 import "testing"
 func TestAUnrelated(t *testing.T) {}
 func TestAnchors(t *testing.T) {
- t.Run("OCM-TEST-001 exact anchor", func(t *testing.T) {})
+ t.Run("` + caseName + `", func(t *testing.T) {})
 }
 `
 	writeOCMPrepareFile(t, root, testPath, source)
@@ -191,6 +200,106 @@ func TestAnchors(t *testing.T) {
 		t.Fatalf("claims=%v err=%v", claims, err)
 	}
 	return root, options, prepared.Document, claims
+}
+
+// caseClaim returns the fixture's one t.Run case claim.
+func caseClaim(t *testing.T, claims []ocmClaim) ocmClaim {
+	t.Helper()
+	for _, claim := range claims {
+		if strings.Contains(claim.selector, "/case:") {
+			return claim
+		}
+	}
+	t.Fatal("no case claim")
+	return ocmClaim{}
+}
+
+// TestOCMLinkExplainsRequirementTokenBoundary covers V1-0555: an anchor that
+// names the obligation ID only inside a longer token stays refused, and the
+// link refusal says why; a space-separated ID with the same normalized
+// selector links. The matcher and the verifier's issue message are unchanged.
+func TestOCMLinkExplainsRequirementTokenBoundary(t *testing.T) {
+	const base = "claim anchor lacks the exact obligation ID"
+	t.Run("OCM-V0-017 adjoined IDs stay refused and the refusal names the boundary", func(t *testing.T) {
+		for _, tc := range []struct{ name, hint string }{
+			{"OCM-TEST-001-exact-anchor", "; OCM-TEST-001 occurs only inside a longer token ('-' after it)"},
+			{"XOCM-TEST-001 exact anchor", "; OCM-TEST-001 occurs only inside a longer token ('X' before it)"},
+			{"OCM-TEST-0012 exact anchor", "; OCM-TEST-001 occurs only inside a longer token ('2' after it)"},
+			{"_OCM-TEST-001_ exact anchor", "; OCM-TEST-001 occurs only inside a longer token ('_' before it)"},
+			{"OCM-TEST-002 exact anchor", ""},
+		} {
+			root, options, _, claims := makeOCMAnchorFixtureCase(t, tc.name)
+			path := filepath.Join(root, options.MapPath)
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			options.Claims = []string{caseClaim(t, claims).selector}
+			_, err = LinkOCM(context.Background(), root, options)
+			var refusal *Error
+			if CodeOf(err) != "claim-obligation-mismatch" || !errors.As(err, &refusal) || !strings.HasPrefix(refusal.Message, base+tc.hint) {
+				t.Fatalf("%q: %v", tc.name, err)
+			}
+			if tc.hint == "" && refusal.Message != base {
+				t.Fatalf("%q: absent ID gained a hint: %q", tc.name, refusal.Message)
+			}
+			if tc.hint != "" && !strings.HasSuffix(refusal.Message, `separate the exact ID with a space or the anchor edge, for example t.Run("OCM-TEST-001 case name", ...)`) {
+				t.Fatalf("%q: no separated example: %q", tc.name, refusal.Message)
+			}
+			if after, err := os.ReadFile(path); err != nil || !bytes.Equal(before, after) {
+				t.Fatalf("%q: refused link changed the map: %v", tc.name, err)
+			}
+		}
+	})
+	t.Run("OCM-V0-017 a space-separated ID with the same normalized selector links", func(t *testing.T) {
+		_, _, _, hyphenClaims := makeOCMAnchorFixtureCase(t, "OCM-TEST-001-exact-anchor")
+		root, options, _, claims := makeOCMAnchorFixtureCase(t, "OCM-TEST-001 exact anchor")
+		selector := caseClaim(t, claims).selector
+		if selector != caseClaim(t, hyphenClaims).selector || selector != "test:TestAnchors/case:ocm-test-exact-anchor" {
+			t.Fatalf("normalized selectors differ: %q %q", selector, caseClaim(t, hyphenClaims).selector)
+		}
+		options.Claims = []string{selector}
+		if _, err := LinkOCM(context.Background(), root, options); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("OCM-V0-005 verifier issue message is unchanged for an adjoined ID", func(t *testing.T) {
+		root, options, document, claims := makeOCMAnchorFixtureCase(t, "OCM-TEST-001-exact-anchor")
+		linked, err := linkObligation(document, options.Obligation, options.Hunks, []ocmClaim{caseClaim(t, claims)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, options.MapPath), canonicalOCMBytes(linked), 0600); err != nil {
+			t.Fatal(err)
+		}
+		checked, err := ReadOCM(context.Background(), root, OCMReadOptions{
+			OCMPath: options.MapPath, CEMPath: options.CEMPath, ExpectedBase: options.ExpectedBase,
+			Target: options.Target, ExpectedBaseGiven: true, TargetGiven: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		issues, _ := checked.Verification["issues"].([]any)
+		if len(issues) != 1 || !reflect.DeepEqual(issues[0], map[string]any{"code": "claim-obligation-mismatch", "message": base}) {
+			t.Fatalf("verifier issue changed: %v", checked.Verification)
+		}
+	})
+	t.Run("OCM-V0-005 matcher semantics are unchanged", func(t *testing.T) {
+		for anchor, exact := range map[string]bool{
+			`"CVI-V0-002 strict grammar"`: true, `"CVI-V0-002-strict-grammar"`: false, `"CVI-V0-0021 x"`: false,
+			`"ACVI-V0-002 x"`: false, `"x_CVI-V0-002"`: false, `"(CVI-V0-002)"`: true, `CVI-V0-002`: true,
+		} {
+			if containsExactRequirement([]byte(anchor), "CVI-V0-002") != exact {
+				t.Fatalf("%s: exact=%t", anchor, !exact)
+			}
+			if hint := requirementBoundaryHint([]byte(anchor), "CVI-V0-002"); (hint == "") != exact {
+				t.Fatalf("%s: hint=%q", anchor, hint)
+			}
+		}
+		if requirementBoundaryHint([]byte(`"OTHER-V0-001"`), "CVI-V0-002") != "" {
+			t.Fatal("hint for an absent ID")
+		}
+	})
 }
 
 // falseAnchorClaim returns the first top-level test claim, which carries no obligation, and its

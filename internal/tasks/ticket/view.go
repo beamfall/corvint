@@ -428,6 +428,11 @@ func (v View) Value(includeRecord bool) wire.Value {
 	if len(rec.KnowHow) > 0 {
 		o.Set("knowHow", KnowHowValue(rec.KnowHow))
 	}
+	// TOL-V0-019: the ledger's reference counts, present only on a ledger
+	// ticket; derived from the loaded record, never the evidence store.
+	if rec.ObligationsRef != nil {
+		o.Set("obligations", rec.ObligationsRef.Counts.Value())
+	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))
 	o.Set("publication", wire.String(string(v.Publication)))

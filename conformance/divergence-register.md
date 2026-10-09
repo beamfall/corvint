@@ -2461,6 +2461,12 @@ AGENTS.md invariant 8. It is proposed here and in `docs/agent-memory/ideas.md`; 
 accept it. Until an owner accepts such a class, `NOT_YET_AUTHORED` is the accurate state and
 `GPK-V0-034` continues to block promotion.
 
+On 2026-10-08 (V1-0555, proposed `OCM-V0-017`) the Go refusal for this fixture appends a bounded
+token-boundary explanation (`TM-V0-008` adjoined by `_` before it, with a space-separated example)
+to its stderr message; the code, exit status, empty stdout and unchanged tree are the same, so the
+recorded Go stderr SHA-256 above predates that suffix. The adjudication and promotion hold are
+unchanged.
+
 ### DR-0032 — `ocm link`: a missing case selector reports its normalized fragment
 
 - **Command:** `ocm link`.

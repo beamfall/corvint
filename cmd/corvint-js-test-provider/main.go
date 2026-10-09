@@ -68,7 +68,7 @@ type testProjection struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|qualify-keep-reporters> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -77,6 +77,13 @@ func main() {
 		err = runUnit(os.Args[2:])
 	case "e2e":
 		err = runE2E(os.Args[2:])
+	case "negate":
+		ctx, cancel := interruptContext()
+		err = runNegate(ctx, os.Args[2:], os.Stdout)
+		cancel()
+		if errors.Is(err, errRefused) {
+			os.Exit(2)
+		}
 	case "qualify-keep-reporters":
 		err = runQualifyKeepReporters(os.Args[2:])
 	default:

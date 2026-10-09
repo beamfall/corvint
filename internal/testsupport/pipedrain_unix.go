@@ -117,12 +117,19 @@ func checkHeldPipe(t *testing.T, configure func(*exec.Cmd)) {
 // exitedUnreaped blocks until the process exits and leaves it unreaped
 // (waitid WEXITED|WNOWAIT), so a later Wait still reaps it.
 func exitedUnreaped(pid int) error {
-	var info [128]byte
 	for {
+		var info [128]byte
 		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, uintptr(1), uintptr(pid),
 			uintptr(unsafe.Pointer(&info[0])), uintptr(syscall.WEXITED|syscall.WNOWAIT), 0, 0)
 		if errno == 0 {
-			return nil
+			// Darwin also reports a trapped, stopped or continued child despite
+			// WEXITED (golang/go#19314): si_code CLD_TRAPPED/STOPPED/CONTINUED
+			// (4..6) is not an exit.
+			if code := *(*int32)(unsafe.Pointer(&info[8])); code < 4 || code > 6 {
+				return nil
+			}
+			time.Sleep(10 * time.Millisecond)
+			continue
 		}
 		if errno != syscall.EINTR {
 			return errno

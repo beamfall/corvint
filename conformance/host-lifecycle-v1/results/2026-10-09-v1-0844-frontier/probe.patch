@@ -1,0 +1,13 @@
+--- a/conformance/host-lifecycle-v1/main.go
++++ b/conformance/host-lifecycle-v1/main.go
+@@ -902,6 +902,10 @@
+ 		return "", fmt.Errorf("dogfood begin exit %d: %v %s", code, err, firstLine(stderr+stdout))
+ 	}
+ 	defer r.exec(r.fixture, nil, environment, append([]string{"corvint", "dogfood", "cancel"}, key...)...)
++	for i := 0; i < 40; i++ {
++		probe, _ := stop(false)
++		fmt.Fprintf(os.Stderr, "PROBE\t%d\t%s\t%v\t%s\n", i, r.lastHook.elapsed.Round(time.Millisecond), probe["decision"], r.lastHook.degradation)
++	}
+ 	blocked, err := stop(false)
+ 	if err != nil {
+ 		return "", err

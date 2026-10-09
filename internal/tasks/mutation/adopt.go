@@ -22,7 +22,7 @@ const AdoptOperation = "ADOPT_FILE"
 var AdoptProtectedFields = []string{
 	"status", "archivedFrom", "completion", "approvals", "revision", "acceptanceRevision",
 	"previousRecordSha256", "source", "shadowOverlay", "supersededBy", "createdAt", "updatedBy",
-	"escalations", "attachedEvidence", "knowHow",
+	"escalations", "attachedEvidence", "knowHow", "obligations",
 }
 
 // adoptIgnoredFields are compared neither for difference nor for coverage:

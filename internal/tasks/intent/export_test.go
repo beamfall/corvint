@@ -15,3 +15,11 @@ func SetAfterTreeDirPinForTest(hook func(sub string)) func() {
 	afterTreeDirPin = hook
 	return func() { afterTreeDirPin = old }
 }
+
+// SetBeforeTreeCaptureForTest runs hook when TreeDigest ends phase 1 and
+// begins reading record contents.
+func SetBeforeTreeCaptureForTest(hook func()) func() {
+	old := beforeTreeCapture
+	beforeTreeCapture = hook
+	return func() { beforeTreeCapture = old }
+}
