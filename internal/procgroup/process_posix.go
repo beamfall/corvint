@@ -68,6 +68,14 @@ func waitProcessExitUnreaped(pid int) error {
 	}
 }
 
+// heldGroupProof is override when a test sets one, else groupreap.HeldGroupQuiet.
+func heldGroupProof(override func(int) (bool, error)) func(int) (bool, error) {
+	if override != nil {
+		return override
+	}
+	return groupreap.HeldGroupQuiet
+}
+
 // groupSignal is override when a test sets one, else the termination signal.
 func groupSignal(override func(int, syscall.Signal) error, joinAncestorGroup bool) func(int, syscall.Signal) error {
 	if override != nil {
@@ -123,15 +131,12 @@ func cleanupProcessGroupBeforeReap(pid int, groupPresent, leaderExited, joinAnce
 // held unreaped and its PID pins the group ID, so it never probes a numeric
 // group ID that may since name another group (V1-1055). A leader that joined
 // an ancestor's group leads none, and its observed exit is its quiescence.
-// Otherwise it polls quietProof (groupreap.HeldGroupQuiet: Linux /proc,
+// Otherwise it polls quietProof (heldGroupProof, groupreap.HeldGroupQuiet: Linux /proc,
 // Darwin signal 0 confirmed by the process table) until deadline. A live
 // member at the deadline or a proof failure leaves the cleanup unproved.
 func proveProcessGroupQuiescent(pid int, joinAncestorGroup bool, quietProof func(int) (bool, error), deadline time.Time) error {
 	if joinAncestorGroup {
 		return nil
-	}
-	if quietProof == nil {
-		quietProof = groupreap.HeldGroupQuiet
 	}
 	interval := processGroupPollInterval
 	for {

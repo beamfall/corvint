@@ -37,6 +37,16 @@ Two consequences follow:
   already-exited leader. The reap therefore keeps a 100 ms bound (`exitedLeaderReapBound`) so the
   exit status is still read.
 
+Review of the first revision (`07fca80f`) found that ownership could be released concurrently.
+Timeout cleanup chose `leaderExited` once. A foreign reap then made the waitid goroutine fail with
+ECHILD and release the group. The grace loop kept probing and could send SIGKILL to the numeric
+group after that release. Every numeric group signal, probe and proof of `run` now goes through a
+`groupOwnership` lock that is also taken by the release. A call after the release is refused with
+`errGroupOwnershipReleased` and the cleanup stays unproved. This holds on the success, error,
+timeout and ECHILD paths. Foreign in-process reaping remains an unsupported condition (`AHI-050`):
+between the foreign reap and the goroutine's release the group ID is not pinned. It no longer
+causes signals after the release.
+
 The test hook `groupProbe` now covers every group signal `run` sends itself: termination, the
 pre-reap grace probe and SIGKILL. A new `quietProof` hook replaces `HeldGroupQuiet`. Production
 passes no hooks.
@@ -54,6 +64,10 @@ not marked accepted.
 - `TestV11055QuiescenceProvedWhileLeaderHeld` requires every proof call to run before the release
   while `waitid(WNOWAIT)` still sees the leader. It also requires an injected proof error to report
   `process-cleanup-failed` without proved cleanup.
+- `TestV11055NoGroupOperationAfterConcurrentRelease` kills and reaps the leader with `Wait4`
+  from the first termination signal, after a 20 ms timeout. It requires no group operation after
+  the release and unproved cleanup. It retries when waitid saw the exit before the foreign reap.
+  On `07fca80f` it fails with "3 numeric group operations after the group was released".
 - `TestRunProcessQuiescenceTreatsPermissionDeniedAsPresent` (cited by `CRR-V0-003`) now injects an
   unproved held proof. It requires unproved cleanup with the leader's exit status retained.
 - Two identity tests are deleted with the identity path:
@@ -71,6 +85,10 @@ Results on Darwin arm64, Go 1.27.1:
   and `go test ./internal/specindex` passed.
 - `NOT_RUN`: the direct dependents of `internal/groupreap` other than `internal/gitstatus`. The
   groupreap change only adds an exported function.
+- The review fix (ownership lock) was retested with `go test -race -count=1` for
+  `internal/procgroup` and `internal/groupreap`, which passed, and `GOOS=linux` and `GOOS=windows`
+  vet. The `internal/procgroup` dependents and `internal/gitstatus` were not rerun after it; the
+  fix changes no exported API.
 
 ## Limits
 

@@ -23,6 +23,24 @@ func waitProcessExitUnreaped(int) error {
 	return errors.New("unreaped process observation is unsupported on this platform")
 }
 
+func groupSignal(override func(int, syscall.Signal) error, _ bool) func(int, syscall.Signal) error {
+	if override != nil {
+		return override
+	}
+	return func(int, syscall.Signal) error {
+		return errors.New("owned process-group cleanup is unsupported on this platform")
+	}
+}
+
+func heldGroupProof(override func(int) (bool, error)) func(int) (bool, error) {
+	if override != nil {
+		return override
+	}
+	return func(int) (bool, error) {
+		return false, errors.New("owned process-group cleanup is unsupported on this platform")
+	}
+}
+
 func terminateProcessGroup(int, bool, bool, func(int, syscall.Signal) error) (bool, error) {
 	return false, errors.New("owned process-group cleanup is unsupported on this platform")
 }

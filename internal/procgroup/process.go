@@ -143,6 +143,51 @@ type processCapture struct {
 // observation, when the group is neither signalled nor probed.
 var errUnobservedGroupNotSignalled = errors.New("exit observation failed: owned process group not signalled, cleanup unproved")
 
+// errGroupOwnershipReleased refuses a numeric group operation after run
+// released the group: its ID may since name another group (V1-1055).
+var errGroupOwnershipReleased = errors.New("owned process group released: numeric group operation refused")
+
+// groupOwnership serialises run's numeric group operations with the group's
+// release, so none follows the release on any path, including the waitid
+// goroutine's release after a foreign reap (V1-1055).
+type groupOwnership struct {
+	mu       sync.Mutex
+	pid      int
+	released bool
+	release  func(int)
+}
+
+func (o *groupOwnership) releaseGroup() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.released {
+		o.released = true
+		o.release(o.pid)
+	}
+}
+
+func (o *groupOwnership) signal(send func(int, syscall.Signal) error) func(int, syscall.Signal) error {
+	return func(pid int, signal syscall.Signal) error {
+		o.mu.Lock()
+		defer o.mu.Unlock()
+		if o.released {
+			return errGroupOwnershipReleased
+		}
+		return send(pid, signal)
+	}
+}
+
+func (o *groupOwnership) proof(prove func(int) (bool, error)) func(int) (bool, error) {
+	return func(pid int) (bool, error) {
+		o.mu.Lock()
+		defer o.mu.Unlock()
+		if o.released {
+			return false, errGroupOwnershipReleased
+		}
+		return prove(pid)
+	}
+}
+
 // errUnheldGroupUnproved is the quiescence error when the leader's exit was
 // not observed before the shutdown deadline, so no pre-reap proof was made.
 var errUnheldGroupUnproved = errors.New("leader exit not observed before shutdown deadline: owned process group quiescence unproved")
@@ -298,13 +343,16 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	exitObserved := make(chan error, 1)
 	reapAllowed := make(chan struct{})
 	waitDone := make(chan error, 1)
-	release := releaseProcessCommand
+	ownership := &groupOwnership{pid: command.Process.Pid, release: releaseProcessCommand}
+	groupProbe := ownership.signal(groupSignal(waitChannels.groupProbe, spec.JoinAncestorProcessGroup))
+	quietProof := ownership.proof(heldGroupProof(waitChannels.quietProof))
 	go func() {
 		observed := waitProcessExitUnreaped(command.Process.Pid)
 		if observed != nil {
 			// Another reaper may have collected the leader, so its group ID
-			// no longer names this group: forget it for the exit kill now.
-			release(command.Process.Pid)
+			// no longer names this group: forget it for the exit kill now,
+			// and refuse every later numeric group operation of run.
+			ownership.releaseGroup()
 		}
 		exitObserved <- observed
 		<-reapAllowed
@@ -343,7 +391,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	}
 
 	if exitObservationCompleted && exitObservationErr != nil {
-		release(command.Process.Pid)
+		ownership.releaseGroup()
 	}
 
 	var beforeStopErr error
@@ -367,14 +415,14 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	var groupPresent bool
 	var terminationErr, cleanupErr error
 	if exitObservationCompleted && exitObservationErr != nil {
-		release(command.Process.Pid)
+		ownership.releaseGroup()
 		terminationErr = errUnobservedGroupNotSignalled
 	} else {
-		groupPresent, terminationErr = terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup, waitChannels.groupProbe)
+		groupPresent, terminationErr = terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup, groupProbe)
 		if terminationErr != nil {
 			terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
 		}
-		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, waitChannels.groupProbe, shutdownDeadline)
+		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, groupProbe, shutdownDeadline)
 		if cleanupErr != nil {
 			cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
 		}
@@ -396,13 +444,13 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	case !exitObservationCompleted:
 		quiescenceErr = errUnheldGroupUnproved
 	default:
-		quiescenceErr = proveProcessGroupQuiescent(command.Process.Pid, spec.JoinAncestorProcessGroup, waitChannels.quietProof, shutdownDeadline)
+		quiescenceErr = proveProcessGroupQuiescent(command.Process.Pid, spec.JoinAncestorProcessGroup, quietProof, shutdownDeadline)
 	}
 	if quiescenceErr != nil {
 		quiescenceErr = fmt.Errorf("prove owned process group quiescence: %w", quiescenceErr)
 	}
 	// The group's record for the exit kill ends before the reap (AHI-049).
-	release(command.Process.Pid)
+	ownership.releaseGroup()
 	close(reapAllowed)
 	reapDeadline := shutdownDeadline
 	if exitObservationCompleted && exitObservationErr == nil {

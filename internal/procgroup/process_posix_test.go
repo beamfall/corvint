@@ -250,3 +250,47 @@ func TestV11055QuiescenceProvedWhileLeaderHeld(t *testing.T) {
 		t.Fatalf("a failed proof was not reported unproved: %+v", failed)
 	}
 }
+
+// V1-1055 review: a foreign in-process reaper (unsupported, AHI-050) collects
+// the leader during timeout cleanup, so the waitid goroutine fails and
+// releases the group while run still signals it. No numeric group operation
+// may follow that release, and the cleanup stays unproved.
+func TestV11055NoGroupOperationAfterConcurrentRelease(t *testing.T) {
+	previous := releaseProcessCommand
+	t.Cleanup(func() { releaseProcessCommand = previous })
+	var released atomic.Bool
+	releaseProcessCommand = func(pid int) { released.Store(true); previous(pid) }
+	for attempt := 0; attempt < 20; attempt++ {
+		released.Store(false)
+		var calls, late atomic.Int64
+		observation := run(context.Background(), Spec{
+			Argv: []string{"/bin/sleep", "30"}, Dir: t.TempDir(), Env: []string{"PATH=/usr/bin:/bin"},
+			Timeout: 20 * time.Millisecond, ShutdownTimeout: 500 * time.Millisecond,
+		}, processWaitChannels{groupProbe: func(pid int, signal syscall.Signal) error {
+			if calls.Add(1) == 1 {
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+				var status syscall.WaitStatus
+				_, _ = syscall.Wait4(pid, &status, 0, nil)
+				for deadline := time.Now().Add(200 * time.Millisecond); !released.Load() && time.Now().Before(deadline); {
+					time.Sleep(time.Millisecond)
+				}
+				return nil
+			}
+			if released.Load() {
+				late.Add(1)
+			}
+			return signalOwnedProcessGroup(pid, signal)
+		}})
+		if n := late.Load(); n != 0 {
+			t.Fatalf("%d numeric group operations after the group was released", n)
+		}
+		if !processErrorHasCode(observation.Err, "process-exit-observation-failed") {
+			continue // waitid saw the exit before the foreign reap: no concurrent release
+		}
+		if observation.OwnedProcessGroupCleanup {
+			t.Fatalf("cleanup proved after a foreign reap: %+v", observation)
+		}
+		return
+	}
+	t.Fatal("the foreign reap never preceded the exit observation")
+}
