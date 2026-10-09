@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { promptQuery, trimSpace } from "./prompt-bound.mjs";
 
-const ADAPTER_VERSION = "0.2.7";
+const ADAPTER_VERSION = "0.2.8";
 const CORVINT_OUTPUT_LIMIT = 8000;
 // AHI-017: every Corvint deadline is derived from the host kill declared for each hook in
 // ./hooks.json (timeoutsMs.host in ../compatibility.json), never from a free constant.
@@ -465,9 +465,11 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
       settled = true;
       clearTimeout(timeout);
       clearTimeout(closeBound);
-      // An inherited pipe a descendant still holds must not keep this hook alive after it reports.
+      // Neither an inherited pipe a descendant still holds nor a leader that survived an unconfirmed
+      // cleanup may keep this hook alive after it reports.
       child.stdout.destroy();
       child.stderr.destroy();
+      child.unref();
       const cleaned = cleanupConfirmed(child, cleanup);
       for (const [signal, handler] of signalHandlers) {
         process.removeListener(signal, handler);

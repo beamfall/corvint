@@ -1,6 +1,6 @@
 {
   "profile": "corvint-gemini-cli-compatibility/0",
-  "adapterVersion": "0.2.7",
+  "adapterVersion": "0.2.8",
   "protocolVersion": "corvint-harness-event/0",
   "support": "FALLBACK",
   "surface": "extension",

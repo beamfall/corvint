@@ -134,7 +134,7 @@ test('OpenCode boundedTask trims Go strings.TrimSpace whitespace before the boun
 })
 test('CRB-V0-012 Gemini exact transport and only normalized task/path fields',async t=>{
  const f=fixture(t);const start=await f.gemini('session-start');assert.equal(start.output.continue,true);assert.equal(start.output.hookSpecificOutput?.hookEventName,'SessionStart',start.output.systemMessage ?? JSON.stringify(start.output));const [row]=f.captured();noSecret(row)
- assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.7','--event','session-start','--input','-','--budget-bytes','8000'])
+ assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.8','--event','session-start','--input','-','--budget-bytes','8000'])
  assert.deepEqual(row.input,{sessionIdSha256:sha('raw-session-secret')})
  await f.gemini('user-prompt',{messages:[{secret:'hidden'}]});const prompt=f.captured().at(-1);assert.deepEqual(prompt.input,{sessionIdSha256:sha('raw-session-secret'),task:'repair the parser'})
  await f.gemini('after-tool',{tool_name:'write_file',tool_input:{file_path:join(f.root,'src/../src/parser.py'),content:'hidden'},tool_response:{success:true}})
@@ -450,6 +450,17 @@ test('V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps 
  assert.ok(performance.now()-started<1500+5000,'the hook waited for the descendant\'s inherited pipe')
  assert.match(result.output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
  assert.doesNotThrow(()=>process.kill(Number(readFileSync(witness,'utf8')),0),'the reported descendant is the survivor')
+})
+test('V1-0371 Gemini exits after reporting a leader whose group kill failed',async t=>{
+ // The leader ignores SIGTERM and the group SIGKILL fails, so it outlives the report; the hook must
+ // still exit within its deadline instead of waiting on the leader's process handle.
+ const spy=lateSignalSpy(t,'gemini',true),f=fixture(t,'valid',undefined,spy.environment),witness=join(f.dir,'leader.pid')
+ writeFileSync(f.binary,`#!/bin/sh\ntrap '' TERM\necho $$ > ${shellQuote(witness)}\nexec /bin/sleep 20\n`,{mode:0o700})
+ t.after(()=>{if(existsSync(witness))try{process.kill(Number(readFileSync(witness,'utf8')),'SIGKILL')}catch{}})
+ const started=performance.now(),result=await f.gemini('user-prompt',{},undefined,1500)
+ assert.ok(performance.now()-started<3000,'the hook outlived its deadline waiting on the leader')
+ assert.match(result.output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+ assert.doesNotThrow(()=>process.kill(Number(readFileSync(witness,'utf8')),0),'the reported leader is the survivor')
 })
 test('V1-0371 OpenCode concurrent cancellations share one SIGTERM grace',async t=>{
  const f=fixture(t),controller=new AbortController(),holds=[],wait=Atomics.wait

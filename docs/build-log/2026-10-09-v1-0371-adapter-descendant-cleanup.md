@@ -38,7 +38,8 @@ recorded late OpenCode `SIGKILL`s on the timeout path, and the Gemini normal exi
 - A normal exit with a surviving descendant completes as `corvint-process-cleanup-unconfirmed` and
   is not signalled.
 - The deadlines, `deadlineMs`, `FALLBACK` shapes and exit codes are unchanged.
-- The adapter versions are bumped under AHI-020: OpenCode 0.7.10 and Gemini 0.2.7.
+- The adapter versions are bumped under AHI-020: OpenCode 0.7.10 and Gemini 0.2.7, then 0.7.11
+  and 0.2.8 for the review repairs.
 - Two alternatives were rejected:
   - A shell or sentinel wrapper to pin the group adds a process and a shell dependency.
   - An immediate SIGKILL skips Corvint's own SIGTERM cleanup.
@@ -66,10 +67,11 @@ All runs used Node v22.23.3 on Darwin arm64, with a fixture and a real binary bu
   - Linux.
   - `make gate` and the repository-wide Go suite.
   - The dogfood CEM bind.
-- NOT_OBSERVED: whether Bun, which OpenCode embeds, reaps children off the event-loop thread. If it
-  does, the pre-reap proof does not hold there, and only the probe keeps the result honest.
-- Residual windows: a foreign in-process `waitpid(-1)` can reap the leader early; only the probe
-  then keeps the result honest.
+- NOT_OBSERVED: whether Bun, which OpenCode embeds, reaps children off the event-loop thread or
+  outside the poll phase.
+- Unsupported conditions: such reaping, or a foreign in-process `waitpid(-1)`, can reap the leader
+  early. That voids the signalling proof: a group signal may reach a reused ID, and a delivered
+  SIGKILL confirms cleanup without a probe, so neither safety nor an honest result is guaranteed.
 - Each termination turn blocks the host event loop for one grace: 25.5 to 30.4 ms for sixteen
   OpenCode cancellations in one turn. Cancellations in separate turns each block for 25 ms.
 - OpenCode leaves its stdio pipes open after its bounded completion until the holder exits; it
@@ -111,8 +113,10 @@ fails on `7a4078b8` and passes after.
 
 After the repair: the ten `V1-0371` tests pass three runs in a row; the Go wrapper
 `TestHostAdapterJavaScriptHosts|TestHostAdapterJavaScriptHarnessInterruption|TestAHI016` passes with
-the whole file (69 tests); the OpenCode package tests pass 40/40; `host-package-versions-check` passes
-with the lane's existing bumps (OpenCode 0.7.10, Gemini 0.2.7), so no further AHI-020 bump is needed.
+the whole file (69 tests); the OpenCode package tests pass 40/40. `host-package-versions-check` was
+run before committing, so it read the earlier history and passed wrongly; the committed repair
+left both bumps older than the shipped change. The second review repair bumps OpenCode to 0.7.11
+and Gemini to 0.2.8.
 
 AHI-050 wording changed, for owner re-confirmation (ID and intent unchanged):
 
@@ -129,6 +133,24 @@ AHI-050 wording changed, for owner re-confirmation (ID and intent unchanged):
   "outside the poll phase" was added to the unobserved-runtime window.
 - Rollback and traceability name the new functions. `go-only-cutover-v0.md` got the matching two
   sentences.
+
+## Second review repair
+
+The re-review of `fd48aee7` confirmed the P1 fix, the inherited-stdout fix and the cost (549 to
+32 ms in its measurement) and found three issues.
+
+- **P2, Gemini hook exit.** Settling destroyed the pipes but kept the live leader's process handle
+  referenced, so a TERM-ignoring leader that survived a failed group SIGKILL kept the hook running
+  after its report. `settle` now calls `child.unref()`; its timers are already cleared. Test:
+  `V1-0371 Gemini exits after reporting a leader whose group kill failed` (1500 ms host kill, group
+  SIGKILL failure injected through the existing spy). It fails on `fd48aee7`, where the hook runs
+  until the leader's `sleep 20` ends.
+- **P2, AHI-020.** OpenCode 0.7.11 and Gemini 0.2.8; `sh script/check-host-package-versions.sh`
+  passes on the committed tree.
+- **P3, wording.** AHI-050's failure modes and the limits above said the probe keeps the result
+  honest after foreign or off-thread reaping. `cleanupConfirmed` accepts a delivered SIGKILL without
+  probing, so that reaping voids the proof; the text now says neither safety nor an honest result
+  is guaranteed there. AHI-050 also gains the hook-exit sentence and the eleventh acceptance test.
 
 ## Rollback
 
