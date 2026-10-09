@@ -14,7 +14,10 @@
 // `contend` reproduces reads under an active writer pool (V1-1060): W child
 // processes create tickets back to back while R goroutines each re-run the
 // read (default `queue status`) as a fresh process, and it reports every
-// read's wall time, CPU, exit and journalAudit mode. It mutates the store.
+// read's wall time, CPU, exit and journalAudit mode, then each writer's
+// successful and failed creates (writer stderr goes to --work). SIGINT or
+// SIGTERM stops the readers and every writer before it exits. It mutates the
+// store.
 //
 // `run` executes one command in-process and prints one JSON line of
 // metrics. `matrix` re-executes this binary once per measurement, so every
@@ -23,6 +26,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -32,6 +36,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -40,6 +45,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -503,7 +509,7 @@ func matrix(args []string) error {
 		}
 		var samples []metrics
 		for r := 0; r < *reps; r++ {
-			x, err := exec1(self, *store, s.args, false, "", "")
+			x, err := exec1(context.Background(), self, *store, s.args, false, "", "")
 			if err != nil {
 				return err
 			}
@@ -512,7 +518,7 @@ func matrix(args []string) error {
 			}
 			samples = append(samples, x)
 		}
-		fd, err := exec1(self, *store, s.args, true, "", "")
+		fd, err := exec1(context.Background(), self, *store, s.args, true, "", "")
 		if err != nil {
 			return err
 		}
@@ -524,7 +530,7 @@ func matrix(args []string) error {
 			out = filepath.Join(*outputs, strings.ReplaceAll(s.name, " ", "_")+".json")
 		}
 		if prof != "" || out != "" {
-			if _, err := exec1(self, *store, s.args, false, prof, out); err != nil {
+			if _, err := exec1(context.Background(), self, *store, s.args, false, prof, out); err != nil {
 				return err
 			}
 		}
@@ -572,7 +578,7 @@ func matrix(args []string) error {
 		for r := 0; r < *reps; r++ {
 			a := x.args()
 			out := filepath.Join(tmp, "out.json")
-			s, err := exec1(self, *store, a, r == 0, "", out)
+			s, err := exec1(context.Background(), self, *store, a, r == 0, "", out)
 			if err != nil {
 				return err
 			}
@@ -617,7 +623,7 @@ func releaseFrom(store, envFile, target string) error {
 	return err
 }
 
-func exec1(self, store string, args []string, fds bool, prof, out string) (metrics, error) {
+func exec1(ctx context.Context, self, store string, args []string, fds bool, prof, out string) (metrics, error) {
 	a := []string{"run", "--store", store}
 	if fds {
 		a = append(a, "--fds")
@@ -630,7 +636,7 @@ func exec1(self, store string, args []string, fds bool, prof, out string) (metri
 	}
 	a = append(a, "--")
 	a = append(a, args...)
-	c := exec.Command(self, a...)
+	c := exec.CommandContext(ctx, self, a...)
 	c.Stderr = os.Stderr
 	b, err := c.Output()
 	if err != nil {
@@ -651,26 +657,95 @@ func row(name string, s []metrics, peak int) {
 
 // ---------------------------------------------------------------- contend
 
-// churn creates tickets back to back until its deadline; it is one writer
-// of the pool contend starts.
+// churn creates tickets back to back until its deadline or SIGINT/SIGTERM;
+// it is one writer of the pool contend starts. It stops only between
+// creates, so a stopped writer leaves no write half-applied.
 func churn(args []string) error {
 	fs := flag.NewFlagSet("churn", flag.ExitOnError)
 	store := fs.String("store", "", "store root")
 	id := fs.String("id", "w", "request-id prefix unique to this writer")
 	seconds := fs.Float64("seconds", 30, "how long to keep writing")
 	_ = fs.Parse(args)
-	deadline := time.Now().Add(time.Duration(*seconds * float64(time.Second)))
-	n := 0
-	for time.Now().Before(deadline) {
-		n++
-		if _, err := call(*store, "ticket", "create", "--request-id", fmt.Sprintf("%s-%d", *id, n), "--payload", createPayload(n, nil)); err != nil {
-			// A lock timeout under contention is the pool's business, not a
-			// harness failure; keep the head moving.
-			fmt.Fprintln(os.Stderr, "churn:", err)
-		}
-	}
-	fmt.Printf("{\"writer\":%q,\"creates\":%d}\n", *id, n)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*seconds*float64(time.Second)))
+	defer cancel()
+	res := churnLoop(ctx, func(n int) error {
+		_, err := call(*store, "ticket", "create", "--request-id", fmt.Sprintf("%s-%d", *id, n), "--payload", createPayload(n, nil))
+		return err
+	})
+	res.Writer = *id
+	b, _ := json.Marshal(res)
+	fmt.Println(string(b))
 	return nil
+}
+
+// churnResult counts attempted creates by outcome; only Creates moved the head.
+type churnResult struct {
+	Writer  string `json:"writer"`
+	Creates int    `json:"creates"`
+	Failed  int    `json:"failed"`
+}
+
+// churnLoop calls create with 1, 2, ... until ctx is done, checking only
+// between calls. A refusal (for example a lock timeout under contention) is
+// counted and reported on stderr, not fatal: the pool keeps the head moving.
+func churnLoop(ctx context.Context, create func(n int) error) churnResult {
+	var res churnResult
+	for n := 1; ctx.Err() == nil; n++ {
+		if err := create(n); err != nil {
+			res.Failed++
+			fmt.Fprintln(os.Stderr, "churn:", err)
+			continue
+		}
+		res.Creates++
+	}
+	return res
+}
+
+// writerPool owns contend's writer processes. stop cancels every started
+// writer (SIGTERM, then kill after a grace period) and waits for all of them;
+// it is safe after a partial start and after a normal finish.
+type writerPool struct {
+	cancel context.CancelFunc
+	cmds   []*exec.Cmd
+	errs   []error
+}
+
+// startWriters starts one process per command spec under ctx. If any Start
+// fails, the writers already started are stopped and reaped before it returns.
+func startWriters(ctx context.Context, specs [][]string, setup func(i int, c *exec.Cmd)) (*writerPool, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	p := &writerPool{cancel: cancel}
+	for i, spec := range specs {
+		c := exec.CommandContext(ctx, spec[0], spec[1:]...)
+		c.Cancel = func() error { return c.Process.Signal(syscall.SIGTERM) }
+		c.WaitDelay = 30 * time.Second
+		if setup != nil {
+			setup(i, c)
+		}
+		if err := c.Start(); err != nil {
+			p.stop()
+			return nil, fmt.Errorf("start writer %d: %w", i, err)
+		}
+		p.cmds = append(p.cmds, c)
+	}
+	return p, nil
+}
+
+// wait reaps every writer that finishes on its own; stop must still follow.
+func (p *writerPool) wait() {
+	p.errs = make([]error, len(p.cmds))
+	for i, c := range p.cmds {
+		p.errs[i] = c.Wait()
+	}
+}
+
+func (p *writerPool) stop() {
+	p.cancel()
+	if p.errs == nil {
+		p.wait()
+	}
 }
 
 type contendRead struct {
@@ -703,18 +778,39 @@ func contend(args []string) error {
 	if err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	start := time.Now()
-	var procs []*exec.Cmd
-	for w := 0; w < *writers; w++ {
-		c := exec.Command(self, "churn", "--store", *store, "--id", fmt.Sprintf("x%d-%d", w, start.UnixNano()), "--seconds", fmt.Sprint(*seconds))
-		c.Stdout, c.Stderr = os.Stderr, io.Discard
-		if err := c.Start(); err != nil {
+	specs := make([][]string, *writers)
+	outs := make([]bytes.Buffer, *writers)
+	logs := make([]string, *writers)
+	for w := range specs {
+		specs[w] = []string{self, "churn", "--store", *store, "--id", fmt.Sprintf("x%d-%d", w, start.UnixNano()), "--seconds", fmt.Sprint(*seconds)}
+		logs[w] = filepath.Join(*work, fmt.Sprintf("writer-%d.stderr", w))
+	}
+	var logFiles []*os.File
+	defer func() {
+		for _, f := range logFiles {
+			_ = f.Close()
+		}
+	}()
+	for _, l := range logs {
+		f, err := os.Create(l)
+		if err != nil {
 			return err
 		}
-		procs = append(procs, c)
+		logFiles = append(logFiles, f)
 	}
+	pool, err := startWriters(ctx, specs, func(i int, c *exec.Cmd) { c.Stdout, c.Stderr = &outs[i], logFiles[i] })
+	if err != nil {
+		return err
+	}
+	defer pool.stop()
 	// Let the pool reach steady state before the first read.
-	time.Sleep(time.Second)
+	select {
+	case <-time.After(time.Second):
+	case <-ctx.Done():
+	}
 	var mu sync.Mutex
 	var reads []contendRead
 	var wg sync.WaitGroup
@@ -723,10 +819,10 @@ func contend(args []string) error {
 		wg.Add(1)
 		go func(r int) {
 			defer wg.Done()
-			for k := 0; time.Now().Before(deadline); k++ {
+			for k := 0; ctx.Err() == nil && time.Now().Before(deadline); k++ {
 				out := filepath.Join(*work, fmt.Sprintf("r%d-%d.json", r, k))
 				t0 := time.Since(start)
-				m, err := exec1(self, *store, read, false, "", out)
+				m, err := exec1(ctx, self, *store, read, false, "", out)
 				cr := contendRead{Reader: r, Started: ms(t0)}
 				if err != nil {
 					cr.Exit, cr.Code = -1, err.Error()
@@ -743,8 +839,18 @@ func contend(args []string) error {
 		}(r)
 	}
 	wg.Wait()
-	for _, c := range procs {
-		_ = c.Wait()
+	if ctx.Err() != nil {
+		pool.stop()
+		return fmt.Errorf("interrupted; writers stopped (stderr in %s)", *work)
+	}
+	pool.wait()
+	var pooled []any
+	for w := range outs {
+		var r churnResult
+		if json.Unmarshal(bytes.TrimSpace(outs[w].Bytes()), &r) != nil {
+			r.Writer = fmt.Sprintf("writer %d: no result", w)
+		}
+		pooled = append(pooled, map[string]any{"writer": r.Writer, "creates": r.Creates, "failed": r.Failed, "exitErr": errText(pool.errs[w]), "stderr": logs[w]})
 	}
 	if len(reads) == 0 {
 		return errors.New("no read completed")
@@ -756,9 +862,16 @@ func contend(args []string) error {
 		codes[r.Code]++
 	}
 	pct := func(p float64) float64 { return reads[int(p*float64(len(reads)-1))].WallMs }
-	sum, _ := json.Marshal(map[string]any{"reads": len(reads), "p50Ms": pct(.5), "p95Ms": pct(.95), "maxMs": reads[len(reads)-1].WallMs, "modes": modes, "codes": codes, "seconds": time.Since(start).Seconds()})
+	sum, _ := json.Marshal(map[string]any{"reads": len(reads), "p50Ms": pct(.5), "p95Ms": pct(.95), "maxMs": reads[len(reads)-1].WallMs, "modes": modes, "codes": codes, "seconds": time.Since(start).Seconds(), "writers": pooled})
 	fmt.Println(string(sum))
 	return nil
+}
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // auditFields extracts the read's journalAudit mode, wherever the command
