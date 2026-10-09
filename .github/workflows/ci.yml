@@ -20,8 +20,7 @@ jobs:
   doc-gates:
     # Fast signal (a few minutes) for the checks go-product never runs or reports only after
     # about an hour: the Makefile's documentation GATE_STEPS (V1-0244) and the use-case receipt
-    # pins (V1-0268). They read the Git index or worktree of this clean checkout, except the
-    # host package version gate (AHI-020, V1-0782), which reads committed history.
+    # pins (V1-0268). They read the Git index or worktree of this clean checkout; no history.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -33,14 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
           go-version: "1.27.1"
-      - name: Host package versions (AHI-020)
-        run: make -s host-package-versions-check host-package-versions-test
       - name: Documentation gate steps
         run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check
       - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)

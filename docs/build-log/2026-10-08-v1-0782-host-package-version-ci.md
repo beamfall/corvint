@@ -26,3 +26,10 @@ was already current.
 ## Rollback
 
 Revert the commit; the gate stays available through `make gate`.
+
+## Split (2026-10-09)
+
+At the owner's direction, the `.github/workflows/ci.yml` wiring and the AHI-020 trace sentence that
+names it moved out of batch J into a separate pull request. A `.github/` change needs an
+admin-posted `ci-control-plane` status, which held the whole batch. Batch J keeps the OpenCode
+0.7.9 bump. V1-0782 stays open until the CI pull request merges.

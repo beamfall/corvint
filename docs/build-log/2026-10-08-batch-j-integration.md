@@ -9,7 +9,7 @@ Batch J lands seven verified task lanes in one pull request on base `f33ea8ef`:
 - V1-1023: test consolidation planner (TCN-V0-001..012), with the interpretations accepted by
   decision 0466.
 - V1-1024: step-level negative controls by fault injection (LPCV-V0-057..069). Experimental.
-- V1-0782: host package version check in CI for the OpenCode integration.
+- V1-0782: OpenCode adapter 0.7.9 bump. The CI wiring for the host package version check moved to a separate pull request on 2026-10-09 because `.github/` changes need an admin-posted `ci-control-plane` status.
 - V1-0998: linked-worktree context revision. Refuted; the lane retains a regression test only.
 - V1-0555: OCM link refusals and guidance explain requirement anchor token boundaries.
 - V1-0520: OCM inline `go run` boundary.
