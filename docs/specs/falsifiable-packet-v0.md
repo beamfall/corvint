@@ -443,7 +443,7 @@ above stands with that substitution.
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
   `internal/liveverify/affected/select.go:481-494@eadff8fe`), by the same construction
-  `internal/gokernel/repository.go:403-404@425ed3ff` and `internal/gokernel/repository.go:414@54fe2926` already take — cited as a construction
+  `internal/gokernel/repository.go:405-406@425ed3ff` and `internal/gokernel/repository.go:416@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:520-522@6b81d3a5`). It hashes
   path names, never
@@ -457,7 +457,7 @@ above stands with that substitution.
   every `blob_hash` against that declared format's object-id shape, stated here rather than
   borrowed as a mechanism: exactly 40 lowercase hex digits under `sha1` and exactly 64 under
   `sha256`. That is the shape the index applies to Git's own output (`validObjectID`,
-  `internal/contextindex/git.go:535-548@f2d5aceb`, called at `internal/contextindex/git.go:474@842ac930`), cited as precedent only: the
+  `internal/contextindex/git.go:537-550@f2d5aceb`, called at `internal/contextindex/git.go:476@842ac930`), cited as precedent only: the
   predicate is unexported, and this clause requires no change to it or to any other code outside
   the checkpoint branch. A value of the wrong shape is `invalid-checkpoint-document`, refused
   before any handle is judged. `handles` MUST be total over its paths: two entries sharing a `path`
@@ -546,7 +546,7 @@ above stands with that substitution.
   `internal/contextindex/index.go:210@1e49fe84`, `internal/contextindex/index.go:481-483@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:590-600@875d1117`, `internal/contextindex/index.go:461-463@16cf1c1f`, `internal/contextindex/index.go:1492-1494@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:592-602@875d1117`, `internal/contextindex/index.go:461-463@16cf1c1f`, `internal/contextindex/index.go:1492-1494@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -572,7 +572,7 @@ above stands with that substitution.
   (5) `blob-changed` — the current blob differs from `blob_hash`;
   (6) `unchanged` — the current blob equals `blob_hash`. Directories and gitlinks are decided at
   step (2) by mode: `git ls-tree --full-tree <tree> -- <path>` reports `040000` for a directory and
-  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:467-475@7e57b664`), so
+  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:469-477@7e57b664`), so
   both MUST be `unsupported` whatever `cat-file` then returns — a tree object for the directory, a
   commit object or `missing` for the gitlink — and only `100644`, `100755`, and `120000` continue
   past step (2). `path-deleted` means the path is not present at the current tree, never that it
@@ -582,7 +582,7 @@ above stands with that substitution.
   `dirty-set-moved` (FPK-V0-020's digest, recomputed by that one construction over the current
   dirty path list, differs from the checkpoint's `dirty_paths_sha256`; both hash names only,
   never content, the digest being taken over the path list alone
-  (`internal/gokernel/repository.go:403-404@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:235@e2af9ea7`), so
+  (`internal/gokernel/repository.go:405-406@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:237@e2af9ea7`), so
   equal dirty sets yield equal digests and the flag is not set);
   `authority-changed` (the current blob of a `critical` handle differs from `blob_hash` AND
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
@@ -712,7 +712,7 @@ above stands with that substitution.
   cannot be listed at HEAD, or the `git ls-tree` output passes the same 64 MiB bound
   `readTreeEntries`
   already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:30@0e8ce572`,
-  `internal/contextindex/git.go:448@33f5b343`)
+  `internal/contextindex/git.go:450@33f5b343`)
   — `unsupported-prove-tree`, a code this requirement added because no earlier `prove` code named
   a tree-listing failure; the checkpoint compile function performs this bounded, whole-tree `git
   ls-tree -r -t -z --full-tree <tree>` read once (`readCheckpointTree`,
@@ -725,7 +725,7 @@ above stands with that substitution.
   `contextindex.Build` (`internal/contextindex/index.go:278@1cafb447`) and surfaced with its own code
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
-  (`internal/contextindex/git.go:461-462@bf504d51`), and `emitError` deliberately prints such an error without
+  (`internal/contextindex/git.go:463-464@bf504d51`), and `emitError` deliberately prints such an error without
   a `code` member (`cmd/corvint/main.go:1476-1478@a109d3d7`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
@@ -750,7 +750,7 @@ above stands with that substitution.
   every handle. It is NOT decided before every `cat-file` call in the run: `Build` itself reads
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
-  `internal/contextindex/git.go:590-600@875d1117`,
+  `internal/contextindex/git.go:592-602@875d1117`,
   called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:461-463@16cf1c1f`, `internal/contextindex/index.go:1492-1494@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
@@ -862,7 +862,7 @@ above stands with that substitution.
   partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1145-1156@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
-  (`internal/gokernel/repository.go:404@8febb932`).
+  (`internal/gokernel/repository.go:406@8febb932`).
 - **FPK-V0-025:** (accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSION-V0 lifecycle: SESSION-V0-001 through SESSION-V0-016
   stay deferred and unimplemented (`docs/specs/session-context-dividend-v0.md:6`, `:29`), and
   `prove --checkpoint` MUST NOT persist, cache, or index a checkpoint document server-side. The

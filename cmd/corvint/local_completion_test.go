@@ -332,3 +332,60 @@ func TestLocalCompletionVerifyOKMirrorsCheckResult(t *testing.T) {
 		}
 	}
 }
+
+// TestDogfoodBeginPlanIntentRefusalNamesTheRule pins LCP-V0-018 (V1-1043): an
+// unsorted, duplicated, empty or over-long plan intents array keeps its stable
+// code and names the sorted, de-duplicated 1-16 repository-relative spec path
+// rule in the nested message.
+func TestDogfoodBeginPlanIntentRefusalNamesTheRule(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.md", "# A\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	many := make([]string, 17)
+	for i := range many {
+		many[i] = "docs/spec-" + string(rune('a'+i)) + ".md"
+	}
+	for _, tc := range []struct {
+		name    string
+		intents []string
+		code    string
+	}{
+		{"unsorted", []string{"docs/b.md", "docs/a.md"}, "invalid-intent-scope"},
+		{"duplicated", []string{"docs/a.md", "docs/a.md"}, "invalid-intent-scope"},
+		{"empty", []string{}, "plan-bound-exceeded"},
+		{"over-long", many, "plan-bound-exceeded"},
+	} {
+		plan := localcompletion.Plan{Base: base, Intents: tc.intents, Checks: []localcompletion.Check{{ID: "c", Argv: []string{"true"}, TimeoutSeconds: 30}}}
+		raw, _ := json.Marshal(plan)
+		planPath := filepath.Join(t.TempDir(), "plan.json")
+		if err = os.WriteFile(planPath, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, []string{"begin", "--plan", planPath, "--session-key", localcompletion.HashSession(t.Name())}, strings.NewReader(""), &stdout, &stderr)
+		var envelope struct {
+			Code  string `json:"code"`
+			Error struct {
+				Code, Message string
+			} `json:"error"`
+		}
+		if err = json.Unmarshal([]byte(stderr.String()), &envelope); err != nil || code != 2 || stdout.Len() != 0 {
+			t.Fatalf("%s: exit=%d stdout=%q stderr=%q: %v", tc.name, code, stdout.String(), stderr.String(), err)
+		}
+		if envelope.Code != tc.code || envelope.Error.Code != tc.code || !strings.HasPrefix(envelope.Error.Message, tc.code+": ") {
+			t.Fatalf("%s: envelope %+v", tc.name, envelope)
+		}
+		for _, want := range []string{"1-16 repository-relative spec paths", "sorted in byte order with no duplicates"} {
+			if !strings.Contains(envelope.Error.Message, want) {
+				t.Fatalf("%s: message %q lacks %q", tc.name, envelope.Error.Message, want)
+			}
+		}
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -82,7 +83,9 @@ func TestPinnedRepositoryGitAllReadPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ordinary.gitOptions(100, nil).Binary != "" || strings.Contains(strings.Join(ordinary.gitOptions(100, nil).Env, "\n"), "GIT_ALLOW_PROTOCOL=") || strings.Contains(strings.Join(ordinary.pinnedArgs(), " "), "core.hooksPath=") {
+	// Since V1-0349 the ordinary invocation also refuses every transport; it keeps the default
+	// binary and hooks.
+	if ordinary.gitOptions(100, nil).Binary != "" || !slices.Contains(ordinary.gitOptions(100, nil).Env, "GIT_ALLOW_PROTOCOL=") || strings.Contains(strings.Join(ordinary.pinnedArgs(), " "), "core.hooksPath=") {
 		t.Fatal("ordinary Open invocation changed")
 	}
 }

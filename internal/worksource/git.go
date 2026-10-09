@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // PlatformPath is the fixed VPO-V0-022 executable search path.
@@ -211,8 +212,12 @@ func (source *Source) gitRaw(ctx context.Context, limit int, arguments ...string
 	stdout := &limitedOutput{limit: limit, cancel: cancel}
 	stderr := &limitedOutput{limit: 64 << 10, cancel: cancel}
 	command.Stdout, command.Stderr = stdout, stderr
-	defer cleanupGitProcess(command)
-	err := command.Run()
+	// Drain sweeps the group after the pipes drain and before the reap, so a
+	// pipe holder stays incomplete capture without a post-reap signal (V1-0373).
+	wait, err := groupreap.Drain(ctx, command, gitCommandWaitDelay)
+	if err == nil {
+		err = wait()
+	}
 	if err != nil || ctx.Err() != nil || stdout.overflow || stderr.overflow || stderr.buffer.Len() != 0 {
 		return nil, fmt.Errorf("qualified Git acquisition failed (%s): %w", strings.Join(arguments, " "), errors.Join(err, ctx.Err(), errors.New(stderr.buffer.String())))
 	}

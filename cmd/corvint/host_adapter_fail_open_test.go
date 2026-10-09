@@ -65,6 +65,11 @@ type failOpenRun struct {
 // and pre-compact read the repository with 15 Git processes.
 const failOpenSpawnLimit = 15
 
+// failOpenOutliveBound is how long a slow Git child may stay observable after the adapter exits
+// (AHI-048). The adapter SIGKILLs every live child group before exiting, so this covers only the
+// orphan's reap by its new parent; an abandoned slow child left running sleeps for seconds.
+const failOpenOutliveBound = 100 * time.Millisecond
+
 // failOpenShells are the shells a hook adapter might reach through PATH or $SHELL. Each is shimmed
 // to record the spawn and fail, so a login shell (or any shell) cannot run unseen.
 var failOpenShells = []string{"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
@@ -133,6 +138,12 @@ func TestAHI044HookAdaptersFailOpen(t *testing.T) {
 					ledgerWrites.Add(1)
 				}
 				t.Logf("%s/%s: %d PATH spawns, %s, Git outlived the adapter by %s", invocation.name, test.name, len(run.spawns), run.elapsed.Round(time.Millisecond), run.outlived.Round(time.Millisecond))
+				// AHI-048: the exit path kills every live child group before os.Exit, so a sleeping
+				// slow Git is gone once its new parent reaps it. A running Git can take longer to act
+				// on the SIGKILL under host load, so other cases log the time (decision 0082).
+				if test.slowGit && run.outlived >= failOpenOutliveBound {
+					t.Fatalf("Git outlived the adapter by %s, at or above the %s exit-kill bound", run.outlived, failOpenOutliveBound)
+				}
 				test.check(t, invocation, run)
 			})
 		}
@@ -329,8 +340,8 @@ func runFailOpenCase(t *testing.T, binary, realGit string, invocation failOpenIn
 	if !test.closeStdout && !plain && !json.Valid(bytes.TrimSpace(stdout.Bytes())) {
 		t.Fatalf("stdout is not one hook JSON value: %q", stdout.String())
 	}
-	// A Git child the adapter abandoned at its deadline can outlive it; wait for it before reading
-	// the tree, so a write it makes after the adapter exits still counts.
+	// A Git child the adapter abandoned at its deadline is killed as the adapter exits (AHI-048);
+	// wait for it before reading the tree, so a write it makes after the adapter exits still counts.
 	outlived := waitFailOpenOrphans(t, pids)
 	spawns := failOpenSpawns(t, log)
 	for _, spawn := range spawns {
