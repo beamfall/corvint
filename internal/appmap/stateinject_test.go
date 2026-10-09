@@ -175,6 +175,13 @@ func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
 		"non-null write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.X! = 'app.y';\n", 1), map[string]string{reg: good}},
 		"optional call":           {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.reset?.();\n", 1), map[string]string{reg: good}},
 		"delete cast":             {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  delete <any>Names.X;\n", 1), map[string]string{reg: good}},
+		"delete object cast":      {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  delete <{}>Names.X;\n", 1), map[string]string{reg: good}},
+		"typeof increment":        {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  typeof Names.X++;\n", 1), map[string]string{reg: good}},
+		"typeof method call":      {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  typeof Names.reset();\n", 1), map[string]string{reg: good}},
+		"typeof computed write":   {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  typeof Names['X']++;\n", 1), map[string]string{reg: good}},
+		"spread rest write":       {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  [...Names.X] = ['app.y'];\n", 1), map[string]string{reg: good}},
+		"template write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  `${(Names.X = 'app.y')}`;\n", 1), map[string]string{reg: good}},
+		"escaped write":           {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  N\\u0061mes.X = 'app.y';\n", 1), map[string]string{reg: good}},
 		"local declaration":       {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  { const Names = { X: 'app.y' }; }\n", 1), map[string]string{reg: good}},
 		"not injected position":   {`["app/setup"]`, "angular.module('a').run(function ($stateProvider, Names) {\n  $stateProvider.state(Names.X, { url: 'x' });\n  $stateProvider.state('kid', { parent: Names.X, url: '/k' });\n});\n", map[string]string{reg: good}},
 		"object map expression":   {`["app/setup"]`, plain, map[string]string{reg: good, "app/setup/map.ts": "angular.module('admin').constant({ Other: {} } && dynamicTables);\n"}},
@@ -623,6 +630,14 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 		"export default":     "export default SectionTable.REPORTS = 'other';\n",
 		"optional call":      "SectionTable.reset?.();\n",
 		"delete cast":        "delete <any>SectionTable.REPORTS;\n",
+		"delete object cast": "delete <{}>SectionTable.REPORTS;\n",
+		"typeof increment":   "typeof SectionTable.REPORTS++;\n",
+		"typeof method call": "typeof SectionTable.reset();\n",
+		"typeof computed":    "typeof SectionTable['REPORTS']++;\n",
+		"default computed":   "export default SectionTable['REPORTS'] = 'other';\n",
+		"spread rest":        "[...SectionTable.REPORTS] = ['other'];\n",
+		"template write":     "`${(SectionTable.REPORTS = 'other')}`;\n",
+		"brace in template":  "const s = `${'{'}`;\nSectionTable.REPORTS = 'other';\n",
 	} {
 		files := map[string]string{decl: table + write}
 		if strings.Contains(write, "reset") {
@@ -640,10 +655,13 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 		})
 	}
 	// Reads the rule proves stay resolved: comparisons, a ternary, a member of the value, a
-	// parenthesized argument, a nested object value and a statement without a semicolon.
+	// parenthesized argument, a nested object value, a statement without a semicolon, `typeof`
+	// reads, a template that does not name the table, and an earlier block holding `++`.
 	t.Run("reads", func(t *testing.T) {
 		reads := "const same = SectionTable.REPORTS === 'x' ? SectionTable.REPORTS : (SectionTable.REPORTS);\n" +
-			"const len = SectionTable.REPORTS.length;\nconst nested = { a: [SectionTable.REPORTS] }\nuse(SectionTable.REPORTS)\n"
+			"const len = SectionTable.REPORTS.length;\nconst nested = { a: [SectionTable.REPORTS] }\nuse(SectionTable.REPORTS)\n" +
+			"if (typeof SectionTable === 'object') { void typeof SectionTable['REPORTS']; }\nconst u = `${'a'}/b`;\n" +
+			"function f() { let n = 0; n++; }\nconst d = SectionTable.REPORTS;\n"
 		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), map[string]string{
 			"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: table + reads}, "", "app/tables/routes/index.ts")
 	})

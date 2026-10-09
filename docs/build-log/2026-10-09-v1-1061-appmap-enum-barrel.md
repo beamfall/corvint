@@ -53,15 +53,31 @@ injector.
   closed set that cannot make it an assignment target: `;` or end of file, `.`, `[`, `:`, `{`, an
   identifier other than `as`/`satisfies`/`in`/`of` (a new statement after ASI, or `instanceof`),
   `==`/`===`/`!==`, or a binary operator other than `?` that `assigned` does not read as an
-  assignment or increment; and at no level does `delete`, `++` or `--` appear anywhere between the
-  nearest preceding `;`, `{` or `}` (or the start of the file) and the expression, so a prefix
-  assertion such as `delete <any>X.Y` cannot hide one (sixth review). Everything else is a
+  assignment or increment; and at no level does `delete`, `++` or `--` appear before the
+  expression in its statement, so a prefix assertion such as `delete <any>X.Y` cannot hide one
+  (sixth review). That backward scan (`prefixWrite`, seventh review) skips each balanced `(...)`,
+  `[...]` and `{...}` group with a kind-checked stack (the `{}` of `delete <{}>X.Y` no longer ends
+  it), climbs out through an unmatched `(` or `[`, stops only at a `;` or unmatched `{` outside
+  every skipped group or at the start of the file, and fails closed on brackets it cannot match;
+  `<...>` needs no matching of its own because brackets inside type arguments nest and a `;` there
+  sits inside `{}`. Everything else is a
   possible write and makes the table not read whole: `=` and compound assignments, `++`/`--`,
   TypeScript assertions (`!`, `as`, `satisfies`), for-in/of heads, a call, optional call (`?`,
   `?.`, sixth review) or tagged template through the table (`this` is `X`), `<` (possible type
-  arguments), and any unlisted token. Member references are checked
-  before the `export default X` case, so `export default X.Y = v` is a write. The same rule
-  replaces `written` in the router-side injected-parameter check (AMAP-V0-022/023). This is the
+  arguments), and any unlisted token. Seventh review: the write checks run on every use before
+  any form that may count as a read (`readUse`): a member `X.Y`, a computed member `X[k]` checked
+  through its `]`, and a bare `X`; `typeof X`, `export default X`, `export { X }` and the
+  registering `.constant(...)` argument only narrow which unwritten uses are reads, never bypass
+  the checks, so `typeof X.Y++`, `typeof X.reset()`, `typeof X['Y']++` and
+  `export default X['Y'] = v` are writes. A spread `...X` is a use, not a property name. The
+  router-side injected-parameter check (AMAP-V0-022/023) uses the same `readUse` before its
+  `typeof` form; a parameter binding position stays the only non-use. Nothing in an unread file
+  (`unlisted`: a stray backslash, unmatched brackets) is injected, as it already was not read
+  whole; and a name used inside a template substitution, which the lexer folds into one template
+  token, is neither read whole nor injected: the lexer keeps each template's raw source from its
+  first `${`, skips nested quotes and templates when bounding a substitution, and marks a template
+  it cannot bound (a `/` inside a substitution, or no closing backtick), which makes the file
+  unread. This is the
   spec's "unassigned member read" made conservative; no spec text changes.
 
 ## Evidence
@@ -129,6 +145,17 @@ injector.
   `TestAMAPV0023UnprovableInjectionStaysUnknown` gained both on the injected parameter. Against
   `stateconst.go` from `fb66afdb` all 6 subtests resolve silently; all pass with `?` removed from
   the safe followers and the statement-wide prefix scan.
+- Seventh review follow-up (P2: `delete <{}>X.Y`; `typeof` before the member check; audit):
+  `TestAMAPV0026PossibleWritesFailClosed` gained, star and direct, `delete <{}>X.Y`,
+  `typeof X.Y++`, `typeof X.reset()`, `typeof X['Y']++`, `export default X['Y'] = v`,
+  `[...X.Y] = [...]`, a write inside a template substitution, and a write after a template whose
+  substitution holds `'{'`; its `reads` guard gained `typeof` reads, a template with `/` outside
+  its substitution and an earlier block holding `++`. `TestAMAPV0023UnprovableInjectionStaysUnknown`
+  gained the injected `delete <{}>`, `typeof` increment, method call and computed write, spread
+  rest, template and escaped-identifier writes. Against `jslex.go`, `stateconst.go` and
+  `stateinject.go` from `6dc1ea03`, 19 subtests resolve silently (12 star/direct, 7 injected; the
+  star/direct `typeof X.Y++` and `typeof X.reset()` already failed closed there because
+  `onlyRead` checked members first); all pass with the fix.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -146,11 +173,17 @@ injector.
   or template swallowing it) is not detected; an `unread` file also blocks an otherwise
   well-formed named re-export. The pure-read rule over-reports: provable reads such as `X.Y < z`,
   `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y ? a : b`, `X.Y ?? d`, `X.Y?.length`, `X.Y(...)` (any
-  call through the table), any `delete`, `++` or `--` earlier in the same statement or group (for
-  example `i++, X.Y`), a parenthesized
+  call through the table), any `delete`, `++` or `--` earlier in the same statement outside a
+  complete bracket group (for example `i++, X.Y`, or `i++` before a block closed without `;`), a
+  bare `typeof X` or `export default X` followed by anything but a read follower (such as
+  `let s: typeof X = v`), `export { X as Y }`, a spread `...X`, any use of the name inside a
+  template substitution, a template whose substitution holds `/`, a parenthesized
   group followed by `(` (a semicolon-free IIFE body) or `typeof`-free type positions such as
   `let s: X.Y = v` make the table not read whole; a block closed without `;` is climbed like a group, so a following `=`
   at that level also counts. It inherits the lexer's limits (whitespace is not kept, so `X.Y! =
   v` and `X.Y != v` are one case) and reads only the router, registering and declaring files:
-  writes from a third module stay unread, as the spec states. No adopter-scale qualification
+  writes from a third module stay unread, as the spec states, including a write through a
+  barrel's own import or a namespace import (`import * as NS ...; NS.X.Y = v`). The bracket
+  matching relies on `auditExports`, which marks any file with unmatched brackets unread, so
+  `enclosingOpen`/`enclosingClose` run only on balanced tokens. No adopter-scale qualification
   (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.

@@ -71,6 +71,9 @@ type constFile struct {
 	claimed  map[int]bool
 	skip     []bool // tokens of import and re-export statements and constant declaration headers
 	reads    map[readKey]bool
+	// hidden holds every identifier inside a template substitution, which no token shows: a name
+	// there has a use the reader cannot check.
+	hidden map[string]bool
 	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
 	inject  map[string]*diBinding
 	depth   []int
@@ -319,40 +322,59 @@ func (f *constFile) read(d *constDecl, name string, di bool) (string, []Anchor, 
 }
 
 // onlyRead reports whether every use of name outside import statements and constant declarations
-// is a pure member read `name.member` (see pureRead), a `typeof name`, or an `export { name }` /
-// `export default name`. Any other use could mutate or rebind the table. The token at allow (or
-// none, -1) is exempt: it registers the table for injection. Nothing in an unread file is only
-// read: an escaped identifier or a body the reader skipped could write it.
+// is provably only read (see readUse) and is a member read `name.member`, a `typeof name`, an
+// `export { name }` / `export default name`, or the token at allow (or none, -1), which registers
+// the table for injection. The write checks run on every use first; these forms only narrow what
+// counts as a read. Any other use could mutate or rebind the table. Nothing in an unread file is
+// only read, nor a name used inside a template substitution: an escaped identifier, a body the
+// reader skipped or a substitution could write it.
 func (f *constFile) onlyRead(name string, allow int) bool {
 	key := readKey{name, allow}
 	if v, ok := f.reads[key]; ok {
 		return v
 	}
-	ok := !f.unlisted
+	ok := !f.unlisted && !f.hidden[name]
 	toks := f.toks
 	for i := 0; i < len(toks) && ok; i++ {
-		if i == allow || f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || (i > 0 && isPunct(toks[i-1], ".")) {
+		if f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || property(toks, i) {
 			continue
 		}
-		prev := ""
-		if i > 0 && toks[i-1].kind == tokIdent {
-			prev = toks[i-1].text
-		}
-		switch {
-		case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent:
-			ok = pureRead(toks, i) // first: `export default X.Y = v` exports an assignment
-		case prev == "typeof":
-		case prev == "default" && i > 1 && toks[i-2].text == "export":
-		case inExportList(toks, i):
-		default:
-			ok = false
-		}
+		read, member := readUse(toks, i)
+		ok = read && (member || i == allow || word(toks, i-1, "typeof") ||
+			word(toks, i-1, "default") && word(toks, i-2, "export") || inExportList(toks, i))
 	}
 	f.reads[key] = ok
 	return ok
 }
 
-// pureRead reports whether the member expression toks[i..i+2] (`X.Y`) is provably only read. The
+// word reports whether toks[k] is the identifier or keyword w.
+func word(toks []token, k int, w string) bool {
+	return k >= 0 && k < len(toks) && toks[k].kind == tokIdent && toks[k].text == w
+}
+
+// property reports whether toks[i] is a property name after `.` (`a.X`, `a?.X`), not a spread
+// `...X`, which uses the binding.
+func property(toks []token, i int) bool {
+	return i > 0 && isPunct(toks[i-1], ".") && !(i > 1 && isPunct(toks[i-2], "."))
+}
+
+// readUse reports whether the use of a binding at toks[i] is provably only read, and whether it is
+// a member read `X.Y`. A computed member `X[k]` is checked as one expression through its `]`; the
+// caller decides whether a bare or computed use may count as a read at all.
+func readUse(toks []token, i int) (read, member bool) {
+	switch {
+	case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent:
+		return pureRead(toks, i, i+3), true
+	case next(toks, i+1, "["):
+		c := enclosingClose(toks, i+1)
+		return c > 0 && isPunct(toks[c], "]") && pureRead(toks, i, c+1), false
+	case next(toks, i+1, "."):
+		return false, false // `X.#p`, `X..`: a member the rule does not place
+	}
+	return pureRead(toks, i, i+1), false
+}
+
+// pureRead reports whether the expression toks[start:end] (`X.Y`, `X[k]` or `X`) is provably only read. The
 // rule is structural and fails closed instead of naming write forms: the expression, and then each
 // bracket group it is an element of (climbing through `,` and closing brackets, which is how
 // parenthesized targets and destructuring patterns enclose it), must be followed by a token of a
@@ -360,15 +382,14 @@ func (f *constFile) onlyRead(name string, allow int) bool {
 // file, a member access `.`/`[`, `:`, `{`, an identifier that starts a new statement or is
 // `instanceof`, `==`/`===`/`!==`, or a binary operator other than `?` that assigned does not read
 // as an assignment or increment -- and no `delete`, `++` or `--` may appear anywhere between the
-// start of the statement or bracket group (the nearest `;`, `{` or `}` before it, or the start of
-// the file) and the expression, so a prefix type assertion (`delete <any>X.Y`) cannot hide one.
+// start of the statement and the expression outside a complete bracket group (see prefixWrite),
+// so a prefix type assertion (`delete <any>X.Y`, `delete <{}>X.Y`) cannot hide one.
 // Everything else counts as a possible write: `=` and compound assignments, `++`/`--`, a
 // TypeScript assertion (`!`, `as`, `satisfies`, so `X.Y! = v` and `(X.Y as T) = v`), a for-in/of
 // head (`in`, `of`), a call, optional call (`?`, `?.`) or tagged template through the table
 // (`this` is X), a `<` that may open type arguments, and any token not listed. A `,` or `;`
 // reached at statement level (no enclosing bracket) ends the climb as a read.
-func pureRead(toks []token, i int) bool {
-	start, end := i, i+3
+func pureRead(toks []token, start, end int) bool {
 	for {
 		if prefixWrite(toks, start) {
 			return false
@@ -413,19 +434,45 @@ func pureRead(toks []token, i int) bool {
 	}
 }
 
-// prefixWrite reports whether `delete`, `++` or `--` appears anywhere before toks[start] back to
-// the nearest `;`, `{` or `}` (or the start of the file).
+// prefixWrite reports whether `delete`, `++` or `--` appears before toks[start] in its statement
+// outside every complete bracket group that precedes it there. The backward scan skips each
+// balanced `(...)`, `[...]` and `{...}` group (an operand that is already whole: the `{}` of
+// `delete <{}>X.Y`, or a block) and stops only at a `;` or an unmatched `{` outside every skipped
+// group, or at the start of the file; it climbs out through an unmatched `(` or `[`, which encloses
+// the expression. A `<...>` needs no matching of its own: any bracket inside type arguments nests,
+// and a `;` there sits inside `{...}`. Brackets the scan cannot match fail closed.
 func prefixWrite(toks []token, start int) bool {
+	var want []string // the opener each skipped closer needs, innermost last
 	for p := start - 1; p >= 0; p-- {
-		switch {
-		case isPunct(toks[p], ";") || isPunct(toks[p], "{") || isPunct(toks[p], "}"):
-			return false
-		case toks[p].kind == tokIdent && toks[p].text == "delete",
-			p >= 1 && (isPunct(toks[p], "+") && isPunct(toks[p-1], "+") || isPunct(toks[p], "-") && isPunct(toks[p-1], "-")):
+		t := toks[p]
+		if t.kind == tokPunct {
+			switch t.text {
+			case ")", "]", "}":
+				want = append(want, map[string]string{")": "(", "]": "[", "}": "{"}[t.text])
+				continue
+			case "(", "[", "{":
+				if n := len(want); n > 0 {
+					if want[n-1] != t.text {
+						return true // brackets that do not match
+					}
+					want = want[:n-1]
+				} else if t.text == "{" {
+					return false // the block or object literal that holds the statement
+				}
+				continue
+			case ";":
+				if len(want) == 0 {
+					return false
+				}
+				continue
+			}
+		}
+		if len(want) == 0 && (t.kind == tokIdent && t.text == "delete" ||
+			p >= 1 && (isPunct(t, "+") && isPunct(toks[p-1], "+") || isPunct(t, "-") && isPunct(toks[p-1], "-"))) {
 			return true
 		}
 	}
-	return false
+	return len(want) > 0 // a closer with no opener
 }
 
 // enclosingClose returns the closing bracket of the innermost group enclosing toks[k], which is
@@ -509,7 +556,8 @@ func inExportList(toks []token, i int) bool {
 func parseConstFile(e blobEntry, data []byte) *constFile {
 	toks, _ := lexJS(string(data))
 	f := &constFile{entry: e, data: data, toks: toks, decls: map[string]*constDecl{}, imports: map[string]constImport{},
-		exports: map[string]bool{}, claimed: map[int]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{}}
+		exports: map[string]bool{}, claimed: map[int]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{},
+		hidden: map[string]bool{}}
 	declare := func(name string, d *constDecl) {
 		if prior, dup := f.decls[name]; dup {
 			prior.bad = true
@@ -646,6 +694,25 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		}
 	}
 	f.auditExports()
+	for _, t := range toks {
+		if t.kind != tokTemplate {
+			continue
+		}
+		if t.unsure {
+			f.unread()
+		}
+		for k := 0; k < len(t.code); k++ {
+			if !isIdentStart(t.code[k]) {
+				continue
+			}
+			e := k + 1
+			for e < len(t.code) && isIdentPart(t.code[e]) {
+				e++
+			}
+			f.hidden[t.code[k:e]] = true
+			k = e - 1
+		}
+	}
 	return f
 }
 

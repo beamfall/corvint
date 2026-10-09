@@ -30,6 +30,12 @@ type token struct {
 	// inexact marks a string or template whose escapes could not be decoded exactly (legacy
 	// octal, a lone surrogate); its text is then not the program's value and never a literal.
 	inexact bool
+	// code is the raw source of a template literal from its first ${ to its end: the tokens never
+	// show the substitutions, so a reader that must see every use of a name searches it. unsure
+	// marks a template the lexer cannot bound: a substitution holding a `/` (a comment, regex or
+	// division) or no closing backtick, so code or the tokens after it may hide source.
+	code   string
+	unsure bool
 }
 
 // literal reports whether t is a string or substitution-free template whose value is exact.
@@ -111,8 +117,12 @@ func lexJS(text string) ([]token, string) {
 			blank(i+1, end-1)
 			i = end
 		case c == '`':
-			body, subst, inexact, end := readTemplate(text, i)
-			toks = append(toks, token{kind: tokTemplate, text: body, line: line, subst: subst, inexact: inexact})
+			body, subst, inexact, unsure, end := readTemplate(text, i)
+			code := ""
+			if subst {
+				code = text[i+strings.Index(text[i:end], "${") : end]
+			}
+			toks = append(toks, token{kind: tokTemplate, text: body, line: line, subst: subst, inexact: inexact, code: code, unsure: unsure})
 			line += strings.Count(text[i:end], "\n")
 			blank(i+1, end-1)
 			i = end
@@ -271,10 +281,11 @@ func hexRune(text string, from, to int) (rune, bool) {
 	return rune(v), err == nil
 }
 
-// readTemplate reads a template literal starting at i, replacing each ${...} with substMark.
-func readTemplate(text string, i int) (string, bool, bool, int) {
+// readTemplate reads a template literal starting at i, replacing each ${...} with substMark. It
+// reports whether a substitution holds a `/` it cannot place (see token.unsure).
+func readTemplate(text string, i int) (string, bool, bool, bool, int) {
 	var b strings.Builder
-	subst, inexact := false, false
+	subst, inexact, unsure := false, false, false
 	j := i + 1
 	for j < len(text) && text[j] != '`' {
 		switch {
@@ -287,6 +298,17 @@ func readTemplate(text string, i int) (string, bool, bool, int) {
 			b.WriteString(substMark)
 			depth := 0
 			for j < len(text) {
+				if text[j] == '\'' || text[j] == '"' { // a brace in a nested literal does not count
+					_, _, j = readQuoted(text, j)
+					continue
+				}
+				if text[j] == '`' {
+					var inner bool
+					_, _, _, inner, j = readTemplate(text, j)
+					unsure = unsure || inner
+					continue
+				}
+				unsure = unsure || text[j] == '/'
 				if text[j] == '{' {
 					depth++
 				} else if text[j] == '}' {
@@ -305,8 +327,10 @@ func readTemplate(text string, i int) (string, bool, bool, int) {
 	}
 	if j < len(text) {
 		j++
+	} else {
+		unsure = true // unterminated: the rest of the file may be code the tokens do not show
 	}
-	return b.String(), subst, inexact, j
+	return b.String(), subst, inexact, unsure, j
 }
 
 func regexEnd(text string, i int) int {

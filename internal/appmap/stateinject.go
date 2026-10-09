@@ -250,8 +250,11 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 	return v, append(at, spanOf(own.entry, own.data, fn.first, fn.last)), true
 }
 
-// injection reads how the router file binds name: ok only when every use is an unwritten member
-// read, a `typeof`, or a plain parameter of an injectable function.
+// injection reads how the router file binds name: ok only when every use is a plain parameter of
+// an injectable function, or is provably only read (see readUse) and is a member read or a
+// `typeof`. The write checks run before the `typeof` form narrows what counts as a read; a
+// parameter is a binding position, not a use. Nothing in an unread file, and no name used inside a
+// template substitution, is injected.
 func (f *constFile) injection(name string) *diBinding {
 	if f.inject == nil {
 		f.inject = map[string]*diBinding{}
@@ -261,18 +264,18 @@ func (f *constFile) injection(name string) *diBinding {
 	}
 	b := &diBinding{}
 	f.inject[name] = b
-	if !f.annotations() {
+	if f.unlisted || f.hidden[name] || !f.annotations() {
 		return b
 	}
 	toks := f.toks
 	for i := range toks {
-		if f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || (i > 0 && isPunct(toks[i-1], ".")) {
+		if f.skip[i] || toks[i].kind != tokIdent || toks[i].text != name || property(toks, i) {
 			continue
 		}
+		read, member := readUse(toks, i)
 		switch {
-		case i > 0 && toks[i-1].kind == tokIdent && toks[i-1].text == "typeof":
-		case i+2 < len(toks) && isPunct(toks[i+1], ".") && toks[i+2].kind == tokIdent:
-			if !pureRead(toks, i) {
+		case member || word(toks, i-1, "typeof"):
+			if !read {
 				return b
 			}
 		default:
@@ -526,7 +529,7 @@ func (f *constFile) onlyInjected(fname string) bool {
 	toks := f.toks
 	declared := 0
 	for i, t := range toks {
-		if t.kind != tokIdent || t.text != fname || (i > 0 && isPunct(toks[i-1], ".")) {
+		if t.kind != tokIdent || t.text != fname || property(toks, i) {
 			continue
 		}
 		prev := ""
