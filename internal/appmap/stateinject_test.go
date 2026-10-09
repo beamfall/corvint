@@ -173,6 +173,8 @@ func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
 		"written":                 {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.X = 'app.y';\n", 1), map[string]string{reg: good}},
 		"asserted write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  (Names.X as string) = 'app.y';\n", 1), map[string]string{reg: good}},
 		"non-null write":          {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.X! = 'app.y';\n", 1), map[string]string{reg: good}},
+		"optional call":           {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  Names.reset?.();\n", 1), map[string]string{reg: good}},
+		"delete cast":             {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  delete <any>Names.X;\n", 1), map[string]string{reg: good}},
 		"local declaration":       {`["app/setup"]`, strings.Replace(plain, "=> {\n", "=> {\n  { const Names = { X: 'app.y' }; }\n", 1), map[string]string{reg: good}},
 		"not injected position":   {`["app/setup"]`, "angular.module('a').run(function ($stateProvider, Names) {\n  $stateProvider.state(Names.X, { url: 'x' });\n  $stateProvider.state('kid', { parent: Names.X, url: '/k' });\n});\n", map[string]string{reg: good}},
 		"object map expression":   {`["app/setup"]`, plain, map[string]string{reg: good, "app/setup/map.ts": "angular.module('admin').constant({ Other: {} } && dynamicTables);\n"}},
@@ -619,9 +621,11 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 		"for of head":        "for (SectionTable.REPORTS of ['other']) {}\n",
 		"method call":        "SectionTable.reset();\n",
 		"export default":     "export default SectionTable.REPORTS = 'other';\n",
+		"optional call":      "SectionTable.reset?.();\n",
+		"delete cast":        "delete <any>SectionTable.REPORTS;\n",
 	} {
 		files := map[string]string{decl: table + write}
-		if name == "method call" {
+		if strings.Contains(write, "reset") {
 			files[decl] = "export const SectionTable = { REPORTS: 'ledger', reset: function () { this.REPORTS = 'other'; } };\n" + write
 		}
 		t.Run("star "+name, func(t *testing.T) {

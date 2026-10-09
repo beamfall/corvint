@@ -52,11 +52,14 @@ injector.
   way parenthesized targets and destructuring patterns enclose it), is followed by a token of a
   closed set that cannot make it an assignment target: `;` or end of file, `.`, `[`, `:`, `{`, an
   identifier other than `as`/`satisfies`/`in`/`of` (a new statement after ASI, or `instanceof`),
-  `==`/`===`/`!==`, or a binary operator `assigned` does not read as an assignment or increment;
-  and no level follows `delete`, `++` or `--`. Everything else is a possible write and makes the
-  table not read whole: `=` and compound assignments, `++`/`--`, TypeScript assertions (`!`,
-  `as`, `satisfies`), for-in/of heads, a call or tagged template through the table (`this` is
-  `X`), `<` (possible type arguments), and any unlisted token. Member references are checked
+  `==`/`===`/`!==`, or a binary operator other than `?` that `assigned` does not read as an
+  assignment or increment; and at no level does `delete`, `++` or `--` appear anywhere between the
+  nearest preceding `;`, `{` or `}` (or the start of the file) and the expression, so a prefix
+  assertion such as `delete <any>X.Y` cannot hide one (sixth review). Everything else is a
+  possible write and makes the table not read whole: `=` and compound assignments, `++`/`--`,
+  TypeScript assertions (`!`, `as`, `satisfies`), for-in/of heads, a call, optional call (`?`,
+  `?.`, sixth review) or tagged template through the table (`this` is `X`), `<` (possible type
+  arguments), and any unlisted token. Member references are checked
   before the `export default X` case, so `export default X.Y = v` is a write. The same rule
   replaces `written` in the router-side injected-parameter check (AMAP-V0-022/023). This is the
   spec's "unassigned member read" made conservative; no spec text changes.
@@ -120,6 +123,12 @@ injector.
   unread tails (escaped write, unclosed enum, undecodable re-export, `export enum Other {]`).
   Against `stateconst.go` from `efd52c9d` all 4 subtests resolve `ledger` silently; all pass with
   `lookup` checking `unlisted` for the default export (`not-read-whole`).
+- Sixth review follow-up (P2: optional call through the table; prefix assertion hiding
+  `delete`): `TestAMAPV0026PossibleWritesFailClosed` gained `SectionTable.reset?.()` (table with
+  a function member) and `delete <any>SectionTable.REPORTS`, star and direct, and
+  `TestAMAPV0023UnprovableInjectionStaysUnknown` gained both on the injected parameter. Against
+  `stateconst.go` from `fb66afdb` all 6 subtests resolve silently; all pass with `?` removed from
+  the safe followers and the statement-wide prefix scan.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -136,7 +145,9 @@ injector.
   backslash and still hides a top-level `export` token (for example a misread regular expression
   or template swallowing it) is not detected; an `unread` file also blocks an otherwise
   well-formed named re-export. The pure-read rule over-reports: provable reads such as `X.Y < z`,
-  `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y(...)` (any call through the table), a parenthesized
+  `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y ? a : b`, `X.Y ?? d`, `X.Y?.length`, `X.Y(...)` (any
+  call through the table), any `delete`, `++` or `--` earlier in the same statement or group (for
+  example `i++, X.Y`), a parenthesized
   group followed by `(` (a semicolon-free IIFE body) or `typeof`-free type positions such as
   `let s: X.Y = v` make the table not read whole; a block closed without `;` is climbed like a group, so a following `=`
   at that level also counts. It inherits the lexer's limits (whitespace is not kept, so `X.Y! =

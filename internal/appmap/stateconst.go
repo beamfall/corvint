@@ -358,17 +358,19 @@ func (f *constFile) onlyRead(name string, allow int) bool {
 // parenthesized targets and destructuring patterns enclose it), must be followed by a token of a
 // closed set that ends or continues an expression without assigning to it -- `;` or the end of the
 // file, a member access `.`/`[`, `:`, `{`, an identifier that starts a new statement or is
-// `instanceof`, `==`/`===`/`!==`, or a binary operator that assigned does not read as an assignment
-// or increment -- and must not follow `delete`, `++` or `--`. Everything else counts as a possible
-// write: `=` and compound assignments, `++`/`--`, a TypeScript assertion (`!`, `as`, `satisfies`,
-// so `X.Y! = v` and `(X.Y as T) = v`), a for-in/of head (`in`, `of`), a call or tagged template
-// through the table (`this` is X), a `<` that may open type arguments, and any token not listed.
-// A `,` or `;` reached at statement level (no enclosing bracket) ends the climb as a read.
+// `instanceof`, `==`/`===`/`!==`, or a binary operator other than `?` that assigned does not read
+// as an assignment or increment -- and no `delete`, `++` or `--` may appear anywhere between the
+// start of the statement or bracket group (the nearest `;`, `{` or `}` before it, or the start of
+// the file) and the expression, so a prefix type assertion (`delete <any>X.Y`) cannot hide one.
+// Everything else counts as a possible write: `=` and compound assignments, `++`/`--`, a
+// TypeScript assertion (`!`, `as`, `satisfies`, so `X.Y! = v` and `(X.Y as T) = v`), a for-in/of
+// head (`in`, `of`), a call, optional call (`?`, `?.`) or tagged template through the table
+// (`this` is X), a `<` that may open type arguments, and any token not listed. A `,` or `;`
+// reached at statement level (no enclosing bracket) ends the climb as a read.
 func pureRead(toks []token, i int) bool {
 	start, end := i, i+3
 	for {
-		if p := start - 1; p >= 0 && (toks[p].kind == tokIdent && toks[p].text == "delete" ||
-			p >= 1 && (isPunct(toks[p], "+") && isPunct(toks[p-1], "+") || isPunct(toks[p], "-") && isPunct(toks[p-1], "-"))) {
+		if prefixWrite(toks, start) {
 			return false
 		}
 		if end >= len(toks) {
@@ -404,11 +406,26 @@ func pureRead(toks []token, i int) bool {
 			start, end = o, c+1
 			continue
 		}
-		if strings.Contains("+-*/%&|^?>", t.text) {
+		if strings.Contains("+-*/%&|^>", t.text) {
 			return !assigned(toks, end)
 		}
-		return false // `(`, `<`, and any other punctuator
+		return false // `(`, `<`, `?`, and any other punctuator
 	}
+}
+
+// prefixWrite reports whether `delete`, `++` or `--` appears anywhere before toks[start] back to
+// the nearest `;`, `{` or `}` (or the start of the file).
+func prefixWrite(toks []token, start int) bool {
+	for p := start - 1; p >= 0; p-- {
+		switch {
+		case isPunct(toks[p], ";") || isPunct(toks[p], "{") || isPunct(toks[p], "}"):
+			return false
+		case toks[p].kind == tokIdent && toks[p].text == "delete",
+			p >= 1 && (isPunct(toks[p], "+") && isPunct(toks[p-1], "+") || isPunct(toks[p], "-") && isPunct(toks[p-1], "-")):
+			return true
+		}
+	}
+	return false
 }
 
 // enclosingClose returns the closing bracket of the innermost group enclosing toks[k], which is
