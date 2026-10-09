@@ -554,13 +554,13 @@ CAL-V0-194	docs/specs/corvint-tasks-agent-leases-v0.md	5305	(proposed; V1-0672) 
 CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5247	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke
 CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5261	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles
 CAL-V0-197	docs/specs/corvint-tasks-agent-leases-v0.md	5365	(accepted (decision 0467; V1-0827)) `run --role ROLE` and `admit --role ROLE` MU
-CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5408	(proposed (V1-1042)) `corvint-tasks pool acquire --attempt ID --generation G --p
-CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5419	(proposed (V1-1042)) Acquire MUST admit a member by the pooled-claim steps, with
-CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5429	(proposed (V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-
-CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5433	(proposed (V1-1042)) `corvint-tasks pool release --attempt ID --generation G
-CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5447	(proposed (V1-1042)) The lifecycle verbs (renew, heartbeat, run, gate run, submi
-CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5453	(proposed (V1-1042)) An ended generation that returned its allocation early MUST
-CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5457	(proposed (V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null w
+CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5408	(accepted (decision 0472; V1-1042)) `corvint-tasks pool acquire --attempt ID --g
+CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5419	(accepted (decision 0472; V1-1042)) Acquire MUST admit a member by the pooled-cl
+CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5429	(accepted (decision 0472; V1-1042)) `--exclude-authors[=all]` on acquire MUST ap
+CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5433	(accepted (decision 0472; V1-1042)) `corvint-tasks pool release --attempt ID --g
+CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5447	(accepted (decision 0472; V1-1042)) The lifecycle verbs (renew, heartbeat, run,
+CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5453	(accepted (decision 0472; V1-1042)) An ended generation that returned its alloca
+CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5457	(accepted (decision 0472; V1-1042)) A `pool acquire` result MUST carry `poolAllo
 CAL-V0-205	docs/specs/corvint-tasks-agent-leases-v0.md	5503	(accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the
 CAL-V0-206	docs/specs/corvint-tasks-agent-leases-v0.md	5541	(proposed) `ticket search`, `ticket list` and `roadmap` MUST accept `--facets`.
 CAL-V0-207	docs/specs/corvint-tasks-agent-leases-v0.md	5558	(proposed) The same verbs MUST accept `--count`, which returns the CAL-V0-206
@@ -1824,7 +1824,7 @@ LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the da
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
 LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple
-LCP-V0-018	docs/specs/local-completion-policy-v0.md	306	(proposed; V1-1043) A `dogfood begin` plan refusal of `invalid-intent-scope` or
+LCP-V0-018	docs/specs/local-completion-policy-v0.md	306	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
@@ -2744,9 +2744,9 @@ SESSION-V0-016	docs/specs/session-context-dividend-v0.md	156	Corvint MUST dogfoo
 SESSION-V0-017	docs/specs/session-context-dividend-v0.md	170	`corvint dogfood handoff [--session-key KEY] [--anchors TEXT]` MUST be read-only
 SESSION-V0-018	docs/specs/session-context-dividend-v0.md	183	The receipt MUST carry `authority: none` and be emitted a second time framed by
 SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood handoff [--session-key KEY] --receipt FILE` MUST be read-only,
-SESSION-V0-020	docs/specs/session-context-dividend-v0.md	225	`corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
-SESSION-V0-021	docs/specs/session-context-dividend-v0.md	234	The bundle MUST bind the complete receipt and state by a content SHA-256 and
-SESSION-V0-022	docs/specs/session-context-dividend-v0.md	241	`corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
+SESSION-V0-020	docs/specs/session-context-dividend-v0.md	227	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
+SESSION-V0-021	docs/specs/session-context-dividend-v0.md	236	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and
+SESSION-V0-022	docs/specs/session-context-dividend-v0.md	243	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
 SHA-256	docs/specs/operator-update-v0.md	134	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
