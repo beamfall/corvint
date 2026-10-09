@@ -19,7 +19,24 @@ group signal, and no numeric group signal follows the reap.
 A `JoinAncestorProcessGroup` run leads no group, and `StartLive` does not record it. A start that
 loses the race to the exit kill fails with `groupreap.ErrExiting`, which is reported as a process
 start failure. The post-reap signal-0 quiescence probe in `proveProcessGroupQuiescent` is
-unchanged. It is a probe, not a kill.
+unchanged after an observed exit. It is a probe, not a kill.
+
+Review follow-up (independent review of `dad48885..cc2378cb`, P2). The first version released the
+record only after `BeforeStop` and the group cleanup, even when `waitid` had already failed (for
+example with ECHILD after another reaper). During that window a concurrent `KillLive` could SIGKILL
+a numeric group ID whose leader might already be reaped and reused. `Run` now releases the record
+as soon as an exit observation fails:
+
+- The observing goroutine releases it at the failure.
+- `run` releases it again when it receives the failure, before `BeforeStop`.
+
+After a failed observation, `run` sends no group signal of its own. It skips
+`terminateProcessGroup`, `cleanupProcessGroupBeforeReap` and the post-reap quiescence probe, and
+it reports cleanup as unproved (`process-cleanup-failed`, `OwnedProcessGroupCleanup` false). This
+matches the groupreap rule (V1-0652) that a failed observation confers no group-signal authority.
+
+After `BeforeStop`, `run` also polls the exit observation without blocking. As a result, an exit
+or failure that lands during `BeforeStop` decides the signal.
 
 ## Inventory
 
@@ -38,7 +55,7 @@ Method:
 
 | Spawner | file:line | Reachable from an exiting adapter? | Registered? |
 |---|---|---|---|
-| `procgroup.configureProcessCommand` | `internal/procgroup/process_posix.go:33` | yes (`captureSourceHandoff` → `sourceGit` → `procgroup.Run`) | yes, by this change (`process.go:260` start, `:361` release) |
+| `procgroup.configureProcessCommand` | `internal/procgroup/process_posix.go:33` | yes (`captureSourceHandoff` → `sourceGit` → `procgroup.Run`) | yes, by this change (`process.go:264` start, `:393` pre-reap release, `:311`/`:350` release on a failed observation) |
 | `gokernel.configureProcess` | `internal/gokernel/process_unix.go:12` | yes | yes (`StartLive`, `repository.go:137`) |
 | `contextindex.configureProcess` | `internal/contextindex/process_unix.go:12` | yes | yes (`Drain`, `git_execution.go:62`) |
 | `worksource.setupGitProcess` | `internal/worksource/process_unix.go:13` | yes | yes (`Drain`, `git.go:217`) |
@@ -86,6 +103,14 @@ All runs were on Darwin with `GOTOOLCHAIN=local GOMAXPROCS=3 go test -p 1 -count
   leader.
 - **Focused packages.** `./internal/procgroup`, `./internal/groupreap` and `./internal/gitstatus`
   all pass.
+- **Failed observation (review follow-up).** `TestAHI049FailedExitObservationSendsNoGroupSignal`
+  injects ECHILD while the leader is live. It requires three things:
+  - the record is released before `BeforeStop`;
+  - no group signal is sent (a TERM-trap marker is absent and the leader is still live);
+  - cleanup is reported unproved.
+
+  Against `cc2378cb` it fails with "group still recorded for the exit kill after a failed exit
+  observation". With that check disabled, it still fails on cleanup reported as proved.
 - **Static checks.** `go vet` passes for those packages, and for `GOOS=windows` on `procgroup` and
   `groupreap`. `gofmt` is clean.
 
@@ -100,4 +125,6 @@ leader's group.
 - NOT_RUN: dogfood CEM binding.
 - The inventory is static, with hand-narrowed dispatch edges. It is evidence for the current tree,
   not a guarantee for future dispatch.
-- The `AHI-048` foreign-reaper (ECHILD) window, which releases the record at once, is unchanged.
+- `KillLive` no longer names a group after a failed observation. One residual window remains in
+  `run`: if the observation fails after the poll that follows `BeforeStop`, while `run` is already
+  signalling, that signal can still reach the group.

@@ -4,7 +4,9 @@ package procgroup
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -115,4 +117,74 @@ func TestAHI049RunReleasesGroupBeforeReap(t *testing.T) {
 	if unreaped[0] != nil {
 		t.Fatalf("group released after its leader was reaped: %v", unreaped[0])
 	}
+}
+
+// TestAHI049FailedExitObservationSendsNoGroupSignal injects an exit
+// observation failure (ECHILD, as after another reaper) while the leader is
+// live: the exit-kill record is released before BeforeStop, no group signal
+// follows, and cleanup is reported unproved.
+func TestAHI049FailedExitObservationSendsNoGroupSignal(t *testing.T) {
+	fixture := t.TempDir()
+	ready, signalled := filepath.Join(fixture, "ready"), filepath.Join(fixture, "signalled")
+	previous := releaseProcessCommand
+	t.Cleanup(func() { releaseProcessCommand = previous })
+	var released atomic.Int64
+	releaseProcessCommand = func(pid int) { released.Add(1); previous(pid) }
+	var leader atomic.Int64
+	t.Cleanup(func() {
+		pid := int(leader.Load())
+		if pid <= 0 {
+			return
+		}
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+		for deadline := time.Now().Add(10 * time.Second); processExists(pid) && time.Now().Before(deadline); {
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	exitObserved := make(chan error, 1)
+	var releasedBeforeStop int64
+	done := make(chan Observation, 1)
+	go func() {
+		done <- run(context.Background(), Spec{
+			Argv: []string{"/bin/sh", "-c", `trap 'echo >"$1/signalled"; exit 0' TERM; echo >"$1/ready"; while :; do sleep 0.05; done`, "sh", fixture},
+			Dir:  fixture, Env: []string{"PATH=/usr/bin:/bin"}, Timeout: 10 * time.Second, ShutdownTimeout: 200 * time.Millisecond,
+			AfterStart: func(_ context.Context, pid int) error { leader.Store(int64(pid)); return nil },
+			BeforeStop: func(context.Context, int) error { releasedBeforeStop = released.Load(); return nil },
+		}, processWaitChannels{exitObserved: exitObserved})
+	}()
+	waitForProcessFile(t, ready)
+	exitObserved <- syscall.ECHILD
+	observation := <-done
+	if releasedBeforeStop == 0 {
+		t.Fatal("group still recorded for the exit kill after a failed exit observation")
+	}
+	for _, code := range []string{"process-exit-observation-failed", "process-cleanup-failed"} {
+		if !processErrorHasCode(observation.Err, code) {
+			t.Fatalf("error %v does not contain code %q", observation.Err, code)
+		}
+	}
+	if observation.OwnedProcessGroupCleanup {
+		t.Fatalf("cleanup reported proved after a failed exit observation: %+v", observation)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if _, err := os.Stat(signalled); err == nil {
+		t.Fatal("process group signalled after a failed exit observation")
+	}
+	if !processExists(int(leader.Load())) {
+		t.Fatal("leader gone after a failed exit observation")
+	}
+}
+
+func processErrorHasCode(err error, code string) bool {
+	if failure, ok := err.(*processError); ok && failure.Code == code {
+		return true
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, inner := range joined.Unwrap() {
+			if processErrorHasCode(inner, code) {
+				return true
+			}
+		}
+	}
+	return false
 }

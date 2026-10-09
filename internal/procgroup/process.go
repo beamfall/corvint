@@ -141,6 +141,10 @@ type processCapture struct {
 	policy   OverflowPolicy
 }
 
+// errUnobservedGroupNotSignalled is the cleanup error after a failed exit
+// observation, when the group is neither signalled nor probed.
+var errUnobservedGroupNotSignalled = errors.New("exit observation failed: owned process group not signalled, cleanup unproved")
+
 type processWaitChannels struct {
 	exitObserved <-chan error
 	waitDone     <-chan error
@@ -298,8 +302,15 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	exitObserved := make(chan error, 1)
 	reapAllowed := make(chan struct{})
 	waitDone := make(chan error, 1)
+	release := releaseProcessCommand
 	go func() {
-		exitObserved <- waitProcessExitUnreaped(command.Process.Pid)
+		observed := waitProcessExitUnreaped(command.Process.Pid)
+		if observed != nil {
+			// Another reaper may have collected the leader, so its group ID
+			// no longer names this group: forget it for the exit kill now.
+			release(command.Process.Pid)
+		}
+		exitObserved <- observed
 		<-reapAllowed
 		waitDone <- command.Wait()
 	}()
@@ -335,6 +346,10 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		}
 	}
 
+	if exitObservationCompleted && exitObservationErr != nil {
+		release(command.Process.Pid)
+	}
+
 	var beforeStopErr error
 	if spec.BeforeStop != nil {
 		hookContext, cancelHook := context.WithTimeout(context.Background(), min(time.Second, spec.ShutdownTimeout/2))
@@ -342,29 +357,52 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		cancelHook()
 	}
 	shutdownDeadline := time.Now().Add(spec.ShutdownTimeout)
-	leaderExited := exitObservationCompleted && exitObservationErr == nil
-	groupPresent, terminationErr := terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup)
-	if terminationErr != nil {
-		terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
+	if !exitObservationCompleted {
+		select {
+		case exitObservationErr = <-selectedExitObserved:
+			exitObservationCompleted = true
+		default:
+		}
 	}
-	cleanupErr := cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, shutdownDeadline)
-	if cleanupErr != nil {
-		cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
+	leaderExited := exitObservationCompleted && exitObservationErr == nil
+	// After a failed exit observation the leader may already be reaped, so its
+	// numeric group ID confers no signal authority: the group is not signalled
+	// and its cleanup stays unproved (AHI-049).
+	var groupPresent bool
+	var terminationErr, cleanupErr error
+	if exitObservationCompleted && exitObservationErr != nil {
+		release(command.Process.Pid)
+		terminationErr = errUnobservedGroupNotSignalled
+	} else {
+		groupPresent, terminationErr = terminateProcessGroup(command.Process.Pid, leaderExited, spec.JoinAncestorProcessGroup)
+		if terminationErr != nil {
+			terminationErr = fmt.Errorf("terminate owned process group: %w", terminationErr)
+		}
+		cleanupErr = cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, shutdownDeadline)
+		if cleanupErr != nil {
+			cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
+		}
 	}
 	if dialogue != nil {
 		beforeStopErr = errors.Join(beforeStopErr, dialogue.finish(leaderExited, time.Until(shutdownDeadline)))
 	}
 	if !exitObservationCompleted {
-		exitObservationErr, _ = waitForProcessEvent(selectedExitObserved, shutdownDeadline)
+		exitObservationErr, exitObservationCompleted = waitForProcessEvent(selectedExitObserved, shutdownDeadline)
 	}
 	// The group's record for the exit kill ends before the reap (AHI-049).
-	releaseProcessCommand(command.Process.Pid)
+	release(command.Process.Pid)
 	close(reapAllowed)
 	waitErr, waitCompleted := waitForProcessEvent(selectedWaitDone, shutdownDeadline)
 	observation.WaitCompleted = waitCompleted
-	quiescenceErr, identityFallback := proveProcessGroupQuiescent(command.Process.Pid, leaderStart, identityReader, waitChannels.groupProbe, spec.JoinAncestorProcessGroup, shutdownDeadline)
-	if identityFallback {
-		observation.DescendantCleanupQualification = processVerdictPartial
+	var quiescenceErr error
+	if exitObservationCompleted && exitObservationErr != nil {
+		quiescenceErr = errUnobservedGroupNotSignalled
+	} else {
+		var identityFallback bool
+		quiescenceErr, identityFallback = proveProcessGroupQuiescent(command.Process.Pid, leaderStart, identityReader, waitChannels.groupProbe, spec.JoinAncestorProcessGroup, shutdownDeadline)
+		if identityFallback {
+			observation.DescendantCleanupQualification = processVerdictPartial
+		}
 	}
 	if quiescenceErr != nil {
 		quiescenceErr = fmt.Errorf("prove owned process group quiescence: %w", quiescenceErr)

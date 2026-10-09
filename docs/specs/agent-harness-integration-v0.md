@@ -982,13 +982,17 @@ do not reinterpret this Frontier result.
   `captureSourceHandoff` reaches through `sourceGit`, records its own group with
   `groupreap.StartLive` and releases it with `groupreap.ReleaseLive` after its last pre-reap group
   signal and before it allows the reap, so the exit kill stays one pre-reap group signal and no
-  numeric group signal follows the reap. A `JoinAncestorProcessGroup` run leads no group and is not
+  numeric group signal follows the reap. A failed exit observation (for example ECHILD after
+  another reaper) releases the record at once, and `Run` then sends no group signal or probe
+  and reports the cleanup as unproved. A `JoinAncestorProcessGroup` run leads no group and is not
   recorded. In an owned worker, the `xcrun --find git` lookup of `internal/gitstatus` stays in the
   worker's group (`AHI-048`).
   Acceptance: `TestAHI049ExitProcessKillsProcgroupGroup` runs `exitProcess` in a helper process
   while a `procgroup.Run` child and its sleeping member are live, and requires both gone; it fails
   before this change. `TestAHI049RunReleasesGroupBeforeReap` requires `Run` to release the record
-  exactly once while the leader is still unreaped. `TestAHI048LookupKeepsOwnedWorkerGroup` covers
+  exactly once while the leader is still unreaped.
+  `TestAHI049FailedExitObservationSendsNoGroupSignal` requires release before `BeforeStop`, no
+  group signal, and unproved cleanup after an injected ECHILD. `TestAHI048LookupKeepsOwnedWorkerGroup` covers
   the owned-worker lookup.
   Non-goals: other binaries (`corvint-go-test-provider`, `tools/*`, `conformance/*`, interop
   runners), which never run `exitProcess`; spawners linked into `corvint` but unreachable from an
@@ -998,7 +1002,9 @@ do not reinterpret this Frontier result.
   Failure modes: the inventory comes from a static VTA call graph with the string-dispatched
   `runContext` edges narrowed by hand, so a dynamic dispatch it misses can hide a reachable
   spawner. A `Run` start refused after the exit kill reports the process start failure with
-  `groupreap.ErrExiting`. The post-reap signal-0 quiescence probe of `procgroup` is unchanged.
+  `groupreap.ErrExiting`. The post-reap signal-0 quiescence probe of `procgroup` is unchanged
+  after an observed exit. An observation that fails after `Run`'s post-`BeforeStop` poll can
+  still meet that run's own termination signal.
   Rollback: revert the `StartLive` and `ReleaseLive` calls in `internal/procgroup` and
   `groupreap.ReleaseLive`; `procgroup` children again outlive an exiting adapter until their own
   timeout.
@@ -1214,7 +1220,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
-| `AHI-049` (proposed; V1-1040) | `internal/procgroup/process_posix.go` (`startProcessCommand`, `releaseProcessCommand`), the release before the reap in `internal/procgroup/process.go` `run`, `internal/groupreap/live.go` `ReleaseLive` | `cmd/corvint/host_exit_unix_test.go::TestAHI049ExitProcessKillsProcgroupGroup`; `internal/procgroup/process_posix_test.go::TestAHI049RunReleasesGroupBeforeReap`; `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup` |
+| `AHI-049` (proposed; V1-1040) | `internal/procgroup/process_posix.go` (`startProcessCommand`, `releaseProcessCommand`), the release before the reap in `internal/procgroup/process.go` `run`, `internal/groupreap/live.go` `ReleaseLive` | `cmd/corvint/host_exit_unix_test.go::TestAHI049ExitProcessKillsProcgroupGroup`; `internal/procgroup/process_posix_test.go` (`TestAHI049RunReleasesGroupBeforeReap`, `TestAHI049FailedExitObservationSendsNoGroupSignal`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup` |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
