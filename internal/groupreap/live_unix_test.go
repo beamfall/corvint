@@ -9,9 +9,11 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -227,61 +229,210 @@ func TestContainKeepsPlainCommandStartable(t *testing.T) {
 }
 
 // AHI-048: concurrent starts, releases and one exit kill never signal a group
-// whose leader was reaped, and nothing is recorded after the kill. Every
-// worker keeps starting until the kill refuses it, so starts and releases
-// overlap the kill. Run under -race.
+// whose leader was reaped, and nothing is recorded after the kill (V1-1041).
+// Workers start through the registry and reap through the production wait,
+// so each release precedes its reap exactly as Wait orders them. A barrier
+// proves the first starts overlap: every first group is recorded at once. Half
+// of those first children stay blocked on stdin, so the kill must signal live
+// recorded groups; the other half are released at the kill and keep starting
+// and releasing until refused. While the kill holds the gate, its first signal
+// waits until a release (the waiter of a recorded group) and a competing start
+// are both blocked on the gate, so the race is exercised on every run, even
+// with GOMAXPROCS=1. Run under -race.
 func TestAHI048ConcurrentStartsReleasesAndKill(t *testing.T) {
+	const workers = 8
 	var mu sync.Mutex
 	reaped := map[int]bool{}
+	signalled := map[int]bool{}
+	var probing atomic.Bool
+	killing, stop := make(chan struct{}), make(chan struct{})
+	var releaseBlocked, startBlocked bool
 	r := newLiveRegistry(func(group int, signal syscall.Signal) error {
 		mu.Lock()
-		defer mu.Unlock()
 		if reaped[-group] {
 			t.Errorf("signalled the group of reaped leader %d", -group)
 		}
-		return syscall.Kill(group, signal)
+		signalled[-group] = true
+		mu.Unlock()
+		err := syscall.Kill(group, signal)
+		if probing.CompareAndSwap(true, false) {
+			close(killing)
+			// A hang detector, not a budget (decision 0082).
+			releaseBlocked, startBlocked = awaitGateWaiters(10 * time.Second)
+		}
+		return err
 	})
-	const workers = 8
-	var started sync.WaitGroup
-	started.Add(workers)
-	refused := make(chan bool, workers)
-	for range workers {
+	previous := liveGroups
+	liveGroups = r
+	t.Cleanup(func() { liveGroups = previous })
+
+	type pipe struct{ read, write *os.File }
+	pipes := make([]pipe, workers)
+	for i := range pipes {
+		read, write, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = read.Close(); _ = write.Close() })
+		pipes[i] = pipe{read, write}
+	}
+	proceed := make(chan struct{})
+	var proceedOnce sync.Once
+	letProceed := func() { proceedOnce.Do(func() { close(proceed) }) }
+	var joined sync.WaitGroup
+	// Registered before any worker starts: refuse further starts, kill every
+	// recorded group, unblock every first child and join every goroutine.
+	t.Cleanup(func() {
+		probing.Store(false)
+		close(stop)
+		r.kill()
+		letProceed()
+		for _, p := range pipes {
+			_ = p.write.Close()
+		}
+		done := make(chan struct{})
+		go func() { joined.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second): // hang detector (decision 0082)
+			t.Error("workers did not finish after cleanup")
+		}
+	})
+
+	reap := func(command *exec.Cmd) {
+		_ = wait(command, nil)
+		mu.Lock()
+		reaped[command.Process.Pid] = true
+		mu.Unlock()
+	}
+	type first struct{ worker, leader int }
+	firsts := make(chan first, workers)
+	refused := make(chan error, workers)
+	joined.Add(workers)
+	for i := range workers {
 		go func() {
-			first := true
+			defer joined.Done()
+			command := exec.Command("/bin/sh", "-c", "read _")
+			command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			command.Stdin = pipes[i].read
+			err := r.start(command)
+			_ = pipes[i].read.Close()
+			if err != nil {
+				refused <- err
+				return
+			}
+			firsts <- first{worker: i, leader: command.Process.Pid}
+			<-proceed
+			reap(command)
 			for {
 				command := exec.Command("/bin/sh", "-c", "exit 0")
 				command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-				err := r.start(command)
-				if first {
-					first = false
-					started.Done()
-				}
-				if errors.Is(err, ErrExiting) {
-					refused <- true
-					return
-				} else if err != nil {
-					t.Error(err)
-					refused <- false
+				if err := r.start(command); err != nil {
+					refused <- err
 					return
 				}
-				leader := command.Process.Pid
-				// The order Wait keeps: release, then reap.
-				r.release(leader)
-				_ = command.Wait()
-				mu.Lock()
-				reaped[leader] = true
-				mu.Unlock()
+				reap(command)
 			}
 		}()
 	}
-	started.Wait()
-	r.kill()
+	// The competing start: issued only once the kill holds the gate.
+	competing := make(chan error, 1)
+	joined.Add(1)
+	go func() {
+		defer joined.Done()
+		select {
+		case <-killing:
+		case <-stop:
+			return
+		}
+		command := exec.Command("/bin/sh", "-c", "exit 0")
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		err := r.start(command)
+		if err == nil {
+			reap(command)
+		}
+		competing <- err
+	}()
+
+	leaders := make([]int, workers)
 	for range workers {
-		if !<-refused {
-			t.Fatal("a worker stopped before the kill refused it")
+		select {
+		case started := <-firsts:
+			leaders[started.worker] = started.leader
+		case err := <-refused:
+			t.Fatalf("a worker failed its first start: %v", err)
+		case <-time.After(30 * time.Second): // hang detector (decision 0082)
+			t.Fatal("first starts did not complete")
+		}
+	}
+	r.mu.Lock()
+	overlapping := len(r.groups)
+	r.mu.Unlock()
+	if overlapping != workers {
+		t.Fatalf("%d groups recorded at the barrier, want all %d first starts to overlap", overlapping, workers)
+	}
+	letProceed()
+	for _, p := range pipes[:workers/2] {
+		_ = p.write.Close()
+	}
+	probing.Store(true)
+	r.kill()
+	if !releaseBlocked || !startBlocked {
+		t.Fatalf("the kill ran without a concurrent release (%v) and start (%v) blocked on the gate", releaseBlocked, startBlocked)
+	}
+	select {
+	case err := <-competing:
+		if !errors.Is(err, ErrExiting) {
+			t.Fatalf("the start competing with the kill = %v, want ErrExiting", err)
+		}
+	case <-time.After(30 * time.Second): // hang detector (decision 0082)
+		t.Fatal("the competing start did not return")
+	}
+	for range workers {
+		select {
+		case err := <-refused:
+			if !errors.Is(err, ErrExiting) {
+				t.Fatalf("a worker stopped before the kill refused it: %v", err)
+			}
+		case <-time.After(30 * time.Second): // hang detector (decision 0082)
+			t.Fatal("a worker was not refused after the kill")
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, leader := range leaders[workers/2:] {
+		if !signalled[leader] {
+			t.Fatalf("the kill did not signal live recorded group %d", leader)
 		}
 	}
 	if len(r.groups) != 0 {
 		t.Fatalf("groups remain recorded after the kill: %v", r.groups)
+	}
+}
+
+// awaitGateWaiters reports whether, before timeout, goroutine stacks show a
+// liveRegistry release and a liveRegistry start both blocked acquiring the
+// registry gate.
+func awaitGateWaiters(timeout time.Duration) (release, start bool) {
+	deadline := time.Now().Add(timeout)
+	buffer := make([]byte, 1<<20)
+	for {
+		n := runtime.Stack(buffer, true)
+		if n == len(buffer) {
+			buffer = make([]byte, 2*len(buffer))
+			continue
+		}
+		for _, goroutine := range strings.Split(string(buffer[:n]), "\n\n") {
+			header, _, _ := strings.Cut(goroutine, "\n")
+			if !strings.Contains(header, "[sync.RWMutex.RLock") {
+				continue
+			}
+			release = release || strings.Contains(goroutine, "(*liveRegistry).release(")
+			start = start || strings.Contains(goroutine, "(*liveRegistry).start(")
+		}
+		if (release && start) || time.Now().After(deadline) {
+			return release, start
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
