@@ -62,7 +62,7 @@ slowest is 17.75 min against 22-25 min at 6 shards. Shard 0 ran `internal/tasks/
 #736 changed neither the matrix, `REUSE_SHARDS`, `SHARDS` nor the cost table, so the merge was clean.
 Its placement takes the shard count at run time, but its slices were cut for 6 shards from the
 pre-speedup run (920 s and 951 s). `ci-test-slices generate --shards 8` over the eight shard logs of
-run 38078093034, listed at merge `3b428343`, re-cut the store package into 139 named tests (496 s)
+run 38078093034, listed at merge `3b428343`, re-cut the store package into 141 named tests (496 s)
 and the rest (510 s); `cmd/corvint` (653 s) stays whole under the 788 s target. The tool default and
 its refusal test, the `Splits` check of the committed slices and the `ci-shard-costs` usage move to
 8. Replay of that run with the committed cost table (an inference; slices in-sample): previous
