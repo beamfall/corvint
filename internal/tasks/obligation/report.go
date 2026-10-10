@@ -53,6 +53,7 @@ type Report struct {
 	// form so it compares with a resolved repository root.
 	RootDir string
 	suites  []jsonSuite
+	errors  int // the report's top-level errors, such as a spec file that failed to load
 }
 
 type jsonReport struct {
@@ -60,7 +61,8 @@ type jsonReport struct {
 		Version string `json:"version"`
 		RootDir string `json:"rootDir"`
 	} `json:"config"`
-	Suites []jsonSuite `json:"suites"`
+	Errors []json.RawMessage `json:"errors"`
+	Suites []jsonSuite       `json:"suites"`
 }
 
 type jsonSuite struct {
@@ -173,7 +175,7 @@ func ParseReport(raw []byte, qualified []string) (*Report, error) {
 	if !ok {
 		return nil, wire.Errorf(wire.CodeUnsupportedVersion, "--from-playwright-report", "%s Playwright %s is not in the qualified version list %v", ticket.ObligationVersionDetail, v, qualified)
 	}
-	return &Report{Sha256: wire.Sum(raw), Version: v, RootDir: doc.Config.RootDir, suites: doc.Suites}, nil
+	return &Report{Sha256: wire.Sum(raw), Version: v, RootDir: doc.Config.RootDir, suites: doc.Suites, errors: len(doc.Errors)}, nil
 }
 
 // Match kinds (TOL-V0-022, TOL-V0-023). An ordinary match passes or fails;
@@ -193,6 +195,9 @@ type match struct {
 	kind   int
 	defect string // kindDefect: the defect id, "" when none is named
 	errMsg string // kindDefect: the failure's first line, "" when none
+	// failMsg is an ordinary failing match's error: its own step's error,
+	// else the result's, "" when neither has one (GitHub #714).
+	failMsg string
 }
 
 // failAnnotation reports whether the test is an expected failure
@@ -290,6 +295,9 @@ func (r *Report) collect(prefix string) map[string][]match {
 						for _, id := range FindIDs(title, prefix) {
 							m := match{file: sp.File, passed: eligible && !xfail && res.Status == "passed",
 								m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepPath: []string{}}}
+							if !m.passed {
+								m.failMsg = resMsg
+							}
 							if xfail {
 								exp := SaysExpectedFail(title) || len(DefectIDs(desc, prefix)) > 0 || len(DefectIDs(title, prefix)) > 0
 								m = expectedFailMatch(m, exp, res.Status == "failed", resMsg, desc, title, prefix)
@@ -306,6 +314,12 @@ func (r *Report) collect(prefix string) map[string][]match {
 								title := st.Title
 								m := match{file: sp.File, passed: eligible && !xfail && ran && !failed,
 									m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepTitle: &title, StepPath: stepPath}}
+								switch {
+								case failed:
+									m.failMsg = errorMessage(st.Error)
+								case !m.passed:
+									m.failMsg = resMsg
+								}
 								if xfail {
 									msg := ""
 									if failed {
