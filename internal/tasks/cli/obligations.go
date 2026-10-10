@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -237,12 +238,12 @@ func readPlanFile(file string, max int) ([]byte, error) {
 // payload that differs (TOL-V0-013). The report itself is never retained.
 func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 	f := mutateFlags{role: "OWNER"}
-	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation string
+	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
 	if res := pairFlags(cmd, args, map[string]*string{
 		"--target": &f.target, "--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--from-playwright-report": &report, "--commit": &commit, "--ids": &idsArg,
 		"--declared": &declared, "--manifest-sha256": &manifest, "--test-id": &testID, "--reason": &reason,
-		"--attempt": &attempt, "--generation": &generation,
+		"--attempt": &attempt, "--generation": &generation, "--post-check": &postCheck, "--post-check-status": &postStatus,
 	}, nil, nil); res != nil {
 		return res
 	}
@@ -263,6 +264,17 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 	}
 	if (attempt == "") != (generation == "") {
 		return usage(cmd, "--attempt and --generation are given together or not at all")
+	}
+	if (postCheck == "") != (postStatus == "") {
+		return usage(cmd, "--post-check LOG and --post-check-status N are given together or not at all")
+	}
+	if postCheck != "" && report == "" {
+		return usage(cmd, "--post-check belongs to --from-playwright-report")
+	}
+	if postCheck != "" {
+		if err := checkPostCheck(postCheck, postStatus); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	if _, err := wire.ParseOID("--commit", commit); err != nil {
 		return errorResult(cmd, err)
@@ -363,7 +375,8 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		w.Source, w.Commit, w.ReportSha256, w.PlaywrightVersion = ticket.ObligationSourceReport, resolved, &sum, &version
 		w.Credits = check.ExpectedCredits(ledger)
 		lists = witnessLists{credited: res.Credited, alreadyWitnessed: res.AlreadyWitnessed, conflicting: res.Conflicting,
-			failed: res.Failed, unknown: res.Unknown, unknownTruncated: res.UnknownTruncated, unbound: res.Unbound, unmatched: res.Unmatched}
+			failed: res.Failed, unknown: res.Unknown, unknownTruncated: res.UnknownTruncated, unbound: res.Unbound, unmatched: res.Unmatched,
+			defectConfirmed: res.DefectConfirmed, mixed: res.MixedExpectedFail}
 	}
 	if len(w.Credits) == 0 && recorded {
 		// A recorded witness always carries credits, so a request that
@@ -419,6 +432,8 @@ type witnessLists struct {
 	credited, alreadyWitnessed, conflicting, failed, unknown, unmatched []string
 	unknownTruncated                                                    bool
 	unbound                                                             []obligation.UnboundID
+	defectConfirmed                                                     []obligation.DefectConfirmed
+	mixed                                                               []obligation.MixedExpectedFail
 }
 
 func (l witnessLists) set(o *wire.Object) {
@@ -435,4 +450,52 @@ func (l witnessLists) set(o *wire.Object) {
 		unbound = append(unbound, wire.ObjectValue(wire.NewObject().Set("id", wire.String(u.ID)).Set("reason", wire.String(u.Reason))))
 	}
 	o.Set("unbound", wire.Array(unbound...)).Set("unmatched", strs(l.unmatched))
+	// TOL-V0-022/023: expected failures are reported, never credited, and
+	// never set DEFECT (TOL-V0-011).
+	optional := func(s string) wire.Value {
+		if s == "" {
+			return wire.Null()
+		}
+		return wire.String(prose(s))
+	}
+	defects := make([]wire.Value, 0, len(l.defectConfirmed))
+	for _, d := range l.defectConfirmed {
+		defects = append(defects, wire.ObjectValue(wire.NewObject().Set("id", wire.String(d.ID)).Set("defect", optional(d.Defect)).Set("error", optional(d.Error))))
+	}
+	mixed := make([]wire.Value, 0, len(l.mixed))
+	for _, m := range l.mixed {
+		mixed = append(mixed, wire.ObjectValue(wire.NewObject().Set("id", wire.String(m.ID)).Set("tests", wire.Strings(m.Tests)).
+			Set("remedy", wire.String(obligation.MixedRemedy))))
+	}
+	o.Set("defectConfirmed", wire.Array(defects...)).Set("mixedExpectedFail", wire.Array(mixed...))
+}
+
+// maxPostCheckLogBytes bounds the post-check log read by a report witness.
+const maxPostCheckLogBytes = 1 << 20
+
+// checkPostCheck refuses a report witness whose run's post-check exited
+// non-zero, quoting the log's first actionable line (TOL-V0-024). The log
+// must exist either way; only its first MiB is read.
+func checkPostCheck(file, status string) error {
+	n, err := strconv.ParseUint(status, 10, 8)
+	if err != nil {
+		return wire.Errorf(wire.CodeMalformed, "--post-check-status", "%s --post-check-status takes an exit status 0..255", ticket.ObligationPostCheckDetail)
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return wire.Errorf(wire.CodeMissingEvidence, "--post-check", "%s the post-check log is unreadable", ticket.ObligationPostCheckDetail)
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, maxPostCheckLogBytes))
+	if err != nil {
+		return wire.Errorf(wire.CodeMissingEvidence, "--post-check", "%s the post-check log is unreadable", ticket.ObligationPostCheckDetail)
+	}
+	if n == 0 {
+		return nil
+	}
+	line := obligation.FirstActionableLine(string(raw))
+	if line == "" {
+		line = "the log is empty"
+	}
+	return wire.Errorf(wire.CodeGateFailed, "--post-check", "%s the run's post-check exited %d, so nothing is credited from this report: %s", ticket.ObligationPostCheckDetail, n, line)
 }
