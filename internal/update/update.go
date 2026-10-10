@@ -42,10 +42,17 @@ type Config struct {
 	WorkDir      string
 }
 type Result struct {
-	Component         string `json:"component"`
-	InstalledVersion  string `json:"installedVersion,omitempty"`
-	InstalledBuild    int    `json:"installedBuild,omitempty"`
-	AvailableTag      string `json:"availableTag,omitempty"`
+	Component        string `json:"component"`
+	InstalledVersion string `json:"installedVersion,omitempty"`
+	InstalledBuild   int    `json:"installedBuild,omitempty"`
+	AvailableTag     string `json:"availableTag,omitempty"`
+	// AvailableBuild is the build a Tasks release declares in its archive
+	// manifest. Relation compares installed with available on RelationBasis
+	// (build or version), or is UNKNOWN with RelationReason (UPD-V0-009).
+	AvailableBuild    int    `json:"availableBuild,omitempty"`
+	Relation          string `json:"relation,omitempty"`
+	RelationBasis     string `json:"relationBasis,omitempty"`
+	RelationReason    string `json:"relationReason,omitempty"`
 	Freshness         string `json:"freshness"`
 	Action            string `json:"action"`
 	Qualification     string `json:"qualification"`
@@ -292,6 +299,7 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	r.AvailableTag = selected.Tag
 	if command == "check" {
 		r.Freshness = "RELEASE_OBSERVED"
+		e.relate(ctx, selected, &r)
 		return r, nil
 	}
 	stage, err := os.MkdirTemp(c.StateDir, "transaction-")
@@ -647,6 +655,121 @@ func (e engine) discover(ctx context.Context) (release, error) {
 	}
 	return release{}, errors.New("release pagination cap reached; freshness UNKNOWN")
 }
+
+// relate states how the selected release compares with the installed build
+// (UPD-V0-009). A Tasks release declares its build in build-verification.json,
+// bound to the archive digest in SHA256SUMS; Core release metadata declares no
+// build, so Core compares the tag with the installed version by semver
+// precedence. Neither is fetched past metadataLimit or written to disk.
+func (e engine) relate(ctx context.Context, rel release, r *Result) {
+	r.Relation = "UNKNOWN"
+	var cmp int
+	if e.config.Component == "tasks" {
+		build, err := e.declaredTasksBuild(ctx, rel)
+		if err != nil {
+			r.RelationReason = err.Error()
+			return
+		}
+		r.AvailableBuild, r.RelationBasis = build, "build"
+		cmp = r.InstalledBuild - build
+	} else {
+		installed := ""
+		for _, field := range strings.Fields(r.InstalledVersion) {
+			if semverRE.MatchString(field) {
+				installed = field
+				break
+			}
+		}
+		available := strings.TrimPrefix(rel.Tag, "v")
+		if installed == "" || !semverRE.MatchString(available) {
+			r.RelationReason = "installed version or release tag is not a semantic version"
+			return
+		}
+		r.RelationBasis = "version"
+		cmp = compareSemver(installed, available)
+	}
+	switch {
+	case cmp < 0:
+		r.Relation = "UPDATE_AVAILABLE"
+	case cmp == 0:
+		r.Relation = "CURRENT"
+	case r.RelationBasis == "build":
+		r.Relation, r.RelationReason = "LOCAL_NEWER", "the available release declares an older build than the installed one; apply would be a downgrade and is refused"
+	default:
+		r.Relation, r.RelationReason = "LOCAL_NEWER", "the available release version precedes the installed version; installing it would be a downgrade, and apply refuses it only when the verified candidate build is lower"
+	}
+}
+
+func (e engine) declaredTasksBuild(ctx context.Context, rel release) (int, error) {
+	sumsData, err := e.asset(ctx, rel, "SHA256SUMS", metadataLimit)
+	if err != nil {
+		return 0, err
+	}
+	sums, err := parseSums(sumsData)
+	if err != nil {
+		return 0, err
+	}
+	b, err := e.asset(ctx, rel, "build-verification.json", metadataLimit)
+	if err != nil {
+		return 0, err
+	}
+	var m struct{ Profile, Target, Build, ArchiveSha256 string }
+	if err = json.Unmarshal(b, &m); err != nil {
+		return 0, errors.New("unreadable Tasks build declaration")
+	}
+	archive := sums["corvint-tasks_"+e.platform+".tar.gz"]
+	build, err := strconv.Atoi(m.Build)
+	if err != nil || build <= 0 || m.Profile != "corvint-tasks-archive/0" || m.Target != strings.ReplaceAll(e.platform, "_", "/") || archive == "" || m.ArchiveSha256 != archive {
+		return 0, errors.New("Tasks build declaration does not match the release archive")
+	}
+	return build, nil
+}
+
+// semverRE matches one whole semantic version (semver.org 2.0.0): no leading
+// zeros in numeric identifiers, optional prerelease and build metadata.
+var semverRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
+
+// compareSemver orders two semantic versions by precedence, ignoring build
+// metadata: negative when a is lower, zero when equal, positive when higher.
+func compareSemver(a, b string) int {
+	a, _, _ = strings.Cut(a, "+")
+	b, _, _ = strings.Cut(b, "+")
+	ac, ap, _ := strings.Cut(a, "-")
+	bc, bp, _ := strings.Cut(b, "-")
+	if c := compareIdentifiers(strings.Split(ac, "."), strings.Split(bc, ".")); c != 0 {
+		return c
+	}
+	switch {
+	case ap == bp:
+		return 0
+	case ap == "":
+		return 1
+	case bp == "":
+		return -1
+	}
+	return compareIdentifiers(strings.Split(ap, "."), strings.Split(bp, "."))
+}
+
+func compareIdentifiers(a, b []string) int {
+	// Numeric identifiers have no leading zeros (semverRE), so a longer one is
+	// larger and equal lengths compare bytewise, without integer overflow.
+	numeric := func(s string) bool { return strings.Trim(s, "0123456789") == "" }
+	for i := 0; i < len(a) && i < len(b); i++ {
+		an, bn := numeric(a[i]), numeric(b[i])
+		switch {
+		case an && bn && len(a[i]) != len(b[i]):
+			return len(a[i]) - len(b[i])
+		case an && !bn:
+			return -1
+		case !an && bn:
+			return 1
+		case a[i] != b[i]:
+			return strings.Compare(a[i], b[i])
+		}
+	}
+	return len(a) - len(b)
+}
+
 func (e engine) asset(ctx context.Context, r release, name string, limit int64) ([]byte, error) {
 	var found string
 	for _, a := range r.Assets {

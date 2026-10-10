@@ -158,6 +158,88 @@ func TestUPDV0001TasksInstalledVersion(t *testing.T) {
 		}
 	}
 }
+
+// relationClient serves one release with tag and the given assets by name.
+func relationClient(e *engine, tag string, assets map[string][]byte) {
+	r := release{Tag: tag, Published: time.Now()}
+	for name := range assets {
+		r.Assets = append(r.Assets, asset{name, "https://github.com/" + name})
+	}
+	rows, _ := json.Marshal([]release{r})
+	e.client = &http.Client{Transport: transportFunc(func(req *http.Request) (*http.Response, error) {
+		b, ok := assets[strings.TrimPrefix(req.URL.Path, "/")]
+		if !ok {
+			b = rows
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(b))}, nil
+	})}
+}
+func TestUPDV0009CheckStatesRelation(t *testing.T) {
+	e := fixtureEngine(t)
+	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 407)
+	for tag, want := range map[string]string{"v1.0.0-rc.1": "CURRENT", "v1.0.0-rc.0": "LOCAL_NEWER", "v1.0.0-rc.10": "UPDATE_AVAILABLE", "v1.0.0": "UPDATE_AVAILABLE", "v1.0.0-rc.1+meta.7": "CURRENT", "vnext": "UNKNOWN", "v01.0.0": "UNKNOWN", "v1.0.0-01": "UNKNOWN", "v1.0.0garbage": "UNKNOWN"} {
+		relationClient(&e, tag, map[string][]byte{"corvint_" + e.platform + ".tar.gz": nil})
+		r, err := e.run(context.Background(), "check")
+		if err != nil || r.Relation != want || (want != "UNKNOWN") != (r.RelationBasis == "version") || r.AvailableBuild != 0 || (want == "LOCAL_NEWER") != strings.Contains(r.RelationReason, "only when the verified candidate build is lower") {
+			t.Fatalf("core %s: %+v %v", tag, r, err)
+		}
+	}
+	// A label carrying a malformed version is not a semantic version.
+	label := filepath.Join(e.config.BinDir, "corvint")
+	if err := os.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint 1.0.0garbage (build 407)'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	relationClient(&e, "v1.0.0", map[string][]byte{"corvint_" + e.platform + ".tar.gz": nil})
+	if r, err := e.run(context.Background(), "check"); err != nil || r.Relation != "UNKNOWN" || r.RelationReason == "" {
+		t.Fatalf("malformed installed label: %+v %v", r, err)
+	}
+	e.config.Component = "tasks"
+	envelope := `{"items":[{"version":"0.0.0-tcp01-unverified+build.407"}],"profile":"taskman-command-result/0"}`
+	if err := os.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	archive := "corvint-tasks_" + e.platform + ".tar.gz"
+	target := strings.ReplaceAll(e.platform, "_", "/")
+	declare := func(build, digest string) []byte {
+		return []byte(fmt.Sprintf(`{"profile":"corvint-tasks-archive/0","target":%q,"build":%q,"archiveSha256":%q}`, target, build, digest))
+	}
+	sums := []byte(hash([]byte("archive")) + "  " + archive + "\n")
+	for name, c := range map[string]struct {
+		declaration []byte
+		relation    string
+		build       int
+	}{
+		"older":      {declare("202", hash([]byte("archive"))), "LOCAL_NEWER", 202},
+		"same":       {declare("407", hash([]byte("archive"))), "CURRENT", 407},
+		"newer":      {declare("500", hash([]byte("archive"))), "UPDATE_AVAILABLE", 500},
+		"unbound":    {declare("500", hash([]byte("other"))), "UNKNOWN", 0},
+		"undeclared": {nil, "UNKNOWN", 0},
+	} {
+		assets := map[string][]byte{archive: []byte("archive"), "SHA256SUMS": sums}
+		if c.declaration != nil {
+			assets["build-verification.json"] = c.declaration
+		}
+		relationClient(&e, "tasks-dev-20260929.2", assets)
+		r, err := e.run(context.Background(), "check")
+		if err != nil || r.InstalledBuild != 407 || r.Relation != c.relation || r.AvailableBuild != c.build {
+			t.Fatalf("tasks %s: %+v %v", name, r, err)
+		}
+		if (c.relation == "UNKNOWN") != (r.RelationReason != "" && r.RelationBasis == "") || (c.relation == "LOCAL_NEWER") != strings.Contains(r.RelationReason, "downgrade") {
+			t.Fatalf("tasks %s reason: %+v", name, r)
+		}
+	}
+	if _, err := os.Stat(e.config.StateDir); !os.IsNotExist(err) {
+		t.Fatal("check created state")
+	}
+	for _, c := range [][2]string{{"1.0.0-rc.10", "1.0.0-rc.2"}, {"1.0.0-alpha.1", "1.0.0-alpha"}, {"1.0.0-alpha.beta", "1.0.0-alpha.1"}, {"1.0.0", "1.0.0-rc.1"}, {"1.10.0", "1.9.0"}, {"1.0.0-rc.a", "1.0.0-rc.-1"}, {"1.0.0-100000000000000000000", "1.0.0-99999999999999999999"}} {
+		if compareSemver(c[0], c[1]) <= 0 || compareSemver(c[1], c[0]) >= 0 {
+			t.Fatalf("semver %s > %s", c[0], c[1])
+		}
+	}
+	if compareSemver("1.0.0+a", "1.0.0+b") != 0 {
+		t.Fatal("build metadata affected precedence")
+	}
+}
 func TestUPDV0001PaginationCapUnknown(t *testing.T) {
 	e := fixtureEngine(t)
 	rows := make([]release, 100)
