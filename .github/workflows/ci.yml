@@ -510,6 +510,8 @@ jobs:
         with:
           path: source
           ref: ${{ github.sha }}
+          # Depth 2 keeps the pull-request merge commit's base parent for the AFP-V0-042 diff.
+          fetch-depth: 2
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -521,6 +523,22 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: Windows vet including test files (AFP-V0-042)
+        # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
+        # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
+        # go.mod or go.sum file against its base; any doubt runs the vet.
+        working-directory: source
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -n "$PR_BASE" ] &&
+            [ "$(git rev-parse -q --verify 'HEAD^1' || true)" = "$PR_BASE" ] &&
+            git diff --quiet "$PR_BASE" HEAD -- '*.go' '*go.mod' '*go.sum'; then
+            echo 'Windows vet skipped: no .go, go.mod or go.sum file changed.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./...
+          (cd interop/cem01-go && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./...)
       - name: Protected helper self-tests independently of PR module directives
         working-directory: source
         run: |
