@@ -11,7 +11,7 @@ import (
 // identity, repository-relative location and title path under the same refusals as discovery.
 func TestPlaywrightListedTestsMultiProject(t *testing.T) {
 	root, listing := multiProjectListFixture(t)
-	tests, err := PlaywrightListedTests(root, "playwright.config.ts", listing)
+	tests, err := PlaywrightListedTests(root, "playwright.config.ts", listing, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,11 +36,11 @@ func TestPlaywrightListedTestsMultiProject(t *testing.T) {
 	if bytes.Equal(sharded, listing) {
 		t.Fatal("fixture has no shard field to edit")
 	}
-	if _, err := PlaywrightListedTests(root, "playwright.config.ts", sharded); err == nil || !strings.Contains(err.Error(), "sharded") {
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", sharded, nil); err == nil || !strings.Contains(err.Error(), "sharded") {
 		t.Fatalf("sharded listing: %v", err)
 	}
 	duplicate := bytes.Replace(listing, []byte("d318381359a9b96acb1e-577d9cd584a754eacf04"), []byte("d318381359a9b96acb1e-e722184229c1526d3c2d"), 1)
-	if _, err := PlaywrightListedTests(root, "playwright.config.ts", duplicate); err == nil || !strings.Contains(err.Error(), "repeats test id") {
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", duplicate, nil); err == nil || !strings.Contains(err.Error(), "repeats test id") {
 		t.Fatalf("duplicate id: %v", err)
 	}
 }

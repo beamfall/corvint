@@ -82,6 +82,18 @@ func newPlaywrightBehaviorRepo(t *testing.T) playwrightBehaviorRepo {
 	return repo
 }
 
+// commitPlaywrightBehaviorTest commits one more config-selected test file and advances the
+// migration to that commit, leaving the captured listing stale.
+func commitPlaywrightBehaviorTest(t *testing.T, repo *playwrightBehaviorRepo, path string) {
+	t.Helper()
+	writePlaywrightBehaviorFile(t, repo.root, path, []byte("import { test } from '@playwright/test';\n\ntest('extra', async () => {});\n"))
+	git(t, repo.root, "add", path)
+	git(t, repo.root, "commit", "-qm", "add "+path)
+	repo.revision = git(t, repo.root, "rev-parse", "HEAD")
+	repo.revisions.App.Revision, repo.revisions.E2E.Revision, repo.revisions.Docs.Revision = repo.revision, repo.revision, repo.revision
+	repo.migration = behaviorAdapterRaw(t, BehaviorMigration{Revisions: repo.revisions, Schema: 2, ContractID: "items-contract", SourceRevision: repo.revision, DocumentationRevision: repo.revision})
+}
+
 func writePlaywrightBehaviorFile(t *testing.T, root, path string, data []byte) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0700); err != nil {
@@ -491,15 +503,26 @@ func TestPlaywrightDiscoveryProducerRefusals(t *testing.T) {
 			repo.receipt = []byte(`{"tests":[]}`)
 			return playwrightBehaviorConfig
 		}, "qualified"},
+		{"stale listing omits a committed test file", func(t *testing.T, repo *playwrightBehaviorRepo) string {
+			commitPlaywrightBehaviorTest(t, repo, "e2e/extra.spec.ts")
+			return playwrightBehaviorConfig
+		}, `omits project "alpha" test e2e/extra.spec.ts`},
+		{"listing omits a test file at the revision absent from the working tree", func(t *testing.T, repo *playwrightBehaviorRepo) string {
+			commitPlaywrightBehaviorTest(t, repo, "e2e/extra.spec.ts")
+			if err := os.Remove(filepath.Join(repo.root, "e2e", "extra.spec.ts")); err != nil {
+				t.Fatal(err)
+			}
+			return playwrightBehaviorConfig
+		}, "selects at the source revision"},
 	}
 	for _, c := range cases {
 		t.Run("DCP-V1-048 "+c.name, func(t *testing.T) {
 			repo := newPlaywrightBehaviorRepo(t)
 			configPath := c.edit(t, &repo)
-			_, err := BuildPlaywrightDiscovery(context.Background(), PlaywrightDiscoveryInput{Root: repo.root, Migration: repo.migration, ConfigPath: configPath, Listing: repo.listing, Receipt: repo.receipt})
+			out, err := BuildPlaywrightDiscovery(context.Background(), PlaywrightDiscoveryInput{Root: repo.root, Migration: repo.migration, ConfigPath: configPath, Listing: repo.listing, Receipt: repo.receipt})
 			t.Log(err)
-			if err == nil || !strings.Contains(err.Error(), c.want) {
-				t.Fatalf("got %v, want refusal containing %q", err, c.want)
+			if err == nil || !strings.Contains(err.Error(), c.want) || out != nil {
+				t.Fatalf("got %v with %d output bytes, want refusal containing %q and no output", err, len(out), c.want)
 			}
 		})
 	}

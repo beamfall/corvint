@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"bytes"
 	"context"
+	"io/fs"
 	"sort"
 	"strings"
 
@@ -46,12 +47,8 @@ func BuildPlaywrightDiscovery(ctx context.Context, input PlaywrightDiscoveryInpu
 	if err := decode(input.Migration, &migration); err != nil || migration.Schema != 2 || !textOK(migration.ContractID) || !validBehaviorRevisions(migration.Revisions) || migration.SourceRevision != migration.Revisions.E2E.Revision || !wire.IsGitOid(migration.DocumentationRevision) || migration.DocumentationRevision != migration.Revisions.Docs.Revision {
 		return nil, fail("playwright discovery requires the exact schema-2 migration record")
 	}
-	listed, err := typescript.PlaywrightListedTests(input.Root, input.ConfigPath, input.Listing)
-	if err != nil {
-		return nil, fail("playwright listing refused: " + err.Error())
-	}
-	if len(listed) == 0 || len(listed) > MaxRecords {
-		return nil, fail("playwright listing has no tests or exceeds the execution bound")
+	if !affected.ValidRelativePath(input.ConfigPath) {
+		return nil, fail("playwright config path is not a canonical repository-relative path")
 	}
 	revision := migration.SourceRevision
 	repository, err := contextindex.CorpusRepositoryID(ctx, input.Root, revision)
@@ -69,6 +66,17 @@ func BuildPlaywrightDiscovery(ctx context.Context, input PlaywrightDiscoveryInpu
 	config, err := pinned.file(ctx, input.ConfigPath)
 	if err != nil {
 		return nil, err
+	}
+	revisionPaths, err := pinned.regularPaths(ctx)
+	if err != nil {
+		return nil, err
+	}
+	listed, err := typescript.PlaywrightListedTests(input.Root, input.ConfigPath, input.Listing, revisionPaths)
+	if err != nil {
+		return nil, fail("playwright listing refused: " + err.Error())
+	}
+	if len(listed) == 0 || len(listed) > MaxRecords {
+		return nil, fail("playwright listing has no tests or exceeds the execution bound")
 	}
 	lines := bytes.Count(config.data, []byte{'\n'})
 	if len(config.data) > 0 && config.data[len(config.data)-1] != '\n' {
@@ -143,6 +151,39 @@ func newPlaywrightPinnedSources(ctx context.Context, root, repository, revision 
 }
 
 func (p *playwrightPinnedSources) close() { p.release() }
+
+// regularPaths lists the repository-relative regular-file paths of the pinned revision, so the
+// listing's membership is also checked against the bytes the record binds (DCP-V1-048). It does
+// not descend node_modules, which Playwright never loads, and refuses past the shared walk bound.
+func (p *playwrightPinnedSources) regularPaths(ctx context.Context) ([]string, error) {
+	tree, err := p.auth.RevisionFS(ctx, p.revision, MaxBytes)
+	if err != nil {
+		return nil, err
+	}
+	paths, entries := []string{}, 0
+	err = fs.WalkDir(tree, ".", func(current string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entries++; entries > affected.MaxWalkEntries {
+			return affected.ErrWalkLimit
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if entry.Type().IsRegular() {
+			paths = append(paths, current)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fail("playwright discovery cannot enumerate the source revision: " + err.Error())
+	}
+	return paths, nil
+}
 
 // file returns the bytes of path at the pinned revision and refuses a working-tree copy that
 // differs, because the caller-run listing observed the working tree.

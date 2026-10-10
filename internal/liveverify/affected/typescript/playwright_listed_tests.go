@@ -24,10 +24,14 @@ type PlaywrightListedTest struct {
 
 // PlaywrightListedTests returns every test/project execution of an unfiltered
 // `playwright test --list --reporter=json` report for configPath, under the same refusals as
-// PlaywrightDiscoveryFromList: errors, filtering, sharding, a foreign config, and paths outside
-// root. Each execution keeps Playwright's test ID, repository-relative file, line, column,
-// project and title path. A duplicate or missing ID, location or project refuses the listing.
-func PlaywrightListedTests(root, configPath string, listing []byte) ([]PlaywrightListedTest, error) {
+// PlaywrightDiscoveryFromList: errors, filtering, sharding, a foreign config, paths outside
+// root, and a listing whose project/file pairs differ from the pairs the config selects in the
+// current sources, including the skipped-directory and static-membership refusals. When
+// revisionPaths is not nil it holds the repository-relative regular-file paths of the pinned
+// revision the caller binds, and a pair the config selects among them must be listed too. Each
+// execution keeps Playwright's test ID, repository-relative file, line, column, project and
+// title path. A duplicate or missing ID, location or project refuses the listing.
+func PlaywrightListedTests(root, configPath string, listing []byte, revisionPaths []string) ([]PlaywrightListedTest, error) {
 	report, realRoot, err := validatePlaywrightListing(root, configPath, listing)
 	if err != nil {
 		return nil, err
@@ -42,6 +46,13 @@ func PlaywrightListedTests(root, configPath string, listing []byte) ([]Playwrigh
 			return nil, fmt.Errorf("playwright listing repeats test id %q", test.ID)
 		}
 		seen[test.ID] = true
+	}
+	units := map[PlaywrightDiscoveryUnit]bool{}
+	for _, test := range tests {
+		units[PlaywrightDiscoveryUnit{Project: test.Project, Test: test.Path}] = true
+	}
+	if _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths); err != nil {
+		return nil, err
 	}
 	sort.Slice(tests, func(i, j int) bool {
 		left, right := tests[i], tests[j]

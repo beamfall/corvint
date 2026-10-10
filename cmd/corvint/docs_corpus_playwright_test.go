@@ -71,6 +71,23 @@ func TestDocsCorpusPlaywrightProducersCLI(t *testing.T) {
 			t.Fatalf("%d %q %s", code, out, stderr)
 		}
 	})
+	t.Run("DCP-V1-048 discover-playwright refuses a stale listing after a committed test file", func(t *testing.T) {
+		root, _ := playwrightCorpusRepository(t)
+		cemWrite(t, root, "e2e/extra.spec.ts", "import { test } from '@playwright/test';\n\ntest('extra', async () => {});\n")
+		cemGit(t, root, "add", "e2e/extra.spec.ts")
+		cemGit(t, root, "commit", "-qm", "add a test file")
+		revision := cemGit(t, root, "rev-parse", "HEAD")
+		repository := cemGit(t, root, "rev-list", "--max-parents=0", "HEAD")
+		migration, err := doccorpus.Encode(doccorpus.BehaviorMigration{Revisions: doccorpus.BehaviorRevisions{App: doccorpus.Repository{ID: strings.Repeat("1", 40), Revision: revision}, E2E: doccorpus.Repository{ID: repository, Revision: revision}, Docs: doccorpus.Repository{ID: strings.Repeat("2", 40), Revision: revision}}, Schema: 2, ContractID: "items-contract", SourceRevision: revision, DocumentationRevision: revision})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cemWrite(t, root, "evidence/migration.json", string(migration))
+		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "discover-playwright", "--migration", "evidence/migration.json", "--config", "playwright.config.ts", "--playwright-list", "evidence/list.json")
+		if code != 2 || out != "" || !strings.Contains(stderr, "corpus-refused") || !strings.Contains(stderr, "e2e/extra.spec.ts") {
+			t.Fatalf("%d %q %s", code, out, stderr)
+		}
+	})
 	t.Run("DCP-V1-049 witness-playwright requires its inputs and refuses an unretained receipt", func(t *testing.T) {
 		root, _ := playwrightCorpusRepository(t)
 		for _, args := range [][]string{
