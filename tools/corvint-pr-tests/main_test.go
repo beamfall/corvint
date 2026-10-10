@@ -821,3 +821,23 @@ func TestShardedSourceDrift_AFPV0022(t *testing.T) {
 		}
 	})
 }
+
+// The package-level driver cannot run a split package's slices, so it refuses
+// sharded execution exactly while the protected helper splits one (AFP-V0-041).
+func TestShardedDriverRefusesTestSlices_AFPV0041(t *testing.T) {
+	for _, universe := range [][]string{
+		{"example.org/fixture/a", "example.org/fixture/b"},
+		{"github.com/Beamfall/corvint/cmd/corvint", "github.com/Beamfall/corvint/internal/tasks/store", "github.com/Beamfall/corvint/internal/tasks/authority"},
+	} {
+		err := refuseSlices(universe, 6)
+		if (err != nil) != cishards.Splits(universe, 6) {
+			t.Fatalf("%v: refusal %v disagrees with the partition", universe, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "AFP-V0-041") {
+			t.Fatal(err)
+		}
+	}
+	if refuseSlices([]string{"example.org/fixture/a"}, 6) != nil {
+		t.Fatal("refused a universe without split packages")
+	}
+}

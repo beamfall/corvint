@@ -1,4 +1,5 @@
-// Command ci-shards emits one complete-universe shard of typed Go packages.
+// Command ci-shards emits one complete-universe shard of typed Go packages, or
+// with --slices the test slices of split packages in that shard (AFP-V0-041).
 package main
 
 import (
@@ -16,6 +17,7 @@ func main() {
 	profile := flag.Bool("profile", false, "print protected partition digest")
 	order := flag.String("order", "", "advisory affected-plan/1 (or /0) file; its selected packages are emitted first")
 	share := flag.String("share", "", "advisory affected-plan/1 (or /0) file; print its selected share of the universe's estimated time")
+	slices := flag.Bool("slices", false, "print the shard's test slices (AFP-V0-041), one invocation per line: FLAG PATTERN PACKAGE")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected arguments")
@@ -34,13 +36,24 @@ func main() {
 	if err == nil && *share != "" {
 		os.Exit(shared(packages, *share))
 	}
+	var plan []cishards.Shard
 	if err == nil {
-		packages, err = cishards.Intersect(packages, []string{"./..."}, *shard, *total)
+		plan, err = cishards.Plan(packages, *total)
+	}
+	if err == nil && (*shard < 0 || *shard >= *total) {
+		err = fmt.Errorf("invalid shard index")
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+	if *slices {
+		for _, s := range plan[*shard].Slices {
+			fmt.Println(s.Flag, s.Pattern, s.Package)
+		}
+		return
+	}
+	packages = plan[*shard].Packages
 	if *order != "" {
 		packages = ordered(packages, *order)
 	}

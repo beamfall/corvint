@@ -1,0 +1,260 @@
+{
+  "baseRevision": "3beedd981f0d71f604175860a7f09e6d869c5687",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4082,
+        "start": 3781
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3265,
+        "start": 2977
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    },
+    {
+      "blobOid": "6488ba3c3484557427deaa34718e7337431de42b",
+      "id": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 22401,
+        "start": 21850
+      },
+      "spanSha256": "d7988157a4e26598e89b7640a375b7d41d6ba7b30ccfe6ab349692bc9f8ead02"
+    },
+    {
+      "blobOid": "6488ba3c3484557427deaa34718e7337431de42b",
+      "id": "evidence:sha256:07ff9d39907ddcb07a5f454c8f9d03b8acf039ef7e952a73661822baf0d2619c",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 92223,
+        "start": 91016
+      },
+      "spanSha256": "8a693553551e4d559e9e78602b4981cd4c8095b9bcaffd0a4673b8236ee9397a"
+    },
+    {
+      "blobOid": "6488ba3c3484557427deaa34718e7337431de42b",
+      "id": "evidence:sha256:ba7e70823093bd759cc93446ed84a5ac9a02f3ca92229d8a8bfa88acfc535f90",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 90826,
+        "start": 88709
+      },
+      "spanSha256": "a8d774512e31869088f1ee706f4f98fe4f946cbe860467333abff6dcf2c7ddb8"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a15fec5016eda58783cc6db2c79ebd5c52d692886f9c14fe4d98b6e0a6f7c881",
+      "newRange": {
+        "count": 48,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-v1-1116-opencode-zombie-reprobe.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ddbecb2fe81091256bc116f19a5fc8c024eac3a072e3bd77ee3e0add6cb6dccb",
+      "newRange": {
+        "count": 7,
+        "start": 192
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 192
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a2de5747f4f5f5b20a1e05ca4f73647e635ce0ad805568d3a7fb43afd39481c3",
+      "newRange": {
+        "count": 38,
+        "start": 1051
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1051
+      },
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:68f775cbf041ed0dfe0ca543871b1db88c883d47e1a1e53f2ebb83d621d44a7e",
+      "newRange": {
+        "count": 7,
+        "start": 62
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 62
+      },
+      "path": "integrations/compatibility.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:07ff9d39907ddcb07a5f454c8f9d03b8acf039ef7e952a73661822baf0d2619c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:85b2ebb82d31700003de0c069af2da1b77df6e909a59cd3d095dd7d5eac6c763",
+      "newRange": {
+        "count": 63,
+        "start": 472
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 472
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:43d1e2da6c13899a3a6c2aa804a8a3d6a7b03b27c20ef4495c757388800d2ffc",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "integrations/opencode/package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a8598c78bd0ac31a36b9c5140a9c3de182a73bab88e934a6071ea7933b61850a",
+      "newRange": {
+        "count": 7,
+        "start": 26
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 26
+      },
+      "path": "integrations/opencode/package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:104c3c5fadb633876f32a322d468efba9977306a92069c197e139756dfb691cb",
+      "newRange": {
+        "count": 7,
+        "start": 5
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 5
+      },
+      "path": "integrations/opencode/src/runtime.js",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ba7e70823093bd759cc93446ed84a5ac9a02f3ca92229d8a8bfa88acfc535f90",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b3271f3c203a5785c054bfc5fca76065909de35273b4c9b6bda0493ce0d9de1d",
+      "newRange": {
+        "count": 41,
+        "start": 435
+      },
+      "oldRange": {
+        "count": 25,
+        "start": 435
+      },
+      "path": "integrations/opencode/src/runtime.js",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ba7e70823093bd759cc93446ed84a5ac9a02f3ca92229d8a8bfa88acfc535f90",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ad2b7eacdd2a100da40d0eddccc171bb687c38477c58bc539c33a7a7accd798c",
+      "newRange": {
+        "count": 9,
+        "start": 560
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 544
+      },
+      "path": "integrations/opencode/src/runtime.js",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "865d10f8d567c1faef9e85ec34310c5fa8e865d49a4d4940a6f664268e4e54a1",
+  "spec": "cem/0.2"
+}
