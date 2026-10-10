@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -1051,7 +1051,7 @@ do not reinterpret this Frontier result.
   and `conformance/host-lifecycle-v1` discovery reports the six skills on the installed host.
   Rollback: restore the 0.2.3 manifest, marketplace and `hooks.json` and delete the five skill
   directories under a new plugin version; no store, ledger or wire format changes.
-- `AHI-052`: (proposed; V1-1116; amends `AHI-050` for OpenCode only, pending owner acceptance) When
+- `AHI-052`: (accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
   the OpenCode adapter's cleanup probe `kill(-pid, 0)` answers `EPERM`, the adapter MUST repeat that
   signal-0 probe, each repeat a timer at least 5 ms after the last, until it answers anything other
   than `EPERM` or 40 repeats have run, and MUST NOT send any other signal to the group meanwhile. Only

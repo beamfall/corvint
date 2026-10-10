@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 Ticket: V1-1116
-Requirement: AHI-052 (proposed, pending owner acceptance; amends AHI-050 for OpenCode only).
+Requirement: AHI-052 (accepted, decision 0497; amends AHI-050 for OpenCode only).
 
 ## Finding
 
