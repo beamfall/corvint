@@ -30,6 +30,13 @@ is set (`CORVINT_PR_TOOL_SOURCE` and `CORVINT_PR_QUALIFICATION_SOURCE` are empty
 row exists (V1-0039 not run; V1-0811 forward rows not recorded), so nothing qualified is invalidated;
 a future campaign binds this digest and 8.
 
+After PR #736 (AFP-V0-041) landed, the digest became `corvint-ci-partition/2`, which also covers
+`slices.go`, `test-split-allow.json` and `test-slices.json`: `origin/main` `fac080be` (6 shards, the
+previous table, slices from run 38055182050) is
+`2c8c9815afa10b0149aab8a0561e90462046c72df92d9e99573ccf06a22b84c6`; this change (8 shards, the
+refreshed table, slices re-derived below) is
+`930db5273cd9049b63c179343c63f63ec557b8bd53020e4306ba323769956193`.
+
 ## Replay (inference, not hosted timing)
 
 Package elapsed times of run 38072785874 placed by each table (seconds of test time per shard; the
@@ -45,15 +52,22 @@ On this tree the whole `internal/tasks/store` package (1,055 s) is the 8-shard f
 per-shard setup, against about 22–25 min today. The ticket's 17 min target needs the store split of
 AFP-V0-041 (PR #736): with it the ideal is about 6,977/8 = 872 s per shard.
 
-## Composition with PR #736 (AFP-V0-041)
+## Hosted run and the re-derived store slices
 
-#736 changes neither the matrix, `REUSE_SHARDS`, `SHARDS` nor the cost table, so the merge is
-textual-clean. Its slice placement takes the shard count at run time (`PlanFrom(…, total, …)`,
-at most `total` slices per package), so its 2-slice store split is valid at 8. Its committed
-`test-slices.json` and the tool defaults (`--shards 6`) were derived for 6 shards from the
-pre-speedup run 38055182050 (920 s and 951 s store slices), so after #736 lands the slices are
-re-derived with `ci-test-slices generate --shards 8` from one complete 8-shard hosted run and the
-defaults move to 8.
+The first 8-shard hosted run, 38078093034 (pull request #744, head `76058c6c`, before #736), passed.
+Job durations of `go-product-shard (0..7)`: 1,065, 892, 827, 1,035, 681, 1,004, 852 and 788 s; the
+slowest is 17.75 min against 22-25 min at 6 shards. Shard 0 ran `internal/tasks/store` alone
+(1,006 s of test time), so the store package, not the shard count, held it above 17 min.
+
+#736 changed neither the matrix, `REUSE_SHARDS`, `SHARDS` nor the cost table, so the merge was clean.
+Its placement takes the shard count at run time, but its slices were cut for 6 shards from the
+pre-speedup run (920 s and 951 s). `ci-test-slices generate --shards 8` over the eight shard logs of
+run 38078093034, listed at merge `3b428343`, re-cut the store package into 139 named tests (496 s)
+and the rest (510 s); `cmd/corvint` (653 s) stays whole under the 788 s target. The tool default and
+its refusal test, the `Splits` check of the committed slices and the `ci-shard-costs` usage move to
+8. Replay of that run with the committed cost table (an inference; slices in-sample): previous
+slices max 940 s of test time per shard, re-derived slices max 848 s, about 16.7 min per job with
+the observed 60-150 s of per-shard setup. Whether 17 min holds needs the next hosted runs.
 
 ## Limits and rollback
 
@@ -63,4 +77,5 @@ defaults move to 8.
   full run.
 - Hosted timings come only from this change's own pull-request runs.
 - Rollback: restore the `[0..5]` matrix, `REUSE_SHARDS: "6"`, `SHARDS: "6"`, the qualification
-  default, and the previous table bytes, in one commit.
+  default, the previous table and slice-file bytes and the `--shards 6` tool default, in one
+  commit.
