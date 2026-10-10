@@ -631,11 +631,20 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		// and other computed names, global objects and reflective writes (round 21).
 		"global computed": {reg + "const app = angular.module('admin');\nwindow['angu' + 'lar'].module = function (label, annotation) { app.config(annotation); };\n" +
 			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"global this":             {reg + "const app = angular.module('admin');\nglobalThis.angular.module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"assign key":              {reg + "const w = {};\nObject.assign(w, { ['angu' + 'lar']: 1 });\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"reflect set":             {reg + "const w = {};\nReflect.set(w, 'x', 1);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"identifier key":          {reg + "const o = {}; const k = 'x';\no[k] = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"global self":             {reg + "var self = {};\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"global this":    {reg + "const app = angular.module('admin');\nglobalThis.angular.module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"assign key":     {reg + "const w = {};\nObject.assign(w, { ['angu' + 'lar']: 1 });\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"reflect set":    {reg + "const w = {};\nReflect.set(w, 'x', 1);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"identifier key": {reg + "const o = {}; const k = 'x';\no[k] = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"global self":    {reg + "var self = {};\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		// The twenty-first review's input, angular.module replaced through Function reached by a
+		// literal constructor key, and the other prototype and call names in each form (round 22).
+		"constructor key": {reg + "const app = angular.module('admin');\n" +
+			"({})['constructor']['constructor']('return this.angu' + 'lar')().module = function (label, annotation) { app.config(annotation); };\n" +
+			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"constructor dotted":      {reg + "const g = ({}).constructor;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"prototype bracket":       {reg + "const g = ({})[`prototype`];\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"apply string":            {reg + "const k = 'apply';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"call bind dotted":        {reg + "const h = f.call(null);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {

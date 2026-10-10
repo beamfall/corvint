@@ -389,10 +389,13 @@ var (
 	globalObjects = map[string]bool{"window": true, "globalThis": true, "self": true, "global": true,
 		"top": true, "parent": true, "frames": true}
 	// reflective are the names that can define or replace a property, or a whole object's
-	// behavior, without a visible member write; assign stands for Object.assign.
+	// behavior, without a visible member write (assign stands for Object.assign), or reach
+	// Function or call a function with another this or arguments: constructor
+	// (`({})['constructor']['constructor']` is Function), prototype, call, apply and bind.
 	reflective = map[string]bool{"Reflect": true, "Proxy": true, "defineProperty": true,
 		"defineProperties": true, "setPrototypeOf": true, "__proto__": true, "__defineGetter__": true,
-		"__defineSetter__": true, "assign": true}
+		"__defineSetter__": true, "assign": true, "constructor": true, "prototype": true, "call": true,
+		"apply": true, "bind": true}
 	// arrayAfter is the punctuation after which a `[` can only open an array literal or pattern.
 	// `{`, `,` and `;` are decided by what follows the group; after `)`, `]`, `}`, `.` (an optional
 	// `?.[` or a spread) and any other punctuation a `[` counts as a computed member.

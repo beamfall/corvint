@@ -279,6 +279,14 @@ injector.
   `:`, `(` or `=` follows the group; anything else, including a name, a literal, a closing bracket,
   `.` and the contextual words `of`, `yield` and `await`, counts as a member. Empty brackets (a
   TypeScript `T[]` type) never count.
+- Twenty-first review (one fail-open path, no spec text change): the computed-name rule accepts
+  a literal bracket key, and the loader rule matches string keys only against loader names, so
+  `({})['constructor']['constructor']('return this.angu' + 'lar')().module = ...` reached
+  Function by a literal `constructor` key and replaced angular.module. The reflective names now
+  also include `constructor`, `prototype`, `call`, `apply` and `bind`, matched by token like the
+  rest: an identifier in any position (a dotted member `f.call` included) and a string or
+  substitution-free template whose value is exactly one of them (a bracket key `x['constructor']`
+  or `` x[`prototype`] ``, or a string anywhere).
 
 ## Evidence
 
@@ -514,6 +522,14 @@ injector.
   `string[]`, `=> [n]`) and the three `di angular package` cases still resolve, and
   `TestAMAPV0025ComputedName` covers 26 bracket forms. The full `go test -count=1
   ./internal/appmap` passes (538 passing tests and subtests); `go vet` and `gofmt` are clean.
+- Twenty-first review: `di constructor key` (the review's input), `di prototype bracket`
+  (`` ({})[`prototype`] ``), `di apply string` (`const k = 'apply'`) and `di call bind dotted`
+  (`f.call(null)`) resolve silently against `21b7d08f` (`v1061-r22-gap-before.txt`); `di
+  constructor dotted` (`({}).constructor`) was already caught by the loader rule's `.constructor`
+  property and guards this one. All five fail closed with the fix, and `di literal brackets` and
+  the three `di angular package` cases still resolve. The full `go test -count=1
+  ./internal/appmap` passes (543 passing tests and subtests); `go vet` and `gofmt` are clean,
+  and the nine CI doc gates pass.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -616,3 +632,7 @@ injector.
   `var self = this`, a parameter or import named `parent` or `top`, and `window.location`; and
   any `Reflect`, `Proxy`, `defineProperty`, `__proto__`, `assign` (including `Object.assign` and
   `location.assign`) or similar name, as an identifier or exact string, in any position.
+- Since the twenty-first review, any `constructor`, `prototype`, `call`, `apply` or `bind` in a
+  closure file also removes the exemption, as a name in any position or an exact string: a class
+  `constructor()`, `Foo.prototype.x = ...`, `fn.call(this, ...)`, `fn.apply(null, args)` and
+  `this.handler.bind(this)`, all common in AngularJS code.
