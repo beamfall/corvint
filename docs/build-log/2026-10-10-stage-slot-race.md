@@ -74,6 +74,10 @@ writer-locked and refuse at once, as before.
   pause, and four moves in all end in `SNAPSHOT_MOVED`.
 - `TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot`, `..._ArchiveOrphanSlotMalformedAfterBoundedWait`
   and `..._ArchiveSlotBesideDescriptorRefusedAtOnce` mirror the journal cases through `Export`.
+- `TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending`: with a positive 500 ms CTS-V0-006
+  patience, a slot held for 600 ms and then a 150 ms `REDO_PENDING` window, the export succeeds;
+  before `readArchive` pushed its deadline forward by each stage pause it reported `REDO_PENDING`
+  at once.
   Against the unfixed `archive/stage_read.go` the first fails with `MALFORMED: a00: unassigned
   stage slot`. `TestCTSV0008_StageSlotWaitBackoffAndBudget` pins the shared pause sequence.
 
@@ -94,6 +98,9 @@ An independent Codex review of the first commit found two P2 gaps, both fixed ab
 holders (reconcile reaches `audit` through `RequestIndex.Lookup`) waited the whole budget while
 holding the lock. The archive export kept its own immediate refusal. The spec text now names both
 readers and the writer-locked exception.
+A second review round found that the export's stage pauses still ran down its CTS-V0-006
+deadline, because the pause did not move it. `readArchive` now adds each measured pause to the
+deadline.
 
 ## Rollback
 

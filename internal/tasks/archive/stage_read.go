@@ -492,7 +492,11 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 			if !ok {
 				return snap, slots.error
 			}
+			// The pause is pushed onto the deadline, so it never spends the
+			// CTS-V0-006 patience a later pending or moved attempt needs.
+			paused := time.Now()
 			stageSleep(step)
+			deadline = deadline.Add(time.Since(paused))
 			continue
 		}
 		if wire.CodeOf(err) != wire.CodeSnapshotMoved {
