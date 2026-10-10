@@ -130,10 +130,8 @@ func TestCALV0026_AuditInventoryParityAndFallback(t *testing.T) {
 		t.Logf("physical metadata hits=%d fallback paths=%d complete inventory=%d", hits, len(fallback), len(actual.Files()))
 	})
 	t.Run("same-path-actual-byte-bound", func(t *testing.T) {
-		// Existing inventory uses the archive path here; BoundFor accepts
-		// intent-relative paths, so this exact path uses the evidence bound.
-		// Borrowed metadata must preserve that effective bound too.
-		bound := wire.MaxEvidenceBlobBytes
+		// Borrowed archive metadata obeys the queue's intent-relative bound.
+		bound := wire.MaxQueueFileBytes
 		reads := 0
 		reader := func(string, int) ([]byte, error) { reads++; return nil, nil }
 		_, _, err := fileEntryWithReader("unused", "intent/queue.json", reader, map[string]journal.PhysicalFile{"intent/queue.json": {Sha256: wire.Sum(nil), Bytes: bound + 1}})
