@@ -176,3 +176,18 @@ the admitted file importing `internal/gitstatus`, and a positive control for the
 Rule 5 needs no change because `internal/contextindex` and its closure are already in the
 source-archive subset (V1-0456, issue 443). Rollback is reverting the symbol-anchor change and
 removing this one-file edge; the other edges stay.
+
+## Issue 712 addendum — expected-fail excerpt secret screen
+
+Agent decision, 2026-10-10, made while delivering GitHub issues beamfall/corvint#712 and #713
+(native V1-1073/V1-1074); it is not a direct owner statement. The expected-fail obligation report
+(`docs/specs/corvint-tasks-obligation-ledger-v0.md`, accepted TOL-V0-022..027, decision 0484)
+withholds a failure excerpt that matches Core's shared `internal/secretscreen` patterns rather than
+keeping a second, drifting copy. Rule 2 gains one more exact edge, limited to one file:
+`internal/tasks/obligation/expected_fail.go` may import `internal/secretscreen`. The rest of
+`internal/tasks/obligation` and every other Tasks file stay refused, and this file admits no other
+Core package. `TestImportViolationControls` keeps negative controls for
+`internal/tasks/obligation/report.go` importing `internal/secretscreen` and for the admitted file
+importing `internal/gitstatus`, and a positive control for the admitted edge. Rule 5 needs no change
+because `internal/secretscreen` is already in the source-archive subset (V1-0456). Rollback is
+reverting the expected-fail excerpt screen and removing this one-file edge; the other edges stay.
