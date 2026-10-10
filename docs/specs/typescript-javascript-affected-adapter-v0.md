@@ -166,8 +166,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   identifier or quoted string key is the same key, so `'browserName': 'firefox'` resolves like
   `browserName: 'firefox'`. A computed value of any other option (`baseURL`, `storageState`, `trace`,
   ...) MUST NOT leave the project's browser identity unresolved when its evaluation syntactically
-  cannot call user code: literals, identifiers, member reads (including optional chaining), array
-  literals, object literals of `key: value` or shorthand properties, and the non-coercing operators
+  cannot call user code: literals, identifiers, member reads (including optional chaining) of an
+  admitted root, array literals, object literals of `key: value` or shorthand properties, and the non-coercing operators
   `===`, `!==`, `&&`, `||`, `??`, `?:` (test and branches), `!`, `typeof` and `void` over those.
   Template substitutions, computed member and property keys (`obj[expr]`, `{ [expr]: v }`), unary
   `+`, `-` and `~`, and every other binary operator (arithmetic, bitwise, shifts, `<`, `>`, `<=`,
@@ -176,9 +176,22 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   primitive: string and numeric literals, templates whose substitutions are proven primitive (a
   template without substitutions included), `true`, `false`, `null`, the results of these operators
   and of `&&`, `||`, `??` and `?:` over such operands, and the results of `typeof`, `void`, `!`, `===` and `!==`, which are always
-  primitive. No member read is proven primitive: `process.env.NAME` (a getter, Proxy or replaced
-  `process.env` can return an object) and a member of a numeric literal (`1..x`, `1.0.x`) are
-  admitted only as whole values and under the non-coercing operators. Numeric literals MUST be lexed
+  primitive. A member read can invoke a getter or Proxy trap, so it is admitted only when its root
+  identifier is (a) the `devices` binding of a top-level `import { devices } from '@playwright/test'`,
+  read as `devices['<name>']` (a string-literal key that is not an `Object.prototype` name and does
+  not start with `__`) followed by `.userAgent`, `.deviceScaleFactor`, `.isMobile`, `.hasTouch`,
+  `.defaultBrowserType` or `.viewport`/`.screen` then `.width`/`.height`, or (b) a top-level
+  `const NAME = { ... }` declared once whose properties, recursively, are all plain `key: value`
+  with an identifier or string key (no `get`/`set` accessor, method, spread, computed key,
+  shorthand, duplicate key or `__proto__`) and proven-primitive or plain-object values, read through
+  dotted or string-literal keys that exist down to a primitive leaf. Every occurrence of either root
+  in the file, strings included, MUST be such a read in a read-only position (never an assignment,
+  update, `delete` or destructuring target, alias, call or argument of a call such as
+  `Object.defineProperty`), and a file containing the token `eval` admits neither root. Every other
+  member read (`process.env.NAME`, `this.x`, a member of an import from another module, a function
+  result or a numeric literal such as `1..x`) MUST keep the identity unresolved. No member read is
+  proven primitive: an admitted one is accepted only as a whole value and under the non-coercing
+  operators. Numeric literals MUST be lexed
   to the ECMAScript grammar (decimal with fraction and exponent, `0x`/`0o`/`0b`, `_` between digits,
   the BigInt `n` suffix on integers); a legacy octal, a malformed literal or one followed directly by
   an identifier character is refused, and a dot after a complete literal starts a member read. `++`
@@ -189,7 +202,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `${}` substitution opens a nested template, the substitution's matching `}` resumes the enclosing
   one, and template content is never treated as a comment or rewritten; nesting deeper than 64
   open substitutions is refused as unparsed source. A literal
-  `...devices['<known name>']` spread beside such options MUST resolve to that device's browser. A
+  `...devices['<known name>']` spread beside such options MUST resolve to that device's browser
+  when the file's `devices` root is admitted under (a); otherwise the spread widens. A
   value containing any call (including tagged templates and optional calls; there is no call
   allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function, arrow
   or class expression, spread, method or accessor definition, comma operator, regular expression
@@ -219,7 +233,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   default `.spec.`/`.test.` markers match case-insensitively, `**` is a globstar only as a whole
   path component, and a regular expression keeps its own flags. A glob using minimatch syntax the
   profile does not model (classes, extglobs, escapes, single-item or range braces, `**` inside a
-  component) is not static, and so is a regular expression with any flag other than `i`, `m` and
+  component) is not static, and so is a string glob containing `//` (minimatch 3.1.5 splits the
+  glob and the path on runs of `/`, so `e2e//*.spec.ts` and a leading `/`, prefixed to `**//`,
+  match paths a literal reading would not), and so is a regular expression with any flag other than `i`, `m` and
   `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). A regular
   expression body is static only when every construct reads identically in JavaScript without the
   `u` flag and in Go RE2: literal characters; `.`, `^`, `$` and `|`; `(...)` and `(?:...)` groups
@@ -420,8 +436,8 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
-| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065` in `playwright_example_app_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
-| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
+| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
+| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
 | `TJAA-V0-020` (proposed) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

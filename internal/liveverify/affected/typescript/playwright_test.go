@@ -183,7 +183,10 @@ func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
 		`/\A.*a\.spec\.ts$/`, `/\sa\.spec\.ts$/`, `/(?i)a\.spec\.ts$/`, `/(a)\1\.spec\.ts$/`, `/[[:alpha:]]\.spec\.ts$/`, `/\x61\.spec\.ts$/`,
 		// GitHub #709 review round 7: a leading-zero repeat bound is repetition only in JavaScript, and
 		// a character outside the Basic Multilingual Plane is two UTF-16 code units in JavaScript.
-		`/a{01}\.spec\.ts$/`, "/\U0001F600?a\\.spec\\.ts$/", "\"**/\U0001F600*.spec.ts\""} {
+		`/a{01}\.spec\.ts$/`, "/\U0001F600?a\\.spec\\.ts$/", "\"**/\U0001F600*.spec.ts\"",
+		// GitHub #709 review round 8: minimatch collapses runs of `/`, and a leading `/` becomes
+		// `**//` once Playwright prefixes `**/`.
+		`"**/tests//*.spec.ts"`, `"tests//a.spec.ts"`, `"/tests/*.spec.ts"`} {
 		root := t.TempDir()
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
@@ -568,6 +571,38 @@ func TestPlaywrightRegexBodyAllowlist(t *testing.T) {
 		`a{01}`, `a{00}`, `a{1,02}`, `a{1, 2}`, `a{ 1}`, `a{,2}`, "\U0001F600", "a\U0001F600?", "[\U0001F600]", "[a-\U0001F600]", "\\\U0001F600"} {
 		if playwrightRegexBodyStatic(body) {
 			t.Errorf("admitted %q", body)
+		}
+	}
+}
+
+// GitHub #709 review round 8: verdicts of the bundled minimatch 3.1.5 (Playwright 1.61.1
+// createFileMatcher: `**/` prefix, nocase, dot) on /repo/e2e/b.spec.ts. A glob the static model
+// would read differently is refused; `.` and `..` components and a trailing `/` match nothing in
+// either, so they stay static and agree.
+func TestPlaywrightGlobAgreesWithBundledMinimatch(t *testing.T) {
+	const file = "/repo/e2e/b.spec.ts"
+	for _, row := range []struct {
+		glob    string
+		matches bool
+	}{
+		{"**/e2e/*.spec.ts", true}, {"e2e/*.spec.ts", true}, {"**/E2E/B.SPEC.TS", true}, {"**/e2e/**", true},
+		{"**/./e2e/*.spec.ts", false}, {"./e2e/*.spec.ts", false}, {"**/e2e/./*.spec.ts", false},
+		{"**/x/../e2e/*.spec.ts", false}, {"**/*/../e2e/b.spec.ts", false}, {"**/e2e/*.spec.ts/", false},
+		{"**/e2e/", false}, {"**/e2e/**/", false}, {"**/e2e/b.spec.ts/**", false},
+	} {
+		matcher, ok := compilePlaywrightMatcher(`"` + row.glob + `"`)
+		if !ok {
+			t.Errorf("%s: refused a glob the static model reads like minimatch", row.glob)
+			continue
+		}
+		if got := playwrightAnyMatcher([]playwrightMatcher{matcher}, file); got != row.matches {
+			t.Errorf("%s: matched=%v, minimatch %v", row.glob, got, row.matches)
+		}
+	}
+	// minimatch collapses runs of `/` in the glob, so these match in Playwright.
+	for _, glob := range []string{"**/e2e//*.spec.ts", "/repo/e2e/*.spec.ts", "e2e//b.spec.ts", "**/e2e/**//b.spec.ts"} {
+		if _, ok := compilePlaywrightMatcher(`"` + glob + `"`); ok {
+			t.Errorf("%s: a repeated-slash glob was static", glob)
 		}
 	}
 }

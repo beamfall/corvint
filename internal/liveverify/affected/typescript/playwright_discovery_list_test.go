@@ -19,10 +19,11 @@ func multiProjectListFixture(t *testing.T) (string, []byte) {
 	write(t, root, "playwright.config.ts", `import { defineConfig, devices } from '@playwright/test';
 
 const authFile = 'playwright/.auth/user.json';
+const server = { baseURL: 'http://localhost:3000' };
 
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' },
+  use: { baseURL: server.baseURL, trace: 'on-first-retry' },
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     { name: 'chromium', use: { ...devices['Desktop Chrome'], storageState: authFile }, dependencies: ['setup'] },
@@ -268,6 +269,20 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 			}
 		})
 	}
+	// GitHub #709 review round 8: minimatch splits a glob and the path on runs of `/`, so
+	// `**/e2e//*.spec.ts` selects e2e/b.spec.ts in Playwright; kept literally it would select
+	// nothing and stamp a listing captured before that file existed.
+	t.Run("stale listing after a new file under a repeated-slash glob", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', testMatch: ['**/keep.test.ts', '**/e2e//*.spec.ts'] }] });\n")
+		write(t, root, "e2e/keep.test.ts", "test('keep', async () => {});\n")
+		listing := minimalPlaywrightListing(t, root, "e2e", []string{"p"}, []string{"keep.test.ts"})
+		write(t, root, "e2e/b.spec.ts", "test('b', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `project "p" test e2e/b.spec.ts`) && !strings.Contains(err.Error(), "not static") {
+			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+		}
+	})
 	// GitHub #709 review round 5 follow-up: Go's `.` and `(?m)` anchors treat only LF as a line
 	// terminator, JavaScript also CR, U+2028 and U+2029, so a path holding one refuses the listing
 	// whether the config selects it (and the listing names it) or not.

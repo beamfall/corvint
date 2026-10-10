@@ -325,3 +325,76 @@ Tests, each failing on `f6b8eb5a`:
   refused and are now pinned), with `{0}`, `{0,0}`, `{10,100}` and BMP non-ASCII positives;
 - `/a{01}\.spec\.ts$/`, an emoji regex and an emoji glob row in
   `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`.
+
+## Review round 8
+
+Two findings, both closed by refusing what the profile does not model. In each case the matcher or
+the use-layer identity becomes non-static, so the producer refuses and static selection widens.
+
+- Repeated `/` in a string glob (`TJAA-V0-019`). Playwright 1.61.1's `createFileMatcher` prefixes
+  `**/` and calls its bundled minimatch 3.1.5 with `{nocase: true, dot: true}`. minimatch splits
+  both the pattern and the path on `/\/+/`. As a result `**/e2e//*.spec.ts` matches `e2e/b.spec.ts`,
+  and so does a leading `/` (which becomes `**//`), while our literal reading did not. With the
+  exact repro, a listing captured before `e2e/b.spec.ts` existed was stamped `raw`. Any string glob
+  containing `//` is now non-static, and the glob is not normalized.
+
+  We checked minimatch's other preprocessing against the bundled copy (`mm.js` in the round
+  scratchpad). A leading `./`, a `..` component and a trailing `/` never match a repository-relative
+  test path in either minimatch or our model, so they agree and are not refused.
+  `TestPlaywrightGlobAgreesWithBundledMinimatch` pins those agreement rows beside the four
+  repeated-slash rows.
+- Getter behind a member read (`TJAA-V0-018`). Previously the pure-expression check admitted any
+  member read. `const options = { get baseURL() { return go(); } }` then read as
+  `baseURL: options.baseURL` could rewrite a devices descriptor during config evaluation, yet the
+  browser identity stayed resolved.
+
+  A member read is now admitted only through one of two roots:
+  - the `devices` binding of a top-level `@playwright/test` import, read through a string-literal
+    device key to a scalar descriptor field, or to `viewport`/`screen` followed by
+    `width`/`height`;
+  - a top-level `const` bound once to a recursively plain object literal, read through existing
+    keys down to a primitive leaf.
+
+  Every occurrence of the root in the comment-stripped file, strings included, must be such a read
+  in a read-only position. That rules out assignment, compound assignment, update, `delete`, any
+  destructuring target, an alias, and a call argument such as `Object.defineProperty`. An `eval`
+  token anywhere admits neither root.
+
+  Every other root is refused: `process.env`, `this`, other imports, function results and numeric
+  literals. A `...devices[...]` spread in `use` now also needs the sound `devices` root. This closes
+  the related gap where a top-level write to a devices descriptor kept the spread resolved.
+
+Consequences:
+- `process.env.BASE_URL` and other `process.env` reads in a `use` layer now widen the browser
+  identity. This reverses the V1-1065 positive rows for env-derived `baseURL`/`trace`, and the
+  scaffold-style `process.env.BASE_URL ?? '...'` config is no longer narrowed.
+- The multi-project fixtures in `playwright_discovery_list_test.go` and
+  `cmd/corvint/affected_playwright_test.go` now read `server.baseURL` from a const literal, so the
+  positive path stays covered.
+- The unused `playwrightUseIdentity` wrapper is removed.
+
+Residual gaps, retained:
+- A bare identifier can still read a global accessor.
+- A side-effect import or another module can mutate `devices` or `process.env` before the config
+  evaluates.
+- A computed alias of `devices` obtained via `require` or destructuring with a computed key is not
+  traced.
+- Go's `(?i)` Kelvin/long-s folding from round 4 remains open.
+
+Tests, each failing on `b79e9d9a` unless noted:
+- the repeated-slash repro as a stale-listing row in `TestPlaywrightDiscoveryFromListMembership_V1_1066`;
+- `**/tests//*.spec.ts`, `tests//a.spec.ts` and `/tests/*.spec.ts` widen rows in `playwright_test.go`;
+- the repeated-slash rows of `TestPlaywrightGlobAgreesWithBundledMinimatch`. Its `./`, `..` and
+  trailing-`/` agreement rows already passed.
+- `TestPlaywrightMemberReadRoots_GH709Round8`, which covers:
+  - the exact getter repro;
+  - the devices-descriptor write beside a spread;
+  - 31 refused rows: setter, method, spread, computed key, `__proto__`, shorthand, non-primitive
+    value, member written, updated or deleted, root reassigned, `Object.defineProperty`, nested
+    alias, destructuring, second binding, `export const`, `let`, block scope, `eval`, missing key,
+    read through a leaf, undeclared, `process.env`, `this`, and devices object, prototype-key and
+    write reads. All failed before except "called member", which was already refused.
+  - 6 admitted rows: plain const, nested plain const with a template, optional chain, literal read
+    elsewhere, devices scalar, devices `viewport.width`.
+- `TestPlaywrightPureExpressionScopedMemberReads`, which is new. In `TestPlaywrightPureExpression`
+  the unscoped member-read rows moved from admitted to refused.

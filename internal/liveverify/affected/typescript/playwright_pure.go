@@ -48,22 +48,22 @@ const playwrightPureMaxDepth = 128
 
 // playwrightPureExpression reports whether evaluating raw cannot run repository code or write
 // state, so a non-identity `use` value cannot alter a devices descriptor or another project's
-// identity (TJAA-V0-018). It admits literals, identifiers, member reads (including optional
-// chaining), array literals, object literals of `key: value` or shorthand properties, and the
-// non-coercing operators `===`, `!==`, `&&`, `||`, `??`, `?:`, `!`, `typeof` and `void` over those.
+// identity (TJAA-V0-018). It admits literals, identifiers, member reads of a root playwrightPureScope
+// admits (string-literal computed keys and optional chaining included), array literals, object
+// literals of `key: value` or shorthand properties, and the non-coercing operators `===`, `!==`, `&&`, `||`, `??`, `?:`, `!`, `typeof` and `void` over those.
 // Template substitutions, computed member and property keys, unary `+`, `-`, `~` and every other
 // binary operator convert their operands, which can call a user toString, valueOf,
 // Symbol.toPrimitive or Symbol.hasInstance, so they admit only operands proven primitive: string
 // and numeric literals, templates whose substitutions are proven primitive, `true`, `false`, `null`
 // and the results of operators over those, or of `typeof`, `void`, `!`, `===` and `!==`, which
-// always yield a primitive. A member read, including `process.env.NAME` and a member of a number
-// literal such as `1..x`, is never proven primitive: a getter, a Proxy or a replaced process.env
-// can return an object. Numbers are lexed to the ECMAScript numeric grammar. It refuses every
+// always yield a primitive. A member read can invoke a getter or Proxy trap, so one on any other
+// root (`process.env.NAME`, `this`, an import, a call result, a number literal such as `1..x`) is
+// refused, and an admitted one is never proven primitive. Numbers are lexed to the ECMAScript numeric grammar. It refuses every
 // call (including tagged templates and optional calls), assignment, update, delete, new, await,
 // yield, import, function, arrow and class expressions, spread, method or accessor definitions, the
 // comma operator, regular expression literals and anything it does not recognize.
-func playwrightPureExpression(raw string) bool {
-	parser := &playwrightPureParser{raw: raw}
+func playwrightPureExpression(raw string, scope playwrightPureScope) bool {
+	parser := &playwrightPureParser{raw: raw, scope: scope}
 	_, ok := parser.expression()
 	return ok && parser.skip() == len(raw)
 }
@@ -72,6 +72,7 @@ type playwrightPureParser struct {
 	raw   string
 	pos   int
 	depth int
+	scope playwrightPureScope
 }
 
 func (p *playwrightPureParser) skip() int {
@@ -192,46 +193,28 @@ func (p *playwrightPureParser) unary() (primitive, ok bool) {
 	return p.postfix()
 }
 
-// postfix parses a primary expression and its member reads. No member read is proven primitive.
+// postfix parses a primary expression and its member reads, which only an identifier root the
+// scope admits may carry. No member read is proven primitive.
 func (p *playwrightPureParser) postfix() (primitive, ok bool) {
-	primitive, ok = p.primary()
+	primitive, root, ok := p.primary()
 	if !ok {
 		return false, false
 	}
-	for {
-		rest := p.raw[p.skip():]
-		switch {
-		case strings.HasPrefix(rest, "?.") && !(len(rest) > 2 && rest[2] >= '0' && rest[2] <= '9'):
-			p.pos += 2
-			if p.peek("[") {
-				if !p.computedKey() {
-					return false, false
-				}
-				primitive = false
-				continue
-			}
-			fallthrough
-		case strings.HasPrefix(rest, ".") && !strings.HasPrefix(rest, "..."):
-			if !strings.HasPrefix(rest, "?.") {
-				p.pos++
-			}
-			word, end := playwrightIdentifier(p.raw, p.skip())
-			if word == "" {
-				return false, false // optional call, private name or malformed member
-			}
-			p.pos = end
-			primitive = false
-		case strings.HasPrefix(rest, "["):
-			if !p.computedKey() {
-				return false, false
-			}
-			primitive = false
-		case strings.HasPrefix(rest, "("), strings.HasPrefix(rest, "`"), strings.HasPrefix(rest, "'"), strings.HasPrefix(rest, "\""):
-			return false, false // call or tagged template
-		default:
-			return primitive, true
-		}
+	keys, end, chained := playwrightMemberChain(p.raw, p.pos)
+	if !chained {
+		return false, false // non-literal computed key, optional call, private name or malformed member
 	}
+	if len(keys) != 0 {
+		if root == "" || !p.scope.memberRead(root, keys) {
+			return false, false
+		}
+		p.pos, primitive = end, false
+	}
+	rest := p.raw[p.skip():]
+	if strings.HasPrefix(rest, "(") || strings.HasPrefix(rest, "`") || strings.HasPrefix(rest, "'") || strings.HasPrefix(rest, "\"") {
+		return false, false // call or tagged template
+	}
+	return primitive, true
 }
 
 // computedKey parses `[expr]`; converting the key to a property key can call user code, so the
@@ -244,38 +227,39 @@ func (p *playwrightPureParser) computedKey() bool {
 	return ok && key && p.accept("]")
 }
 
-func (p *playwrightPureParser) primary() (primitive, ok bool) {
+// primary parses a primary expression; root is the identifier it names, if any.
+func (p *playwrightPureParser) primary() (primitive bool, root string, ok bool) {
 	rest := p.raw[p.skip():]
 	if rest == "" {
-		return false, false
+		return false, "", false
 	}
 	switch character := rest[0]; {
 	case character == '\'' || character == '"':
 		end, ok := playwrightQuotedEnd(p.raw, p.pos)
 		p.pos = end
-		return true, ok
+		return true, "", ok
 	case character == '`':
-		return true, p.template()
+		return true, "", p.template()
 	case character >= '0' && character <= '9' || character == '.' && len(rest) > 1 && rest[1] >= '0' && rest[1] <= '9':
 		end, ok := playwrightNumberEnd(p.raw, p.pos)
 		p.pos = end
-		return true, ok
+		return true, "", ok
 	case character == '(':
 		p.pos++
 		inner, ok := p.expression()
-		return inner, ok && p.accept(")")
+		return inner, "", ok && p.accept(")")
 	case character == '[':
-		return false, p.arrayLiteral()
+		return false, "", p.arrayLiteral()
 	case character == '{':
-		return false, p.objectLiteral()
+		return false, "", p.objectLiteral()
 	}
 	word, end := playwrightIdentifier(rest, 0)
 	if word == "" || playwrightImpureKeywords[word] {
-		return false, false
+		return false, "", false
 	}
 	p.pos += end
 	// true, false and null are reserved literals; undefined, NaN and Infinity can be shadowed.
-	return word == "true" || word == "false" || word == "null", true
+	return word == "true" || word == "false" || word == "null", word, true
 }
 
 // playwrightNumberEnd returns the end of the numeric literal at index under the ECMAScript grammar:
@@ -384,7 +368,7 @@ func (p *playwrightPureParser) objectLiteral() bool {
 				return false
 			}
 		case strings.HasPrefix(rest, "'"), strings.HasPrefix(rest, "\""), rest != "" && rest[0] >= '0' && rest[0] <= '9':
-			if _, ok := p.primary(); !ok {
+			if _, _, ok := p.primary(); !ok {
 				return false
 			}
 		default:

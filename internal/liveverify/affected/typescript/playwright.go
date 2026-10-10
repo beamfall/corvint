@@ -475,6 +475,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	if !ok {
 		return nil, "", []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownConfigSyntax, "top-level config object is dynamic")}
 	}
+	scope := newPlaywrightPureScope(clean)
 	globalTestDir := "."
 	unknown := []PlaywrightUnknown{}
 	if raw, exists := properties["testDir"]; exists {
@@ -504,7 +505,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		project, itemUnknown := parsePlaywrightProject(configPath, globalTestDir, item, properties["use"])
+		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties["use"])
 		unknown = append(unknown, itemUnknown...)
 		if project.Name == "" {
 			continue
@@ -533,7 +534,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	return projects, globalTestDir, canonicalPlaywrightUnknowns(unknown)
 }
 
-func parsePlaywrightProject(configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
+func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
 	properties, ok := playwrightObjectProperties(raw)
 	if !ok {
 		return PlaywrightProject{}, []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownProjectSet, "project entry is not a static object")}
@@ -586,7 +587,7 @@ func parsePlaywrightProject(configPath, globalTestDir, raw, globalUse string) (P
 			project.Metadata = hex.EncodeToString(sum[:])
 		}
 	}
-	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(globalUse, properties["use"])
+	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(scope, globalUse, properties["use"])
 	if !ok {
 		unknown = append(unknown, selectionUnknown(PlaywrightUnknownBrowserIdentity, name+" use.browserName/device is dynamic or unsupported"))
 	}
@@ -629,16 +630,12 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 	return strings.TrimSpace(raw), unknown
 }
 
-func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
-	return playwrightInheritedUseIdentity("", raw)
-}
-
-func playwrightInheritedUseIdentity(global, raw string) (browser, device string, ok bool) {
-	browser, device, ok = playwrightUseLayer(global, "", "")
+func playwrightInheritedUseIdentity(scope playwrightPureScope, global, raw string) (browser, device string, ok bool) {
+	browser, device, ok = playwrightUseLayer(scope, global, "", "")
 	if !ok {
 		return "", "", false
 	}
-	browser, device, ok = playwrightUseLayer(raw, browser, device)
+	browser, device, ok = playwrightUseLayer(scope, raw, browser, device)
 	if browser == "" && device != "" {
 		browser = playwrightDeviceBrowser(device)
 	}
@@ -648,7 +645,9 @@ func playwrightInheritedUseIdentity(global, raw string) (browser, device string,
 	return browser, device, ok
 }
 
-func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
+// playwrightUseLayer reads one `use` layer. A device spread keeps its identity only when the
+// devices import is sound in scope: any other occurrence of `devices` may rewrite a descriptor.
+func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return browser, device, true
@@ -670,7 +669,7 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 		}
 		if strings.HasPrefix(item, "...") {
 			name, literal := playwrightDeviceSpread(strings.TrimSpace(strings.TrimPrefix(item, "...")))
-			if !literal || seenDevice {
+			if !literal || seenDevice || !scope.devices {
 				return "", "", false
 			}
 			device = name
@@ -705,7 +704,7 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			// storageState, trace, ...) may be computed only when evaluating it cannot run code or
 			// write state, so it cannot rewrite a devices descriptor (TJAA-V0-018).
 			value := strings.TrimSpace(item[colon+1:])
-			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) || !playwrightPureExpression(value) {
+			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) || !playwrightPureExpression(value, scope) {
 				return "", device, false
 			}
 			continue
@@ -817,8 +816,10 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 		if !strings.HasPrefix(value, "**/") {
 			value = "**/" + value
 		}
+		// minimatch splits the glob and the path on runs of `/`, so `e2e//*.spec.ts`, and a
+		// leading `/` (which becomes `**//`), match where a literal `//` would not.
 		pattern, valid := playwrightGlobPattern(value)
-		if !valid || playwrightOutsideBMP(value) {
+		if !valid || playwrightOutsideBMP(value) || strings.Contains(value, "//") {
 			return playwrightMatcher{}, false
 		}
 		re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
