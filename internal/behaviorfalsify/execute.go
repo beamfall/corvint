@@ -332,6 +332,9 @@ func runPinned(ctx context.Context, command Command, dir string, keys []string, 
 
 func commandEnvironment(root string, keys []string, role string) []string {
 	values := map[string]string{"HOME": root, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "CORVINT_BEHAVIOR_COMMAND_ROLE": role}
+	if root := acceptanceTempRoot(); root != "" {
+		values["TMPDIR"] = root
+	}
 	for key, value := range declaredEnvironment(keys) {
 		values[key] = value
 	}
@@ -470,4 +473,28 @@ func minDuration(a, b time.Duration) time.Duration {
 func digestBytes(data []byte) string {
 	sum := sha256.Sum256(data)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// acceptanceTempRoot recognizes the closed transport environment, not arbitrary
+// inherited TMPDIR. Standalone callers retain the declared-environment policy.
+func acceptanceTempRoot() string {
+	if len(os.Environ()) != 4 || os.Getenv("PATH") != "/opt/homebrew/bin:/usr/bin:/bin" || os.Getenv("LANG") != "C" || os.Getenv("LC_ALL") != "C" {
+		return ""
+	}
+	root := os.Getenv("TMPDIR")
+	if root == "/tmp" {
+		return ""
+	}
+	if !filepath.IsAbs(root) || filepath.Clean(root) != root || len(root) > 4096 || strings.ContainsAny(root, "\x00\r\n") {
+		return ""
+	}
+	canonical, err := filepath.EvalSymlinks(root)
+	if err != nil || canonical != root {
+		return ""
+	}
+	info, err := os.Stat(root)
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+		return ""
+	}
+	return root
 }
