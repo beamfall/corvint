@@ -387,6 +387,11 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 
 ## Acceptance evidence
 
+- V1-0393 compile-only regression checks: vet the CEM publisher, isolated Swift candidate and
+  experimental SQL-native analyzer on FreeBSD, OpenBSD, NetBSD and Solaris/amd64; retain the
+  Darwin/Linux/Windows vet baseline and host package tests. Refusing read fallbacks on other
+  platforms preserve `PRS-V1-004`: these checks do not qualify platforms or reopen deferred
+  analyzers. Evidence: `../build-log/2026-10-10-xplat-help.md`.
 - Owner acceptance: `../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md` answers every
   question above and references this spec. Status: PRODUCED (2026-09-23).
 - Document consistency: the focused-docs gate passes with this spec, its `INDEX.json` row, its
