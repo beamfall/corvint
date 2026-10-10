@@ -114,8 +114,8 @@ type playwrightReportEntry struct {
 	// titlePath joins the file and describe titles and the test title with " > ", as the qualified
 	// receipt's fullName does after its root and project segments.
 	titlePath string
-	line     int
-	results  []playwrightReportResult
+	line      int
+	results   []playwrightReportResult
 }
 
 type playwrightWitnessContext struct {
