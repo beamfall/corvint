@@ -2768,7 +2768,7 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood ha
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	227	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	236	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	243	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
-SHA-256	docs/specs/operator-update-v0.md	165	Negative checksum/availability/download/compatibility cases are deterministic fi
+SHA-256	docs/specs/operator-update-v0.md	185	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c
@@ -3144,6 +3144,7 @@ UPD-V0-005	docs/specs/operator-update-v0.md	53	Offline `rollback` MUST use a loc
 UPD-V0-006	docs/specs/operator-update-v0.md	57	Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ord
 UPD-V0-007	docs/specs/operator-update-v0.md	60	(accepted by decision 0440; V1-0929) The state directory MUST
 UPD-V0-008	docs/specs/operator-update-v0.md	91	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest
+UPD-V0-009	docs/specs/operator-update-v0.md	117	(proposed (V1-0639)) Every `check` result that observes a release MUST state
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker
