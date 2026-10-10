@@ -106,7 +106,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   MUST be literals; `testMatch`/`testIgnore` MAY be literal strings or regular expressions; device
   spreads MAY name a literal `devices[...]` descriptor. The opt-in profile MUST apply literal
   global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
-  the inherited input in the project fragment identity. Other `use` values MUST be static literals.
+  the inherited input in the project fragment identity. Other `use` values MUST be static literals,
+  except as `TJAA-V0-018` (accepted, decision 0483) admits for options outside the browser/device
+  identity set.
   It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
   exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
   equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
@@ -156,6 +158,140 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   independently enumerated discovery inputs, prove helper-only exclusions and exact universe
   reconciliation, and exercise absent/stale/malformed/missing/extra receipt pairs and one-command
   fallback. Real `--list` evidence and synthetic membership oracles MUST keep their distinct labels.
+- `TJAA-V0-018`: (accepted, decision 0483; V1-1065; GitHub #709) In a global or project
+  `use` layer, the browser/device identity options MUST have static literal values: `browserName`,
+  `defaultBrowserType`, `channel`, `headless`, `connectOptions`, `viewport`, `screen`, `userAgent`,
+  `isMobile`, `hasTouch`, `deviceScaleFactor`, `locale`, `timezoneId`, `colorScheme`, `permissions`,
+  `contextOptions`, `launchOptions`. This is the same set the external provider's qualified reporter
+  resolves at runtime (`internal/jstestprovider`), and a test MUST keep the two lists equal. An
+  identifier or quoted string key is the same key, so `'browserName': 'firefox'` resolves like
+  `browserName: 'firefox'`. A computed value of any other option (`baseURL`, `storageState`, `trace`,
+  ...) MUST NOT leave the project's browser identity unresolved when its evaluation syntactically
+  cannot call user code: literals, identifiers, member reads (including optional chaining) of an
+  admitted root, array literals, object literals of `key: value` or shorthand properties, and the non-coercing operators
+  `===`, `!==`, `&&`, `||`, `??`, `?:` (test and branches), `!`, `typeof` and `void` over those.
+  Template substitutions, computed member and property keys (`obj[expr]`, `{ [expr]: v }`), unary
+  `+`, `-` and `~`, and every other binary operator (arithmetic, bitwise, shifts, `<`, `>`, `<=`,
+  `>=`, `==`, `!=`, `in`, `instanceof`) convert their operands and could call a user `toString`,
+  `valueOf`, `Symbol.toPrimitive` or `Symbol.hasInstance`, so they MUST admit only operands proven
+  primitive: string and numeric literals, templates whose substitutions are proven primitive (a
+  template without substitutions included), `true`, `false`, `null`, the results of these operators
+  and of `&&`, `||`, `??` and `?:` over such operands, and the results of `typeof`, `void`, `!`, `===` and `!==`, which are always
+  primitive. A member read can invoke a getter or Proxy trap, so it is admitted only when its root
+  identifier is (a) the `devices` binding of a top-level `import { devices } from '@playwright/test'`,
+  read as `devices['<name>']` (a string-literal key that is not an `Object.prototype` name and does
+  not start with `__`) followed by `.userAgent`, `.deviceScaleFactor`, `.isMobile`, `.hasTouch`,
+  `.defaultBrowserType` or `.viewport`/`.screen` then `.width`/`.height`, or (b) a top-level
+  `const NAME = { ... }` declared once whose properties, recursively, are all plain `key: value`
+  with an identifier or string key (no `get`/`set` accessor, method, spread, computed key,
+  shorthand, duplicate key or `__proto__`) and proven-primitive or plain-object values, read through
+  dotted or string-literal keys that exist down to a primitive leaf. Every occurrence of either root
+  in the file, strings included, MUST be such a read in a read-only position (never an assignment,
+  update, `delete` or destructuring target, alias, call or argument of a call such as
+  `Object.defineProperty`); a parenthesized occurrence gets the same checks, so a
+  parenthesized assignment, compound assignment, destructuring or for-in/of target is refused. A
+  file containing the token `eval`, or in code (outside string, template and regular-expression
+  content) a `delete`, `++` or `--` token or any `\` (only an escaped identifier holds one there),
+  admits neither root, whatever that token's operand. A `/` starts a regular expression after
+  an operator, opening punctuation, `=>` or one of `return`, `typeof`, `instanceof`, `in`, `new`,
+  `delete`, `void`, `throw`, `case`, `do`, `else` (not a property name such as `x.return`), and is
+  division after any other operand; after `of`, `yield` or `await`, which may be identifiers, and
+  directly after a non-ASCII character or an identifier escape (`\u0061`, `\u{61}`), it is
+  ambiguous and the source is refused as unparsed. Every other
+  member read (`process.env.NAME`, `this.x`, a member of an import from another module, a function
+  result or a numeric literal such as `1..x`) MUST keep the identity unresolved. No member read is
+  proven primitive: an admitted one is accepted only as a whole value and under the non-coercing
+  operators. Numeric literals MUST be lexed
+  to the ECMAScript grammar (decimal with fraction and exponent, `0x`/`0o`/`0b`, `_` between digits,
+  the BigInt `n` suffix on integers); a legacy octal, a malformed literal or one followed directly by
+  an identifier character is refused, and a dot after a complete literal starts a member read. `++`
+  and `--` are update operators, never two signs, and nesting is bounded with right-associative `**`
+  included; the static-literal check of an identity value has the same nesting bound. Comments and
+  lines end at every ECMAScript line terminator (LF, CR, U+2028, U+2029) outside string, template
+  and regular-expression content. Template literals MUST be lexed with their nesting: a backtick in a
+  `${}` substitution opens a nested template, the substitution's matching `}` resumes the enclosing
+  one, and template content is never treated as a comment or rewritten; nesting deeper than 64
+  open substitutions is refused as unparsed source. A literal
+  `...devices['<known name>']` spread beside such options MUST resolve to that device's browser
+  when the file's `devices` root is admitted under (a); otherwise the spread widens. A
+  value containing any call (including tagged templates and optional calls; there is no call
+  allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function, arrow
+  or class expression, spread, method or accessor definition, comma operator, regular expression
+  literal or coercion of an operand not proven primitive MUST keep the browser identity unresolved,
+  because evaluating it could rewrite a devices descriptor. So MUST a non-literal identity value, a
+  computed key (`[expr]`) of the `use` layer itself, any other spread, a computed device
+  name and a device name outside the recognized table; each widens with
+  `playwright:browser-identity-unresolved`.
+- `TJAA-V0-019`: (accepted, decision 0483; V1-1066; GitHub #709) The command
+  `corvint [--root PATH] affected discovery --playwright-config PATH --playwright-list FILE` MUST
+  convert the JSON report of a caller-run `playwright test --list --reporter=json` (at most 64 MiB,
+  read as a regular file) into the canonical `playwright-discovery/0` receipt on stdout with one
+  trailing LF, bound to the current HEAD, config path/SHA-256 and source digest. Playwright reports
+  each spec `file` relative to `config.rootDir`; the producer MUST join it to `rootDir` and emit the
+  repository-relative path the static profile uses, resolving symlinks, and MUST emit one unit per
+  distinct (`projectName`, file) pair from every nested suite, deduplicated and sorted. It MUST refuse
+  with `unsupported-playwright-discovery` and no stdout when the report is not JSON or lacks
+  `config`/`suites`/`errors`, reports any error, records no `test` argv, records no `--list` after
+  `test` (an execution report applies `test.only`, which `--list` disables) or any argument after
+  `test` other than `--list`, `--reporter=json` (or `--reporter json`) and `--config`/`-c`, is sharded,
+  names a config file other than PATH under the root, has a `rootDir` outside the root, names a test
+  outside the root or with an unsupported extension, or has a test without `projectName`. Because it
+  stamps the current bindings, it MUST independently enumerate the (project, file) pairs the config
+  selects among the current sources through the static profile's `testDir`/`testMatch`/`testIgnore`
+  subset (a config without `projects` is Playwright's one unnamed project), matching as Playwright's
+  `createFileMatcher` does: a string glob without a leading `**/` gets one, string globs and the
+  default `.spec.`/`.test.` markers match case-insensitively, `**` is a globstar only as a whole
+  path component, and a regular expression keeps its own flags. A glob using minimatch syntax the
+  profile does not model (classes, extglobs, escapes, single-item or range braces, `**` inside a
+  component) is not static, and so is a string glob containing `//` (minimatch 3.1.5 splits the
+  glob and the path on runs of `/`, so `e2e//*.spec.ts` and a leading `/`, prefixed to `**//`,
+  match paths a literal reading would not) or a brace alternative containing `/` (brace
+  expansion runs first, so `e2e/{/,x}*.spec.ts` can expand to `//`), and so is a regular expression with any flag other than `i`, `m` and
+  `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). A regular
+  expression body is static only when every construct reads identically in JavaScript without the
+  `u` flag and in Go RE2: literal characters; `.`, `^`, `$` and `|`; `(...)` and `(?:...)` groups
+  (any other `(?` form is not static); `*`, `+` and `?` after an atom, and `{n}`, `{n,}` and
+  `{n,m}` with n <= m <= 1000, each bound `0` or ASCII digits without a leading zero, each
+  optionally lazy; non-empty `[...]` and `[^...]` classes of
+  literals, ranges and allowed escapes, without a nested `[`; and only the escapes `\d \D \w \W
+  \b \B \t \n \r \f \v` (not `\b`/`\B` in a class) and a backslash before ASCII syntax
+  punctuation. Every other construct (such as `\A`, a literal A in JavaScript and an anchor in Go;
+  `\s`/`\S`, which include Unicode spaces only in JavaScript; backreferences, `\x`, `\u`, `\p`,
+  POSIX classes, any other `{`, including `{01}`, which repeats in JavaScript and is literal text in
+  Go, `{1, 2}` and `{,2}`) is not static. A regular-expression body or string glob containing any
+  character above U+FFFF, literal, in a class or escaped, is not static, because JavaScript
+  without `u` and minimatch read it as two UTF-16 code units and Go as one rune. Go's `.` and `(?m)` anchors treat only LF as a line
+  terminator where JavaScript also treats CR, U+2028 and U+2029, and a JavaScript expression
+  without `u` matches UTF-16 code units, so the producer MUST refuse when the repository root, any
+  enumerated candidate path or any listed path contains CR, LF, U+2028, U+2029 or a character
+  outside the Basic Multilingual Plane, and static selection over such a test path widens with
+  `playwright:project-membership-unresolved`. It MUST find candidate files by path alone among
+  every file with an extension Playwright's default `testMatch` accepts
+  (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts` and their `x` forms), whether or not
+  the static profile can parse or read them. It MUST refuse with `unsupported-playwright-discovery`
+  when any enumerated pair is missing from the listing (a stale or filtered listing), when the
+  listing names a pair the config does not select (including a file absent from the current
+  sources), when a selected file is one the static profile does not parse (such as `.mts` or
+  `.cts`) or one it cannot read as bounded UTF-8 source, listed or not, when the config selects a
+  file inside a directory the shared source walker skips (a hidden directory or one of `build`,
+  `dist`, `vendor`, `target` and the other skipped names, at any depth of the file's path; Playwright
+  still runs it, but it is outside the bound source digest), naming that directory, when a `testDir`
+  is reached through a symbolic link, or when that membership is not statically resolved; only an
+  unresolved browser identity is tolerated. `node_modules` below a `testDir` is not searched,
+  because Playwright never descends it. It MUST read HEAD again after its last source observation and fail
+  with `unsupported-affected-drift` on any HEAD or source change while it runs, even when the tree is
+  unchanged. It is read-only and runs no Playwright or config. The listing remains caller-declared:
+  the producer cannot prove the report was taken from the bytes it binds, nor that environment-driven
+  config branches matched.
+- `TJAA-V0-020`: (accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
+  is `MALFORMED`, the summary MUST carry `reason`, one of `DECODE_FAILED` (over the 4 MiB bound,
+  invalid JSON, or a duplicate, unknown or mistyped member), `NON_CANONICAL_BYTES` (with the first
+  differing byte offset) or `INVALID_FIELD` (naming the first failing field, such as `profile`,
+  `revision`, `config.sha256` or `units[i].test`), and `detail`, one whitespace-collapsed line of at
+  most 240 bytes plus an ellipsis. A raw Playwright JSON report given as a receipt MUST say so and
+  name `corvint affected discovery`. Both members MUST be absent in every other state. An oversize
+  regular discovery file MUST report `MALFORMED`, not `MISSING`; an absent, unreadable or non-regular
+  file stays `MISSING`.
 
 ## Opt-in Playwright project profile
 
@@ -175,7 +311,10 @@ The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha
 `revision` (full lower-case Git object ID), `sourceDigest`, and `units` (objects with `project` and
 `test`, sorted by project then path). It describes the complete unfiltered configured listing,
 including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
-not authenticated execution attestation. Corvint never executes Playwright or config to produce it.
+not authenticated execution attestation. Corvint never executes Playwright or config to produce it;
+`corvint affected discovery` (`TJAA-V0-019`, accepted, decision 0483) only converts a caller-run
+JSON listing.
+Each unit's `test` is repository-relative, not relative to Playwright's `rootDir`.
 `sourceDigest` uses the public observer's `playwright-sources:sha256:` identity for current source
 bytes. A receipt generated before dirty source changes is stale. Omitting the optional input safely
 produces the complete-config fallback; default `affected-plan/0` compatibility remains unchanged.
@@ -295,6 +434,9 @@ Rollback removes `internal/liveverify/affected/typescript`, its conformance fixt
 experimental spec. No persisted format, CLI registry, or existing receipt is changed.
 The issue 41 extension can instead be reverted independently: restore the opt-in profile's global
 `use`/alias frontiers and remove global-hook edge binding and its qualification cases.
+The GitHub #709 extension (`TJAA-V0-018..020`) reverts independently: restore the static-literal
+check for every `use` value, remove `affected discovery` and its producer, and drop the MALFORMED
+`reason`/`detail` members; no persisted format or store is written.
 
 ## Traceability
 
@@ -306,5 +448,8 @@ The issue 41 extension can instead be reverted independently: restore the opt-in
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
+| `TJAA-V0-018` (accepted, decision 0483) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestPlaywrightSlashStartsRegex` in `playwright_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
+| `TJAA-V0-019` (accepted, decision 0483) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
+| `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

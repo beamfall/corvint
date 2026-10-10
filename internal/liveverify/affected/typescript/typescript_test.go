@@ -3,6 +3,7 @@ package typescript
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -609,4 +610,56 @@ func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFrontier(t, result, FrontierPathAlias)
+}
+
+// GitHub #709 review round 4: U+2028 and U+2029 are ECMAScript line terminators, so they end a
+// `//` comment and start a line for import declarations and triple-slash references.
+func TestUnicodeLineTerminatorsEndCommentsAndLines(t *testing.T) {
+	for _, terminator := range []string{" ", " "} {
+		refs, _, err := scanImports("", "// note"+terminator+"const a = require('./a');\nconst b = 1;"+terminator+"import './b';\n/* x */"+terminator+"/// <reference path=\"./c.d.ts\" />\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{"./a", "./b", "./c.d.ts"}; !slices.Equal(refs, want) {
+			t.Fatalf("%U: refs=%v want=%v", []rune(terminator)[0], refs, want)
+		}
+	}
+}
+
+// GitHub #709 review round 5: a backtick inside a `${}` substitution opens a nested template whose
+// content is never a comment or a line terminator; the outer template resumes after it, and
+// nesting deeper than jsTemplateMaxDepth substitutions is refused rather than recursed.
+func TestNestedTemplateLiteralsKeepContent(t *testing.T) {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
+		source := "const x = `${`//${f()}" + terminator + "`}`;\nconst a = require('./a');\n"
+		if clean, err := stripComments(source, false); err != nil || clean != source {
+			t.Fatalf("%U: nested template content rewritten: err=%v clean=%q", []rune(terminator)[0], err, clean)
+		}
+	}
+	refs, _, err := scanImports("", "const x = `${`//`}`; const a = require('./a');\nconst y = `a${`b${`c${require('./c')}`}`}d`; import './b';\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"./a", "./b", "./c"}; !slices.Equal(refs, want) {
+		t.Fatalf("refs=%v want=%v", refs, want)
+	}
+	for _, unterminated := range []string{"`${`", "`${`}`", "`${ { }`", "x = `a${b}"} {
+		if _, err := stripComments(unterminated, false); err == nil {
+			t.Fatalf("unterminated template %q accepted", unterminated)
+		}
+	}
+	deep := strings.Repeat("`${", jsTemplateMaxDepth+1) + strings.Repeat("}`", jsTemplateMaxDepth+1)
+	if _, err := stripComments(deep, false); err == nil {
+		t.Fatal("over-deep template nesting accepted")
+	}
+	if _, _, parsed := scanRequires(deep); parsed {
+		t.Fatal("over-deep template nesting scanned")
+	}
+	shallow := strings.Repeat("`${", jsTemplateMaxDepth) + "require('./d')" + strings.Repeat("}`", jsTemplateMaxDepth)
+	if clean, err := stripComments(shallow, false); err != nil || clean != shallow {
+		t.Fatalf("bounded template nesting refused: %v", err)
+	}
+	if refs, _, parsed := scanRequires(shallow); !parsed || !slices.Equal(refs, []string{"./d"}) {
+		t.Fatalf("bounded template nesting: refs=%v parsed=%v", refs, parsed)
+	}
 }

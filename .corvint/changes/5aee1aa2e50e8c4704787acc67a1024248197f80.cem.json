@@ -1,0 +1,60 @@
+{
+  "baseRevision": "e0ef9aa891edbd84b19b1f30f12bc6ed13635a96",
+  "evidence": [
+    {
+      "blobOid": "977f6756058365ae6ae19915a22441581fd26efa",
+      "id": "evidence:sha256:70d31290656d4dd9cdc4c5cf25ce533ad47b0c8960dfb749855e92142dd72784",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 46940,
+        "start": 46154
+      },
+      "spanSha256": "cceb52bd1e56d7e2c3589f706fe89fea2615c7dcaadbd9f64ee4c599a7cd7dc6"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:70d31290656d4dd9cdc4c5cf25ce533ad47b0c8960dfb749855e92142dd72784",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d0a19dbabb8da6da639a86ad2adc6d33cbc5d7b5ce3ecc2b1cab07fdb5ae9c01",
+      "newRange": {
+        "count": 330,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 323,
+        "start": 1
+      },
+      "path": ".github/cishards/package-costs.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:70d31290656d4dd9cdc4c5cf25ce533ad47b0c8960dfb749855e92142dd72784",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3600e42177195d3b5086497648b76f1ebd16399214fe9510a83b6d28c654f540",
+      "newRange": {
+        "count": 49,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-ci-shard-cost-refresh.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1f64c313493e1a091149937c4df13b9f8e9567333d625f45aa6362b61f0b1a2a",
+  "spec": "cem/0.2"
+}

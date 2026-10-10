@@ -133,6 +133,31 @@ func TestUPDV0001OfflineReadOnlyAndChannels(t *testing.T) {
 		t.Fatal("Core release selected for Tasks")
 	}
 }
+func TestUPDV0001TasksInstalledVersion(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "corvint-tasks")
+	for out, want := range map[string]string{
+		`{"codes":[],"command":["version"],"items":[{"formats":["taskman-receipt/0"],"version":"0.0.0-tcp01-unverified+build.407"}],"outcome":"OK","profile":"taskman-command-result/0","warnings":[]}`: "0.0.0-tcp01-unverified+build.407",
+		`taskman-command-result/0 build 407`:                                                                   "",
+		`{"items":[{"version":"x+build.407"}],"profile":"taskman-command-result/1"}`:                           "",
+		`{"items":[{"version":"a+build.407"},{"version":"b+build.407"}],"profile":"taskman-command-result/0"}`: "",
+		`{"items":[{"version":""}],"profile":"taskman-command-result/0","note":"build.407"}`:                   "",
+		`{"items":[],"profile":"taskman-command-result/0","note":"build.407"}`:                                 "",
+	} {
+		if err := os.WriteFile(bin, []byte("#!/bin/sh\ncat <<'EOF'\n"+out+"\nEOF\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		v, n, err := version(context.Background(), bin, "", "tasks")
+		if want == "" {
+			if err == nil {
+				t.Fatalf("%s: accepted as %q build %d", out, v, n)
+			}
+			continue
+		}
+		if err != nil || v != want || n != 407 {
+			t.Fatalf("%s: %q %d %v", out, v, n, err)
+		}
+	}
+}
 func TestUPDV0001PaginationCapUnknown(t *testing.T) {
 	e := fixtureEngine(t)
 	rows := make([]release, 100)
