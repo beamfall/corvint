@@ -77,6 +77,7 @@ var ReadVerbs = []string{
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
+	"preflight",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
@@ -137,6 +138,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, serviceCommand(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
+	case "preflight":
+		return emit(env.Stdout, preflight(env, []string{"preflight"}, args[1:]))
 	case "ticket":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"ticket"}, "ticket needs a verb: list, search, show <id>, blockers <id>, export, or a mutation (create, refine, ...)"))

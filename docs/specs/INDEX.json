@@ -842,9 +842,13 @@
     "implementation": [
       "internal/taskman/obligations.go",
       "internal/tasks/cli/obligations.go",
+      "internal/tasks/cli/preflight.go",
       "internal/tasks/mutation/obligations.go",
+      "internal/tasks/obligation/expected_fail.go",
       "internal/tasks/obligation/report.go",
+      "internal/tasks/obligation/source.go",
       "internal/tasks/store/obligations.go",
+      "internal/tasks/store/preflight.go",
       "internal/tasks/ticket/obligation_plan.go",
       "internal/tasks/ticket/obligations.go",
       "internal/tasks/transaction/obligation_audit.go",
