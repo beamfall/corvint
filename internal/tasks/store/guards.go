@@ -98,6 +98,16 @@ func journalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader 
 	return journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}, QueueID: head.QueueID, PrimaryWorktree: repo.PrimaryWorktree}
 }
 
+// lockedJournalReader is journalReader for a caller that holds the writer
+// lock: no other writer can be publishing, so a descriptor-less staging slot
+// is refused at once instead of waited for while every other writer is
+// blocked behind this one (CTS-V0-008).
+func lockedJournalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader {
+	r := journalReader(repo, head)
+	r.WriterLocked = true
+	return r
+}
+
 // retainCheckpoint records what a writer's complete settled audit just
 // established so reads can resume from it (CAL-V0-060). The file is derived
 // state outside the state directory: it is never an input to a mutation, and
