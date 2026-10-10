@@ -236,6 +236,20 @@ decisions were final: fail closed and prefer general rules. Each fix has a test 
 TJAA-V0-018 now states nested-template lexing and its bound. TJAA-V0-019 now states whole-component
 globstar and the `i`/`m`/`s` flag allowlist.
 
-Limit retained: Go's `.` (without `s`) and `(?m)` anchors treat only LF as a line terminator, while
-JavaScript also uses CR, U+2028 and U+2029. The flag mapping is therefore exact only for paths without
-those characters, which is in the same class as the non-ASCII `(?i)` folding noted in round 4.
+Follow-up (orchestrator decision, final), closing the regex limit this round first recorded:
+- Go's `.` (without `s`) and `(?m)` anchors treat only LF as a line terminator, while JavaScript
+  also treats CR, U+2028 and U+2029 as line terminators. The producer now refuses when any of these
+  is present in:
+  - the repository root (as given or resolved);
+  - any candidate path enumerated for membership, including those in skipped directories;
+  - any listed spec path or `rootDir`.
+- Static selection over such a test path widens with `playwright:project-membership-unresolved`.
+  The `.`/`(?m)` differences are therefore unreachable.
+- Tests, each failing on `936a10d2`:
+  - the `line terminator in path` rows of `TestPlaywrightDiscoveryFromListMembership_V1_1066`: a
+    U+2028 path that is listed and selected, and an unselected CR candidate;
+  - `TestPlaywrightLineTerminatorPathWidensMembership`.
+- The non-ASCII `(?i)` folding limit from round 4 stays recorded. A path-only check would not
+  close it: a Kelvin sign in the pattern folds onto an ASCII `k` in a path. Closing it would take
+  both a pattern check and a path check, and refusing every non-ASCII path or pattern would turn
+  away legitimate tests. It is not a one-line check.

@@ -141,6 +141,9 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	}
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
 	tests := playwrightSourcePaths(result)
+	if playwrightPathHasLineTerminator(root) || slices.ContainsFunc(tests, playwrightPathHasLineTerminator) {
+		configUnknown = append(configUnknown, selectionUnknown(PlaywrightUnknownProjectMembership, "a test path contains a line terminator, which Go and JavaScript regular expressions treat differently"))
+	}
 	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
 	bindPlaywrightTestMembership(&result, units, configPath)
 	selectionUnknown, executionUnknown := classifyPlaywrightFrontier(result.Frontier)
@@ -758,6 +761,13 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 		return false
 	}
 	return !playwrightAnyMatcher(project.ignores, absolute)
+}
+
+// playwrightPathHasLineTerminator reports whether a path holds CR, LF, U+2028 or U+2029. Go's `.`
+// (without `s`) and `(?m)` anchors treat only LF as a line terminator while JavaScript treats all
+// four, so a matcher's verdict on such a path is not decided statically and membership widens.
+func playwrightPathHasLineTerminator(value string) bool {
+	return strings.ContainsAny(value, "\r\n\u2028\u2029")
 }
 
 // playwrightDefaultTest applies the `.spec.`/`.test.` markers of Playwright's default testMatch

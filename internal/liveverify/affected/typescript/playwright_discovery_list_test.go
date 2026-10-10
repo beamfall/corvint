@@ -262,6 +262,28 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 			}
 		})
 	}
+	// GitHub #709 review round 5 follow-up: Go's `.` and `(?m)` anchors treat only LF as a line
+	// terminator, JavaScript also CR, U+2028 and U+2029, so a path holding one refuses the listing
+	// whether the config selects it (and the listing names it) or not.
+	for _, row := range []struct{ name, file, match string }{
+		{"listed and selected", "e2e/a\u2028b.spec.ts", "**/*.spec.ts"},
+		{"unselected candidate", "e2e/x\ry.ts", "**/keep.test.ts"},
+	} {
+		t.Run("line terminator in path "+row.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', testMatch: ['**/keep.test.ts', '"+row.match+"'] }] });\n")
+			write(t, root, "e2e/keep.test.ts", "test('keep', async () => {});\n")
+			write(t, root, row.file, "test('b', async () => {});\n")
+			files := []string{"keep.test.ts"}
+			if row.match == "**/*.spec.ts" {
+				files = append(files, strings.TrimPrefix(row.file, "e2e/"))
+			}
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "e2e", []string{"p"}, files))
+			if err == nil || raw != nil || !strings.Contains(err.Error(), "line terminator") {
+				t.Fatalf("listing over a %q path stamped: raw=%s err=%v", row.file, raw, err)
+			}
+		})
+	}
 	t.Run("unparsed module spec outside every testDir", func(t *testing.T) {
 		root := t.TempDir()
 		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")

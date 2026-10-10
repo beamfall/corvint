@@ -527,3 +527,19 @@ func TestPlaywrightScannersSkipNestedTemplates(t *testing.T) {
 		}
 	}
 }
+
+// GitHub #709 review round 5 follow-up: a test path holding a line terminator other than LF is one
+// Go and JavaScript regular expressions can disagree on, so static membership widens.
+func TestPlaywrightLineTerminatorPathWidensMembership(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+	write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testIgnore: /a.b/ }] }`)
+	write(t, root, "tests/a\u2028b.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/a\u2028b.spec.ts"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Selected) != 0 || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, PlaywrightUnknownProjectMembership) {
+		t.Fatalf("line-terminator path narrowed: %+v", plan)
+	}
+}
