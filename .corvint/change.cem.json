@@ -1,0 +1,120 @@
+{
+  "baseRevision": "284c43129df038decb36d5a5f736879174b41b17",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3780,
+        "start": 3294
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:372e433c12abd6e52ff7a30eb413b43b55c5202908af4c8e29e896f0b69c87ee",
+      "newRange": {
+        "count": 19,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-update-tasks-installed-version.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b12dccad3f42d23e564c884b20c5b656dd03fa7e0348880e9716f27f19ffb9a4",
+      "newRange": {
+        "count": 7,
+        "start": 151
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 151
+      },
+      "path": "docs/specs/operator-update-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:da36e779d06bb9253c285ae3a25294cfe5b3140a7fb9655caa3e0b3987d6ef27",
+      "newRange": {
+        "count": 12,
+        "start": 709
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 709
+      },
+      "path": "internal/update/update.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cf5bed96858c9d67a4c01146ec82cdf5af0961b4dbafab7ac6944f35df7824c8",
+      "newRange": {
+        "count": 21,
+        "start": 726
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 720
+      },
+      "path": "internal/update/update.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bacbfdf163c1a7174ad924912fbb7228a0860c1fe69ca80166bac87dfdf1ed48",
+      "newRange": {
+        "count": 31,
+        "start": 133
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 133
+      },
+      "path": "internal/update/update_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "73ad003b657bae13ce81615603e86393ac40f6272f6beecbc4e4dcbe6116e4c7",
+  "spec": "cem/0.2"
+}
