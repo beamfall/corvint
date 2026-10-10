@@ -192,9 +192,9 @@ importing `internal/gitstatus`, and a positive control for the admitted edge. Ru
 because `internal/secretscreen` is already in the source-archive subset (V1-0456). Rollback is
 reverting the expected-fail excerpt screen and removing this one-file edge; the other edges stay.
 
-## PGO-V0-009 addendum — Tasks pre-reap group kill (proposed)
+## PGO-V0-009 addendum — Tasks pre-reap group kill (accepted, decision 0501)
 
-Status: proposed, pending owner acceptance. Agent decision, 2026-10-10, made while repairing CI for
+Status: accepted by the owner, 2026-10-10 (decision 0501). Drafted as an agent decision while repairing CI for
 the RC3 process-group lane (PR #749, V1-1036, V1-1047, V1-1056); it is not a direct owner statement.
 Decision 0492 accepted `PGO-V0-009`, whose clause (c) runs the tasks doctor plugin through
 `groupreap.Contain` and `groupreap.Run` and whose clause (a) kills the task-store lease gate and pool
