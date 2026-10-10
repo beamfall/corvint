@@ -235,9 +235,26 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        id: go
         with:
           cache: false
           go-version: "1.27.1"
+      - name: Restore the trusted Go build cache (full-run path only)
+        # V1-1098: compiled packages only, in Go's default GOCACHE outside the tested checkout,
+        # so no read scope changes. Only a main push saves (below), so a pull request never
+        # restores a pull-request-written entry. The step is off wherever the race invocation is
+        # off (DOCS, REUSE) and whenever the pinned narrowed driver may run, which keeps its own
+        # cold cache (AFP-V0-014/015). -count=1 stays, so no test result is reused.
+        id: gocache
+        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && (github.event_name != 'pull_request' || env.CORVINT_PR_TOOL_SOURCE == '')
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
       - name: Provision the host tools the product's fixed PATH resolves
         # Child processes run under worksource.PlatformPath, which reaches Go through
         # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
@@ -419,6 +436,25 @@ jobs:
             head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
+      - name: Expire cached test results before saving the build cache
+        # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
+        # push compiles nothing, and saving it would make the newest entry an empty one.
+        id: testcache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.gocache.outcome == 'success' && steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        working-directory: source
+        run: |
+          test "$(go env GOCACHE)" = "$HOME/.cache/go-build"
+          go clean -testcache
+      - name: Save the trusted Go build cache (main pushes only)
+        if: steps.testcache.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.gocache.outputs.cache-primary-key }}
 
   go-static:
     # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
