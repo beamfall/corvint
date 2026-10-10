@@ -16,11 +16,11 @@ repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982))
 [issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
 through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460), and
 [issue 705](https://github.com/beamfall/corvint/issues/705) (V1-1061, injected string enums,
-one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 proposed).
+one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are proposed (V1-1061; GitHub #705) and implemented over synthetic repositories.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -71,8 +71,8 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
 (V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
-(decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are proposed (V1-1061; GitHub
-#705) and await owner acceptance.
+(decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are accepted (decision 0475;
+V1-1061; GitHub #705).
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -330,7 +330,7 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   a numeric, computed, referencing or substituted initializer, or a computed key, makes it no table:
   every name read through it stays `UNKNOWN` (AMAP-V0-023) with the AMAP-V0-026 reason
   `non-literal-member`. A router file's own imported enum keeps the AMAP-V0-016 rule (such a member
-  is absent; the others resolve). Status: proposed (V1-1061; GitHub #705).
+  is absent; the others resolve). Status: accepted (decision 0475; V1-1061; GitHub #705).
 - `AMAP-V0-025`: When the tracked file the registering file's import of `T` resolves to (the
   directly imported file, or the `index` file of an imported directory, under the existing web
   import resolution) does not declare the imported name, an injected registration MUST follow
@@ -375,8 +375,8 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   index (a package, an unresolved or unreadable path), `out-of-scope`; no candidate, a type-only
   re-export, `export * as T`, the imported file's own unfollowed export of the name, or one
   candidate that does not export it as a readable table, `identifier-not-found`. Re-exports are
-  not followed for a router file's own imports (AMAP-V0-016). Status: proposed (V1-1061; GitHub
-  #705).
+  not followed for a router file's own imports (AMAP-V0-016). Status: accepted (decision 0475;
+  V1-1061; GitHub #705).
 - `AMAP-V0-026`: When the `di_constants` scope holds exactly one registration of an injected name
   `X`, the scope is not poisoned, and a member read through it does not resolve, the map MUST carry
   one unknown `{kind: "di-constant", ref: X, reason, path, line}` naming the registering file and
@@ -390,7 +390,7 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   unknowns are carried once. The screen keeps its AMAP-V0-023 `non-literal-name` /
   `non-literal-value`; a build that resolves every injected read, has no scope, or finds no or more
   than one registration adds none, so its bytes are unchanged. The build still exits 0.
-  Status: proposed (V1-1061; GitHub #705).
+  Status: accepted (decision 0475; V1-1061; GitHub #705).
 
 ## Wire contract
 
