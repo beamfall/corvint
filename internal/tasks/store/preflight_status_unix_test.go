@@ -5,6 +5,9 @@ package store
 import (
 	"context"
 	"os/exec"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -47,5 +50,47 @@ func TestTOLV0027_PreflightStatusStopsAtFirstEntry(t *testing.T) {
 	}
 	if _, err := writesAnything(context.Background(), exec.Command("false")); err == nil {
 		t.Fatal("a failed status read was not an error")
+	}
+}
+
+// TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap: a
+// cancel that lands while retire runs, with a slow cancel callback, still
+// signals the process group only before the command is reaped. Once the
+// leader is reaped its pid, the group's id, can be reused, so a later kill
+// could reach an unrelated group.
+func TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var mu sync.Mutex
+	var events []string
+	boundedEvent = func(event string) {
+		switch event {
+		case "retire":
+			cancel()
+		case "cancel":
+			time.Sleep(300 * time.Millisecond)
+		}
+		mu.Lock()
+		events = append(events, event)
+		mu.Unlock()
+	}
+	t.Cleanup(func() { boundedEvent = nil })
+	if dirty, err := writesAnything(ctx, exec.Command("true")); dirty {
+		t.Fatalf("empty status: dirty=%v err=%v", dirty, err)
+	}
+	// Wait for the cancel callback's own signal, wherever it lands.
+	var seen []string
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		mu.Lock()
+		seen = slices.Clone(events)
+		mu.Unlock()
+		if strings.Count(strings.Join(seen, " "), "signal") >= 2 {
+			break
+		}
+	}
+	reaped := slices.Index(seen, "reaped")
+	if reaped < 0 || !slices.Contains(seen[:reaped], "cancel") || slices.Contains(seen[reaped+1:], "signal") ||
+		strings.Count(strings.Join(seen[:reaped], " "), "signal") != 2 {
+		t.Fatalf("bounded call events %v: every signal must precede the reap", seen)
 	}
 }

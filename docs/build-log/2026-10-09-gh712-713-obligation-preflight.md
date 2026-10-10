@@ -199,8 +199,8 @@ Regression tests (both failed on 96d6cb1c):
 - Fix: `startBounded` now returns `retire`, which the caller defers as soon as the command has
   started. `retire` ends the watch and kills the group with SIGKILL. Both bounded post-gate calls
   (`postGateResolve` and `writesAnything`) defer it, so every exit path retires the group: clean
-  EOF, error, cancel and deadline. The kill runs after `Wait` has reaped the leader. A group keeps
-  its id while any member lives, so the kill cannot reach another group.
+  EOF, error, cancel and deadline. (Corrected in round 5: this kill ran after `Wait` had reaped the
+  leader, and the claim that it could not reach another group was wrong.)
 - No other post-gate Git call is affected. The worktree removal runs in the caller's checkout and
   runs no clean filter or hook (round 3).
 - TOL-V0-027 now says the group is killed when the command ends, as well as on a signal or the
@@ -212,3 +212,42 @@ Regression test (failed on aebc7f77):
   asserts that the filter ran and that the sleep is gone once preflight returns. On aebc7f77 it
   failed with "the clean filter's background child 48942 survived". The test's cleanup killed that
   pid, and a `ps` check afterwards found no surviving `sleep 600`.
+
+## Round-5 review (Codex) and fix
+
+- Finding (P1 on f913b771): the deferred kill ran after `Wait` had reaped the group leader. If the
+  group had no other member by then, its id was free and could be reused, so the kill could reach
+  an unrelated group. Separately, `stop()` does not wait for a cancel callback that has already
+  started, so a late kill could still land after the call returned.
+- Fix: `startBounded` now returns `retire() error`, which owns the whole ending, and the callers
+  no longer call `Wait`. Each caller reads stdout to its end or abandons the read, then calls
+  `retire` once. `retire` does four things in order:
+  1. It stops the cancel watch.
+  2. If `stop()` returns false, the callback has started, so it blocks on a channel the callback
+     closes when it finishes.
+  3. It kills the group (`-pgid`).
+  4. Only then does it call `Wait`.
+- Every signal therefore lands while the leader is unreaped. A pid is not reused until it is
+  reaped, and the group's id is the leader's pid, so the kill cannot reach another group.
+- `postGateResolve` now reads through `StdoutPipe`, bounded at 1 KiB, instead of `cmd.Stdout`.
+  This keeps all output read before the kill. Go's copy goroutine would otherwise finish only
+  inside `Wait`.
+- Limit (inference): the clean path kills after the leader's stdout reaches EOF. For Git on a pipe,
+  EOF comes only when the process exits; `run_builtin` skips its explicit `fclose` for a pipe. A
+  command that closes its output and keeps running is killed and reads as failed, which is a
+  `DEEP_CHECK_FAILED` finding, never a pass. waitid with WNOWAIT, which would wait for the exit
+  without reaping, is not available to Go's `syscall` on darwin, and x/sys is not a dependency.
+- TOL-V0-027 now says the kill always happens before the command is reaped.
+
+Tests:
+- `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (round 4) is kept and passes.
+- New: `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (store, unix). A test
+  hook (`boundedEvent`) records the events retire, cancel, signal and reaped. The hook cancels the
+  context as `retire` starts and slows the callback by 300 ms. The test asserts that both signals
+  come before `reaped` and that none comes after. It is deterministic and does not try to race a
+  real id reuse. It passes with `-race -count=3`.
+- Failing-before evidence is by mutation, because the hook does not exist on f913b771:
+  - Dropping the wait for an in-flight callback failed with
+    `[retire signal reaped cancel signal]`.
+  - Restoring the round-4 order (kill after `Wait`) failed with
+    `[retire cancel signal reaped signal]`.

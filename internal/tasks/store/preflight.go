@@ -236,42 +236,85 @@ func postGateGit(wt string, args ...string) *exec.Cmd {
 	return c
 }
 
-// startBounded starts c in its own process group and kills that group when
-// ctx ends. The caller defers retire as soon as c has started: it ends the
-// watch and kills whatever remains of the group, so a child that c left
-// running, such as one a clean filter put in the background, does not
-// outlive the call on any path, a clean exit included. The group keeps its
-// id while any member lives, so the kill cannot reach another group.
-func startBounded(ctx context.Context, c *exec.Cmd) (retire func(), err error) {
+// boundedEvent, when a test sets it, observes the bounded post-gate calls:
+// "retire" as retire starts, "cancel" as the cancel callback starts,
+// "signal" before each kill of the process group and "reaped" once Wait
+// has returned.
+var boundedEvent func(string)
+
+func noteBounded(event string) {
+	if boundedEvent != nil {
+		boundedEvent(event)
+	}
+}
+
+// signalBounded kills c's process group.
+func signalBounded(c *exec.Cmd) {
+	noteBounded("signal")
+	killGate(c)
+}
+
+// startBounded starts c in its own process group, whose id is c's pid, and
+// kills that group when ctx ends. The caller calls retire exactly once,
+// after it has read c's output to the end or abandoned the read, and never
+// calls Wait itself. retire ends the cancel watch, waits for a cancel kill
+// already under way, kills whatever remains of the group and only then
+// waits for c. Every signal therefore lands before c is reaped: until then
+// c's pid, and so the group's id, cannot be reused, and the kill cannot
+// reach another group. Killing on every path, a clean exit included, means
+// a child c left running, such as one a clean filter put in the
+// background, does not outlive the call. A command that closes its output
+// and then keeps running is killed and reads as failed, never as clean.
+func startBounded(ctx context.Context, c *exec.Cmd) (retire func() error, err error) {
 	containGate(c)
 	c.WaitDelay = gateWaitDelay
 	if err := c.Start(); err != nil {
 		return nil, gitObservationFailed(err)
 	}
-	stop := context.AfterFunc(ctx, func() { killGate(c) })
-	return func() {
-		stop()
-		killGate(c)
+	cancelled := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		defer close(cancelled)
+		noteBounded("cancel")
+		signalBounded(c)
+	})
+	return func() error {
+		noteBounded("retire")
+		if !stop() {
+			<-cancelled
+		}
+		signalBounded(c)
+		err := c.Wait()
+		noteBounded("reaped")
+		return err
 	}, nil
 }
 
+// maxPostGateRevBytes bounds a post-gate rev-parse's output, one object id
+// and a newline.
+const maxPostGateRevBytes = 1024
+
 func postGateResolve(ctx context.Context, wt, rev string) (string, error) {
 	c := postGateGit(wt, "rev-parse", "--verify", "--end-of-options", rev)
-	var out bytes.Buffer
-	c.Stdout = &out
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		return "", gitObservationFailed(err)
+	}
 	retire, err := startBounded(ctx, c)
 	if err != nil {
 		return "", err
 	}
-	defer retire()
-	werr := c.Wait()
+	out, rerr := io.ReadAll(io.LimitReader(stdout, maxPostGateRevBytes+1))
+	werr := retire()
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	if werr != nil {
-		return "", gitObservationFailed(werr)
+	if rerr == nil && len(out) > maxPostGateRevBytes {
+		rerr = errors.New("rev-parse output exceeds its bound")
 	}
-	return strings.TrimSpace(out.String()), nil
+	if werr != nil || rerr != nil {
+		return "", gitObservationFailed(errors.Join(werr, rerr))
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // writesAnything runs c and reports whether it writes any output. It reads
@@ -279,7 +322,7 @@ func postGateResolve(ctx context.Context, wt, rev string) (string, error) {
 // is then killed rather than read to the end, and a gate that left many
 // untracked files costs no more than one that left one. The group is also
 // killed when ctx ends, which returns ctx's error, and on return in every
-// case. A command that writes nothing and fails is an error.
+// case (startBounded). A command that writes nothing and fails is an error.
 func writesAnything(ctx context.Context, c *exec.Cmd) (bool, error) {
 	stdout, err := c.StdoutPipe()
 	if err != nil {
@@ -289,15 +332,12 @@ func writesAnything(ctx context.Context, c *exec.Cmd) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer retire()
 	var first [1]byte
 	n, rerr := io.ReadFull(stdout, first[:])
+	werr := retire()
 	if n == 1 {
-		killGate(c)
-		_ = c.Wait()
 		return true, nil
 	}
-	werr := c.Wait()
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
