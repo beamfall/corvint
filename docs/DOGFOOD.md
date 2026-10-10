@@ -497,6 +497,52 @@ file refuses `cem-cite: empty-citation-plan` and cites nothing while the map sti
 (`DCW-V0-032`, accepted); on a map that owes none it is a zero-citation no-op. Unset
 `DOGFOOD_CITATIONS` to prepare the map without citing. Larger jobs
 require separate explicit bounded plans, without automatic splitting or invented citations.
+A citation plan over 256 rows refuses `citation-plan-row-limit-exceeded`; an OCM-link plan over
+256 rows refuses `ocm-link-plan-row-limit-exceeded`. Their fix text includes `limit=256` and the
+observed row count. Trace path lists independently admit at most 200 distinct normalized paths
+per list (`opened_paths` and `changed_paths`); excess refuses `trace-path-limit-exceeded` with
+`limit=200` and the observed count. Citation staging does not relax trace or OCM-link limits.
+For OCM links, one requirement row can explicitly list multiple cited hunks and claims; if more
+than 256 requirement rows are necessary, split the implementation into separately bound commits.
+For a change needing more than 200 trace paths, use separately bound commits of at most 200 paths;
+do not truncate the trace or omit changed paths.
+
+### Staged binding of one oversized commit
+
+Proposed, pending owner acceptance (V1-1107; `DCW-V0-037`). The normal coordinator supports one
+commit with more than 256 hunks when its trace path lists and OCM-link plan still fit their
+independent bounds. These stages cite one unchanged canonical patch, with no implicit citations.
+The retroactive `script/dogfood-bind-range.sh` route requires every unknown hunk named in one
+range plan; it cannot stage one oversized commit. Contiguous commit sub-ranges help only when
+there are already suitable commit boundaries.
+
+1. Commit the implementation, freeze its `BASE` and `HEAD`, and set the normal task, intent,
+   verification and outcome inputs from the daily adopter path. Prepare without citing:
+   `env -u DOGFOOD_CITATIONS make dogfood-change BASE="$BASE"`. The expected incomplete pass
+   prepares `.corvint/change.cem.json` and reports `citation-plan-not-provided`.
+2. Read that map's canonical hunk worklist. Write explicit LF-terminated TSV plans outside the
+   worktree, each at most 256 rows and 4 MiB, using full hunk IDs and stable base evidence.
+   The first plan may name a subset while more than 256 hunks are unknown. Once at most 256
+   remain, the next plan must name **every** remaining unknown hunk. A 279-hunk patch can use
+   256 rows followed by 23 rows. Multiple citations per hunk also consume rows, so size the
+   plans accordingly; if the final required citations cannot fit, split the implementation.
+3. Run `DOGFOOD_CITATIONS=/absolute/plan-1.tsv make dogfood-change BASE="$BASE"`, then the same
+   command with each successive plan. Keep the same base and implementation HEAD, retain the
+   CEM between runs, and do not use `--replace`, delete the map, or commit partial sidecars.
+   `cem prepare` resumes the same map and citations accumulate. Each pass is still incomplete:
+   unknown hunks remain until the last plan, and the sidecar is uncommitted. The warning that
+   citations were added to earlier citations is expected during staging; its delete-and-rerun
+   advice applies to correcting wrong earlier evidence, not to these additive stages.
+4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported`, with
+   `unknown=0` and `mechanical=0`. Then `git add .corvint/change.cem.json` and
+   `git commit -m "chore: bind fully cited change evidence"`. This is the only sidecar commit.
+5. Rerun `DOGFOOD_CITATIONS=/absolute/last-plan.tsv make dogfood-change BASE="$BASE"` with all
+   the same normal inputs, then `make dogfood-check BASE="$BASE"`. The sidecar-only commit
+   preserves the canonical patch; the last plan is an idempotent replay on the fully cited map.
+   Require `"complete": true`, `supported=hunks`, `unknown=0`, and `dogfood-check: PASS`.
+   Inspect the reviewer reports and continue the normal seal route. Any further implementation
+   commit invalidates these plans: prepare the new patch and rewrite the plans from its map.
+
 
 After preparation, a multiple-row plan applies its earlier rows to a unique private staging map.
 Only the final successful public `cem cite --output .corvint/change.cem.json` publishes the complete

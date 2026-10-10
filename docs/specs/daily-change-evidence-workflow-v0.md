@@ -315,6 +315,23 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: a passing check printed about 2.1 KiB of JSON that the agent running it rarely reads;
   measurement is in `docs/build-log/2026-10-07-hook-context-and-dogfood-summary.md`.
 
+- `DCW-V0-035`: (proposed, pending owner acceptance (V1-0394)) The coordinator
+  MUST refuse more than 256 LF-terminated citation rows as `citation-plan-row-limit-exceeded`
+  and more than 256 OCM-link rows as `ocm-link-plan-row-limit-exceeded`, separately from
+  malformed-plan refusals. Each refusal's fix text MUST name the bound, limit and observed
+  row count; exactly 256 valid rows MUST remain admissible. No bound is raised.
+- `DCW-V0-036`: (proposed, pending owner acceptance (V1-0394)) Trace recording, changed-path admission and
+  stored-path validation MUST refuse more than 200 distinct normalized paths per path list
+  with `trace-path-limit-exceeded`, the path-list name, limit 200 and observed count.
+  Exactly 200 valid paths MUST remain admissible; no truncation may hide the excess.
+- `DCW-V0-037`: (proposed, pending owner acceptance (V1-1107)) `docs/DOGFOOD.md`
+  MUST give exact staged coordinator steps for one commit with more than 256 cited hunks:
+  retain one base/patch and CEM, apply explicit plans of at most 256 rows, name every remaining
+  unknown hunk in the last plan, commit only the fully cited sidecar, and rerun/check the same
+  base. A 279-hunk fixture MUST finish with supported=279 and unknown=0. Retroactive range
+  tooling MUST NOT be advertised as staging one oversized commit. Trace and OCM-link bounds
+  remain independent; missing intent or evidence MUST stay unknown.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -432,6 +449,12 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-032` (accepted, decision 0430) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
 | `DCW-V0-033` (accepted by decision 0441; V1-0940) | `internal/dogfoodflow/check.go` `verifyBinding`, `checkSummary`, `summaryString`; `cmd/corvint/dogfood_flow.go` (`DOGFOOD_VERBOSE`); `TestDCWV0033CheckSummaryAbstainsOnUnobservedFields` (missing, malformed and forged fields print `NOT_OBSERVED`), `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (exact two-line PASS, detail file holds both status lines, `DOGFOOD_VERBOSE=1` restores the former bytes, seal prints the summary, terminator and seal line), `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (`ocm=NOT_ASSESSED` then the note) | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
+
+| Requirement | Focused evidence | Status |
+|---|---|---|
+| `DCW-V0-035` | `TestPlanRowLimits` in `internal/dogfoodflow/plan_limits_test.go`: 256/257 rows, distinct codes and fix counts | proposed |
+| `DCW-V0-036` | `TestTracePathLimitDiagnostic` in `internal/trace/record_test.go`: current/stored lists at 200/201 | proposed |
+| `DCW-V0-037` | `TestDogfoodSingleCommitStagedCitationPlans` in `cmd/corvint/dogfood_staged_test.go`: real binary, 279 hunks, staged plans and final check | proposed |
 
 ## Compatibility and rollback
 

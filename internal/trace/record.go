@@ -331,7 +331,7 @@ func safeTextWithMatcher(value, label string, maximum int, containsSecret func(s
 func normalizeCurrentPaths(values []string, label, treeRevision string, tracked map[string]struct{}) ([]string, error) {
 	paths := sortedUnique(values)
 	if len(paths) > MaxTracePaths {
-		return nil, fmt.Errorf("%s exceeds %d paths", label, MaxTracePaths)
+		return nil, fmt.Errorf("trace-path-limit-exceeded: %s exceeds %d paths (limit=%d observed=%d)", label, MaxTracePaths, MaxTracePaths, len(paths))
 	}
 	for _, value := range paths {
 		admission, err := classifyCurrentPath(value, label, tracked)
@@ -375,7 +375,7 @@ func admissibleCurrentPaths(values, trackedPaths []string, candidateLimit, admit
 		}
 	}
 	if len(admitted) > admittedLimit {
-		return nil, admissionFailure(admittedReason, fmt.Errorf("changed_paths exceeds %d paths", admittedLimit))
+		return nil, admissionFailure(admittedReason, fmt.Errorf("trace-path-limit-exceeded: changed_paths exceeds %d paths (limit=%d observed=%d)", admittedLimit, admittedLimit, len(admitted)))
 	}
 	return admitted, nil
 }
@@ -456,7 +456,7 @@ func normalizeStoredPaths(values []string, label string) ([]string, error) {
 func normalizePathsWithMatcher(values []string, label string, containsSecret func(string) bool) ([]string, error) {
 	values = sortedUnique(values)
 	if len(values) > MaxTracePaths {
-		return nil, fmt.Errorf("%s exceeds %d paths", label, MaxTracePaths)
+		return nil, fmt.Errorf("trace-path-limit-exceeded: %s exceeds %d paths (limit=%d observed=%d)", label, MaxTracePaths, MaxTracePaths, len(values))
 	}
 	for _, value := range values {
 		admission, err := classifyPath(value, label, nil, containsSecret)

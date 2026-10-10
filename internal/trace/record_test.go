@@ -499,3 +499,49 @@ func TestAggregateCurrentPathAdmissionPolicyParity(t *testing.T) {
 		}
 	}
 }
+
+// DCW-V0-036: current and stored lists retain the inclusive bound and observed count.
+func TestTracePathLimitDiagnostic(t *testing.T) {
+	for _, label := range []string{"opened_paths", "changed_paths"} {
+		paths := make([]string, 201)
+		tracked := map[string]struct{}{}
+		for i := range paths {
+			paths[i] = fmt.Sprintf("p/%03d.go", i)
+			tracked[paths[i]] = struct{}{}
+		}
+		if label == "changed_paths" {
+			for _, count := range []int{200, 201} {
+				_, err := AdmissibleCurrentPaths(paths[:count], paths[:count])
+				if count == 200 {
+					if err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				if err == nil || err.Error() != "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)" || AdmissionFailureReason(err) != "admitted-path-limit" {
+					t.Fatalf("admission: %v", err)
+				}
+			}
+		}
+		for _, stored := range []bool{false, true} {
+			for _, count := range []int{200, 201} {
+				var err error
+				if stored {
+					_, err = normalizeStoredPaths(paths[:count], label)
+				} else {
+					_, err = normalizeCurrentPaths(paths[:count], label, testRevision, tracked)
+				}
+				if count == 200 {
+					if err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				want := fmt.Sprintf("trace-path-limit-exceeded: %s exceeds 200 paths (limit=200 observed=201)", label)
+				if err == nil || err.Error() != want {
+					t.Fatalf("stored=%v: %v, want %s", stored, err, want)
+				}
+			}
+		}
+	}
+}
