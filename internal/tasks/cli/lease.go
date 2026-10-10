@@ -476,7 +476,7 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	if shared && rc.proof != nil {
 		return rc.proof, nil
 	}
-	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, Checkpoint: readCheckpoint(rc.repo), IntentTree: rc.tree}
+	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, Checkpoint: readCheckpoint(rc.repo), IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return nil, err

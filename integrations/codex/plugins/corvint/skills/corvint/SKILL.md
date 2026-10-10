@@ -5,8 +5,7 @@ description: Use Corvint first for repository context, impact analysis, change e
 
 # Corvint for Codex
 
-Use the installed `corvint` command against the current Git repository. Never invoke the legacy
-`corvint` executable.
+Use the installed `corvint` command on `PATH` against the current Git repository.
 
 When developing Corvint itself, or when the current repository explicitly opts into its own
 `docs/SELF-DEVELOPMENT.md`, first check that the guide exists. If absent (including older Corvint
@@ -22,7 +21,7 @@ FULL support, automatic feature fanout or new execution authority.
      `corvint query --task "TASK" --limit 1` on macOS or Linux when `corvint` is available.
      This is a deliberately narrow authority-start profile. If it rejects the task, preserve the
      explicit unsupported result and continue with the repository's declared orientation/context
-     tooling; do not substitute the legacy `corvint` runtime.
+     tooling; do not substitute another runtime.
    - To ask what a clean committed change or range affects against the captured `HEAD`, resolve the
      excluded lower boundary to its full immutable commit ID. For one commit at `HEAD`, the base is
      that commit's explicitly chosen parent (normally its first parent), not the changed commit;
@@ -41,7 +40,7 @@ FULL support, automatic feature fanout or new execution authority.
      OUT_OF_SCOPE results; feature inventory remains unsupported.
    - For unsupported targets or profiles, including non-Go path impact, preserve the
      explicit Go capability gap and use repository-owned authority/context tools. Do not approximate
-     a Corvint receipt or invoke a legacy executable.
+     a Corvint receipt.
 2. Treat source selectors, blob identities, and authority labels as evidence. Treat uncertainty,
    omissions, stale-index state, and explicit gaps as part of the answer. In particular, non-Go
    range omissions, `impact-range-drift`, `BUDGETED`, and any reported uncertainty keep the impact

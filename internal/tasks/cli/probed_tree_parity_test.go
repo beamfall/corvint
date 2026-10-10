@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -27,6 +28,10 @@ func runBytes(cwd string, args ...string) []byte {
 	Run(Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &out})
 	return out.Bytes()
 }
+
+// observedAtField is queue status's wall-clock read time, which can tick
+// to the next second between the two runs a parity check compares.
+var observedAtField = regexp.MustCompile(`"observedAt":"[^"]*"`)
 
 var probedTreeReads = [][]string{
 	{"queue", "status"}, {"receipt", "audit"}, {"ticket", "list"}, {"ticket", "show", "A"},
@@ -71,7 +76,7 @@ func TestTMV0008_ProbedTreeReadParity(t *testing.T) {
 				if res, err := wire.DecodeResult(on); err == nil {
 					t.Logf("%v: %s %v", args, res.Outcome, res.Codes)
 				}
-				if !bytes.Equal(on, off) {
+				if !bytes.Equal(observedAtField.ReplaceAll(on, nil), observedAtField.ReplaceAll(off, nil)) {
 					t.Fatalf("%v differs:\n on  %s\n off %s", args, on, off)
 				}
 				if kind == "clean" && args[0] == "queue" {

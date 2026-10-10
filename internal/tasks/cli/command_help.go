@@ -115,6 +115,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "queue status" || name == "roadmap" {
 		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
 	}
+	if name == "ticket list" || name == "ticket search" || name == "roadmap" {
+		o.Set("facets", wire.String("--facets adds a top-level facets object counting every matched ticket regardless of --offset/--limit: total, byStatus, byPriority, byKind, byExecutionClass, byEligibility (every closed value, zeros included), byNextAction, byBlockerCode (non-terminal tickets, once per code), byMilestone and byLabel (at most 64 most frequent keys, with milestonesOmitted and labelsOmitted), and withoutMilestone. --count returns only that object, with no items and page null, and refuses --offset or --limit (CAL-V0-206, CAL-V0-207)."))
+	}
+	if name == "release readiness" {
+		o.Set("membership", wire.String("The item adds memberCounts (member tickets by status and priority, plus absent member ids) and milestoneDrift: unfinishedNonMembers are DRAFT, OPEN or HELD tickets whose milestone equals the releaseId but are not members, and membersOutsideMilestone are members whose milestone differs; each lists an exact count and at most 100 ids. Membership is never changed. A release without a candidate is BLOCKED on candidate without observing the source tree (CAL-V0-208, CAL-V0-209)."))
+	}
 	if name == "attempt heartbeat" {
 		o.Set("note", wire.String("Generation-fenced recorded signal. Reads classify it against the policy holderLiveness.heartbeatTTLSeconds (300..86400, default 600 when omitted). Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
 	}
@@ -180,13 +186,13 @@ var commandUsage = map[string]string{
 	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
 
 	"version":            "corvint-tasks version (alias --version)",
-	"ticket list":        "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
-	"ticket search":      "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+	"ticket list":        "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+	"ticket search":      "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
 	"ticket blockers":    "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket export":      "corvint-tasks ticket export [--offset N] [--limit N]",
 	"queue status":       "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
-	"roadmap":            "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...]",
+	"roadmap":            "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"critical-path":      "corvint-tasks critical-path <ticketId|local>",
 	"gate list":          "corvint-tasks gate list",
 	"gate show":          "corvint-tasks gate show <gateId>",

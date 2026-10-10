@@ -294,6 +294,7 @@
     ],
     "internal/tasks/journal": [],
     "internal/tasks/safeopen": [],
+    "internal/tasks/scale": [],
     "internal/tasks/store": [
       "go.mod"
     ],

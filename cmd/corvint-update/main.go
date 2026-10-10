@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--bin-dir PATH] [--state-dir PATH]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]...")
 		os.Exit(2)
 	}
 	home, err := os.UserHomeDir()
@@ -28,11 +28,16 @@ func main() {
 	fs.StringVar(&c.BinDir, "bin-dir", filepath.Join(home, ".local/bin"), "existing managed binary directory")
 	fs.StringVar(&c.StateDir, "state-dir", filepath.Join(home, ".local/share/corvint/updates"), "private recovery state directory")
 	fs.BoolVar(&c.AllowNetwork, "allow-network", false, "explicitly allow official release requests")
+	fs.Func("refresh-index", "after a Core switch, also refresh this checkout's index snapshot (repeatable)", func(root string) error {
+		c.RefreshRoots = append(c.RefreshRoots, root)
+		return nil
+	})
 	fs.Parse(os.Args[2:])
 	if fs.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected positional arguments")
 		os.Exit(2)
 	}
+	c.WorkDir, _ = os.Getwd()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	r, err := update.Run(ctx, os.Args[1], c)

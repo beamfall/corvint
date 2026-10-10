@@ -461,14 +461,17 @@ func TestCALV0074_NoExecCrashChild(t *testing.T) {
 
 // TestCALV0074_NoExecCrashTakeover proves that an owner dying inside a
 // cancelling NO_EXEC settlement leaves a program that a genuinely different
-// process takes over after the original owner exits: before the cancel the
-// replacement cancels the stopped attempt and the ticket is reclaimable;
-// after the cancel but before the release the replacement reassigns the
-// program and claims the ticket again. It also pins the known limit: an owner
-// dying after the attempt stops and before the program is recorded FINISHED
-// leaves a STOPPING program that a replacement is refused, keeping the claim.
+// process takes over after the original owner exits. After the attempt
+// records its proved stop and before the program is recorded FINISHED, the
+// replacement settles the STOPPING program FINISHED with its usage unobserved,
+// then cancels the stopped attempt and the ticket is reclaimable (CAL-V0-210,
+// proposed); before the cancel the replacement does the same from FINISHED;
+// after the cancel but before the release it reassigns the program and claims
+// the ticket again. An owner dying after dispatch and before the stop is
+// proved leaves a SPAWNING program whose dispatched worker has no boot record
+// to recover, so a replacement is still refused and the claim held.
 func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
-	for _, point := range []string{"stopped", "cancel", "release"} {
+	for _, point := range []string{"dispatched", "stopped", "cancel", "release"} {
 		t.Run(point, func(t *testing.T) {
 			ctx := context.Background()
 			f := newClaudeFixture(t, supervisor.HostClaudeCode)
@@ -484,7 +487,8 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatalf("child did not stop at %s: %v\n%s", point, err, out)
 			}
 			p := f.program(t, "program")
-			if p.OwnerPID != child.Process.Pid || p.OwnerReleased {
+			wantPhase := map[string]string{"dispatched": "SPAWNING", "stopped": "STOPPING", "cancel": "FINISHED", "release": "FINISHED"}[point]
+			if p.OwnerPID != child.Process.Pid || p.OwnerReleased || p.Phase != wantPhase {
 				t.Fatalf("interrupted program %+v", p)
 			}
 			attempts, err := store.ProgramAttempts(ctx, f.s.repo)
@@ -492,8 +496,9 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatal(err)
 			}
 			old := attempts["program"]
-			want := map[string]string{"stopped": "WAITING", "cancel": "WAITING", "release": "CANCELLED"}[point]
-			if old == nil || old.Supervision == nil || old.Supervision.Worker || old.Quiescence != "PROVED" || old.Phase != want {
+			want := map[string]string{"dispatched": "ADMITTED", "stopped": "WAITING", "cancel": "WAITING", "release": "CANCELLED"}[point]
+			stopped := point != "dispatched"
+			if old == nil || old.Supervision == nil || old.Supervision.Worker == stopped || (old.Quiescence == "PROVED") != stopped || old.Phase != want {
 				t.Fatalf("interrupted attempt %+v", old)
 			}
 			if err = os.Chmod(f.config.Executable, 0o755); err != nil {
@@ -504,17 +509,17 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatal(err)
 			}
 			again, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
-			if point == "stopped" {
-				// Known limit (CAL-V0-074): STOPPING is not a safe takeover
-				// phase and the stopped attempt has no worker to recover.
-				if err == nil || !strings.Contains(err.Error(), "not proved stopped") {
-					t.Fatalf("takeover of a STOPPING program: %v", err)
+			if !stopped {
+				// Retained refusal: the dispatched worker's stop is not
+				// proved and no leader boot record exists to recover it.
+				if err == nil || !strings.Contains(err.Error(), "recovery boot unavailable") {
+					t.Fatalf("takeover of an unproved SPAWNING program: %v", err)
 				}
-				if q := f.program(t, "program"); q.Phase != "STOPPING" || q.OwnerPID != p.OwnerPID || q.Epoch != p.Epoch {
+				if q := f.program(t, "program"); q.Phase != "SPAWNING" || q.OwnerPID != p.OwnerPID || q.Epoch != p.Epoch {
 					t.Fatalf("refused takeover changed the program: %+v", q)
 				}
 				if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err == nil || !strings.Contains(err.Error(), "ATTEMPT_LIVE") {
-					t.Fatalf("the stopped attempt's claim was not held: %v", err)
+					t.Fatalf("the dispatched attempt's claim was not held: %v", err)
 				}
 				return
 			}
@@ -522,10 +527,17 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatalf("takeover: %v", err)
 			}
 			q := f.program(t, "program")
-			if q.OwnerPID != os.Getpid() || q.Epoch != p.Epoch+1 || p.Phase != "FINISHED" || p.Quiescence != "PROVED" {
+			taken := map[bool]string{true: "ADMITTED", false: "FINISHED"}[point == "release"]
+			if q.OwnerPID != os.Getpid() || q.Epoch != p.Epoch+1 || q.Phase != taken || q.Quiescence != "PROVED" {
 				t.Fatalf("takeover did not bind this process: %+v", q)
 			}
-			if point == "cancel" {
+			if point == "stopped" && (q.UsageKnown || q.Turns != p.Turns || q.InputTokens != p.InputTokens || q.OutputTokens != p.OutputTokens) {
+				t.Fatalf("settled STOPPING program usage: %+v from %+v", q, p)
+			}
+			if point != "release" {
+				if again.Attempt().Phase != "WAITING" || again.Attempt().AttemptID != old.AttemptID {
+					t.Fatalf("takeover did not keep the stopped attempt: %+v", again.Attempt())
+				}
 				if err = again.Cancel(); err != nil {
 					t.Fatalf("cancel after takeover: %v", err)
 				}

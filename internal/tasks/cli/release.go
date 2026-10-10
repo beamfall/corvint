@@ -141,9 +141,16 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	if verb == "show" {
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{releaseDetail(target)}}
 	}
-	head, _, source, err := store.ObserveSource(repo.IntentRoot(), false)
-	if err != nil {
-		return errorResult(cmd, err)
+	// Readiness without a candidate is BLOCKED on "candidate" before any
+	// source comparison, so the whole-tree source observation is skipped
+	// there (CAL-V0-209); a candidate still observes and compares the source.
+	var head string
+	var source wire.Digest
+	if target.Candidate != nil {
+		head, _, source, err = store.ObserveSource(repo.IntentRoot(), false)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	tickets := map[string]*ticket.Record{}
 	td := map[string]wire.Digest{}
@@ -164,6 +171,8 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	ready := release.Assess(target, gates, release.Observation{HeadCommit: head, SourceSha256: source, PolicySha256: wire.Sum(st.Policy.Raw), Tickets: tickets, TicketDigests: td, PredecessorPromotions: pred})
 	o := releaseDetail(target).Obj
 	o.Set("readiness", wire.String(ready.State)).Set("missing", wire.Strings(ready.Missing)).Set("nativeGateExecution", wire.String("NOT_RUN"))
+	members, drift := releaseMembership(target, st.Tickets)
+	o.Set("memberCounts", members).Set("milestoneDrift", drift)
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -226,4 +235,68 @@ func promotionValue(promotion *release.Promotion) wire.Value {
 		digests[i] = string(digest)
 	}
 	return wire.ObjectValue(wire.NewObject().Set("candidateSha256", wire.String(string(promotion.CandidateSha256))).Set("attestationSha256s", wire.Strings(digests)).Set("predecessors", predecessorBindingValues(promotion.Predecessors)).Set("actor", wire.String(promotion.Actor)).Set("recordedAt", wire.String(string(promotion.RecordedAt))))
+}
+
+// maxDriftIDs bounds each milestone-drift id list; the count is always exact.
+const maxDriftIDs = 100
+
+// releaseMembership reports, for `release readiness`, the member tickets'
+// counts by status and priority and the drift between membership and the
+// milestone convention that a release's milestone label is its releaseId
+// (CAL-V0-208). It reads only the loaded records and never changes
+// membership. A member id with no record is counted as absent.
+func releaseMembership(r *release.Record, all []*ticket.Record) (wire.Value, wire.Value) {
+	byID := make(map[string]*ticket.Record, len(all))
+	for _, t := range all {
+		byID[t.TicketID.Raw] = t
+	}
+	member := make(map[string]bool, len(r.TicketIDs))
+	byStatus := zeroCounts(ticket.Statuses)
+	byPriority := zeroCounts(ticket.Priorities)
+	absent := int64(0)
+	var outside []string
+	for _, id := range r.TicketIDs {
+		member[id.Raw] = true
+		t := byID[id.Raw]
+		if t == nil {
+			absent++
+			continue
+		}
+		byStatus[t.Status]++
+		byPriority[t.Priority]++
+		if t.Milestone == nil || *t.Milestone != r.ReleaseID {
+			outside = append(outside, id.Raw)
+		}
+	}
+	var unlisted []string
+	for _, t := range all {
+		terminal := t.Status == ticket.StatusCompleted || t.Status == ticket.StatusArchived
+		if !terminal && t.Milestone != nil && *t.Milestone == r.ReleaseID && !member[t.TicketID.Raw] {
+			unlisted = append(unlisted, t.TicketID.Raw)
+		}
+	}
+	counts := wire.NewObject()
+	counts.Set("total", countValue(int64(len(r.TicketIDs))))
+	counts.Set("absent", countValue(absent))
+	counts.Set("byStatus", countsValue(byStatus))
+	counts.Set("byPriority", countsValue(byPriority))
+	drift := wire.NewObject()
+	drift.Set("milestone", wire.String(r.ReleaseID))
+	drift.Set("unfinishedNonMembers", driftList(unlisted))
+	drift.Set("membersOutsideMilestone", driftList(outside))
+	return wire.ObjectValue(counts), wire.ObjectValue(drift)
+}
+
+// driftList renders an exact count and the first maxDriftIDs ids in byte
+// order.
+func driftList(ids []string) wire.Value {
+	sort.Strings(ids)
+	shown := ids
+	if len(shown) > maxDriftIDs {
+		shown = shown[:maxDriftIDs]
+	}
+	o := wire.NewObject()
+	o.Set("count", countValue(int64(len(ids))))
+	o.Set("ticketIds", wire.Strings(shown))
+	return wire.ObjectValue(o)
 }

@@ -148,6 +148,12 @@ func (a *ExternalReviewReceiptAudit) Superseded(ticketID string, stages []string
 
 // Step folds one validated receipt whose bytes hash to sum.
 func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob) error {
+	return a.StepPosts(rc, sum, blob, nil)
+}
+
+// StepPosts is Step reading ticket posts through memo, which a fold shares
+// with its escalation step; nil reads them afresh.
+func (a *ExternalReviewReceiptAudit) StepPosts(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob, memo *TicketPosts) error {
 	if a.refs == nil {
 		a.refs = map[string]map[string]ticket.ExternalReviewRef{}
 		a.receipts = map[uint64]externalSubmission{}
@@ -161,7 +167,7 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 			events[*p.Sha256] = true
 		}
 	}
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if !strings.HasPrefix(p.Path, "intent/tickets/") {
 			continue
 		}
@@ -172,14 +178,14 @@ func (a *ExternalReviewReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest,
 			}
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			return a.fail(rc, "%s post: %v", path, err)
+		post := memo.post(rc, i, blob)
+		if post.rawErr != nil {
+			return a.fail(rc, "%s post: %v", path, post.rawErr)
 		}
-		rec, err := ticket.Decode(raw)
-		if err != nil {
-			return a.fail(rc, "%s post is not a ticket record: %v", path, err)
+		if post.decErr != nil {
+			return a.fail(rc, "%s post is not a ticket record: %v", path, post.decErr)
 		}
+		rec := post.rec
 		old := a.refs[path]
 		changed := []string{}
 		for gate, ref := range rec.ExternalReviews {

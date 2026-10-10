@@ -106,6 +106,15 @@ corvint-tasks complete --attempt "$attempt" --generation "$generation" --request
 corvint-tasks receipt audit
 ```
 
+The commit counts as integrated when the local intent branch contains it or, when that branch is
+behind, when the branch's configured upstream is a remote-tracking ref (for example
+`refs/remotes/origin/main`) that contains it. `complete` never fetches and never moves a branch, so
+a checked-out `main` with unrelated staged work can stay where it is: run `git fetch` so the
+remote-tracking ref includes the merged commit, then complete again. A commit in neither refuses
+`STALE_TREE` with `COMMIT_NOT_INTEGRATED`, and the detail names both refs checked (or says no
+upstream is configured); `STALE_TREE` alone means the commit's tree is not the candidate or an
+extra repository's candidate is not integrated (CAL-V0-017, CAL-V0-087).
+
 The gate worktree must be clean. Resubmitting invalidates earlier gate results. `complete-manual`
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes
 only the `releaseReasonCodes` returned by `help` (for example `GATE_FAILED`); free prose refuses.
@@ -575,6 +584,17 @@ partial output (CAL-V0-165 to CAL-V0-168). `queue status` omits the per-ticket `
 unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETED or ARCHIVED items
 omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
 warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
+
+To count rather than list, add `--count` to `ticket search`, `ticket list` or `roadmap`: the result
+carries only a top-level `facets` object (no items, `page` null) counting every matched ticket by
+status, priority, kind, execution class, eligibility, next action, blocker code, milestone and
+label. For example, `ticket search --milestone v1-0 --status OPEN --count` answers "how many open
+tickets are left for 1.0" in one bounded read. `--facets` adds the same object next to a normal
+page; it ignores `--offset` and `--limit`, and `--count` refuses them (CAL-V0-206, CAL-V0-207).
+Without either flag the output is unchanged. `release readiness RELEASE` also reports
+`memberCounts` by status and priority, and `milestoneDrift`: unfinished tickets in the release's
+milestone that are not members, and members outside it. It reads them and never changes membership
+(CAL-V0-208).
 
 To see whether the queue is moving, read `queue status --summary`: `lastCompletion` names the
 latest completed ticket, its time and its receipt (null when nothing is completed), and
