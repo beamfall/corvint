@@ -151,7 +151,7 @@ func VerifyPlaywrightDiscovery(root, configPath, revision string, raw []byte) ([
 func decodePlaywrightDiscovery(raw []byte) (PlaywrightDiscovery, *playwrightMalformed) {
 	var receipt PlaywrightDiscovery
 	if len(raw) > PlaywrightDiscoveryMaxBytes {
-		return receipt, malformedDiscovery(PlaywrightMalformedDecode, fmt.Sprintf("receipt is %d bytes, over the %d-byte bound", len(raw), PlaywrightDiscoveryMaxBytes))
+		return receipt, malformedDiscovery(PlaywrightMalformedDecode, fmt.Sprintf("receipt is over the %d-byte bound", PlaywrightDiscoveryMaxBytes))
 	}
 	if err := json.Unmarshal(raw, &receipt, json.RejectUnknownMembers(true)); err != nil {
 		detail := err.Error()

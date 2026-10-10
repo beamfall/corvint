@@ -106,7 +106,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   MUST be literals; `testMatch`/`testIgnore` MAY be literal strings or regular expressions; device
   spreads MAY name a literal `devices[...]` descriptor. The opt-in profile MUST apply literal
   global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
-  the inherited input in the project fragment identity. Other `use` values MUST be static literals.
+  the inherited input in the project fragment identity. Other `use` values MUST be static literals,
+  except as `TJAA-V0-018` (proposed) admits for options outside the browser/device identity set.
   It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
   exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
   equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
@@ -156,6 +157,43 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   independently enumerated discovery inputs, prove helper-only exclusions and exact universe
   reconciliation, and exercise absent/stale/malformed/missing/extra receipt pairs and one-command
   fallback. Real `--list` evidence and synthetic membership oracles MUST keep their distinct labels.
+- `TJAA-V0-018`: (proposed, pending owner acceptance; V1-1065; GitHub #709) In a global or project
+  `use` layer, only the browser/device identity options MUST be static literals: `browserName`,
+  `defaultBrowserType`, `channel`, `headless`, `connectOptions`, `viewport`, `screen`, `userAgent`,
+  `isMobile`, `hasTouch`, `deviceScaleFactor`, `locale`, `timezoneId`, `colorScheme`, `permissions`,
+  `contextOptions`, `launchOptions`. This is the same set the external provider's qualified reporter
+  resolves at runtime (`internal/jstestprovider`), and a test MUST keep the two lists equal. A
+  runtime-computed value of any other option (`baseURL`, `storageState`, `trace`, `video`,
+  `extraHTTPHeaders`, ...) MUST NOT leave the project's browser identity unresolved; it cannot change
+  browser or file membership and stays an execution input bound by the config digest. A literal
+  `...devices['<known name>']` spread beside such options MUST resolve to that device's browser.
+  Computed or quoted identity keys, other spreads, computed device names and device names outside the
+  recognized table MUST still widen with `playwright:browser-identity-unresolved`.
+- `TJAA-V0-019`: (proposed, pending owner acceptance; V1-1066; GitHub #709) The command
+  `corvint [--root PATH] affected discovery --playwright-config PATH --playwright-list FILE` MUST
+  convert the JSON report of a caller-run `playwright test --list --reporter=json` (at most 64 MiB,
+  read as a regular file) into the canonical `playwright-discovery/0` receipt on stdout with one
+  trailing LF, bound to the current HEAD, config path/SHA-256 and source digest. Playwright reports
+  each spec `file` relative to `config.rootDir`; the producer MUST join it to `rootDir` and emit the
+  repository-relative path the static profile uses, resolving symlinks, and MUST emit one unit per
+  distinct (`projectName`, file) pair from every nested suite, deduplicated and sorted. It MUST refuse
+  with `unsupported-playwright-discovery` and no stdout when the report is not JSON or lacks
+  `config`/`suites`/`errors`, reports any error, records no `test` argv or any argument after `test`
+  other than `--list`, `--reporter=json` (or `--reporter json`) and `--config`/`-c`, is sharded,
+  names a config file other than PATH under the root, has a `rootDir` outside the root, names a test
+  outside the root or with an unsupported extension, or has a test without `projectName`. HEAD or
+  source drift while it runs MUST fail with `unsupported-affected-drift`. It is read-only and runs no
+  Playwright or config. The listing remains caller-declared: the producer cannot prove the report was
+  taken from the bytes it binds, nor that environment-driven config branches matched.
+- `TJAA-V0-020`: (proposed, pending owner acceptance; V1-1067; GitHub #709) When `discovery.state`
+  is `MALFORMED`, the summary MUST carry `reason`, one of `DECODE_FAILED` (over the 4 MiB bound,
+  invalid JSON, or a duplicate, unknown or mistyped member), `NON_CANONICAL_BYTES` (with the first
+  differing byte offset) or `INVALID_FIELD` (naming the first failing field, such as `profile`,
+  `revision`, `config.sha256` or `units[i].test`), and `detail`, one whitespace-collapsed line of at
+  most 240 bytes plus an ellipsis. A raw Playwright JSON report given as a receipt MUST say so and
+  name `corvint affected discovery`. Both members MUST be absent in every other state. An oversize
+  regular discovery file MUST report `MALFORMED`, not `MISSING`; an absent, unreadable or non-regular
+  file stays `MISSING`.
 
 ## Opt-in Playwright project profile
 
@@ -175,7 +213,9 @@ The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha
 `revision` (full lower-case Git object ID), `sourceDigest`, and `units` (objects with `project` and
 `test`, sorted by project then path). It describes the complete unfiltered configured listing,
 including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
-not authenticated execution attestation. Corvint never executes Playwright or config to produce it.
+not authenticated execution attestation. Corvint never executes Playwright or config to produce it;
+`corvint affected discovery` (`TJAA-V0-019`, proposed) only converts a caller-run JSON listing.
+Each unit's `test` is repository-relative, not relative to Playwright's `rootDir`.
 `sourceDigest` uses the public observer's `playwright-sources:sha256:` identity for current source
 bytes. A receipt generated before dirty source changes is stale. Omitting the optional input safely
 produces the complete-config fallback; default `affected-plan/0` compatibility remains unchanged.
@@ -295,6 +335,9 @@ Rollback removes `internal/liveverify/affected/typescript`, its conformance fixt
 experimental spec. No persisted format, CLI registry, or existing receipt is changed.
 The issue 41 extension can instead be reverted independently: restore the opt-in profile's global
 `use`/alias frontiers and remove global-hook edge binding and its qualification cases.
+The GitHub #709 extension (`TJAA-V0-018..020`) reverts independently: restore the static-literal
+check for every `use` value, remove `affected discovery` and its producer, and drop the MALFORMED
+`reason`/`detail` members; no persisted format or store is written.
 
 ## Traceability
 
@@ -306,5 +349,8 @@ The issue 41 extension can instead be reverted independently: restore the opt-in
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
+| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065` in `playwright_example_app_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
+| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066` in `playwright_discovery_list_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go` | experimental; one real listing shape |
+| `TJAA-V0-020` (proposed) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

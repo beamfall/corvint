@@ -70,6 +70,9 @@ type affectedInvocation struct {
 	SelectionProfile    string
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
+	// PlaywrightList is set only by `affected discovery`: the Playwright JSON listing converted
+	// into a playwright-discovery/0 receipt (TJAA-V0-019).
+	PlaywrightList string
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
@@ -194,6 +197,9 @@ var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "-
 // `--repository`, and `--selection-profile` follow the impact bounds and
 // errors (ETS-V0-001).
 func parseAffectedOptions(rest []string) (affectedInvocation, error) {
+	if len(rest) != 0 && rest[0] == "discovery" {
+		return parseAffectedDiscoveryOptions(rest[1:])
+	}
 	invocation := affectedInvocation{}
 	baseSet := false
 	for index := 0; index < len(rest); {
@@ -266,6 +272,38 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(invocation.Providers) != 0 && invocation.SelectionProfile == "" {
 		invocation.SelectionProfile = extevidence.ProfileStrict
+	}
+	return invocation, nil
+}
+
+// parseAffectedDiscoveryOptions reads `affected discovery --playwright-config PATH
+// --playwright-list FILE`, each exactly once (TJAA-V0-019).
+func parseAffectedDiscoveryOptions(rest []string) (affectedInvocation, error) {
+	invocation := affectedInvocation{}
+	for index := 0; index < len(rest); index++ {
+		name, value, inline := strings.Cut(rest[index], "=")
+		if name != "--playwright-config" && name != "--playwright-list" {
+			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
+		}
+		if !inline {
+			if index+1 >= len(rest) {
+				return affectedInvocation{}, argumentError(name + " requires exactly one value")
+			}
+			index++
+			value = rest[index]
+		}
+		if name == "--playwright-config" {
+			if err := setAffectedPlaywrightConfig(&invocation, value); err != nil {
+				return affectedInvocation{}, err
+			}
+		} else if invocation.PlaywrightList != "" || value == "" {
+			return affectedInvocation{}, argumentError("--playwright-list requires exactly one nonempty value")
+		} else {
+			invocation.PlaywrightList = value
+		}
+	}
+	if invocation.PlaywrightConfig == "" || invocation.PlaywrightList == "" {
+		return affectedInvocation{}, argumentError("affected discovery requires --playwright-config and --playwright-list")
 	}
 	return invocation, nil
 }
@@ -348,6 +386,9 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 }
 
 func runAffected(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
+	if invocation.PlaywrightList != "" {
+		return runAffectedDiscovery(ctx, invocation, stdout, stderr)
+	}
 	var receipt any
 	var err error
 	if invocation.Snapshot != "" {
@@ -423,6 +464,69 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	}, nil
 }
 
+// runAffectedDiscovery writes the canonical playwright-discovery/0 receipt converted from a
+// Playwright JSON listing, bound to HEAD, the config bytes and the source digest, and refuses
+// HEAD or source drift while it ran (TJAA-V0-019). It reads only; it never runs Playwright.
+func runAffectedDiscovery(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
+	raw, err := compilePlaywrightDiscovery(ctx, invocation)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	if _, err := stdout.Write(append(raw, '\n')); err != nil {
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write discovery receipt"})
+		return 2
+	}
+	return 0
+}
+
+func compilePlaywrightDiscovery(ctx context.Context, invocation affectedInvocation) ([]byte, error) {
+	root := invocation.Root
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		return nil, affectedGitExecutableRefusal()
+	}
+	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, err
+	}
+	listing, err := readPlaywrightList(root, invocation.PlaywrightList)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-playwright-discovery", Message: err.Error()}
+	}
+	raw, err := typescript.PlaywrightDiscoveryFromList(root, invocation.PlaywrightConfig, revision, listing)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-playwright-discovery", Message: err.Error()}
+	}
+	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
+		return nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the discovery receipt was produced"}
+	}
+	if _, state := typescript.VerifyPlaywrightDiscovery(root, invocation.PlaywrightConfig, revision, raw); state != "MATCHED" {
+		return nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "source changed while the discovery receipt was produced"}
+	}
+	return raw, nil
+}
+
+// readPlaywrightList reads one bounded regular listing file, relative to root unless absolute.
+func readPlaywrightList(root, name string) ([]byte, error) {
+	if !filepath.IsAbs(name) {
+		name = filepath.Join(root, name)
+	}
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("--playwright-list must name a readable regular file")
+	}
+	if info.Size() > typescript.PlaywrightListMaxBytes {
+		return nil, fmt.Errorf("--playwright-list is over the %d-byte bound", typescript.PlaywrightListMaxBytes)
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, errors.New("--playwright-list must name a readable regular file")
+	}
+	defer file.Close()
+	return io.ReadAll(io.LimitReader(file, typescript.PlaywrightListMaxBytes+1))
+}
+
 func readPlaywrightDiscovery(root, name string) []byte {
 	if name == "" {
 		return nil
@@ -430,8 +534,10 @@ func readPlaywrightDiscovery(root, name string) []byte {
 	if !filepath.IsAbs(name) {
 		name = filepath.Join(root, name)
 	}
+	// An oversize regular file is read only up to one byte past the bound, so the profile reports
+	// it as MALFORMED with its reason rather than as MISSING (TJAA-V0-020).
 	info, err := os.Lstat(name)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > typescript.PlaywrightDiscoveryMaxBytes {
+	if err != nil || !info.Mode().IsRegular() {
 		return nil
 	}
 	file, err := os.Open(name)

@@ -1,0 +1,171 @@
+package typescript
+
+import (
+	"bytes"
+	json "encoding/json/v2"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// multiProjectListFixture writes a repository whose config has a setup project, two device
+// projects that depend on it and a project with its own testDir, and returns it with the real
+// `playwright test --list --reporter=json` report (Playwright 1.61.1) rebased onto it.
+func multiProjectListFixture(t *testing.T) (string, []byte) {
+	t.Helper()
+	root := t.TempDir()
+	write(t, root, "playwright.config.ts", `import { defineConfig, devices } from '@playwright/test';
+
+const authFile = 'playwright/.auth/user.json';
+
+export default defineConfig({
+  testDir: './e2e',
+  use: { baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' },
+  projects: [
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], storageState: authFile }, dependencies: ['setup'] },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], storageState: authFile }, dependencies: ['setup'] },
+    { name: 'admin', testDir: './e2e/admin', use: { ...devices['Desktop Chrome'] } },
+  ],
+});
+`)
+	write(t, root, "e2e/auth.setup.ts", "import { test as setup } from '@playwright/test';\nsetup('authenticate', async () => {});\n")
+	write(t, root, "e2e/home.spec.ts", "import { test, expect } from '@playwright/test';\nimport { title } from './shared/page';\ntest.describe('home', () => {\n  test('has title', async () => { expect(title).toBe('home'); });\n  test('second', async () => {});\n});\n")
+	write(t, root, "e2e/search.spec.ts", "import { test } from '@playwright/test';\ntest('search', async () => {});\n")
+	write(t, root, "e2e/admin/users.spec.ts", "import { test } from '@playwright/test';\ntest('users', async () => {});\n")
+	write(t, root, "e2e/shared/page.ts", "export const title = 'home';\n")
+	template, err := os.ReadFile(filepath.Join("testdata", "playwright-list", "multi-project.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root, bytes.ReplaceAll(template, []byte("@ROOT@"), []byte(root))
+}
+
+func multiProjectListUnits() []PlaywrightDiscoveryUnit {
+	return []PlaywrightDiscoveryUnit{
+		{Project: "admin", Test: "e2e/admin/users.spec.ts"},
+		{Project: "chromium", Test: "e2e/admin/users.spec.ts"}, {Project: "chromium", Test: "e2e/home.spec.ts"}, {Project: "chromium", Test: "e2e/search.spec.ts"},
+		{Project: "firefox", Test: "e2e/admin/users.spec.ts"}, {Project: "firefox", Test: "e2e/home.spec.ts"}, {Project: "firefox", Test: "e2e/search.spec.ts"},
+		{Project: "setup", Test: "e2e/auth.setup.ts"},
+	}
+}
+
+// GitHub #709 part 2 (V1-1066): a real multi-project listing produces the canonical receipt
+// and that receipt reconciles to MATCHED (TJAA-V0-019).
+func TestPlaywrightDiscoveryFromListMultiProject_V1_1066(t *testing.T) {
+	root, listing := multiProjectListFixture(t)
+	raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := discoveryFixtureBytes(t, root, multiProjectListUnits()); !bytes.Equal(raw, want) {
+		t.Fatalf("receipt\n%s\nwant\n%s", raw, want)
+	}
+	again, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+	if err != nil || !bytes.Equal(raw, again) {
+		t.Fatalf("repeated bytes differ: %v", err)
+	}
+	plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// MATCHED proves the universe; the fixture's unresolved bare imports still widen the
+	// selection to the whole matched universe (TJAA-V0-015), which is not a discovery failure.
+	if plan.Discovery.State != "MATCHED" || len(plan.Discovery.OnlyInReceipt) != 0 || len(plan.Discovery.OnlyInStatic) != 0 || len(plan.Selected) != len(multiProjectListUnits()) {
+		t.Fatalf("discovery=%+v selected=%d unknown=%+v", plan.Discovery, len(plan.Selected), plan.Unknown)
+	}
+	if units, state := VerifyPlaywrightDiscovery(root, "playwright.config.ts", discoveryFixtureRevision, raw); state != "MATCHED" || !slices.Equal(units, multiProjectListUnits()) {
+		t.Fatal(state, units)
+	}
+	// Playwright reports `file` relative to rootDir (here e2e/), not to the repository. A receipt
+	// that copies those names verbatim cannot reconcile: every unit is on both sides.
+	naive := make([]PlaywrightDiscoveryUnit, 0, len(multiProjectListUnits()))
+	for _, unit := range multiProjectListUnits() {
+		naive = append(naive, PlaywrightDiscoveryUnit{Project: unit.Project, Test: strings.TrimPrefix(unit.Test, "e2e/")})
+	}
+	slices.SortFunc(naive, func(a, b PlaywrightDiscoveryUnit) int {
+		if discoveryUnitLess(a, b) {
+			return -1
+		}
+		return 1
+	})
+	plan, err = SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, discoveryFixtureBytes(t, root, naive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Discovery.State != "UNIVERSE_MISMATCH" || len(plan.Discovery.OnlyInReceipt) != len(naive) || len(plan.Discovery.OnlyInStatic) != len(naive) {
+		t.Fatalf("naive receipt: %+v", plan.Discovery)
+	}
+}
+
+func TestPlaywrightDiscoveryFromListRefusals_V1_1066(t *testing.T) {
+	root, listing := multiProjectListFixture(t)
+	edit := func(change func(report, config map[string]any)) []byte {
+		var copied map[string]any
+		if err := json.Unmarshal(listing, &copied); err != nil {
+			t.Fatal(err)
+		}
+		change(copied, copied["config"].(map[string]any))
+		raw, err := json.Marshal(copied)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	argv := func(extra ...string) func(map[string]any, map[string]any) {
+		return func(_, config map[string]any) {
+			config["argv"] = append([]any{"/usr/local/bin/node", root + "/node_modules/.bin/playwright", "test", "--list", "--reporter=json"}, toAny(extra)...)
+		}
+	}
+	firstSpec := func(report map[string]any) map[string]any {
+		return report["suites"].([]any)[0].(map[string]any)["specs"].([]any)[0].(map[string]any)
+	}
+	outside := t.TempDir()
+	write(t, outside, "playwright.config.ts", "export default {}\n")
+	for _, row := range []struct {
+		name, want string
+		listing    []byte
+		revision   string
+	}{
+		{"not-json", "not a JSON report", []byte("Listing tests:\n"), ""},
+		{"bound", "bound", bytes.Repeat([]byte(" "), PlaywrightListMaxBytes+1), ""},
+		{"no-config", "lacks config", edit(func(report, _ map[string]any) { delete(report, "config") }), ""},
+		{"errors", "1 error", edit(func(report, _ map[string]any) { report["errors"] = []any{map[string]any{"message": "SyntaxError"}} }), ""},
+		{"project-filter", `"--project"`, edit(argv("--project", "chromium")), ""},
+		{"file-filter", `"home"`, edit(argv("home")), ""},
+		{"grep", `"--grep=search"`, edit(argv("--grep=search")), ""},
+		{"only-changed", `"--only-changed"`, edit(argv("--only-changed")), ""},
+		{"other-reporter", `"line"`, edit(argv("--reporter", "line")), ""},
+		{"no-argv", "argv", edit(func(_, config map[string]any) { delete(config, "argv") }), ""},
+		{"shard", "sharded", edit(func(_, config map[string]any) { config["shard"] = map[string]any{"current": 1, "total": 2} }), ""},
+		{"other-config", "is not playwright.config.ts", edit(func(_, config map[string]any) { config["configFile"] = filepath.Join(outside, "playwright.config.ts") }), ""},
+		{"root-dir-outside", "outside the repository root", edit(func(_, config map[string]any) { config["rootDir"] = outside }), ""},
+		{"escaping-file", "not a repository-relative source path", edit(func(report, _ map[string]any) { firstSpec(report)["file"] = "../../escape.spec.ts" }), ""},
+		{"missing-file", "not a repository-relative source path", edit(func(report, _ map[string]any) { firstSpec(report)["file"] = "absent.spec.ts" }), ""},
+		{"no-project-name", "no projectName", edit(func(report, _ map[string]any) {
+			delete(firstSpec(report)["tests"].([]any)[0].(map[string]any), "projectName")
+		}), ""},
+		{"revision", "revision", listing, "HEAD"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			revision := discoveryFixtureRevision
+			if row.revision != "" {
+				revision = row.revision
+			}
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", revision, row.listing)
+			if err == nil || raw != nil || !strings.Contains(err.Error(), row.want) {
+				t.Fatalf("raw=%s err=%v want %q", raw, err, row.want)
+			}
+		})
+	}
+}
+
+func toAny(values []string) []any {
+	out := make([]any, len(values))
+	for index, value := range values {
+		out[index] = value
+	}
+	return out
+}

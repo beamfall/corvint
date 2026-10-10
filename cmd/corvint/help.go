@@ -574,6 +574,8 @@ Usage:
   corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
+  corvint [--root PATH] affected discovery --playwright-config PATH
+          --playwright-list FILE
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -634,8 +636,16 @@ binds project/config/browser/device inputs, and widens to the full relevant
 suite on unsupported dynamic config or source reachability. --playwright-discovery
 reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config and
 source bytes to the complete unfiltered project/file listing. Missing or mismatched
-discovery emits no file commands and one complete-config fallbackArgv. It executes
-no config or test and cannot be combined with --provider.
+discovery emits no file commands and one complete-config fallbackArgv; a MALFORMED
+receipt names its reason and a one-line detail. It executes no config or test and
+cannot be combined with --provider.
+
+affected discovery converts the JSON report of an unfiltered
+` + "`playwright test --list --reporter=json`" + ` run (--playwright-list FILE) into that
+canonical receipt on stdout, bound to the current HEAD, config bytes and source
+digest, with each test path made repository-relative. It refuses a listing that
+reports errors, was filtered or sharded, or names another config, and fails on
+HEAD or source drift. It runs nothing; the listing stays caller-declared evidence.
 
 --selection-profile e2e-safe reads one repository-relative
 application-flow-selection-provider/1 FILE (flows directory, runner config,
