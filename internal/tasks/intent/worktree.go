@@ -86,6 +86,27 @@ func checkNoSymlink(path string) error {
 // one at or below it is refused. Windows is unsupported; no environment
 // variable or flag relocates the state dir.
 func Resolve(cwd string) (*Repository, error) {
+	repo, err := locate(cwd)
+	if err != nil {
+		return nil, err
+	}
+	resolveIntentWorktree(repo)
+	return repo, nil
+}
+
+// ResolveCommonDir returns the common directory Resolve would, after the
+// same validation, but reads no intent hint, queue manifest, HEAD or linked
+// worktree entry (TQD-V0-012).
+func ResolveCommonDir(cwd string) (string, error) {
+	repo, err := locate(cwd)
+	if err != nil {
+		return "", err
+	}
+	return repo.CommonDir, nil
+}
+
+// locate is Resolve without the intent-worktree resolution.
+func locate(cwd string) (*Repository, error) {
 	abs, err := filepath.Abs(cwd)
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, cwd, "cannot resolve cwd: %v", err)
@@ -175,7 +196,6 @@ func finish(common string, linked bool) (*Repository, error) {
 		LockPath:           filepath.Join(common, "taskman.lock"),
 		FromLinkedWorktree: linked,
 	}
-	resolveIntentWorktree(repo)
 	return repo, nil
 }
 
@@ -193,6 +213,9 @@ func canonicalAncestors(common string) (string, error) {
 	return filepath.Join(parent, filepath.Base(primary), filepath.Base(common)), nil
 }
 
+// beforeBoundedRead observes every readBounded path; tests only.
+var beforeBoundedRead func(path string)
+
 // readBounded reads a whole file refusing anything larger than max. It opens
 // the file read-only, refuses symlinks and non-regular files, re-checks the
 // identity of the opened descriptor against the Lstat result (so a file
@@ -200,6 +223,9 @@ func canonicalAncestors(common string) (string, error) {
 // and propagates every read error: a short read is never returned as
 // success.
 func readBounded(path string, max int) ([]byte, error) {
+	if beforeBoundedRead != nil {
+		beforeBoundedRead(path)
+	}
 	return readBoundedUsing(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openReadFile(path) })
 }
 
