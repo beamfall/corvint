@@ -639,3 +639,91 @@ func treeBytes(t *testing.T, root string) (total int64) {
 	})
 	return total
 }
+
+// TestUPDV0008CoreSwitchRefreshesIndexedCheckouts: after a Core apply or
+// rollback the switched binary refreshes each explicit root and the working
+// checkout only when it already has a snapshot store; a failed refresh is
+// reported and does not fail the switch.
+func TestUPDV0008CoreSwitchRefreshesIndexedCheckouts(t *testing.T) {
+	e := fixtureEngine(t)
+	dest := filepath.Join(e.config.BinDir, "corvint")
+	writeScript(t, dest, 162)
+	base := filepath.Dir(e.config.BinDir)
+	indexedRoot := filepath.Join(base, "indexed")
+	plainRoot := filepath.Join(base, "plain")
+	explicitRoot := filepath.Join(base, "explicit")
+	for _, dir := range []string{filepath.Join(indexedRoot, ".git", "corvint", "index"), filepath.Join(plainRoot, ".git"), explicitRoot} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	log := filepath.Join(base, "refresh.log")
+	// The release fixture's binary answers --version only; the refresh check
+	// swaps in a binary that records its argv and answers `index --if-stale`.
+	refresher := fmt.Sprintf("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Corvint 1.0.0-rc.1 (build 163)'; exit 0; fi\necho \"$*\" >> %q\nif [ \"$2\" = %q ]; then echo broken >&2; exit 3; fi\nif [ \"$2\" = %q ]; then echo '{\"mutates\":false,\"state\":\"fresh\"}'; else echo '{\"mutates\":true}'; fi\n", log, explicitRoot, indexedRoot)
+
+	e.config.WorkDir = filepath.Join(indexedRoot, "sub")
+	os.MkdirAll(e.config.WorkDir, 0700)
+	e.config.RefreshRoots = []string{indexedRoot}
+	releaseClient(t, &e, 163)
+	r, err := e.execute(context.Background(), "apply")
+	if err != nil || r.Action != "applied" {
+		t.Fatalf("apply: %+v %v", r, err)
+	}
+	// The fixture binary is not a real Core, so its receipt is unreadable.
+	if len(r.IndexRefresh) != 1 || r.IndexRefresh[0].Root != indexedRoot || r.IndexRefresh[0].State != "failed" {
+		t.Fatalf("explicit and working root not refreshed once: %+v", r.IndexRefresh)
+	}
+
+	os.WriteFile(dest, []byte(refresher), 0700)
+	got := refreshIndexes(context.Background(), dest, []string{explicitRoot, filepath.Join(plainRoot, ".")}, filepath.Join(indexedRoot, "sub"))
+	want := []IndexRefresh{
+		{Root: explicitRoot, State: "failed", Reason: "exit 3: broken"},
+		{Root: plainRoot, State: "built"},
+		{Root: indexedRoot, State: "fresh"},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("refresh outcomes:\n got %+v\nwant %+v", got, want)
+	}
+	if got = refreshIndexes(context.Background(), dest, nil, plainRoot); !slices.Equal(got, []IndexRefresh{{Root: plainRoot, State: "skipped", Reason: "no index snapshot store"}}) {
+		t.Fatalf("unindexed working checkout refreshed: %+v", got)
+	}
+	if got = refreshIndexes(context.Background(), dest, nil, base); len(got) != 0 {
+		t.Fatalf("directory outside any checkout refreshed: %+v", got)
+	}
+	calls, _ := os.ReadFile(log)
+	if want := fmt.Sprintf("--root %s index --if-stale\n--root %s index --if-stale\n--root %s index --if-stale\n", explicitRoot, plainRoot, indexedRoot); string(calls) != want {
+		t.Fatalf("refresh argv:\n%s", calls)
+	}
+
+	// Rollback switches the binary too, so it refreshes.
+	e.config.AllowNetwork = false
+	writeScript(t, dest, 163)
+	r, err = e.execute(context.Background(), "rollback")
+	if err != nil || len(r.IndexRefresh) != 1 || r.IndexRefresh[0] != (IndexRefresh{Root: indexedRoot, State: "failed", Reason: "unreadable index receipt"}) {
+		t.Fatalf("rollback did not refresh: %+v %v", r, err)
+	}
+	// An unchanged apply switches nothing and refreshes nothing.
+	writeScript(t, dest, 163)
+	e.config.AllowNetwork = true
+	if r, err = e.execute(context.Background(), "apply"); err != nil || r.Action != "unchanged" || r.IndexRefresh != nil {
+		t.Fatalf("unchanged apply: %+v %v", r, err)
+	}
+	// A successful Tasks rollback switches a binary that keys no snapshot.
+	tasks := filepath.Join(e.config.BinDir, "corvint-tasks")
+	writeScript(t, tasks, 2)
+	current, _ := digest(tasks)
+	stage := filepath.Join(e.config.StateDir, "transaction-1")
+	os.Mkdir(stage, 0700)
+	writeScript(t, filepath.Join(stage, "previous"), 1)
+	previous, _ := digest(filepath.Join(stage, "previous"))
+	encoded, _ := json.Marshal(receipt{"tasks", tasks, previous, current})
+	os.WriteFile(filepath.Join(stage, "receipt.json"), encoded, 0600)
+	e.config.Component, e.config.AllowNetwork = "tasks", false
+	if r, err = e.execute(context.Background(), "rollback"); err != nil || r.IndexRefresh != nil {
+		t.Fatalf("tasks rollback: %+v %v", r, err)
+	}
+	if after, _ := digest(tasks); after != previous {
+		t.Fatal("tasks rollback did not switch")
+	}
+}
