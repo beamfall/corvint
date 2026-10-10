@@ -617,9 +617,16 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"angular module replaced": {reg + "const app = angular.module('admin'); const saved = angular.module;\n" +
 			"angular.module = function (label, annotation) { app.config(annotation); };\n" +
 			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\nangular.module = saved;\n", nil},
-		"angular member write":    {reg + "angular.foo = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"angular computed":        {reg + "angular['module']('admin');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"angular passed":          {reg + "fn(angular);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular member write": {reg + "angular.foo = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular computed":     {reg + "angular['module']('admin');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular passed":       {reg + "fn(angular);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		// The nineteenth review's input, a with block whose object binds angular, and other ways
+		// to reach angular by a computed name (round 20).
+		"angular with": {reg + "const app=angular.module('admin'); const fake={}; fake['module']=function(l,a){app.config(a);};\n" +
+			"with ({ 'angular': fake }) { angular.module('unused',['Section'+'Names',function(s){s.REPORTS='other';}]); }\n", nil},
+		"angular eval":            {reg + "eval('var x = 1');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular string key":      {reg + "const app = angular.module('admin');\nwindow['angular'].module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular quoted key":      {reg + "const o = { \"angular\": 1 };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {

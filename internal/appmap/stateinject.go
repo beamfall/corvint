@@ -350,12 +350,22 @@ func (t *constTable) quiet(f *constFile, name string, exempt bool) bool {
 // counts: a parameter, a declaration, another import, a catch parameter, a destructuring target,
 // a value passed on, a read or write of angular.module (`saved = angular.module`, `angular.module
 // = f`), any other member (`angular.x`), a computed member (`angular['module']`) and an optional
-// chain (`angular?.module`). Then `angular.module('x', [...])` in any examined file may call
-// another function, so no dependency list is exempt.
+// chain (`angular?.module`). A file may also bind or reach angular by a name no identifier shows,
+// so these count too: a `with` statement (its object's keys shadow names), `eval` or `Function`
+// anywhere (`new Function`, `(0, eval)`), and a string or template whose value is exactly angular
+// (`{ 'angular': x }`, `window['angular']`) other than the specifier of an accepted package
+// binding. Then `angular.module('x', [...])` in any examined file may call another function, so
+// no dependency list is exempt.
 func (t *constTable) bindsAngular(f *constFile) bool {
 	toks := f.toks
 	for i, tok := range toks {
 		switch {
+		case tok.kind == tokIdent && (tok.text == "with" && !property(toks, i) || tok.text == "eval" || tok.text == "Function"):
+			return true
+		case (tok.kind == tokString || tok.kind == tokTemplate) && tok.text == "angular":
+			if !angularSpecifier(toks, i) {
+				return true
+			}
 		case tok.kind != tokIdent || tok.text != "angular":
 		case next(toks, i+1, ".") && word(toks, i+2, "module") && next(toks, i+3, "("):
 		case !angularImport(toks, i) || !t.angularPackage(f):
@@ -382,6 +392,13 @@ func angularImport(toks []token, i int) bool {
 		return i+6 >= len(toks) || isPunct(toks[i+6], ";") // an operator or call after it may bind another value
 	}
 	return false
+}
+
+// angularSpecifier reports whether toks[k] is the module specifier of a binding angularImport
+// accepts (bindsAngular checks the binding itself).
+func angularSpecifier(toks []token, k int) bool {
+	return k >= 2 && word(toks, k-1, "from") && word(toks, k-2, "angular") && angularImport(toks, k-2) ||
+		k >= 4 && isPunct(toks[k-1], "(") && word(toks, k-2, "require") && word(toks, k-4, "angular") && angularImport(toks, k-4)
 }
 
 // angularPackage reports whether 'angular', loaded from f, resolves to a package outside the

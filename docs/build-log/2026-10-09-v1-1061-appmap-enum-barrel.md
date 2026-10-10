@@ -259,6 +259,12 @@ injector.
   `angular.module(` (the member module called at once). Any other use removes the exemption for
   the closure: a read or write of `angular.module`, any other member, a computed member, an
   optional chain, or the bare name passed as a value.
+- Nineteenth review (one fail-open path, no spec text change): `with ({ 'angular': fake }) {
+  angular.module('unused', [...]) }` shadowed angular through an object key no identifier shows.
+  The exemption is now also removed for the whole closure when any closure file holds a `with`
+  token outside a property position, an `eval` or `Function` token (`new Function`, `(0, eval)`),
+  or a string or template whose value is exactly `angular` (`{ 'angular': x }`,
+  `window['angular']`) other than the specifier of an accepted package binding.
 
 ## Evidence
 
@@ -475,6 +481,13 @@ injector.
   already caught and guard the rule. All four fail closed with the fix, and the three `di angular
   package` cases still resolve. The full `go test -count=1 ./internal/appmap` passes (526 passing
   tests and subtests); `go vet` and `gofmt` are clean.
+- Nineteenth review: `di angular with` (the review's input), `di angular string key`
+  (`window['angular'].module = ...`) and `di angular quoted key` (`{ "angular": 1 }`) resolve
+  silently against `bf4a8612` (`v1061-r20-gap-before.txt`). `di angular eval` (`eval('...')`) was
+  already caught by the loader rule and guards this one. All four fail closed with the fix; the
+  three `di angular package` cases, whose specifier is the string `'angular'`, still resolve. The
+  full `go test -count=1 ./internal/appmap` passes (530 passing tests and subtests); `go vet` and
+  `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -558,10 +571,12 @@ injector.
   provider's `$get` that injects by a computed parameter list.
 - Since the seventeenth review, two common forms leave an injected table UNKNOWN. A closure file
   that uses `angular` other than to import the declared `angular` package or to call
-  `angular.module(...)` (a TypeScript type such as `angular.IModule` included) removes the
-  `angular.module` exemption, so a dependency list of two or more names
-  (`[uiRouter, ngAnimate]`) fails; an undeclared `angular` package leaves the closure unresolved. An
-  examined file with a template substitution beyond a name, member chain or literal
+  `angular.module(...)` (a TypeScript type such as `angular.IModule` included), or that holds a
+  `with`, `eval` or `Function` token or an `'angular'` string other than an accepted package
+  specifier (a side-effect `import 'angular'` included), removes the `angular.module`
+  exemption, so a dependency list of two or more names (`[uiRouter, ngAnimate]`) fails; an
+  undeclared `angular` package leaves the closure unresolved. An examined file with a template
+  substitution beyond a name, member chain or literal
   (`${fmt(x)}`, `${a + b}`) also fails. The opaque rule applies only to the injection check. The
   global `angular` reassigned by a string key (`globalThis['angular'] = h`) or from a file outside
   the closure is not seen; this is the off-chain global class above.
