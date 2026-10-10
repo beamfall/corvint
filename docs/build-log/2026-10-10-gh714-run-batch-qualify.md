@@ -90,6 +90,12 @@ tree, then running only that test:
    lists it, the verdict is `CANDIDATE_FAILURE` with no admissible report, and qualify allocates
    less than 384 MiB (before: 702,844,944 bytes allocated).
 
+## Acceptance
+
+TOL-V0-028..033 were accepted as amended by review round 1 (decision 0485). The coordinating agent
+relayed the owner's chat approval of 2026-10-10 ("accept tol 028-033"); this lane did not observe
+the owner's words directly.
+
 ## Limits and NOT_RUN
 
 - Live Playwright under `run-batch` and `qualify` is `NOT_RUN`. In production the qualified-version

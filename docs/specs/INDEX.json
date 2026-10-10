@@ -826,7 +826,7 @@
     "path": "docs/specs/corvint-tasks-obligation-ledger-v0.md",
     "title": "Corvint Tasks obligation ledger V0",
     "reqPrefix": "TOL-V0",
-    "intent": "accepted (decisions 0456 and 0484; V1-1022)",
+    "intent": "accepted (decisions 0456, 0484 and 0485; V1-1022)",
     "delivery": "experimental",
     "claim": "A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.",
     "dependsOn": [

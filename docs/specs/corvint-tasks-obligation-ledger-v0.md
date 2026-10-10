@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-08
-Intent status: accepted (decisions 0456 and 0484; V1-1022)
+Intent status: accepted (decisions 0456, 0484 and 0485; V1-1022)
 Delivery status: experimental
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
@@ -13,7 +13,9 @@ text takes. Acceptance settles intent only. The V1-1022 implementation is experi
 and nothing may be promoted or advertised as delivered until its acceptance evidence exists.
 The agent-drafted additions TOL-V0-022..027 (GitHub beamfall/corvint#712 and #713) were accepted
 as written in chat on 2026-10-10 (decision 0484). The agent-drafted TOL-V0-028..033 (GitHub
-beamfall/corvint#714) are proposed, pending owner acceptance, and experimental. The profile reuses unchanged the ticket, mutation,
+beamfall/corvint#714) were accepted on 2026-10-10, as amended by the first independent review round
+(decision 0485, recorded from the coordinating agent's relay of the owner's chat approval), and are
+experimental. The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
@@ -24,7 +26,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456 and 0484; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680) and TOL-V0-022..027 by decision 0484 (GitHub #712, #713); experimental; TOL-V0-001..018 and 020..027 implemented with focused tests; the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN. TOL-V0-028..033 (GitHub #714) are proposed, pending owner acceptance, and implemented experimentally with focused tests on a fake test command.
+- Status: accepted (decisions 0456, 0484 and 0485; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); experimental; TOL-V0-001..018 and 020..033 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -379,7 +381,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   rules (declared environment only, timeout, output cap, its own process group killed when it
   exits), with `CORVINT_RUN_DIR`, `CORVINT_POOL_ID` and `CORVINT_POOL_MEMBER` added; the test
   command also receives `PLAYWRIGHT_JSON_OUTPUT_NAME` and the resolved spec files as trailing
-  arguments. Status: (proposed, pending owner acceptance; GitHub #714).
+  arguments. Status: (accepted, decision 0485; GitHub #714).
 - `TOL-V0-029`: `run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUST run
   one batch with no agent session: optional prep, the test command once on the spec files under the
   `--spec` paths at the commit, the optional post-check, then witness the report through the
@@ -395,7 +397,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   admissible report refuses `GATE_FAILED` and writes nothing to the store; a refused witness keeps
   its own outcome and codes. The output is untrusted and not retryable; reusing a request id
   refuses `REQUEST_ID_CONFLICT`, so earlier evidence is never overwritten.
-  Status: (proposed, pending owner acceptance; GitHub #714).
+  Status: (accepted, decision 0485; GitHub #714).
 - `TOL-V0-030`: A job MUST run only in a clean checkout of the commit: a checkout at another commit
   refuses `STALE_TREE` and tracked changes refuse `DIRTY_WORKTREE`, before the results directory is
   created. With `--pool P --attempt A --generation G` the job acquires a member for the caller's
@@ -406,7 +408,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   captures and releases; the capture stays bounded by `timeoutSeconds`. A refused release fails the
   job: `run-batch` witnesses nothing, records `UNCREDITED` and refuses with the release's code and
   `LANE_FAILED:`, and `qualify` is `NOT_QUALIFIED` with `LANE_FAILED`. The claim, renewal and
-  HANDOFF stay with the caller. Status: (proposed, pending owner acceptance; GitHub #714).
+  HANDOFF stay with the caller. Status: (accepted, decision 0485; GitHub #714).
 - `TOL-V0-031`: Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECTED`
   with `OBLIGATION_REPEAT_FAILURE:` naming each in-scope `OPEN`, `DEFECT` or `BLOCKED` obligation
   that at least two earlier summaries of the same ticket under `--out` record as `FAILED` with the
@@ -415,7 +417,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   `ABSENT` when missing),
   so changing a fixture or spec is new evidence that admits the job. Leaving the obligation out
   with `--ids` also admits it. More than 1,024 entries under `--out`, a summary over 4 MiB or a
-  malformed summary refuses. Status: (proposed, pending owner acceptance; GitHub #714).
+  malformed summary refuses. Status: (accepted, decision 0485; GitHub #714).
 - `TOL-V0-032`: `qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUST run
   the static checks first and without a lane, then on the lane prep, the candidate specs `runs`
   times, the post-check and, with `CHANGED_DIRECTORIES`, every other spec under a directory of a
@@ -430,8 +432,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   neighbour test MUST be re-run at the base in one temporary detached worktree, removed on every
   path; a test that fails there too is `PRE_EXISTING` and does not disqualify, and one the base did
   not observe is new. `NOT_QUALIFIED` refuses `GATE_FAILED` with `QUALIFY_NOT_QUALIFIED:`.
-  `qualify` never credits obligations or writes the store. Status: (proposed, pending owner
-  acceptance; GitHub #714).
+  `qualify` never credits obligations or writes the store. Status: (accepted, decision 0485;
+  GitHub #714).
 - `TOL-V0-033`: `qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
   `corvint-tasks-qualify-verdict/0`) with the commit, base, config digest, steps, runs, neighbour
   results and reasons, and then `manifest.json` listing every other file of the pack with its
@@ -443,8 +445,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   submitted, and an interrupt seen by then credits nothing and refuses `GATE_FAILED` with
   `LANE_FAILED: interrupted before the witness was submitted`; once submitted, the witness
   mutation is atomic and is not split by a later interrupt. A checkout that changed during the job
-  is `LANE_FAILED` for `qualify` and credits nothing for `run-batch`. Status: (proposed, pending
-  owner acceptance; GitHub #714).
+  is `LANE_FAILED` for `qualify` and credits nothing for `run-batch`. Status: (accepted, decision
+  0485; GitHub #714).
 
 ## Failure modes and trust
 
@@ -518,7 +520,7 @@ fixture passes.
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
 | TOL-V0-022..024 (decision 0484) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
 | TOL-V0-025..027 (decision 0484) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
-| TOL-V0-028..033 (proposed) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact` (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, and the release refusal is injected | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
+| TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact` (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, and the release refusal is injected | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -585,7 +587,7 @@ The additions TOL-V0-022..027 add no stored state: the `defectConfirmed` and `mi
 `preflight` verb are read-side output, and the witness event is unchanged, so rolling them back is
 reverting the change.
 
-The proposed additions TOL-V0-028..033 add no stored state beyond the witness event the unchanged
+The additions TOL-V0-028..033 add no stored state beyond the witness event the unchanged
 witness path writes. Their summaries, logs, reports and verdict packs live only under the
 operator's `--out` directory, and pool acquire and release use the existing verbs. Rolling them back
 is reverting the change; existing results directories become inert files.
