@@ -45,12 +45,12 @@ func TestCALV0074_WorkerRecoveryChild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	store.SetRunFaultForTest(func(at string) error {
+	defer store.SetRunFaultForTest(repo.StateDir, func(at string) error {
 		if at == "refresh:STOPPING" {
 			os.Exit(3)
 		}
 		return nil
-	})
+	})()
 	_, err = w.RunRole(context.Background(), "implementer", "")
 	t.Fatalf("owner was not interrupted at STOPPING: %v", err)
 }
