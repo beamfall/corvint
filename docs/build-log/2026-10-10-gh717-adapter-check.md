@@ -145,6 +145,32 @@ invalid observations give 1024 entries plus the omission entry). The CLI check s
 gains empty discovery-execution, candidate and test identities, a duplicate candidate and a duplicate
 observation. These fail on commit `62187812` and pass after.
 
+Review round 4 found one more gap. The first refusal was exempt from both report bounds, and it
+echoes request strings without a bound. A 4,194,304-byte request whose single input has an anchor
+revision of 4,193,511 `x` bytes gave a first refusal of about 4.19 MB. The report then exceeded the
+encoder bound, and the CLI exited 2 with no report. Now every report entry's message, including the
+first, is capped at 4 KiB. The cut falls on a UTF-8 boundary and is followed by
+` … [truncated <N> bytes]`. Build's own error bytes are unchanged. The parity rule is now: the
+first entry equals Build's refusal truncated by the same cap.
+
+Messages that echo request-supplied strings, all covered by the cap:
+
+- `fieldError` echoes the input identity, the field pointer, and the anchor revision and digest.
+  This is the reviewed path, reached from the input anchor check.
+- The mapping identity refusal echoes the mapping's input and record pointer.
+- Field-mapping refusals echo the mapping kind and field name. Field pointers echo the mapped field
+  pointer values.
+- The invalid input document refusal echoes the input identity.
+- Check-only `remaining checks for <item> ...` entries echo item identities and the item's refusal.
+
+`TestBehaviorAdapterCheckCapsMessages` builds the reviewed request at exactly `MaxBytes`. It
+asserts that Build's error is unchanged and over 4 KiB, that entry 0 equals the capped Build message
+and ends with the marker, and that the report encodes within 64 KiB. It also checks that a multibyte
+rune at the cut is not split. The CLI check subtest asserts exit 1, empty stderr and a report under
+64 KiB for the same request. On commit `a597b55f`, the CLI subtest exits 2 with `output bound
+exceeded`. A behavior-only probe of the same request also fails there: the first refusal is
+4,193,265 bytes and `Encode` refuses. Both pass after.
+
 Limits:
 
 - The report does not list every independent refusal within one item. Repairing an item's first

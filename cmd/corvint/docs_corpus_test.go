@@ -154,6 +154,29 @@ func TestBehaviorAdapterCLI(t *testing.T) {
 		if code != 1 || stderr != "" || len(out) > 64<<10 || json.Unmarshal([]byte(out), &report) != nil || report.Accepted {
 			t.Fatalf("mapping overflow check: code=%d bytes=%d stderr=%s", code, len(out), stderr)
 		}
+		repository := doccorpus.Repository{ID: strings.Repeat("a", 40), Revision: strings.Repeat("b", 40)}
+		long := doccorpus.BehaviorAdapterRequest{
+			Schema: doccorpus.BehaviorAdapterRequestSchema, ProviderID: "p", ProviderVersion: "1", ContractID: "c",
+			Source: repository, Revisions: doccorpus.BehaviorRevisions{App: repository, E2E: repository, Docs: repository},
+			SourceRevision: repository.Revision, DocumentationRevision: repository.Revision,
+			Inputs:   []doccorpus.BehaviorAdapterInput{{ID: "i", Document: "{}"}},
+			Mappings: make([]doccorpus.BehaviorAdapterMapping, 4),
+		}
+		base, err := json.Marshal(long)
+		if err != nil {
+			t.Fatal(err)
+		}
+		long.Inputs[0].Anchor.Revision = strings.Repeat("x", doccorpus.MaxBytes-len(base))
+		longRaw, err := json.Marshal(long)
+		if err != nil || len(longRaw) != doccorpus.MaxBytes {
+			t.Fatalf("long request is %d bytes: %v", len(longRaw), err)
+		}
+		cemWrite(t, root, "long.json", string(longRaw))
+		code, out, stderr = corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "long.json", "--check")
+		report = doccorpus.BehaviorAdapterCheck{}
+		if code != 1 || stderr != "" || len(out) > 64<<10 || json.Unmarshal([]byte(out), &report) != nil || report.Accepted {
+			t.Fatalf("read-bound check: code=%d bytes=%d stderr=%.200s", code, len(out), stderr)
+		}
 		for _, args := range [][]string{
 			{"docs", "corpus", "behavior-adapter", "--input", "request.json", "--check=true"},
 			{"docs", "corpus", "behavior-provider", "--input", "request.json", "--check"},

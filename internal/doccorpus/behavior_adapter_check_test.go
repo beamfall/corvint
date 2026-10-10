@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func behaviorAdapterEditDocument(t *testing.T, request *BehaviorAdapterRequest, inputID string, edit func(map[string]any)) {
@@ -112,7 +113,7 @@ func TestBehaviorAdapterCheckParity(t *testing.T) {
 					t.Fatalf("build error is untyped: %v", buildErr)
 				}
 				first := report.Refusals[0]
-				if first.State != "refused" || first.Code != refused.Code || first.Message != refused.Message {
+				if first.State != "refused" || first.Code != refused.Code || first.Message != behaviorCheckMessage(refused.Message) {
 					t.Fatalf("first refusal %+v, build refused %q", first, refused.Message)
 				}
 			}
@@ -255,7 +256,7 @@ func TestBehaviorAdapterCheckIndependentRefusals(t *testing.T) {
 				t.Fatalf("build should refuse first with %q: %v", tc.wanted[0], buildErr)
 			}
 			report := CheckBehaviorAdapter(raw, nil)
-			if report.Accepted || report.Refusals[0].Code != refused.Code || report.Refusals[0].Message != refused.Message {
+			if report.Accepted || report.Refusals[0].Code != refused.Code || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
 				t.Fatalf("first refusal %+v, build refused %q", report.Refusals, refused.Message)
 			}
 			found := 0
@@ -380,7 +381,7 @@ func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
 				t.Fatalf("build should refuse with %q: %v", tc.want, buildErr)
 			}
 			report := CheckBehaviorAdapter(raw, nil)
-			if report.Accepted || report.Refusals[0].Stage != tc.stage || report.Refusals[0].Message != refused.Message {
+			if report.Accepted || report.Refusals[0].Stage != tc.stage || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
 				t.Fatalf("first refusal %+v, build refused %q", report.Refusals, refused.Message)
 			}
 			refusals, entries := 0, 0
@@ -393,7 +394,7 @@ func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
 					if tc.absent != "" && strings.Contains(refusal.Message, tc.absent) {
 						t.Fatalf("check evaluated a later check of a refused item: %+v", report.Refusals)
 					}
-				} else if refusal.Message == "remaining checks for "+item+" not evaluated after "+refused.Message && len(refusal.BlockedBy) == 1 && refusal.BlockedBy[0] == tc.stage {
+				} else if refusal.Message == behaviorCheckMessage("remaining checks for "+item+" not evaluated after "+refused.Message) && len(refusal.BlockedBy) == 1 && refusal.BlockedBy[0] == tc.stage {
 					entries++
 				}
 			}
@@ -467,7 +468,62 @@ func TestBehaviorAdapterCheckBoundsReport(t *testing.T) {
 	report = CheckBehaviorAdapter(raw, nil)
 	encoded, err = Encode(report)
 	last := report.Refusals[len(report.Refusals)-1]
-	if err != nil || report.Accepted || report.Refusals[0].Message != refused.Message || len(report.Refusals) != 1025 || last.Message != "further entries omitted after 1024" || last.State != "not-evaluated" {
+	if err != nil || report.Accepted || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) || len(report.Refusals) != 1025 || last.Message != "further entries omitted after 1024" || last.State != "not-evaluated" {
 		t.Fatalf("report entries are not capped: %v entries=%d last=%+v", err, len(report.Refusals), last)
+	}
+}
+
+// behaviorAdapterLongRevisionRequest returns a request of exactly MaxBytes
+// whose single input echoes an invalid anchor revision into Build's first
+// refusal (GH #717 review round 4).
+func behaviorAdapterLongRevisionRequest(t *testing.T) []byte {
+	t.Helper()
+	repository := Repository{ID: strings.Repeat("a", 40), Revision: strings.Repeat("b", 40)}
+	request := BehaviorAdapterRequest{
+		Schema: BehaviorAdapterRequestSchema, ProviderID: "p", ProviderVersion: "1", ContractID: "c",
+		Source: repository, Revisions: BehaviorRevisions{App: repository, E2E: repository, Docs: repository},
+		SourceRevision: repository.Revision, DocumentationRevision: repository.Revision,
+		Inputs:   []BehaviorAdapterInput{{ID: "i", Document: "{}"}},
+		Mappings: make([]BehaviorAdapterMapping, 4),
+	}
+	base, err := jsonstd.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Inputs[0].Anchor.Revision = strings.Repeat("x", MaxBytes-len(base))
+	raw, err := jsonstd.Marshal(request)
+	if err != nil || len(raw) != MaxBytes {
+		t.Fatalf("request is %d bytes: %v", len(raw), err)
+	}
+	return raw
+}
+
+// TestBehaviorAdapterCheckCapsMessages proves DCP-V1-044: every report
+// message, including Build's first refusal, is capped at 4 KiB on a UTF-8
+// boundary, so a request at the read bound still gets an encodable report.
+func TestBehaviorAdapterCheckCapsMessages(t *testing.T) {
+	raw := behaviorAdapterLongRevisionRequest(t)
+	_, buildErr := BuildBehaviorAdapter(raw, nil)
+	var refused *Error
+	if !errors.As(buildErr, &refused) || len(refused.Message) < MaxBytes/2 {
+		t.Fatalf("build should echo the long revision: %v", len(buildErr.Error()))
+	}
+	report := CheckBehaviorAdapter(raw, nil)
+	encoded, err := Encode(report)
+	if err != nil || report.Accepted || len(encoded) > 64<<10 {
+		t.Fatalf("report is unbounded: %v %d bytes", err, len(encoded))
+	}
+	first := report.Refusals[0].Message
+	if first != behaviorCheckMessage(refused.Message) || !strings.HasPrefix(refused.Message, strings.Split(first, " … [truncated ")[0]) || !strings.HasSuffix(first, " bytes]") {
+		t.Fatalf("first refusal is not Build's refusal under the cap: %.200q", first)
+	}
+	for _, refusal := range report.Refusals {
+		if len(refusal.Message) > behaviorCheckMaxMessageBytes+64 {
+			t.Fatalf("message exceeds the cap: %d bytes", len(refusal.Message))
+		}
+	}
+	multibyte := strings.Repeat("a", behaviorCheckMaxMessageBytes-1) + "é" + "tail"
+	if capped := behaviorCheckMessage(multibyte); !utf8.ValidString(capped) || !strings.HasPrefix(capped, strings.Repeat("a", behaviorCheckMaxMessageBytes-1)+" … [truncated ") {
+		t.Fatalf("cap did not cut on a UTF-8 boundary: %.80q", capped[len(capped)-40:])
 	}
 }

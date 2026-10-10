@@ -998,7 +998,7 @@ DCP-V1-041	docs/specs/documentation-corpus-v1.md	291	A companion switch-over har
 DCP-V1-042	docs/specs/documentation-corpus-v1.md	301	The separately started experimental hosted companion serves only embedded digest
 DCP-V1-043	docs/specs/documentation-corpus-v1.md	309	The `corvint-corpus-parity` companion is qualified through its own command bound
 DCP-V1-044	docs/specs/documentation-corpus-v1.md	315	`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.js
-DCP-V1-045	docs/specs/documentation-corpus-v1.md	336	The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anc
+DCP-V1-045	docs/specs/documentation-corpus-v1.md	337	The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anc
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide

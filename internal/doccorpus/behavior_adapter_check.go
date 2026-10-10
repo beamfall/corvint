@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+	"unicode/utf8"
 )
 
 // BehaviorAdapterCheckSchema identifies the DCP-V1-044 check report. A check
@@ -215,16 +216,33 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 // about behaviorCheckMaxEntryBytes of encoded entries, so a readable request
 // always yields an encodable report (DCP-V1-044).
 const (
-	behaviorCheckMaxEntries    = 1024
-	behaviorCheckMaxEntryBytes = 1 << 20
+	behaviorCheckMaxEntries      = 1024
+	behaviorCheckMaxEntryBytes   = 1 << 20
+	behaviorCheckMaxMessageBytes = 4 << 10
 )
+
+// behaviorCheckMessage caps one report message at behaviorCheckMaxMessageBytes,
+// cut on a UTF-8 boundary and marked with the number of bytes removed. Entry 0
+// equals Build's refusal message under this rule (DCP-V1-044).
+func behaviorCheckMessage(message string) string {
+	if len(message) <= behaviorCheckMaxMessageBytes {
+		return message
+	}
+	cut := behaviorCheckMaxMessageBytes
+	for cut > 0 && !utf8.RuneStart(message[cut]) {
+		cut--
+	}
+	return message[:cut] + " … [truncated " + strconv.Itoa(len(message)-cut) + " bytes]"
+}
 
 // boundBehaviorAdapterRefusals keeps the first entry, which is Build's
 // refusal, and then entries in order while both bounds hold. A terminal
 // not-evaluated entry says how many entries were kept when any were omitted.
 func boundBehaviorAdapterRefusals(refusals []BehaviorAdapterRefusal) []BehaviorAdapterRefusal {
 	size := 0
-	for index, refusal := range refusals {
+	for index := range refusals {
+		refusals[index].Message = behaviorCheckMessage(refusals[index].Message)
+		refusal := refusals[index]
 		encoded, err := Encode(refusal)
 		if err == nil {
 			size += len(encoded)
@@ -317,5 +335,6 @@ func behaviorAdapterCheckLimitations() []string {
 		"items (inputs, mappings, observations, mapped records and discovery executions) are evaluated independently; within one item, evaluation stops at its first refusal and one not-evaluated entry names the item's remaining checks",
 		"when a count bound refuses, the individual items it bounds are not evaluated",
 		"the report lists at most 1024 refusal entries and about 1 MiB of them; a terminal entry says further entries were omitted",
+		"each report message is capped at 4 KiB on a UTF-8 boundary with a truncation marker; the first entry equals the build refusal under the same cap",
 	}
 }
