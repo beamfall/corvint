@@ -102,7 +102,8 @@ Unretained observation: the aborted burst used 24 burners and three loops, at bo
 122–191. It reached the upgrade case 9 times, and all 9 passed with no SessionStart retry. Its rows
 are not in the table.
 
-Focused tests, at the same source, during the loop (unretained observations; their output was not kept):
+Focused tests, at the same source, during the loop. These are unretained observations; their output
+was not kept.
 
 - PASS: `go test -race -count=50 -timeout 30m ./conformance/host-lifecycle-v1` (182 s).
 - PASS: `go test -race -count=20 -timeout 30m -run
