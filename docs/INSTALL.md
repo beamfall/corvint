@@ -130,8 +130,9 @@ passing loop is structural closure, not proof that the change is correct.
 Read commands do not change repository or trace state, with two bounded private exceptions under
 `.corvint/`: `self-observations.jsonl` (an `unsupported-*` refusal may append one row) and
 `unplanned-reads.jsonl` (host-adapter hooks append only while the operator marker
-`.corvint/unplanned-reads.enabled` exists). A read-only operator should expect those two files to
-change and nothing else: they are never an input to ranking, evidence, authority or trace
+`.corvint/unplanned-reads.enabled` exists). A read-only operator should expect those two ledgers (and the
+`.self-observations.*` temporaries the first one's writer creates and removes) to change and
+nothing else under a read: they are never an input to ranking, evidence, authority or trace
 state. [Automation](AUTOMATION.md) lists each write condition.
 
 ## Standalone Tasks archive
