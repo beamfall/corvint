@@ -3,6 +3,7 @@
 package journal
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,6 +107,129 @@ func TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce(t *testing.T) {
 			requireRefusal(t, err, wire.CodeMalformed, "staging/a07")
 			if len(*pauses) != 0 {
 				t.Fatalf("waited %v", *pauses)
+			}
+		})
+	}
+}
+
+// CTS-V0-008: an audit whose caller holds the writer lock (reconcile, barrier,
+// policy, release, import, mutate and redo in the store) knows no writer can
+// be publishing, so it refuses an orphan slot at once, as before the wait,
+// rather than holding the lock for the whole budget. A moved first
+// observation is still retried; the stable orphan then makes no pause.
+func TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause(t *testing.T) {
+	repo, r := setup(t)
+	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
+	dir := filepath.Join(repo.StateDir, "staging")
+	fixture.Write(t, filepath.Join(dir, "a00"), []byte("x"))
+	r.WriterLocked = true
+	pauses := stubStageSleep(t, nil)
+	audits := map[string]func() error{
+		"Audit":            func() error { _, err := r.Audit(); return err },
+		"RequestIndex":     func() error { _, _, err := (&RequestIndex{Reader: r}).Lookup("request"); return err },
+		"AuditForMutation": func() error { _, err := r.AuditForMutation("request"); return err },
+	}
+	for name, audit := range audits {
+		t.Run(name, func(t *testing.T) {
+			requireRefusal(t, audit(), wire.CodeMalformed, "staging/a00")
+		})
+	}
+	captures := 0
+	r.afterCapture = func() {
+		if captures++; captures == 1 {
+			fixture.Write(t, filepath.Join(dir, "a01"), []byte("x"))
+		}
+	}
+	_, err := r.Audit()
+	requireRefusal(t, err, wire.CodeMalformed, "staging/a00")
+	if captures != 2 {
+		t.Fatalf("attempts %d; want moved then refused", captures)
+	}
+	if len(*pauses) != 0 {
+		t.Fatalf("writer-locked audit waited %v", *pauses)
+	}
+}
+
+// CTS-V0-008: the wait and the four SNAPSHOT_MOVED attempts are separate
+// bounds that compose. A pause never spends an attempt, a move never resets
+// or extends the wait, a move after the budget is spent costs no further
+// pause, and four moves in all, before or after the budget is spent, still
+// end in SNAPSHOT_MOVED.
+func TestCTSV0008_MovedObservationsAndSpentWaitCompose(t *testing.T) {
+	cases := map[string]struct {
+		// move reports whether this capture's observation moves, given
+		// the moves already made after the wait was spent.
+		move       func(capture, after int, spent bool) bool
+		code, path string
+		after      int // moves made after the wait is spent
+	}{
+		"moves while waiting": {
+			move: func(c, _ int, _ bool) bool { return c == 2 || c == 4 },
+			code: wire.CodeMalformed, path: "staging/a00", after: 0,
+		},
+		"move after the budget is spent": {
+			move: func(_, after int, spent bool) bool { return spent && after == 0 },
+			code: wire.CodeMalformed, path: "staging/a00", after: 1,
+		},
+		"three moves waiting, one after": {
+			move: func(c, _ int, spent bool) bool { return c == 2 || c == 3 || c == 4 || spent },
+			code: wire.CodeSnapshotMoved, path: "/", after: 1,
+		},
+		"four moves after the budget is spent": {
+			move: func(_, _ int, spent bool) bool { return spent },
+			code: wire.CodeSnapshotMoved, path: "/", after: 4,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			repo, r := setup(t)
+			appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
+			dir := filepath.Join(repo.StateDir, "staging")
+			fixture.Write(t, filepath.Join(dir, "a00"), []byte("x"))
+			pauses := stubStageSleep(t, nil)
+			waited := func() (total time.Duration) {
+				for _, d := range *pauses {
+					total += d
+				}
+				return total
+			}
+			captures, moves, movedAfterSpent := 0, 0, 0
+			r.afterCapture = func() {
+				captures++
+				spent := waited() == stagePatience
+				if !tc.move(captures, movedAfterSpent, spent) {
+					return
+				}
+				moves++
+				if spent {
+					movedAfterSpent++
+				}
+				fixture.Write(t, filepath.Join(dir, fmt.Sprintf("a%02d", moves)), []byte("x"))
+			}
+			_, err := r.Audit()
+			requireRefusal(t, err, tc.code, tc.path)
+			if waited() != stagePatience {
+				t.Fatalf("waited %v in %v; want exactly %v", waited(), *pauses, stagePatience)
+			}
+			for i, d := range *pauses {
+				if d <= 0 || d > stagePauseCeiling || (i > 0 && d > 2*(*pauses)[i-1]) {
+					t.Fatalf("pause %d of %v outside the backoff", i, *pauses)
+				}
+			}
+			if movedAfterSpent != tc.after {
+				t.Fatalf("%d moves after the wait was spent; want %d", movedAfterSpent, tc.after)
+			}
+			want := len(*pauses) + moves
+			if tc.code == wire.CodeMalformed {
+				want++ // the final stable observation that returns the refusal
+				if moves >= 4 {
+					t.Fatalf("%d moves yet refused MALFORMED", moves)
+				}
+			} else if moves != 4 {
+				t.Fatalf("SNAPSHOT_MOVED after %d moves; want 4", moves)
+			}
+			if captures != want {
+				t.Fatalf("attempts %d; want %d (%d pauses, %d moves)", captures, want, len(*pauses), moves)
 			}
 		})
 	}

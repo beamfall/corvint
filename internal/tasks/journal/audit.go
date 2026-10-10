@@ -123,6 +123,11 @@ type Reader struct {
 	// the walk has fully validated it, is not called again after its first
 	// error, and never changes the audit; Result.ReceiptFold reports it.
 	ReceiptFold func() func(rc *snapshot.Receipt, sum wire.Digest) error
+	// WriterLocked says the caller holds the writer lock, so no other native
+	// writer can be publishing and any descriptor-less staging slot is a
+	// killed writer's orphan: the audit refuses it at once instead of
+	// waiting for it while blocking every other writer (CTS-V0-008).
+	WriterLocked bool
 	// ExpectHeadSha256, when set, is the head digest of the outer snapshot
 	// the caller binds this audit to. An attempt whose first capture shows
 	// any other head returns SNAPSHOT_MOVED at once, without walking or
@@ -313,7 +318,7 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 		}
 		var slots slotsInFlight
 		if errors.As(err, &slots) {
-			if waited >= stagePatience {
+			if r.WriterLocked || waited >= stagePatience {
 				return result, slots.error
 			}
 			step := min(pause, stagePatience-waited)
@@ -331,8 +336,11 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 // whole of its publish, so an unlocked audit that sees them stable across both
 // captures waits for the writer with the snapshot read's backoff, at most
 // stagePatience in total, before returning the MALFORMED a killed writer's
-// orphan earns (CTS-V0-008). It does not follow snapshot.DefaultPatience:
-// test binaries zero that, and the race is real in them too.
+// orphan earns (CTS-V0-008). A WriterLocked audit never waits. A pause is
+// not one of the four SNAPSHOT_MOVED attempts, and an observation that moves
+// between pauses still spends one. The budget does not follow
+// snapshot.DefaultPatience: test binaries zero that, and the race is real in
+// them too.
 var (
 	stagePatience     = 2 * time.Second
 	stagePause        = 25 * time.Millisecond
