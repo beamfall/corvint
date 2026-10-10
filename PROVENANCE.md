@@ -27,8 +27,8 @@ A commercial release must verify its actual source/dependency inventory and gran
 
 Corvint is licensed under the **GNU Affero General Public License, version 3.0 or later** (`LICENSE`).
 An explicitly enumerated interoperability layer — protocol descriptions, schemas, conformance
-material, examples, and interop implementations — is licensed instead under the **Apache License
-2.0** (`LICENSE-APACHE-2.0`), so that agent, IDE, CI, and context-engine vendors can implement the
+material, and interop implementations — is licensed instead under the **Apache License 2.0**
+(`LICENSE-APACHE-2.0`), so that agent, IDE, CI, and context-engine vendors can implement the
 portable standard without the copyleft attaching, including in proprietary software.
 
 `LICENSING.md` is the authoritative path boundary. `docs/decisions/0002-future-publication-transition.md`

@@ -75,6 +75,8 @@ var scopes = map[string][]string{
 	"decision-numbers-check":        {"docs/decisions/"},
 	"eol-policy-check":              {treeScope},
 	"eol-policy-test":               {},
+	"license-headers-check":         {"examples/"},
+	"license-headers-test":          {},
 	"line-citations-check":          {treeScope},
 	"line-citations-test":           {},
 	"ci-least-privilege-check":      {".github/"},

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Recipe 1: understand a proposed change (base..HEAD) before reviewing or extending it.
 # Composes three read-only commands: `corvint impact --base`, `corvint affected --base` and
 # `corvint context --task`. None writes repository, index or trace state.

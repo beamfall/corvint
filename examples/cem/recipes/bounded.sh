@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # shellcheck shell=bash
 # Sourced by the CEM workflow recipes; not run directly.
 #
