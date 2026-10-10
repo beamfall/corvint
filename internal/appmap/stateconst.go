@@ -251,26 +251,44 @@ func (t *constTable) mayHold(f *constFile, m string, decl *constFile) bool {
 
 // relays reports whether f may pass on a value it imports, so that one of its exports may be
 // another module's table. A file holds another module's value only through an import binding or a
-// module reference, so this asks no question of the export forms: any import binding f exports by
-// name (`export { T }`, `export default T`) or uses other than as a provable member read (an
-// alias, an argument, `export default (T)`, `T as X`, any default-export or other expression the
-// reader does not prove a read) relays, and so does an `export default T ...` expression that
-// starts with it (`export default T || {}`), and any namespace import, dynamic import, `require`
-// or unread import item that is not a package's.
+// module reference, and a value reaches an export through any expression, local or member chain
+// (`export default (NS.T)`, `const S = W.T; export { S }`, a function returning it), so this asks
+// no question of the export forms or of how the binding is used: f relays when it exports or
+// mentions a binding imported from a module that is not a package's anywhere outside its import
+// statements (a member read of a namespace or of an object that
+// holds the table is the table), holds a namespace import, dynamic import, `require` or unread
+// import item that is not a package's, or re-exports anything.
 func (t *constTable) relays(f *constFile) bool {
-	for local := range f.imports {
-		if f.exports[local] || f.listed[local] || f.dflt == local || !f.onlyRead(local, -1) {
-			return true
-		}
-	}
-	for i, tok := range f.toks {
-		if _, imported := f.imports[tok.text]; imported && tok.kind == tokIdent && !f.skip[i] &&
-			word(f.toks, i-1, "default") && word(f.toks, i-2, "export") {
+	for local, imp := range f.imports {
+		if !t.pkg(f, imp.module) && (f.exports[local] || f.listed[local] || f.dflt == local || f.hidden[local] || f.mentions(local)) {
 			return true
 		}
 	}
 	for _, m := range f.spaces {
-		if m == "" || t.resolver == nil || t.resolver.Resolve(f.entry.path, m).State != contextindex.WebImportPackage {
+		if !t.pkg(f, m) {
+			return true
+		}
+	}
+	return len(f.reexports) > 0
+}
+
+// pkg reports whether module m, imported by f, is a package's, which cannot hold a repository
+// table; a module name that is not an exact literal, or a relative one, could be any module.
+func (t *constTable) pkg(f *constFile, m string) bool {
+	if m == "" {
+		return false
+	}
+	if t.resolver == nil {
+		return !strings.HasPrefix(m, ".") && !strings.HasPrefix(m, "/")
+	}
+	return t.resolver.Resolve(f.entry.path, m).State == contextindex.WebImportPackage
+}
+
+// mentions reports whether name appears as a binding (not a property name) outside f's import
+// statements and constant declaration headers.
+func (f *constFile) mentions(name string) bool {
+	for i, tok := range f.toks {
+		if !f.skip[i] && tok.kind == tokIdent && tok.text == name && !property(f.toks, i) {
 			return true
 		}
 	}

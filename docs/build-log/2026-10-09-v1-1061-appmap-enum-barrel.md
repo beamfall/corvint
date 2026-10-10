@@ -126,6 +126,16 @@ injector.
   `require` or unread import item of anything but a package. A file can hold another module's
   value only through those bindings, so any default-export expression the reader does not
   understand fails closed.
+- Eleventh review (structural, no spec text change): a member read is not a safe use in a
+  relaying file, because the object read may hold the table (`import { NS } from './namespace'`
+  where the module does `export * as NS`, or `W.T` for `export const W = { T: SectionTable }`),
+  and a parenthesized `export default (NS.SectionTable)` evaded the round-10 check for an
+  export default expression starting with an import. `relays` no longer distinguishes use or
+  export forms: a file relays when it exports or mentions anywhere outside its import statements
+  (in any expression, member chain, local initializer or function body) a binding imported from a
+  module that is not a package's, holds a non-package namespace import, dynamic import, `require`
+  or unread import item, or has any re-export. Bindings from a package are excluded, as `mayHold`
+  already excluded packages, so an exported helper built from a package import is not a holder.
 
 ## Evidence
 
@@ -239,6 +249,17 @@ injector.
   subtests resolve silently (all but `export const R = T`, which the loose export already caught);
   the reads guard passes before and after; all pass with the fix. The full
   `go test -count=1 -v ./internal/appmap` passes (447 passing tests and subtests).
+- Eleventh review follow-up (a member read of a named-import namespace relays the table):
+  `TestAMAPV0025ChainBindingsFailClosed` gained the review's input (registration on line 2), the
+  same without parentheses and as `export const R = NS.SectionTable`, and relays that read `W.T`
+  from an imported wrapper as `export default W.T`, `(W.T)`, `export const R = W.T`, a local
+  re-exported by an `export` list and a function body. Its reads guard's helper module now imports
+  from a package (`@playwright/test`) and exports a value built from it, still resolved. Against
+  `stateconst.go` from `bb11edde`, 4 new subtests resolve silently (the review's input, `(W.T)`,
+  the local and the function), and the reads guard fails (a package binding swept into a loose
+  export counted as a relay); the other new subtests were already caught incidentally and stay as
+  guards; all pass with the fix. The full `go test -count=1 -v ./internal/appmap` passes (456
+  passing tests and subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -276,10 +297,11 @@ injector.
   whole even where the file never touches it, and any import from the declaring file, a barrel,
   a file that relays an import or an unresolved module must be only read, whatever it imports
   (a function imported from the declaring file and called fails closed). A file relays, and so
-  may hold the table, whenever it uses an import other than as a member read or `typeof`, or
-  holds a namespace import, dynamic import or `require` of anything but a package: a helper
-  module that calls what it imports makes every chain import from it subject to the write
-  checks. The router-side (AMAP-V0-016, not injected) path
+  may hold the table, whenever it mentions any binding imported from a repository module or an
+  unresolved one, or holds a namespace import, dynamic import or `require` of anything but a
+  package: nearly every repository module with repository imports is then a possible holder, and
+  every chain import from it must pass the write checks (a helper function imported from such a
+  module and called leaves the table not read whole). The router-side (AMAP-V0-016, not injected) path
   does not yet apply the chain-binding check to alias and namespace imports; that needs
   AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
   unsure mark. The bracket

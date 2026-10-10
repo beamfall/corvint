@@ -456,6 +456,12 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"registering paren default": {"import { SectionTable } from '../tables/routes.constants';\nangular.module('admin').constant('SectionNames', SectionTable);\n" +
 			"import R from '../tables/relay';\nR.REPORTS = 'other';\n",
 			map[string]string{"app/tables/routes.constants.ts": table, "app/tables/relay.ts": "import { SectionTable } from './routes.constants';\nexport default (SectionTable);\n"}},
+		// The review's round-11 input (registration on line 2): a member read of a namespace that a
+		// named import binds, exported in parentheses.
+		"registering ns member": {"import { SectionTable } from '../tables/routes.constants';\nangular.module('admin').constant('SectionNames', SectionTable);\n" +
+			"import R from '../tables/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{"app/tables/routes.constants.ts": table, "app/tables/namespace.ts": "export * as NS from './routes.constants';\n",
+				"app/tables/relay.ts": "import { NS } from './namespace';\nexport default (NS.SectionTable);\n"}},
 	} {
 		t.Run(name, func(t *testing.T) { checkBarrel(t, c.reg, c.files, "not-read-whole", "") })
 	}
@@ -471,10 +477,32 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"call":      "export default wrap(SectionTable);\n",
 		"alias":     "const S = SectionTable;\nexport default S;\n",
 		"named":     "export const R = SectionTable;\n",
+		// A member read of a named import that holds the table (round 11).
+		"wrapped member":  "export const W = { T: SectionTable };\n",
+		"member default":  "import { W } from './wrap';\nexport default W.T;\n",
+		"member paren":    "import { W } from './wrap';\nexport default (W.T);\n",
+		"member const":    "import { W } from './wrap';\nexport const R = W.T;\n",
+		"member local":    "import { W } from './wrap';\nconst S = W.T;\nexport { S as R };\n",
+		"member function": "import { W } from './wrap';\nexport function R() { return W.T; }\n",
 	} {
 		t.Run("relay "+name, func(t *testing.T) {
 			checkBarrel(t, reg+"import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
-				map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import { SectionTable } from './routes.constants';\n" + relay}, "not-read-whole", "")
+				map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import { SectionTable } from './routes.constants';\n" + relay,
+					"app/tables/routes/wrap.ts": "import { SectionTable } from './routes.constants';\nexport const W = { T: SectionTable };\n"}, "not-read-whole", "")
+		})
+	}
+	// The round-11 input without parentheses, and through a named export.
+	for name, relay := range map[string]string{
+		"ns member bare":  "import { NS } from './namespace';\nexport default NS.SectionTable;\n",
+		"ns member const": "import { NS } from './namespace';\nexport const R = NS.SectionTable;\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := reg + "import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n"
+			if strings.Contains(relay, "const R") {
+				r = reg + "import { R } from '../tables/routes/relay';\nR.REPORTS = 'other';\n"
+			}
+			checkBarrel(t, r, map[string]string{index: star, decl: table, "app/tables/routes/namespace.ts": "export * as NS from './routes.constants';\n",
+				"app/tables/routes/relay.ts": relay}, "not-read-whole", "")
 		})
 	}
 	t.Run("relay namespace", func(t *testing.T) {
@@ -486,7 +514,7 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		checkBarrel(t, reg+"import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport * as U from '../util';\n"+
 			"import { Other } from '../tables/routes/routes.constants';\nconst o = Other.A;\nimport { helper } from '../util';\nhelper.call(null);\n",
 			map[string]string{index: star + "import { SectionTable as T } from './routes.constants';\nconst s = T.REPORTS;\nimport * as P from '@playwright/test';\n",
-				decl: table + "export const Other = { A: 'a' };\nimport * as V from '../../util';\nrequire('../../util');\n", "app/util.ts": "export const helper = 1;\n"}, "", index)
+				decl: table + "export const Other = { A: 'a' };\nimport * as V from '../../util';\nrequire('../../util');\n", "app/util.ts": "import { test } from '@playwright/test';\nexport const helper = test.info;\n"}, "", index)
 	})
 }
 
