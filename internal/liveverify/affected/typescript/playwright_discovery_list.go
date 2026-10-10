@@ -7,6 +7,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -135,7 +136,8 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 // subset, so a stale or partial listing is refused instead of stamped with the current bindings.
 // Membership that is not static is refused as well; only an unresolved browser identity, which
 // does not decide file membership, is tolerated, and a config without projects is Playwright's
-// one unnamed default project. A selected file the static profile cannot parse is refused too.
+// one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
+// refused too.
 func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
 	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
 	implicit := false
@@ -151,6 +153,9 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 	if implicit {
 		projects = []PlaywrightProject{{TestDir: globalTestDir}}
 	}
+	if err := checkPlaywrightSkippedDirectories(root, configPath, projects, globalTestDir); err != nil {
+		return err
+	}
 	// Candidates are found by path alone, so a test file the static profile cannot parse or read
 	// (.mts, .cts, non-UTF-8) still counts toward membership instead of disappearing from it.
 	candidates, err := affected.SourceFiles(root, playwrightLoadableName)
@@ -158,9 +163,17 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 		return err
 	}
 	selected := map[PlaywrightDiscoveryUnit]bool{}
+	readable := map[string]bool{}
 	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
 		if !hasSourceExtension(unit.Test) {
 			return fmt.Errorf("the config selects project %q test %s, which the static profile does not parse; the listing's membership cannot be checked", unit.Project, unit.Test)
+		}
+		if _, checked := readable[unit.Test]; !checked {
+			body, err := affected.ReadSource(root, unit.Test)
+			readable[unit.Test] = err == nil && utf8.Valid(body)
+		}
+		if !readable[unit.Test] {
+			return fmt.Errorf("the config selects project %q test %s, which the static profile cannot read as bounded UTF-8 source; the listing's membership cannot be checked", unit.Project, unit.Test)
 		}
 		selected[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] = true
 	}
@@ -187,6 +200,92 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 		return fmt.Errorf("playwright listing names project %q test %s (%d pair(s) in all), which the config does not select in the current sources", extra[0].Project, extra[0].Test, len(extra))
 	}
 	return nil
+}
+
+// checkPlaywrightSkippedDirectories refuses when the config selects a test file inside a directory
+// the shared source walker skips (a hidden directory or one of affected.SkippedDirectories, such as
+// build, dist, vendor or target): Playwright still runs it, but it is outside the bound source
+// digest and the path-based enumeration. node_modules below a testDir is not searched, because
+// Playwright never descends it, and symbolic links are not followed, because Playwright skips them;
+// a testDir that is itself reached through a symbolic link is refused.
+func checkPlaywrightSkippedDirectories(root, configPath string, projects []PlaywrightProject, globalTestDir string) error {
+	directories := map[string]bool{}
+	for _, project := range projects {
+		directory := project.TestDir
+		if directory == "" {
+			directory = globalTestDir
+		}
+		directories[directory] = true
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	inSkipped := map[string]string{}
+	entries := 0
+	for directory := range directories {
+		start := filepath.Join(root, filepath.FromSlash(directory))
+		resolved, err := filepath.EvalSymlinks(start)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // Playwright finds no tests in a missing testDir
+		}
+		if err != nil {
+			return fmt.Errorf("cannot resolve testDir %s: %w", directory, err)
+		}
+		if resolved != filepath.Join(resolvedRoot, filepath.FromSlash(directory)) {
+			return fmt.Errorf("testDir %s is reached through a symbolic link, which the bound source observation does not follow; the listing's membership cannot be checked", directory)
+		}
+		err = filepath.WalkDir(start, func(current string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("%w: %s", affected.ErrWalkUnreadable, current)
+			}
+			if entries++; entries > affected.MaxWalkEntries {
+				return affected.ErrWalkLimit
+			}
+			if entry.IsDir() {
+				if current != start && entry.Name() == "node_modules" {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if !entry.Type().IsRegular() || !playwrightLoadableName(entry.Name()) {
+				return nil
+			}
+			relative, err := filepath.Rel(root, current)
+			if err != nil {
+				return err
+			}
+			relative = filepath.ToSlash(relative)
+			if skipped := playwrightSkippedAncestor(relative); skipped != "" {
+				inSkipped[relative] = skipped
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("cannot enumerate testDir %s: %w", directory, err)
+		}
+	}
+	tests := make([]string, 0, len(inSkipped))
+	for test := range inSkipped {
+		tests = append(tests, test)
+	}
+	sort.Strings(tests)
+	if units := playwrightUnits(root, configPath, projects, globalTestDir, tests); len(units) != 0 {
+		return fmt.Errorf("the config selects project %q test %s inside directory %s, which the bound source observation skips; the listing's membership cannot be checked", units[0].Project, units[0].Test, inSkipped[units[0].Test])
+	}
+	return nil
+}
+
+// playwrightSkippedAncestor returns the first ancestor directory of a repository-relative file that
+// the shared source walker does not descend, or "".
+func playwrightSkippedAncestor(relative string) string {
+	components := strings.Split(relative, "/")
+	for index, name := range components[:len(components)-1] {
+		if strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] {
+			return strings.Join(components[:index+1], "/")
+		}
+	}
+	return ""
 }
 
 // unfilteredPlaywrightArgv accepts only `... test` followed by the listing, JSON reporter and

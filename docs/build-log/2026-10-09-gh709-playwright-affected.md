@@ -105,3 +105,44 @@ Limits added by this round:
   detected.
 - A value admitted whole, such as `baseURL: url`, is not modelled for Playwright's own later use.
 - Files with other extensions that a custom `testMatch` selects are not enumerated.
+
+## Review round 3
+
+The third independent review returned FAIL with six findings. The orchestrator decided each fix.
+Each landed with a test that failed first:
+
+- The number lexer swallowed `1..payload` as one token, so `1..payload + ''` passed as a primitive.
+  That expression converts a `Number.prototype` getter's object through its `toString`. Numbers now
+  lex to the ECMAScript grammar, and a dot after a complete literal starts a member read. A member
+  read is never proven primitive. A legacy octal, a malformed literal (`0x`, `1_`, `1.5n`) or one
+  followed by an identifier character (`1abc`, `1.toString`) is refused.
+- `process.env.NAME` is no longer proven primitive. A getter, a Proxy or a replaced `process.env`
+  can return an object. It is still admitted whole and under the non-coercing operators. The
+  round-2 limit about a shadowed `process` no longer applies. TJAA-V0-018 now names the operands
+  coercion admits: string and numeric literals, templates over those, `true`, `false`, `null`,
+  the results of operators over those, and the always-primitive `typeof`, `void`, `!`, `===` and
+  `!==`.
+- Membership enumeration reused the shared source walker, which skips hidden directories and
+  `build`, `dist`, `vendor`, `target` and the other skipped names. A spec such as
+  `e2e/build/b.spec.ts` was therefore invisible to membership and to the source digest. The
+  producer now searches each selected `testDir` itself, and refuses when the config selects a file
+  inside such a directory, naming the directory. The shared walker is unchanged.
+  - Deliberate narrowing of the decision ("refuse when any such directory exists"): the refusal
+    needs a selected file inside the directory, not just the directory. Under the default
+    `testDir` (the config directory), the repository's own `.git` would otherwise refuse every
+    listing.
+  - `node_modules` below a `testDir` is not searched. Playwright 1.60's `collectFiles` skips
+    every directory with that name.
+  - A `testDir` reached through a symbolic link is refused. The source walker does not follow it;
+    Playwright does.
+- `++` and `--` were read as two unary signs, so `++process.env.COUNTER` was admitted. They are now
+  refused, both as prefixes and between operands.
+- A listed file that is not valid UTF-8 passed membership but was absent from the source digest.
+  Every selected file, listed or not, must now be readable as bounded UTF-8 source.
+- `**` recursion was unbounded. Binary recursion now shares the depth bound, so
+  `strings.Repeat("1**", 100000)+"1"` is refused.
+
+Limits added by this round:
+- A test that Playwright would skip through `.gitignore` but that sits in a skipped directory
+  still refuses.
+- A getter or Proxy trap reached by an admitted whole-value read is still not modelled.

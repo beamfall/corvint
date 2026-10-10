@@ -232,6 +232,79 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 			t.Fatalf("a file no project selects refused the listing: %v", err)
 		}
 	})
+	// The shared source walker skips build output, vendored and hidden directories, so a test file
+	// Playwright selects inside one is outside the bound source digest and refuses the listing.
+	for _, row := range []struct{ file, want string }{
+		{"e2e/build/b.spec.ts", "e2e/build"},
+		{"e2e/build/b.spec.mts", "e2e/build"},
+		{"e2e/flows/dist/c.test.js", "e2e/flows/dist"},
+		{"e2e/vendor/d.spec.tsx", "e2e/vendor"},
+		{"e2e/.cache/e.spec.ts", "e2e/.cache"},
+		{"e2e/target/deep/f.spec.cjs", "e2e/target"},
+	} {
+		t.Run("selected test in excluded directory "+row.file, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "playwright.config.ts", "export default defineConfig({ testDir: 'e2e', projects: [{ name: 'p' }] });\n")
+			write(t, root, "e2e/a.spec.ts", "test('a', async () => {});\n")
+			listing := minimalPlaywrightListing(t, root, "e2e", []string{"p"}, []string{"a.spec.ts"})
+			if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing); err != nil {
+				t.Fatalf("fresh listing refused: %v", err)
+			}
+			write(t, root, row.file, "test('b', async () => {});\n")
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+			if err == nil || raw != nil || !strings.Contains(err.Error(), "directory "+row.want) {
+				t.Fatalf("test in an excluded directory stamped: raw=%s err=%v", raw, err)
+			}
+		})
+	}
+	t.Run("testDir inside an excluded directory", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ testDir: 'build/e2e', projects: [{ name: 'p' }] });\n")
+		write(t, root, "build/e2e/a.spec.ts", "test('a', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "build/e2e", []string{"p"}, []string{"a.spec.ts"}))
+		if err == nil || raw != nil || !strings.Contains(err.Error(), "directory build") {
+			t.Fatalf("raw=%s err=%v", raw, err)
+		}
+	})
+	t.Run("testDir reached through a symbolic link", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ testDir: 'e2e', projects: [{ name: 'p' }] });\n")
+		write(t, root, "suites/a.spec.ts", "test('a', async () => {});\n")
+		if err := os.Symlink("suites", filepath.Join(root, "e2e")); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "e2e", []string{"p"}, []string{"a.spec.ts"}))
+		if err == nil || raw != nil || !strings.Contains(err.Error(), "symbolic link") {
+			t.Fatalf("raw=%s err=%v", raw, err)
+		}
+	})
+	t.Run("excluded directories Playwright does not select from", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p' }] });\n")
+		write(t, root, "a.spec.ts", "test('a', async () => {});\n")
+		write(t, root, ".git/HEAD", "ref: refs/heads/main\n")
+		write(t, root, ".auth/user.json", "{}\n")
+		write(t, root, "dist/bundle.js", "export const x = 1;\n")
+		write(t, root, "node_modules/pkg/x.spec.ts", "test('x', async () => {});\n") // Playwright never descends node_modules
+		write(t, root, "vendor/lib/helper.ts", "export const y = 1;\n")
+		if err := os.MkdirAll(filepath.Join(root, "unit", "target"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, ".", []string{"p"}, []string{"a.spec.ts"})); err != nil {
+			t.Fatalf("an excluded directory holding no selected test refused the listing: %v", err)
+		}
+	})
+	t.Run("listed file the static profile cannot read as UTF-8", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
+		write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
+		listing := minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})
+		write(t, root, "p/a.spec.ts", "test('\xff', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `project "p" test p/a.spec.ts`) {
+			t.Fatalf("non-UTF-8 listed test stamped: raw=%s err=%v", raw, err)
+		}
+	})
 	root, listing := multiProjectListFixture(t)
 	for _, row := range []struct{ name, config, want string }{
 		{"dynamic testDir", "export default defineConfig({ testDir: process.env.DIR, projects: [{ name: 'chromium' }] });\n", "not static"},

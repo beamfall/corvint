@@ -205,11 +205,12 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 	}
 	for _, value := range []string{
 		"process.env.BASE_URL ?? 'http://localhost:3000'",
-		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
+		"`http://localhost:${3000 + 1}/`",
 		"process.env.CI ? 'on' : 'off'",
 		"{ 'X-Token': process.env.TOKEN, Accept: 'application/json', nested: [a, b.c] }",
 		"!flag && mode === 'x' || typeof limit === 'number'",
-		"-process.env.RETRIES * 2 + 1 > 0 ? options['base'] : options[0]",
+		"-2 * 2 + 1 > 0 ? options['base'] : options[0]",
+		"1..payload",
 		"url",
 		"settings?.trace ?? (fallback)",
 	} {
@@ -257,6 +258,14 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		"{ [key]: 'x' }",
 		"'k' in env",
 		"env instanceof Object",
+		// process.env.NAME is not proven primitive, a number's member read is not either, and
+		// update operators are refused
+		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
+		"-process.env.RETRIES * 2 + 1 > 0 ? options['base'] : options[0]",
+		"process.env.BASE + '/login'",
+		"1..payload + ''",
+		"++process.env.COUNTER",
+		"--process.env.COUNTER",
 	} {
 		for _, layer := range [][2]string{{"{ baseURL: " + value + " }", "{ ...devices['Desktop Chrome'] }"}, {"{}", "{ ...devices['Desktop Chrome'], storageState: " + value + " }"}} {
 			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
@@ -270,6 +279,22 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 	repro := "import { defineConfig, devices } from '@playwright/test';\nconst url = {\n  toString() {\n    devices['Desktop Chrome'].defaultBrowserType = 'firefox';\n    return 'http://localhost:3000';\n  }\n};\nexport default defineConfig({\n  use: { baseURL: `${url}` },\n  projects: [{\n    name: 'p',\n    use: { ...devices['Desktop Chrome'] }\n  }]\n});\n"
 	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", repro); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
 		t.Fatalf("template coercion of an object with toString was ignored: %+v", unknown)
+	}
+	// The GitHub #709 round-three repros: `1..payload` is a member read on the number 1, so the
+	// concatenation converts an inherited object through its toString; and a replaced
+	// process.env can return an object whose toString runs the same way.
+	for _, setup := range []string{
+		"Object.defineProperty(Number.prototype, 'payload', { get() { return { toString() { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return 'http://localhost:3000'; } }; } });",
+		"process.env = new Proxy({}, { get() { return { toString() { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return 'http://localhost:3000'; } }; } });",
+	} {
+		value := "1..payload + ''"
+		if strings.HasPrefix(setup, "process.env") {
+			value = "process.env.BASE_URL + ''"
+		}
+		source := "import { defineConfig, devices } from '@playwright/test';\n" + setup + "\nexport default defineConfig({\n  use: { baseURL: " + value + " },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("coercion of %s was ignored: %+v", value, unknown)
+		}
 	}
 	for _, row := range []struct{ use, browser string }{
 		{`{ 'browserName': 'firefox' }`, "firefox"},

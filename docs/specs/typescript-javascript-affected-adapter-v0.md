@@ -173,9 +173,17 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `+`, `-` and `~`, and every other binary operator (arithmetic, bitwise, shifts, `<`, `>`, `<=`,
   `>=`, `==`, `!=`, `in`, `instanceof`) convert their operands and could call a user `toString`,
   `valueOf`, `Symbol.toPrimitive` or `Symbol.hasInstance`, so they MUST admit only operands proven
-  primitive: string, numeric and template literals, `true`, `false`, `null`, `process.env.NAME`
-  reads (Node keeps every value a string), and the results of these operators over such operands. A
-  literal `...devices['<known name>']` spread beside such options MUST resolve to that device's
+  primitive: string and numeric literals, templates whose substitutions are proven primitive (a
+  template without substitutions included), `true`, `false`, `null`, the results of these operators
+  and of `&&`, `||`, `??` and `?:` over such operands, and the results of `typeof`, `void`, `!`, `===` and `!==`, which are always
+  primitive. No member read is proven primitive: `process.env.NAME` (a getter, Proxy or replaced
+  `process.env` can return an object) and a member of a numeric literal (`1..x`, `1.0.x`) are
+  admitted only as whole values and under the non-coercing operators. Numeric literals MUST be lexed
+  to the ECMAScript grammar (decimal with fraction and exponent, `0x`/`0o`/`0b`, `_` between digits,
+  the BigInt `n` suffix on integers); a legacy octal, a malformed literal or one followed directly by
+  an identifier character is refused, and a dot after a complete literal starts a member read. `++`
+  and `--` are update operators, never two signs, and nesting is bounded with right-associative `**`
+  included. A literal `...devices['<known name>']` spread beside such options MUST resolve to that device's
   browser. A value containing any call (including tagged templates and optional calls; there is no
   call allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function, arrow
   or class expression, spread, method or accessor definition, comma operator, regular expression
@@ -206,8 +214,13 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   when any enumerated pair is missing from the listing (a stale or filtered listing), when the
   listing names a pair the config does not select (including a file absent from the current
   sources), when a selected file is one the static profile does not parse (such as `.mts` or
-  `.cts`), or when that membership is not statically resolved; only an unresolved browser identity
-  is tolerated. It MUST read HEAD again after its last source observation and fail
+  `.cts`) or one it cannot read as bounded UTF-8 source, listed or not, when the config selects a
+  file inside a directory the shared source walker skips (a hidden directory or one of `build`,
+  `dist`, `vendor`, `target` and the other skipped names, at any depth of the file's path; Playwright
+  still runs it, but it is outside the bound source digest), naming that directory, when a `testDir`
+  is reached through a symbolic link, or when that membership is not statically resolved; only an
+  unresolved browser identity is tolerated. `node_modules` below a `testDir` is not searched,
+  because Playwright never descends it. It MUST read HEAD again after its last source observation and fail
   with `unsupported-affected-drift` on any HEAD or source change while it runs, even when the tree is
   unchanged. It is read-only and runs no Playwright or config. The listing remains caller-declared:
   the producer cannot prove the report was taken from the bytes it binds, nor that environment-driven

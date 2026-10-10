@@ -53,8 +53,12 @@ const playwrightPureMaxDepth = 128
 // non-coercing operators `===`, `!==`, `&&`, `||`, `??`, `?:`, `!`, `typeof` and `void` over those.
 // Template substitutions, computed member and property keys, unary `+`, `-`, `~` and every other
 // binary operator convert their operands, which can call a user toString, valueOf,
-// Symbol.toPrimitive or Symbol.hasInstance, so they admit only operands proven primitive: literals,
-// templates, `process.env.NAME` reads and the results of operators over those. It refuses every
+// Symbol.toPrimitive or Symbol.hasInstance, so they admit only operands proven primitive: string
+// and numeric literals, templates whose substitutions are proven primitive, `true`, `false`, `null`
+// and the results of operators over those, or of `typeof`, `void`, `!`, `===` and `!==`, which
+// always yield a primitive. A member read, including `process.env.NAME` and a member of a number
+// literal such as `1..x`, is never proven primitive: a getter, a Proxy or a replaced process.env
+// can return an object. Numbers are lexed to the ECMAScript numeric grammar. It refuses every
 // call (including tagged templates and optional calls), assignment, update, delete, new, await,
 // yield, import, function, arrow and class expressions, spread, method or accessor definitions, the
 // comma operator, regular expression literals and anything it does not recognize.
@@ -113,6 +117,11 @@ func (p *playwrightPureParser) conditionalMark() bool {
 }
 
 func (p *playwrightPureParser) binary(minimum int) (primitive, ok bool) {
+	// The right operand recursion (right-associative `**` included) shares the depth bound.
+	if p.depth++; p.depth > playwrightPureMaxDepth {
+		return false, false
+	}
+	defer func() { p.depth-- }()
 	left, ok := p.unary()
 	for ok {
 		operator, found := p.binaryOperator()
@@ -140,6 +149,9 @@ func (p *playwrightPureParser) binary(minimum int) (primitive, ok bool) {
 
 func (p *playwrightPureParser) binaryOperator() (playwrightBinaryOperator, bool) {
 	rest := p.raw[p.skip():]
+	if strings.HasPrefix(rest, "++") || strings.HasPrefix(rest, "--") {
+		return playwrightBinaryOperator{}, false // an update operator, never `+ +` or `- -`
+	}
 	for _, operator := range playwrightBinaryOperators {
 		if !strings.HasPrefix(rest, operator.token) {
 			continue
@@ -166,6 +178,8 @@ func (p *playwrightPureParser) unary() (primitive, ok bool) {
 		return true, ok
 	}
 	switch {
+	case strings.HasPrefix(rest, "++"), strings.HasPrefix(rest, "--"):
+		return false, false // update expression
 	case strings.HasPrefix(rest, "!"):
 		p.pos++
 		_, ok := p.unary()
@@ -178,17 +192,11 @@ func (p *playwrightPureParser) unary() (primitive, ok bool) {
 	return p.postfix()
 }
 
-// postfix parses a primary expression and its member reads. Only `process.env.NAME` is a member
-// read proven primitive: Node keeps every process.env value a string.
+// postfix parses a primary expression and its member reads. No member read is proven primitive.
 func (p *playwrightPureParser) postfix() (primitive, ok bool) {
-	start := p.skip()
 	primitive, ok = p.primary()
 	if !ok {
 		return false, false
-	}
-	chain := []string{}
-	if word, end := playwrightIdentifier(p.raw, start); end == p.pos && word == "process" {
-		chain = append(chain, word)
 	}
 	for {
 		rest := p.raw[p.skip():]
@@ -199,7 +207,7 @@ func (p *playwrightPureParser) postfix() (primitive, ok bool) {
 				if !p.computedKey() {
 					return false, false
 				}
-				primitive, chain = false, nil
+				primitive = false
 				continue
 			}
 			fallthrough
@@ -212,15 +220,12 @@ func (p *playwrightPureParser) postfix() (primitive, ok bool) {
 				return false, false // optional call, private name or malformed member
 			}
 			p.pos = end
-			if chain != nil {
-				chain = append(chain, word)
-			}
-			primitive = len(chain) == 3 && chain[1] == "env"
+			primitive = false
 		case strings.HasPrefix(rest, "["):
 			if !p.computedKey() {
 				return false, false
 			}
-			primitive, chain = false, nil
+			primitive = false
 		case strings.HasPrefix(rest, "("), strings.HasPrefix(rest, "`"), strings.HasPrefix(rest, "'"), strings.HasPrefix(rest, "\""):
 			return false, false // call or tagged template
 		default:
@@ -252,12 +257,9 @@ func (p *playwrightPureParser) primary() (primitive, ok bool) {
 	case character == '`':
 		return true, p.template()
 	case character >= '0' && character <= '9' || character == '.' && len(rest) > 1 && rest[1] >= '0' && rest[1] <= '9':
-		end := 1
-		for end < len(rest) && (rest[end] == '.' || rest[end] == '_' || rest[end] >= '0' && rest[end] <= '9' || rest[end] >= 'a' && rest[end] <= 'z' || rest[end] >= 'A' && rest[end] <= 'Z') {
-			end++
-		}
-		p.pos += end
-		return true, true
+		end, ok := playwrightNumberEnd(p.raw, p.pos)
+		p.pos = end
+		return true, ok
 	case character == '(':
 		p.pos++
 		inner, ok := p.expression()
@@ -274,6 +276,65 @@ func (p *playwrightPureParser) primary() (primitive, ok bool) {
 	p.pos += end
 	// true, false and null are reserved literals; undefined, NaN and Infinity can be shadowed.
 	return word == "true" || word == "false" || word == "null", true
+}
+
+// playwrightNumberEnd returns the end of the numeric literal at index under the ECMAScript grammar:
+// decimal with optional fraction and exponent, 0x/0o/0b integers, `_` between digits and the BigInt
+// `n` suffix on integers. A legacy octal (`01`), a malformed literal or one followed directly by an
+// identifier character (`1abc`, `1.toString`) is refused; a dot after a complete literal (`1..x`,
+// `1.0.x`) ends it, leaving a member read.
+func playwrightNumberEnd(raw string, index int) (int, bool) {
+	digits := func(at int, valid func(byte) bool) (int, bool) {
+		start := at
+		for at < len(raw) && (valid(raw[at]) || raw[at] == '_' && at > start && at+1 < len(raw) && valid(raw[at+1])) {
+			at++
+		}
+		return at, at > start
+	}
+	decimal := func(c byte) bool { return c >= '0' && c <= '9' }
+	end, ok, integer := index, true, true
+	if len(raw) > index+1 && raw[index] == '0' && strings.IndexByte("xXoObB", raw[index+1]) >= 0 {
+		valid := map[byte]func(byte) bool{
+			'x': func(c byte) bool { return decimal(c) || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' },
+			'o': func(c byte) bool { return c >= '0' && c <= '7' },
+			'b': func(c byte) bool { return c == '0' || c == '1' },
+		}[raw[index+1]|0x20]
+		end, ok = digits(index+2, valid)
+	} else {
+		if raw[index] != '.' {
+			if end, ok = digits(index, decimal); ok && end > index+1 && raw[index] == '0' {
+				return end, false // legacy octal or leading zero
+			}
+		}
+		if ok && end < len(raw) && raw[end] == '.' {
+			integer = false
+			if fraction, found := digits(end+1, decimal); found {
+				end = fraction
+			} else if end+1 < len(raw) && raw[end+1] == '_' || raw[index] == '.' {
+				return end, false
+			} else {
+				end++
+			}
+		}
+		if ok && end < len(raw) && (raw[end] == 'e' || raw[end] == 'E') {
+			integer = false
+			exponent := end + 1
+			if exponent < len(raw) && (raw[exponent] == '+' || raw[exponent] == '-') {
+				exponent++
+			}
+			end, ok = digits(exponent, decimal)
+		}
+	}
+	if ok && integer && end < len(raw) && raw[end] == 'n' {
+		end++
+	}
+	if !ok {
+		return end, false
+	}
+	if word, _ := playwrightIdentifier(raw, end); word != "" || end < len(raw) && (decimal(raw[end]) || raw[end] == '\\') {
+		return end, false // an identifier character directly after a literal
+	}
+	return end, true
 }
 
 // template parses a template literal whose substitutions are proven primitive.
