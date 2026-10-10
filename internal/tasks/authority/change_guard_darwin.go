@@ -58,13 +58,14 @@ func SetVnodeTestHooks(budget int64, observe func(path string)) (restore func())
 }
 
 // defaultVnodeFileBudget leaves half of the soft descriptor limit for
-// directories, the reads that follow registration and concurrent work.
+// directories, the reads that follow registration and concurrent work. The
+// fixed ceiling makes regular-file descriptors independent of receipt count.
 func defaultVnodeFileBudget() int64 {
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
 		return 0
 	}
-	return int64(min(limit.Cur/2, 1<<30))
+	return int64(min(limit.Cur/2, 16))
 }
 
 func newChangeWatch() (changeWatch, error) {
@@ -93,6 +94,11 @@ func (w *vnodeWatch) add(path string, contents bool) (os.FileInfo, error) {
 			watchedFileDescriptors.Add(-1)
 		}
 		return info, err
+	}
+	// Directory coverage cannot use the regular-file sweep: entry changes
+	// after Sweep must still invalidate CheckEvents under the writer lock.
+	if int64(len(w.files))-w.budgeted >= 512 {
+		return nil, fsErr(path, "change watch directory descriptor bound")
 	}
 	return w.addVnode(path, before, contents)
 }

@@ -5661,6 +5661,32 @@ Rollback: revert the takeover admission in `internal/tasks/transaction/program.g
 store recovery in `internal/tasks/store/program.go`, the test and this amendment. Stores are
 unchanged: the transition writes the existing program record shape.
 
+### V1-0906 bounded descriptors
+
+- `CAL-V0-211`: (proposed, pending owner acceptance (V1-0906)) Change observation
+  shall hold at most 16 regular-file vnode descriptors process-wide, 512 directory
+  vnode descriptors per guard and one event descriptor on Darwin; Linux retains one
+  inotify descriptor. Uncovered regular files retain the existing stat sweep and
+  locked event-check semantics. Directory-budget exhaustion refuses observation and
+  closes partial registration; it never silently drops directory event coverage.
+- `CAL-V0-212`: (proposed, pending owner acceptance (V1-0906)) A native journal audit
+  shall retain at most 512 parent roots and one additional pinned read directory,
+  independent of receipt count. Exceeding the root budget fails closed, with all
+  acquired descriptors released. Complete mutation observation and its no-watch
+  fallback preserve canonical outcomes and refusal codes for admitted stores.
+- `CAL-V0-213`: (proposed, pending owner acceptance (V1-0906)) Regression evidence
+  shall bound descriptors at two synthetic receipt counts, including 100,000, on
+  complete mutation observation and forced no-watch fallback. Record five runs,
+  median sampled peak open descriptors, sampling limits and host load band. The
+  route budget is 1,056 additional descriptors including transient opens; unrelated
+  process descriptors and concurrent operations are outside this per-operation bound.
+
+These requirements change descriptor admission only. Idle CPU, journal formats,
+checkpoint validity and the existing outside-writer in-place race bound are unchanged.
+Acceptance uses temporary stores, focused race tests and the existing refusal/identity
+suite. Rollback restores the previous descriptor strategy, with the known exhaustion
+risk; intent remains proposed until owner acceptance.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6096,6 +6122,9 @@ and removes the new configuration members.
 | CAL-V0-208 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`) |
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
+| CAL-V0-211 | `TestCALV0211_ChangeGuardBoundedDescriptors`, `TestCALV0211_ChangeGuardDirectoryBound` (`internal/tasks/authority`) |
+| CAL-V0-212 | `TestCALV0212_NativeDescriptorBound` (`internal/tasks/journal`) |
+| CAL-V0-213 | `TestCALV0213_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
