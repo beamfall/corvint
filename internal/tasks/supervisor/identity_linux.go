@@ -3,15 +3,26 @@
 package supervisor
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
+// readProcStat reads a /proc stat file; tests replace it to reap the
+// process between the open and the read.
+var readProcStat = os.ReadFile
+
+// ProcessIdentity returns pid's start identity, or "" when no such process
+// runs. A process reaped after /proc/<pid>/stat was opened fails the read
+// with ESRCH; it has ended exactly as if the open had found nothing, so it is
+// not an unreadable identity (CAL-V0-056).
 func ProcessIdentity(pid int) (string, error) {
-	b, e := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-	if os.IsNotExist(e) {
+	b, e := readProcStat("/proc/" + strconv.Itoa(pid) + "/stat")
+	if processGone(e) {
 		return "", nil
 	}
 	if e != nil {
@@ -42,4 +53,9 @@ func ProcessIdentity(pid int) (string, error) {
 		return "", fmt.Errorf("boot identity unavailable")
 	}
 	return "linux:" + boot + ":" + f[19], nil
+}
+
+// processGone reports a /proc read failure that proves the process ended.
+func processGone(err error) bool {
+	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ESRCH)
 }
