@@ -245,6 +245,13 @@ injector.
     and implicit-parameter checks need a bracket, call, assignment or function in a substitution,
     which the opaque rule rejects. The module closure already counts loader names inside a
     substitution, and `onlyRead` and the binding reads already fail on a hidden table name.
+- Owner decision after the seventeenth review: the real AngularJS module keeps the exemption.
+  `import angular from 'angular'`, `import * as angular from 'angular'` and `const angular =
+  require('angular');` (closed by `;` or the file's end) are not counted as a binding when
+  'angular' resolves to a declared package outside the repository (`external`). Any other binding
+  still removes the exemption across the closure: an import from another specifier, any other
+  import form, a further binding in the same file, or a require the statement continues
+  (`require('angular') && h`).
 
 ## Evidence
 
@@ -448,6 +455,13 @@ injector.
   `angular.module('m', [uiRouter])` list) resolves before and after. `TestAMAPV0025SubstOpaque`
   classifies plain and opaque substitutions directly. The full `go test -count=1 ./internal/appmap`
   passes (516 passing tests and subtests); `go vet` and `gofmt` are clean.
+- Package exemption: `di angular package default|namespace|require` (each with
+  `angular.module('m', [uiRouter, ngAnimate])` and `angular` a declared dependency) resolve, and
+  fail with the exemption removed. `di angular fake import` (`import angular from './fake'`), `di
+  angular second binding` (a parameter `angular` beside the package import) and `di angular
+  require chained` fail closed, and resolve with every binding exempt; so each depends on the rule
+  it names. The full `go test -count=1 ./internal/appmap` passes (522 passing tests and subtests);
+  `go vet` and `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -530,8 +544,9 @@ injector.
   decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.
 - Since the seventeenth review, two common forms leave an injected table UNKNOWN. A closure file
-  that binds or passes `angular` (an ES-module `import angular from 'angular'` included) removes
-  the `angular.module` exemption, so a dependency list holding names (`[uiRouter]`) fails. An
+  that binds or passes `angular` other than by importing the declared `angular` package removes
+  the `angular.module` exemption, so a dependency list of two or more names
+  (`[uiRouter, ngAnimate]`) fails; an undeclared `angular` package leaves the closure unresolved. An
   examined file with a template substitution beyond a name, member chain or literal
   (`${fmt(x)}`, `${a + b}`) also fails. The opaque rule applies only to the injection check. The
   global `angular` reassigned by a string key (`globalThis['angular'] = h`) or from a file outside

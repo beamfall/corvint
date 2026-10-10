@@ -554,6 +554,7 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 	// The thirteenth review's DI writes: another injection or lookup of the registered name in a
 	// file the reader examines, the registering file, the chain's files and the files they import.
 	run := "angular.module('admin').run(['SectionNames', function (s) { s.REPORTS = 'other'; }]);\n"
+	angularPkg := map[string]string{"package.json": `{"private":true,"dependencies":{"angular":"1.8.2"}}`}
 	for name, c := range map[string]struct {
 		reg   string
 		files map[string]string
@@ -605,6 +606,12 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 			"(function (angular) {\n  angular.module('unused', [\n    'Section' + 'Names',\n    function (s) { s.REPORTS = 'other'; }\n  ]);\n})(helper);\n", nil},
 		"angular bound elsewhere": {reg + "import './shadow';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n",
 			map[string]string{"app/setup/shadow.ts": "var angular = globalThis.helper;\n"}},
+		// An import of angular from anything but the exact angular package removes the exemption
+		// (round 18).
+		"angular fake import": {reg + "import angular from './fake';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n",
+			map[string]string{"app/setup/fake.ts": "export default globalThis.helper;\n"}},
+		"angular second binding":  {reg + "import angular from 'angular';\nfunction f(angular) { angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]); }\n", angularPkg},
+		"angular require chained": {reg + "const angular = require('angular') && globalThis.helper;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", angularPkg},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {
@@ -621,6 +628,18 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		checkBarrel(t, reg+"angular.module('admin').run(['$rootScope', function ($rootScope) { $rootScope.x = /SectionNames/.test('a'); }]);\n"+
 			"const k = _.constant('SectionNames');\nconst o = { SectionNames: 1 };\n", map[string]string{index: star, decl: table}, "", index)
 	})
+	// The real AngularJS module, imported from the exact angular package, keeps its dependency
+	// list exempt (round 18).
+	for name, imp := range map[string]string{
+		"default":   "import angular from 'angular';\n",
+		"namespace": "import * as angular from 'angular';\n",
+		"require":   "const angular = require('angular');\n",
+	} {
+		t.Run("di angular package "+name, func(t *testing.T) {
+			checkBarrel(t, reg+imp+"angular.module('m', [uiRouter, ngAnimate]);\n", map[string]string{index: star, decl: table,
+				"package.json": angularPkg["package.json"]}, "", index)
+		})
+	}
 	// A template substitution that is one name, member chain or literal stays readable (round 17).
 	t.Run("di plain substitutions", func(t *testing.T) {
 		checkBarrel(t, reg+"const a = { b: 'x' };\nconst u = `/p/${a.b}/q/${ a?.b }`;\nconst v = `${'s'}${1}${`n${a}`}`;\nangular.module('m', [uiRouter]);\n",

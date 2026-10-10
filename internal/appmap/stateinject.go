@@ -346,14 +346,50 @@ func (t *constTable) quiet(f *constFile, name string, exempt bool) bool {
 // object: any identifier angular not followed by `.`, which covers a parameter, a var, let,
 // const, function or class declaration, an import binding, a catch parameter, a destructuring
 // target, an assignment and a value passed on. Then `angular.module('x', [...])` in any examined
-// file may call another function, so no dependency list is exempt.
-func (f *constFile) bindsAngular() bool {
-	for i, t := range f.toks {
-		if t.kind == tokIdent && t.text == "angular" && !next(f.toks, i+1, ".") {
+// file may call another function, so no dependency list is exempt. The one binding exempt is the
+// real AngularJS module: `import angular from 'angular'`, `import * as angular from 'angular'` or
+// `const angular = require('angular');`, where 'angular' resolves to a package outside the
+// repository (see external). Any other binding in the same file still counts.
+func (t *constTable) bindsAngular(f *constFile) bool {
+	toks := f.toks
+	for i, tok := range toks {
+		if tok.kind != tokIdent || tok.text != "angular" || next(toks, i+1, ".") {
+			continue
+		}
+		if !angularImport(toks, i) || !t.angularPackage(f) {
 			return true
 		}
 	}
 	return false
+}
+
+// angularImport reports whether toks[i] is the binding of `import angular from 'angular'`,
+// `import * as angular from 'angular'` or `const angular = require('angular');`, where a `;` or
+// the file's end closes the require statement.
+func angularImport(toks []token, i int) bool {
+	from := func(k int) bool {
+		return word(toks, k, "from") && k+1 < len(toks) && literal(toks[k+1]) && toks[k+1].text == "angular"
+	}
+	switch {
+	case word(toks, i-1, "import") && !property(toks, i-1):
+		return from(i + 1)
+	case word(toks, i-1, "as") && i >= 3 && isPunct(toks[i-2], "*") && word(toks, i-3, "import") && !property(toks, i-3):
+		return from(i + 1)
+	case word(toks, i-1, "const") && next(toks, i+1, "=") && word(toks, i+2, "require") && next(toks, i+3, "(") &&
+		i+5 < len(toks) && literal(toks[i+4]) && toks[i+4].text == "angular" && isPunct(toks[i+5], ")"):
+		return i+6 >= len(toks) || isPunct(toks[i+6], ";") // an operator or call after it may bind another value
+	}
+	return false
+}
+
+// angularPackage reports whether 'angular', loaded from f, resolves to a package outside the
+// repository.
+func (t *constTable) angularPackage(f *constFile) bool {
+	if t.resolver == nil {
+		return false
+	}
+	res := t.resolver.Resolve(f.entry.path, "angular")
+	return res.State == contextindex.WebImportPackage && t.external("angular")
 }
 
 // substOpaque reports whether a template literal's raw source from its first `${` (token.code)
@@ -464,7 +500,7 @@ func (t *constTable) examined(roots, chain []*constFile, decl *constFile, inj st
 	}
 	exempt := true
 	for _, h := range files {
-		exempt = exempt && !h.bindsAngular()
+		exempt = exempt && !t.bindsAngular(h)
 	}
 	for _, h := range files {
 		if !t.quiet(h, inj, exempt) || decl != nil && !slices.Contains(chain, h) && !t.bindingsRead(h, decl, "", names...) {
