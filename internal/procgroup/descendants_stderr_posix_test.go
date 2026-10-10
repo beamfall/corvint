@@ -57,7 +57,7 @@ func snapshotFixture(ctx context.Context, count int, mode string, extra ...strin
 	return exec.CommandContext(ctx, os.Args[0], append(args, extra...)...)
 }
 
-// PGO-V0-009: no snapshot is accepted when diagnostic capture overflows.
+// PGO-V0-010: no snapshot is accepted when diagnostic capture overflows.
 func TestDescendantSnapshotStderrBoundary(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -103,7 +103,7 @@ func TestDescendantSnapshotStderrBoundary(t *testing.T) {
 	}
 }
 
-// PGO-V0-009: cancellation must reap the command and join both exec copiers.
+// PGO-V0-010: cancellation must reap the command and join both exec copiers.
 func TestDescendantSnapshotCancellationJoinsCopies(t *testing.T) {
 	for _, count := range []int{1, 256 << 10} {
 		t.Run(strconv.Itoa(count), func(t *testing.T) {
