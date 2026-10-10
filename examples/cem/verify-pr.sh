@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: Apache-2.0
 # Verify a checked-in CEM sidecar without executing repository or map content.
 #
 # Required environment:
@@ -80,11 +81,11 @@ is_count "$max_mechanical" || fail 'CEM_MAX_MECHANICAL must be a non-negative in
 [ "$(git -C "$base_repo" rev-parse --is-inside-work-tree 2>/dev/null || true)" = true ] || \
   fail "CEM_REPOSITORY is not a Git checkout: $base_repo"
 
-base_repo=$(CDPATH= cd -- "$base_repo" && pwd -P)
+base_repo=$(CDPATH='' cd -- "$base_repo" && pwd -P)
 if [ -n "$head_repo" ]; then
   [ "$(git -C "$head_repo" rev-parse --is-inside-work-tree 2>/dev/null || true)" = true ] || \
     fail "CEM_HEAD_REPOSITORY is not a Git checkout: $head_repo"
-  head_repo=$(CDPATH= cd -- "$head_repo" && pwd -P)
+  head_repo=$(CDPATH='' cd -- "$head_repo" && pwd -P)
   # Fetch only the declared object from a local checkout. This reads Git objects;
   # it does not run hooks, repository scripts, map values, or an external service.
   git -C "$base_repo" fetch --no-tags --depth=1 "$head_repo" "$head_sha" >/dev/null 2>&1 || \

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Independent example consumer: authored screens/flows -> corpus provider JSON.
 
 No Corvint imports, source scanning, network calls or invented journey steps.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Exercise compiled companions and a disposable, nonfixture native Tasks queue.
 
 All writes and local Git integration are confined to a new output directory.
