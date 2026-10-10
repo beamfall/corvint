@@ -252,6 +252,13 @@ injector.
   still removes the exemption across the closure: an import from another specifier, any other
   import form, a further binding in the same file, or a require the statement continues
   (`require('angular') && h`).
+- Eighteenth review (one fail-open path, no spec text change): the binding rule skipped every
+  `angular` followed by `.`, so `angular.module = function (l, a) { app.config(a); }` replaced the
+  exempt function before `angular.module('unused', [...])`. Now every `angular` token in every
+  closure file must be either an accepted declared-package binding or the head of
+  `angular.module(` (the member module called at once). Any other use removes the exemption for
+  the closure: a read or write of `angular.module`, any other member, a computed member, an
+  optional chain, or the bare name passed as a value.
 
 ## Evidence
 
@@ -462,6 +469,12 @@ injector.
   require chained` fail closed, and resolve with every binding exempt; so each depends on the rule
   it names. The full `go test -count=1 ./internal/appmap` passes (522 passing tests and subtests);
   `go vet` and `gofmt` are clean.
+- Eighteenth review: `di angular module replaced` (the review's input) and `di angular member
+  write` (`angular.foo = 1`) resolve silently against `299f1f0d` (`v1061-r19-gap-before.txt`);
+  `di angular computed` (`angular['module']`) and `di angular passed` (`fn(angular)`) were
+  already caught and guard the rule. All four fail closed with the fix, and the three `di angular
+  package` cases still resolve. The full `go test -count=1 ./internal/appmap` passes (526 passing
+  tests and subtests); `go vet` and `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -544,8 +557,9 @@ injector.
   decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.
 - Since the seventeenth review, two common forms leave an injected table UNKNOWN. A closure file
-  that binds or passes `angular` other than by importing the declared `angular` package removes
-  the `angular.module` exemption, so a dependency list of two or more names
+  that uses `angular` other than to import the declared `angular` package or to call
+  `angular.module(...)` (a TypeScript type such as `angular.IModule` included) removes the
+  `angular.module` exemption, so a dependency list of two or more names
   (`[uiRouter, ngAnimate]`) fails; an undeclared `angular` package leaves the closure unresolved. An
   examined file with a template substitution beyond a name, member chain or literal
   (`${fmt(x)}`, `${a + b}`) also fails. The opaque rule applies only to the injection check. The

@@ -342,21 +342,23 @@ func (t *constTable) quiet(f *constFile, name string, exempt bool) bool {
 	return f.diQuiet(name, reg, allow, exempt)
 }
 
-// bindsAngular reports whether f may bind the name angular to anything but the global AngularJS
-// object: any identifier angular not followed by `.`, which covers a parameter, a var, let,
-// const, function or class declaration, an import binding, a catch parameter, a destructuring
-// target, an assignment and a value passed on. Then `angular.module('x', [...])` in any examined
-// file may call another function, so no dependency list is exempt. The one binding exempt is the
-// real AngularJS module: `import angular from 'angular'`, `import * as angular from 'angular'` or
-// `const angular = require('angular');`, where 'angular' resolves to a package outside the
-// repository (see external). Any other binding in the same file still counts.
+// bindsAngular reports whether f uses the name angular other than to call the global AngularJS
+// object's module function: every identifier angular must be the head of `angular.module(` (the
+// member module called at once) or the binding of the real AngularJS module, `import angular
+// from 'angular'`, `import * as angular from 'angular'` or `const angular = require('angular');`,
+// where 'angular' resolves to a package outside the repository (see external). Any other use
+// counts: a parameter, a declaration, another import, a catch parameter, a destructuring target,
+// a value passed on, a read or write of angular.module (`saved = angular.module`, `angular.module
+// = f`), any other member (`angular.x`), a computed member (`angular['module']`) and an optional
+// chain (`angular?.module`). Then `angular.module('x', [...])` in any examined file may call
+// another function, so no dependency list is exempt.
 func (t *constTable) bindsAngular(f *constFile) bool {
 	toks := f.toks
 	for i, tok := range toks {
-		if tok.kind != tokIdent || tok.text != "angular" || next(toks, i+1, ".") {
-			continue
-		}
-		if !angularImport(toks, i) || !t.angularPackage(f) {
+		switch {
+		case tok.kind != tokIdent || tok.text != "angular":
+		case next(toks, i+1, ".") && word(toks, i+2, "module") && next(toks, i+3, "("):
+		case !angularImport(toks, i) || !t.angularPackage(f):
 			return true
 		}
 	}

@@ -612,6 +612,14 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 			map[string]string{"app/setup/fake.ts": "export default globalThis.helper;\n"}},
 		"angular second binding":  {reg + "import angular from 'angular';\nfunction f(angular) { angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]); }\n", angularPkg},
 		"angular require chained": {reg + "const angular = require('angular') && globalThis.helper;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", angularPkg},
+		// The eighteenth review's input, angular.module replaced around the call, and every other
+		// use of angular but a call of angular.module (round 19).
+		"angular module replaced": {reg + "const app = angular.module('admin'); const saved = angular.module;\n" +
+			"angular.module = function (label, annotation) { app.config(annotation); };\n" +
+			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\nangular.module = saved;\n", nil},
+		"angular member write":    {reg + "angular.foo = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular computed":        {reg + "angular['module']('admin');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular passed":          {reg + "fn(angular);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {
