@@ -2747,7 +2747,7 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood ha
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	227	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	236	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	243	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
-SHA-256	docs/specs/operator-update-v0.md	134	Negative checksum/availability/download/compatibility cases are deterministic fi
+SHA-256	docs/specs/operator-update-v0.md	165	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c
@@ -3088,13 +3088,14 @@ UCV0-013	docs/specs/use-case-conformance-v0.md	139	The canonical ledger profile 
 UCV0-014	docs/specs/use-case-conformance-v0.md	149	(accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified
 UCV0-015	docs/specs/use-case-conformance-v0.md	157	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
 UCV0-016	docs/specs/use-case-conformance-v0.md	162	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
-UPD-V0-001	docs/specs/operator-update-v0.md	33	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo
-UPD-V0-002	docs/specs/operator-update-v0.md	37	`apply` MUST verify the release archive checksum before extraction, verify inter
-UPD-V0-003	docs/specs/operator-update-v0.md	43	Downloads, release discovery, extracted bytes/members and subprocess output/time
-UPD-V0-004	docs/specs/operator-update-v0.md	47	Apply MUST mutate only one selected component, refuse downgrades/unknown builds,
-UPD-V0-005	docs/specs/operator-update-v0.md	52	Offline `rollback` MUST use a locally retained transaction bound to component,
-UPD-V0-006	docs/specs/operator-update-v0.md	56	Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ord
-UPD-V0-007	docs/specs/operator-update-v0.md	59	(accepted by decision 0440; V1-0929) The state directory MUST
+UPD-V0-001	docs/specs/operator-update-v0.md	34	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo
+UPD-V0-002	docs/specs/operator-update-v0.md	38	`apply` MUST verify the release archive checksum before extraction, verify inter
+UPD-V0-003	docs/specs/operator-update-v0.md	44	Downloads, release discovery, extracted bytes/members and subprocess output/time
+UPD-V0-004	docs/specs/operator-update-v0.md	48	Apply MUST mutate only one selected component, refuse downgrades/unknown builds,
+UPD-V0-005	docs/specs/operator-update-v0.md	53	Offline `rollback` MUST use a locally retained transaction bound to component,
+UPD-V0-006	docs/specs/operator-update-v0.md	57	Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ord
+UPD-V0-007	docs/specs/operator-update-v0.md	60	(accepted by decision 0440; V1-0929) The state directory MUST
+UPD-V0-008	docs/specs/operator-update-v0.md	91	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker
