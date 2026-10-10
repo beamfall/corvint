@@ -29,7 +29,7 @@ an inference consistent with the failing set, not an observation.
 
 ## Change
 
-`integrations/opencode/src/runtime.js` 0.7.12: a signal-0 probe answering `EPERM` is repeated up to
+`integrations/opencode/src/runtime.js` 0.7.13: a signal-0 probe answering `EPERM` is repeated up to
 40 times, each a timer at least 5 ms after the last, so a poll phase runs before each repeat; the
 bound is a count, not a deadline, so a stalled loop cannot exhaust it without letting a poll phase
 run. Only `ESRCH` confirms; any other answer or an `EPERM` on the last repeat still completes as `corvint-process-cleanup-unconfirmed`, and no other signal is sent. Gemini is unchanged.
