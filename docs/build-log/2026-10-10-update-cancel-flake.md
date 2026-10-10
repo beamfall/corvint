@@ -8,8 +8,7 @@ first and the assertion `archive body not partially read and closed` failed with
 (2 of 40 runs under a concurrent package run at the base bf04e8a0; 4 of 40 in the ticket).
 
 `interruptedBody.Read` now calls the apply context's cancel function right after serving the first
-chunk, so cancellation is ordered after the partial read. A 30s timeout remains only to bound a
-hang. The test still asserts the apply is refused, the body was partially read and closed, the
+chunk, so cancellation is ordered after the partial read. The context has no deadline; the test timeout bounds a hang. The test still asserts the apply is refused, the body was partially read and closed, the
 binary is unchanged and no staging is retained.
 
 Evidence: `go test -count=200 -run TestUPDV0004PartialArchiveCancellation ./internal/update` passed

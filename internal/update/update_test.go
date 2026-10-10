@@ -515,8 +515,8 @@ func TestUPDV0004PartialArchiveCancellation(t *testing.T) {
 	before, _ := digest(dest)
 	releaseClient(t, &e, 163)
 	original := e.client.Transport
-	// The generous timeout only bounds a hang; cancellation is driven by interruptedBody.Read.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// No deadline: cancellation is driven only by interruptedBody.Read; the test timeout bounds a hang.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var body *interruptedBody
 	e.client.Transport = transportFunc(func(req *http.Request) (*http.Response, error) {
