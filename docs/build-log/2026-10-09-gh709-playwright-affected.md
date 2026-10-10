@@ -193,3 +193,49 @@ Limits added by this round:
   over-selects rather than narrowing.
 - Brace groups with two or more plain items remain modelled. Other minimatch options (`matchBase`,
   `nobrace`) are not used by Playwright and are not modelled.
+
+## Review round 5
+
+The fifth independent review of `74c1c0fd` returned FAIL with three P1 findings. The orchestrator's
+decisions were final: fail closed and prefer general rules. Each fix has a test that failed on
+`74c1c0fd` and passes after:
+
+- Templates were skipped as flat quotes, so the backtick that opens a nested template in a `${}`
+  substitution closed the outer one. In ``baseURL: `${`//${mutate()}<U+2028>`}` ``, `stripComments`
+  then blanked `//${mutate()}` as a comment and rewrote the terminator inside template content, and
+  the purity check passed a value that calls user code.
+  - `stripComments` now keeps a stack of substitution brace depths. A backtick or a substitution's
+    closing `}` resumes template content, which is never rewritten. Nesting past 64 open
+    substitutions (`jsTemplateMaxDepth`) and an unterminated template are `ErrSyntax`.
+  - The Playwright scanners (`playwrightSplitTopLevel`, `playwrightTopLevelColon`,
+    `playwrightBalancedValue`) skip templates through the same bounded, iterative `templateEnd`, and
+    refuse when it fails.
+  - `scanRequireCode`/`scanRequireTemplate` were already nesting-aware. Their recursion is now bounded
+    by the same limit.
+  - The other `quotedEnd` callers handle only `'`/`"`, or JSON `"` in `playwright_aliases.go`.
+  - `jsCommentEnd` never skips templates; its callers do.
+  - Tests: `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestNestedTemplateLiteralsKeepContent`,
+    `TestPlaywrightScannersSkipNestedTemplates`.
+- `playwrightGlobPattern` compiled every `**` as a separator-crossing `.*`. In minimatch, `**` is
+  globstar only as a whole path component and acts as `*` elsewhere, so `testIgnore:
+  '**/e2e/**.spec.ts'` over-ignored `e2e/sub/b.spec.ts`. A stale listing then passed membership.
+  `**` that is not a whole component now makes the glob non-static (refusing was simpler to prove
+  exact than modelling it). Whole-component `**`, including a trailing `tests/**`, is unchanged.
+- The regex matcher dropped `g`, `u` and `y`. Playwright tests from `lastIndex` 0, so the sticky
+  `/b\.spec\.ts$/y` never ignores an absolute path, while the unanchored Go regex did. Only `i`, `m`
+  and `s` are now mapped; any other flag (`y`, `g`, `u`, `d`, `v`, ...) makes the matcher
+  non-static.
+- Tests for the glob and flag fixes:
+  - Two stale-listing rows in `TestPlaywrightDiscoveryFromListMembership_V1_1066`, each using the
+    reviewer's repro: project `p`, `testDir: 'e2e'`, a listing of `keep.test.ts`, then
+    `e2e/sub/b.spec.ts` added.
+  - New rows in `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`.
+  - `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive` gains `ims` and trailing-globstar
+    projects. They guard the still-modelled cases and passed both before and after.
+
+TJAA-V0-018 now states nested-template lexing and its bound. TJAA-V0-019 now states whole-component
+globstar and the `i`/`m`/`s` flag allowlist.
+
+Limit retained: Go's `.` (without `s`) and `(?m)` anchors treat only LF as a line terminator, while
+JavaScript also uses CR, U+2028 and U+2029. The flag mapping is therefore exact only for paths without
+those characters, which is in the same class as the non-ASCII `(?i)` folding noted in round 4.

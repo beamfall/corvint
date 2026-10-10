@@ -174,7 +174,11 @@ func TestPlaywrightStaticMatcherAdmitsCustomFixtureTest(t *testing.T) {
 
 func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
 	for _, matcher := range []string{`'**/' + 'example.spec.ts'`, `"**/[ab].spec.ts"`, `"**/test[ab].spec.ts"`, `"**/{*.spec,*.test}.ts"`,
-		`"**/@(a|b).spec.ts"`, `"**/a.spec.+(ts|js)"`, `"**/{a}.spec.ts"`, `"**/a{1..3}.spec.ts"`, `"**/\\a.spec.ts"`} {
+		`"**/@(a|b).spec.ts"`, `"**/a.spec.+(ts|js)"`, `"**/{a}.spec.ts"`, `"**/a{1..3}.spec.ts"`, `"**/\\a.spec.ts"`,
+		// GitHub #709 review round 5: `**` that is not a whole path component, and regex flags Go
+		// does not map exactly (sticky, global, unicode, indices, unicode sets), are not modelled.
+		`"**/tests/**.spec.ts"`, `"**/a**.spec.ts"`, `"**/***/a.spec.ts"`, `"tests/**a/*.spec.ts"`,
+		`/a\.spec\.ts$/y`, `/a\.spec\.ts$/g`, `/a\.spec\.ts$/u`, `/a\.spec\.ts$/d`, `/a\.spec\.ts$/v`} {
 		root := t.TempDir()
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
@@ -472,6 +476,8 @@ func TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive(t *testing.T) {
     { name: "nocase", testMatch: "**/*.E2E.ts" },
     { name: "default" },
     { name: "regex", testMatch: /b\.SPEC\.ts$/ },
+    { name: "flags", testMatch: /b\.SPEC\.ts$/ims },
+    { name: "globstar", testMatch: "tests/**" },
   ],
 }`)
 	write(t, root, "tests/a.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
@@ -485,9 +491,39 @@ func TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive(t *testing.T) {
 	if got := playwrightSelectionIDs(plan); !slices.Equal(got, []string{
 		"typescript:playwright:default:tests/C.SPEC.ts",
 		"typescript:playwright:default:tests/deep/b.spec.ts",
+		"typescript:playwright:flags:tests/deep/b.spec.ts",
+		"typescript:playwright:globstar:tests/C.SPEC.ts",
+		"typescript:playwright:globstar:tests/d.e2e.ts",
+		"typescript:playwright:globstar:tests/deep/b.spec.ts",
 		"typescript:playwright:nocase:tests/d.e2e.ts",
 		"typescript:playwright:relative:tests/deep/b.spec.ts",
 	}) {
 		t.Fatalf("selection=%v unknown=%v", got, plan.Unknown)
+	}
+}
+
+// GitHub #709 review round 5: the config scanners skip a template literal with its nested
+// substitutions and templates, and refuse one that is unterminated or nested past the bound.
+func TestPlaywrightScannersSkipNestedTemplates(t *testing.T) {
+	if items, ok := playwrightSplitTopLevel("a: `${`x,y`}`, b: 1"); !ok || !slices.Equal(items, []string{"a: `${`x,y`}`", "b: 1"}) {
+		t.Fatalf("split=%q ok=%v", items, ok)
+	}
+	if colon := playwrightTopLevelColon("`${`:`}`"); colon != -1 {
+		t.Fatalf("colon inside a nested template found at %d", colon)
+	}
+	if value, next, ok := playwrightBalancedValue("(`${`)`}`)", 1, ')'); !ok || value != "`${`)`}`" || next != 10 {
+		t.Fatalf("balanced=%q next=%d ok=%v", value, next, ok)
+	}
+	deep := strings.Repeat("`${", jsTemplateMaxDepth+1) + strings.Repeat("}`", jsTemplateMaxDepth+1)
+	for _, refused := range []string{"`${`", "`${ '}' `", deep} {
+		if _, ok := playwrightSplitTopLevel(refused); ok {
+			t.Fatalf("split accepted %q", refused)
+		}
+		if _, _, ok := playwrightBalancedValue(refused+")", 0, ')'); ok {
+			t.Fatalf("balanced accepted %q", refused)
+		}
+		if colon := playwrightTopLevelColon(refused + ":"); colon != -1 {
+			t.Fatalf("colon after %q found at %d", refused, colon)
+		}
 	}
 }

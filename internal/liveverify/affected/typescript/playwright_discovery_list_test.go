@@ -245,6 +245,23 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
 		}
 	})
+	// GitHub #709 review round 5: minimatch treats `**` as globstar only as a whole path component
+	// (elsewhere it is `*`), and Playwright tests a regular expression from lastIndex 0, so a sticky
+	// one cannot match an absolute path. Neither ignore removes e2e/sub/b.spec.ts in Playwright, so
+	// a listing captured before that file existed is stale and must not be stamped.
+	for _, ignore := range []string{`'**/e2e/**.spec.ts'`, `/b\.spec\.ts$/y`} {
+		t.Run("stale listing after a new file testIgnore "+ignore+" keeps", func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', testIgnore: "+ignore+" }] });\n")
+			write(t, root, "e2e/keep.test.ts", "test('keep', async () => {});\n")
+			listing := minimalPlaywrightListing(t, root, "e2e", []string{"p"}, []string{"keep.test.ts"})
+			write(t, root, "e2e/sub/b.spec.ts", "test('b', async () => {});\n")
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+			if err == nil || raw != nil || !strings.Contains(err.Error(), `project "p" test e2e/sub/b.spec.ts`) && !strings.Contains(err.Error(), "not static") {
+				t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+			}
+		})
+	}
 	t.Run("unparsed module spec outside every testDir", func(t *testing.T) {
 		root := t.TempDir()
 		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")

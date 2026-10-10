@@ -320,6 +320,18 @@ func TestPlaywrightUseValueUnicodeLineTerminator_V1_1065(t *testing.T) {
 	}
 }
 
+// GitHub #709 review round 5: a backtick inside a `${}` substitution opens a nested template, so
+// `//` and a U+2028/U+2029 there are template content; the call in its substitution still runs.
+func TestPlaywrightUseValueNestedTemplate_V1_1065(t *testing.T) {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
+		source := "import { defineConfig, devices } from '@playwright/test';\nconst mutate = () => { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return ''; };\n" +
+			"export default defineConfig({\n  use: { baseURL: `${`//${mutate()}" + terminator + "`}` },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("call in a nested template before a %U was hidden: %+v", []rune(terminator)[0], unknown)
+		}
+	}
+}
+
 // GitHub #709 review round 4: an identity value is validated recursively before the bounded
 // expression parser, so its nesting must be bounded too instead of costing quadratic work.
 func TestPlaywrightStaticValueNestingIsBounded_V1_1065(t *testing.T) {

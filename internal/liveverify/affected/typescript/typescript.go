@@ -501,11 +501,13 @@ var staticImportPatterns = []*regexp.Regexp{
 func scanRequires(body string) ([]string, bool, bool) {
 	refs := make([]string, 0, 4)
 	dynamic := false
-	_, parsed := scanRequireCode(body, 0, false, &refs, &dynamic)
+	_, parsed := scanRequireCode(body, 0, false, 0, &refs, &dynamic)
 	return refs, dynamic, parsed
 }
 
-func scanRequireCode(body string, index int, stopAtBrace bool, refs *[]string, dynamic *bool) (int, bool) {
+// scanRequireCode scans code, recursing into templates; nesting counts the enclosing `${`
+// substitutions and is bounded by jsTemplateMaxDepth.
+func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, refs *[]string, dynamic *bool) (int, bool) {
 	depth := 0
 	for index < len(body) {
 		if body[index] == '\'' || body[index] == '"' {
@@ -514,7 +516,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, refs *[]string, d
 		}
 		if body[index] == '`' {
 			var closed bool
-			index, closed = scanRequireTemplate(body, index+1, refs, dynamic)
+			index, closed = scanRequireTemplate(body, index+1, nesting, refs, dynamic)
 			if !closed {
 				return len(body), false
 			}
@@ -577,14 +579,17 @@ func scanRequireCode(body string, index int, stopAtBrace bool, refs *[]string, d
 	return len(body), !stopAtBrace
 }
 
-func scanRequireTemplate(body string, index int, refs *[]string, dynamic *bool) (int, bool) {
+func scanRequireTemplate(body string, index, nesting int, refs *[]string, dynamic *bool) (int, bool) {
 	for index < len(body) {
 		switch {
 		case body[index] == '\\':
 			index += 2
 		case strings.HasPrefix(body[index:], "${"):
+			if nesting == jsTemplateMaxDepth {
+				return len(body), false
+			}
 			var closed bool
-			index, closed = scanRequireCode(body, index+2, true, refs, dynamic)
+			index, closed = scanRequireCode(body, index+2, true, nesting+1, refs, dynamic)
 			if !closed {
 				return len(body), false
 			}
@@ -616,24 +621,134 @@ func jsCommentEnd(body string, index int) (int, bool) {
 	return len(body), line
 }
 
+// jsTemplateMaxDepth bounds how many `${` substitutions a template-literal scanner keeps open at
+// once; deeper nesting is refused as unparsed source instead of being scanned.
+const jsTemplateMaxDepth = 64
+
+// templateChunkEnd scans template content from start, just after a backtick or the `}` that
+// closes a substitution. It returns the offset past the closing backtick, or past `${` with
+// opened set; an unterminated template returns len(body)+1.
+func templateChunkEnd[T string | []byte](body T, start int) (end int, opened bool) {
+	for index := start; index < len(body); index++ {
+		switch {
+		case body[index] == '\\':
+			index++
+		case body[index] == '`':
+			return index + 1, false
+		case body[index] == '$' && index+1 < len(body) && body[index+1] == '{':
+			return index + 2, true
+		}
+	}
+	return len(body) + 1, false
+}
+
+// templateEnd returns the offset past the template literal whose backtick is body[start],
+// following nested substitutions and templates with a stack of substitution brace depths. Code in
+// a substitution skips strings, comments and regular expressions. An unterminated template, or
+// one nesting more than jsTemplateMaxDepth substitutions, returns len(body)+1.
+func templateEnd(body string, start int) int {
+	substitutions := []int{}
+	index, opened := templateChunkEnd(body, start+1)
+	for index <= len(body) {
+		if opened {
+			if len(substitutions) == jsTemplateMaxDepth {
+				break
+			}
+			substitutions = append(substitutions, 0)
+		} else if len(substitutions) == 0 {
+			return index
+		}
+		next, closing := substitutionCodeEnd(body, index, &substitutions[len(substitutions)-1])
+		if next >= len(body) {
+			break
+		}
+		if closing {
+			substitutions = substitutions[:len(substitutions)-1]
+		}
+		index, opened = templateChunkEnd(body, next+1)
+	}
+	return len(body) + 1
+}
+
+// substitutionCodeEnd scans substitution code from index to the backtick that opens a nested
+// template or, with closing set, the `}` that closes the substitution; depth counts its braces.
+// It returns len(body) when neither occurs.
+func substitutionCodeEnd(body string, index int, depth *int) (int, bool) {
+	for index < len(body) {
+		switch character := body[index]; {
+		case character == '\'' || character == '"':
+			index = quotedEnd(body, index)
+		case character == '`':
+			return index, false
+		case character == '/' && index+1 < len(body) && (body[index+1] == '/' || body[index+1] == '*'):
+			end, closed := jsCommentEnd(body, index)
+			if !closed {
+				return len(body), false
+			}
+			index = end
+		case character == '{':
+			*depth++
+			index++
+		case character == '}':
+			if *depth == 0 {
+				return index, true
+			}
+			*depth--
+			index++
+		default:
+			if end, regex := regexEnd(body, index); regex {
+				index = end
+			} else {
+				index++
+			}
+		}
+	}
+	return len(body), false
+}
+
 // stripComments blanks comments to spaces, keeping offsets and line structure. U+2028 and U+2029
 // outside a string, template or regular expression literal are ECMAScript line terminators, so
 // they are rewritten to LF plus two spaces (the same three bytes) for the line-based scanners.
+// Template content is never rewritten: substitutions holds the brace depth of each open `${`, so a
+// backtick inside one opens a nested template and its closing `}` resumes the enclosing template.
 func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 	clean := []byte(body)
+	substitutions := []int{}
 	for index := 0; index < len(clean); {
 		if unicodeLineTerminatorAt(clean, index) {
 			copy(clean[index:], "\n  ")
 			index += 3
 			continue
 		}
-		if clean[index] == '\'' || clean[index] == '"' || clean[index] == '`' {
+		top := len(substitutions) - 1
+		if clean[index] == '`' || clean[index] == '}' && top >= 0 && substitutions[top] == 0 {
+			if clean[index] == '}' {
+				substitutions = substitutions[:top]
+			}
+			end, opened := templateChunkEnd(clean, index+1)
+			if end > len(clean) {
+				return string(clean), strconv.ErrSyntax
+			}
+			if opened {
+				if len(substitutions) == jsTemplateMaxDepth {
+					return string(clean), strconv.ErrSyntax
+				}
+				substitutions = append(substitutions, 0)
+			}
+			index = end
+			continue
+		}
+		if top >= 0 && clean[index] == '{' {
+			substitutions[top]++
+		} else if top >= 0 && clean[index] == '}' {
+			substitutions[top]--
+		}
+		if clean[index] == '\'' || clean[index] == '"' {
 			end := quotedEnd(clean, index)
 			if end > len(clean) {
 				return string(clean), strconv.ErrSyntax
 			}
-			ambiguousJSX := rejectAmbiguousJSXQuotes && clean[index] != '`'
-			if ambiguousJSX && (!jsxQuoteStartsLiteral(clean, index) || jsxQuotedTokenCouldHideRequire(clean[index:end]) || strings.ContainsAny(string(clean[index:end]), "\r\n\u2028\u2029")) {
+			if rejectAmbiguousJSXQuotes && (!jsxQuoteStartsLiteral(clean, index) || jsxQuotedTokenCouldHideRequire(clean[index:end]) || strings.ContainsAny(string(clean[index:end]), "\r\n\u2028\u2029")) {
 				return string(clean), strconv.ErrSyntax
 			}
 			index = end
@@ -675,6 +790,9 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 		if !line && index == len(clean) {
 			return string(clean), strconv.ErrSyntax
 		}
+	}
+	if len(substitutions) != 0 {
+		return string(clean), strconv.ErrSyntax
 	}
 	return string(clean), nil
 }

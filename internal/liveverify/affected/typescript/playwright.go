@@ -809,6 +809,8 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 	if !ok || strings.Contains(pattern, "(?") || strings.Contains(pattern, "\\k<") {
 		return playwrightMatcher{}, false
 	}
+	// Only flags Go maps exactly are modelled. Sticky `y` anchors at lastIndex 0, which Playwright
+	// resets before each test, so it cannot be dropped; g, u, d, v and any other flag widen too.
 	prefix := ""
 	for _, flag := range flags {
 		switch flag {
@@ -818,7 +820,6 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 			prefix += "(?m)"
 		case 's':
 			prefix += "(?s)"
-		case 'g', 'u', 'y':
 		default:
 			return playwrightMatcher{}, false
 		}
@@ -833,12 +834,19 @@ func playwrightGlobPattern(glob string) (string, bool) {
 		switch glob[index] {
 		case '*':
 			if index+1 < len(glob) && glob[index+1] == '*' {
-				if index+2 < len(glob) && glob[index+2] == '/' {
+				// minimatch's globstar is `**` as a whole path component; anywhere else `**` acts
+				// as `*`, which is not modelled, so the glob is not static.
+				if index > 0 && glob[index-1] != '/' {
+					return "", false
+				}
+				if index+2 == len(glob) {
+					pattern.WriteString(".*")
+					index += 2
+				} else if glob[index+2] == '/' {
 					pattern.WriteString("(?:.*/)?")
 					index += 3
 				} else {
-					pattern.WriteString(".*")
-					index += 2
+					return "", false
 				}
 			} else {
 				pattern.WriteString("[^/]*")
@@ -1039,8 +1047,14 @@ func playwrightSplitTopLevel(raw string) ([]string, bool) {
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return nil, false
+			}
+			index = end - 1
 		case '/':
 			regex = playwrightSlashStartsRegex(raw, index)
 		case '{', '[', '(':
@@ -1081,8 +1095,14 @@ func playwrightTopLevelColon(raw string) int {
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return -1
+			}
+			index = end - 1
 		case '{', '[', '(':
 			depth++
 		case '}', ']', ')':
@@ -1113,8 +1133,14 @@ func playwrightBalancedValue(raw string, start int, closer byte) (string, int, b
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return "", len(raw), false
+			}
+			index = end - 1
 		case '{', '[', '(':
 			depth++
 		case '}', ']', ')':

@@ -184,7 +184,11 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   an identifier character is refused, and a dot after a complete literal starts a member read. `++`
   and `--` are update operators, never two signs, and nesting is bounded with right-associative `**`
   included; the static-literal check of an identity value has the same nesting bound. Comments and
-  lines end at every ECMAScript line terminator (LF, CR, U+2028, U+2029). A literal
+  lines end at every ECMAScript line terminator (LF, CR, U+2028, U+2029) outside string, template
+  and regular-expression content. Template literals MUST be lexed with their nesting: a backtick in a
+  `${}` substitution opens a nested template, the substitution's matching `}` resumes the enclosing
+  one, and template content is never treated as a comment or rewritten; nesting deeper than 64
+  open substitutions is refused as unparsed source. A literal
   `...devices['<known name>']` spread beside such options MUST resolve to that device's browser. A
   value containing any call (including tagged templates and optional calls; there is no call
   allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function, arrow
@@ -212,9 +216,11 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   selects among the current sources through the static profile's `testDir`/`testMatch`/`testIgnore`
   subset (a config without `projects` is Playwright's one unnamed project), matching as Playwright's
   `createFileMatcher` does: a string glob without a leading `**/` gets one, string globs and the
-  default `.spec.`/`.test.` markers match case-insensitively, a regular expression keeps its own
-  flags, and a glob using minimatch syntax the profile does not model (classes, extglobs, escapes,
-  single-item or range braces) is not static. It MUST find candidate files by path alone among
+  default `.spec.`/`.test.` markers match case-insensitively, `**` is a globstar only as a whole
+  path component, and a regular expression keeps its own flags. A glob using minimatch syntax the
+  profile does not model (classes, extglobs, escapes, single-item or range braces, `**` inside a
+  component) is not static, and so is a regular expression with any flag other than `i`, `m` and
+  `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). It MUST find candidate files by path alone among
   every file with an extension Playwright's default `testMatch` accepts
   (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts` and their `x` forms), whether or not
   the static profile can parse or read them. It MUST refuse with `unsupported-playwright-discovery`
@@ -396,7 +402,7 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
-| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065` in `playwright_example_app_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines` in `typescript_test.go`; `TestPlaywrightPureExpression` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
+| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065` in `playwright_example_app_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
 | `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
 | `TJAA-V0-020` (proposed) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
