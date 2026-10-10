@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestAFPV0022RefreshFromHostedOutcomes(t *testing.T) {
 		"shard (1)\tGo tests\t2026-10-04T11:21:19Z {\"Action\":\"skip\",\"Package\":\"example.org/none\",\"Elapsed\":0}\n"+
 		"shard (1)\tGo tests\t2026-10-04T11:21:19Z not json {\n")
 	table := filepath.Join(t.TempDir(), "costs.json")
-	if code, err := run("refresh", []string{"--table", table, "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
+	if code, err := run("refresh", []string{"--table", table, "--shards", "2", "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
 		t.Fatalf("refresh code=%d err=%v", code, err)
 	}
 	got, err := os.ReadFile(table)
@@ -47,17 +48,17 @@ func TestAFPV0022RefreshFromHostedOutcomes(t *testing.T) {
 		t.Fatal("source run not recorded")
 	}
 	// A subset of one run's logs must not silently replace a complete table.
-	if code, err := run("refresh", []string{"--table", table, "--revision", revision, "--run-url", runURL, raw}, nil); code != 2 || err == nil {
+	if code, err := run("refresh", []string{"--table", table, "--shards", "1", "--revision", revision, "--run-url", runURL, raw}, nil); code != 2 || err == nil || !strings.Contains(err.Error(), "stale example.org/b") {
 		t.Fatalf("partial refresh code=%d err=%v", code, err)
 	}
 	if after, _ := os.ReadFile(table); !bytes.Equal(after, got) {
 		t.Fatal("refused partial refresh changed the table")
 	}
-	if code, err := run("refresh", []string{"--table", table, "--allow-removed", "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
+	if code, err := run("refresh", []string{"--table", table, "--shards", "2", "--allow-removed", "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
 		t.Fatalf("allowed refresh code=%d err=%v", code, err)
 	}
 	var out bytes.Buffer
-	if code, err := run("check", []string{"--table", table, raw, hosted}, &out); code != 0 || err != nil || out.Len() != 0 {
+	if code, err := run("check", []string{"--table", table, "--shards", "2", raw, hosted}, &out); code != 0 || err != nil || out.Len() != 0 {
 		t.Fatalf("fresh table drifts: code=%d err=%v out=%s", code, err, out.String())
 	}
 }
@@ -73,7 +74,7 @@ func TestAFPV0022RefreshRefusesUnusableInput(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			table := filepath.Join(t.TempDir(), "costs.json")
-			code, err := run("refresh", []string{"--table", table, "--revision", tc.revision, "--run-url", tc.url, write(t, "log", tc.log)}, nil)
+			code, err := run("refresh", []string{"--table", table, "--shards", "1", "--revision", tc.revision, "--run-url", tc.url, write(t, "log", tc.log)}, nil)
 			if code != 2 || err == nil {
 				t.Fatalf("code=%d err=%v", code, err)
 			}
@@ -93,7 +94,7 @@ func TestAFPV0022DriftCheck(t *testing.T) {
 {"Action":"pass","Package":"example.org/new","Elapsed":144}
 `)
 	var out bytes.Buffer
-	code, err := run("check", []string{"--table", table, log}, &out)
+	code, err := run("check", []string{"--table", table, "--shards", "1", log}, &out)
 	want := `drift example.org/fast recorded=910000ms observed=98000ms
 drift example.org/slow recorded=3220ms observed=953500ms
 missing example.org/new observed=144000ms
@@ -103,15 +104,15 @@ stale example.org/gone recorded=5000ms
 		t.Fatalf("code=%d err=%v out:\n%s", code, err, out.String())
 	}
 	out.Reset()
-	if code, _ := run("check", []string{"--table", table, "--factor", "1.5", "--floor", "1s", log}, &out); code != 1 || !strings.Contains(out.String(), "drift example.org/same") || !strings.Contains(out.String(), "drift example.org/tiny") {
+	if code, _ := run("check", []string{"--table", table, "--shards", "1", "--factor", "1.5", "--floor", "1s", log}, &out); code != 1 || !strings.Contains(out.String(), "drift example.org/same") || !strings.Contains(out.String(), "drift example.org/tiny") {
 		t.Fatalf("stated bounds not applied: code=%d out:\n%s", code, out.String())
 	}
 	for _, factor := range []string{"NaN", "+Inf", "0.5"} {
-		if code, err := run("check", []string{"--table", table, "--factor", factor, log}, &out); code != 2 || err == nil {
+		if code, err := run("check", []string{"--table", table, "--shards", "1", "--factor", factor, log}, &out); code != 2 || err == nil {
 			t.Fatalf("factor %s code=%d err=%v", factor, code, err)
 		}
 	}
-	if code, err := run("check", []string{"--table", write(t, "bad.json", `{"profile":"bad"}`), log}, &out); code != 2 || err == nil {
+	if code, err := run("check", []string{"--table", write(t, "bad.json", `{"profile":"bad"}`), "--shards", "1", log}, &out); code != 2 || err == nil {
 		t.Fatalf("invalid table code=%d err=%v", code, err)
 	}
 }
@@ -158,7 +159,7 @@ func TestAFPV0040AdvisoryReportNeverFailsOnFindings(t *testing.T) {
 		t.Fatalf("share 50: code=%d out:\n%s", code, out.String())
 	}
 	clean := filepath.Join(t.TempDir(), "clean.json")
-	if code, err := run("refresh", []string{"--table", clean, "--revision", revision, "--run-url", runURL, shard0, shard1}, nil); code != 0 || err != nil {
+	if code, err := run("refresh", []string{"--table", clean, "--shards", "2", "--revision", revision, "--run-url", runURL, shard0, shard1}, nil); code != 0 || err != nil {
 		t.Fatal(code, err)
 	}
 	out.Reset()
@@ -273,4 +274,145 @@ func TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput(t *testing.T) {
 // passed is one finished package in a raw `go test -json` stream.
 func passed(pkg, elapsed string) string {
 	return `{"Action":"start","Package":"` + pkg + `"}` + "\n" + `{"Action":"pass","Package":"` + pkg + `","Elapsed":` + elapsed + `}` + "\n"
+}
+
+// sliceInputs writes an allow-list that admits example.org/split, a slice file
+// that splits it into one named slice and the catch-all and also lists
+// example.org/listed, which the allow-list does not admit, and a slice file that
+// splits it into three slices.
+func sliceInputs(t *testing.T) (allow, slices, slices3 string) {
+	t.Helper()
+	allow = write(t, "allow.json", `{"profile":"corvint-ci-test-split-allow/0","packages":{"example.org/split":"no test depends on another's order or state"}}`)
+	source := `{"profile":"corvint-ci-test-slices/0","source":{"revision":"` + revision + `","runURL":"` + runURL + `","goVersion":"go1.27.1"},"packages":`
+	slices = write(t, "slices.json", source+`{"example.org/split":{"named":[{"milliseconds":300000,"tests":["TestA"]}],"restMilliseconds":200000},"example.org/listed":{"named":[{"milliseconds":1000,"tests":["TestA"]}],"restMilliseconds":1000}}}`)
+	slices3 = write(t, "slices3.json", source+`{"example.org/split":{"named":[{"milliseconds":300000,"tests":["TestA"]},{"milliseconds":100000,"tests":["TestB"]}],"restMilliseconds":100000}}}`)
+	return allow, slices, slices3
+}
+
+// AFP-V0-041: refresh and check combine the test slices of a split package, one
+// per log, into one cost, and refuse every other count, including a single
+// outcome: a run made before the split, or a run that lost a slice's log, measures
+// one slice. The declared shard count and the slice file, not the number of logs
+// supplied, decide how many slices a package has, and every shard's log is needed.
+func TestAFPV0041RefreshCombinesTestSlices(t *testing.T) {
+	allow, slices, slices3 := sliceInputs(t)
+	shard0 := write(t, "shard-0.log", passed("example.org/split", "300")+passed("example.org/a", "10"))
+	shard1 := write(t, "shard-1.log", passed("example.org/split", "200.5")+passed("example.org/b", "20"))
+	unsplit1 := write(t, "shard-1.log", passed("example.org/b", "20"))
+	args := func(table, slices string, shards int, logs []string) []string {
+		return append([]string{"--table", table, "--shards", strconv.Itoa(shards), "--allow", allow, "--slices", slices, "--revision", revision, "--run-url", runURL}, logs...)
+	}
+	good := filepath.Join(t.TempDir(), "costs.json")
+	if code, err := run("refresh", args(good, slices, 2, []string{shard0, shard1}), nil); code != 0 || err != nil {
+		t.Fatalf("sliced refresh code=%d err=%v", code, err)
+	}
+	got, _ := os.ReadFile(good)
+	if costs, ok := cishards.Costs(got); !ok || len(costs) != 3 || costs["example.org/split"] != 500500 || costs["example.org/a"] != 10000 || costs["example.org/b"] != 20000 {
+		t.Fatalf("costs=%v ok=%v", costs, ok)
+	}
+	var out bytes.Buffer
+	if code, err := run("check", args(good, slices, 2, []string{shard0, shard1}), &out); code != 0 || err != nil || out.Len() != 0 {
+		t.Fatalf("sliced check code=%d err=%v out=%s", code, err, out.String())
+	}
+	if code, err := run("refresh", append([]string{"--table", filepath.Join(t.TempDir(), "costs.json"), "--allow", allow, "--slices", slices, "--revision", revision, "--run-url", runURL}, shard0, shard1), nil); code != 2 || err == nil || !strings.Contains(err.Error(), "--shards N") {
+		t.Fatalf("undeclared shards: code=%d err=%v", code, err)
+	}
+	for name, tc := range map[string]struct {
+		slices string
+		shards int // 0: one shard per log
+		logs   []string
+		reason string
+	}{
+		// One shard's log holds one slice: neither the log count nor a one-shard
+		// declaration may turn it into the whole package.
+		"only-one-log":      {slices, 2, []string{shard0}, "1 of 2 shard logs present"},
+		"one-log-one-shard": {slices, 1, []string{shard0}, "package example.org/split is split into 2 test slices, more than --shards 1"},
+		// Fewer logs than the slice file's three slices.
+		"fewer-logs-than-slices":   {slices3, 3, []string{shard0, unsplit1}, "2 of 3 shard logs present"},
+		"fewer-shards-than-slices": {slices3, 2, []string{shard0, unsplit1}, "package example.org/split is split into 3 test slices, more than --shards 2"},
+		"pre-split-whole-run":      {slices, 0, []string{write(t, "shard-0.log", passed("example.org/split", "500")+passed("example.org/a", "10")), write(t, "shard-1.log", passed("example.org/b", "20"))}, "package example.org/split has 1 terminal outcomes for its 2 test slices"},
+		"missing-second-slice":     {slices, 0, []string{shard0, write(t, "shard-1.log", passed("example.org/b", "20"))}, "package example.org/split has 1 terminal outcomes for its 2 test slices"},
+		"no-slice-file":            {filepath.Join(t.TempDir(), "absent.json"), 0, []string{shard0, shard1}, "package example.org/split has two terminal outcomes"},
+		"unsplit-twice":            {slices, 0, []string{shard0, write(t, "shard-1.log", passed("example.org/split", "200")+passed("example.org/a", "10"))}, "package example.org/a has two terminal outcomes"},
+		"not-allowed":              {slices, 0, []string{write(t, "shard-0.log", passed("example.org/listed", "1")), write(t, "shard-1.log", passed("example.org/listed", "1"))}, "package example.org/listed has two terminal outcomes"},
+		"extra-slice":              {slices, 0, []string{shard0, shard1, write(t, "shard-2.log", passed("example.org/split", "1"))}, "package example.org/split has 3 terminal outcomes for its 2 test slices"},
+		"one-log-twice":            {slices, 0, []string{write(t, "shard-0.log", passed("example.org/split", "300")+passed("example.org/split", "200")), write(t, "shard-1.log", passed("example.org/b", "20"))}, "package example.org/split has two terminal outcomes"},
+		"failed-slice":             {slices, 0, []string{shard0, write(t, "shard-1.log", `{"Action":"start","Package":"example.org/split"}`+"\n"+`{"Action":"fail","Package":"example.org/split","Elapsed":1}`+"\n")}, "package example.org/split failed"},
+		"short-slice":              {slices, 0, []string{shard0, write(t, "shard-1.log", `{"Action":"start","Package":"example.org/split"}`+"\n"+passed("example.org/b", "20"))}, "a test slice of package example.org/split started without a terminal outcome"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			shards := tc.shards
+			if shards == 0 {
+				shards = len(tc.logs)
+			}
+			table := filepath.Join(t.TempDir(), "costs.json")
+			code, err := run("refresh", args(table, tc.slices, shards, tc.logs), nil)
+			if code != 2 || err == nil || !strings.Contains(err.Error(), tc.reason) {
+				t.Fatalf("refresh code=%d err=%v", code, err)
+			}
+			if _, statErr := os.Stat(table); statErr == nil {
+				t.Fatal("refused refresh wrote a table")
+			}
+			var out bytes.Buffer
+			code, err = run("check", args(good, tc.slices, shards, tc.logs), &out)
+			if code != 2 || err == nil || !strings.Contains(err.Error(), tc.reason) || out.Len() != 0 {
+				t.Fatalf("check code=%d err=%v out=%s", code, err, out.String())
+			}
+		})
+	}
+}
+
+// AFP-V0-041: the advisory drift report measures a split package as the sum of its
+// slices and abstains on a failed, short or repeated slice like any other stream.
+func TestAFPV0041AdvisoryCombinesTestSlices(t *testing.T) {
+	allow, slices, slices3 := sliceInputs(t)
+	tableOf := func(split string) string {
+		return write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/split":`+split+`,"example.org/a":10000,"example.org/b":20000}}`)
+	}
+	shard0 := write(t, "shard-0.json", passed("example.org/split", "300")+passed("example.org/a", "10"))
+	shard1 := write(t, "shard-1.json", passed("example.org/split", "200.5")+passed("example.org/b", "20"))
+	unsplit1 := write(t, "shard-1.json", passed("example.org/b", "20"))
+	check := func(table, slices string, shards int, logs ...string) (int, string, string, error) {
+		summary := filepath.Join(t.TempDir(), "summary.md")
+		var out bytes.Buffer
+		code, err := run("check", append([]string{"--advisory", "--shards", strconv.Itoa(shards), "--table", table, "--allow", allow, "--slices", slices, "--summary", summary}, logs...), &out)
+		got, _ := os.ReadFile(summary)
+		return code, out.String(), string(got), err
+	}
+	if code, out, summary, err := check(tableOf("500000"), slices, 2, shard0, shard1); code != 0 || err != nil || out != "" || !strings.Contains(summary, "2 shard logs, 3 packages, 530.5s observed") || !strings.Contains(summary, "No drift, missing or stale package.") {
+		t.Fatalf("summed slices: code=%d err=%v out=%s summary:\n%s", code, err, out, summary)
+	}
+	// A table that holds one slice's time drifts by the other slice's.
+	if code, out, _, err := check(tableOf("300000"), slices, 2, shard0, shard1); code != 0 || err != nil || !strings.Contains(out, "drift example.org/split recorded=300000ms observed=500500ms misplaces 200.5s") {
+		t.Fatalf("one-slice table: code=%d err=%v out=%s", code, err, out)
+	}
+	for name, tc := range map[string]struct {
+		slices string
+		shards int // 0: one shard per log
+		logs   []string
+		reason string
+	}{
+		"only-one-log":             {slices, 2, []string{shard0}, "1 of 2 shard logs present"},
+		"one-log-one-shard":        {slices, 1, []string{shard0}, "package example.org/split is split into 2 test slices, more than --shards 1"},
+		"fewer-logs-than-slices":   {slices3, 3, []string{shard0, unsplit1}, "2 of 3 shard logs present"},
+		"fewer-shards-than-slices": {slices3, 2, []string{shard0, unsplit1}, "package example.org/split is split into 3 test slices, more than --shards 2"},
+		"no-slice-file":            {filepath.Join(t.TempDir(), "absent.json"), 0, []string{shard0, shard1}, "package example.org/split has two terminal outcomes"},
+		"pre-split-whole-run":      {slices, 0, []string{write(t, "shard-0.json", passed("example.org/split", "500")+passed("example.org/a", "10")), write(t, "shard-1.json", passed("example.org/b", "20"))}, "package example.org/split has 1 terminal outcomes for its 2 test slices"},
+		"missing-second-slice":     {slices, 0, []string{shard0, write(t, "shard-1.json", passed("example.org/b", "20"))}, "package example.org/split has 1 terminal outcomes for its 2 test slices"},
+		"unsplit-twice":            {slices, 0, []string{shard0, write(t, "shard-1.json", passed("example.org/split", "200")+passed("example.org/a", "10"))}, "package example.org/a has two terminal outcomes"},
+		"extra-slice":              {slices, 0, []string{shard0, shard1, write(t, "shard-2.json", passed("example.org/split", "1"))}, "package example.org/split has 3 terminal outcomes for its 2 test slices"},
+		"test-failed":              {slices, 0, []string{shard0, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/split"}`+"\n"+`{"Action":"fail","Package":"example.org/split","Test":"TestB","Elapsed":1}`+"\n"+`{"Action":"pass","Package":"example.org/split","Elapsed":1}`+"\n")}, "shard-1.json: test TestB of package example.org/split failed"},
+		"unfinished":               {slices, 0, []string{shard0, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/split"}`+"\n"+passed("example.org/b", "20"))}, "shard-1.json: package example.org/split started without a terminal outcome"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			shards := tc.shards
+			if shards == 0 {
+				shards = len(tc.logs)
+			}
+			code, out, summary, err := check(tableOf("500000"), tc.slices, shards, tc.logs...)
+			if code != 2 || err == nil || out != "" || !strings.Contains(summary, "Abstained: ") || !strings.Contains(summary, tc.reason) {
+				t.Fatalf("code=%d err=%v out=%s summary:\n%s", code, err, out, summary)
+			}
+		})
+	}
 }

@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -1051,6 +1051,38 @@ do not reinterpret this Frontier result.
   and `conformance/host-lifecycle-v1` discovery reports the six skills on the installed host.
   Rollback: restore the 0.2.3 manifest, marketplace and `hooks.json` and delete the five skill
   directories under a new plugin version; no store, ledger or wire format changes.
+- `AHI-052`: (accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
+  the OpenCode adapter's cleanup probe `kill(-pid, 0)` answers `EPERM`, the adapter MUST repeat that
+  signal-0 probe, each repeat a timer at least 5 ms after the last, until it answers anything other
+  than `EPERM` or 40 repeats have run, and MUST NOT send any other signal to the group meanwhile. Only
+  `ESRCH` confirms cleanup; an `EPERM` on the last repeat, or any other answer, completes as
+  `corvint-process-cleanup-unconfirmed`, as in `AHI-050`.
+  Darwin answers `EPERM` to every signal, signal 0 included, for a group whose members are all
+  unreaped zombies. Node reaps the leader only in libuv's poll phase, and libuv runs due timers right
+  after the check phase, so a termination turn that ends after the 100 ms completion timer is due (a
+  stalled host) probes while the leader that SIGTERM killed is still a zombie; an orphaned member
+  stays one until launchd reaps it. For OpenCode this replaces `AHI-050`'s "OpenCode completes 100 ms
+  after the request" with "100 ms after the request, plus the `EPERM` repeats (40 at 5 ms, about
+  200 ms on an unloaded host; a stalled event loop stretches them)", and its "Any other signal or probe answer, including Darwin `EPERM`, completes as
+  that degradation" with the bounded re-probe above.
+  Acceptance: `V1-1116 OpenCode completion after a stalled termination turn re-probes the zombie
+  group` (Darwin only) holds the termination grace until the leader is a zombie and 150 ms have
+  passed, so the completion timer fires before the leader is reaped; it requires the group SIGKILL and
+  the first probe to answer `EPERM` and a later probe `ESRCH`. On the base it failed 5 of 5 with a single
+  `EPERM` probe, the hosted failure, and it passes after. `V1-1116 OpenCode EPERM re-probe confirms
+  only on ESRCH and is bounded` injects the probe answers on any platform: three `EPERM`s then `ESRCH`
+  confirm after four probes, a persistent `EPERM` completes as the degradation after exactly 41
+  probes, and no non-zero group signal follows the SIGKILL. A hosted macos-15 run passing
+  `host-adapter-test` and `TestHostAdapterJavaScriptHosts`, with its run id retained, is still required.
+  Non-goals: no change to Gemini, which keeps `AHI-050` as accepted; no change to which answers
+  confirm, to the group signals, the SIGTERM grace or the 100 ms timer; no wait for close.
+  Failure modes: a group holding a live member of another user answers `EPERM` throughout, so it
+  completes after all 40 repeats and still unconfirmed. A zombie that is not reaped within the repeats
+  (an init that reaps an orphan slower than that) still reads as unconfirmed. The repeat timers are
+  referenced, so they hold the host process until the repeats end.
+  Rollback: restore the single `groupGone` probe in `integrations/opencode/src/runtime.js` in place of
+  `confirmCleanup`, `probeGroup` and `groupProbe`, and remove the two tests. OpenCode again completes
+  100 ms after the request and reads a zombie-only group as unconfirmed.
 
 ## Native platform profiles
 
