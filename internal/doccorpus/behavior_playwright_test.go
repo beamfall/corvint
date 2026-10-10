@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	jsonstd "encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,6 +25,23 @@ type playwrightBehaviorRepo struct {
 	receiptIDs                 map[string]string
 	// retained keeps each committed input so an unchanged document keeps its first anchor.
 	retained map[string]BehaviorAdapterInput
+	// extraTests registers further tests on an existing alpha execution's anchor.
+	extraTests []playwrightExtraTest
+}
+
+type playwrightExtraTest struct {
+	id, title string
+	line      int
+	fixtures  []string
+}
+
+// playwrightReceiptCase is one alpha outcome of the synthetic receipt; describe is its enclosing
+// describe title.
+type playwrightReceiptCase struct {
+	describe, title string
+	line            int
+	state           jstestprovider.ExecutionState
+	attempts        []jstestprovider.Attempt
 }
 
 const playwrightBehaviorConfig = "playwright.config.ts"
@@ -76,26 +94,23 @@ func writePlaywrightBehaviorFile(t *testing.T, root, path string, data []byte) {
 
 // playwrightBehaviorReceipt is a synthetic qualified receipt for the alpha project of the same
 // run: it is shaped like Corvint's runner output, not live evidence.
-func playwrightBehaviorReceipt(t *testing.T, root string, files map[string][]byte) ([]byte, map[string]string) {
+func playwrightBehaviorReceipt(t *testing.T, root string, files map[string][]byte, extra ...playwrightReceiptCase) ([]byte, map[string]string) {
 	t.Helper()
 	config, spec := root+"/"+playwrightBehaviorConfig, root+"/"+playwrightBehaviorSpec
 	configDigest := Digest(files[playwrightBehaviorConfig])
 	native := jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, Kind: "e2e", Identity: jstestprovider.Identity{ConfigFile: config, ConfigDigest: configDigest, ConfigInputDigests: map[string]string{config: configDigest}, TestFileDigests: map[string]string{spec: Digest(files[playwrightBehaviorSpec])}, RunnerName: "playwright", RunnerVersion: "1.63.0", NodeVersion: "v22.23.2", Argv: []string{"playwright", "test"}}, External: &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ReadyAtStart: true, ReadyAtPublish: true, RunnerDescendantsGone: true, InputsUnchanged: true, ReadyURL: "http://127.0.0.1:3000", DeclaredAppIdentity: "synthetic", ConfigOverride: "controlled"}, AppBuildAtStart: jstestprovider.AppBuildIdentity{Unknown: true}, AppBuildAtPublish: jstestprovider.AppBuildIdentity{Unknown: true}}
 	use := jsonstd.RawMessage(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
-	cases := []struct {
-		title    string
-		line     int
-		state    jstestprovider.ExecutionState
-		attempts []jstestprovider.Attempt
-	}{
-		{"lists items", 7, "passed", []jstestprovider.Attempt{{State: "passed", Retry: 0}}},
-		{"rejects empty item", 17, "failed", []jstestprovider.Attempt{{State: "failed", Retry: 0, FailureKind: "assertion"}, {State: "failed", Retry: 1, FailureKind: "assertion"}}},
-		{"archives item", 21, "skipped", []jstestprovider.Attempt{{State: "skipped", Retry: 0}}},
-		{"retries item", 23, "flaky", []jstestprovider.Attempt{{State: "failed", Retry: 0, FailureKind: "assertion"}, {State: "passed", Retry: 1}}},
-	}
+	cases := append([]playwrightReceiptCase{
+		{"items", "lists items", 7, "passed", []jstestprovider.Attempt{{State: "passed", Retry: 0}}},
+		{"items", "rejects empty item", 17, "failed", []jstestprovider.Attempt{{State: "failed", Retry: 0, FailureKind: "assertion"}, {State: "failed", Retry: 1, FailureKind: "assertion"}}},
+		{"items", "archives item", 21, "skipped", []jstestprovider.Attempt{{State: "skipped", Retry: 0}}},
+		{"items", "retries item", 23, "flaky", []jstestprovider.Attempt{{State: "failed", Retry: 0, FailureKind: "assertion"}, {State: "passed", Retry: 1}}},
+	}, extra...)
 	ids := map[string]string{}
 	for _, c := range cases {
-		outcome := jstestprovider.TestOutcome{Name: c.title, FullName: "items > " + c.title, State: c.state, Retries: len(c.attempts) - 1, Anchor: &jstestprovider.Anchor{File: spec, Line: c.line}, Project: &jstestprovider.ProjectIdentity{Name: "alpha", Browser: "chromium", Device: "unknown", Use: use, ConfigDigest: configDigest}, Attempts: c.attempts}
+		// FullName is titlePath().join(' > ') as the qualified reporter writes it: root, project,
+		// file relative to testDir, describe, title.
+		outcome := jstestprovider.TestOutcome{Name: c.title, FullName: " > alpha > items.spec.ts > " + c.describe + " > " + c.title, State: c.state, Retries: len(c.attempts) - 1, Anchor: &jstestprovider.Anchor{File: spec, Line: c.line}, Project: &jstestprovider.ProjectIdentity{Name: "alpha", Browser: "chromium", Device: "unknown", Use: use, ConfigDigest: configDigest}, Attempts: c.attempts}
 		identity, err := jsonstd.Marshal(struct {
 			Identity jstestprovider.Identity
 			Project  *jstestprovider.ProjectIdentity
@@ -106,7 +121,10 @@ func playwrightBehaviorReceipt(t *testing.T, root string, files map[string][]byt
 			t.Fatal(err)
 		}
 		outcome.ID = Digest(identity)
-		ids[c.title] = outcome.ID
+		if _, ok := ids[c.title]; !ok {
+			ids[c.title] = outcome.ID
+		}
+		ids[c.describe+" > "+c.title] = outcome.ID
 		native.Tests = append(native.Tests, outcome)
 	}
 	raw, err := jstestprovider.EncodeQualified(native)
@@ -212,6 +230,12 @@ func (r playwrightBehaviorRepo) request(t *testing.T, discovery BehaviorDiscover
 		test(execution("alpha", 21), "archives item", false),
 		test(execution("alpha", 23), "retries item", false),
 		test(execution("beta", 7), "lists items", false),
+	}
+	for _, extra := range r.extraTests {
+		found := execution("alpha", extra.line)
+		row := test(BehaviorExecution{ID: extra.id, Project: "alpha", Evidence: found.Evidence}, extra.title, false)
+		row["fixtures"] = extra.fixtures
+		tests = append(tests, row)
 	}
 	discoveryRaw := behaviorAdapterRaw(t, discovery)
 	documents := map[string][]byte{
@@ -455,6 +479,14 @@ func TestPlaywrightDiscoveryProducerRefusals(t *testing.T) {
 			repo.receipt, _ = playwrightBehaviorReceipt(t, repo.root, files)
 			return playwrightBehaviorConfig
 		}, "different config"},
+		{"documentation revision is not an object id", func(t *testing.T, repo *playwrightBehaviorRepo) string {
+			repo.migration = behaviorAdapterRaw(t, BehaviorMigration{Revisions: repo.revisions, Schema: 2, ContractID: "items-contract", SourceRevision: repo.revision, DocumentationRevision: "not-a-git-revision"})
+			return playwrightBehaviorConfig
+		}, "schema-2 migration"},
+		{"documentation revision disagrees with the docs corpus revision", func(t *testing.T, repo *playwrightBehaviorRepo) string {
+			repo.migration = behaviorAdapterRaw(t, BehaviorMigration{Revisions: repo.revisions, Schema: 2, ContractID: "items-contract", SourceRevision: repo.revision, DocumentationRevision: strings.Repeat("4", 40)})
+			return playwrightBehaviorConfig
+		}, "schema-2 migration"},
 		{"receipt not qualified", func(t *testing.T, repo *playwrightBehaviorRepo) string {
 			repo.receipt = []byte(`{"tests":[]}`)
 			return playwrightBehaviorConfig
@@ -554,6 +586,28 @@ func TestPlaywrightWitnessImporter(t *testing.T) {
 				return append(without(PlaywrightCleanupAnnotation)(v), map[string]any{"type": PlaywrightCleanupAnnotation, "description": "failed"})
 			})), "cleanup-failed"},
 			{"fixture mismatch", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", annotations(without(PlaywrightFixtureAnnotation))), "fixture-role-mismatch"},
+			{"report retry absent", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", func(_, test map[string]any) {
+				delete(asSlice(test["results"])[0].(map[string]any), "retry")
+			}), "report-test-missing"},
+			{"report retry null", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", func(_, test map[string]any) {
+				asSlice(test["results"])[0].(map[string]any)["retry"] = nil
+			}), "report-test-missing"},
+			{"event empty", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", annotations(func(v []any) []any {
+				return append(without(PlaywrightEventAnnotation)(v), map[string]any{"type": PlaywrightEventAnnotation, "description": "{}"})
+			})), "event-malformed"},
+			{"events reversed", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", annotations(func(v []any) []any {
+				events := slices.DeleteFunc(slices.Clone(v), func(a any) bool { return a.(map[string]any)["type"] != PlaywrightEventAnnotation })
+				slices.Reverse(events)
+				return append(without(PlaywrightEventAnnotation)(v), events...)
+			})), "event-malformed"},
+			{"event duplicate", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", annotations(func(v []any) []any {
+				return append(v, playwrightEventAnnotation(t, v, 0, func(event map[string]any) { event["sequence"] = 5 }))
+			})), "event-malformed"},
+			{"event not passing", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", annotations(func(v []any) []any {
+				replaced := playwrightEventAnnotation(t, v, 3, func(event map[string]any) { event["passed"] = false })
+				events := slices.DeleteFunc(slices.Clone(v), func(a any) bool { return a.(map[string]any)["type"] != PlaywrightEventAnnotation })
+				return append(without(PlaywrightEventAnnotation)(v), append(events[:3:3], replaced)...)
+			})), "event-malformed"},
 			{"report foreign config", editPlaywrightJSON(t, repo.report, func(v map[string]any) { v["config"].(map[string]any)["configFile"] = repo.root + "/other.config.ts" }), "report-foreign-config"},
 		}
 		for _, c := range cases {
@@ -588,6 +642,26 @@ func TestPlaywrightWitnessImporter(t *testing.T) {
 				t.Fatalf("bundle: %+v", bundle)
 			}
 		})
+		t.Run("one report result witnesses only the receipt test with its full title", func(t *testing.T) {
+			repo := repo
+			repo.retained = maps.Clone(repo.retained)
+			repo.receipt, repo.receiptIDs = playwrightBehaviorReceipt(t, repo.root, playwrightBehaviorFiles(t, repo.root), playwrightReceiptCase{"group-b", "lists items", 7, "passed", []jstestprovider.Attempt{{State: "passed", Retry: 0}}})
+			other := repo.receiptIDs["group-b > lists items"]
+			repo.extraTests = []playwrightExtraTest{{id: other, title: "lists items", line: 7, fixtures: []string{"seeded-items"}}}
+			bundle := importPlaywright(t, repo.request(t, discovery, nil, nil, nil), "receipt", repo.report)
+			if len(bundle.Witnesses) != 1 || bundle.Witnesses[0].TestID != clean || playwrightReasons(bundle)[other] != "report-test-missing" {
+				t.Fatalf("witnesses=%+v reasons=%v", bundle.Witnesses, playwrightReasons(bundle))
+			}
+		})
+		t.Run("receipt outcomes sharing a full title stay unwitnessed", func(t *testing.T) {
+			repo := repo
+			repo.retained = maps.Clone(repo.retained)
+			repo.receipt, _ = playwrightBehaviorReceipt(t, repo.root, playwrightBehaviorFiles(t, repo.root), playwrightReceiptCase{"items", "lists items", 7, "passed", []jstestprovider.Attempt{{State: "passed", Retry: 0}}})
+			bundle := importPlaywright(t, repo.request(t, discovery, nil, nil, nil), "receipt", repo.report)
+			if len(bundle.Witnesses) != 0 || playwrightReasons(bundle)[clean] != "report-ambiguous" {
+				t.Fatalf("witnesses=%+v reasons=%v", bundle.Witnesses, playwrightReasons(bundle))
+			}
+		})
 		t.Run("receipt unqualified", func(t *testing.T) {
 			bundle := importPlaywright(t, request, "candidates", repo.report)
 			if len(bundle.Witnesses) != 0 || playwrightReasons(bundle)[clean] != "receipt-unqualified" {
@@ -603,4 +677,34 @@ func TestPlaywrightWitnessImporter(t *testing.T) {
 			}
 		})
 	})
+}
+
+// playwrightEventAnnotation returns a copy of the index-th event annotation with its event edited.
+func playwrightEventAnnotation(t *testing.T, annotations []any, index int, edit func(map[string]any)) map[string]any {
+	t.Helper()
+	events := slices.DeleteFunc(slices.Clone(annotations), func(a any) bool { return a.(map[string]any)["type"] != PlaywrightEventAnnotation })
+	var event map[string]any
+	if err := jsonstd.Unmarshal([]byte(events[index].(map[string]any)["description"].(string)), &event); err != nil {
+		t.Fatal(err)
+	}
+	edit(event)
+	raw, err := jsonstd.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return map[string]any{"type": PlaywrightEventAnnotation, "description": string(raw)}
+}
+
+// playwrightBehaviorFiles reads the committed config and spec bytes the receipt digests.
+func playwrightBehaviorFiles(t *testing.T, root string) map[string][]byte {
+	t.Helper()
+	files := map[string][]byte{}
+	for _, path := range []string{playwrightBehaviorConfig, playwrightBehaviorSpec} {
+		data, err := os.ReadFile(filepath.Join(root, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[path] = data
+	}
+	return files
 }

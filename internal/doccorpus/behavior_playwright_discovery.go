@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
@@ -42,7 +43,7 @@ type PlaywrightDiscoveryInput struct {
 // revision; the working-tree bytes the listing was taken from must equal them.
 func BuildPlaywrightDiscovery(ctx context.Context, input PlaywrightDiscoveryInput) ([]byte, error) {
 	var migration BehaviorMigration
-	if err := decode(input.Migration, &migration); err != nil || migration.Schema != 2 || !textOK(migration.ContractID) || !validBehaviorRevisions(migration.Revisions) || migration.SourceRevision != migration.Revisions.E2E.Revision || migration.DocumentationRevision == "" {
+	if err := decode(input.Migration, &migration); err != nil || migration.Schema != 2 || !textOK(migration.ContractID) || !validBehaviorRevisions(migration.Revisions) || migration.SourceRevision != migration.Revisions.E2E.Revision || !wire.IsGitOid(migration.DocumentationRevision) || migration.DocumentationRevision != migration.Revisions.Docs.Revision {
 		return nil, fail("playwright discovery requires the exact schema-2 migration record")
 	}
 	listed, err := typescript.PlaywrightListedTests(input.Root, input.ConfigPath, input.Listing)

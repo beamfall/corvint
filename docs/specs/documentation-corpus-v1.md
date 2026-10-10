@@ -333,7 +333,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   errored, of another config, rooted outside the repository, has a repeated or missing test ID,
   location or project, or is empty or over the execution bound; a config or test file that is not a
   regular blob at the source revision or differs in the working tree; a repository that is not the
-  migration's; a malformed migration; and a receipt that is not qualified or ran other config or
+  migration's; a malformed migration, including a `documentation_revision` that is not a Git object
+  ID or differs from `revisions.docs_corpus.revision`; and a receipt that is not qualified or ran other config or
   test bytes. Status: (proposed, pending owner acceptance; V1-1082; GitHub #717).
 - `DCP-V1-049`: `corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID
   --report REPORT.json` validates the behavior-adapter request, then emits one deterministic
@@ -344,9 +345,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   Playwright. Status: (proposed, pending owner acceptance; V1-1083; GitHub #717).
 - `DCP-V1-050`: A witness is produced only when the qualified receipt test with the registered ID
   ran the registered project, file bytes, line and title, passed on its only attempt (retry 0) with
-  a `PASSED` projection, and the report has exactly one result for that file, line, title and project
-  whose status is `expected` with one passed retry-0 result carrying ordered behavior-event
-  annotations, exactly one `passed` cleanup annotation and the registered fixtures and roles. The
+  a `PASSED` projection, no other receipt outcome shares its file, line, project and full title, and
+  the report has exactly one result for that file, line, project and full title path (file, describe
+  and test titles joined with ` > ` as the receipt's `fullName` is) whose status is `expected` with
+  one passed result carrying an explicit retry 0, behavior-event annotations that form one unique
+  passing sequence numbered from 1 with a closed kind, identity and browser context, exactly one
+  `passed` cleanup annotation and the registered fixtures and roles. The
   witness carries the canonical `corvint-behavior-run/1` document (run digest = receipt digest), its
   SHA-256, the report test ID and digest, and an observation link whose run identity, project and
   source paths match `behavior-adapter`'s receipt check. Once the caller retains that document and
@@ -355,8 +359,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   V1-1083; GitHub #717).
 - `DCP-V1-051`: Every other registered test stays unwitnessed with exactly one named reason and is
   never credited: `foreign-project`, `source-mismatch`, `receipt-test-missing`, `failed`, `skipped`,
-  `flaky-after-retry` (including any retried pass), `report-test-missing`,
-  `report-receipt-disagree`, `events-unobserved`, `event-malformed`, `cleanup-unobserved`,
+  `flaky-after-retry` (including any retried pass), `report-ambiguous` (receipt outcomes sharing a
+  test identity or file, line, project and full title, or several report results for one),
+  `report-test-missing` (including a result with an absent or null retry), `report-receipt-disagree`,
+  `events-unobserved`, `event-malformed` (an event that does not decode or breaks the sequence,
+  uniqueness, passing, kind, identity or browser-context rules), `cleanup-unobserved`,
   `cleanup-failed` or `fixture-role-mismatch`. Status: (proposed, pending owner acceptance; V1-1083;
   GitHub #717).
 - `DCP-V1-052`: Missing or untrustworthy shared evidence yields uncertainty for every test, never
