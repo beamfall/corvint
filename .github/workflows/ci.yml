@@ -235,20 +235,57 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        id: go
         with:
           cache: false
           go-version: "1.27.1"
+      - name: Restore the trusted Go build cache (main pushes and merge-queue entries only)
+        # V1-1098: compiled packages only, in Go's default GOCACHE outside the tested checkout,
+        # so no read scope changes. Provenance: only a main push saves (below). A pull_request run
+        # never restores, because GitHub searches the pull request's own merge-ref scope first,
+        # and a pull request's workflow edits can write entries there. A main push sees only the
+        # main scope; a merge-queue entry sees main plus its own single-use
+        # gh-readonly-queue/main/pr-N-<sha> ref, which only that entry's tree writes to. The step
+        # is off wherever the race invocation is off (DOCS, REUSE). The pinned narrowed driver,
+        # which runs only for pull requests, keeps its own cold cache (AFP-V0-014/015).
+        # -count=1 stays, so no test result is reused.
+        id: gocache
+        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
       - name: Provision the host tools the product's fixed PATH resolves
         # Child processes run under worksource.PlatformPath, which reaches Go through
         # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
         # and the Git fixtures commit under the global identity. Automatic maintenance is off so
         # no detached `git maintenance` outlives a fixture commit and races its TempDir cleanup.
+        # V1-1095: rg is the official ripgrep release binary, pinned by the SHA-256 that the
+        # release publishes (docs/build-log/2026-10-10-ci-critical-path.md), not an apt install;
+        # a checksum mismatch fails the step before anything is extracted.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
           test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)
+          test "$rg_found" = /usr/local/bin/rg
+          case "$("$rg_found" --version | head -n 1)" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *) echo "::error::$rg_found is not ripgrep $RG_VERSION"; exit 1 ;;
+          esac
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false
@@ -283,8 +320,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Build protected partition helper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # .github is owner-protected by the control plane. Only these explicit files enter
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
@@ -296,15 +331,8 @@ jobs:
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-          fi
       - name: Build protected test read-scope wrapper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # AFP-V0-023: the `go test -exec` wrapper that confines each package declared in
           # .corvint/test-read-scopes.json with Landlock. Built like ci-shards, so tested
@@ -320,11 +348,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
           if [ -n "$declared" ]; then
             "$RUNNER_TEMP/test-confine" -probe
-          fi
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
           fi
       - name: Fetch advisory affected-first order plan
         if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS'
@@ -389,20 +412,39 @@ jobs:
               echo "Complete-universe shard $SHARD has no packages."
               exit 0
             fi
-            status=0
             # The protected helper validates each package as a typed, non-option word and
             # each slice pattern as one anchored element of plain test names.
             # Declared packages run confined to their read scopes (AFP-V0-023).
-            if [ -n "$packages" ]; then
-              # shellcheck disable=SC2086
-              CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages || status=1
+            run_tests() {
+              # AFP-V0-041: every invocation runs, whole packages first and then each slice;
+              # any failed invocation fails the shard.
+              local failed=0
+              if [ -n "$packages" ]; then
+                # shellcheck disable=SC2086
+                CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages < /dev/null || failed=1
+              fi
+              if [ -n "$slices" ]; then
+                while read -r flag pattern pkg; do
+                  CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" < /dev/null || failed=1
+                done <<< "$slices"
+              fi
+              return "$failed"
+            }
+            # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
+            # report. Only go test's own status decides this step: a capture file that cannot
+            # be created runs the tests uncaptured, and tee's status is never consulted.
+            capture="$RUNNER_TEMP/shard-costs/shard-$SHARD.json"
+            if mkdir -p "$RUNNER_TEMP/shard-costs" 2> /dev/null && : 2> /dev/null > "$capture"; then
+              set +e
+              run_tests | tee "$capture"
+              status=${PIPESTATUS[0]}
+              set -e
+              [ "$status" = 0 ] || exit "$status"
+              echo "costs=1" >> "$GITHUB_OUTPUT" || true
+            else
+              echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
+              run_tests
             fi
-            if [ -n "$slices" ]; then
-              while read -r flag pattern pkg; do
-                CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" || status=1
-              done <<< "$slices"
-            fi
-            [ "$status" = 0 ]
             # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
             if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
@@ -421,6 +463,18 @@ jobs:
           name: ${{ steps.tests.outputs.record }}
           path: ${{ runner.temp }}/tested-tree/record.json
           if-no-files-found: ignore
+      - name: Retain package outcomes for the advisory cost-drift report
+        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes.
+        if: steps.tests.outputs.costs == '1'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-shard-costs-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
       - name: Selection audit
         if: always()
         run: |
@@ -430,15 +484,83 @@ jobs:
             head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
+      - name: Expire cached test results before saving the build cache
+        # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
+        # push compiles nothing, and saving it would make the newest entry an empty one.
+        id: testcache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.gocache.outcome == 'success' && steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        working-directory: source
+        run: |
+          test "$(go env GOCACHE)" = "$HOME/.cache/go-build"
+          go clean -testcache
+      - name: Save the trusted Go build cache (main pushes only)
+        if: steps.testcache.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.gocache.outputs.cache-primary-key }}
+
+  go-static:
+    # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
+    # ran serially after its race tests. They need no docs-plan output, so they start at once,
+    # beside the shards, on every path that starts the shards (FULL, DOCS and REUSE alike).
+    # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
+    # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
       - name: Full static, formatting and build checks
-        if: strategy.job-index == 0
         working-directory: source
         run: |
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: Protected helper self-tests independently of PR module directives
+        working-directory: source
+        run: |
+          # The same isolated modules go-product-shard builds its helpers from, so tested
+          # go.mod/replace directives cannot redirect what these tests exercise.
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
+          t="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$t/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$t/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$t/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.1\n' > "$t/go.mod"
+          for m in "$d" "$t"; do
+            (
+              cd "$m"
+              go test -race -count=1 -timeout 30m ./...
+              go vet ./...
+              CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+            )
+          done
       - name: Independent interop under production toolchain
-        if: strategy.job-index == 0
         working-directory: source/interop/cem01-go
         run: |
           go test -count=1 -timeout 30m ./...
@@ -447,20 +569,128 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success.
     if: always()
-    needs: [go-product-shard, docs-plan]
+    needs: [go-product-shard, go-static, docs-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every go-product shard succeeded
+      - name: Every go-product shard and the static job succeeded
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+          STATIC_RESULT: ${{ needs.go-static.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
         run: |
           if [ "$SHARDS_RESULT" = skipped ]; then
             echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
           fi
           test "$SHARDS_RESULT" = success
+          test "$STATIC_RESULT" = success
           test "$DOCS_RESULT" = success
+
+  ci-shard-cost-drift:
+    # AFP-V0-040: advisory drift report for .github/cishards/package-costs.json from this run's
+    # shard outcomes. It is not a required check: it never fails on a finding, never changes
+    # shard membership or placement, posts no commit status and never writes the table.
+    # Refreshing the table stays an operator step (AFP-V0-022). Anything but every shard's
+    # outcomes abstains with its reason.
+    if: ${{ always() && !cancelled() }}
+    needs: go-product-shard
+    runs-on: ubuntu-24.04
+    # Every step is continue-on-error and their timeouts sum below this one, so no failure,
+    # timeout or abstention ends the job red.
+    continue-on-error: true
+    timeout-minutes: 20
+    env:
+      # Must equal the go-product-shard matrix, or every run abstains.
+      SHARDS: "6"
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - name: Fetch shard package outcomes
+        if: needs.go-product-shard.result == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: ci-shard-costs-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/shard-costs
+      - name: Require the outcomes of every shard
+        id: complete
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+        run: |
+          d="$RUNNER_TEMP/shard-costs"
+          have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$SHARDS_RESULT" != success ]; then
+            reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "$have" -ne "$SHARDS" ]; then
+            reason="$have of $SHARDS shard outcome artifacts present (a docs-only, reused or selected run executes no complete shard)"
+          else
+            echo 'ok=1' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s; a partial run cannot measure the table.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
+          echo 'summarized=1' >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        id: checkout
+        if: steps.complete.outputs.ok == '1'
+        continue-on-error: true
+        timeout-minutes: 3
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        id: setup-go
+        if: steps.complete.outputs.ok == '1' && steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Report cost drift (advisory; findings never fail)
+        id: report
+        if: steps.complete.outputs.ok == '1' && steps.setup-go.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          if ! go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shard-costs" ./tools/ci-shard-costs; then
+            printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: tools/ci-shard-costs did not build. No finding is reported for this run.\n' >> "$GITHUB_STEP_SUMMARY"
+            echo 'summarized=1' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          code=0
+          "$RUNNER_TEMP/ci-shard-costs" check --advisory --shards "$SHARDS" --summary "$GITHUB_STEP_SUMMARY" \
+            "$RUNNER_TEMP"/shard-costs/shard-*.json || code=$?
+          echo "ci-shard-costs check --advisory exited $code (2 means it abstained; see the job summary)"
+          # 0 reports and 2 abstains, each into the summary; any other exit leaves it to the fallback.
+          if [ "$code" = 0 ] || [ "$code" = 2 ]; then
+            echo 'summarized=1' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Record why no drift report was written
+        if: always() && steps.complete.outputs.summarized != '1' && steps.report.outputs.summarized != '1'
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          COMPLETE: ${{ steps.complete.outcome }}
+          CHECKOUT: ${{ steps.checkout.outcome }}
+          SETUP_GO: ${{ steps.setup-go.outcome }}
+          REPORT: ${{ steps.report.outcome }}
+        run: |
+          if [ "$COMPLETE" != success ]; then
+            reason="the shard outcome check ended $COMPLETE"
+          elif [ "$CHECKOUT" != success ]; then
+            reason="checkout ended $CHECKOUT"
+          elif [ "$SETUP_GO" != success ]; then
+            reason="setup-go ended $SETUP_GO"
+          else
+            reason="the report step ended $REPORT without a report"
+          fi
+          printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s. No finding is reported for this run.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
 
   go-interop:
     runs-on: ubuntu-24.04

@@ -210,3 +210,77 @@ func TestPlaywrightDiscoveryUnnamedProject(t *testing.T) {
 		}
 	})
 }
+
+// GitHub #709 part 3 (V1-1067): a MALFORMED receipt names one stable reason and a one-line
+// detail (TJAA-V0-019); every other state carries neither.
+func TestPlaywrightDiscoveryMalformedReason_V1_1067(t *testing.T) {
+	root := playwrightFixture(t)
+	valid := discoveryFixtureBytes(t, root, smallDiscoveryUnits())
+	indented := func(b []byte) []byte {
+		var out bytes.Buffer
+		var value any
+		if err := json.Unmarshal(b, &value); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.Marshal(value, json.Deterministic(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out.Write(bytes.ReplaceAll(raw, []byte(`,"`), []byte(",\n  \"")))
+		return out.Bytes()
+	}
+	for _, row := range []struct {
+		name, reason, detail string
+		edit                 func([]byte) []byte
+	}{
+		{"truncated", "DECODE_FAILED", "", func(b []byte) []byte { return b[:len(b)-2] }},
+		{"unknown-field", "DECODE_FAILED", `"extra"`, func(b []byte) []byte { return append([]byte(`{"extra":true,`), b[1:]...) }},
+		{"playwright-report", "DECODE_FAILED", "corvint affected discovery", func([]byte) []byte {
+			return []byte(`{"config":{"rootDir":"/r"},"suites":[],"errors":[]}`)
+		}},
+		{"bound", "DECODE_FAILED", "4194304", func([]byte) []byte { return bytes.Repeat([]byte("x"), PlaywrightDiscoveryMaxBytes+1) }},
+		{"indented", "NON_CANONICAL_BYTES", "byte", indented},
+		{"missing-member", "NON_CANONICAL_BYTES", "byte", func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"profile":"playwright-discovery/0",`), nil, 1)
+		}},
+		{"profile", "INVALID_FIELD", "profile", func(b []byte) []byte {
+			return bytes.ReplaceAll(b, []byte("playwright-discovery/0"), []byte("playwright-discovery/1"))
+		}},
+		{"path", "INVALID_FIELD", "units[0].test", func(b []byte) []byte {
+			return bytes.Replace(b, []byte("tests/login.spec.ts"), []byte("tests/../tests/login.spec.ts"), 1)
+		}},
+		{"revision", "INVALID_FIELD", "revision", func(b []byte) []byte {
+			return bytes.ReplaceAll(b, []byte(discoveryFixtureRevision), []byte(strings.Repeat("A", 40)))
+		}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, row.edit(valid))
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertDiscoveryFallback(t, plan, "MALFORMED")
+			t.Logf("%s: %s", plan.Discovery.Reason, plan.Discovery.Detail)
+			if plan.Discovery.Reason != row.reason || !strings.Contains(plan.Discovery.Detail, row.detail) || plan.Discovery.Detail == "" || strings.ContainsAny(plan.Discovery.Detail, "\r\n") {
+				t.Fatalf("reason=%q detail=%q", plan.Discovery.Reason, plan.Discovery.Detail)
+			}
+			if _, state := VerifyPlaywrightDiscovery(root, "playwright.config.ts", discoveryFixtureRevision, row.edit(valid)); state != "MALFORMED" {
+				t.Fatal(state)
+			}
+		})
+	}
+	unsorted := discoveryFixtureBytes(t, root, []PlaywrightDiscoveryUnit{smallDiscoveryUnits()[1], smallDiscoveryUnits()[0]})
+	plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, unsorted)
+	if err != nil || plan.Discovery.Reason != "INVALID_FIELD" || !strings.Contains(plan.Discovery.Detail, "units[1]") {
+		t.Fatalf("%+v %v", plan.Discovery, err)
+	}
+	for _, raw := range [][]byte{nil, valid} {
+		plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
+		if err != nil || plan.Discovery.Reason != "" || plan.Discovery.Detail != "" {
+			t.Fatalf("%+v %v", plan.Discovery, err)
+		}
+		encoded, err := json.Marshal(plan.Discovery, json.Deterministic(true))
+		if err != nil || bytes.Contains(encoded, []byte(`"reason"`)) || bytes.Contains(encoded, []byte(`"detail"`)) {
+			t.Fatalf("reason member emitted outside MALFORMED: %s %v", encoded, err)
+		}
+	}
+}

@@ -70,6 +70,7 @@ AFP-V0-036	docs/specs/affected-plan-v0.md	833	(proposed (V1-0984); no GitHub iss
 AFP-V0-037	docs/specs/affected-plan-v0.md	852	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
 AFP-V0-038	docs/specs/affected-plan-v0.md	882	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
 AFP-V0-039	docs/specs/affected-plan-v0.md	893	(proposed (V1-0662); no GitHub issue) A Go test fixture under
+AFP-V0-040	docs/specs/affected-plan-v0.md	906	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
 AFP-V0-041	docs/specs/affected-plan-v0.md	517	(proposed (V1-1096); no GitHub issue; experimental until owner acceptance) Full
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
@@ -2986,11 +2987,14 @@ TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	95	Discovery
 TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	98	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
 TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	102	One selected Playwright unit MUST identify one physical test file under one
 TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	105	Static config support is deliberately closed. Project arrays and membership fiel
-TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	126	A changed source, page object, fixture, scenario builder, or helper MUST select
-TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	133	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
-TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	137	Per-file commands require a matching complete caller-owned discovery receipt.
-TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	144	The profile MUST be read-only and bounded by the shared source-walk and source-r
-TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	152	Qualification requires a fixture with Chromium plus Angular/React project varian
+TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	128	A changed source, page object, fixture, scenario builder, or helper MUST select
+TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	135	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	139	Per-file commands require a matching complete caller-owned discovery receipt.
+TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	146	The profile MUST be read-only and bounded by the shared source-walk and source-r
+TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	154	Qualification requires a fixture with Chromium plus Angular/React project varian
+TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	161	(accepted, decision 0483; V1-1065; GitHub #709) In a global or project
+TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	225	(accepted, decision 0483; V1-1066; GitHub #709) The command
+TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	286	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	60	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	69	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	86	A folded obligation entry MUST be the closed object `{id, title, core, state,

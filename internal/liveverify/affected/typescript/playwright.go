@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -140,6 +141,9 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	}
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
 	tests := playwrightSourcePaths(result)
+	if playwrightPathOutsideMatcherModel(root) || slices.ContainsFunc(tests, playwrightPathOutsideMatcherModel) {
+		configUnknown = append(configUnknown, selectionUnknown(PlaywrightUnknownProjectMembership, "a test path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently"))
+	}
 	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
 	bindPlaywrightTestMembership(&result, units, configPath)
 	selectionUnknown, executionUnknown := classifyPlaywrightFrontier(result.Frontier)
@@ -471,6 +475,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	if !ok {
 		return nil, "", []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownConfigSyntax, "top-level config object is dynamic")}
 	}
+	scope := newPlaywrightPureScope(clean)
 	globalTestDir := "."
 	unknown := []PlaywrightUnknown{}
 	if raw, exists := properties["testDir"]; exists {
@@ -500,7 +505,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		project, itemUnknown := parsePlaywrightProject(configPath, globalTestDir, item, properties["use"])
+		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties["use"])
 		unknown = append(unknown, itemUnknown...)
 		if project.Name == "" {
 			continue
@@ -529,7 +534,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	return projects, globalTestDir, canonicalPlaywrightUnknowns(unknown)
 }
 
-func parsePlaywrightProject(configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
+func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
 	properties, ok := playwrightObjectProperties(raw)
 	if !ok {
 		return PlaywrightProject{}, []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownProjectSet, "project entry is not a static object")}
@@ -582,7 +587,7 @@ func parsePlaywrightProject(configPath, globalTestDir, raw, globalUse string) (P
 			project.Metadata = hex.EncodeToString(sum[:])
 		}
 	}
-	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(globalUse, properties["use"])
+	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(scope, globalUse, properties["use"])
 	if !ok {
 		unknown = append(unknown, selectionUnknown(PlaywrightUnknownBrowserIdentity, name+" use.browserName/device is dynamic or unsupported"))
 	}
@@ -625,16 +630,12 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 	return strings.TrimSpace(raw), unknown
 }
 
-func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
-	return playwrightInheritedUseIdentity("", raw)
-}
-
-func playwrightInheritedUseIdentity(global, raw string) (browser, device string, ok bool) {
-	browser, device, ok = playwrightUseLayer(global, "", "")
+func playwrightInheritedUseIdentity(scope playwrightPureScope, global, raw string) (browser, device string, ok bool) {
+	browser, device, ok = playwrightUseLayer(scope, global, "", "")
 	if !ok {
 		return "", "", false
 	}
-	browser, device, ok = playwrightUseLayer(raw, browser, device)
+	browser, device, ok = playwrightUseLayer(scope, raw, browser, device)
 	if browser == "" && device != "" {
 		browser = playwrightDeviceBrowser(device)
 	}
@@ -644,7 +645,9 @@ func playwrightInheritedUseIdentity(global, raw string) (browser, device string,
 	return browser, device, ok
 }
 
-func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
+// playwrightUseLayer reads one `use` layer. A device spread keeps its identity only when the
+// devices import is sound in scope: any other occurrence of `devices` may rewrite a descriptor.
+func playwrightUseLayer(scope playwrightPureScope, raw, browser, device string) (string, string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return browser, device, true
@@ -666,7 +669,7 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 		}
 		if strings.HasPrefix(item, "...") {
 			name, literal := playwrightDeviceSpread(strings.TrimSpace(strings.TrimPrefix(item, "...")))
-			if !literal || seenDevice {
+			if !literal || seenDevice || !scope.devices {
 				return "", "", false
 			}
 			device = name
@@ -697,7 +700,11 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			return "", device, false
 		}
 		if key != "browserName" {
-			if !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
+			// An identity value must be a static literal. Another option's value (baseURL,
+			// storageState, trace, ...) may be computed only when evaluating it cannot run code or
+			// write state, so it cannot rewrite a devices descriptor (TJAA-V0-018).
+			value := strings.TrimSpace(item[colon+1:])
+			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) || !playwrightPureExpression(value, scope) {
 				return "", device, false
 			}
 			continue
@@ -710,6 +717,11 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 	}
 	return browser, device, true
 }
+
+// PlaywrightUseIdentityKeys are the `use` options that make up a project's browser/device
+// identity. The external provider's qualified reporter resolves the same set at runtime;
+// jstestprovider's tests pin its identityKeys list to this one.
+var PlaywrightUseIdentityKeys = []string{"browserName", "defaultBrowserType", "channel", "headless", "connectOptions", "viewport", "screen", "userAgent", "isMobile", "hasTouch", "deviceScaleFactor", "locale", "timezoneId", "colorScheme", "permissions", "contextOptions", "launchOptions"}
 
 func playwrightDeviceSpread(raw string) (string, bool) {
 	if !strings.HasPrefix(raw, "devices[") || !strings.HasSuffix(raw, "]") {
@@ -750,19 +762,39 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 	return !playwrightAnyMatcher(project.ignores, absolute)
 }
 
+// playwrightPathOutsideMatcherModel reports whether a path holds CR, LF, U+2028, U+2029 or a
+// character outside the Basic Multilingual Plane. Go's `.` (without `s`) and `(?m)` anchors treat
+// only LF as a line terminator while JavaScript treats all four, and a JavaScript regular
+// expression without the u flag matches UTF-16 code units, so `.`, `[^/]` or a negated class
+// consumes half of a surrogate pair where Go consumes the whole rune. A matcher's verdict on such
+// a path is not decided statically and membership widens.
+func playwrightPathOutsideMatcherModel(value string) bool {
+	return strings.ContainsAny(value, "\r\n\u2028\u2029") || playwrightOutsideBMP(value)
+}
+
+// playwrightOutsideBMP reports whether value holds a character above U+FFFF, which a JavaScript
+// regular expression without the u flag reads as two UTF-16 code units and Go RE2 as one rune.
+func playwrightOutsideBMP(value string) bool {
+	return strings.ContainsFunc(value, func(character rune) bool { return character > 0xFFFF })
+}
+
+// playwrightDefaultTest applies the `.spec.`/`.test.` markers of Playwright's default testMatch
+// glob, which createFileMatcher matches case-insensitively (minimatch nocase).
 func playwrightDefaultTest(relative string) bool {
-	base := path.Base(relative)
-	for _, marker := range []string{".spec.", ".test."} {
-		if !strings.Contains(base, marker) {
-			continue
-		}
-		for _, extension := range sourceExtensions {
-			if strings.HasSuffix(base, extension) {
-				return true
-			}
-		}
+	base := strings.ToLower(path.Base(relative))
+	return (strings.Contains(base, ".spec.") || strings.Contains(base, ".test.")) && playwrightLoadableName(base)
+}
+
+// playwrightLoadableName reports whether name has an extension Playwright's default testMatch
+// (`**/*.@(spec|test).?(c|m)[jt]s?(x)`) accepts, including .mts and .cts, which the static profile
+// does not parse.
+func playwrightLoadableName(name string) bool {
+	extension := strings.TrimPrefix(strings.ToLower(path.Ext(name)), ".")
+	if strings.HasPrefix(extension, "c") || strings.HasPrefix(extension, "m") {
+		extension = extension[1:]
 	}
-	return false
+	extension = strings.TrimSuffix(extension, "x")
+	return extension == "js" || extension == "ts"
 }
 
 func playwrightAnyMatcher(matchers []playwrightMatcher, values ...string) bool {
@@ -779,17 +811,26 @@ func playwrightAnyMatcher(matchers []playwrightMatcher, values ...string) bool {
 func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 	raw = strings.TrimSpace(raw)
 	if value, ok := playwrightString(raw); ok {
+		// Playwright's createFileMatcher prefixes `**/` to a string glob that lacks it and
+		// matches it case-insensitively against the absolute path (minimatch nocase, dot).
+		if !strings.HasPrefix(value, "**/") {
+			value = "**/" + value
+		}
+		// minimatch splits the glob and the path on runs of `/`, so `e2e//*.spec.ts`, and a
+		// leading `/` (which becomes `**//`), match where a literal `//` would not.
 		pattern, valid := playwrightGlobPattern(value)
-		if !valid {
+		if !valid || playwrightOutsideBMP(value) || strings.Contains(value, "//") {
 			return playwrightMatcher{}, false
 		}
-		re, err := regexp.Compile("^(?:" + pattern + ")$")
+		re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
 		return playwrightMatcher{raw: raw, re: re}, err == nil
 	}
 	pattern, flags, ok := playwrightRegexLiteral(raw)
-	if !ok || strings.Contains(pattern, "(?") || strings.Contains(pattern, "\\k<") {
+	if !ok || !playwrightRegexBodyStatic(pattern) {
 		return playwrightMatcher{}, false
 	}
+	// Only flags Go maps exactly are modelled. Sticky `y` anchors at lastIndex 0, which Playwright
+	// resets before each test, so it cannot be dropped; g, u, d, v and any other flag widen too.
 	prefix := ""
 	for _, flag := range flags {
 		switch flag {
@@ -799,7 +840,6 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 			prefix += "(?m)"
 		case 's':
 			prefix += "(?s)"
-		case 'g', 'u', 'y':
 		default:
 			return playwrightMatcher{}, false
 		}
@@ -808,18 +848,167 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 	return playwrightMatcher{raw: raw, re: re}, err == nil
 }
 
+// playwrightRegexEscapes are the escapes whose meaning is identical in a JavaScript regular
+// expression without the u flag and in Go RE2: ASCII digit, word and boundary classes, five
+// control characters, and a backslash before ASCII syntax punctuation.
+const (
+	playwrightRegexEscapes      = "dDwWbBtnrfv"
+	playwrightRegexPunctuation  = "^$\\.*+?()[]{}|/-"
+	playwrightRegexMaxRepeat    = 1000
+	playwrightRegexRepeatDigits = 4
+)
+
+// playwrightRegexBodyStatic reports whether a regular-expression literal body uses only constructs
+// that JavaScript (without the u flag) and Go RE2 read identically: literal characters, `.`, `^`,
+// `$`, `|`, `(...)` and `(?:...)` groups, the quantifiers `*`, `+`, `?`, `{n}`, `{n,}` and
+// `{n,m}` (n <= m <= 1000, each bound `0` or digits without a leading zero) after an atom, each
+// optionally lazy, classes of literals, ranges and allowed escapes, and the escapes in
+// playwrightRegexEscapes and playwrightRegexPunctuation. Every other construct differs or may
+// differ (`\A` is a literal A in JavaScript and an anchor in Go; `\s` includes Unicode spaces only
+// in JavaScript; `{01}` repeats in JavaScript and is literal text in Go; a character above U+FFFF
+// is a surrogate pair in JavaScript and one rune in Go; `(?i)`, named groups, lookaround,
+// backreferences, `\x`, `\u`, `\p` and POSIX classes), so the matcher is not static.
+func playwrightRegexBodyStatic(body string) bool {
+	if playwrightOutsideBMP(body) {
+		return false
+	}
+	atom, lazy := false, false
+	for index := 0; index < len(body); index++ {
+		character := body[index]
+		switch {
+		case character == '\\':
+			if index+1 == len(body) {
+				return false
+			}
+			index++
+			escape := body[index]
+			if !strings.ContainsRune(playwrightRegexEscapes, rune(escape)) && !strings.ContainsRune(playwrightRegexPunctuation, rune(escape)) {
+				return false
+			}
+			atom, lazy = escape != 'b' && escape != 'B', false
+		case character == '(':
+			if index+1 < len(body) && body[index+1] == '?' {
+				if index+2 == len(body) || body[index+2] != ':' {
+					return false
+				}
+				index += 2
+			}
+			atom, lazy = false, false
+		case character == '*' || character == '+' || character == '?':
+			if character == '?' && lazy {
+				atom, lazy = false, false
+				continue
+			}
+			if !atom {
+				return false
+			}
+			atom, lazy = false, true
+		case character == '{':
+			end, valid := playwrightRegexRepeatEnd(body, index)
+			if !atom || !valid {
+				return false
+			}
+			index = end - 1
+			atom, lazy = false, true
+		case character == '[':
+			end, valid := playwrightRegexClassEnd(body, index)
+			if !valid {
+				return false
+			}
+			index = end - 1
+			atom, lazy = true, false
+		case character == '}' || character == ']':
+			return false
+		case character == '^' || character == '$' || character == '|':
+			atom, lazy = false, false
+		default: // a literal, `.` or a group's closing `)`
+			atom, lazy = true, false
+		}
+	}
+	return true
+}
+
+// playwrightRegexRepeatEnd returns the offset past a `{n}`, `{n,}` or `{n,m}` quantifier at
+// body[start] with n <= m <= playwrightRegexMaxRepeat. Each bound is `0` or ASCII digits without a
+// leading zero: JavaScript (Annex B) reads `{01}` as a repeat, while Go's parser rejects the
+// leading zero and reads the braces as literal text. Spaces, a missing first bound (`{,n}`, a
+// literal in both) and any other form are refused rather than modelled.
+func playwrightRegexRepeatEnd(body string, start int) (int, bool) {
+	closing := strings.IndexByte(body[start:], '}')
+	if closing < 0 {
+		return 0, false
+	}
+	bounds := strings.SplitN(body[start+1:start+closing], ",", 2)
+	number := func(value string) (int, bool) {
+		if value == "" || len(value) > playwrightRegexRepeatDigits || strings.Trim(value, "0123456789") != "" || len(value) > 1 && value[0] == '0' {
+			return 0, false
+		}
+		parsed, err := strconv.Atoi(value)
+		return parsed, err == nil && parsed <= playwrightRegexMaxRepeat
+	}
+	low, valid := number(bounds[0])
+	if !valid {
+		return 0, false
+	}
+	if len(bounds) == 2 && bounds[1] != "" {
+		high, valid := number(bounds[1])
+		if !valid || high < low {
+			return 0, false
+		}
+	}
+	return start + closing + 1, true
+}
+
+// playwrightRegexClassEnd returns the offset past a non-empty `[...]` or `[^...]` class at
+// body[start] holding only literals, ranges and the allowed escapes other than `\b` and `\B`
+// (a backspace in a JavaScript class). A nested `[` (Go's `[:alpha:]` form) is not static.
+func playwrightRegexClassEnd(body string, start int) (int, bool) {
+	index := start + 1
+	if index < len(body) && body[index] == '^' {
+		index++
+	}
+	if index < len(body) && body[index] == ']' {
+		return 0, false // `[]` and `[^]` differ: Go reads `]` as a literal there
+	}
+	for ; index < len(body); index++ {
+		switch body[index] {
+		case ']':
+			return index + 1, true
+		case '[':
+			return 0, false
+		case '\\':
+			if index+1 == len(body) {
+				return 0, false
+			}
+			index++
+			escape := body[index]
+			if escape == 'b' || escape == 'B' || !strings.ContainsRune(playwrightRegexEscapes, rune(escape)) && !strings.ContainsRune(playwrightRegexPunctuation, rune(escape)) {
+				return 0, false
+			}
+		}
+	}
+	return 0, false
+}
+
 func playwrightGlobPattern(glob string) (string, bool) {
 	var pattern strings.Builder
 	for index := 0; index < len(glob); {
 		switch glob[index] {
 		case '*':
 			if index+1 < len(glob) && glob[index+1] == '*' {
-				if index+2 < len(glob) && glob[index+2] == '/' {
+				// minimatch's globstar is `**` as a whole path component; anywhere else `**` acts
+				// as `*`, which is not modelled, so the glob is not static.
+				if index > 0 && glob[index-1] != '/' {
+					return "", false
+				}
+				if index+2 == len(glob) {
+					pattern.WriteString(".*")
+					index += 2
+				} else if glob[index+2] == '/' {
 					pattern.WriteString("(?:.*/)?")
 					index += 3
 				} else {
-					pattern.WriteString(".*")
-					index += 2
+					return "", false
 				}
 			} else {
 				pattern.WriteString("[^/]*")
@@ -834,9 +1023,13 @@ func playwrightGlobPattern(glob string) (string, bool) {
 				return "", false
 			}
 			parts := strings.Split(glob[index+1:index+1+end], ",")
+			if len(parts) < 2 {
+				return "", false // `{a}` is literal and `{1..3}` a range in minimatch
+			}
 			pattern.WriteString("(?:")
 			for partIndex, part := range parts {
-				if part == "" || strings.ContainsAny(part, "*?{}[]") {
+				// An alternative holding `/` can expand to `//`, which minimatch collapses.
+				if part == "" || strings.ContainsAny(part, "*?{}[]()\\/") || strings.Contains(part, "..") {
 					return "", false
 				}
 				if partIndex != 0 {
@@ -846,11 +1039,11 @@ func playwrightGlobPattern(glob string) (string, bool) {
 			}
 			pattern.WriteByte(')')
 			index += end + 2
-		case '[', ']':
-			return "", false
+		case '[', ']', '(', ')', '\\':
+			return "", false // classes, extglobs and escapes are not modelled
 		default:
 			start := index
-			for index < len(glob) && !strings.ContainsRune("*?{[]", rune(glob[index])) {
+			for index < len(glob) && !strings.ContainsRune("*?{[]()\\", rune(glob[index])) {
 				index++
 			}
 			pattern.WriteString(regexp.QuoteMeta(glob[start:index]))
@@ -1017,10 +1210,19 @@ func playwrightSplitTopLevel(raw string) ([]string, bool) {
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return nil, false
+			}
+			index = end - 1
 		case '/':
-			regex = playwrightSlashStartsRegex(raw, index)
+			var known bool
+			if regex, known = playwrightSlashStartsRegex(raw, index); !known {
+				return nil, false
+			}
 		case '{', '[', '(':
 			stack = append(stack, character)
 		case '}', ']', ')':
@@ -1059,8 +1261,14 @@ func playwrightTopLevelColon(raw string) int {
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return -1
+			}
+			index = end - 1
 		case '{', '[', '(':
 			depth++
 		case '}', ']', ')':
@@ -1091,8 +1299,14 @@ func playwrightBalancedValue(raw string, start int, closer byte) (string, int, b
 			continue
 		}
 		switch character {
-		case '\'', '"', '`':
+		case '\'', '"':
 			quote = character
+		case '`':
+			end := templateEnd(raw, index)
+			if end > len(raw) {
+				return "", len(raw), false
+			}
+			index = end - 1
 		case '{', '[', '(':
 			depth++
 		case '}', ']', ')':
@@ -1109,14 +1323,66 @@ func playwrightPair(open, close byte) bool {
 	return open == '{' && close == '}' || open == '[' && close == ']' || open == '(' && close == ')'
 }
 
-func playwrightSlashStartsRegex(raw string, index int) bool {
-	for previous := index - 1; previous >= 0; previous-- {
-		if raw[previous] == ' ' || raw[previous] == '\t' || raw[previous] == '\n' || raw[previous] == '\r' {
-			continue
-		}
-		return strings.ContainsRune("([{:;,=!?&|", rune(raw[previous]))
+// playwrightRegexKeywords are the reserved words after which a `/` starts a regular expression.
+var playwrightRegexKeywords = []string{"return", "typeof", "instanceof", "in", "new", "delete", "void", "throw", "case", "do", "else"}
+
+// playwrightEndsCodePointEscape reports whether the `}` at index closes a `\u{hex}` escape.
+func playwrightEndsCodePointEscape(raw string, index int) bool {
+	if raw[index] != '}' {
+		return false
 	}
-	return true
+	start := index
+	for start > 0 && strings.IndexByte("0123456789abcdefABCDEF", raw[start-1]) >= 0 {
+		start--
+	}
+	return start >= 3 && start < index && raw[start-3:start] == "\\u{"
+}
+
+// playwrightSlashStartsRegex reports whether the `/` at index starts a regular expression: after
+// an operator or opening punctuation, `=>`, a reserved word in playwrightRegexKeywords, or nothing.
+// After an identifier, a number, `)`, `]`, `}` or a property name (`x.return`) it is division.
+// known is false after `of`, `yield` or `await`: each may be an identifier operand of a division
+// or a keyword before a regular expression, so the caller refuses the source rather than guess.
+// It is also false after a non-ASCII byte (an identifier, a space or a line terminator) and after
+// an identifier escape, which this ASCII classifier cannot read.
+func playwrightSlashStartsRegex(raw string, index int) (regex, known bool) {
+	previous := index - 1
+	for previous >= 0 && (raw[previous] == ' ' || raw[previous] == '\t' || raw[previous] == '\n' || raw[previous] == '\r') {
+		previous--
+	}
+	if previous < 0 {
+		return true, true
+	}
+	if raw[previous] == '>' && previous > 0 && raw[previous-1] == '=' {
+		return true, true
+	}
+	if raw[previous] >= utf8.RuneSelf || raw[previous] == '\\' || playwrightEndsCodePointEscape(raw, previous) {
+		return false, false // a non-ASCII identifier, space or punctuator, or an escaped identifier
+	}
+	from := previous + 1
+	for from > 0 && strings.IndexByte("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", raw[from-1]) >= 0 {
+		from--
+	}
+	if word := raw[from : previous+1]; word != "" {
+		before := from - 1
+		for before >= 0 && (raw[before] == ' ' || raw[before] == '\t' || raw[before] == '\n' || raw[before] == '\r') {
+			before--
+		}
+		if before >= 0 && raw[before] == '.' && (before == 0 || raw[before-1] != '.') {
+			return false, true // a property name, never a keyword
+		}
+		if from > 0 && (raw[from-1] >= utf8.RuneSelf || raw[from-1] == '\\') {
+			return false, false // part of a non-ASCII or escaped identifier
+		}
+		switch {
+		case word == "of" || word == "yield" || word == "await":
+			return false, false
+		case slices.Contains(playwrightRegexKeywords, word):
+			return true, true
+		}
+		return false, true
+	}
+	return strings.ContainsRune("([{:;,=!?&|", rune(raw[previous])), true
 }
 
 func playwrightString(raw string) (string, bool) {
@@ -1171,7 +1437,16 @@ func playwrightStringArray(raw string) ([]string, bool) {
 	return values, true
 }
 
+// playwrightStaticValue reports a literal value, with arrays and objects nested at most
+// playwrightPureMaxDepth deep so adversarial nesting is refused in bounded work.
 func playwrightStaticValue(raw string) bool {
+	return playwrightStaticValueAt(raw, 0)
+}
+
+func playwrightStaticValueAt(raw string, depth int) bool {
+	if depth > playwrightPureMaxDepth {
+		return false
+	}
 	raw = strings.TrimSpace(raw)
 	if _, ok := playwrightString(raw); ok {
 		return true
@@ -1184,7 +1459,7 @@ func playwrightStaticValue(raw string) bool {
 	}
 	if items, ok := playwrightArrayItems(raw); ok {
 		for _, item := range items {
-			if !playwrightStaticValue(item) {
+			if !playwrightStaticValueAt(item, depth+1) {
 				return false
 			}
 		}
@@ -1192,7 +1467,7 @@ func playwrightStaticValue(raw string) bool {
 	}
 	if properties, ok := playwrightObjectProperties(raw); ok {
 		for _, value := range properties {
-			if !playwrightStaticValue(value) {
+			if !playwrightStaticValueAt(value, depth+1) {
 				return false
 			}
 		}
