@@ -94,10 +94,7 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 	}
 
 	js := filepath.Join(extracted, "bin", inventory.name("corvint-js-test-provider"))
-	_, stderr, jsErr := runExpectedExit(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, 2, js)
-	if jsErr == nil && strings.TrimSpace(string(stderr)) != "usage: "+inventory.name("corvint-js-test-provider")+" <unit|e2e> [flags]" {
-		jsErr = fmt.Errorf("unexpected help admission: %q", stderr)
-	}
+	jsErr := checkJSProviderUsage(ctx, js, inventory.name("corvint-js-test-provider"), scratch)
 	steps = append(steps, step("corvint-js-test-provider-help", jsErr, "exit 2 usage admission; execution deferred to installed VSIX qualification"))
 	if jsErr != nil {
 		return steps, jsErr
@@ -305,4 +302,14 @@ func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []Comp
 			steps[i].InvokedPath = filepath.Join(extracted, component.BinaryPath)
 		}
 	}
+}
+
+// checkJSProviderUsage runs the JS provider with no subcommand and requires its exit-2 usage line,
+// which names every subcommand cmd/corvint-js-test-provider dispatches (V1-1113).
+func checkJSProviderUsage(ctx context.Context, binary, name, scratch string) error {
+	_, stderr, err := runExpectedExit(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, 2, binary)
+	if err == nil && strings.TrimSpace(string(stderr)) != "usage: "+name+" <unit|e2e|negate|qualify-keep-reporters> [flags]" {
+		err = fmt.Errorf("unexpected help admission: %q", stderr)
+	}
+	return err
 }

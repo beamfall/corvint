@@ -75,3 +75,30 @@ func TestPUBV0024DocumentationCorpusSearchProfiles(t *testing.T) {
 		}
 	})
 }
+
+// TestJSProviderUsageAdmitsTheBuiltProvider builds cmd/corvint-js-test-provider and runs the
+// installed smoke's usage check on it, so a new subcommand that changes the usage line fails here
+// and not first on the nightly companion-release gate (V1-1113).
+func TestJSProviderUsageAdmitsTheBuiltProvider(t *testing.T) {
+	repository, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	binary := filepath.Join(root, "corvint-js-test-provider")
+	goPath, err := goBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, err := runCaptured(context.Background(), repository, closedGoEnv(filepath.Join(root, "go-home"), ""), buildTimeout,
+		goPath, "build", "-trimpath", "-buildvcs=false", "-o", binary, "./cmd/corvint-js-test-provider"); err != nil {
+		t.Fatalf("build provider: %v: %s", err, stderr)
+	}
+	scratch := filepath.Join(root, "scratch")
+	if err := os.Mkdir(scratch, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkJSProviderUsage(context.Background(), binary, "corvint-js-test-provider", scratch); err != nil {
+		t.Fatal(err)
+	}
+}
