@@ -709,6 +709,12 @@ func version(ctx context.Context, binary, home, component string) (string, int, 
 		return "", 0, fmt.Errorf("version smoke failed: %v", o.Err)
 	}
 	s := strings.TrimSpace(string(o.Stdout))
+	if component == "tasks" {
+		var err error
+		if s, err = tasksVersion(s); err != nil {
+			return "", 0, err
+		}
+	}
 	m := buildRE.FindStringSubmatch(s)
 	if m == nil {
 		return s, 0, errors.New("unknown installed/candidate numeric build")
@@ -720,10 +726,20 @@ func version(ctx context.Context, binary, home, component string) (string, int, 
 	if component == "core" && !strings.Contains(strings.ToLower(s), "corvint") {
 		return s, 0, errors.New("unexpected Core version identity")
 	}
-	if component == "tasks" && !strings.Contains(s, "taskman-command-result/0") {
-		return s, 0, errors.New("unexpected Tasks version identity")
-	}
 	return s, n, nil
+}
+
+// tasksVersion reduces the `corvint-tasks version` command result to the one
+// version string it reports, so the identity reads like Core's.
+func tasksVersion(s string) (string, error) {
+	var env struct {
+		Profile string
+		Items   []struct{ Version string }
+	}
+	if json.Unmarshal([]byte(s), &env) != nil || env.Profile != "taskman-command-result/0" || len(env.Items) != 1 || env.Items[0].Version == "" {
+		return "", errors.New("unexpected Tasks version identity")
+	}
+	return env.Items[0].Version, nil
 }
 func runProcess(ctx context.Context, binary, home, arg string) procgroup.Observation {
 	dir := filepath.Dir(binary)

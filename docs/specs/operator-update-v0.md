@@ -151,7 +151,7 @@ and callers restart them when the applicable host integration requires it.
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| UPD-V0-001 | `internal/update`, `cmd/corvint-update` | `TestUPDV0001OfflineReadOnlyAndChannels` and `TestUPDV0001PaginationCapUnknown`: channels, offline/unknown, read-only |
+| UPD-V0-001 | `internal/update`, `cmd/corvint-update` | `TestUPDV0001OfflineReadOnlyAndChannels`, `TestUPDV0001PaginationCapUnknown` and `TestUPDV0001TasksInstalledVersion`: channels, offline/unknown, read-only, Tasks version string from its command result |
 | UPD-V0-002 | archive/identity verification | `TestUPDV0002ChecksumsAndArchive`, `TestUPDV0002PlatformAndQualificationIdentity`, `TestUPDV0002InternalTamperWithValidOuterChecksum`: outer/internal checksums, host, notices, evidence |
 | UPD-V0-003 | bounded transport, paths and destination lock | `TestUPDV0003ArchivePathsAndLocks`: caps, aliases, traversal, concurrent state roots |
 | UPD-V0-004 | candidate preparation and activation | `TestUPDV0004ActivationDowngradeCancelRace`, `TestUPDV0004UnchangedCleanupAndDestinationDrift`, `TestUPDV0004PartialArchiveCancellation`: no-op, downgrade, race and partial-download cancellation |
