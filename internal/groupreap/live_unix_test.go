@@ -470,17 +470,37 @@ func TestPGOV0009RunFamilyRecordsGroupUntilPreReapRelease(t *testing.T) {
 				t.Fatal(err)
 			}
 			command.Stdout = write
+			// The pre-reap group SIGKILL is the reap boundary: the group
+			// must still be recorded there and released before the reap.
+			var leader atomic.Int64
+			var recordedAtKill atomic.Bool
+			previous := signalGroup
+			t.Cleanup(func() { signalGroup = previous })
+			signalGroup = func(processID int, signal syscall.Signal) error {
+				if pid := int(leader.Load()); pid > 0 && processID == -pid && signal == syscall.SIGKILL {
+					recordedAtKill.Store(recordedAtKill.Load() || liveGroups.recorded(pid))
+				}
+				return previous(processID, signal)
+			}
 			done := make(chan error, 1)
 			go func() { done <- run(command) }()
 			line, err := bufio.NewReader(read).ReadString('\n')
 			if err != nil {
 				t.Fatal(err)
 			}
-			leader, err := strconv.Atoi(strings.TrimSpace(line))
+			pid, err := strconv.Atoi(strings.TrimSpace(line))
 			if err != nil {
 				t.Fatal(err)
 			}
-			recorded := liveGroups.recorded(leader)
+			leader.Store(int64(pid))
+			// The child can print before Start returns and the group is
+			// recorded; wait for the registration, bounded.
+			recorded := false
+			for deadline := time.Now().Add(10 * time.Second); !recorded && time.Now().Before(deadline); {
+				if recorded = liveGroups.recorded(pid); !recorded {
+					time.Sleep(time.Millisecond)
+				}
+			}
 			stdin.Close()
 			err = <-done
 			write.Close()
@@ -488,10 +508,13 @@ func TestPGOV0009RunFamilyRecordsGroupUntilPreReapRelease(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !recorded {
-				t.Fatalf("%s did not record the group its leader %d started", name, leader)
+				t.Fatalf("%s did not record the group its leader %d started", name, pid)
 			}
-			if liveGroups.recorded(leader) {
-				t.Fatalf("%s reaped leader %d without releasing its group", name, leader)
+			if !recordedAtKill.Load() {
+				t.Fatalf("%s released leader %d's group before the pre-reap group SIGKILL", name, pid)
+			}
+			if liveGroups.recorded(pid) {
+				t.Fatalf("%s reaped leader %d without releasing its group", name, pid)
 			}
 		})
 	}

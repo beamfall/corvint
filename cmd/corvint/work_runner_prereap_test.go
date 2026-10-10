@@ -52,3 +52,30 @@ func TestV11036WorkRunnerResidueIsObservedBeforeReap(t *testing.T) {
 		})
 	}
 }
+
+// PGO-V0-009 (V1-1056): the work adapter's process group is recorded for the
+// exit kill when it starts, and released by the pre-reap wait, so an exiting
+// corvint retires a running adapter's group and never names a reaped one.
+func TestPGOV0009WorkRunnerRecordsItsGroupForTheExitKill(t *testing.T) {
+	previousStart, previousWait := workStartLive, workWaitResidue
+	t.Cleanup(func() { workStartLive, workWaitResidue = previousStart, previousWait })
+	started, waited := 0, 0
+	workStartLive = func(command *exec.Cmd) error {
+		started++
+		return previousStart(command)
+	}
+	workWaitResidue = func(command *exec.Cmd) (bool, error) {
+		if started != 1 {
+			t.Errorf("adapter waited before it was recorded (starts %d)", started)
+		}
+		waited++
+		return previousWait(command)
+	}
+	runner := workTestRunner(t, context.Background(), "#!/bin/sh\nexit 0\n")
+	if _, receipt, err := runner.run("snapshot", []string{}, 100); err != nil {
+		t.Fatalf("run: %+v %v", receipt, err)
+	}
+	if started != 1 || waited != 1 {
+		t.Fatalf("recorded starts = %d, pre-reap waits = %d; want 1 and 1", started, waited)
+	}
+}

@@ -147,6 +147,11 @@ const workReapTimeout = time.Second
 // pre-reap residue observation.
 var workWaitResidue = groupreap.WaitResidue
 
+// workStartLive is groupreap.StartLive: it records the adapter's group so an
+// exit through groupreap.KillLive retires it, and workWaitResidue releases it
+// before the reap (PGO-V0-009). Tests observe it.
+var workStartLive = groupreap.StartLive
+
 var errWorkBoundExecutableUnqualified = errors.New("bound Corvint executable is unqualified")
 
 func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimit int) ([]byte, workqueue.AdapterReceipt, error) {
@@ -199,7 +204,7 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	defer errWrite.Close()
 	command.Stdout, command.Stderr = outWrite, errWrite
 	workContain(command)
-	if err = command.Start(); err != nil {
+	if err = workStartLive(command); err != nil {
 		return finish(err)
 	}
 	_ = outWrite.Close()

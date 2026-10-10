@@ -110,24 +110,32 @@ func waitidStateChangeOnly(info [128]byte) bool {
 }
 
 // stopAndProveDarwin stops the group while the leader is pinned unreaped and
-// sends nothing once pinned reports a failed exit observation (V1-1050).
+// sends nothing, not even a signal-0 probe, once pinned reports a failed exit
+// observation (V1-1050, PGO-V0-009): pinned is checked before every probe and
+// every signal.
 func (containment *childContainment) stopAndProveDarwin(grace time.Duration, pinned func() bool) bool {
 	if containment.pid <= 0 || !pinned() {
 		return false
 	}
 	containment.terminate()
 	until := time.Now().Add(grace)
-	for darwinGroupHasLiveMembers(containment.pid) && time.Now().Before(until) {
-		time.Sleep(time.Millisecond)
-	}
-	for darwinGroupHasLiveMembers(containment.pid) {
+	for {
 		if !pinned() {
 			return false
 		}
-		containment.force()
+		if !darwinGroupHasLiveMembers(containment.pid) {
+			return pinned()
+		}
+		if time.Now().After(until) {
+			if !pinned() {
+				return false
+			}
+			// SIGKILL has no second grace window: this loop is proof of
+			// quiescence, not another timeout.
+			containment.force()
+		}
 		time.Sleep(time.Millisecond)
 	}
-	return pinned()
 }
 
 func darwinGroupHasLiveMembers(pid int) bool {

@@ -3,16 +3,14 @@
 package repository
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"io"
-	"os"
 	"os/exec"
-	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // wait holds the exited leader unreaped while it observes residue and stops
@@ -91,9 +89,10 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	}
 }
 
-// linuxGroupLive is the /proc process-table read; tests inject an
-// unreadable /proc.
-var linuxGroupLive = linuxGroupHasLiveMembers
+// linuxGroupLive is the PGO-V0-006 /proc proof (groupreap.ProcGroupLive):
+// leader identity, status Threads counts and bounded reads, with any failure
+// reported as live; tests inject an unreadable /proc.
+var linuxGroupLive = groupreap.ProcGroupLive
 
 // waitProcessExitUnreaped blocks until the process exits and leaves it
 // unreaped (waitid WEXITED|WNOWAIT). A trapped, stopped or continued report
@@ -150,59 +149,4 @@ func (containment *childContainment) stopAndProveLinux(grace time.Duration, pinn
 		}
 		time.Sleep(time.Millisecond)
 	}
-}
-
-// linuxGroupHasLiveMembers reports whether any process in group pgid other
-// than a zombie remains. A zombie with another live thread is live.
-func linuxGroupHasLiveMembers(pgid int) (bool, error) {
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return true, err
-	}
-	for _, entry := range entries {
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil || pid <= 0 {
-			continue
-		}
-		dir := "/proc/" + entry.Name()
-		raw, err := os.ReadFile(dir + "/stat")
-		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
-			continue
-		}
-		if err != nil {
-			return true, err
-		}
-		state, group, ok := parseLinuxStat(raw)
-		if !ok {
-			return true, errors.New("unparsable /proc stat")
-		}
-		if group != pgid {
-			continue
-		}
-		if state != 'Z' && state != 'X' {
-			return true, nil
-		}
-		if tasks, err := os.ReadDir(dir + "/task"); err == nil && len(tasks) > 1 {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// parseLinuxStat returns the state and process group of a /proc/<pid>/stat
-// line: "pid (comm) state ppid pgrp ...", where comm may hold spaces or ')'.
-func parseLinuxStat(raw []byte) (byte, int, bool) {
-	end := bytes.LastIndexByte(raw, ')')
-	if end < 0 {
-		return 0, 0, false
-	}
-	fields := bytes.Fields(raw[end+1:])
-	if len(fields) < 3 || len(fields[0]) != 1 {
-		return 0, 0, false
-	}
-	group, err := strconv.Atoi(string(fields[2]))
-	if err != nil {
-		return 0, 0, false
-	}
-	return fields[0][0], group, true
 }

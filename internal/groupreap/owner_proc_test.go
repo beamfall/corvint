@@ -161,3 +161,47 @@ func TestQuietProofFallsBackToInjectedProbeGroup(t *testing.T) {
 		t.Fatalf("default primitives = %+v, %v", p, err)
 	}
 }
+
+// PGO-V0-009: the dashboard's Linux residue and cleanup proof is the
+// PGO-V0-006 proof, so a zombie member with a surviving thread is live by its
+// status Threads count, a running leader is live without error, and an
+// identity mismatch or unreadable table is an error, never quiet.
+func TestPGOV0009ProcGroupLiveUsesTheQuietProof(t *testing.T) {
+	const parent, leader = 50, 100
+	cases := []struct {
+		name  string
+		build func(*fakeProc)
+		live  bool
+		err   bool
+	}{
+		{"zombie-only", func(f *fakeProc) { f.process(leader, "sh", 'Z', parent, leader) }, false, false},
+		{"running-leader", func(f *fakeProc) { f.process(leader, "sh", 'S', parent, leader) }, true, false},
+		{"zombie-member-with-thread", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(leader+1, "worker", 'Z', leader, leader, 'S', 'S')
+		}, true, false},
+		{"live-member", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(leader+1, "sleep", 'S', leader, leader)
+		}, true, false},
+		{"foreign-parent", func(f *fakeProc) { f.process(leader, "sh", 'Z', parent+1, leader) }, true, true},
+		{"member-without-status", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(leader+1, "worker", 'Z', leader, leader)
+			f.write(filepath.Join(strconv.Itoa(leader+1), "status"), "Name:\tworker\n")
+		}, true, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFakeProc(t)
+			c.build(f)
+			live, err := procGroupLive(f.root, leader, parent)
+			if live != c.live || (err != nil) != c.err {
+				t.Fatalf("live = %v, err = %v; want live %v, err %v", live, err, c.live, c.err)
+			}
+		})
+	}
+	if live, err := procGroupLive(filepath.Join(t.TempDir(), "absent"), leader, parent); !live || err == nil {
+		t.Fatalf("unreadable table: live = %v, err = %v", live, err)
+	}
+}

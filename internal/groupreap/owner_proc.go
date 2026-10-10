@@ -202,3 +202,28 @@ func parseProcStat(data []byte, pid int) (procStat, error) {
 	}
 	return procStat{pid: pid, ppid: ppid, pgrp: pgrp, state: fields[0][0]}, nil
 }
+
+// ProcGroupLive reports, from /proc, whether the group led by leader, this
+// process's child, has a live member (PGO-V0-006, PGO-V0-009). A running
+// leader is live. An exited leader that this process still holds unreaped
+// is quiet only under the procGroupQuiet proof, with its identity checks and
+// status Threads counts. It sends no signal. Any failure to obtain the proof
+// is reported as live with the error. It is meaningful only where /proc
+// exists (Linux).
+func ProcGroupLive(leader int) (bool, error) {
+	return procGroupLive("/proc", leader, os.Getpid())
+}
+
+func procGroupLive(root string, leader, parent int) (bool, error) {
+	probe, err := procGroupQuiet(root, leader, parent)
+	if err == nil {
+		return probe != ProbeQuiet, nil
+	}
+	if leader > 1 && parent > 0 {
+		stat, statErr := readProcStat(filepath.Join(root, strconv.Itoa(leader), "stat"), leader)
+		if statErr == nil && stat.pgrp == leader && stat.ppid == parent && !procDead(stat.state) {
+			return true, nil
+		}
+	}
+	return true, err
+}
