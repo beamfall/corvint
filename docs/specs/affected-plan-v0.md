@@ -544,11 +544,15 @@ and container qualification; full fallback remains available.
   holds a sibling. With no split package the plan SHALL equal the AFP-V0-022 partition. Costs move
   units between shards and never change membership.
   (5) `tools/ci-test-slices generate` SHALL write the slice file from one complete, passing hosted
-  run. In each shard log, every package that appears SHALL run one lifecycle: its start record
-  first, then its tests, every test or subtest that runs ending once, then one terminal pass or
-  skip and no further record. No test, subtest or package fails. After the log prefix (the job
-  and step columns of `gh run view --log`, a byte-order mark, the runner timestamp and an
-  annotation such as `##[error]`), a line whose content starts with `{` SHALL decode completely
+  run. `generate` and `replay` SHALL take exactly one log per shard of the declared `--shards N`
+  (default 6, the go-product-shard matrix), each with at least one terminal package outcome, and
+  SHALL refuse any other count ("K of N shard logs present") or an empty log before any work, so
+  a partial run never sets the split target or the predicted sums. In each shard log, every
+  package that appears SHALL run one lifecycle: its start record first, then its tests, every
+  test or subtest that runs ending once, then one terminal pass or skip and no further record.
+  No test, subtest or package fails. After the log prefix (the job and step columns of
+  `gh run view --log`, a byte-order mark, the runner timestamp and an annotation such as
+  `##[error]`), a line whose content starts with `{` SHALL decode completely
   as a `go test -json` record that names its `Action`, and a record that follows other text on its
   line SHALL refuse; only lines whose content is not JSON (runner, shell and build output) are
   skipped. A record without `Package` SHALL be build output that names its `ImportPath`; a
@@ -614,7 +618,8 @@ and container qualification; full fallback remains available.
   - A stale slice file only moves time between shards.
   - `--shards` is declared, not read from the workflow. A count that differs from the matrix
     refuses a sliced run, or measures only the logs given, but never counts one slice as a whole
-    package.
+    package. `ci-test-slices` has no cost table to compare, so a partial log set declared as its
+    own shard count (five logs of a six-shard run as `--shards 5`) is not detected there.
   - On Windows, cancellation kills only the immediate subprocess, not its descendants (no job
     object). On unix, a descendant that leaves its process group is not reached, and a SIGKILL of
     the tool itself stops nothing and leaves the temporary checkout behind.
@@ -1031,7 +1036,8 @@ and a split package's catch-all slice runs every top-level test that no named sl
 (AFP-V0-041). A split package whose slice outcomes are failed, unterminated or not one per slice,
 logs that are not one per declared shard, or a slice file that splits a package into more slices
 than the declared shards, refuses the cost refresh and makes the drift report abstain
-(AFP-V0-041 (8)).
+(AFP-V0-041 (8)). Shard logs that are not one per declared shard, or a shard log without any
+terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)).
 
 ## Acceptance evidence and traceability
 

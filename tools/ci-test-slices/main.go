@@ -4,6 +4,9 @@
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
 // one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`.
+// Both modes refuse unless exactly --shards logs (default 6, the go-product-shard
+// matrix) are given and each holds a terminal package outcome, so a partial run
+// never sets the target or the sums.
 // After the log prefix (the job and step columns, a byte-order mark, the runner
 // timestamp and an annotation such as ##[error]), a line whose content starts
 // with { is a `go test -json` record that must decode completely and name its
@@ -99,7 +102,7 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	root := fs.String("root", ".", "repository root")
 	revision := fs.String("revision", "", "generate: full commit the root checks out and the slices were listed at")
 	runURL := fs.String("run-url", "", "generate: hosted run that produced the logs")
-	shards := fs.Int("shards", 6, "CI shard count")
+	shards := fs.Int("shards", 6, "CI shard count (the go-product-shard matrix): one log per shard of one complete run")
 	target := fs.Duration("target", 0, "generate: split packages slower than this (0: the ideal shard share)")
 	costs := fs.String("costs", "", "replay: placement cost table (default: the observed run)")
 	slices := fs.String("slices", "", "replay: slice file (default: ROOT/"+slicesPath+")")
@@ -108,6 +111,9 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	}
 	if (mode != "generate" && mode != "replay") || fs.NArg() == 0 || *shards < 2 || *shards > cishards.MaxShards || *target < 0 {
 		return 2, errors.New("usage: ci-test-slices generate|replay [flags] LOG...")
+	}
+	if fs.NArg() != *shards {
+		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the suite", fs.NArg(), *shards)
 	}
 	obs, err := observe(fs.Args())
 	if err != nil {
@@ -125,20 +131,22 @@ type observation struct {
 	files    []int64                     // summed package time per log, ms
 }
 
-// observe reads one complete passing run. A failed, repeated, missing or
-// unterminated outcome, or a damaged record, is refused: the run is then not a
-// complete, passing measurement of the suite.
+// observe reads one complete passing run, one log per shard. A failed, repeated,
+// missing or unterminated outcome, a damaged record, or a log without any
+// terminal package outcome is refused: the run is then not a complete, passing
+// measurement of the suite.
 func observe(paths []string) (*observation, error) {
 	o := &observation{packages: map[string]int64{}, tests: map[string]map[string]int64{}}
 	for _, path := range paths {
 		sum, err := o.read(path)
+		if err == nil && sum == 0 {
+			// Every terminal outcome counts at least 1 ms.
+			err = errors.New("no terminal package outcome (a shard that did not run)")
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		o.files = append(o.files, sum)
-	}
-	if len(o.packages) == 0 {
-		return nil, errors.New("no terminal package outcome in the logs")
 	}
 	return o, nil
 }
@@ -659,9 +667,7 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 		return 2, err
 	}
 	fmt.Fprintf(out, "universe %d packages %.1fs ideal %.1fs over %d shards\n", len(universe), seconds(obs.total()), seconds(obs.total()/int64(shards)), shards)
-	if len(obs.files) == shards {
-		fmt.Fprintf(out, "observed %s\n", sums(obs.files))
-	}
+	fmt.Fprintf(out, "observed %s\n", sums(obs.files))
 	fmt.Fprintf(out, "whole    %s\n", sums(predict(obs, whole)))
 	fmt.Fprintf(out, "sliced   %s\n", sums(predict(obs, sliced)))
 	for i, s := range sliced {

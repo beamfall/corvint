@@ -33,9 +33,10 @@ func write(t *testing.T, path, body string) string {
 	return path
 }
 
-// stream is one shard's hosted log: package big has tests A..F, with F twice as
-// slow; packages small and other are whole.
-func stream(t *testing.T) string {
+// stream is a two-shard run's hosted logs: in shard 0, package big has tests
+// A..F, with F twice as slow, and package small is whole; shard 1 skips package
+// other.
+func stream(t *testing.T) []string {
 	var b strings.Builder
 	b.WriteString("shard (0)\tGo tests\t2026-10-10T13:20:59Z not json {\n")
 	b.WriteString(`2026-10-10T13:20:59Z {"Time":"2026-10-10T13:20:59Z","Action":"start","Package":"example.org/big"}` + "\n")
@@ -55,10 +56,14 @@ func stream(t *testing.T) string {
 {"Action":"run","Package":"example.org/small","Test":"TestS"}
 {"Action":"pass","Package":"example.org/small","Test":"TestS","Elapsed":5}
 {"Action":"pass","Package":"example.org/small","Elapsed":5}
-{"Action":"start","Package":"example.org/other"}
-{"Action":"skip","Package":"example.org/other","Elapsed":0}
 `)
-	return write(t, filepath.Join(t.TempDir(), "shard0.log"), b.String())
+	dir := t.TempDir()
+	return []string{
+		write(t, filepath.Join(dir, "shard0.log"), b.String()),
+		write(t, filepath.Join(dir, "shard1.log"), `{"Action":"start","Package":"example.org/other"}
+{"Action":"skip","Package":"example.org/other","Elapsed":0}
+`),
+	}
 }
 
 func repo(t *testing.T, allow string) (string, string) {
@@ -101,9 +106,21 @@ func TestAFPV0041GenerateSplitsOnlySlowListablePackages(t *testing.T) {
 		"example.org/small": {"TestS"},
 	})
 	var notes bytes.Buffer
-	log := stream(t)
+	logs := stream(t)
+	gen := func(root, head string, logs ...string) []string {
+		return append([]string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2"}, logs...)
+	}
+	// Shard 0's lifecycles are complete, but without shard 1 its 40 s would be
+	// taken for the suite's: the partial run refuses and the slice file stays.
+	code, err := run(context.Background(), "generate", gen(root, head, logs[0]), nil, &notes)
+	if code != 2 || err == nil || !strings.Contains(err.Error(), "1 of 2 shard logs present") {
+		t.Fatalf("partial run: code=%d err=%v", code, err)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); string(raw) != "{}\n" {
+		t.Fatalf("partial run wrote the slice file: %s", raw)
+	}
 	// Ideal share 40/2 = 20 s: big (35 s) splits in two; small stays whole.
-	code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", log}, nil, &notes)
+	code, err = run(context.Background(), "generate", gen(root, head, logs...), nil, &notes)
 	if code != 0 || err != nil {
 		t.Fatalf("generate code=%d err=%v notes=%s", code, err, notes.String())
 	}
@@ -137,7 +154,7 @@ func TestAFPV0041GenerateSplitsOnlySlowListablePackages(t *testing.T) {
 	root, head = repo(t, allowBig)
 	fakeList(t, map[string][]string{})
 	notes.Reset()
-	if code, err = run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", log}, nil, &notes); code != 0 || err != nil {
+	if code, err = run(context.Background(), "generate", gen(root, head, logs...), nil, &notes); code != 0 || err != nil {
 		t.Fatalf("generate code=%d err=%v", code, err)
 	}
 	if raw, _ = os.ReadFile(filepath.Join(root, slicesPath)); !bytes.Contains(raw, []byte(`"packages": {}`)) || !strings.Contains(notes.String(), "whole example.org/big: build failed") {
@@ -146,7 +163,7 @@ func TestAFPV0041GenerateSplitsOnlySlowListablePackages(t *testing.T) {
 }
 
 func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
-	log := stream(t)
+	logs := stream(t)
 	fakeList(t, map[string][]string{"example.org/big": {"TestA", "TestB"}})
 	root, head := repo(t, allowBig)
 	for name, args := range map[string][]string{
@@ -156,15 +173,43 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 		"bad run URL":     {"--revision", head, "--run-url", "https://example.org/run"},
 	} {
 		a := append([]string{"--root", root, "--shards", "2", "--run-url", runURL}, args...)
-		if code, err := run(context.Background(), "generate", append(a, log), nil, &bytes.Buffer{}); code != 2 || err == nil {
+		if code, err := run(context.Background(), "generate", append(a, logs...), nil, &bytes.Buffer{}); code != 2 || err == nil {
 			t.Fatalf("%s: code=%d err=%v", name, code, err)
 		}
 	}
 	failed := write(t, filepath.Join(t.TempDir(), "failed.log"), `{"Action":"fail","Package":"example.org/big","Test":"TestA","Elapsed":1}`+"\n")
 	twice := write(t, filepath.Join(t.TempDir(), "twice.log"), `{"Action":"start","Package":"example.org/big"}`+"\n"+`{"Action":"pass","Package":"example.org/big","Elapsed":1}`+"\n")
-	for want, logs := range map[string][]string{"TestA failed": {failed}, "two terminal outcomes": {twice, twice}} {
-		if code, err := run(context.Background(), "replay", logs, nil, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), want) {
-			t.Fatalf("unusable run accepted: %v: %v", logs, err)
+	for want, args := range map[string][]string{"TestA failed": {"--shards", "2", failed, logs[1]}, "two terminal outcomes": {"--shards", "2", twice, twice}} {
+		if code, err := run(context.Background(), "replay", args, nil, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("unusable run accepted: %v: %v", args, err)
+		}
+	}
+
+	// Each mode needs exactly one log per declared shard, each with a terminal
+	// package outcome; a missing, extra or empty shard log refuses before any work.
+	empty := write(t, filepath.Join(t.TempDir(), "shard1.log"), "shard (1)\tGo tests\t2026-10-10T13:20:59Z runner output only\n")
+	for name, c := range map[string]struct {
+		mode string
+		args []string
+		want string
+	}{
+		"missing log":            {"generate", []string{"--shards", "3", logs[0], logs[1]}, "2 of 3 shard logs present"},
+		"default six shards":     {"generate", logs, "2 of 6 shard logs present"},
+		"extra log":              {"generate", []string{"--shards", "2", logs[0], logs[1], logs[1]}, "3 of 2 shard logs present"},
+		"empty shard log":        {"generate", []string{"--shards", "2", logs[0], empty}, "no terminal package outcome"},
+		"replay missing log":     {"replay", []string{"--shards", "2", logs[0]}, "1 of 2 shard logs present"},
+		"replay empty shard log": {"replay", []string{"--shards", "2", empty, logs[1]}, "no terminal package outcome"},
+	} {
+		a := []string{"--root", root}
+		if c.mode == "generate" {
+			a = append(a, "--revision", head, "--run-url", runURL)
+		}
+		var out bytes.Buffer
+		if code, err := run(context.Background(), c.mode, append(a, c.args...), &out, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), c.want) || out.Len() != 0 {
+			t.Fatalf("%s: code=%d err=%v out=%s", name, code, err, out.String())
+		}
+		if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); string(raw) != "{}\n" {
+			t.Fatalf("%s: slice file overwritten: %s", name, raw)
 		}
 	}
 
@@ -172,7 +217,7 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 	// the checkout.
 	for name, url := range map[string]string{"bad run URL, empty split": "https://example.org/run", "missing run URL, empty split": ""} {
 		var notes bytes.Buffer
-		code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", url, "--shards", "2", "--target", "1h", log}, nil, &notes)
+		code, err := run(context.Background(), "generate", append([]string{"--root", root, "--revision", head, "--run-url", url, "--shards", "2", "--target", "1h"}, logs...), nil, &notes)
 		if code != 2 || err == nil || !strings.Contains(err.Error(), "would reject this source") {
 			t.Fatalf("%s: code=%d err=%v", name, code, err)
 		}
@@ -181,7 +226,7 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 		}
 	}
 	// The same empty split with a usable source is written and admitted.
-	if code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", "--target", "1h", log}, nil, &bytes.Buffer{}); code != 0 || err != nil {
+	if code, err := run(context.Background(), "generate", append([]string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", "--target", "1h"}, logs...), nil, &bytes.Buffer{}); code != 0 || err != nil {
 		t.Fatalf("empty generation refused: code=%d err=%v", code, err)
 	}
 	if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); !cishards.SliceFileUsable(raw) {
@@ -247,7 +292,7 @@ func TestAFPV0041GenerateEnumeratesOnlyTheRevision(t *testing.T) {
 	}
 	t.Cleanup(func() { enumerate = old })
 	var notes bytes.Buffer
-	if code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", stream(t)}, nil, &notes); code != 0 || err != nil {
+	if code, err := run(context.Background(), "generate", append([]string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2"}, stream(t)...), nil, &notes); code != 0 || err != nil {
 		t.Fatalf("generate code=%d err=%v notes=%s", code, err, notes.String())
 	}
 	raw, err := os.ReadFile(filepath.Join(root, slicesPath))
@@ -290,7 +335,7 @@ func TestAFPV0041InterruptRemovesTheCheckout(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("SIGINT and SIGTERM delivery is unix-only")
 	}
-	log := stream(t)
+	logs := stream(t)
 	for _, sig := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
 		root, head := repo(t, allowBig)
 		tmp := t.TempDir()
@@ -298,7 +343,7 @@ func TestAFPV0041InterruptRemovesTheCheckout(t *testing.T) {
 		defer cancel()
 		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAFPV0041InterruptRemovesTheCheckout$")
 		cmd.Env = append(os.Environ(), "CI_TEST_SLICES_HELPER=interrupt", "TMPDIR="+tmp,
-			"CI_TEST_SLICES_ARGS="+strings.Join([]string{"generate", "--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", log}, "\n"))
+			"CI_TEST_SLICES_ARGS="+strings.Join(append([]string{"generate", "--root", root, "--revision", head, "--run-url", runURL, "--shards", "2"}, logs...), "\n"))
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		stdout, err := cmd.StdoutPipe()
@@ -500,12 +545,13 @@ func TestAFPV0041ReplayPredictsShardSums(t *testing.T) {
 "packages":{"example.org/big":{"named":[{"milliseconds":17500,"tests":["TestA","TestB","TestC"]}],"restMilliseconds":17500}}}`
 	write(t, filepath.Join(root, slicesPath), slices)
 	var out bytes.Buffer
-	if code, err := run(context.Background(), "replay", []string{"--root", root, "--shards", "2", stream(t)}, &out, &bytes.Buffer{}); code != 0 || err != nil {
+	if code, err := run(context.Background(), "replay", append([]string{"--root", root, "--shards", "2"}, stream(t)...), &out, &bytes.Buffer{}); code != 0 || err != nil {
 		t.Fatalf("replay code=%d err=%v", code, err)
 	}
 	// big: 35 s over 70 ms of top-level tests; A..C are 30 ms (15 s), D..F 40 ms (20 s).
 	for _, want := range []string{
 		"universe 3 packages 40.0s ideal 20.0s over 2 shards",
+		"observed shard0=40.0s shard1=0.0s max=40.0s",
 		"whole    shard0=35.0s shard1=5.0s max=35.0s",
 		"sliced   shard0=20.0s shard1=20.0s max=20.0s",
 		"slice    shard=0 example.org/big#0/2 -run 3 tests predicted=15.0s planned=17.5s",

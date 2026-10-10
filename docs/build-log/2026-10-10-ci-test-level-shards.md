@@ -332,6 +332,27 @@ The independent review of `732433c4` found two P2 gaps; each fix is mutation-che
   skip accepts all four. The six retained hosted logs hold no build record and still replay
   unchanged.
 
+### Round 5
+
+The independent review of `40bafcea` found one P2; the fix is mutation-checked.
+
+- **Partial run in `ci-test-slices` (P2).** `generate` and `replay` needed only one log, whatever
+  `--shards` said. A surviving shard whose package lifecycles were complete passed `observe`, and
+  `generate` then set its target from the partial total and rewrote the slice file. Both modes
+  now refuse before any work unless exactly `--shards` logs are given ("K of N shard logs
+  present", as in `ci-shard-costs`). Each log must also hold a terminal package outcome, so an
+  empty placeholder cannot stand in for a missing shard (AFP-V0-041 (5)). `replay` now always
+  prints the observed per-shard sums; it no longer places a run under a different shard count.
+  The test fixture became a two-shard run, with package `other` in shard 1, so the target, the
+  split and the predicted sums are unchanged:
+  - `TestAFPV0041GenerateSplitsOnlySlowListablePackages`, which generated from one log under
+    `--shards 2`, now first refuses that partial run and leaves the slice file unwritten.
+  - `TestAFPV0041GenerateRefusesUnboundInputs` gains cases for a missing log, the default six
+    shards with two logs, an extra log, an empty shard log, and the same missing and empty cases
+    under `replay`.
+  Dropping the count refusal, or the empty-log refusal, each fails a case. The six retained hosted
+  logs replay with the same sums under the default `--shards 6`; five of them refuse.
+
 ## Limits and integration
 
 - **Lost interleavings.** Splitting loses cross-slice parallel interleavings, including race
@@ -344,9 +365,11 @@ The independent review of `732433c4` found two P2 gaps; each fix is mutation-che
   file needs a complete run in which the package ran whole. Full CI does not make one while the
   package is split; a run of a branch whose slice file is emptied would.
 - **Stale slice file.** A stale slice file can only move time between shards.
-- **Declared shard count.** `ci-shard-costs --shards` is declared, not read from the workflow. A
-  count that differs from the matrix refuses a sliced run or measures only the logs given, but
-  never counts one slice as a whole package.
+- **Declared shard count.** `--shards` is declared in both tools, not read from the workflow. In
+  `ci-shard-costs`, a count that differs from the matrix refuses a sliced run or measures only the
+  logs given, but never counts one slice as a whole package. `ci-test-slices` has no cost table to
+  compare, so a partial log set declared as its own shard count (five logs of a six-shard run as
+  `--shards 5`) is not detected there.
 - **Cancellation reach.** On Windows, cancellation kills only the immediate subprocess, not its
   descendants. On unix, a descendant that leaves its process group is not reached, and a SIGKILL
   of `ci-test-slices` itself stops nothing and leaves the temporary checkout behind.
