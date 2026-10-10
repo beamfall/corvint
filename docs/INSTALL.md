@@ -127,6 +127,13 @@ prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinato
 `corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
 passing loop is structural closure, not proof that the change is correct.
 
+Read commands do not change repository or trace state, with two bounded private exceptions under
+`.corvint/`: `self-observations.jsonl` (an `unsupported-*` refusal may append one row) and
+`unplanned-reads.jsonl` (host-adapter hooks append only while the operator marker
+`.corvint/unplanned-reads.enabled` exists). A read-only operator should expect those two files to
+change and nothing else: they are never an input to ranking, evidence, authority or trace
+state. [Automation](AUTOMATION.md) lists each write condition.
+
 ## Standalone Tasks archive
 
 Tasks has a separate `corvint-tasks_darwin_arm64.tar.gz` candidate builder. The Core archives
