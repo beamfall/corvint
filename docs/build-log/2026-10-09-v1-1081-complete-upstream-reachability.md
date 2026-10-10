@@ -27,9 +27,11 @@ The owner delegated the fork. This change amends `CAL-V0-017` in
   (`branch.<b>.remote = .`), leaves the commit unreachable. The multi-repository
   `repositoryIntegrated` loop is unchanged.
 - Criterion 2: the refusal now carries the new closed code `COMMIT_NOT_INTEGRATED` beside
-  `STALE_TREE`. `STALE_TREE` stays first in the plan's codes, so existing callers that test for
-  `STALE_TREE` and `Codes[0]` readers still work. The command-result envelope sorts its codes.
-  A tree mismatch still refuses `STALE_TREE` alone. No item reason field existed for refused lease
+  `STALE_TREE`, so existing callers that test for `STALE_TREE` still work. The order of the two
+  codes is not a contract: the command-result envelope serializes them in its canonical sorted
+  order (`COMMIT_NOT_INTEGRATED`, then `STALE_TREE`). A tree mismatch, or an extra repository
+  that is not integrated while the intent side is, still refuses `STALE_TREE` alone (review fix:
+  the first version also added the code in the extra-repository case). No item reason field existed for refused lease
   verbs, and adding a second code fits the existing `codes` array without changing any profile.
   The code is registered in `wire.Codes` (now 78), classified not retryable in `wire.RetryOf`, and
   listed in the spec's TCP-00 amendment A27 and in its retryable table.
@@ -65,6 +67,9 @@ The owner delegated the fork. This change amends `CAL-V0-017` in
   unchanged. A tree mismatch is refused `STALE_TREE` alone. With the commit only on
   `refs/remotes/origin/main` and local `main` behind, `complete` succeeds and leaves both refs
   where they were.
+- `TestCALV0017_CommitNotIntegratedIsIntentOnly` (`internal/tasks/transaction`) checks that an
+  extra repository that is not integrated does not get the code. The store test also renders the
+  refusal codes through `wire.Result` and checks the sorted serialized order.
 - Existing CAL-V0-017 tests and the wire code-count and classification tests pass.
 
 ## Rollback

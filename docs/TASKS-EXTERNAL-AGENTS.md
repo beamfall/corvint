@@ -112,8 +112,8 @@ behind, when the branch's configured upstream is a remote-tracking ref (for exam
 a checked-out `main` with unrelated staged work can stay where it is: run `git fetch` so the
 remote-tracking ref includes the merged commit, then complete again. A commit in neither refuses
 `STALE_TREE` with `COMMIT_NOT_INTEGRATED`, and the detail names both refs checked (or says no
-upstream is configured); `STALE_TREE` alone means the commit's tree is not the candidate
-(CAL-V0-017).
+upstream is configured); `STALE_TREE` alone means the commit's tree is not the candidate or an
+extra repository's candidate is not integrated (CAL-V0-017, CAL-V0-087).
 
 The gate worktree must be clean. Resubmitting invalidates earlier gate results. `complete-manual`
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes

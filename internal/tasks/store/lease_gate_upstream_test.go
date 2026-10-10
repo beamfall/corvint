@@ -9,13 +9,20 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// notIntegrated asserts a BLOCKED refusal carrying STALE_TREE first and
-// COMMIT_NOT_INTEGRATED, whose detail names every want fragment.
+// notIntegrated asserts a BLOCKED refusal carrying exactly STALE_TREE and
+// COMMIT_NOT_INTEGRATED, whose detail names every want fragment. The plan's
+// code order is not a contract: the command-result envelope, rendered here
+// as the CLI's mutateResult does, serializes them in canonical sorted order.
 func notIntegrated(t *testing.T, report *store.Report, want ...string) {
 	t.Helper()
 	codes := report.Outcome.Codes
-	if report.Outcome.Outcome != mutation.OutcomeBlocked || len(codes) != 2 || codes[0] != wire.CodeStaleTree || codes[1] != wire.CodeCommitNotIntegrated {
-		t.Fatalf("want BLOCKED [STALE_TREE COMMIT_NOT_INTEGRATED], got %+v", report)
+	if report.Outcome.Outcome != mutation.OutcomeBlocked || len(codes) != 2 || !has(codes, wire.CodeStaleTree) || !has(codes, wire.CodeCommitNotIntegrated) {
+		t.Fatalf("want BLOCKED {STALE_TREE, COMMIT_NOT_INTEGRATED}, got %+v", report)
+	}
+	envelope := (&wire.Result{Command: []string{"complete"}, Outcome: wire.OutcomeRefused, Codes: codes}).Value()
+	rendered, _ := envelope.Obj.Get("codes")
+	if len(rendered.Arr) != 2 || rendered.Arr[0].Str != wire.CodeCommitNotIntegrated || rendered.Arr[1].Str != wire.CodeStaleTree {
+		t.Fatalf("serialized codes %+v, want [COMMIT_NOT_INTEGRATED STALE_TREE]", rendered.Arr)
 	}
 	for _, w := range want {
 		if !strings.Contains(report.Detail, w) {

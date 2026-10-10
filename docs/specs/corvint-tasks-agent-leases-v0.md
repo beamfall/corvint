@@ -481,10 +481,11 @@ S5, gates and completion.
   configured upstream (`branch.<intentBranch>.remote` and `.merge`) to an existing `refs/remotes/`
   ref; no upstream, an unresolvable one, an absent remote-tracking ref or a local-branch upstream
   leaves the commit unreachable. `complete` MUST never fetch and never create, move or delete a
-  ref. An unreachable commit refuses `STALE_TREE` followed by `COMMIT_NOT_INTEGRATED`, and its
-  detail names the local branch, the upstream ref checked or that none is configured, and the
+  ref. An unreachable commit refuses with both `STALE_TREE` and `COMMIT_NOT_INTEGRATED`,
+  serialized in the envelope's canonical sorted order, and its detail names the local branch, the upstream ref checked or that none is configured, and the
   recovery (fetch the upstream so the remote-tracking ref contains the commit); a reachable commit
-  whose tree differs refuses `STALE_TREE` alone. (Upstream reachability and the second code:
+  whose tree differs, or whose extra repository is not integrated (CAL-V0-087), refuses
+  `STALE_TREE` alone. (Upstream reachability and the second code:
   amendment proposed by V1-1081, owner acceptance pending.)
 
 S6, import cost.
@@ -5613,7 +5614,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 
 - A27: CAL-V0-017 (V1-1081, proposed) adds `COMMIT_NOT_INTEGRATED` to TCP-00 §11's closed detail
   code set (78 codes), classified not retryable. It appears only beside `STALE_TREE` on a refused
-  `complete` whose commit neither the intent branch nor its remote-tracking upstream contains; every
+  `complete` whose commit neither the intent branch nor its remote-tracking upstream contains, and
+  the envelope serializes both in its canonical sorted order; every
   other result keeps its codes, and an older strict reader refuses an outcome that carries it.
 - A26: CAL-V0-206 adds an absent-only optional object `facets` to TCP-00 §3.3's closed
   `taskman-command-result/0` key set under the A22 pattern. It is present only when a read is

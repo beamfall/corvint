@@ -54,6 +54,14 @@ func CompleteFacts(commitTree string, reachable bool, upstream, unintegrated str
 	return f
 }
 
+// commitNotIntegrated reports that neither the intent branch nor its
+// remote-tracking upstream contains the commit (A27). completeFacts checks
+// extra repositories only once the intent side is reachable, so an empty
+// UnintegratedRepository on an unreachable commit means the intent side.
+func (f gateFacts) commitNotIntegrated() bool {
+	return !f.CommitReachable && f.UnintegratedRepository == ""
+}
+
 func checkGateFields(l *LeaseRequest) error {
 	for where, v := range map[string]string{"tree": l.Tree, "commit": l.Commit} {
 		if v == "" {
@@ -344,9 +352,9 @@ func planComplete(c leaseContext) leaseOutcome {
 	}
 	if code, detail := c.completionBlocker(a, rec); code != "" {
 		out := c.refuse(mutation.OutcomeBlocked, code, detail)
-		if !c.in.LeaseFacts.CommitReachable {
-			// V1-1081: STALE_TREE stays first; the second code separates
-			// an unintegrated commit from a tree mismatch.
+		if c.in.LeaseFacts.commitNotIntegrated() {
+			// V1-1081: the second code separates an intent commit that is
+			// not integrated from a tree mismatch or an extra repository.
 			out.result.Outcome.Codes = append(out.result.Outcome.Codes, wire.CodeCommitNotIntegrated)
 		}
 		return out
