@@ -127,11 +127,13 @@ matches those bytes.
 Add `--check` to validate a request. The command neither emits nor writes a result or artifact; it
 prints one `corvint-behavior-adapter-check/1` report. It lists every build stage in build order, each as
 `passed`, `refused`, `not-evaluated` or `not-applicable`, and lists every refusal it can determine in
-that same order. Within a stage, every check that does not depend on a refusal still runs. A check
-that depends on a refusal is listed as `not-evaluated` with `blocked_by`, so repairing that refusal
-can reveal more. A mapping that names a refused input, and a refused record left out of its stage's
-identity-uniqueness check, are listed this way too. The report is accepted exactly when the build would succeed, and its first
-refusal is the error the build would return. The exit status is 0 when accepted, 1 when refused,
+that same order. Inputs, mappings, observations, mapped records and discovery executions are items,
+and each item is checked independently of the others. Within one item, checking stops at the item's
+first refusal, and one `not-evaluated` entry says `remaining checks for <item> not evaluated after
+<refusal>`. A stage or item that depends on a refusal, such as the record checks of a mapping whose
+input was refused, is listed as `not-evaluated` with `blocked_by`. Repairing a refusal can therefore
+reveal more. The report is accepted exactly when the build would succeed, and its first refusal is
+the error the build would return. The exit status is 0 when accepted, 1 when refused,
 and 2 when the request or previous file cannot be read.
 
 Input anchor placement: every input anchor, including the migration, discovery, inventory, runtime

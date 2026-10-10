@@ -49,9 +49,10 @@ reported the same way inside a stage:
 - a mapping that names a refused input;
 - a required input that was refused.
 
-The bound check was split into one refusal per bound, so a check can name each violated bound. The
-mapping-count bound message now names the expected kinds. This is the only build-mode message
-change.
+The bound check was split into one refusal per bound, so a check can name each violated bound.
+Build's bound message stays `behavior adapter bound exceeded` for all three bounds, as on base; the
+check report's stage name (`inputs-bound`, `mappings-bound`, `observations-bound`) says which bound
+refused.
 
 The invariant is pinned by `TestBehaviorAdapterCheckParity` over 17 cases, from request decode to
 observation subject:
@@ -62,7 +63,7 @@ observation subject:
 - the report carries no legacy key.
 
 `TestBehaviorAdapterCheckReportsEveryRefusal` covers one request with refusals in identity, two
-inputs and seven mapping fields. Build stops at identity. The check lists all of them, lists
+inputs and two mappings. Build stops at identity. The check lists all of them, lists
 dependent stages as `not-evaluated` in stage order, and still evaluates the independent `discovery`
 and `tests` stages.
 
@@ -73,9 +74,10 @@ depend on it:
 - a missing discovery project skipped the duplicate-execution check;
 - an observation identity refusal skipped the source-mapping check.
 
-Each now runs every independent check. A check that does depend on a refusal is listed as
-`not-evaluated`, for example the execution checks of an undecodable discovery record.
-`TestBehaviorAdapterCheckIndependentRefusals` covers each pair and asserts that Build's first refusal
+Round 1 made each run every independent check; round 2 below narrowed that to the item rule. A
+check that depends on a refusal is listed as `not-evaluated`, for example the execution checks of
+an undecodable discovery record.
+`TestBehaviorAdapterCheckIndependentRefusals` covered each pair and asserts that Build's first refusal
 is unchanged. `TestBehaviorAdapterCheckListsDependentChecks` covers the dependent items. Both tests
 fail on commit `d2d62848` and pass after.
 
@@ -87,10 +89,40 @@ The CLI exits:
 
 `--check` was added to the help boolean flags.
 
+Review round 2 found four more places where one item still hid or over-reported checks. Chasing
+every independent check inside one item kept failing review, so `DCP-V1-044` was narrowed to an
+item rule:
+
+- Items are inputs, mappings, observations, mapped records and discovery executions. Each item is
+  evaluated independently of the other items.
+- Within one item, evaluation stops at its first refusal. Exactly one `not-evaluated` entry then
+  names the item: `remaining checks for <item> not evaluated after <refusal>`. The entry is emitted
+  on every item refusal, even when the refused check was the item's last one, so it never claims
+  that nothing was skipped.
+- An item whose dependency was refused is listed as `not-evaluated`, as before.
+
+Under that rule:
+
+- An input stops at its first refusal and gets the item entry.
+- A mapping is its own item. Its identity, field bound, supported fields and required fields are
+  validated even when its input was refused. Only the record checks that need the decoded input are
+  listed as `not-evaluated`.
+- A receipt observation stops at its first refusal and gets the item entry. So does an observation
+  in the observations and observation-subjects stages, and each mapped record and declaration.
+- The round-1 bound split had changed Build's mapping-count message. It is restored to the base
+  bytes, `behavior adapter bound exceeded`, for all three bounds.
+
+`TestBehaviorAdapterCheckStopsAtFirstItemRefusal` covers an input, an observation and a receipt.
+`TestBehaviorAdapterCheckReportsEveryRefusal` now also asserts that the mapping of a refused input
+is validated as its own item. `TestBehaviorAdapterBuildBoundMessage` pins Build's message for input,
+mapping and observation overflow to the literal base string. The round-1 observation case moved to
+the new test because it now expects one refusal plus the item entry. These tests fail on commit
+`12b87f4d` and pass after.
+
 Limits:
 
-- Within one mapped record, a refused field still excludes the record from whole-record checks and
-  from its stage's identity-uniqueness check. Each excluded record is listed as `not-evaluated`.
+- The report does not list every independent refusal within one item. Repairing an item's first
+  refusal can reveal another one in the same item.
 - A repaired refusal can reveal stages that were not evaluated before. The report's limitations
   say so.
 
@@ -160,7 +192,8 @@ Failing on base, run from a `git archive` of the base with the new tests copied 
 
 Passing after:
 
-- `go test -timeout 30m ./internal/doccorpus/...` passes, including the three new tests.
+- `go test -timeout 30m ./internal/doccorpus/...` passes, including the new tests of both review
+  rounds.
 - `go test -run 'TestBehaviorAdapterCLI|Help' ./cmd/corvint` passes.
 - `go vet` passes for both packages.
 - These doc gates pass: `spec-requirements-check`, `requirement-definitions-check`,

@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"bytes"
 	"errors"
+	"strconv"
 )
 
 // BehaviorAdapterCheckSchema identifies the DCP-V1-044 check report. A check
@@ -86,16 +87,20 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		run(bound+"-bound", []string{"request"}, func() error { return behaviorAdapterBoundError(request, bound) })
 	}
 	run("inputs", []string{"inputs-bound"}, func() error {
-		for _, input := range request.Inputs {
+		for index, input := range request.Inputs {
 			if err := a.addInput(input); err != nil {
-				a.keep(err)
+				a.keepItem("/inputs/"+strconv.Itoa(index), err)
 			}
 		}
 		return nil
 	})
 	declared := map[string]bool{}
+	declaredInputs := map[string]BehaviorAdapterInput{}
 	for _, input := range request.Inputs {
 		declared[input.ID] = true
+		if _, seen := declaredInputs[input.ID]; !seen {
+			declaredInputs[input.ID] = input
+		}
 	}
 	refusedInput := func(id string) bool { return declared[id] && a.inputs[id].ID == "" }
 	run("required-inputs", []string{"inputs-bound"}, func() error {
@@ -104,20 +109,25 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		}
 		for _, id := range []string{request.MigrationInput, request.DiscoveryInput} {
 			if refusedInput(id) {
-				c.notEvaluated("required-inputs", "required input "+id+" was refused", "inputs")
+				c.notEvaluated("required-inputs", "required input "+id+" not evaluated because the input was refused", "inputs")
 			}
 		}
 		return nil
 	})
 	run("mappings", []string{"inputs-bound"}, func() error {
-		for _, mapping := range request.Mappings {
-			if _, known := behaviorAdapterFields[mapping.Kind]; known && refusedInput(mapping.Input) && !a.mappingSeen[mapping.Kind] {
-				a.mappingSeen[mapping.Kind] = true
-				c.notEvaluated("mappings", "mapping "+mapping.Kind+" names refused input "+mapping.Input, "inputs")
+		for index, mapping := range request.Mappings {
+			item := "/mappings/" + strconv.Itoa(index)
+			var refused *BehaviorAdapterInput
+			if refusedInput(mapping.Input) {
+				input := declaredInputs[mapping.Input]
+				refused = &input
+			}
+			if err := a.addMapping(mapping, refused); err != nil {
+				a.keepItem(item, err)
 				continue
 			}
-			if err := a.addMapping(mapping); err != nil {
-				a.keep(err)
+			if refused != nil {
+				c.notEvaluated("mappings", "record checks for "+item+" not evaluated because input "+mapping.Input+" was refused", "inputs")
 			}
 		}
 		return nil
@@ -264,13 +274,13 @@ func (c *behaviorAdapterChecker) skip(name string) {
 // notEvaluated records one item inside an evaluated stage that depends on an
 // item an earlier stage refused.
 func (c *behaviorAdapterChecker) notEvaluated(stage, detail string, blockedBy ...string) {
-	c.items = append(c.items, BehaviorAdapterRefusal{Stage: stage, State: behaviorCheckNotEvaluated, Code: "", Message: detail + "; not evaluated", BlockedBy: blockedBy})
+	c.items = append(c.items, BehaviorAdapterRefusal{Stage: stage, State: behaviorCheckNotEvaluated, Code: "", Message: detail, BlockedBy: blockedBy})
 }
 
 func behaviorAdapterCheckLimitations() []string {
 	return []string{
 		"check mode neither emits nor writes an adapter result or artifact; it reconciles internally only to determine final-stage refusals and computes no coverage",
 		"a stage blocked by an earlier refusal is reported as not-evaluated; repairing that refusal can reveal further refusals",
-		"a refused mapped record is excluded from its stage's identity-uniqueness check and from later whole-record checks; each such record is listed as not-evaluated",
+		"items (inputs, mappings, observations, mapped records and discovery executions) are evaluated independently; within one item, evaluation stops at its first refusal and one not-evaluated entry names the item's remaining checks",
 	}
 }
