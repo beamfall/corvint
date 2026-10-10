@@ -307,3 +307,27 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		}
 	}
 }
+
+// GitHub #709 review round 4: ECMAScript ends a `//` comment at U+2028 and U+2029 as well as at
+// LF and CR, so `'safe' // c<U+2028> + mutate()` evaluates mutate() before the device spread.
+func TestPlaywrightUseValueUnicodeLineTerminator_V1_1065(t *testing.T) {
+	for _, terminator := range []string{" ", " "} {
+		source := "import { defineConfig, devices } from '@playwright/test';\nconst mutate = () => { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return ''; };\n" +
+			"export default defineConfig({\n  use: { baseURL: 'safe' // comment" + terminator + " + mutate()\n  },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("call after a %U line terminator was hidden in a comment: %+v", []rune(terminator)[0], unknown)
+		}
+	}
+}
+
+// GitHub #709 review round 4: an identity value is validated recursively before the bounded
+// expression parser, so its nesting must be bounded too instead of costing quadratic work.
+func TestPlaywrightStaticValueNestingIsBounded_V1_1065(t *testing.T) {
+	deep := strings.Repeat("[", 20000) + "'x'" + strings.Repeat("]", 20000)
+	if playwrightStaticValue(deep) {
+		t.Fatalf("admitted a %d-byte nested static value", len(deep))
+	}
+	if shallow := strings.Repeat("[", 20) + "'x'" + strings.Repeat("]", 20); !playwrightStaticValue(shallow) {
+		t.Fatal("refused a shallow nested static value")
+	}
+}

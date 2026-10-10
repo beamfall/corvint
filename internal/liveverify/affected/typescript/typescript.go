@@ -467,12 +467,16 @@ func scanImports(relative, body string) ([]string, bool, error) {
 	for _, ref := range requires {
 		refs[ref] = true
 	}
-	for _, match := range referencePathPattern.FindAllStringSubmatch(body, -1) {
+	for _, match := range referencePathPattern.FindAllStringSubmatch(unicodeLineTerminators.Replace(body), -1) {
 		refs[relativeReference(match[1])] = true
 	}
 	dynamic := dynamicImportPattern.MatchString(withoutComments) || computedRequire
 	return sortedKeys(refs), dynamic, parseErr
 }
+
+// unicodeLineTerminators maps U+2028 and U+2029 to LF, so the line-anchored reference pattern
+// sees the lines ECMAScript and TypeScript see.
+var unicodeLineTerminators = strings.NewReplacer("\u2028", "\n", "\u2029", "\n")
 
 // dynamicImportPattern allows any whitespace before the call parenthesis, including the spaces a
 // stripped block comment leaves behind (`import /* chunk */ ("./lazy")`).
@@ -593,10 +597,16 @@ func scanRequireTemplate(body string, index int, refs *[]string, dynamic *bool) 
 	return len(body), false
 }
 
+// unicodeLineTerminatorAt reports whether body[index:] starts with U+2028 or U+2029, which
+// ECMAScript treats as line terminators alongside LF and CR: they end a `//` comment and a line.
+func unicodeLineTerminatorAt[T string | []byte](body T, index int) bool {
+	return index+2 < len(body) && body[index] == 0xE2 && body[index+1] == 0x80 && (body[index+2] == 0xA8 || body[index+2] == 0xA9)
+}
+
 func jsCommentEnd(body string, index int) (int, bool) {
 	line := body[index+1] == '/'
 	for index += 2; index < len(body); index++ {
-		if line && (body[index] == '\n' || body[index] == '\r') {
+		if line && (body[index] == '\n' || body[index] == '\r' || unicodeLineTerminatorAt(body, index)) {
 			return index, true
 		}
 		if !line && index+1 < len(body) && body[index] == '*' && body[index+1] == '/' {
@@ -606,16 +616,24 @@ func jsCommentEnd(body string, index int) (int, bool) {
 	return len(body), line
 }
 
+// stripComments blanks comments to spaces, keeping offsets and line structure. U+2028 and U+2029
+// outside a string, template or regular expression literal are ECMAScript line terminators, so
+// they are rewritten to LF plus two spaces (the same three bytes) for the line-based scanners.
 func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 	clean := []byte(body)
 	for index := 0; index < len(clean); {
+		if unicodeLineTerminatorAt(clean, index) {
+			copy(clean[index:], "\n  ")
+			index += 3
+			continue
+		}
 		if clean[index] == '\'' || clean[index] == '"' || clean[index] == '`' {
 			end := quotedEnd(clean, index)
 			if end > len(clean) {
 				return string(clean), strconv.ErrSyntax
 			}
 			ambiguousJSX := rejectAmbiguousJSXQuotes && clean[index] != '`'
-			if ambiguousJSX && (!jsxQuoteStartsLiteral(clean, index) || jsxQuotedTokenCouldHideRequire(clean[index:end]) || strings.ContainsAny(string(clean[index:end]), "\r\n")) {
+			if ambiguousJSX && (!jsxQuoteStartsLiteral(clean, index) || jsxQuotedTokenCouldHideRequire(clean[index:end]) || strings.ContainsAny(string(clean[index:end]), "\r\n\u2028\u2029")) {
 				return string(clean), strconv.ErrSyntax
 			}
 			index = end
@@ -633,6 +651,14 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 		clean[index], clean[index+1] = ' ', ' '
 		index += 2
 		for index < len(clean) {
+			if unicodeLineTerminatorAt(clean, index) {
+				copy(clean[index:], "\n  ")
+				if line {
+					break
+				}
+				index += 3
+				continue
+			}
 			if line && (clean[index] == '\n' || clean[index] == '\r') {
 				break
 			}

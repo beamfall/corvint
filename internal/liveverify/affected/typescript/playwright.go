@@ -760,8 +760,10 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 	return !playwrightAnyMatcher(project.ignores, absolute)
 }
 
+// playwrightDefaultTest applies the `.spec.`/`.test.` markers of Playwright's default testMatch
+// glob, which createFileMatcher matches case-insensitively (minimatch nocase).
 func playwrightDefaultTest(relative string) bool {
-	base := path.Base(relative)
+	base := strings.ToLower(path.Base(relative))
 	return (strings.Contains(base, ".spec.") || strings.Contains(base, ".test.")) && playwrightLoadableName(base)
 }
 
@@ -791,11 +793,16 @@ func playwrightAnyMatcher(matchers []playwrightMatcher, values ...string) bool {
 func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 	raw = strings.TrimSpace(raw)
 	if value, ok := playwrightString(raw); ok {
+		// Playwright's createFileMatcher prefixes `**/` to a string glob that lacks it and
+		// matches it case-insensitively against the absolute path (minimatch nocase, dot).
+		if !strings.HasPrefix(value, "**/") {
+			value = "**/" + value
+		}
 		pattern, valid := playwrightGlobPattern(value)
 		if !valid {
 			return playwrightMatcher{}, false
 		}
-		re, err := regexp.Compile("^(?:" + pattern + ")$")
+		re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
 		return playwrightMatcher{raw: raw, re: re}, err == nil
 	}
 	pattern, flags, ok := playwrightRegexLiteral(raw)
@@ -846,9 +853,12 @@ func playwrightGlobPattern(glob string) (string, bool) {
 				return "", false
 			}
 			parts := strings.Split(glob[index+1:index+1+end], ",")
+			if len(parts) < 2 {
+				return "", false // `{a}` is literal and `{1..3}` a range in minimatch
+			}
 			pattern.WriteString("(?:")
 			for partIndex, part := range parts {
-				if part == "" || strings.ContainsAny(part, "*?{}[]") {
+				if part == "" || strings.ContainsAny(part, "*?{}[]()\\") || strings.Contains(part, "..") {
 					return "", false
 				}
 				if partIndex != 0 {
@@ -858,11 +868,11 @@ func playwrightGlobPattern(glob string) (string, bool) {
 			}
 			pattern.WriteByte(')')
 			index += end + 2
-		case '[', ']':
-			return "", false
+		case '[', ']', '(', ')', '\\':
+			return "", false // classes, extglobs and escapes are not modelled
 		default:
 			start := index
-			for index < len(glob) && !strings.ContainsRune("*?{[]", rune(glob[index])) {
+			for index < len(glob) && !strings.ContainsRune("*?{[]()\\", rune(glob[index])) {
 				index++
 			}
 			pattern.WriteString(regexp.QuoteMeta(glob[start:index]))
@@ -1183,7 +1193,16 @@ func playwrightStringArray(raw string) ([]string, bool) {
 	return values, true
 }
 
+// playwrightStaticValue reports a literal value, with arrays and objects nested at most
+// playwrightPureMaxDepth deep so adversarial nesting is refused in bounded work.
 func playwrightStaticValue(raw string) bool {
+	return playwrightStaticValueAt(raw, 0)
+}
+
+func playwrightStaticValueAt(raw string, depth int) bool {
+	if depth > playwrightPureMaxDepth {
+		return false
+	}
 	raw = strings.TrimSpace(raw)
 	if _, ok := playwrightString(raw); ok {
 		return true
@@ -1196,7 +1215,7 @@ func playwrightStaticValue(raw string) bool {
 	}
 	if items, ok := playwrightArrayItems(raw); ok {
 		for _, item := range items {
-			if !playwrightStaticValue(item) {
+			if !playwrightStaticValueAt(item, depth+1) {
 				return false
 			}
 		}
@@ -1204,7 +1223,7 @@ func playwrightStaticValue(raw string) bool {
 	}
 	if properties, ok := playwrightObjectProperties(raw); ok {
 		for _, value := range properties {
-			if !playwrightStaticValue(value) {
+			if !playwrightStaticValueAt(value, depth+1) {
 				return false
 			}
 		}

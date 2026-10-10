@@ -290,6 +290,7 @@ func playwrightSkippedAncestor(relative string) string {
 
 // unfilteredPlaywrightArgv accepts only `... test` followed by the listing, JSON reporter and
 // config options, so a recorded file, project, grep, shard or changed-only filter is refused.
+// `--list` is required: an execution report applies test.only, which a listing disables.
 func unfilteredPlaywrightArgv(argv []string) error {
 	start := -1
 	for index, value := range argv {
@@ -301,9 +302,12 @@ func unfilteredPlaywrightArgv(argv []string) error {
 	if start < 0 {
 		return errors.New("playwright listing does not record a `playwright test` argv; cannot prove it is unfiltered")
 	}
+	listed := false
 	for index := start + 1; index < len(argv); index++ {
 		switch value := argv[index]; {
-		case value == "--list", value == "--reporter=json", strings.HasPrefix(value, "--config="):
+		case value == "--list":
+			listed = true
+		case value == "--reporter=json", strings.HasPrefix(value, "--config="):
 		case (value == "--reporter" || value == "--config" || value == "-c") && index+1 < len(argv):
 			if value == "--reporter" && argv[index+1] != "json" {
 				return fmt.Errorf("playwright listing argv uses reporter %q; use --reporter=json", argv[index+1])
@@ -312,6 +316,9 @@ func unfilteredPlaywrightArgv(argv []string) error {
 		default:
 			return fmt.Errorf("playwright listing argv has %q; only --list, --reporter=json and --config are allowed so the universe is unfiltered", value)
 		}
+	}
+	if !listed {
+		return errors.New("playwright listing argv lacks --list; an execution report is not a discovery listing")
 	}
 	return nil
 }

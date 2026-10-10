@@ -146,3 +146,50 @@ Limits added by this round:
 - A test that Playwright would skip through `.gitignore` but that sits in a skipped directory
   still refuses.
 - A getter or Proxy trap reached by an admitted whole-value read is still not modelled.
+
+## Review round 4
+
+The fourth independent review returned FAIL with four findings; a fifth came from reviewing the
+stacked #717 producer branch. The orchestrator decided to fix all five fail-closed. Each landed with
+a test that failed on `0efb3dc1` and passes after:
+
+- U+2028 and U+2029 did not end a `//` comment, so `baseURL: 'safe' // c<U+2028> + mutate()` hid a
+  call that Node runs before a device spread. `stripComments` and `jsCommentEnd` now end line
+  comments at both. Outside literals, `stripComments` rewrites each one to LF plus two spaces
+  (offsets kept), so the line-anchored import patterns and the Playwright parsers see the same
+  lines. The triple-slash reference pattern reads the body with both mapped to LF, and a JSX
+  quote spanning one is ambiguous like one spanning LF. Strings keep them, as ES2019 allows.
+  Tests: `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`,
+  `TestUnicodeLineTerminatorsEndCommentsAndLines`.
+- The default `.spec.`/`.test.` markers were case-sensitive. Playwright's `createFileMatcher`
+  (v1.61.1 `util.ts`) uses minimatch with `nocase: true`, so `e2e/B.SPEC.ts` is a test. The markers
+  and string globs now match case-insensitively. This also feeds the skipped-directory refusal
+  (`e2e/build/B.SPEC.ts`). Regular expressions keep their own flags.
+- A string glob without a leading `**/` was anchored to the absolute path unchanged.
+  `createFileMatcher` prefixes `**/`, so `testMatch: ['**/a.spec.ts', 'b.spec.ts']` selects
+  `b.spec.ts`; the matcher now does the same. Tests: membership rows in
+  `TestPlaywrightDiscoveryFromListMembership_V1_1066` and
+  `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`.
+  - Extension beyond the finding, same matcher and same failure class: minimatch syntax the glob
+    compiler did not model was compiled as literal text and could under-select. Extglobs
+    (`@(a|b)`), backslash escapes, single-item braces (`{a}`, literal in minimatch) and range
+    braces (`{1..3}`) now make the matcher non-static, so selection widens and the producer
+    refuses. Character classes already did.
+- `playwrightStaticValue` recursed without a bound before the pure-expression depth guard, so
+  20,000 nested arrays took about 1.3 s, and the review's 100,000-deep value about 10^10
+  character visits. It now shares
+  `playwrightPureMaxDepth` (128) and refuses deeper values. Test:
+  `TestPlaywrightStaticValueNestingIsBounded_V1_1065`.
+- The listing producer permitted but did not require `--list`, so an execution report (which
+  applies `test.only`; `--list` disables it) passed as a complete listing. `--list` after `test` is
+  now required. Test: the `execution-report` row of `TestPlaywrightDiscoveryFromListRefusals_V1_1066`.
+
+TJAA-V0-018 and TJAA-V0-019 (still proposed) now state the line terminators, the static-value
+nesting bound, the required `--list` and the `createFileMatcher` semantics.
+
+Limits added by this round:
+- Go's `(?i)` folds a few non-ASCII letters (for example Kelvin `K`) that JavaScript's non-Unicode
+  case-insensitive matching does not. Membership can therefore over-include, which refuses or
+  over-selects rather than narrowing.
+- Brace groups with two or more plain items remain modelled. Other minimatch options (`matchBase`,
+  `nobrace`) are not used by Playwright and are not modelled.

@@ -3,6 +3,7 @@ package typescript
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -609,4 +610,18 @@ func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFrontier(t, result, FrontierPathAlias)
+}
+
+// GitHub #709 review round 4: U+2028 and U+2029 are ECMAScript line terminators, so they end a
+// `//` comment and start a line for import declarations and triple-slash references.
+func TestUnicodeLineTerminatorsEndCommentsAndLines(t *testing.T) {
+	for _, terminator := range []string{" ", " "} {
+		refs, _, err := scanImports("", "// note"+terminator+"const a = require('./a');\nconst b = 1;"+terminator+"import './b';\n/* x */"+terminator+"/// <reference path=\"./c.d.ts\" />\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{"./a", "./b", "./c.d.ts"}; !slices.Equal(refs, want) {
+			t.Fatalf("%U: refs=%v want=%v", []rune(terminator)[0], refs, want)
+		}
+	}
 }

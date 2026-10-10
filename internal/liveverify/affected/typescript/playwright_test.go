@@ -173,7 +173,8 @@ func TestPlaywrightStaticMatcherAdmitsCustomFixtureTest(t *testing.T) {
 }
 
 func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
-	for _, matcher := range []string{`'**/' + 'example.spec.ts'`, `"**/[ab].spec.ts"`, `"**/test[ab].spec.ts"`, `"**/{*.spec,*.test}.ts"`} {
+	for _, matcher := range []string{`'**/' + 'example.spec.ts'`, `"**/[ab].spec.ts"`, `"**/test[ab].spec.ts"`, `"**/{*.spec,*.test}.ts"`,
+		`"**/@(a|b).spec.ts"`, `"**/a.spec.+(ts|js)"`, `"**/{a}.spec.ts"`, `"**/a{1..3}.spec.ts"`, `"**/\\a.spec.ts"`} {
 		root := t.TempDir()
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
@@ -455,5 +456,38 @@ func TestPlaywrightGlobAndRegexMatchers(t *testing.T) {
 func TestPlaywrightProjectIdentityEscapesNames(t *testing.T) {
 	if got := playwrightIDEscape("Angular / React"); got != "Angular%20%2F%20React" || strings.Contains(got, " ") {
 		t.Fatalf("escaped=%q", got)
+	}
+}
+
+// GitHub #709 review round 4: Playwright's createFileMatcher prefixes `**/` to a string glob that
+// lacks it and matches globs case-insensitively (minimatch nocase); its default testMatch is such
+// a glob, so `B.SPEC.ts` is a test. A regular expression keeps its own flags.
+func TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+	write(t, root, "playwright.config.ts", `export default {
+  testDir: "tests",
+  projects: [
+    { name: "relative", testMatch: ["**/a.spec.ts", "b.spec.ts"] },
+    { name: "nocase", testMatch: "**/*.E2E.ts" },
+    { name: "default" },
+    { name: "regex", testMatch: /b\.SPEC\.ts$/ },
+  ],
+}`)
+	write(t, root, "tests/a.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
+	write(t, root, "tests/deep/b.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
+	write(t, root, "tests/C.SPEC.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
+	write(t, root, "tests/d.e2e.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/deep/b.spec.ts", "tests/C.SPEC.ts", "tests/d.e2e.ts"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := playwrightSelectionIDs(plan); !slices.Equal(got, []string{
+		"typescript:playwright:default:tests/C.SPEC.ts",
+		"typescript:playwright:default:tests/deep/b.spec.ts",
+		"typescript:playwright:nocase:tests/d.e2e.ts",
+		"typescript:playwright:relative:tests/deep/b.spec.ts",
+	}) {
+		t.Fatalf("selection=%v unknown=%v", got, plan.Unknown)
 	}
 }

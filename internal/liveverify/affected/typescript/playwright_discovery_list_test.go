@@ -139,6 +139,10 @@ func TestPlaywrightDiscoveryFromListRefusals_V1_1066(t *testing.T) {
 		{"only-changed", `"--only-changed"`, edit(argv("--only-changed")), ""},
 		{"other-reporter", `"line"`, edit(argv("--reporter", "line")), ""},
 		{"no-argv", "argv", edit(func(_, config map[string]any) { delete(config, "argv") }), ""},
+		// An execution report (test.only applies; --list disables it) is not a discovery listing.
+		{"execution-report", "--list", edit(func(_, config map[string]any) {
+			config["argv"] = []any{"/usr/local/bin/node", root + "/node_modules/.bin/playwright", "test", "--reporter=json"}
+		}), ""},
 		{"shard", "sharded", edit(func(_, config map[string]any) { config["shard"] = map[string]any{"current": 1, "total": 2} }), ""},
 		{"other-config", "is not playwright.config.ts", edit(func(_, config map[string]any) { config["configFile"] = filepath.Join(outside, "playwright.config.ts") }), ""},
 		{"root-dir-outside", "outside the repository root", edit(func(_, config map[string]any) { config["rootDir"] = outside }), ""},
@@ -207,6 +211,9 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 		{"b.spec.cts", "test('b', async () => {});\n"},
 		{"b.test.mjs", "test('b', async () => {});\n"},
 		{"b.spec.ts", "test('\xff', async () => {});\n"},
+		// Playwright's default testMatch is matched case-insensitively.
+		{"B.SPEC.ts", "test('b', async () => {});\n"},
+		{"c.Test.js", "test('c', async () => {});\n"},
 	} {
 		t.Run("stale listing after a new "+row.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -223,6 +230,21 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 			}
 		})
 	}
+	// Playwright prefixes `**/` to a string glob without it, so `b.spec.ts` matches p/b.spec.ts.
+	t.Run("stale listing after a new file a relative glob selects", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p', testMatch: ['**/a.spec.ts', 'b.spec.ts'] }] });\n")
+		write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
+		listing := minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})
+		if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing); err != nil {
+			t.Fatalf("fresh listing refused: %v", err)
+		}
+		write(t, root, "p/b.spec.ts", "test('b', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `project "p" test p/b.spec.ts`) {
+			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+		}
+	})
 	t.Run("unparsed module spec outside every testDir", func(t *testing.T) {
 		root := t.TempDir()
 		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
@@ -241,6 +263,7 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 		{"e2e/vendor/d.spec.tsx", "e2e/vendor"},
 		{"e2e/.cache/e.spec.ts", "e2e/.cache"},
 		{"e2e/target/deep/f.spec.cjs", "e2e/target"},
+		{"e2e/build/B.SPEC.ts", "e2e/build"},
 	} {
 		t.Run("selected test in excluded directory "+row.file, func(t *testing.T) {
 			root := t.TempDir()
