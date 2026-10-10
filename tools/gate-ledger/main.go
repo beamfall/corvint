@@ -754,19 +754,20 @@ func (o *packageOutcomes) event(line []byte) {
 		}
 	}
 	switch e.Action {
-	case "output", "run", "pause", "cont":
-		if e.Action != "output" && e.Test == "" {
+	case "output", "attr", "artifacts", "bench":
+		// Metadata and benchmark reports are output-like, not test or package
+		// terminals. In particular, benchmarks may have no preceding run event.
+	case "run", "pause", "cont":
+		if e.Test == "" {
 			o.invalid = true
 		}
-	case "fail":
-		p.failed = true
-		if e.Test == "" {
-			p.terminal = "fail"
+	case "pass", "fail", "skip":
+		if e.Action == "fail" {
+			p.failed = true
 		}
-	case "pass", "skip":
 		if e.Test == "" {
 			p.terminal = e.Action
-			if e.Action == "pass" && (p.failed || len(p.tests) != 0) {
+			if len(p.tests) != 0 || (e.Action == "pass" && p.failed) {
 				o.invalid = true
 			}
 		}

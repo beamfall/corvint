@@ -598,6 +598,50 @@ func TestPackageOutcomesPassAndFailure(t *testing.T) {
 	}
 }
 
+// GL-V0-002: every package terminal must close its tests, even when another
+// package has passed and would otherwise be eligible for recording.
+func TestPackageOutcomesRefusesUnfinishedTestsAtTerminal(t *testing.T) {
+	for _, terminal := range []string{"pass", "fail", "skip"} {
+		t.Run(terminal, func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":"TestOpen"}
+` + fmt.Sprintf("{\"Action\":%q,\"Package\":\"bad\"}\n", terminal)
+			_, _ = o.Write([]byte(stream))
+			if got := o.passes(); got != nil {
+				t.Fatalf("unfinished test at package %s admitted records: %v", terminal, got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: Go's metadata and benchmark events do not terminate tests or
+// packages, and their output remains visible.
+func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}}, &out)
+	stream := `{"Action":"start","Package":"good"}
+{"Action":"attr","Package":"good","Key":"owner","Value":"fixture"}
+{"Action":"artifacts","Package":"good","Path":"package.log"}
+{"Action":"run","Package":"good","Test":"TestGood"}
+{"Action":"attr","Package":"good","Test":"TestGood","Key":"owner","Value":"fixture"}
+{"Action":"artifacts","Package":"good","Test":"TestGood","Path":"test.log"}
+{"Action":"output","Package":"good","Test":"TestGood","Output":"test output\n"}
+{"Action":"pass","Package":"good","Test":"TestGood"}
+{"Action":"output","Package":"good","Test":"BenchmarkGood","Output":"benchmark output\n"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+{"Action":"pass","Package":"good"}
+`
+	_, _ = o.Write([]byte(stream))
+	passes := o.passes()
+	if len(passes) != 1 || !passes["good"] || out.String() != "test output\nbenchmark output\n" {
+		t.Fatalf("passes %v, output %q", passes, out.String())
+	}
+}
+
 // GL-V0-002: stream refusal also reaches the record-writing boundary.
 func TestRunPackagesRefusesPartialOutput(t *testing.T) {
 	for _, ending := range []string{"", "garbled\n"} {
