@@ -698,10 +698,11 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			return "", device, false
 		}
 		if key != "browserName" {
-			// A runtime-computed value of a key outside the browser/device identity set
-			// (baseURL, storageState, trace, ...) cannot change the browser or file
-			// membership; it stays an execution input (TJAA-V0-018).
-			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
+			// An identity value must be a static literal. Another option's value (baseURL,
+			// storageState, trace, ...) may be computed only when evaluating it cannot run code or
+			// write state, so it cannot rewrite a devices descriptor (TJAA-V0-018).
+			value := strings.TrimSpace(item[colon+1:])
+			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(value) || !playwrightPureExpression(value) {
 				return "", device, false
 			}
 			continue

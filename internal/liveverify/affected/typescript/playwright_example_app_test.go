@@ -165,7 +165,7 @@ func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 	for _, row := range []struct{ name, global, local, browser, device string }{
 		{"global env baseURL", `{ baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' }`, `{ ...devices['Desktop Chrome'] }`, "chromium", "Desktop Chrome"},
 		{"project storageState identifier", `{}`, `{ ...devices['Desktop Firefox'], storageState: authFile }`, "firefox", "Desktop Firefox"},
-		{"both layers computed", `{ trace: process.env.CI ? 'on' : 'off' }`, `{ ...devices['Desktop Safari'], extraHTTPHeaders: headers(), video: mode }`, "webkit", "Desktop Safari"},
+		{"both layers computed", `{ trace: process.env.CI ? 'on' : 'off' }`, `{ ...devices['Desktop Safari'], extraHTTPHeaders: headers, video: mode }`, "webkit", "Desktop Safari"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := "import { defineConfig, devices } from '@playwright/test';\nconst authFile = 'playwright/.auth/user.json';\nexport default defineConfig({\n  use: " + row.global + ",\n  projects: [{ name: 'p', use: " + row.local + " }],\n});\n"
@@ -193,5 +193,71 @@ func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 	_, _, unknown := parsePlaywrightConfig("playwright.config.ts", "export default defineConfig({ use: { userAgent: agent() }, projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }] })")
 	if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
 		t.Fatalf("computed inherited identity key was resolved: %+v", unknown)
+	}
+}
+
+// GitHub #709 review: a non-identity `use` value is ignorable only when evaluating it cannot run
+// code or write state, so it cannot rewrite a devices descriptor; quoted literal identity keys
+// are the same keys (TJAA-V0-018).
+func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
+	config := func(global, local string) string {
+		return "import { defineConfig, devices } from '@playwright/test';\nexport default defineConfig({\n  use: " + global + ",\n  projects: [{ name: 'p', use: " + local + " }],\n});\n"
+	}
+	for _, value := range []string{
+		"process.env.BASE_URL ?? 'http://localhost:3000'",
+		"`http://${process.env.HOST ?? 'localhost'}:${port}/`",
+		"process.env.CI ? 'on' : 'off'",
+		"{ 'X-Token': process.env.TOKEN, Accept: 'application/json', nested: [a, b.c] }",
+		"!flag && mode === 'x' || typeof limit === 'number'",
+		"-retries * 2 + options['base']",
+		"settings?.trace ?? (fallback)",
+	} {
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{ baseURL: "+value+" }", "{ ...devices['Desktop Firefox'] }"))
+		if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != "firefox" {
+			t.Fatalf("side-effect-free value widened: %s projects=%+v unknown=%+v", value, projects, unknown)
+		}
+	}
+	for _, value := range []string{
+		"(devices['Desktop Chrome'].browserName = 'firefox', 'http://localhost:3000')",
+		"path.join(dir, 'user.json')",
+		"headers()",
+		"settings?.()",
+		"`http://${host()}/`",
+		"tag`x`",
+		"count++",
+		"--count",
+		"limit += 1",
+		"cache ||= 'x'",
+		"delete devices['Desktop Chrome'].browserName",
+		"new URL('http://localhost')",
+		"() => 'http://localhost'",
+		"function () { return 1 }",
+		"class {}",
+		"{ get value() { return 1 } }",
+		"{ value() { return 1 } }",
+		"{ ...extra }",
+		"[...list]",
+		"(a, b)",
+		"await token",
+		"import('./x')",
+		"/x/.source",
+		"Object.assign(devices['Desktop Chrome'], { browserName: 'firefox' })",
+	} {
+		for _, layer := range [][2]string{{"{ baseURL: " + value + " }", "{ ...devices['Desktop Chrome'] }"}, {"{}", "{ ...devices['Desktop Chrome'], storageState: " + value + " }"}} {
+			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
+			if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+				t.Fatalf("value that can run code or write state was ignored: use %s / %s: %+v", layer[0], layer[1], unknown)
+			}
+		}
+	}
+	for _, row := range []struct{ use, browser string }{
+		{`{ 'browserName': 'firefox' }`, "firefox"},
+		{`{ "browserName": "webkit", 'viewport': { width: 1280, height: 720 } }`, "webkit"},
+		{`{ ...devices['Desktop Chrome'], 'locale': 'en-US', "storageState": authFile }`, "chromium"},
+	} {
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{}", row.use))
+		if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != row.browser {
+			t.Fatalf("quoted literal identity key widened: %s projects=%+v unknown=%+v", row.use, projects, unknown)
+		}
 	}
 }

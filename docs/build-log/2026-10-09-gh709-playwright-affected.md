@@ -55,3 +55,29 @@ Limits:
   are unchanged.
 - An absent or unreadable discovery file is still MISSING.
 - `make gate` was not run.
+
+## Review round 1
+
+An independent review of the first three commits returned FAIL with four findings. The orchestrator
+decided each fix, and each fix landed with a test that failed first:
+
+- The producer stamped a stale listing with fresh HEAD and source bindings. It now enumerates the
+  (project, file) pairs the config selects in the current sources through the static
+  `testDir`/`testMatch`/`testIgnore` subset. It refuses with `unsupported-playwright-discovery` when
+  the listing omits or adds a pair, or when that membership is not static. In the e2e-safe
+  regression, a stale listing plus a newly committed spec no longer reaches MATCHED.
+- A non-identity `use` value with side effects was ignored. The review's repro assigns
+  `devices['Desktop Chrome'].browserName` inside `baseURL`. `TJAA-V0-018` now admits only
+  syntactically side-effect-free values. There is no call allowlist, so `path.join(...)` and
+  `headers()` widen again.
+- `affected discovery` checked HEAD before its last source observation. It now re-reads HEAD after
+  that observation, and an injected-drift test pins the ordering.
+- The spec wrongly said quoted identity keys widen. A quoted literal key is the same key and resolves;
+  only computed keys widen. A test pins the behaviour, which was already correct.
+
+Limits added by this round:
+- A file the config selects but whose tests all fail Playwright's runtime filters (for example, a file
+  with zero tests) makes the producer refuse.
+- A member read can invoke an existing getter; this is admitted.
+- The `affected` plan path still reads HEAD before its source verification; it is unchanged.
+

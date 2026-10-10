@@ -169,3 +169,81 @@ func toAny(values []string) []any {
 	}
 	return out
 }
+
+// minimalPlaywrightListing is the subset of a `playwright test --list --reporter=json` report the
+// producer reads: one suite per file under rootDir, each with one test per named project.
+func minimalPlaywrightListing(t *testing.T, root, rootDir string, projects, files []string) []byte {
+	t.Helper()
+	suites := []any{}
+	for _, file := range files {
+		tests := []any{}
+		for _, project := range projects {
+			tests = append(tests, map[string]any{"projectName": project})
+		}
+		suites = append(suites, map[string]any{"file": file, "specs": []any{map[string]any{"file": file, "tests": tests}}, "suites": []any{}})
+	}
+	raw, err := json.Marshal(map[string]any{
+		"config": map[string]any{
+			"configFile": filepath.Join(root, "playwright.config.ts"), "rootDir": filepath.Join(root, rootDir), "shard": nil,
+			"argv": []any{"/usr/local/bin/node", root + "/node_modules/.bin/playwright", "test", "--list", "--reporter=json"},
+		},
+		"suites": suites, "errors": []any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// GitHub #709 review: the producer stamps the current HEAD and source digest, so it must
+// independently enumerate the files the config selects and refuse a listing that is stale,
+// names a file the config does not select, or cannot be checked statically (TJAA-V0-019).
+func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
+	t.Run("stale listing after a new spec", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
+		write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
+		listing := minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})
+		if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing); err != nil {
+			t.Fatalf("fresh listing refused: %v", err)
+		}
+		write(t, root, "p/b.spec.ts", "test('b', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `omits project "p" test p/b.spec.ts`) {
+			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+		}
+	})
+	root, listing := multiProjectListFixture(t)
+	for _, row := range []struct{ name, config, want string }{
+		{"dynamic testDir", "export default defineConfig({ testDir: process.env.DIR, projects: [{ name: 'chromium' }] });\n", "not static"},
+		{"dynamic project set", "export default defineConfig({ projects: projectList });\n", "not static"},
+		{"global testMatch", "export default defineConfig({ testDir: './e2e', testMatch: '**/*.e2e.ts', projects: [{ name: 'chromium' }] });\n", "not static"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			write(t, root, "playwright.config.ts", row.config)
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+			if err == nil || raw != nil || !strings.Contains(err.Error(), row.want) {
+				t.Fatalf("raw=%s err=%v want %q", raw, err, row.want)
+			}
+		})
+	}
+	t.Run("listed file the config does not select", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
+		write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
+		write(t, root, "p/helper.ts", "export const x = 1;\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts", "helper.ts"}))
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `names project "p" test p/helper.ts`) {
+			t.Fatalf("raw=%s err=%v", raw, err)
+		}
+	})
+	t.Run("implicit default project", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", "export default { testDir: 'e2e' };\n")
+		write(t, root, "e2e/a.spec.ts", "test('a', async () => {});\n")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "e2e", []string{""}, []string{"a.spec.ts"}))
+		if err != nil || !bytes.Contains(raw, []byte(`"units":[{"project":"","test":"e2e/a.spec.ts"}]`)) {
+			t.Fatalf("raw=%s err=%v", raw, err)
+		}
+	})
+}

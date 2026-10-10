@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -100,13 +101,19 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		units = append(units, unit)
 	}
 	sort.Slice(units, func(i, j int) bool { return discoveryUnitLess(units[i], units[j]) })
-	configBytes, err := affected.ReadSource(root, configPath)
-	if err != nil {
-		return nil, errors.New("playwright config is unreadable")
-	}
 	sourceDigest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
 		return nil, err
+	}
+	configBytes, err := affected.ReadSource(root, configPath)
+	if err != nil || !utf8.Valid(configBytes) {
+		return nil, errors.New("playwright config is unreadable")
+	}
+	if err := checkPlaywrightListMembership(root, configPath, configBytes, seen); err != nil {
+		return nil, err
+	}
+	if after, err := ObservePlaywrightSources(root, configPath); err != nil || after != sourceDigest {
+		return nil, errors.New("playwright sources changed while the listing was checked")
 	}
 	sum := sha256.Sum256(configBytes)
 	receipt := PlaywrightDiscovery{
@@ -121,6 +128,60 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		return nil, fmt.Errorf("produced receipt is not valid: %s: %s", malformed.reason, malformed.detail)
 	}
 	return raw, nil
+}
+
+// checkPlaywrightListMembership compares the listed project/file pairs with the pairs the config
+// selects among the current sources through the static profile's testDir/testMatch/testIgnore
+// subset, so a stale or partial listing is refused instead of stamped with the current bindings.
+// Membership that is not static is refused as well; only an unresolved browser identity, which
+// does not decide file membership, is tolerated, and a config without projects is Playwright's
+// one unnamed default project.
+func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
+	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
+	implicit := false
+	for _, entry := range unknown {
+		switch {
+		case entry.Reason == PlaywrightUnknownBrowserIdentity:
+		case entry.Reason == PlaywrightUnknownProjectSet && entry.Detail == "projects is absent" && len(projects) == 0:
+			implicit = true
+		default:
+			return fmt.Errorf("the config's test membership is not static (%s: %s); the listing cannot be checked against the bound sources", entry.Reason, entry.Detail)
+		}
+	}
+	if implicit {
+		projects = []PlaywrightProject{{TestDir: globalTestDir}}
+	}
+	result, err := New().units(root, true)
+	if err != nil {
+		return err
+	}
+	selected := map[PlaywrightDiscoveryUnit]bool{}
+	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, playwrightSourcePaths(result)) {
+		selected[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] = true
+	}
+	var extra, missing []PlaywrightDiscoveryUnit
+	for unit := range listed {
+		if !selected[unit] {
+			extra = append(extra, unit)
+		}
+	}
+	for unit := range selected {
+		if !listed[unit] {
+			missing = append(missing, unit)
+		}
+	}
+	less := func(values []PlaywrightDiscoveryUnit) func(i, j int) bool {
+		return func(i, j int) bool { return discoveryUnitLess(values[i], values[j]) }
+	}
+	sort.Slice(extra, less(extra))
+	sort.Slice(missing, less(missing))
+	if len(missing) != 0 {
+		return fmt.Errorf("playwright listing omits project %q test %s (%d pair(s) in all), which the config selects in the current sources; the listing is stale or filtered", missing[0].Project, missing[0].Test, len(missing))
+	}
+	if len(extra) != 0 {
+		return fmt.Errorf("playwright listing names project %q test %s (%d pair(s) in all), which the config does not select in the current sources", extra[0].Project, extra[0].Test, len(extra))
+	}
+	return nil
 }
 
 // unfilteredPlaywrightArgv accepts only `... test` followed by the listing, JSON reporter and

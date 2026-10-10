@@ -498,14 +498,21 @@ func compilePlaywrightDiscovery(ctx context.Context, invocation affectedInvocati
 	if err != nil {
 		return nil, &gokernel.Error{Code: "unsupported-playwright-discovery", Message: err.Error()}
 	}
-	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
-		return nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the discovery receipt was produced"}
-	}
 	if _, state := typescript.VerifyPlaywrightDiscovery(root, invocation.PlaywrightConfig, revision, raw); state != "MATCHED" {
 		return nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "source changed while the discovery receipt was produced"}
 	}
+	playwrightDiscoverySourcesVerified()
+	// HEAD is read after the last source observation, so a commit that lands while sources are
+	// read, even one with an unchanged tree, is refused rather than stamped.
+	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
+		return nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the discovery receipt was produced"}
+	}
 	return raw, nil
 }
+
+// playwrightDiscoverySourcesVerified runs after the producer's last source observation; tests
+// replace it to inject drift at that point.
+var playwrightDiscoverySourcesVerified = func() {}
 
 // readPlaywrightList reads one bounded regular listing file, relative to root unless absolute.
 func readPlaywrightList(root, name string) ([]byte, error) {
