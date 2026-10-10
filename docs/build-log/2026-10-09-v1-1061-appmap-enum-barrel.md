@@ -329,3 +329,9 @@ injector.
   matching relies on `auditExports`, which marks any file with unmatched brackets unread, so
   `enclosingOpen`/`enclosingClose` run only on balanced tokens. No adopter-scale qualification
   (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.
+- Bundler aliases are not read: a webpack or vite `resolve.alias` (or any other bundler's) that
+  maps an external-looking package name onto repository code leaves that name an external
+  package, so a chain import of it is not checked and a relay through it is not a possible
+  holder. A follow-up ticket covers it. tsconfig/jsconfig `paths` and `baseUrl` are already
+  covered: the web resolver applies the governing config's alias stage before its package test,
+  so a name they claim resolves to the repository file (or unresolved), never to a package.
