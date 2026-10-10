@@ -17,6 +17,7 @@ func historyText(s *string) string {
 // CAL-V0-096: a retry records the stage and pool member the ended
 // external-agent generation held, and null when it held none.
 func TestCALV0096_PriorGenerationRecordsStageAndMember(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-096 PriorGenerationRecordsStageAndMember", func(t *testing.T) {
 		s := newLeaseStore(t)
 		exclusionPolicy(t, s, wire.Null())

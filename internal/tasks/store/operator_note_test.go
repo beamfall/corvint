@@ -65,6 +65,7 @@ func loadRecord(t *testing.T, repo *intent.Repository, id string) *ticket.Record
 // supersedes conflicts, CLEAR keeps a tombstone, and an ordinary REFINE then
 // preserves the reference through a full audit.
 func TestONV0006_NativeNoteSetClearReplayAndAudit(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
 	set := noteEnvelope("req-note-1", mutation.OpNoteSet, created.Ticket, "", "Use the staging database.", "0")
@@ -214,6 +215,7 @@ func withField(o wire.Value, key string, v wire.Value) wire.Value {
 // and a superseding SET all replay from audited pre-state, so a store whose
 // only extension is the note profile audits with known semantic coverage.
 func TestONV0006_ReceiptAuditBindsNoteHistory(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
 	for _, env := range [][]byte{
@@ -238,6 +240,7 @@ func TestONV0006_ReceiptAuditBindsNoteHistory(t *testing.T) {
 // TestONV0006_ForgedNoteHistoryIsJournalForked rewrites receipts with a
 // consistent outer hash chain; each forgery must fail the note binding.
 func TestONV0006_ForgedNoteHistoryIsJournalForked(t *testing.T) {
+	t.Parallel()
 	ticketPost := func(path string) bool { return strings.HasPrefix(path, "intent/tickets/") }
 	cases := map[string]struct {
 		refine bool
@@ -283,6 +286,7 @@ func TestONV0006_ForgedNoteHistoryIsJournalForked(t *testing.T) {
 // projection were not yet written is redone through the bound audit, and the
 // same pending receipt with a forged ticket post is refused.
 func TestONV0006_RedoBindsAPendingNoteReceipt(t *testing.T) {
+	t.Parallel()
 	for _, forged := range []bool{false, true} {
 		repo, _ := initialized(t)
 		created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
@@ -325,6 +329,7 @@ func TestONV0006_RedoBindsAPendingNoteReceipt(t *testing.T) {
 // the complete audit rather than read a pre-checkpoint receipt when a note
 // transition's pre-state precedes the checkpoint (CAL-V0-061).
 func TestONV0006_CheckpointTailNeverReadsThePrefix(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
 	mutate(t, repo, noteEnvelope("req-note-1", mutation.OpNoteSet, created.Ticket, "", "First.", "0"))
@@ -358,6 +363,7 @@ func TestONV0006_CheckpointTailNeverReadsThePrefix(t *testing.T) {
 // the note binding both in a settled audit and as a pending receipt offered
 // to redo, which then publishes nothing.
 func TestONV0006_NoteReceiptBindsOnlyItsOwnTransition(t *testing.T) {
+	t.Parallel()
 	keep := func(_ string, rec wire.Value) (wire.Value, bool) { return rec, true }
 	extraPost := func(t *testing.T, repo *intent.Repository) func(wire.Value) {
 		genesis, err := wire.Parse(mustRead(t, filepath.Join(repo.StateDir, "receipts", "000000000001.json")))

@@ -120,6 +120,7 @@ func mergedMutateAudits(t *testing.T, repo *intent.Repository, id string) (mutat
 // second Audit. A stray state directory is refused by the lookup capture in
 // both flows, before an intent divergence the merged audit defers.
 func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
+	t.Parallel()
 	// One store; every edit is undone before the next case.
 	repo := historyStore(t, 70)
 	rewriteFile := func(t *testing.T, p string, edit func([]byte) []byte) func() {
@@ -207,6 +208,7 @@ func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
 // nothing is published. Reusing the audit there would have accepted a stale
 // projection digest, or reached the pre-apply binding's SNAPSHOT_MOVED.
 func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 70)
 	stateFile := func(rel string) string { return filepath.Join(repo.StateDir, rel) }
 	requestFile, ticketFile := mutationBoundaryFiles(t, repo)

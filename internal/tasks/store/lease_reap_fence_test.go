@@ -23,6 +23,7 @@ func fencedReapOf(a *store.Report, expires wire.Timestamp) transaction.LeaseRequ
 // an attempt released since the observation changes nothing and writes no
 // receipt, which is how the dispatcher tells it apart from an actual reap.
 func TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-191 renewal between observation and reap", func(t *testing.T) {
 		s := newLeaseStore(t)
 		l := claimOf(s.ticket(t, "one"), "src")

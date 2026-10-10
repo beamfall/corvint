@@ -87,6 +87,7 @@ func psrRun(s *leaseStore, id string) (*store.PoolSweepReport, error) {
 // PSR-V0-009: the same request replays the original result after env file
 // deletion and successor allocation, without execution or touching the successor.
 func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
+	t.Parallel()
 	s, a := psrFixture(t, "printf reset", "printf 'literal[ok]'", "literal[ok]", "1", true)
 	out, e := psrRun(s, "sweep")
 	if e != nil || out.Report == nil || out.Report.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -126,6 +127,7 @@ func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 // PSR-V0-005: a stdout literal mismatch never passes verify; the retry stays
 // within maxAttempts and the member stays quarantined.
 func TestPSRSweepMismatchRetries(t *testing.T) {
+	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
 	s, _ := psrFixture(t, "printf x >> "+marker, "printf wrong", "expected", "2", false)
 	out, e := psrRun(s, "mismatch")
@@ -199,6 +201,7 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 
 // PSR-V0-005: stderr cannot satisfy the stdout literal.
 func TestPSRSweepStderrIsNotStdout(t *testing.T) {
+	t.Parallel()
 	s, _ := psrFixture(t, "true", "printf expected >&2", "expected", "1", false)
 	_, e := psrRun(s, "stderr")
 	if e != nil {
@@ -211,6 +214,7 @@ func TestPSRSweepStderrIsNotStdout(t *testing.T) {
 }
 
 func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"confirm-response", "confirm-and-readback-response", "finish-response"} {
 		t.Run(mode, func(t *testing.T) {
 			marker := filepath.Join(t.TempDir(), "runs")
@@ -324,6 +328,7 @@ func TestPSRFirstCleanupProbeFailureRetiresChild(t *testing.T) {
 // retryable; a same-request retry only reconciles committed receipts and never
 // reruns the phase.
 func TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable(t *testing.T) {
+	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
 	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
 	ctx := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
@@ -366,6 +371,7 @@ func psrOwnerPhase(t *testing.T, s *leaseStore) string {
 // committed and nothing run, so the error is retryable, and a same-request
 // retry runs the phase and commits it once.
 func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
+	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
 	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
 	ctx := store.PSRTestRequestFailure(context.Background(), func(c store.LeaseChoice) error {
@@ -402,6 +408,7 @@ func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
 // retry only reconciles committed receipts, stays pending and never reruns the
 // phase or commits the observation, so the error is not retryable.
 func TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable(t *testing.T) {
+	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
 	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
 	ctx := store.PSRTestRequestFailure(context.Background(), func(c store.LeaseChoice) error {

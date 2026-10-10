@@ -135,6 +135,7 @@ func (f *openCodeFixture) waitThenAnswer(t *testing.T, w *store.Workflow) string
 // session and builds from the fork, an independent review session with edits denied
 // accepts every claim, and usage is re-derived in the OpenCode vocabulary.
 func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
+	t.Parallel()
 	f := newOpenCodeFixture(t)
 	self, err := os.Executable()
 	if err != nil {
@@ -197,6 +198,7 @@ func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
 // original session as its resume target, read back independently of the
 // returned error.
 func TestCALV0077_OpenCodeResumeRequiresFork(t *testing.T) {
+	t.Parallel()
 	for _, flag := range []string{"missing", "recreate"} {
 		t.Run(flag, func(t *testing.T) {
 			f := newOpenCodeFixture(t)
@@ -233,6 +235,7 @@ func TestCALV0077_OpenCodeResumeRequiresFork(t *testing.T) {
 // whole steps, so the program reports usage unknown rather than the partial
 // sums of the steps it kept.
 func TestCALV0077_OpenCodeOutputLimitUsageUnknown(t *testing.T) {
+	t.Parallel()
 	f := newOpenCodeFixture(t)
 	self, err := os.Executable()
 	if err != nil {
@@ -274,6 +277,7 @@ func TestCALV0077_OpenCodeOutputLimitUsageUnknown(t *testing.T) {
 // drained keeps its claim, and restoring the OpenCode pin recovers cancel
 // access to it without a stage launch.
 func TestCALV0076_OpenCodeHostRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	f := newOpenCodeFixture(t)
 	pins := &claudeFixture{s: f.s, scripts: f.scripts, config: f.config, version: 3}
