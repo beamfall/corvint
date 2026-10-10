@@ -102,7 +102,7 @@ func TestPlaywrightGlobalUseInheritance(t *testing.T) {
 		{`{ ...devices["Desktop Firefox"] }`, `{ ...devices["Desktop Chrome"] }`, "chromium", "Desktop Chrome"},
 		{`{ ...devices["Desktop Firefox"] }`, `{ browserName: "webkit" }`, "webkit", "Desktop Firefox"},
 	} {
-		browser, device, ok := playwrightInheritedUseIdentity(row.global, row.local)
+		browser, device, ok := playwrightInheritedUseIdentity(playwrightPureScope{devices: true}, row.global, row.local)
 		if !ok || browser != row.browser || device != row.device {
 			t.Fatalf("%+v: %s %s %v", row, browser, device, ok)
 		}
@@ -163,12 +163,12 @@ func TestPlaywrightAliasResolutionBoundaries(t *testing.T) {
 // that are not browser/device identity (TJAA-V0-018). Computed identity stays unresolved.
 func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 	for _, row := range []struct{ name, global, local, browser, device string }{
-		{"global env baseURL", `{ baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' }`, `{ ...devices['Desktop Chrome'] }`, "chromium", "Desktop Chrome"},
+		{"global const literal baseURL", `{ baseURL: server.baseURL ?? 'http://localhost:3000', trace: 'on-first-retry' }`, `{ ...devices['Desktop Chrome'] }`, "chromium", "Desktop Chrome"},
 		{"project storageState identifier", `{}`, `{ ...devices['Desktop Firefox'], storageState: authFile }`, "firefox", "Desktop Firefox"},
-		{"both layers computed", `{ trace: process.env.CI ? 'on' : 'off' }`, `{ ...devices['Desktop Safari'], extraHTTPHeaders: headers(), video: mode }`, "webkit", "Desktop Safari"},
+		{"both layers computed", `{ trace: server.ci ? 'on' : 'off' }`, `{ ...devices['Desktop Safari'], extraHTTPHeaders: headers, video: mode }`, "webkit", "Desktop Safari"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			source := "import { defineConfig, devices } from '@playwright/test';\nconst authFile = 'playwright/.auth/user.json';\nexport default defineConfig({\n  use: " + row.global + ",\n  projects: [{ name: 'p', use: " + row.local + " }],\n});\n"
+			source := "import { defineConfig, devices } from '@playwright/test';\nconst authFile = 'playwright/.auth/user.json';\nconst server = { baseURL: 'http://localhost:3000', ci: false };\nexport default defineConfig({\n  use: " + row.global + ",\n  projects: [{ name: 'p', use: " + row.local + " }],\n});\n"
 			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", source)
 			if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != row.browser || projects[0].Device != row.device {
 				t.Fatalf("projects=%+v unknown=%+v", projects, unknown)
@@ -182,6 +182,7 @@ func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 		`{ ...devices['Desktop Chrome'], channel: process.env.CHANNEL }`,
 		`{ ...devices['Desktop Chrome'], launchOptions: options }`,
 		`{ ...devices['Desktop Chrome'], ...extra }`,
+		`{ ...devices['Desktop Chrome'], baseURL: process.env.BASE_URL ?? 'http://localhost:3000' }`,
 		`{ ...devices['Desktop Chrome'], [key]: value }`,
 		`{ ...devices['Desktop Chrome'], 'browserName': chosen }`,
 	} {
@@ -193,5 +194,285 @@ func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
 	_, _, unknown := parsePlaywrightConfig("playwright.config.ts", "export default defineConfig({ use: { userAgent: agent() }, projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }] })")
 	if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
 		t.Fatalf("computed inherited identity key was resolved: %+v", unknown)
+	}
+}
+
+// GitHub #709 review: a non-identity `use` value is ignorable only when evaluating it cannot run
+// code or write state, so it cannot rewrite a devices descriptor; quoted literal identity keys
+// are the same keys (TJAA-V0-018).
+func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
+	config := func(global, local string) string {
+		return "import { defineConfig, devices } from '@playwright/test';\nconst options = { base: 'http://localhost:3000', ci: true };\nexport default defineConfig({\n  use: " + global + ",\n  projects: [{ name: 'p', use: " + local + " }],\n});\n"
+	}
+	for _, value := range []string{
+		"options.base ?? 'http://localhost:3000'",
+		"`http://localhost:${3000 + 1}/`",
+		"options.ci ? 'on' : 'off'",
+		"{ 'X-Token': token, Accept: 'application/json', nested: [a, options.base] }",
+		"!flag && mode === 'x' || typeof limit === 'number'",
+		"-2 * 2 + 1 > 0 ? options['base'] : options.base",
+		"url",
+		"options?.base ?? (fallback)",
+	} {
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{ baseURL: "+value+" }", "{ ...devices['Desktop Firefox'] }"))
+		if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != "firefox" {
+			t.Fatalf("side-effect-free value widened: %s projects=%+v unknown=%+v", value, projects, unknown)
+		}
+	}
+	for _, value := range []string{
+		"(devices['Desktop Chrome'].browserName = 'firefox', 'http://localhost:3000')",
+		"path.join(dir, 'user.json')",
+		"headers()",
+		"settings?.()",
+		"`http://${host()}/`",
+		"tag`x`",
+		"count++",
+		"--count",
+		"limit += 1",
+		"cache ||= 'x'",
+		"delete devices['Desktop Chrome'].browserName",
+		"new URL('http://localhost')",
+		"() => 'http://localhost'",
+		"function () { return 1 }",
+		"class {}",
+		"{ get value() { return 1 } }",
+		"{ value() { return 1 } }",
+		"{ ...extra }",
+		"[...list]",
+		"(a, b)",
+		"await token",
+		"import('./x')",
+		"/x/.source",
+		"Object.assign(devices['Desktop Chrome'], { browserName: 'firefox' })",
+		// Implicit coercion can call a user toString, valueOf, Symbol.toPrimitive or
+		// Symbol.hasInstance, so a coercing operator admits only operands proven primitive.
+		"`${url}`",
+		"`http://${process.env.HOST ?? host}/`",
+		"port * 2",
+		"+port",
+		"base + '/login'",
+		"port < 1024",
+		"port == 80",
+		"options[key]",
+		"options?.[key]",
+		"{ [key]: 'x' }",
+		"'k' in env",
+		"env instanceof Object",
+		// process.env.NAME is not proven primitive, a number's member read is not either, and
+		// update operators are refused
+		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
+		// GitHub #709 review round 8: a member read of any root other than the devices import or
+		// an unwritten plain const literal can invoke a getter or Proxy trap.
+		"process.env.BASE_URL ?? 'http://localhost:3000'",
+		"process.env.CI ? 'on' : 'off'",
+		"{ 'X-Token': process.env.TOKEN }",
+		"settings?.trace ?? (fallback)",
+		"1..payload",
+		"options[0]",
+		"-process.env.RETRIES * 2 + 1 > 0 ? options['base'] : options[0]",
+		"process.env.BASE + '/login'",
+		"1..payload + ''",
+		"++process.env.COUNTER",
+		"--process.env.COUNTER",
+	} {
+		for _, layer := range [][2]string{{"{ baseURL: " + value + " }", "{ ...devices['Desktop Chrome'] }"}, {"{}", "{ ...devices['Desktop Chrome'], storageState: " + value + " }"}} {
+			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
+			if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+				t.Fatalf("value that can run code or write state was ignored: use %s / %s: %+v", layer[0], layer[1], unknown)
+			}
+		}
+	}
+	// The GitHub #709 round-two repro: the template converts url to a string, which runs its
+	// toString before the project's device spread is evaluated, so Chromium becomes Firefox.
+	repro := "import { defineConfig, devices } from '@playwright/test';\nconst url = {\n  toString() {\n    devices['Desktop Chrome'].defaultBrowserType = 'firefox';\n    return 'http://localhost:3000';\n  }\n};\nexport default defineConfig({\n  use: { baseURL: `${url}` },\n  projects: [{\n    name: 'p',\n    use: { ...devices['Desktop Chrome'] }\n  }]\n});\n"
+	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", repro); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Fatalf("template coercion of an object with toString was ignored: %+v", unknown)
+	}
+	// The GitHub #709 round-three repros: `1..payload` is a member read on the number 1, so the
+	// concatenation converts an inherited object through its toString; and a replaced
+	// process.env can return an object whose toString runs the same way.
+	for _, setup := range []string{
+		"Object.defineProperty(Number.prototype, 'payload', { get() { return { toString() { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return 'http://localhost:3000'; } }; } });",
+		"process.env = new Proxy({}, { get() { return { toString() { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return 'http://localhost:3000'; } }; } });",
+	} {
+		value := "1..payload + ''"
+		if strings.HasPrefix(setup, "process.env") {
+			value = "process.env.BASE_URL + ''"
+		}
+		source := "import { defineConfig, devices } from '@playwright/test';\n" + setup + "\nexport default defineConfig({\n  use: { baseURL: " + value + " },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("coercion of %s was ignored: %+v", value, unknown)
+		}
+	}
+	for _, row := range []struct{ use, browser string }{
+		{`{ 'browserName': 'firefox' }`, "firefox"},
+		{`{ "browserName": "webkit", 'viewport': { width: 1280, height: 720 } }`, "webkit"},
+		{`{ ...devices['Desktop Chrome'], 'locale': 'en-US', "storageState": authFile }`, "chromium"},
+	} {
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{}", row.use))
+		if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != row.browser {
+			t.Fatalf("quoted literal identity key widened: %s projects=%+v unknown=%+v", row.use, projects, unknown)
+		}
+	}
+}
+
+// GitHub #709 review round 4: ECMAScript ends a `//` comment at U+2028 and U+2029 as well as at
+// LF and CR, so `'safe' // c<U+2028> + mutate()` evaluates mutate() before the device spread.
+func TestPlaywrightUseValueUnicodeLineTerminator_V1_1065(t *testing.T) {
+	for _, terminator := range []string{" ", " "} {
+		source := "import { defineConfig, devices } from '@playwright/test';\nconst mutate = () => { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return ''; };\n" +
+			"export default defineConfig({\n  use: { baseURL: 'safe' // comment" + terminator + " + mutate()\n  },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("call after a %U line terminator was hidden in a comment: %+v", []rune(terminator)[0], unknown)
+		}
+	}
+}
+
+// GitHub #709 review round 5: a backtick inside a `${}` substitution opens a nested template, so
+// `//` and a U+2028/U+2029 there are template content; the call in its substitution still runs.
+func TestPlaywrightUseValueNestedTemplate_V1_1065(t *testing.T) {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
+		source := "import { defineConfig, devices } from '@playwright/test';\nconst mutate = () => { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return ''; };\n" +
+			"export default defineConfig({\n  use: { baseURL: `${`//${mutate()}" + terminator + "`}` },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("call in a nested template before a %U was hidden: %+v", []rune(terminator)[0], unknown)
+		}
+	}
+}
+
+// GitHub #709 review round 4: an identity value is validated recursively before the bounded
+// expression parser, so its nesting must be bounded too instead of costing quadratic work.
+func TestPlaywrightStaticValueNestingIsBounded_V1_1065(t *testing.T) {
+	deep := strings.Repeat("[", 20000) + "'x'" + strings.Repeat("]", 20000)
+	if playwrightStaticValue(deep) {
+		t.Fatalf("admitted a %d-byte nested static value", len(deep))
+	}
+	if shallow := strings.Repeat("[", 20) + "'x'" + strings.Repeat("]", 20); !playwrightStaticValue(shallow) {
+		t.Fatal("refused a shallow nested static value")
+	}
+}
+
+// GitHub #709 review round 8: a member read can invoke a getter, so a non-identity `use` value
+// reads a member only of the Playwright devices import (a scalar descriptor field) or of a
+// top-level const bound to a plain object literal that is never written, aliased or spread
+// (TJAA-V0-018). Every other root, process.env included, is refused.
+func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
+	const header = "import { defineConfig, devices } from '@playwright/test';\n"
+	config := func(setup, value string) string {
+		return header + setup + "\nexport default defineConfig({\n  use: { baseURL: " + value + " },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+	}
+	// The exact round-8 repro: the getter rewrites the Chrome descriptor before the spread runs.
+	repro := header + "const options = {\n  get baseURL() {\n    devices['Desktop Chrome'].defaultBrowserType = 'firefox';\n    return 'http://localhost:3000';\n  },\n};\nexport default defineConfig({\n  use: { baseURL: options.baseURL },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
+	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", repro); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Errorf("a getter read was ignored: %+v", unknown)
+	}
+	for _, row := range []struct{ name, setup, value string }{
+		{"getter without device writes in view", "const options = { get baseURL() { return go(); } };", "options.baseURL"},
+		{"setter", "const options = { set baseURL(v) {}, base: 'x' };", "options.base"},
+		{"method in the literal", "const options = { baseURL: 'http://x', toString() { return 'y'; } };", "options.baseURL"},
+		{"spread in the literal", "const options = { ...extra, baseURL: 'http://x' };", "options.baseURL"},
+		{"computed key in the literal", "const options = { ['baseURL']: 'http://x' };", "options.baseURL"},
+		{"__proto__ in the literal", "const options = { __proto__: proto, baseURL: 'http://x' };", "options.baseURL"},
+		{"quoted __proto__ in the literal", "const options = { '__proto__': proto };", "options.baseURL"},
+		{"shorthand in the literal", "const baseURL = 'http://x';\nconst options = { baseURL };", "options.baseURL"},
+		{"non-primitive value", "const options = { baseURL: url };", "options.baseURL"},
+		{"member written", "const options = { baseURL: 'http://x' };\noptions.baseURL = 'http://y';", "options.baseURL"},
+		{"member written through brackets", "const options = { baseURL: 'http://x' };\noptions['baseURL'] = 'http://y';", "options.baseURL"},
+		{"member updated", "const options = { n: 1, baseURL: 'http://x' };\noptions.n++;", "options.baseURL"},
+		{"member deleted", "const options = { baseURL: 'http://x' };\ndelete options.baseURL;", "options.baseURL"},
+		{"root reassigned", "const options = { baseURL: 'http://x' };\noptions = { get baseURL() { return 'y'; } };", "options.baseURL"},
+		{"root passed to a call", "const options = { baseURL: 'http://x' };\nObject.defineProperty(options, 'baseURL', { get() { return 'y'; } });", "options.baseURL"},
+		{"nested object aliased", "const options = { nested: { baseURL: 'http://x' } };\nconst alias = options.nested;", "options.nested.baseURL"},
+		{"destructuring assignment", "const options = { baseURL: 'http://x' };\n[options.baseURL] = ['y'];", "options.baseURL"},
+		{"second binding", "const options = { baseURL: 'http://x' };\nfunction f(options) { return options; }", "options.baseURL"},
+		{"exported root", "export const options = { baseURL: 'http://x' };", "options.baseURL"},
+		{"let root", "let options = { baseURL: 'http://x' };", "options.baseURL"},
+		{"block-scoped root", "{\n  const options = { baseURL: 'http://x' };\n}", "options.baseURL"},
+		{"root under eval", "const options = { baseURL: 'http://x' };\neval(code);", "options.baseURL"},
+		{"missing key", "const options = { baseURL: 'http://x' };", "options.other"},
+		{"read through a leaf", "const options = { baseURL: 'http://x' };", "options.baseURL.length"},
+		{"called member", "const options = { baseURL: 'http://x' };", "options.baseURL()"},
+		{"undeclared root", "", "options.baseURL"},
+		{"process.env", "", "process.env.BASE_URL ?? 'http://localhost:3000'"},
+		{"this", "", "this.baseURL"},
+		{"devices without the read rule", "", "devices['Desktop Chrome'].viewport"},
+		{"devices prototype key", "", "devices['constructor'].userAgent"},
+		{"devices written", "devices['Desktop Chrome'].defaultBrowserType = 'firefox';", "devices['Desktop Chrome'].userAgent"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+				t.Fatalf("member read %s under %q was ignored: %+v", row.value, row.setup, unknown)
+			}
+		})
+	}
+	// GitHub #709 review round 9: an escaped identifier names the same binding, and a
+	// parenthesized delete writes the descriptor; both exact repros keep the identity unresolved.
+	for _, row := range []struct{ name, source string }{
+		{"escaped devices write", header + "devic\\u0065s['Desktop Chrome'].defaultBrowserType = 'firefox';\nexport default defineConfig({\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"},
+		{"parenthesized delete", header + "delete (devices['Desktop Firefox'].defaultBrowserType);\nexport default defineConfig({\n  projects: [{ name: 'p', use: { ...devices['Desktop Firefox'] } }],\n});\n"},
+	} {
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Errorf("%s kept the spread identity: %+v", row.name, unknown)
+		}
+	}
+	for _, row := range []struct{ name, setup, value string }{
+		{"escaped devices root", "devic\\u{65}s['Desktop Chrome'].isMobile = true;", "'http://x'"},
+		{"escaped literal root", "const options = { baseURL: 'http://x' };\nopti\\u006fns.baseURL = 'http://y';", "options.baseURL"},
+		{"escaped literal key", "const options = { baseURL: 'http://x' };\noptions.base\\u0055RL = 'http://y';", "options.baseURL"},
+		{"escape in an unrelated identifier", "const options = { baseURL: 'http://x' };\nconst \\u0061 = 1;", "options.baseURL"},
+		{"parenthesized delete of a literal member", "const options = { baseURL: 'http://x' };\ndelete (options.baseURL);", "options.baseURL"},
+		{"delete anywhere", "const options = { baseURL: 'http://x' };\nconst other = {};\ndelete other.x;", "options.baseURL"},
+		{"prefix increment anywhere", "const options = { baseURL: 'http://x' };\nlet n = 0;\n++n;", "options.baseURL"},
+		{"postfix decrement anywhere", "let n = 0;\nn--;", "devices['Desktop Chrome'].userAgent"},
+		{"parenthesized assignment", "(devices['Desktop Chrome'].defaultBrowserType) = 'firefox';", "'http://x'"},
+		{"parenthesized compound assignment", "const options = { n: 1, baseURL: 'http://x' };\n((options.n)) += 1;", "options.baseURL"},
+		{"parenthesized array destructuring target", "const options = { baseURL: 'http://x' };\n[(options.baseURL)] = ['y'];", "options.baseURL"},
+		{"parenthesized object destructuring target", "const options = { baseURL: 'http://x' };\n({ a: (options.baseURL) } = { a: 'y' });", "options.baseURL"},
+		{"parenthesized for-of target", "const options = { baseURL: 'http://x' };\nfor ((options.baseURL) of ['y']) {}", "options.baseURL"},
+		{"parenthesized for-in target", "for ((devices['Desktop Chrome'].userAgent) in { y: 1 }) {}", "'http://x'"},
+		// GitHub #709 review round 10: a `/` after an identifier, `)` or a property named like a
+		// keyword is division, so the escaped write between two divisions stays code; after a
+		// contextual keyword (`of`, `yield`, `await`) it is ambiguous and the file is refused.
+		{"division after an identifier", "const width = 4; const half = width / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+		{"division after a parenthesis", "const half = (4) / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = (half) / 3;", "'http://x'"},
+		{"division after a keyword-named property", "const size = { return: 4 }; const half = size.return / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+		// GitHub #709 review round 11: a slash after a non-ASCII identifier is refused too.
+		{"slash after a non-ASCII identifier", "const caf\u00e9 = 4; const half = caf\u00e9 / 2;", "devices['Desktop Chrome'].userAgent"},
+		{"slash after a Greek identifier", "const \u03c0 = 3; const half = \u03c0 / 2;", "devices['Desktop Chrome'].userAgent"},
+		{"slash after a contextual keyword", "const of = 4; const half = of / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+				t.Fatalf("value %s under %q was resolved: %+v", row.value, row.setup, unknown)
+			}
+		})
+	}
+	// A top-level write to a devices descriptor rewrites the spread itself.
+	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("devices['Desktop Chrome'].defaultBrowserType = 'firefox';", "'http://x'")); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Errorf("a spread after a descriptor write kept its identity: %+v", unknown)
+	}
+	for _, row := range []struct{ name, setup, value string }{
+		{"plain const literal", "const options = { baseURL: 'http://localhost:3000', 'retries': 2 };", "options.baseURL"},
+		{"nested plain literal", "const options = { server: { url: `http://${'localhost'}:${3000 + 1}` } };", "options.server['url'] ?? 'http://x'"},
+		{"optional chain", "const options = { baseURL: 'http://x' };", "options?.baseURL"},
+		{"literal read elsewhere", "const options = { baseURL: 'http://x', port: 1 };\nconst port = options.port + 1;", "options.baseURL"},
+		{"devices scalar", "", "devices['Desktop Chrome'].userAgent"},
+		{"devices viewport field", "", "devices['Desktop Chrome'].viewport.width === 1280 ? 'http://x' : 'http://y'"},
+		// GitHub #709 review round 9: escapes, `--`, `++` and `delete` inside strings are not tokens.
+		{"escapes and operators in strings", "const options = { baseURL: 'http://x', flag: '--headed', note: 'a++ \\u0041', verb: 'delete' };", "options.baseURL"},
+		{"parenthesized read", "const options = { baseURL: 'http://x' };", "(options.baseURL)"},
+		// GitHub #709 review round 10: a `/` after `=>` or a keyword such as `return` starts a
+		// regular expression, so its escapes are not code.
+		{"regular expression after an arrow", "const makePattern = () => /a\\.spec\\.ts$/;", "devices['Desktop Chrome'].userAgent"},
+		{"regular expression after return", "const options = { baseURL: 'http://x' };\nfunction pattern() { return /x\\.y/; }", "options.baseURL"},
+		{"regular expressions after other keywords", "const options = { baseURL: 'http://x' };\nconst kind = typeof /a\\.b/;\nconst test = (x) => { if (x) { throw /c\\.d/; } else return void /e\\.f/; };", "options.baseURL"},
+		{"escapes in a regular expression and a template", "const pattern = /a\\.spec\\.ts$/i;\nconst options = { baseURL: `http://x\\u0041` };", "options.baseURL"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value))
+			if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != "chromium" || projects[0].Device != "Desktop Chrome" {
+				t.Fatalf("admitted member read %s widened: projects=%+v unknown=%+v", row.value, projects, unknown)
+			}
+		})
 	}
 }

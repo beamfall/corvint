@@ -168,12 +168,14 @@ func TestTMV0009_AS11_BarrierPublicationReturnedFaults(t *testing.T) {
 			if report.Receipt == "" {
 				t.Fatal("deletion attempted without receipt")
 			}
-			before = storeDigest(t, repo)
-			_, err = store.Barrier(context.Background(), repo, operator(), barrierRequest(transaction.Unpause, "remove"), now(t))
-			if wire.CodeOf(err) != wire.CodeRedoPending || storeDigest(t, repo) != before {
-				t.Fatalf("pending unpause changed: %v", err)
+			// V1-0309: the retry settles the pending receipt, then replays it.
+			retry, err := store.Barrier(context.Background(), repo, operator(), barrierRequest(transaction.Unpause, "remove"), now(t))
+			if err != nil || !retry.Redone || !retry.Outcome.Replayed || retry.Receipt != "" {
+				t.Fatalf("pending unpause not settled: %+v %v", retry, err)
 			}
-			refuseUnchanged(t, repo, wire.CodeUnsupported)
+			if _, err := os.Lstat(filepath.Join(repo.StateDir, "barrier.json")); !os.IsNotExist(err) {
+				t.Fatalf("barrier left after redo: %v", err)
+			}
 		})
 	}
 }
@@ -203,7 +205,7 @@ func TestTMV0016_AS27_UnpauseALLAndBranchIndependence(t *testing.T) {
 }
 
 func TestTMV0009_AS11_BarrierRefusalsPreserveStore(t *testing.T) {
-	for _, kind := range []string{"missing", "extra", "queue", "policy", "private", "pending", "staging", "restore", "primary", "version", "role", "identity", "scope", "request", "operation"} {
+	for _, kind := range []string{"missing", "extra", "queue", "policy", "private", "staging", "restore", "primary", "version", "role", "identity", "scope", "request", "operation"} {
 		t.Run(kind, func(t *testing.T) {
 			repo, _ := initialized(t)
 			mutate(t, repo, envelope("create", mutation.OpCreate, "", "", createPayload("canonical")))
@@ -221,8 +223,6 @@ func TestTMV0009_AS11_BarrierRefusalsPreserveStore(t *testing.T) {
 				fixture.Write(t, filepath.Join(repo.PrimaryWorktree, intent.Dir, kind+".json"), []byte("{}\n"))
 			case "private":
 				fixture.Write(t, filepath.Join(repo.StateDir, "reservations.json"), []byte("{}\n"))
-			case "pending":
-				repo = pendingMutation(t)
 			case "staging":
 				emptyActiveDescriptor(t, repo)
 			case "restore":

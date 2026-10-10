@@ -43,6 +43,7 @@ var retries = map[string]Retry{
 	CodeStaleTicket:           {false, whyReread},
 	CodeStalePolicy:           {false, whyReread},
 	CodeStaleTree:             {false, whyReread},
+	CodeCommitNotIntegrated:   {false, "the commit is in neither the intent branch nor its remote-tracking upstream; integrate it or fetch the upstream, then complete again"},
 	CodeRequestIDConflict:     {false, whyInput},
 	CodeMalformed:             {false, whyInput},
 	CodeMilestoneRequired:     {false, whyInput},

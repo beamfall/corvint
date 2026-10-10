@@ -149,6 +149,14 @@ type behaviorAdapter struct {
 	runtimeReady          map[string]bool
 	linkedReady           map[string]bool
 	variationRuntimeReady map[string]bool
+	mappingSeen           map[string]bool
+	checking              bool
+	kept                  int
+	refused               []error
+	refusedRoom           behaviorCheckRoom
+	unevaluated           []BehaviorAdapterRefusal
+	unevaluatedRoom       behaviorCheckRoom
+	refusedItems          map[string]bool
 }
 
 var behaviorAdapterFields = map[string]map[string]bool{
@@ -412,58 +420,197 @@ func validBehaviorAdapterArtifacts(provider ProviderRecord, registry *BehaviorRe
 	return len(used) == len(artifacts)
 }
 
-func newBehaviorAdapter(request BehaviorAdapterRequest) (*behaviorAdapter, error) {
+// behaviorAdapterBounds names the request lists newBehaviorAdapter bounds, in
+// refusal order (DCP-V1-044 reports each violated bound separately).
+var behaviorAdapterBounds = []string{"inputs", "mappings", "observations"}
+
+func behaviorAdapterIdentityError(request BehaviorAdapterRequest) error {
 	if request.Schema != BehaviorAdapterRequestSchema || !textOK(request.ProviderID) || !textOK(request.ProviderVersion) || !textOK(request.ContractID) {
-		return nil, fail("invalid behavior adapter identity")
+		return fail("invalid behavior adapter identity")
 	}
+	return nil
+}
+
+func behaviorAdapterRevisionError(request BehaviorAdapterRequest) error {
 	if !validBehaviorRevisions(request.Revisions) || request.Source != request.Revisions.E2E || request.SourceRevision != request.Source.Revision || !wire.IsGitOid(request.DocumentationRevision) {
-		return nil, fail("invalid behavior adapter revision set")
+		return fail("invalid behavior adapter revision set")
 	}
-	if len(request.Inputs) > MaxRecords || len(request.Mappings) != len(behaviorAdapterFields) || len(request.Observations) > MaxRecords {
-		return nil, fail("behavior adapter bound exceeded")
+	return nil
+}
+
+func behaviorAdapterBoundError(request BehaviorAdapterRequest, bound string) error {
+	switch {
+	case bound == "inputs" && len(request.Inputs) > MaxRecords:
+		return fail("behavior adapter bound exceeded")
+	case bound == "mappings" && len(request.Mappings) != len(behaviorAdapterFields):
+		return fail("behavior adapter bound exceeded")
+	case bound == "observations" && len(request.Observations) > MaxRecords:
+		return fail("behavior adapter bound exceeded")
 	}
-	a := &behaviorAdapter{
+	return nil
+}
+
+func newBehaviorAdapterState(request BehaviorAdapterRequest) *behaviorAdapter {
+	return &behaviorAdapter{
 		request: request, inputs: map[string]BehaviorAdapterInput{}, inputKeys: map[string]bool{},
-		mappings: map[string]BehaviorAdapterMapping{}, origins: map[string]behaviorAdapterOrigin{},
+		mappings: map[string]BehaviorAdapterMapping{}, mappingSeen: map[string]bool{}, origins: map[string]behaviorAdapterOrigin{},
 		testClaims: map[string][]BehaviorAdapterTestClaim{}, testReady: map[string]bool{},
 		runtimeReady: map[string]bool{}, linkedReady: map[string]bool{}, variationRuntimeReady: map[string]bool{},
 	}
+}
+
+func (a *behaviorAdapter) requiredInputError() error {
+	if a.inputs[a.request.MigrationInput].ID == "" || a.inputs[a.request.DiscoveryInput].ID == "" {
+		return fail("behavior adapter required input missing")
+	}
+	return nil
+}
+
+func newBehaviorAdapter(request BehaviorAdapterRequest) (*behaviorAdapter, error) {
+	if err := behaviorAdapterIdentityError(request); err != nil {
+		return nil, err
+	}
+	if err := behaviorAdapterRevisionError(request); err != nil {
+		return nil, err
+	}
+	for _, bound := range behaviorAdapterBounds {
+		if err := behaviorAdapterBoundError(request, bound); err != nil {
+			return nil, err
+		}
+	}
+	a := newBehaviorAdapterState(request)
 	for _, input := range request.Inputs {
 		if err := a.addInput(input); err != nil {
 			return nil, err
 		}
 	}
-	if a.inputs[request.MigrationInput].ID == "" || a.inputs[request.DiscoveryInput].ID == "" {
-		return nil, fail("behavior adapter required input missing")
+	if err := a.requiredInputError(); err != nil {
+		return nil, err
 	}
 	for _, mapping := range request.Mappings {
-		if err := a.addMapping(mapping); err != nil {
+		if err := a.addMapping(mapping, nil); err != nil {
 			return nil, err
 		}
 	}
-	if err := validateBehaviorAdapterObservations(request); err != nil {
+	if err := a.validateObservations(); err != nil {
 		return nil, err
 	}
 	return a, nil
 }
 
-func validateBehaviorAdapterObservations(request BehaviorAdapterRequest) error {
+func (a *behaviorAdapter) validateObservations() error {
+	request := a.request
 	ids := []string{}
-	for _, link := range request.Observations {
+	for index, link := range request.Observations {
 		ids = append(ids, link.ID)
+		item := "/observations/" + strconv.Itoa(index)
 		if !strings.HasPrefix(link.ID, request.ProviderID+":") || !textOK(link.TestID) || !textOK(link.Project) || !textOK(link.Test) || !validPath(link.Input) || !wire.IsGitOid(link.InputRevision) || link.SourceRevision != request.SourceRevision || !wire.IsSha256(link.RunID) {
-			return fail("invalid behavior adapter observation identity")
+			if err := fail("invalid behavior adapter observation identity"); !a.keepItem(item, err) {
+				return err
+			}
+			continue
 		}
 		for _, mapped := range link.SourcePaths {
 			if !validPath(mapped) {
-				return fail("invalid behavior adapter observation source mapping")
+				if err := fail("invalid behavior adapter observation source mapping"); !a.keepItem(item, err) {
+					return err
+				}
+				break
 			}
 		}
 	}
 	if !uniqueIdentities(ids) {
-		return fail("duplicate behavior adapter observation identity")
+		names := make([]string, len(ids))
+		for index := range ids {
+			names[index] = "/observations/" + strconv.Itoa(index)
+		}
+		if err := fail("duplicate behavior adapter observation identity"); !a.keepIdentity(names, ids, err) {
+			return err
+		}
 	}
 	return nil
+}
+
+// keep records a refusal while CheckBehaviorAdapter collects every refusal
+// (DCP-V1-044) and reports whether the caller may continue past it. Build
+// mode never keeps, so the first refusal still ends the request.
+// The kept refusal's message is capped, and it is retained only while the
+// stage's report room lasts, so memory stays bounded (DCP-V1-044).
+func (a *behaviorAdapter) keep(err error) bool {
+	if !a.checking {
+		return false
+	}
+	a.kept++
+	code, message := behaviorCheckError(err)
+	message = behaviorCheckMessage(message)
+	switch a.refusedRoom.admit(message) {
+	case behaviorCheckAdmitted:
+		a.refused = append(a.refused, &Error{Code: code, Message: message})
+	case behaviorCheckFirstOmission:
+		a.refused = append(a.refused, errBehaviorCheckOmitted)
+	}
+	return true
+}
+
+// unevaluate records, while checking, one check that depends on a refusal the
+// stage already kept; the checker lists it as not-evaluated (DCP-V1-044). The
+// parts are joined under the message cap without retaining the full text.
+func (a *behaviorAdapter) unevaluate(parts ...string) {
+	if a.checking {
+		a.unevaluated = a.unevaluatedRoom.append(a.unevaluated, BehaviorAdapterRefusal{State: behaviorCheckNotEvaluated, Message: behaviorCheckJoin(parts...)})
+	}
+}
+
+// keepItem keeps the first refusal of one item (an input, mapping,
+// observation, mapped record or discovery execution) while checking, and
+// records that the item's remaining checks were not evaluated. Build mode
+// never keeps.
+func (a *behaviorAdapter) keepItem(item string, err error) bool {
+	if !a.keep(err) {
+		return false
+	}
+	if a.refusedItems == nil {
+		a.refusedItems = map[string]bool{}
+	}
+	a.refusedItems[item] = true
+	_, message := behaviorCheckError(err)
+	a.unevaluate("remaining checks for ", item, " not evaluated after ", message)
+	return true
+}
+
+// keepIdentity keeps an identity-uniqueness refusal while checking. The
+// refusal belongs to the first item not already refused whose identity is
+// invalid or repeats an earlier item's, refused or not (DCP-V1-044). names and ids
+// are parallel. It reports whether the caller may continue; Build mode never
+// keeps.
+func (a *behaviorAdapter) keepIdentity(names, ids []string, err error) bool {
+	if !a.checking {
+		return false
+	}
+	seen := map[string]bool{}
+	for index, id := range ids {
+		if (!textOK(id) || seen[id]) && !a.refusedItems[names[index]] {
+			return a.keepItem(names[index], err)
+		}
+		seen[id] = true
+	}
+	if len(ids) > MaxRecords {
+		return a.keep(err)
+	}
+	return true
+}
+
+// behaviorAdapterItem holds the first refusal of one mapped record; later
+// field mappings of that record are not evaluated.
+type behaviorAdapterItem struct {
+	name string
+	err  error
+}
+
+func (a *behaviorAdapter) mapField(item *behaviorAdapterItem, record any, mapping BehaviorAdapterMapping, index int, name string, target any, required bool) {
+	if item.err == nil {
+		_, item.err = a.mapped(record, mapping, index, name, target, required)
+	}
 }
 
 func (a *behaviorAdapter) addInput(input BehaviorAdapterInput) error {
@@ -498,12 +645,20 @@ func (a *behaviorAdapter) addInput(input BehaviorAdapterInput) error {
 	return nil
 }
 
-func (a *behaviorAdapter) addMapping(mapping BehaviorAdapterMapping) error {
+// addMapping validates and registers one mapping and returns its first
+// refusal. While checking, refusedInput carries a declared input that the
+// inputs stage refused: the mapping's own checks still run against it, and the
+// mapping is not registered, so the checks that read the input are not run.
+func (a *behaviorAdapter) addMapping(mapping BehaviorAdapterMapping, refusedInput *BehaviorAdapterInput) error {
 	allowed, ok := behaviorAdapterFields[mapping.Kind]
 	input := a.inputs[mapping.Input]
-	if !ok || a.mappings[mapping.Kind].Kind != "" || input.ID == "" || !validJSONPointer(mapping.Records) {
+	if refusedInput != nil {
+		input = *refusedInput
+	}
+	if !ok || a.mappingSeen[mapping.Kind] || input.ID == "" || !validJSONPointer(mapping.Records) {
 		return fail(fmt.Sprintf("behavior adapter input=%s field=%s: mapping identity, uniqueness or record pointer is invalid; map one known input and bounded record-list pointer", mapping.Input, mapping.Records))
 	}
+	a.mappingSeen[mapping.Kind] = true
 	if len(mapping.Fields) > 16 {
 		return a.fieldError(input, mapping.Records, "field mapping bound exceeded", "map at most 16 closed fields")
 	}
@@ -523,7 +678,9 @@ func (a *behaviorAdapter) addMapping(mapping BehaviorAdapterMapping) error {
 			return a.fieldError(input, mapping.Records, "required field mapping is missing: "+mapping.Kind+"."+name, "map every required field")
 		}
 	}
-	a.mappings[mapping.Kind] = mapping
+	if refusedInput == nil {
+		a.mappings[mapping.Kind] = mapping
+	}
 	return nil
 }
 
@@ -622,7 +779,7 @@ func (a *behaviorAdapter) fieldError(input BehaviorAdapterInput, field, detail, 
 }
 
 func (a *behaviorAdapter) build(previous *BehaviorAdapterResult) (BehaviorAdapterResult, error) {
-	_, discovery, err := a.baseArtifacts()
+	discovery, err := a.baseArtifacts()
 	if err != nil {
 		return BehaviorAdapterResult{}, err
 	}
@@ -646,28 +803,17 @@ func (a *behaviorAdapter) build(previous *BehaviorAdapterResult) (BehaviorAdapte
 	if err := a.validateMappedBehaviorAdapterDeclarations(flows, behaviors, tests); err != nil {
 		return BehaviorAdapterResult{}, err
 	}
-	registry := BehaviorRegistry{Schema: 2, ContractID: a.request.ContractID, SourceRevision: a.request.SourceRevision, DocumentationRevision: a.request.DocumentationRevision, Revisions: a.request.Revisions, Manifest: a.inputs[a.request.MigrationInput].Anchor, Discovery: a.inputs[a.request.DiscoveryInput].Anchor, Flows: flows, Behaviors: behaviors, Tests: tests}
-	declarations := registry
-	declarations.Tests = slices.Clone(registry.Tests)
-	for index := range declarations.Tests {
-		declarations.Tests[index].Runtime = nil
-	}
-	contractSHA256, err := hashValue(declarations)
+	registry, err := a.registry(flows, behaviors, tests)
 	if err != nil {
 		return BehaviorAdapterResult{}, err
 	}
-	registry.ContractSHA256 = contractSHA256
 	if err := a.validateObservationSubjects(tests); err != nil {
 		return BehaviorAdapterResult{}, err
 	}
-	provider := a.provider(registry)
-	a.reconcile(&provider, discovery, variations)
-	artifacts, err := a.artifacts(provider)
+	result, err := a.result(registry, discovery, variations)
 	if err != nil {
 		return BehaviorAdapterResult{}, err
 	}
-	result := BehaviorAdapterResult{Schema: BehaviorAdapterResultSchema, Provider: provider, Variations: variations, Claims: a.claimRecords(), Artifacts: artifacts, Frontier: a.frontier, Fallback: "full-relevant-suite", Limitations: behaviorAdapterLimitations()}
-	result.Coverage = behaviorAdapterCoverage(provider, discovery, variations, a.linkedReady, a.variationRuntimeReady, result.Limitations)
 	delta, err := behaviorAdapterDelta(previous, result)
 	if err != nil {
 		return BehaviorAdapterResult{}, err
@@ -677,28 +823,96 @@ func (a *behaviorAdapter) build(previous *BehaviorAdapterResult) (BehaviorAdapte
 	return result, nil
 }
 
-func (a *behaviorAdapter) baseArtifacts() (BehaviorMigration, BehaviorDiscovery, error) {
+func (a *behaviorAdapter) registry(flows []BehaviorFlow, behaviors []BehaviorSource, tests []BehaviorTest) (BehaviorRegistry, error) {
+	registry := BehaviorRegistry{Schema: 2, ContractID: a.request.ContractID, SourceRevision: a.request.SourceRevision, DocumentationRevision: a.request.DocumentationRevision, Revisions: a.request.Revisions, Manifest: a.inputs[a.request.MigrationInput].Anchor, Discovery: a.inputs[a.request.DiscoveryInput].Anchor, Flows: flows, Behaviors: behaviors, Tests: tests}
+	declarations := registry
+	declarations.Tests = slices.Clone(registry.Tests)
+	for index := range declarations.Tests {
+		declarations.Tests[index].Runtime = nil
+	}
+	contractSHA256, err := hashValue(declarations)
+	if err != nil {
+		return BehaviorRegistry{}, err
+	}
+	registry.ContractSHA256 = contractSHA256
+	return registry, nil
+}
+
+func (a *behaviorAdapter) result(registry BehaviorRegistry, discovery BehaviorDiscovery, variations []BehaviorAdapterVariation) (BehaviorAdapterResult, error) {
+	provider := a.provider(registry)
+	// Reconciliation only records frontier diagnostics and coverage
+	// readiness. It cannot refuse, and the check report uses neither, so
+	// check mode skips it rather than retain an unbounded frontier
+	// (DCP-V1-044).
+	if !a.checking {
+		a.reconcile(&provider, discovery, variations)
+	}
+	artifacts, err := a.artifacts(provider)
+	if err != nil {
+		return BehaviorAdapterResult{}, err
+	}
+	result := BehaviorAdapterResult{Schema: BehaviorAdapterResultSchema, Provider: provider, Variations: variations, Claims: a.claimRecords(), Artifacts: artifacts, Frontier: a.frontier, Fallback: "full-relevant-suite", Limitations: behaviorAdapterLimitations()}
+	if !a.checking {
+		result.Coverage = behaviorAdapterCoverage(provider, discovery, variations, a.linkedReady, a.variationRuntimeReady, result.Limitations)
+	}
+	return result, nil
+}
+
+func (a *behaviorAdapter) baseArtifacts() (BehaviorDiscovery, error) {
+	if err := a.migrationIdentity(); err != nil {
+		return BehaviorDiscovery{}, err
+	}
+	return a.discoveryIdentity()
+}
+
+func (a *behaviorAdapter) migrationIdentity() error {
 	var migration BehaviorMigration
 	migrationInput := a.inputs[a.request.MigrationInput]
 	if err := decode([]byte(migrationInput.Document), &migration); err != nil || migration.Schema != 2 || migration.ContractID != a.request.ContractID || migration.SourceRevision != a.request.SourceRevision || migration.DocumentationRevision != a.request.DocumentationRevision || migration.Revisions != a.request.Revisions {
-		return migration, BehaviorDiscovery{}, a.fieldError(migrationInput, "", "migration identity does not match the request", "supply the exact schema-2 migration record")
+		return a.fieldError(migrationInput, "", "migration identity does not match the request", "supply the exact schema-2 migration record")
 	}
+	return nil
+}
+
+func (a *behaviorAdapter) discoveryIdentity() (BehaviorDiscovery, error) {
 	var discovery BehaviorDiscovery
 	discoveryInput := a.inputs[a.request.DiscoveryInput]
-	if err := decode([]byte(discoveryInput.Document), &discovery); err != nil || discovery.Schema != "corvint-playwright-discovery/1" || discovery.Mode != "live-playwright-list" || discovery.Revisions != a.request.Revisions || len(discovery.Executions) > MaxRecords {
-		return migration, discovery, a.fieldError(discoveryInput, "", "discovery identity does not match the request", "supply the exact live Playwright discovery record")
+	decodeErr := decode([]byte(discoveryInput.Document), &discovery)
+	if decodeErr != nil || discovery.Schema != "corvint-playwright-discovery/1" || discovery.Mode != "live-playwright-list" || discovery.Revisions != a.request.Revisions || len(discovery.Executions) > MaxRecords {
+		err := a.fieldError(discoveryInput, "", "discovery identity does not match the request", "supply the exact live Playwright discovery record")
+		// Like Build, a refused execution count bound stops evaluation of
+		// the individual executions.
+		overBound := decodeErr == nil && len(discovery.Executions) > MaxRecords
+		if overBound && !a.keepItem("discovery executions", err) || !overBound && !a.keep(err) {
+			return discovery, err
+		}
+		if decodeErr != nil {
+			a.unevaluate("discovery executions not evaluated because the discovery record cannot be decoded")
+			return discovery, nil
+		}
+		if overBound {
+			return discovery, nil
+		}
 	}
 	executionIDs := make([]string, 0, len(discovery.Executions))
-	for _, execution := range discovery.Executions {
+	for index, execution := range discovery.Executions {
 		executionIDs = append(executionIDs, execution.ID)
 		if !textOK(execution.Project) {
-			return migration, discovery, a.fieldError(discoveryInput, "/executions", "discovery project is missing", "retain the exact live test/project identity")
+			if err := a.fieldError(discoveryInput, "/executions", "discovery project is missing", "retain the exact live test/project identity"); !a.keepItem("discovery execution "+strconv.Itoa(index), err) {
+				return discovery, err
+			}
 		}
 	}
 	if !uniqueIdentities(executionIDs) {
-		return migration, discovery, a.fieldError(discoveryInput, "/executions", "discovery execution identity is duplicate or invalid", "retain one exact execution identity per discovered test")
+		names := make([]string, len(executionIDs))
+		for index := range executionIDs {
+			names[index] = "discovery execution " + strconv.Itoa(index)
+		}
+		if err := a.fieldError(discoveryInput, "/executions", "discovery execution identity is duplicate or invalid", "retain one exact execution identity per discovered test"); !a.keepIdentity(names, executionIDs, err) {
+			return discovery, err
+		}
 	}
-	return migration, discovery, nil
+	return discovery, nil
 }
 
 func (a *behaviorAdapter) flows() ([]BehaviorFlow, error) {
@@ -709,24 +923,41 @@ func (a *behaviorAdapter) flows() ([]BehaviorFlow, error) {
 	flows := make([]BehaviorFlow, 0, len(records))
 	for index, record := range records {
 		flow := BehaviorFlow{}
+		item := &behaviorAdapterItem{name: "flows record " + strconv.Itoa(index)}
 		for _, field := range []struct {
 			name   string
 			target any
 		}{{"id", &flow.ID}, {"derivation", &flow.Derivation}, {"evidence", &flow.Evidence}, {"required_pages", &flow.RequiredPages}, {"negative_controls", &flow.NegativeControls}, {"ordered_events", &flow.OrderedEvents}} {
-			if _, err := a.mapped(record, mapping, index, field.name, field.target, true); err != nil {
-				return nil, err
-			}
+			a.mapField(item, record, mapping, index, field.name, field.target, true)
 		}
-		if _, err := a.mapped(record, mapping, index, "missing_e2e_review", &flow.MissingReview, false); err != nil {
-			return nil, err
+		a.mapField(item, record, mapping, index, "missing_e2e_review", &flow.MissingReview, false)
+		if item.err != nil {
+			if !a.keepItem(item.name, item.err) {
+				return nil, item.err
+			}
+			continue
 		}
 		if !textOK(flow.ID) {
-			return nil, a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "flow id is invalid", "supply a nonempty stable flow id")
+			if err := a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "flow id is invalid", "supply a nonempty stable flow id"); !a.keepItem(item.name, err) {
+				return nil, err
+			}
+			continue
 		}
 		a.origin("flow:"+flow.ID, mapping, index, "id")
 		flows = append(flows, flow)
 	}
-	return uniqueBehaviorFlows(flows)
+	unique, err := uniqueBehaviorFlows(flows)
+	if err != nil {
+		names, ids := make([]string, len(flows)), make([]string, len(flows))
+		for index, flow := range flows {
+			names[index], ids[index] = "flow "+flow.ID, flow.ID
+		}
+		if !a.keepIdentity(names, ids, err) {
+			return nil, err
+		}
+		return flows, nil
+	}
+	return unique, nil
 }
 
 func (a *behaviorAdapter) variations() ([]BehaviorAdapterVariation, error) {
@@ -737,17 +968,25 @@ func (a *behaviorAdapter) variations() ([]BehaviorAdapterVariation, error) {
 	variations := make([]BehaviorAdapterVariation, 0, len(records))
 	for index, record := range records {
 		variation := BehaviorAdapterVariation{}
+		item := &behaviorAdapterItem{name: "variations record " + strconv.Itoa(index)}
 		fields := []struct {
 			name   string
 			target any
 		}{{"id", &variation.ID}, {"flow", &variation.Flow}, {"preconditions", &variation.Preconditions}, {"actions", &variation.Actions}, {"observable_facts", &variation.ObservableFacts}, {"expected_outcomes", &variation.ExpectedOutcomes}, {"projects", &variation.Projects}, {"tests", &variation.Tests}}
 		for _, field := range fields {
-			if _, err := a.mapped(record, mapping, index, field.name, field.target, true); err != nil {
-				return nil, err
+			a.mapField(item, record, mapping, index, field.name, field.target, true)
+		}
+		if item.err != nil {
+			if !a.keepItem(item.name, item.err) {
+				return nil, item.err
 			}
+			continue
 		}
 		if !validBehaviorAdapterVariation(variation) {
-			return nil, a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity or semantic contract is invalid", "supply one globally stable variation with explicit actions, facts, outcomes, projects and unique exact tests")
+			if err := a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity or semantic contract is invalid", "supply one globally stable variation with explicit actions, facts, outcomes, projects and unique exact tests"); !a.keepItem(item.name, err) {
+				return nil, err
+			}
+			continue
 		}
 		sort.Strings(variation.Preconditions)
 		sort.Strings(variation.ObservableFacts)
@@ -760,7 +999,14 @@ func (a *behaviorAdapter) variations() ([]BehaviorAdapterVariation, error) {
 	sort.Slice(variations, func(i, j int) bool { return variations[i].ID < variations[j].ID })
 	for index := 1; index < len(variations); index++ {
 		if variations[index-1].ID == variations[index].ID {
-			return nil, a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity is duplicated", "supply one globally unique variation identity")
+			names, ids := make([]string, len(variations)), make([]string, len(variations))
+			for position, variation := range variations {
+				names[position], ids[position] = "variation "+variation.ID, variation.ID
+			}
+			if err := a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity is duplicated", "supply one globally unique variation identity"); !a.keepIdentity(names, ids, err) {
+				return nil, err
+			}
+			break
 		}
 	}
 	return variations, nil
@@ -789,23 +1035,32 @@ func (a *behaviorAdapter) candidates() ([]BehaviorSource, error) {
 		return nil, err
 	}
 	values := make([]BehaviorSource, 0, len(records))
+	names, ids := []string{}, []string{}
 	for index, record := range records {
 		value := BehaviorSource{}
+		item := &behaviorAdapterItem{name: "candidates record " + strconv.Itoa(index)}
 		for _, field := range []struct {
 			name   string
 			target any
 		}{{"id", &value.ID}, {"evidence", &value.Evidence}, {"flows", &value.Flows}} {
-			if _, err := a.mapped(record, mapping, index, field.name, field.target, true); err != nil {
-				return nil, err
+			a.mapField(item, record, mapping, index, field.name, field.target, true)
+		}
+		if item.err != nil {
+			if !a.keepItem(item.name, item.err) {
+				return nil, item.err
 			}
+			continue
 		}
 		sort.Strings(value.Flows)
 		a.origin("candidate:"+value.ID, mapping, index, "id")
 		values = append(values, value)
+		names, ids = append(names, behaviorAdapterIdentityName("candidate", "candidates", value.ID, index)), append(ids, value.ID)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i].ID < values[j].ID })
 	if !uniqueSourceIDs(values) {
-		return nil, a.fieldError(a.inputs[mapping.Input], mapping.Records, "candidate identity is duplicate or invalid", "supply globally unique nonempty candidate identities")
+		if err := a.fieldError(a.inputs[mapping.Input], mapping.Records, "candidate identity is duplicate or invalid", "supply globally unique nonempty candidate identities"); !a.keepIdentity(names, ids, err) {
+			return nil, err
+		}
 	}
 	return values, nil
 }
@@ -816,28 +1071,30 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		return nil, err
 	}
 	values := make([]BehaviorTest, 0, len(records))
+	names, testIDs := []string{}, []string{}
 	for index, record := range records {
 		value := BehaviorTest{}
 		claims := []BehaviorAdapterTestClaim{}
+		item := &behaviorAdapterItem{name: "tests record " + strconv.Itoa(index)}
 		required := []struct {
 			name   string
 			target any
 		}{{"id", &value.ID}, {"project", &value.Project}, {"title", &value.Title}, {"evidence", &value.Evidence}, {"flows", &value.Flows}, {"criteria", &value.Criteria}, {"assertions", &value.Assertions}}
 		for _, field := range required {
-			if _, err := a.mapped(record, mapping, index, field.name, field.target, true); err != nil {
-				return nil, err
-			}
+			a.mapField(item, record, mapping, index, field.name, field.target, true)
 		}
 		for _, field := range []struct {
 			name   string
 			target any
 		}{{"runtime", &value.Runtime}, {"fixtures", &value.Fixtures}, {"roles", &value.Roles}} {
-			if _, err := a.mapped(record, mapping, index, field.name, field.target, false); err != nil {
-				return nil, err
-			}
+			a.mapField(item, record, mapping, index, field.name, field.target, false)
 		}
-		if _, err := a.mapped(record, mapping, index, "variation_claims", &claims, true); err != nil {
-			return nil, err
+		a.mapField(item, record, mapping, index, "variation_claims", &claims, true)
+		if item.err != nil {
+			if !a.keepItem(item.name, item.err) {
+				return nil, item.err
+			}
+			continue
 		}
 		sort.Strings(value.Flows)
 		sort.Strings(value.Criteria)
@@ -847,11 +1104,15 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		}
 		sort.Slice(claims, func(i, j int) bool { return claims[i].VariationID < claims[j].VariationID })
 		if !validBehaviorAdapterClaims(claims) {
-			return nil, a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "variation_claims"), "test variation claims are invalid", "supply unique stable variation identities and explicit semantic fields")
+			if err := a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "variation_claims"), "test variation claims are invalid", "supply unique stable variation identities and explicit semantic fields"); !a.keepItem(item.name, err) {
+				return nil, err
+			}
+			continue
 		}
 		a.origin("test:"+value.ID, mapping, index, "id")
 		a.testClaims[value.ID] = claims
 		values = append(values, value)
+		names, testIDs = append(names, behaviorAdapterIdentityName("test", "tests", value.ID, index)), append(testIDs, value.ID)
 	}
 	sort.Slice(values, func(i, j int) bool {
 		return values[i].ID+"\x00"+values[i].Project < values[j].ID+"\x00"+values[j].Project
@@ -861,7 +1122,9 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		ids = append(ids, value.ID)
 	}
 	if !uniqueIdentities(ids) {
-		return nil, a.fieldError(a.inputs[mapping.Input], mapping.Records, "test identity is duplicate or invalid", "supply globally unique nonempty test identities")
+		if err := a.fieldError(a.inputs[mapping.Input], mapping.Records, "test identity is duplicate or invalid", "supply globally unique nonempty test identities"); !a.keepIdentity(names, testIDs, err) {
+			return nil, err
+		}
 	}
 	return values, nil
 }
@@ -892,6 +1155,15 @@ func uniqueBehaviorFlows(values []BehaviorFlow) ([]BehaviorFlow, error) {
 	return values, nil
 }
 
+// behaviorAdapterIdentityName names a mapped record by its identity, or by its
+// position when the identity is invalid (DCP-V1-044).
+func behaviorAdapterIdentityName(kind, records, id string, index int) string {
+	if textOK(id) {
+		return kind + " " + id
+	}
+	return records + " record " + strconv.Itoa(index)
+}
+
 func uniqueSourceIDs(values []BehaviorSource) bool {
 	for index := 1; index < len(values); index++ {
 		if values[index-1].ID == values[index].ID || !textOK(values[index].ID) {
@@ -913,6 +1185,12 @@ func (a *behaviorAdapter) attachBehaviorVariations(flows []BehaviorFlow, variati
 		}
 		flows[index].Criteria = append(flows[index].Criteria, variation.ID)
 		flows[index].Tests = append(flows[index].Tests, variation.Tests...)
+		// The per-test origin keys repeat the flow identity once per test
+		// and only reconciliation reads them, so check mode, which skips
+		// reconciliation, does not build them (DCP-V1-044).
+		if a.checking {
+			continue
+		}
 		origin := a.origins["variation:"+variation.ID]
 		origin.Field = origin.Record + a.mappings["variations"].Fields["tests"]
 		for _, testID := range variation.Tests {
@@ -966,56 +1244,120 @@ func (a *behaviorAdapter) validateMappedBehaviorAdapterDeclarations(flows []Beha
 	if err := validateBehaviorAdapterDeclarations(flows, behaviors, tests); err == nil {
 		return nil
 	}
+	before := a.kept
 	for _, flow := range flows {
 		if !words("generated source-derived declared imported")[flow.Derivation] {
-			return a.originError("flow:"+flow.ID, "derivation", "mapped flow derivation is invalid", "supply one supported derivation")
+			if err := a.originError("flow:"+flow.ID, "derivation", "mapped flow derivation is invalid", "supply one supported derivation"); !a.keepItem("flow "+flow.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !uniqueIdentities(flow.RequiredPages) {
-			return a.originError("flow:"+flow.ID, "required_pages", "mapped required-page identities are duplicate or invalid", "supply unique exact required-page identities")
+			if err := a.originError("flow:"+flow.ID, "required_pages", "mapped required-page identities are duplicate or invalid", "supply unique exact required-page identities"); !a.keepItem("flow "+flow.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !uniqueIdentities(flow.NegativeControls) {
-			return a.originError("flow:"+flow.ID, "negative_controls", "mapped negative-control identities are duplicate or invalid", "supply unique exact negative-control identities")
+			if err := a.originError("flow:"+flow.ID, "negative_controls", "mapped negative-control identities are duplicate or invalid", "supply unique exact negative-control identities"); !a.keepItem("flow "+flow.ID, err) {
+				return err
+			}
+			continue
 		}
 		if len(flow.OrderedEvents) > MaxRecords {
-			return a.originError("flow:"+flow.ID, "ordered_events", "mapped ordered-event list exceeds the bound", "supply at most 4096 ordered events")
+			if err := a.originError("flow:"+flow.ID, "ordered_events", "mapped ordered-event list exceeds the bound", "supply at most 4096 ordered events"); !a.keepItem("flow "+flow.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !uniqueIdentities(flow.Criteria) || !uniqueIdentities(flow.Tests) {
-			return a.originError("flow:"+flow.ID, "id", "derived flow relation identities are invalid", "supply unique exact variation and test relations")
+			if err := a.originError("flow:"+flow.ID, "id", "derived flow relation identities are invalid", "supply unique exact variation and test relations"); !a.keepItem("flow "+flow.ID, err) {
+				return err
+			}
+			continue
 		}
 	}
 	for _, behavior := range behaviors {
 		if !uniqueIdentities(behavior.Flows) {
-			return a.originError("candidate:"+behavior.ID, "flows", "mapped source candidate flow identities are invalid", "supply unique exact documented-flow proposals")
+			if err := a.originError("candidate:"+behavior.ID, "flows", "mapped source candidate flow identities are invalid", "supply unique exact documented-flow proposals"); !a.keepItem("candidate "+behavior.ID, err) {
+				return err
+			}
+			continue
 		}
 	}
 	for _, test := range tests {
 		if !textOK(test.Project) {
-			return a.originError("test:"+test.ID, "project", "mapped test project is invalid", "supply one exact nonempty project identity")
+			if err := a.originError("test:"+test.ID, "project", "mapped test project is invalid", "supply one exact nonempty project identity"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !textOK(test.Title) {
-			return a.originError("test:"+test.ID, "title", "mapped test title is invalid", "supply one exact nonempty title")
+			if err := a.originError("test:"+test.ID, "title", "mapped test title is invalid", "supply one exact nonempty title"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !uniqueIdentities(test.Flows) {
-			return a.originError("test:"+test.ID, "flows", "mapped test flow identities are duplicate or invalid", "supply unique exact flow identities")
+			if err := a.originError("test:"+test.ID, "flows", "mapped test flow identities are duplicate or invalid", "supply unique exact flow identities"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 		if !uniqueIdentities(test.Criteria) {
-			return a.originError("test:"+test.ID, "criteria", "mapped test criterion identities are duplicate or invalid", "supply unique exact variation identities")
+			if err := a.originError("test:"+test.ID, "criteria", "mapped test criterion identities are duplicate or invalid", "supply unique exact variation identities"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 		if len(test.Assertions) > MaxRecords {
-			return a.originError("test:"+test.ID, "assertions", "mapped assertion list exceeds the bound", "supply at most 4096 assertions")
+			if err := a.originError("test:"+test.ID, "assertions", "mapped assertion list exceeds the bound", "supply at most 4096 assertions"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 		assertionIDs := []string{}
+		incomplete := false
 		for _, assertion := range test.Assertions {
 			assertionIDs = append(assertionIDs, assertion.ID)
-			if !textOK(assertion.Behavior) || !textOK(assertion.Criterion) || !textOK(assertion.Matcher) || !textOK(assertion.Locator) || !textOK(assertion.Value) {
-				return a.originError("test:"+test.ID, "assertions", "mapped assertion identity is incomplete", "supply exact behavior, criterion, matcher, locator and value fields")
+			incomplete = incomplete || !textOK(assertion.Behavior) || !textOK(assertion.Criterion) || !textOK(assertion.Matcher) || !textOK(assertion.Locator) || !textOK(assertion.Value)
+		}
+		if incomplete {
+			if err := a.originError("test:"+test.ID, "assertions", "mapped assertion identity is incomplete", "supply exact behavior, criterion, matcher, locator and value fields"); !a.keepItem("test "+test.ID, err) {
+				return err
 			}
+			continue
 		}
 		if !uniqueIdentities(assertionIDs) {
-			return a.originError("test:"+test.ID, "assertions", "mapped assertion identity is duplicated", "supply globally unique assertion identities")
+			if err := a.originError("test:"+test.ID, "assertions", "mapped assertion identity is duplicated", "supply globally unique assertion identities"); !a.keepItem("test "+test.ID, err) {
+				return err
+			}
+			continue
 		}
 	}
-	return a.fieldError(a.inputs[a.request.DiscoveryInput], "/", "mapped behavior identity is duplicated", "supply globally unique flow, candidate and test identities")
+	ids := make([]string, 0, len(flows)+len(behaviors)+len(tests))
+	names := make([]string, 0, cap(ids))
+	for _, flow := range flows {
+		ids, names = append(ids, flow.ID), append(names, "flow "+flow.ID)
+	}
+	for _, behavior := range behaviors {
+		ids, names = append(ids, behavior.ID), append(names, "candidate "+behavior.ID)
+	}
+	for _, test := range tests {
+		ids, names = append(ids, test.ID), append(names, "test "+test.ID)
+	}
+	duplicated := func() error {
+		return a.fieldError(a.inputs[a.request.DiscoveryInput], "/", "mapped behavior identity is duplicated", "supply globally unique flow, candidate and test identities")
+	}
+	if !uniqueIdentities(ids) {
+		if err := duplicated(); !a.keepIdentity(names, ids, err) {
+			return err
+		}
+	}
+	if a.kept > before {
+		return nil
+	}
+	return duplicated()
 }
 
 func (a *behaviorAdapter) originError(originKey, field, detail, correction string) error {
@@ -1042,7 +1384,13 @@ func sortedUnique(values []string) []string {
 func (a *behaviorAdapter) provider(registry BehaviorRegistry) ProviderRecord {
 	provider := ProviderRecord{Schema: BehaviorProviderSchema, ID: a.request.ProviderID, Version: a.request.ProviderVersion, Source: a.request.Source, BehaviorContracts: &registry}
 	provider.Observations = slices.Clone(a.request.Observations)
+	// Each subject repeats the provider identity, and only the emitted
+	// provider record reads them, so check mode does not build them
+	// (DCP-V1-044).
 	for _, test := range registry.Tests {
+		if a.checking {
+			break
+		}
 		provider.Subjects = append(provider.Subjects, Subject{ID: a.request.ProviderID + ":test:" + test.ID, Kind: "test", Name: test.Title, Provider: a.request.ProviderID, Evidence: behaviorAdapterEvidence(test.Evidence)})
 	}
 	if len(provider.Subjects) > 0 {
@@ -1059,10 +1407,12 @@ func (a *behaviorAdapter) validateObservationSubjects(tests []BehaviorTest) erro
 	for _, test := range tests {
 		testIDs[test.ID] = true
 	}
-	for _, link := range a.request.Observations {
+	for index, link := range a.request.Observations {
 		expected := a.request.ProviderID + ":test:" + link.TestID
 		if !testIDs[link.TestID] || link.Subject != expected {
-			return fail("behavior adapter observation subject must name the exact generated test subject")
+			if err := fail("behavior adapter observation subject must name the exact generated test subject"); !a.keepItem("/observations/"+strconv.Itoa(index), err) {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1551,6 +1901,9 @@ func (a *behaviorAdapter) inputForPath(revision, path string) (BehaviorAdapterIn
 }
 
 func (a *behaviorAdapter) gap(originKey, kind, subject, field, detail, correction string) {
+	if a.checking {
+		return
+	}
 	origin, ok := a.origins[originKey]
 	if !ok {
 		origin = behaviorAdapterOrigin{Input: a.inputs[a.request.DiscoveryInput], Field: field, Revision: a.request.SourceRevision, Digest: a.inputs[a.request.DiscoveryInput].Anchor.SHA256}
@@ -1562,6 +1915,9 @@ func (a *behaviorAdapter) gap(originKey, kind, subject, field, detail, correctio
 }
 
 func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject, field, detail, correction string) {
+	if a.checking {
+		return
+	}
 	if field == "" {
 		field = "/"
 	}
@@ -1580,10 +1936,16 @@ func (a *behaviorAdapter) artifacts(provider ProviderRecord) ([]BehaviorAdapterA
 	for _, observation := range provider.Observations {
 		input, ok := a.inputForPath(observation.InputRevision, observation.Input)
 		if !ok || Digest([]byte(input.Document)) != observation.RunID {
-			return nil, fail("behavior adapter observation must name a retained receipt input with the run identity digest")
+			if err := fail("behavior adapter observation must name a retained receipt input with the run identity digest"); !a.keepItem("observation "+observation.ID, err) {
+				return nil, err
+			}
+			continue
 		}
 		if role, taken := roles[input.ID]; taken && role != "receipt" {
-			return nil, fail("behavior adapter observation receipt input already serves the " + role + " role")
+			if err := fail("behavior adapter observation receipt input already serves the " + role + " role"); !a.keepItem("observation "+observation.ID, err) {
+				return nil, err
+			}
+			continue
 		}
 		roles[input.ID] = "receipt"
 	}
@@ -1702,6 +2064,29 @@ func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapt
 	return delta, nil
 }
 
+// behaviorAdapterDeltaError returns the refusal behaviorAdapterDelta would
+// return, from the same hashes in the same order, without building the
+// criterion maps or reverse-link sets; check mode needs only the decision,
+// and the link keys repeat identities once per pair (DCP-V1-044).
+func behaviorAdapterDeltaError(previous *BehaviorAdapterResult, current BehaviorAdapterResult) error {
+	if previous == nil {
+		return nil
+	}
+	for _, variations := range [][]BehaviorAdapterVariation{previous.Variations, current.Variations} {
+		for _, variation := range variations {
+			if _, err := hashValue(variation); err != nil {
+				return err
+			}
+		}
+	}
+	for _, result := range []*BehaviorAdapterResult{previous, &current} {
+		if _, err := behaviorReverseLinkSet(*result, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func behaviorVariationDigests(variations []BehaviorAdapterVariation) (map[string]string, error) {
 	result := map[string]string{}
 	for _, variation := range variations {
@@ -1731,6 +2116,13 @@ func reverseLinkJoin(parts ...string) string {
 }
 
 func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool, error) {
+	return behaviorReverseLinkSet(adapterResult, true)
+}
+
+// behaviorReverseLinkSet computes the reverse-link hashes in order and, when
+// retain is set, the link set. Without retain it builds no key and returns
+// only the first hash refusal.
+func behaviorReverseLinkSet(adapterResult BehaviorAdapterResult, retain bool) (map[string]bool, error) {
 	links := map[string]bool{}
 	provider := adapterResult.Provider
 	if provider.BehaviorContracts == nil {
@@ -1744,31 +2136,35 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 			if err != nil {
 				return nil, err
 			}
-			links["assertion:"+reverseLinkJoin(test.ID, assertion.Criterion, assertion.ID, digest)] = true
+			if retain {
+				links["assertion:"+reverseLinkJoin(test.ID, assertion.Criterion, assertion.ID, digest)] = true
+			}
 		}
 	}
-	for _, flow := range provider.BehaviorContracts.Flows {
-		for _, testID := range flow.Tests {
-			test := tests[testID]
-			if !slices.Contains(test.Flows, flow.ID) {
-				continue
-			}
-			for _, criterion := range flow.Criteria {
-				if slices.Contains(test.Criteria, criterion) {
-					links["flow-test:"+reverseLinkJoin(flow.ID, criterion, testID, test.Project)] = true
+	if retain {
+		for _, flow := range provider.BehaviorContracts.Flows {
+			for _, testID := range flow.Tests {
+				test := tests[testID]
+				if !slices.Contains(test.Flows, flow.ID) {
+					continue
+				}
+				for _, criterion := range flow.Criteria {
+					if slices.Contains(test.Criteria, criterion) {
+						links["flow-test:"+reverseLinkJoin(flow.ID, criterion, testID, test.Project)] = true
+					}
 				}
 			}
 		}
-	}
-	for _, variation := range adapterResult.Variations {
-		links["variation-flow:"+reverseLinkJoin(variation.ID, variation.Flow)] = true
-		for _, testID := range variation.Tests {
-			links["variation-test:"+reverseLinkJoin(variation.ID, testID)] = true
+		for _, variation := range adapterResult.Variations {
+			links["variation-flow:"+reverseLinkJoin(variation.ID, variation.Flow)] = true
+			for _, testID := range variation.Tests {
+				links["variation-test:"+reverseLinkJoin(variation.ID, testID)] = true
+			}
 		}
-	}
-	for _, test := range provider.BehaviorContracts.Tests {
-		for _, criterion := range test.Criteria {
-			links["test-variation:"+reverseLinkJoin(test.ID, criterion)] = true
+		for _, test := range provider.BehaviorContracts.Tests {
+			for _, criterion := range test.Criteria {
+				links["test-variation:"+reverseLinkJoin(test.ID, criterion)] = true
+			}
 		}
 	}
 	for _, record := range adapterResult.Claims {
@@ -1776,7 +2172,9 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 		if err != nil {
 			return nil, err
 		}
-		links["claim:"+reverseLinkJoin(record.TestID, record.Claim.VariationID, digest)] = true
+		if retain {
+			links["claim:"+reverseLinkJoin(record.TestID, record.Claim.VariationID, digest)] = true
+		}
 	}
 	return links, nil
 }

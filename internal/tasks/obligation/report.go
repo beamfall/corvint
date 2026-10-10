@@ -53,6 +53,7 @@ type Report struct {
 	// form so it compares with a resolved repository root.
 	RootDir string
 	suites  []jsonSuite
+	errors  int // the report's top-level errors, such as a spec file that failed to load
 }
 
 type jsonReport struct {
@@ -60,7 +61,8 @@ type jsonReport struct {
 		Version string `json:"version"`
 		RootDir string `json:"rootDir"`
 	} `json:"config"`
-	Suites []jsonSuite `json:"suites"`
+	Errors []json.RawMessage `json:"errors"`
+	Suites []jsonSuite       `json:"suites"`
 }
 
 type jsonSuite struct {
@@ -77,15 +79,29 @@ type jsonSpec struct {
 }
 
 type jsonTest struct {
-	ExpectedStatus string       `json:"expectedStatus"`
-	ProjectName    string       `json:"projectName"`
-	Results        []jsonResult `json:"results"`
+	ExpectedStatus string           `json:"expectedStatus"`
+	ProjectName    string           `json:"projectName"`
+	Annotations    []jsonAnnotation `json:"annotations"`
+	Results        []jsonResult     `json:"results"`
 }
 
 type jsonResult struct {
-	Status string     `json:"status"`
-	Retry  *int       `json:"retry"`
-	Steps  []jsonStep `json:"steps"`
+	Status      string           `json:"status"`
+	Retry       *int             `json:"retry"`
+	Steps       []jsonStep       `json:"steps"`
+	Annotations []jsonAnnotation `json:"annotations"`
+	Error       *jsonError       `json:"error"`
+}
+
+// jsonAnnotation is a test annotation; test.fail(...) adds {type: "fail",
+// description} at test level (and, in newer reporters, per result).
+type jsonAnnotation struct {
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+type jsonError struct {
+	Message string `json:"message"`
 }
 
 type jsonStep struct {
@@ -159,19 +175,100 @@ func ParseReport(raw []byte, qualified []string) (*Report, error) {
 	if !ok {
 		return nil, wire.Errorf(wire.CodeUnsupportedVersion, "--from-playwright-report", "%s Playwright %s is not in the qualified version list %v", ticket.ObligationVersionDetail, v, qualified)
 	}
-	return &Report{Sha256: wire.Sum(raw), Version: v, RootDir: doc.Config.RootDir, suites: doc.Suites}, nil
+	return &Report{Sha256: wire.Sum(raw), Version: v, RootDir: doc.Config.RootDir, suites: doc.Suites, errors: len(doc.Errors)}, nil
 }
+
+// Match kinds (TOL-V0-022, TOL-V0-023). An ordinary match passes or fails;
+// a match inside an expected-failure (test.fail) test is either a confirmed
+// expected failure or a mixed one, and neither ever credits.
+const (
+	kindOrdinary = iota
+	kindDefect
+	kindMixed
+)
 
 // match is one occurrence of an id in a retry-0 result.
 type match struct {
 	file   string // spec.file, relative to config.rootDir
 	m      ticket.ObligationMatch
 	passed bool
+	kind   int
+	defect string // kindDefect: the defect id, "" when none is named
+	errMsg string // kindDefect: the failure's first line, "" when none
+	// failMsg is an ordinary failing match's error: its own step's error,
+	// else the result's, "" when neither has one (GitHub #714).
+	failMsg string
+}
+
+// failAnnotation reports whether the test is an expected failure
+// (test.fail) and the fail annotation's description.
+func failAnnotation(t jsonTest, res jsonResult) (bool, string) {
+	for _, list := range [][]jsonAnnotation{t.Annotations, res.Annotations} {
+		for _, a := range list {
+			if a.Type == "fail" {
+				return true, a.Description
+			}
+		}
+	}
+	return t.ExpectedStatus == "failed", ""
+}
+
+// errorMessage is a step error's message, "" when it has none.
+func errorMessage(raw json.RawMessage) string {
+	var e jsonError
+	if json.Unmarshal(raw, &e) != nil {
+		return ""
+	}
+	return e.Message
+}
+
+// expectedFailMatch classifies one match inside an expected-failure test
+// (TOL-V0-022). exp says the match is an expected-fail obligation, failed
+// that its own step (or, for a title id, the result) failed, and msg is the
+// failure message.
+func expectedFailMatch(m match, exp, failed bool, msg, desc, title, prefix string) match {
+	switch {
+	case !exp:
+		m.kind = kindMixed
+	case failed:
+		m.kind = kindDefect
+		allowed := DefectIDs(desc, prefix)
+		m.defect = firstOf(definedDefects(DefectIDs(msg, prefix), allowed), DefectIDs(title, prefix), allowed)
+		m.errMsg = Excerpt(msg)
+	}
+	return m
+}
+
+// definedDefects keeps the ids of found that the fail description names,
+// or all of them when it names none.
+func definedDefects(found, allowed []string) []string {
+	if len(allowed) == 0 {
+		return found
+	}
+	var out []string
+	for _, id := range found {
+		for _, a := range allowed {
+			if id == a {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}
+
+func firstOf(lists ...[]string) string {
+	for _, l := range lists {
+		if len(l) > 0 {
+			return l[0]
+		}
+	}
+	return ""
 }
 
 // collect returns every retry-0 match of an id carrying prefix, by id
 // (TOL-V0-010). Results of tests whose expectedStatus is not `passed` and
-// results with status timedOut, interrupted or skipped never pass.
+// results with status timedOut, interrupted or skipped never pass. A match
+// in an expected-failure test is classified by TOL-V0-022 and never passes.
 func (r *Report) collect(prefix string) map[string][]match {
 	out := map[string][]match{}
 	var walk func(s jsonSuite, describes []string, top bool)
@@ -189,10 +286,23 @@ func (r *Report) collect(prefix string) map[string][]match {
 					}
 					eligible := t.ExpectedStatus == "passed"
 					ran := res.Status != "timedOut" && res.Status != "interrupted" && res.Status != "skipped"
+					xfail, desc := failAnnotation(t, res)
+					resMsg := ""
+					if res.Error != nil {
+						resMsg = res.Error.Message
+					}
 					for _, title := range titlePath {
 						for _, id := range FindIDs(title, prefix) {
-							out[id] = append(out[id], match{file: sp.File, passed: eligible && res.Status == "passed",
-								m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepPath: []string{}}})
+							m := match{file: sp.File, passed: eligible && !xfail && res.Status == "passed",
+								m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepPath: []string{}}}
+							if !m.passed {
+								m.failMsg = resMsg
+							}
+							if xfail {
+								exp := SaysExpectedFail(title) || len(DefectIDs(desc, prefix)) > 0 || len(DefectIDs(title, prefix)) > 0
+								m = expectedFailMatch(m, exp, res.Status == "failed", resMsg, desc, title, prefix)
+							}
+							out[id] = append(out[id], m)
 						}
 					}
 					var steps func(list []jsonStep, parents []string)
@@ -202,8 +312,24 @@ func (r *Report) collect(prefix string) map[string][]match {
 							failed := len(st.Error) != 0 && string(st.Error) != "null"
 							for _, id := range FindIDs(st.Title, prefix) {
 								title := st.Title
-								out[id] = append(out[id], match{file: sp.File, passed: eligible && ran && !failed,
-									m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepTitle: &title, StepPath: stepPath}})
+								m := match{file: sp.File, passed: eligible && !xfail && ran && !failed,
+									m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepTitle: &title, StepPath: stepPath}}
+								switch {
+								case failed:
+									m.failMsg = errorMessage(st.Error)
+								case !m.passed:
+									m.failMsg = resMsg
+								}
+								if xfail {
+									msg := ""
+									if failed {
+										msg = errorMessage(st.Error)
+									}
+									named := definedDefects(DefectIDs(msg, prefix), DefectIDs(desc, prefix))
+									exp := SaysExpectedFail(st.Title) || (failed && len(named) > 0)
+									m = expectedFailMatch(m, exp, failed, msg, desc, st.Title, prefix)
+								}
+								out[id] = append(out[id], m)
 							}
 							steps(st.Steps, stepPath)
 						}
@@ -275,19 +401,39 @@ type UnboundID struct {
 	Reason string
 }
 
-// Result is one classification (TOL-V0-011, TOL-V0-013). Eligible holds every
-// credited-or-creditable id with its passing, source-bound matches; Credited
-// is the subset the ledger admits now. Every list is sorted.
+// DefectConfirmed is one id an expected-failure test confirmed blocked by a
+// known defect (TOL-V0-022): Defect is the named defect id, Error the
+// failure's first line, each "" when absent.
+type DefectConfirmed struct {
+	ID, Defect, Error string
+}
+
+// MixedExpectedFail is one ordinary id named inside an expected-failure
+// test, with the sorted test ids that mixed it (TOL-V0-023).
+type MixedExpectedFail struct {
+	ID    string
+	Tests []string
+}
+
+// MixedRemedy is the TOL-V0-023 remedy for a mixed expected-failure test.
+const MixedRemedy = "test.fail covers the whole test, so this obligation can never be credited there; move the expected-fail obligation into its own test"
+
+// Result is one classification (TOL-V0-011, TOL-V0-013, TOL-V0-022,
+// TOL-V0-023). Eligible holds every credited-or-creditable id with its
+// passing, source-bound matches; Credited is the subset the ledger admits
+// now. Every list is sorted.
 type Result struct {
-	Eligible         map[string][]ticket.ObligationMatch
-	Credited         []string
-	AlreadyWitnessed []string
-	Conflicting      []string
-	Failed           []string
-	Unknown          []string
-	UnknownTruncated bool
-	Unbound          []UnboundID
-	Unmatched        []string
+	DefectConfirmed   []DefectConfirmed
+	MixedExpectedFail []MixedExpectedFail
+	Eligible          map[string][]ticket.ObligationMatch
+	Credited          []string
+	AlreadyWitnessed  []string
+	Conflicting       []string
+	Failed            []string
+	Unknown           []string
+	UnknownTruncated  bool
+	Unbound           []UnboundID
+	Unmatched         []string
 }
 
 // Classify computes TOL-V0-010..012 for the ledger l from the report. ids,
@@ -306,9 +452,38 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 			res.Unknown = append(res.Unknown, id)
 			continue
 		}
+		var mixed []string
+		defects := 0
+		for _, m := range ms {
+			switch m.kind {
+			case kindMixed:
+				mixed = append(mixed, m.m.TestID)
+			case kindDefect:
+				defects++
+			}
+		}
+		if len(mixed) > 0 {
+			res.MixedExpectedFail = append(res.MixedExpectedFail, MixedExpectedFail{ID: id, Tests: sortedUnique(mixed)})
+			continue
+		}
+		if defects == len(ms) {
+			first := ms[0]
+			for _, m := range ms {
+				if m.defect != "" {
+					first = m
+					break
+				}
+			}
+			res.DefectConfirmed = append(res.DefectConfirmed, DefectConfirmed{ID: id, Defect: first.defect, Error: first.errMsg})
+			continue
+		}
 		pass, fail := false, false
 		for _, m := range ms {
 			pass, fail = pass || m.passed, fail || !m.passed
+		}
+		if defects > 0 {
+			res.Conflicting = append(res.Conflicting, id)
+			continue
 		}
 		if fail {
 			if pass {
@@ -353,6 +528,8 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 		sort.Strings(list)
 	}
 	sort.Slice(res.Unbound, func(i, j int) bool { return res.Unbound[i].ID < res.Unbound[j].ID })
+	sort.Slice(res.DefectConfirmed, func(i, j int) bool { return res.DefectConfirmed[i].ID < res.DefectConfirmed[j].ID })
+	sort.Slice(res.MixedExpectedFail, func(i, j int) bool { return res.MixedExpectedFail[i].ID < res.MixedExpectedFail[j].ID })
 	if len(res.Unknown) > MaxListIDs {
 		res.Unknown, res.UnknownTruncated = res.Unknown[:MaxListIDs], true
 	}

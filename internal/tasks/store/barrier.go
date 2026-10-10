@@ -20,7 +20,8 @@ import (
 type BarrierRequest struct{ QueueID, RequestID, Operation string }
 
 // Barrier applies a settled fixture pause/unpause under the recorded local
-// operator premise. Pending receipts and active staging require separate recovery.
+// operator premise. A pending receipt is settled first (§5.2 redo); active
+// staging requires separate recovery.
 func Barrier(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice BarrierRequest, now wire.Timestamp) (*Report, error) {
 	return barrier(ctx, repo, actor, choice, now, nil, nil)
 }
@@ -65,6 +66,16 @@ func barrier(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	head, err := writerGuards(repo, request.Operation)
 	if err != nil {
 		return guardFailure(report, request.RequestID, err)
+	}
+	// §5.2: settle a pending receipt, an interrupted UNPAUSE included, before
+	// this request is looked up or modelled (V1-0309).
+	if report.Redone, err = redoPendingFor(repo, session, request.Operation); err != nil {
+		return guardFailure(report, request.RequestID, err)
+	}
+	if report.Redone {
+		if head, err = writerGuards(repo, request.Operation); err != nil {
+			return guardFailure(report, request.RequestID, err)
+		}
 	}
 	if head.QueueID.Raw != request.QueueID {
 		return report, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")

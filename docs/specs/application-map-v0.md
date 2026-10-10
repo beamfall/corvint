@@ -14,11 +14,13 @@ Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corv
 [issue 669](https://github.com/beamfall/corvint/issues/669) part 2 (V1-0982, tests in a second
 repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982)), and
 [issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
-through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460).
+through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460), and
+[issue 705](https://github.com/beamfall/corvint/issues/705) (V1-1061, injected string enums,
+one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -69,7 +71,8 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
 (V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
-(decision 0460; V1-1027; GitHub #685).
+(decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are accepted (decision 0475;
+V1-1061; GitHub #705).
 
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
@@ -320,6 +323,74 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   (`const c = m.constant; c(...)`), the AngularJS module a registration belongs to, and a
   registration added in a new file after the map revision are not read; a static map cannot see
   them. Status: accepted (decision 0460; V1-1027; GitHub #685).
+- `AMAP-V0-024`: A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected
+  registration's `T` (declared in the registering file, imported by it, or reached through
+  AMAP-V0-025) MUST be a table only when every member has a literal string initializer (a quoted
+  string or a template literal without substitutions). One member without an initializer, or with
+  a numeric, computed, referencing or substituted initializer, or a computed key, makes it no table:
+  every name read through it stays `UNKNOWN` (AMAP-V0-023) with the AMAP-V0-026 reason
+  `non-literal-member`. A router file's own imported enum keeps the AMAP-V0-016 rule (such a member
+  is absent; the others resolve). Status: accepted (decision 0475; V1-1061; GitHub #705).
+- `AMAP-V0-025`: When the tracked file the registering file's import of `T` resolves to (the
+  directly imported file, or the `index` file of an imported directory, under the existing web
+  import resolution) does not declare the imported name, an injected registration MUST follow
+  exactly one level of its `export ... from 'M'` statements: `export { T }`, `export { S as T }`,
+  `export { default as T }` or `export * from 'M'`. A named re-export of the name shadows every
+  `export *`, as in ECMAScript; so does a name the imported file exports itself in any other form
+  (an exported `let`, `var`, `function`, `class` or unreadable `const`, a local `export { ... }`
+  list, or any other export statement), which the reader does not follow. A candidate module that
+  exports the name in any form counts as a candidate, whether or not the reader can read it as a
+  table. An export statement the reader does not read name by name (a `declare`, `abstract` or
+  `namespace` export, a destructuring, a declaration with several declarators) counts every
+  identifier in it as a name it may export, and a file whose exports the reader cannot list may
+  export any name: one whose brackets do not nest and match, with a backslash outside a string (an
+  escaped identifier, inside a template substitution too), with a string export name, with an
+  export statement the reader rejects or whose module name it cannot decode exactly, with a
+  top-level `export` no reader consumed, with source the lexer cannot place as code, comment or
+  literal (a `/` it cannot place as a regular expression or a division, as after `}`, `of`,
+  `yield`, `await`, a TypeScript `x!`, `<` or a `>` not of `=>`; an unterminated string, regular
+  expression, block comment or template; a `/` inside a template substitution; a `//` comment
+  holding another line terminator; a non-ASCII identifier character that is not a letter, digit,
+  mark or connector; an HTML-like comment), or a `.tsx`/`.jsx` file with any `<` (the lexer does
+  not read JSX).
+  Such a file never yields a declaration: as a candidate it counts as one that does not export the
+  name as a readable table, and no table in it is read whole (`not-read-whole`), since an escaped
+  identifier or a statement the reader skipped could write it. The table resolves only when
+  exactly one candidate module, itself a tracked, indexed and readable file of the repository,
+  declares and exports it (or holds the default export it names) under the AMAP-V0-016 and
+  AMAP-V0-024 rules; the re-export statement joins the anchors between the declaring line and the
+  registering file's import. Every file on that chain -- the registering file, the imported
+  barrel and the declaring file, and the registering file when it declares the table itself --
+  MUST pass the same write checks for every other binding of the table it holds: each import of
+  the table's name (or `default`, when the table is a default export) under another local name,
+  from any module, must be only read under the AMAP-V0-016 rule, and no namespace import, dynamic
+  `import(...)`, `require(...)` or import item the reader cannot read may name a module that
+  resolves to the declaring file, to a file that could re-export (any `export ... from`), to a file
+  it cannot read, or that it cannot resolve (a non-literal or unresolved specifier); a package is
+  never such a module. A binding it cannot prove only read leaves the name `UNKNOWN`
+  (`not-read-whole`). Otherwise the name stays `UNKNOWN` with the AMAP-V0-026 reason: two
+  candidates, a re-export item the reader cannot read, or an imported file whose exports the
+  reader cannot list, `ambiguous-barrel`; a candidate module that does not declare the name but
+  could re-export it again, `barrel-depth-exceeded`; a candidate module outside the repository
+  index (a package, an unresolved or unreadable path), `out-of-scope`; no candidate, a type-only
+  re-export, `export * as T`, the imported file's own unfollowed export of the name, or one
+  candidate that does not export it as a readable table, `identifier-not-found`. Re-exports are
+  not followed for a router file's own imports (AMAP-V0-016). Status: accepted (decision 0475;
+  V1-1061; GitHub #705).
+- `AMAP-V0-026`: When the `di_constants` scope holds exactly one registration of an injected name
+  `X`, the scope is not poisoned, and a member read through it does not resolve, the map MUST carry
+  one unknown `{kind: "di-constant", ref: X, reason, path, line}` naming the registering file and
+  the `.constant(...)` call's first line, where `reason` is the first failure the reader met:
+  `unreadable-registration` (`T` is neither an object literal nor an identifier, or the name comes
+  from an object-map registration), `identifier-not-found`, `ambiguous-binding` (`T` both declared
+  and imported, or bound twice), `not-read-whole` (another use of `T`, or of another binding of
+  the table in a file on the AMAP-V0-025 chain, could change it, or the declaring file is unread),
+  `out-of-scope`, `ambiguous-barrel`, `barrel-depth-exceeded`, `non-literal-member` (a spread,
+  computed or repeated key, or an AMAP-V0-024 enum member), or `member-not-found`. Identical
+  unknowns are carried once. The screen keeps its AMAP-V0-023 `non-literal-name` /
+  `non-literal-value`; a build that resolves every injected read, has no scope, or finds no or more
+  than one registration adds none, so its bytes are unchanged. The build still exits 0.
+  Status: accepted (decision 0475; V1-1061; GitHub #705).
 
 ## Wire contract
 
@@ -357,9 +428,13 @@ with one coded JSON error on stderr and nothing on stdout.
 `import-depth-exceeded`, `unparsed-imports`, `excluded-by-index`, `page-object-unbound`,
 `page-object-ambiguous`, `page-object-unresolved-target`, `import-outside-tests`, `unknown-state`,
 `secret-shaped`, `no-asserting-spec`, `binding-collision`, `stale-reuse`, `reuse-not-callable`, `test-unbound`, `unread-statement`,
-`overlay-unavailable` and `overlay-bound-exceeded`. Unknown kinds are `state`, `screen`,
+`overlay-unavailable` and `overlay-bound-exceeded`; for kind `di-constant` (AMAP-V0-026),
+`unreadable-registration`, `identifier-not-found`, `ambiguous-binding`, `not-read-whole`,
+`out-of-scope`, `ambiguous-barrel`, `barrel-depth-exceeded`, `non-literal-member` and
+`member-not-found`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
-`page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse` and `overlay`.
+`page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse`, `overlay` and
+`di-constant`.
 
 ## Overlay seam
 
@@ -422,12 +497,20 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   mutates at run time (not read; a static map cannot see it), and a state name or parent read
   through an injected `.constant(...)` table the map cannot prove unique and whole within the
   `di_constants` scope (AMAP-V0-023; `non-literal-name` / `non-literal-value`), or re-annotated
-  outside the router file (not read).
+  outside the router file (not read); an injected enum with any non-literal member (AMAP-V0-024),
+  or a table behind two candidate, two-level or out-of-repository re-exports (AMAP-V0-025), stays
+  `UNKNOWN` with a `di-constant` unknown naming why (AMAP-V0-026).
 - Second repository (AMAP-V0-017..019): an undeclared alias or an unusable root refuses with
   `appmap-root-unavailable`; uncommitted changes under what the map reads from it refuse with
   `appmap-root-dirty`; a same-named path in `--root` never makes an aliased anchor `FRESH`.
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
+- Accepted limit, out of scope (V1-1061; GitHub #705): the injected-table reader (AMAP-V0-021..026)
+  assumes non-adversarial application source. It fails closed on the forms ordinary code uses to
+  replace or shadow `angular.module`, but code that deliberately rebuilds the `angular` global's
+  name, or reaches it through other host objects or string construction, can still leave a stale
+  literal state name. Reviews treat that class as out of scope; repository data is still never
+  evaluated.
 
 ## Deterministic acceptance and traceability
 
@@ -456,12 +539,16 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-021 | `TestAMAPV0021DIConstantsManifest`, `TestAMAPV0022InjectedStateNames` |
 | AMAP-V0-022 | `TestAMAPV0022InjectedStateNames`, `TestAMAPV0022InjectionAnnotations` |
 | AMAP-V0-023 | `TestAMAPV0023UnprovableInjectionStaysUnknown`, `TestAMAPV0023ScopePoisoned` |
+| AMAP-V0-024 | `TestAMAPV0024InjectedStringEnum`, `TestAMAPV0025InjectedTableThroughBarrel` |
+| AMAP-V0-025 | `TestAMAPV0025InjectedTableThroughBarrel` |
+| AMAP-V0-026 | `TestAMAPV0026DIConstantDiagnostics`, `TestAMAPV0024InjectedStringEnum`, `TestAMAPV0025InjectedTableThroughBarrel` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
 `docs/build-log/2026-10-07-application-map.md`, `docs/build-log/2026-10-07-appmap-second-root.md`,
 `docs/build-log/2026-10-08-appmap-injected-state-names.md` (AMAP-V0-021..023,
-`internal/appmap/stateinject.go`).
+`internal/appmap/stateinject.go`), `docs/build-log/2026-10-09-v1-1061-appmap-enum-barrel.md`
+(AMAP-V0-024..026).
 
 ## Rollout, rollback and compatibility
 
@@ -481,6 +568,12 @@ The injection requirements AMAP-V0-021..023 are additive and opt-in: rolling the
 `internal/appmap/stateinject.go`, the `di_constants` manifest member and the token position the
 `member` value carries; a manifest that declares the member is then refused as not closed, and
 names it resolved read `non-literal-name` again.
+The enum, re-export and diagnostic requirements AMAP-V0-024..026 are additive within the opt-in
+scope: rolling them back removes the `di` mode of
+`lookup`, `reexported`, `readReexport` and the enum `partial` flag in
+`internal/appmap/stateconst.go` and the `di-constant` unknowns; injected enums with a non-literal
+member then resolve their literal members again, tables behind a re-export read
+`non-literal-name`, and no map member or schema changes.
 
 ## Follow-ups (proposed tickets)
 

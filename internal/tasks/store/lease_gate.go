@@ -282,11 +282,13 @@ func gateEnvironment(names []string) ([]string, wire.Digest) {
 	return env, wire.Sum(wire.EncodeFile(wire.Array(entries...)))
 }
 
-// execution is what one process run observed.
+// execution is what one process run observed. group is the gate's process
+// group id (its pid), 0 when it did not start.
 type execution struct {
 	class    string
 	exitCode *wire.Count
 	signal   *string
+	group    int
 }
 
 func execute(ctx context.Context, def *intent.GateDefinition, worktree string, env []string, out *cappedOutput) execution {
@@ -313,21 +315,22 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 	stop()
 	mu.Lock()
 	defer mu.Unlock()
+	group := cmd.Process.Pid
 	switch {
 	case timedOut:
-		return execution{class: "TIMEOUT"}
+		return execution{class: "TIMEOUT", group: group}
 	case out.overflow:
-		return execution{class: "OUTPUT_LIMIT"}
+		return execution{class: "OUTPUT_LIMIT", group: group}
 	}
 	var exit *exec.ExitError
 	if err != nil && !errors.As(err, &exit) {
-		return execution{class: "UNKNOWN"}
+		return execution{class: "UNKNOWN", group: group}
 	}
 	if name := gateSignal(cmd.ProcessState); name != "" {
-		return execution{class: "SIGNAL", signal: &name}
+		return execution{class: "SIGNAL", signal: &name, group: group}
 	}
 	code := wire.CountOf(int64(cmd.ProcessState.ExitCode()))
-	return execution{class: "EXIT", exitCode: &code}
+	return execution{class: "EXIT", exitCode: &code, group: group}
 }
 
 // gateState is the §7.1 state of one run: PASSED only for the expected
@@ -475,10 +478,11 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 	if err != nil {
 		return transaction.LeaseFacts{}, err
 	}
-	reachable, err := isAncestor(root, l.Commit, "refs/heads/"+q.IntentBranch)
+	reachable, upstream, err := intentIntegrated(root, l.Commit, q.IntentBranch)
 	if err != nil {
 		return transaction.LeaseFacts{}, err
 	}
+	unintegrated := ""
 	var repos []snapshot.RepositoryRecord
 	if a, ok := lockedAttempt(proof, l.AttemptID); ok {
 		if repos, err = attemptRepositories(proof, a); err != nil {
@@ -496,9 +500,54 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 			if reachable, err = repositoryIntegrated(r); err != nil {
 				return transaction.LeaseFacts{}, err
 			}
+			if !reachable {
+				unintegrated = r.Name
+			}
 		}
 	}
-	return transaction.GateFacts(nil, nil, nil, tree, reachable, results), nil
+	return transaction.CompleteFacts(tree, reachable, upstream, unintegrated, results), nil
+}
+
+// intentIntegrated reports whether the intent branch contains commit, or,
+// when it does not, whether the branch's configured upstream does, provided
+// that upstream is an existing remote-tracking ref (CAL-V0-017, V1-1081). A
+// checked-out intent branch can lag a remote main that already merged the
+// commit, and moving it under unrelated staged work is unsafe. It never
+// fetches and never writes a ref; it returns the upstream ref it checked, or
+// "" when none is configured, resolvable or remote-tracking.
+func intentIntegrated(root, commit, branch string) (bool, string, error) {
+	local := "refs/heads/" + branch
+	reachable, err := isAncestor(root, commit, local)
+	if err != nil || reachable {
+		return reachable, "", err
+	}
+	upstream := configuredUpstream(root, local)
+	if upstream == "" {
+		return false, "", nil
+	}
+	reachable, err = isAncestor(root, commit, upstream)
+	return reachable, upstream, err
+}
+
+// configuredUpstream names local's configured upstream when it is an
+// existing refs/remotes/ ref, else "". A missing, unresolvable or local
+// upstream fails closed: the commit then stays unreachable.
+func configuredUpstream(root, local string) string {
+	out, err := gitOutput(root, "for-each-ref", "--format=%(refname)%00%(upstream)", "--end-of-options", local)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		ref, upstream, ok := strings.Cut(line, "\x00")
+		if !ok || ref != local || !strings.HasPrefix(upstream, "refs/remotes/") {
+			continue
+		}
+		if _, err := gitOutput(root, "show-ref", "--verify", "--quiet", "--end-of-options", upstream); err != nil {
+			return ""
+		}
+		return upstream
+	}
+	return ""
 }
 
 // candidateCommits maps each extra repository to its candidate commit.

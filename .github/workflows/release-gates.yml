@@ -97,7 +97,8 @@ jobs:
           go-version: "1.27.1"
       - &provision
         name: Provision the host tools the product's fixed PATH resolves
-        # Linux is exactly ci.yml's go-product step. macOS gets ripgrep from Homebrew instead, and
+        # Linux is ci.yml's go-product step, except that ci.yml pins a ripgrep release binary
+        # (V1-1095) where this installs the apt package. macOS gets ripgrep from Homebrew, and
         # proves that worksource.PlatformPath's darwin search path resolves go1.27.1 first.
         run: |
           sudo rm -rf /usr/local/go

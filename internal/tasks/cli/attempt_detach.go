@@ -276,8 +276,9 @@ func readRunRecord(dir string) (*runRecord, error) {
 
 // listRuns reads at most maxRunsPerAttempt+1 entries of an attempt's run
 // directory, so a directory filled by another writer is never read whole.
+// openDirNonblock never blocks on a FIFO in the directory's place.
 func listRuns(base string) ([]os.DirEntry, error) {
-	f, err := os.Open(base)
+	f, err := openDirNonblock(base)
 	if err != nil {
 		return nil, err
 	}

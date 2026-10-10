@@ -4,17 +4,17 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.2.3",
+      "adapterVersion": "0.3.1",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
-      "hostVersion": "2.1.267",
+      "hostVersion": "2.1.293",
       "hostVersionEvidence": "installed-host-lifecycle",
-      "hostVersionEvidenceAdapterVersion": "0.2.3",
+      "hostVersionEvidenceAdapterVersion": "0.3.1",
       "lifecycleConformance": {
-        "corvint": "1.0.0-rc.1",
+        "corvint": "1.0.0-rc.2",
         "profile": "host-lifecycle-qualification-v1",
-        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/claude-code.txt",
+        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.2-darwin-arm64/claude-code.txt",
         "result": "PASS"
       },
       "operatingSystem": "darwin-arm64",
@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.3",
+      "adapterVersion": "0.2.4",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",
@@ -44,7 +44,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.6",
+      "adapterVersion": "0.2.8",
       "documentedAgainstHostVersion": "0.55.1",
       "fullSupport": "external-dependent",
       "host": "gemini-cli",
@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.9",
+      "adapterVersion": "0.7.11",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",

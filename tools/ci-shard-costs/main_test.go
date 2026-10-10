@@ -115,3 +115,162 @@ stale example.org/gone recorded=5000ms
 		t.Fatalf("invalid table code=%d err=%v", code, err)
 	}
 }
+
+// AFP-V0-040: the advisory CI report exits 0 on findings, marks what misplaces a
+// stated share of the ideal shard, and bounds its warning annotations.
+func TestAFPV0040AdvisoryReportNeverFailsOnFindings(t *testing.T) {
+	// Ideal shard: (1000+400+500+100+10)s / 2 = 1005s, so 10% is 100.5s.
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/big":600000,"example.org/near":300000,"example.org/small":3000,"example.org/gone":900000}}`)
+	shard0 := write(t, "shard-0.json", passed("example.org/big", "1000")+passed("example.org/near", "400"))
+	shard1 := write(t, "shard-1.json", passed("example.org/new", "500")+passed("example.org/small", "100")+passed("example.org/tiny", "10"))
+	summary := write(t, "summary.md", "earlier step\n")
+	var out bytes.Buffer
+	code, err := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--summary", summary, shard0, shard1}, &out)
+	if code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	// near drifts by 100s (ratio 1.33, under 10%): not reported. big drifts by 400s within
+	// factor 2 but over 10%: material. new is a material missing package; small drifts beyond
+	// factor 2 but is not material; tiny is a minor missing package; gone is stale, never material.
+	wantOut := "::warning title=CI shard cost drift::missing example.org/new observed=500000ms misplaces 500.0s (50%25 of the ideal shard); refresh " + table + " (AFP-V0-040)\n" +
+		"::warning title=CI shard cost drift::drift example.org/big recorded=600000ms observed=1000000ms misplaces 400.0s (40%25 of the ideal shard); refresh " + table + " (AFP-V0-040)\n" +
+		"::warning title=CI shard cost drift::3 further findings (1 drift, 1 missing, 1 stale); see the job summary (AFP-V0-040)\n"
+	if out.String() != wantOut {
+		t.Fatalf("annotations:\n%s", out.String())
+	}
+	got, _ := os.ReadFile(summary)
+	for _, want := range []string{
+		"earlier step\n### CI shard cost table drift (advisory, AFP-V0-040)\n",
+		"2 shard logs, 5 packages, 2010.0s observed; ideal shard 1005.0s. A finding is material when it misplaces at least 10% of the ideal shard (100.5s).",
+		"| **missing** (material) | `example.org/new` | - | 500.0s | 500.0s | 49.8% |\n| **drift** (material) | `example.org/big` | 600.0s | 1000.0s | 400.0s | 39.8% |\n| drift | `example.org/small` | 3.0s | 100.0s | 97.0s | 9.7% |\n| missing | `example.org/tiny` | - | 10.0s | 10.0s | 1.0% |\n| stale | `example.org/gone` | 900.0s | - | 0.0s | 0.0% |\n",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("summary lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(string(got), "example.org/near") {
+		t.Fatalf("immaterial drift within factor reported:\n%s", got)
+	}
+
+	// A stated share applies; a clean table reports no finding.
+	out.Reset()
+	if code, _ := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--share", "50", shard0, shard1}, &out); code != 0 || strings.Count(out.String(), "::warning") != 1 {
+		t.Fatalf("share 50: code=%d out:\n%s", code, out.String())
+	}
+	clean := filepath.Join(t.TempDir(), "clean.json")
+	if code, err := run("refresh", []string{"--table", clean, "--revision", revision, "--run-url", runURL, shard0, shard1}, nil); code != 0 || err != nil {
+		t.Fatal(code, err)
+	}
+	out.Reset()
+	cleanSummary := filepath.Join(t.TempDir(), "clean.md")
+	if code, err := run("check", []string{"--table", clean, "--advisory", "--shards", "2", "--summary", cleanSummary, shard0, shard1}, &out); code != 0 || err != nil || out.Len() != 0 {
+		t.Fatalf("clean: code=%d err=%v out=%s", code, err, out.String())
+	}
+	if got, _ := os.ReadFile(cleanSummary); !strings.Contains(string(got), "No drift, missing or stale package.") {
+		t.Fatalf("clean summary:\n%s", got)
+	}
+}
+
+func TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit(t *testing.T) {
+	var table, log strings.Builder
+	table.WriteString(`{"profile":"corvint-ci-package-costs/0","source":{"revision":"` + revision + `","runURL":"` + runURL + `","goVersion":"go1.27.1"},"milliseconds":{"example.org/kept":1000}}`)
+	log.WriteString(passed("example.org/kept", "1"))
+	for i := range 12 {
+		log.WriteString(passed("example.org/new"+string(rune('a'+i)), "100"))
+	}
+	var out bytes.Buffer
+	if code, err := run("check", []string{"--table", write(t, "costs.json", table.String()), "--advisory", "--shards", "1", "--share", "5", write(t, "log", log.String())}, &out); code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	if n := strings.Count(out.String(), "::warning"); n != maxWarnings || !strings.Contains(out.String(), "3 further findings (0 drift, 3 missing, 0 stale)") {
+		t.Fatalf("%d warnings:\n%s", n, out.String())
+	}
+}
+
+// AFP-V0-040: strict validation admits every event a passing `go test -json` run emits.
+func TestAFPV0040AdvisoryAcceptsAFullEventStream(t *testing.T) {
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":1000,"example.org/b":1}}`)
+	log := write(t, "shard-0.json", `{"ImportPath":"example.org/a","Action":"build-output","Output":"# example.org/a\n"}
+{"Time":"2026-10-10T13:19:03Z","Action":"start","Package":"example.org/a"}
+
+{"Action":"run","Package":"example.org/a","Test":"TestA"}
+{"Action":"output","Package":"example.org/a","Test":"TestA","Output":"=== RUN   TestA\n","OutputType":"frame"}
+{"Action":"attr","Package":"example.org/a","Test":"TestA","Key":"k","Value":"v"}
+{"Action":"artifacts","Package":"example.org/a","Test":"TestA","Path":"/tmp/artifacts/TestA"}
+{"Action":"pause","Package":"example.org/a","Test":"TestA"}
+{"Action":"start","Package":"example.org/b"}
+{"Action":"cont","Package":"example.org/a","Test":"TestA"}
+{"Action":"bench","Package":"example.org/a","Test":"BenchmarkA","Output":"x"}
+{"Action":"skip","Package":"example.org/a","Test":"TestSkipped","Elapsed":0}
+{"Action":"pass","Package":"example.org/a","Test":"TestA","Elapsed":1}
+{"Action":"output","Package":"example.org/a","Output":"ok\n"}
+{"Action":"pass","Package":"example.org/a","Elapsed":1}
+{"Action":"output","Package":"example.org/b","Output":"?   \texample.org/b\t[no test files]\n"}
+{"Action":"skip","Package":"example.org/b","Elapsed":0}
+`)
+	var out bytes.Buffer
+	if code, err := run("check", []string{"--table", table, "--advisory", "--shards", "1", log}, &out); code != 0 || err != nil || out.Len() != 0 {
+		t.Fatalf("code=%d err=%v out=%s", code, err, out.String())
+	}
+}
+
+// AFP-V0-040: input that cannot stand for one complete run abstains with its reason.
+func TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput(t *testing.T) {
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":1000}}`)
+	pass := write(t, "shard-0.json", passed("example.org/a", "900"))
+	b := passed("example.org/b", "1")
+	for name, tc := range map[string]struct {
+		args   []string
+		reason string
+	}{
+		"partial-run":      {[]string{"--table", table, pass}, "1 of 2 shard logs present"},
+		"missing-artifact": {[]string{"--table", table, pass, filepath.Join(t.TempDir(), "shard-1.json")}, "no such file"},
+		"failed-package":   {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"fail","Package":"example.org/b","Elapsed":1}`+"\n")}, "package example.org/b failed"},
+		"invalid-table":    {[]string{"--table", write(t, "bad.json", `{"profile":"bad"}`), pass, write(t, "shard-1.json", b)}, "cost table is invalid"},
+		// Each of these has a valid table and a valid other shard, so only the stream decides.
+		"empty-log":        {[]string{"--table", table, pass, write(t, "shard-1.json", "")}, "shard-1.json: no terminal package outcome"},
+		"malformed-record": {[]string{"--table", table, pass, write(t, "shard-1.json", b+`{"Action":"output","Package":"example.org/c","Out`+"\n")}, "shard-1.json: line 3 is not a go test -json event"},
+		"prefixed-record":  {[]string{"--table", table, pass, write(t, "shard-1.json", `2026-10-10T13:19:03Z {"Action":"pass","Package":"example.org/b","Elapsed":1}`+"\n")}, "shard-1.json: line 1 is not a go test -json event"},
+		"unfinished":       {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/b"}`+"\n"+`{"Action":"start","Package":"example.org/c"}`+"\n"+`{"Action":"pass","Package":"example.org/c","Elapsed":1}`+"\n")}, "shard-1.json: package example.org/b started without a terminal outcome"},
+		// Syntactically valid JSON that is not a go test -json event of a passing run.
+		"empty-object":      {[]string{"--table", table, pass, write(t, "shard-1.json", b+"{}\n")}, `shard-1.json: line 3 has unknown Action ""`},
+		"unknown-action":    {[]string{"--table", table, pass, write(t, "shard-1.json", b+`{"Action":"finish","Package":"example.org/b"}`+"\n")}, `line 3 has unknown Action "finish"`},
+		"fail-no-package":   {[]string{"--table", table, pass, write(t, "shard-1.json", b+`{"Action":"fail"}`+"\n")}, "shard-1.json: line 3: fail event without Package"},
+		"output-no-package": {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"output","Output":"ok\n"}`+"\n"+b)}, "line 1: output event without Package"},
+		"test-failed":       {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/b"}`+"\n"+`{"Action":"fail","Package":"example.org/b","Test":"TestX","Elapsed":1}`+"\n"+`{"Action":"pass","Package":"example.org/b","Elapsed":1}`+"\n")}, "test TestX of package example.org/b failed"},
+		"build-failed":      {[]string{"--table", table, pass, write(t, "shard-1.json", `{"ImportPath":"example.org/c [example.org/c.test]","Action":"build-fail"}`+"\n"+b)}, "build of example.org/c [example.org/c.test] failed"},
+		"build-no-path":     {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"build-output","Output":"x"}`+"\n"+b)}, "line 1: build-output event without ImportPath"},
+		"outcome-no-start":  {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"skip","Package":"example.org/b","Elapsed":0}`+"\n")}, "package example.org/b has a terminal outcome without a start"},
+		"started-twice":     {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/b"}`+"\n"+b)}, "package example.org/b started twice"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			summary := filepath.Join(t.TempDir(), "summary.md")
+			var out bytes.Buffer
+			code, err := run("check", append([]string{"--advisory", "--shards", "2", "--summary", summary}, tc.args...), &out)
+			got, _ := os.ReadFile(summary)
+			if code != 2 || err == nil || out.Len() != 0 || !strings.Contains(string(got), "Abstained: ") || !strings.Contains(string(got), tc.reason) {
+				t.Fatalf("code=%d err=%v out=%s summary:\n%s", code, err, out.String(), got)
+			}
+		})
+	}
+	for _, args := range [][]string{
+		{"--advisory", "--shards", "0", pass},
+		{"--advisory", "--shards", "1", "--share", "0", pass},
+		{"--advisory", "--shards", "1", "--share", "101", pass},
+	} {
+		if code, err := run("check", append([]string{"--table", table}, args...), nil); code != 2 || err == nil {
+			t.Fatalf("%v: code=%d err=%v", args, code, err)
+		}
+	}
+	if code, err := run("refresh", []string{"--table", table, "--advisory", "--shards", "1", pass}, nil); code != 2 || err == nil {
+		t.Fatalf("advisory refresh: code=%d err=%v", code, err)
+	}
+	if got := escape("50% done\r\nnext"); got != "50%25 done%0D%0Anext" {
+		t.Fatalf("escape=%q", got)
+	}
+}
+
+// passed is one finished package in a raw `go test -json` stream.
+func passed(pkg, elapsed string) string {
+	return `{"Action":"start","Package":"` + pkg + `"}` + "\n" + `{"Action":"pass","Package":"` + pkg + `","Elapsed":` + elapsed + `}` + "\n"
+}

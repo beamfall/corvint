@@ -14,7 +14,7 @@ import (
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
 	playwright                                                                                                        playwrightCorpusOptions
-	apply                                                                                                             bool
+	apply, check                                                                                                      bool
 	limit, offset                                                                                                     int
 }
 
@@ -45,11 +45,12 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			return o, true, argumentError("duplicate corpus option")
 		}
 		seen[flag] = true
-		if flag == "--apply" {
+		if flag == "--apply" || flag == "--check" {
 			if inline {
-				return o, true, argumentError("--apply takes no value")
+				return o, true, argumentError(flag + " takes no value")
 			}
-			o.apply = true
+			o.apply = o.apply || flag == "--apply"
+			o.check = o.check || flag == "--check"
 			continue
 		}
 		if flag == "--limit" || flag == "--offset" {
@@ -86,7 +87,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	allowed := map[string]string{
 		"manifest": "--revision --scope --timestamp", "build": "--manifest", "render": "--artifact",
-		"behavior-adapter":    "--input --previous",
+		"behavior-adapter":    "--input --previous --check",
 		"behavior-provider":   "--input",
 		"discover-playwright": "--migration --config --playwright-list --receipt",
 		"witness-playwright":  "--input --receipt-input --report",
@@ -139,8 +140,21 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	o.root, err = resolveExplicitRoot(o.root)
 	return o, true, err
 }
+
+// errCorpusCheckRefused marks a behavior-adapter check report that lists
+// refusals; the report is still the command output.
+var errCorpusCheckRefused = errors.New("behavior adapter check refused")
+
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
 	data, err := compileCorpus(ctx, o)
+	if errors.Is(err, errCorpusCheckRefused) {
+		// DCP-V1-044: a refused check still prints its full report.
+		if _, err := stdout.Write(data); err != nil {
+			emitCorpusError(stderr, err)
+			return 2
+		}
+		return 1
+	}
 	if err != nil {
 		emitCorpusError(stderr, err)
 		return 2
@@ -207,6 +221,14 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
+		}
+		if o.check {
+			report := doccorpus.CheckBehaviorAdapter(request, previous)
+			data, err := doccorpus.Encode(report)
+			if err == nil && !report.Accepted {
+				err = errCorpusCheckRefused
+			}
+			return data, err
 		}
 		result, err := doccorpus.BuildBehaviorAdapter(request, previous)
 		if err != nil {

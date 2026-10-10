@@ -106,6 +106,15 @@ corvint-tasks complete --attempt "$attempt" --generation "$generation" --request
 corvint-tasks receipt audit
 ```
 
+The commit counts as integrated when the local intent branch contains it or, when that branch is
+behind, when the branch's configured upstream is a remote-tracking ref (for example
+`refs/remotes/origin/main`) that contains it. `complete` never fetches and never moves a branch, so
+a checked-out `main` with unrelated staged work can stay where it is: run `git fetch` so the
+remote-tracking ref includes the merged commit, then complete again. A commit in neither refuses
+`STALE_TREE` with `COMMIT_NOT_INTEGRATED`, and the detail names both refs checked (or says no
+upstream is configured); `STALE_TREE` alone means the commit's tree is not the candidate or an
+extra repository's candidate is not integrated (CAL-V0-017, CAL-V0-087).
+
 The gate worktree must be clean. Resubmitting invalidates earlier gate results. `complete-manual`
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes
 only the `releaseReasonCodes` returned by `help` (for example `GATE_FAILED`); free prose refuses.
@@ -662,6 +671,37 @@ Remaining zero still permits an initial claim or an eligible clean handoff. Reas
 EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remains UNKNOWN and
 reasonHistory INCOMPLETE. Only charged readmission increments a bucket. New acceptance resets
 debt, clean handoff preserves it and policy updates change the bound without erasing history.
+
+## Diagnose a stuck queue
+
+`corvint-tasks doctor [--refresh] [--plugins DIR]` is an advisory pure read (proposed
+TQD-V0-001..012, GitHub #715). It scans at most 4096 receipts from the last 7 days and reports
+`summary` (free and total pool lanes, running sessions, completions in 24 hours, alerts) and
+`findings`, each with `kind`, `source`, `who`, `detail`, `remedy`, `firstSeen`, `ageSeconds` and
+`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs),
+REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RECOVERY (an
+allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
+core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor
+still has a live descendant). `scan.truncated` marks a partial scan.
+
+`--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
+timeout and 64 KiB of stdout, in its own process group, which is killed once the plugin exits, so
+no background child outlives the doctor. A directory holding more than 4096 entries runs no
+plugin. A plugin prints one JSON array of at most 64
+`{"kind","who","detail"[,"remedy"]}` objects; its findings appear with source `plugin:NAME` and
+the envelope is marked untrusted. A failing plugin becomes a PLUGIN_FAILED finding.
+
+Only `--refresh` writes, and only `<git common dir>/taskman-doctor/summary.json`, at most
+1 MiB (trailing findings are cut and `scan.findingsTruncated` is set). It refuses
+UNSUPPORTED_FILESYSTEM when that directory or file is a link or not the caller's own, and
+UNSUPPORTED_VERSION, leaving the file unchanged, when a later build wrote it. On darwin and
+linux it works through one open descriptor on the cache directory and holds an exclusive lock on
+`taskman-doctor/.lock` while it re-checks and replaces the file. On a store whose tracked intent is
+valid but whose local journal is absent, `doctor` refuses MISSING_EVIDENCE.
+`corvint-tasks doctor --line` prints one plain-text status line from that cache, such as
+`lanes 1/2 free | sessions 3 | 24h 5 done | alerts 1`, with `| stale Nm` once the cache is
+15 minutes old; it takes no lock, reads no store or queue manifest and exits 1 when the cache is unavailable.
+Findings carry no authority: nothing claims, releases, reaps or holds because of them.
 
 ## Upgrade the binary with live attempts
 

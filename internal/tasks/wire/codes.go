@@ -18,6 +18,11 @@ const CodeBudgetExceeded = "BUDGET_EXCEEDED"
 const CodeBudgetUnknown = "BUDGET_UNKNOWN"
 const CodeCapabilityUnavailable = "CAPABILITY_UNAVAILABLE"
 const CodeCemMissing = "CEM_MISSING"
+
+// CodeCommitNotIntegrated accompanies STALE_TREE when complete's commit is
+// reachable from neither the intent branch nor its remote-tracking upstream
+// (CAL-V0-017, V1-1081), separating it from a commit tree mismatch.
+const CodeCommitNotIntegrated = "COMMIT_NOT_INTEGRATED"
 const CodeContaminated = "CONTAMINATED"
 const CodeCoverageUnknown = "COVERAGE_UNKNOWN"
 const CodeCutoverInProgress = "CUTOVER_IN_PROGRESS"
@@ -105,7 +110,7 @@ const CodeUnsupportedVersion = "UNSUPPORTED_VERSION"
 var Codes = []string{
 	CodeAdjudication, CodeAdoptUnsupportedField, CodeApprovalMissing, CodeApprovalRevoked,
 	CodeAttemptLive, CodeBootFenced, CodeBootTimeout, CodeBudgetExceeded, CodeBudgetUnknown,
-	CodeCapabilityUnavailable, CodeCemMissing, CodeContaminated, CodeCoverageUnknown,
+	CodeCapabilityUnavailable, CodeCemMissing, CodeCommitNotIntegrated, CodeContaminated, CodeCoverageUnknown,
 	CodeCutoverInProgress, CodeCutoverMissing, CodeCycle, CodeDependencyMissing,
 	CodeDependencyUnsatisfied, CodeDevelopmentMode, CodeDirtyWorktree, CodeDocsMissing,
 	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,

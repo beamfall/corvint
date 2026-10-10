@@ -149,8 +149,8 @@ Versioned assets are on the [releases page](https://github.com/beamfall/corvint/
 native archive needs Git but no Go compiler; verify both the downloaded archive and its internal
 checksums before running it. Read the exact platform's qualification, including native versus
 emulated runs. Tasks has its own developer release; source companions are not automatically
-included in a Core archive. Source builds of `main` also report `1.0.0-rc.2` and carry fixes made
-after that tag. Like rc.1, rc.2 is unsigned, and 1.0 will be too: `SHA256SUMS` only, publisher
+included in a Core archive. Source builds of `main` report `1.0.0-rc.3`, an unreleased candidate
+label, and carry fixes made after the rc.2 tag (decision 0486). Like rc.1, rc.2 is unsigned, and 1.0 will be too: `SHA256SUMS` only, publisher
 identity `NOT_VERIFIED` (decision 0433). The [installation guide](docs/INSTALL.md) covers checks, first use,
 optional tools, upgrades and removal.
 

@@ -144,10 +144,11 @@ func TestAffectedPlaywrightDiscoveryProducer_GH709(t *testing.T) {
 	writePlaywrightCLIFile(t, root, "playwright.config.ts", `import { defineConfig, devices } from '@playwright/test';
 
 const authFile = 'playwright/.auth/user.json';
+const server = { baseURL: 'http://localhost:3000' };
 
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' },
+  use: { baseURL: server.baseURL, trace: 'on-first-retry' },
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     { name: 'chromium', use: { ...devices['Desktop Chrome'], storageState: authFile }, dependencies: ['setup'] },

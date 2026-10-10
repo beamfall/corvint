@@ -1,0 +1,80 @@
+{
+  "baseRevision": "1786d9dac5ce7ee80047840d3b8501ce87678c78",
+  "evidence": [
+    {
+      "blobOid": "ef09aeb8c693ae15fdf498658960d291517a94c1",
+      "id": "evidence:sha256:0a952fa556297404be126b0de9da0ee55855066cc24e6abc8baf18847377ce34",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 118976,
+        "start": 118389
+      },
+      "spanSha256": "bf3f203788154e6c6f7b8cede077a4430b1e1f699d35ef157430d45ec187b26e"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a952fa556297404be126b0de9da0ee55855066cc24e6abc8baf18847377ce34",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a64747920b1202e9681c9da03722420310c1b3a9375681b95f686825de8a994a",
+      "newRange": {
+        "count": 26,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 3
+      },
+      "path": "internal/tasks/supervisor/identity_linux.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a952fa556297404be126b0de9da0ee55855066cc24e6abc8baf18847377ce34",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f19ee749fd51f95ebf89cab8874eae81e6ae1a0aa509ef807ea0b1e45b1f9755",
+      "newRange": {
+        "count": 8,
+        "start": 54
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 43
+      },
+      "path": "internal/tasks/supervisor/identity_linux.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a952fa556297404be126b0de9da0ee55855066cc24e6abc8baf18847377ce34",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1ba35e09dfc60527f2299bb61a58d8ee24c7c05cd8ac40a53d6d3e4cb72fb4d2",
+      "newRange": {
+        "count": 46,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/supervisor/identity_linux_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a92031d301d0f478ae5ea6be2841c163a9cb51a8254feb2de6e8560c28c0c6f1",
+  "spec": "cem/0.2"
+}

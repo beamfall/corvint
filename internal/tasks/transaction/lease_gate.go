@@ -23,7 +23,10 @@ var gateVerbs = map[string]bool{LeaseSubmit: true, LeaseGateRun: true, LeaseComp
 // gateFacts are the caller's observations for the S5 verbs. ChangedPaths is
 // the rename-free diff from the attempt's base tree to the submitted tree.
 // GateRecord and GateOutput are one gate run, made before the store lock
-// was taken. CommitTree and CommitReachable describe the completing commit.
+// was taken. CommitTree and CommitReachable describe the completing commit;
+// CommitUpstream names the remote-tracking upstream of the intent branch that
+// was also checked ("" when none), and UnintegratedRepository the extra
+// repository whose candidate is not integrated when the intent side is.
 // GateResults holds the bytes of every gate result the attempt names,
 // keyed by digest; each must match its evidence/ file.
 type gateFacts struct {
@@ -31,6 +34,8 @@ type gateFacts struct {
 	GateRecord, GateOutput []byte
 	CommitTree             string
 	CommitReachable        bool
+	CommitUpstream         string
+	UnintegratedRepository string
 	GateResults            map[wire.Digest][]byte
 }
 
@@ -38,6 +43,23 @@ type gateFacts struct {
 // observers construct it.
 func GateFacts(changed []string, record, output []byte, commitTree string, reachable bool, results map[wire.Digest][]byte) LeaseFacts {
 	return LeaseFacts{gateFacts: gateFacts{ChangedPaths: changed, GateRecord: record, GateOutput: output, CommitTree: commitTree, CommitReachable: reachable, GateResults: results}}
+}
+
+// CompleteFacts builds the complete verb's facts: the commit's (composite)
+// tree, whether it is integrated, the upstream ref also checked and the
+// extra repository that is not integrated (CAL-V0-017, CAL-V0-087).
+func CompleteFacts(commitTree string, reachable bool, upstream, unintegrated string, results map[wire.Digest][]byte) LeaseFacts {
+	f := GateFacts(nil, nil, nil, commitTree, reachable, results)
+	f.CommitUpstream, f.UnintegratedRepository = upstream, unintegrated
+	return f
+}
+
+// commitNotIntegrated reports that neither the intent branch nor its
+// remote-tracking upstream contains the commit (A27). completeFacts checks
+// extra repositories only once the intent side is reachable, so an empty
+// UnintegratedRepository on an unreachable commit means the intent side.
+func (f gateFacts) commitNotIntegrated() bool {
+	return !f.CommitReachable && f.UnintegratedRepository == ""
 }
 
 func checkGateFields(l *LeaseRequest) error {
@@ -251,7 +273,7 @@ func (c leaseContext) completionBlocker(a *snapshot.Attempt, rec *ticket.Record)
 	f := c.in.LeaseFacts
 	switch {
 	case !f.CommitReachable:
-		return wire.CodeStaleTree, "commit " + c.l.Commit + " is not reachable from " + c.st.queue.IntentBranch
+		return wire.CodeStaleTree, c.notIntegrated()
 	case f.CommitTree != *a.CandidateTreeOid:
 		return wire.CodeStaleTree, "commit tree " + f.CommitTree + " is not the candidate " + *a.CandidateTreeOid
 	case rec.Status == ticket.StatusHeld:
@@ -266,6 +288,20 @@ func (c leaseContext) completionBlocker(a *snapshot.Attempt, rec *ticket.Record)
 		return wire.CodeOutOfScope, "the scope check is " + a.ScopeCheck
 	}
 	return approvalBlocker(rec)
+}
+
+// notIntegrated names every ref the unreachable commit was checked against
+// and the recovery that moves no checked-out branch (CAL-V0-017, V1-1081).
+func (c leaseContext) notIntegrated() string {
+	f := c.in.LeaseFacts
+	if f.UnintegratedRepository != "" {
+		return "repository " + f.UnintegratedRepository + " candidate is not integrated in its designated integration branch"
+	}
+	local := "refs/heads/" + c.st.queue.IntentBranch
+	if f.CommitUpstream == "" {
+		return "commit " + c.l.Commit + " is not reachable from " + local + ", which has no remote-tracking upstream configured; integrate it into " + local + ", or set that branch's upstream (git branch --set-upstream-to) and fetch it so the remote-tracking ref contains the commit"
+	}
+	return "commit " + c.l.Commit + " is not reachable from " + local + " or its upstream " + f.CommitUpstream + "; fetch the upstream (git fetch) so " + f.CommitUpstream + " contains the commit, then complete again"
 }
 
 // approvalBlocker requires an unrevoked COMPLETE grant at the current
@@ -315,7 +351,13 @@ func planComplete(c leaseContext) leaseOutcome {
 		return c.fail(malformed("attempt names an absent ticket"))
 	}
 	if code, detail := c.completionBlocker(a, rec); code != "" {
-		return c.refuse(mutation.OutcomeBlocked, code, detail)
+		out := c.refuse(mutation.OutcomeBlocked, code, detail)
+		if c.in.LeaseFacts.commitNotIntegrated() {
+			// V1-1081: the second code separates an intent commit that is
+			// not integrated from a tree mismatch or an extra repository.
+			out.result.Outcome.Codes = append(out.result.Outcome.Codes, wire.CodeCommitNotIntegrated)
+		}
+		return out
 	}
 	results, e := c.gateResults(a)
 	if e != nil {

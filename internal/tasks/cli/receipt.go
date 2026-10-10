@@ -2,6 +2,8 @@ package cli
 
 import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -14,6 +16,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	rc, err := withStore(env, func(rc *readCtx) error {
 		observed = nil
 		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
+		reader.ReceiptFold = func() func(*snapshot.Receipt, wire.Digest) error { return store.ReceiptBindingFold(rc.repo) }
 		audited, err := reader.Audit()
 		if err != nil {
 			return err
@@ -21,7 +24,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
 			return wire.Errorf(wire.CodeSnapshotMoved, "receipt audit", "journal and outer snapshot differ")
 		}
-		if err := receiptMaterialBindings(rc.repo, audited.LastSeq); err != nil {
+		if err := receiptMaterialBindings(rc.repo, audited); err != nil {
 			return err
 		}
 		observed = audited

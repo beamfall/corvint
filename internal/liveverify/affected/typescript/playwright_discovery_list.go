@@ -7,9 +7,12 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -74,13 +77,19 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		units = append(units, unit)
 	}
 	sort.Slice(units, func(i, j int) bool { return discoveryUnitLess(units[i], units[j]) })
-	configBytes, err := affected.ReadSource(root, configPath)
-	if err != nil {
-		return nil, errors.New("playwright config is unreadable")
-	}
 	sourceDigest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
 		return nil, err
+	}
+	configBytes, err := affected.ReadSource(root, configPath)
+	if err != nil || !utf8.Valid(configBytes) {
+		return nil, errors.New("playwright config is unreadable")
+	}
+	if err := checkPlaywrightListMembership(root, configPath, configBytes, seen); err != nil {
+		return nil, err
+	}
+	if after, err := ObservePlaywrightSources(root, configPath); err != nil || after != sourceDigest {
+		return nil, errors.New("playwright sources changed while the listing was checked")
 	}
 	sum := sha256.Sum256(configBytes)
 	receipt := PlaywrightDiscovery{
@@ -130,6 +139,9 @@ func validatePlaywrightListing(root, configPath string, listing []byte) (playwri
 	if err != nil {
 		return report, "", fmt.Errorf("repository root is unreadable: %v", err)
 	}
+	if playwrightPathOutsideMatcherModel(root) || playwrightPathOutsideMatcherModel(realRoot) {
+		return report, "", errors.New("repository root path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked")
+	}
 	if listed, ok := playwrightListPath(realRoot, report.Config.ConfigFile); !ok || listed != configPath {
 		return report, "", fmt.Errorf("playwright listing config %q is not %s under the repository root", report.Config.ConfigFile, configPath)
 	}
@@ -139,8 +151,172 @@ func validatePlaywrightListing(root, configPath string, listing []byte) (playwri
 	return report, realRoot, nil
 }
 
+// checkPlaywrightListMembership compares the listed project/file pairs with the pairs the config
+// selects among the current sources through the static profile's testDir/testMatch/testIgnore
+// subset, so a stale or partial listing is refused instead of stamped with the current bindings.
+// Membership that is not static is refused as well; only an unresolved browser identity, which
+// does not decide file membership, is tolerated, and a config without projects is Playwright's
+// one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
+// refused too.
+func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
+	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
+	implicit := false
+	for _, entry := range unknown {
+		switch {
+		case entry.Reason == PlaywrightUnknownBrowserIdentity:
+		case entry.Reason == PlaywrightUnknownProjectSet && entry.Detail == "projects is absent" && len(projects) == 0:
+			implicit = true
+		default:
+			return fmt.Errorf("the config's test membership is not static (%s: %s); the listing cannot be checked against the bound sources", entry.Reason, entry.Detail)
+		}
+	}
+	if implicit {
+		projects = []PlaywrightProject{{TestDir: globalTestDir}}
+	}
+	if err := checkPlaywrightSkippedDirectories(root, configPath, projects, globalTestDir); err != nil {
+		return err
+	}
+	// Candidates are found by path alone, so a test file the static profile cannot parse or read
+	// (.mts, .cts, non-UTF-8) still counts toward membership instead of disappearing from it.
+	candidates, err := affected.SourceFiles(root, playwrightLoadableName)
+	if err != nil {
+		return err
+	}
+	if index := slices.IndexFunc(candidates, playwrightPathOutsideMatcherModel); index >= 0 {
+		return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidates[index])
+	}
+	selected := map[PlaywrightDiscoveryUnit]bool{}
+	readable := map[string]bool{}
+	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
+		if !hasSourceExtension(unit.Test) {
+			return fmt.Errorf("the config selects project %q test %s, which the static profile does not parse; the listing's membership cannot be checked", unit.Project, unit.Test)
+		}
+		if _, checked := readable[unit.Test]; !checked {
+			body, err := affected.ReadSource(root, unit.Test)
+			readable[unit.Test] = err == nil && utf8.Valid(body)
+		}
+		if !readable[unit.Test] {
+			return fmt.Errorf("the config selects project %q test %s, which the static profile cannot read as bounded UTF-8 source; the listing's membership cannot be checked", unit.Project, unit.Test)
+		}
+		selected[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] = true
+	}
+	var extra, missing []PlaywrightDiscoveryUnit
+	for unit := range listed {
+		if !selected[unit] {
+			extra = append(extra, unit)
+		}
+	}
+	for unit := range selected {
+		if !listed[unit] {
+			missing = append(missing, unit)
+		}
+	}
+	less := func(values []PlaywrightDiscoveryUnit) func(i, j int) bool {
+		return func(i, j int) bool { return discoveryUnitLess(values[i], values[j]) }
+	}
+	sort.Slice(extra, less(extra))
+	sort.Slice(missing, less(missing))
+	if len(missing) != 0 {
+		return fmt.Errorf("playwright listing omits project %q test %s (%d pair(s) in all), which the config selects in the current sources; the listing is stale or filtered", missing[0].Project, missing[0].Test, len(missing))
+	}
+	if len(extra) != 0 {
+		return fmt.Errorf("playwright listing names project %q test %s (%d pair(s) in all), which the config does not select in the current sources", extra[0].Project, extra[0].Test, len(extra))
+	}
+	return nil
+}
+
+// checkPlaywrightSkippedDirectories refuses when the config selects a test file inside a directory
+// the shared source walker skips (a hidden directory or one of affected.SkippedDirectories, such as
+// build, dist, vendor or target): Playwright still runs it, but it is outside the bound source
+// digest and the path-based enumeration. node_modules below a testDir is not searched, because
+// Playwright never descends it, and symbolic links are not followed, because Playwright skips them;
+// a testDir that is itself reached through a symbolic link is refused.
+func checkPlaywrightSkippedDirectories(root, configPath string, projects []PlaywrightProject, globalTestDir string) error {
+	directories := map[string]bool{}
+	for _, project := range projects {
+		directory := project.TestDir
+		if directory == "" {
+			directory = globalTestDir
+		}
+		directories[directory] = true
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	inSkipped := map[string]string{}
+	entries := 0
+	for directory := range directories {
+		start := filepath.Join(root, filepath.FromSlash(directory))
+		resolved, err := filepath.EvalSymlinks(start)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // Playwright finds no tests in a missing testDir
+		}
+		if err != nil {
+			return fmt.Errorf("cannot resolve testDir %s: %w", directory, err)
+		}
+		if resolved != filepath.Join(resolvedRoot, filepath.FromSlash(directory)) {
+			return fmt.Errorf("testDir %s is reached through a symbolic link, which the bound source observation does not follow; the listing's membership cannot be checked", directory)
+		}
+		err = filepath.WalkDir(start, func(current string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("%w: %s", affected.ErrWalkUnreadable, current)
+			}
+			if entries++; entries > affected.MaxWalkEntries {
+				return affected.ErrWalkLimit
+			}
+			if entry.IsDir() {
+				if current != start && entry.Name() == "node_modules" {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if !entry.Type().IsRegular() || !playwrightLoadableName(entry.Name()) {
+				return nil
+			}
+			relative, err := filepath.Rel(root, current)
+			if err != nil {
+				return err
+			}
+			relative = filepath.ToSlash(relative)
+			if playwrightPathOutsideMatcherModel(relative) {
+				return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", relative)
+			}
+			if skipped := playwrightSkippedAncestor(relative); skipped != "" {
+				inSkipped[relative] = skipped
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("cannot enumerate testDir %s: %w", directory, err)
+		}
+	}
+	tests := make([]string, 0, len(inSkipped))
+	for test := range inSkipped {
+		tests = append(tests, test)
+	}
+	sort.Strings(tests)
+	if units := playwrightUnits(root, configPath, projects, globalTestDir, tests); len(units) != 0 {
+		return fmt.Errorf("the config selects project %q test %s inside directory %s, which the bound source observation skips; the listing's membership cannot be checked", units[0].Project, units[0].Test, inSkipped[units[0].Test])
+	}
+	return nil
+}
+
+// playwrightSkippedAncestor returns the first ancestor directory of a repository-relative file that
+// the shared source walker does not descend, or "".
+func playwrightSkippedAncestor(relative string) string {
+	components := strings.Split(relative, "/")
+	for index, name := range components[:len(components)-1] {
+		if strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] {
+			return strings.Join(components[:index+1], "/")
+		}
+	}
+	return ""
+}
+
 // unfilteredPlaywrightArgv accepts only `... test` followed by the listing, JSON reporter and
 // config options, so a recorded file, project, grep, shard or changed-only filter is refused.
+// `--list` is required: an execution report applies test.only, which a listing disables.
 func unfilteredPlaywrightArgv(argv []string) error {
 	start := -1
 	for index, value := range argv {
@@ -152,9 +328,12 @@ func unfilteredPlaywrightArgv(argv []string) error {
 	if start < 0 {
 		return errors.New("playwright listing does not record a `playwright test` argv; cannot prove it is unfiltered")
 	}
+	listed := false
 	for index := start + 1; index < len(argv); index++ {
 		switch value := argv[index]; {
-		case value == "--list", value == "--reporter=json", strings.HasPrefix(value, "--config="):
+		case value == "--list":
+			listed = true
+		case value == "--reporter=json", strings.HasPrefix(value, "--config="):
 		case (value == "--reporter" || value == "--config" || value == "-c") && index+1 < len(argv):
 			if value == "--reporter" && argv[index+1] != "json" {
 				return fmt.Errorf("playwright listing argv uses reporter %q; use --reporter=json", argv[index+1])
@@ -163,6 +342,9 @@ func unfilteredPlaywrightArgv(argv []string) error {
 		default:
 			return fmt.Errorf("playwright listing argv has %q; only --list, --reporter=json and --config are allowed so the universe is unfiltered", value)
 		}
+	}
+	if !listed {
+		return errors.New("playwright listing argv lacks --list; an execution report is not a discovery listing")
 	}
 	return nil
 }
@@ -181,8 +363,11 @@ func collectPlaywrightListUnits(realRoot, rootDir, file string, suites []playwri
 			if spec.File != "" {
 				specFile = spec.File
 			}
+			if playwrightPathOutsideMatcherModel(rootDir) || playwrightPathOutsideMatcherModel(specFile) {
+				return fmt.Errorf("playwright listing file %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", specFile)
+			}
 			test, ok := playwrightListPath(realRoot, filepath.Join(rootDir, filepath.FromSlash(specFile)))
-			if !ok || !hasSourceExtension(test) {
+			if !ok || !hasSourceExtension(test) || playwrightPathOutsideMatcherModel(test) {
 				return fmt.Errorf("playwright listing file %q under rootDir is not a repository-relative source path", specFile)
 			}
 			for _, entry := range spec.Tests {

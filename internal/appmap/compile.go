@@ -205,6 +205,7 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 			return bound(fmt.Sprintf("more than %d router states", maxStates))
 		}
 	}
+	b.out.Unknowns = append(b.out.Unknowns, consts.diag...)
 	screens, unknowns := resolveScreens(b.m.App, raws)
 	b.out.Screens = screens
 	b.out.Unknowns = append(b.out.Unknowns, unknowns...)
