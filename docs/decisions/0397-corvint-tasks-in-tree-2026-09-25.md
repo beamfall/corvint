@@ -191,3 +191,23 @@ Core package. `TestImportViolationControls` keeps negative controls for
 importing `internal/gitstatus`, and a positive control for the admitted edge. Rule 5 needs no change
 because `internal/secretscreen` is already in the source-archive subset (V1-0456). Rollback is
 reverting the expected-fail excerpt screen and removing this one-file edge; the other edges stay.
+
+## PGO-V0-009 addendum — Tasks pre-reap group kill (proposed)
+
+Status: proposed, pending owner acceptance. Agent decision, 2026-10-10, made while repairing CI for
+the RC3 process-group lane (PR #749, V1-1036, V1-1047, V1-1056); it is not a direct owner statement.
+Decision 0492 accepted `PGO-V0-009`, whose clause (c) runs the tasks doctor plugin through
+`groupreap.Contain` and `groupreap.Run` and whose clause (a) kills the task-store lease gate and pool
+groups only while the exited leader is held unreaped. Those paths need the waitid pre-reap step in
+`internal/groupreap`; a second copy under `internal/tasks/` would drift from the reviewed Owner
+code, and routing it through `internal/tasks/dispatch` would make the dispatcher edge a general
+façade and add a store-to-dispatcher dependency. Rule 2 would gain one more exact edge, limited to
+three files: `internal/tasks/cli/doctor.go`, `internal/tasks/store/gate_reap_waitid.go` and
+`internal/tasks/store/pool_process_unix.go` may import `internal/groupreap`. The rest of
+`internal/tasks/cli` and `internal/tasks/store` stay refused, and these files admit no other Core
+package. `TestImportViolationControls` keeps negative controls for `doctor_unix.go`,
+`gate_reap_nowaitid.go` and `lease_gate.go` importing `internal/groupreap` and for another Core
+package imported from the admitted files, and positive controls for the three admitted edges. Rule 5
+needs no change because `internal/groupreap` is already in the source-archive subset. Rollback is
+reverting the PGO-V0-009 doctor and store callers and removing this three-file edge; the other edges
+stay.

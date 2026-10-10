@@ -205,3 +205,33 @@ func TestPGOV0009ProcGroupLiveUsesTheQuietProof(t *testing.T) {
 		t.Fatalf("unreadable table: live = %v, err = %v", live, err)
 	}
 }
+
+// The /proc scan visits every process on the host, so its allocation per
+// visited entry must stay small: the dashboard's malformed-Git-output bound
+// (TestAuthorityCapsMalformedGitTranscriptAllocation) runs several scans per
+// command, and a stat buffer and field slice per entry overran it on a busy
+// host.
+func TestPGOV0009ProcScanAllocationPerEntryIsBounded(t *testing.T) {
+	const parent, leader, others = 50, 100, 400
+	f := newFakeProc(t)
+	f.process(leader, "sh", 'Z', parent, leader)
+	for pid := 1000; pid < 1000+others; pid++ {
+		f.process(pid, "other", 'S', 1, pid)
+	}
+	result := testing.Benchmark(func(b *testing.B) {
+		for range b.N {
+			if live, err := procGroupLive(f.root, leader, parent); live || err != nil {
+				b.Fatalf("live = %v, err = %v", live, err)
+			}
+		}
+	})
+	perEntry := result.AllocedBytesPerOp() / others
+	t.Logf("scan allocated %d bytes per entry", perEntry)
+	if perEntry > 1536 {
+		t.Fatalf("scan allocated %d bytes per entry (%d per scan)", perEntry, result.AllocedBytesPerOp())
+	}
+	stat := []byte("1234 (a (b) c) S 1 1234 1234 0 -1 4194304\n")
+	if allocs := testing.AllocsPerRun(100, func() { _, _ = parseProcStat(stat, 1234) }); allocs != 0 {
+		t.Fatalf("parseProcStat allocated %.0f times", allocs)
+	}
+}

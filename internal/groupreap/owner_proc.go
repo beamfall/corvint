@@ -46,8 +46,11 @@ func procGroupQuiet(root string, leader, parent int) (Probe, error) {
 		return ProbeLive, err
 	}
 	sawLeader := false
+	// One stat buffer serves the whole scan, so its allocation does not grow
+	// with the host's process count.
+	buf := make([]byte, maxProcStat+1)
 	live, err := procEachEntry(root, func(pid int) (bool, error) {
-		stat, err := readProcStat(filepath.Join(root, strconv.Itoa(pid), "stat"), pid)
+		stat, err := readProcStatInto(filepath.Join(root, strconv.Itoa(pid), "stat"), pid, buf)
 		if procVanished(err) {
 			return false, nil
 		}
@@ -155,7 +158,12 @@ func procVanished(err error) bool {
 }
 
 func readProcStat(path string, pid int) (procStat, error) {
-	data, err := readProcFile(path, maxProcStat)
+	return readProcStatInto(path, pid, make([]byte, maxProcStat+1))
+}
+
+// readProcStatInto is readProcStat reading into buf, of maxProcStat+1 bytes.
+func readProcStatInto(path string, pid int, buf []byte) (procStat, error) {
+	data, err := readProcFileInto(path, buf)
 	if err != nil {
 		return procStat{}, err
 	}
@@ -164,12 +172,18 @@ func readProcStat(path string, pid int) (procStat, error) {
 
 // readProcFile reads at most limit bytes; a longer file is a proof failure.
 func readProcFile(path string, limit int) ([]byte, error) {
+	return readProcFileInto(path, make([]byte, limit+1))
+}
+
+// readProcFileInto reads at most len(buf)-1 bytes into buf; a longer file is
+// a proof failure. The returned slice aliases buf.
+func readProcFileInto(path string, buf []byte) ([]byte, error) {
+	limit := len(buf) - 1
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	buf := make([]byte, limit+1)
 	n, err := io.ReadFull(f, buf)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return nil, err
@@ -181,27 +195,41 @@ func readProcFile(path string, limit int) ([]byte, error) {
 }
 
 // parseProcStat reads "pid (comm) state ppid pgrp ..."; comm may itself hold
-// parentheses, so the fields follow the last ')'.
+// parentheses, so the fields follow the last ')'. Only the first three fields
+// are split out, and the error is built only on failure, so a scan of every
+// process allocates nothing per well-formed entry here.
 func parseProcStat(data []byte, pid int) (procStat, error) {
-	malformed := fmt.Errorf("%w: malformed stat for %d", errProcProof, pid)
+	malformed := func() error { return fmt.Errorf("%w: malformed stat for %d", errProcProof, pid) }
 	start, end := bytes.IndexByte(data, '('), bytes.LastIndexByte(data, ')')
 	if start < 1 || end < start {
-		return procStat{}, malformed
+		return procStat{}, malformed()
 	}
 	if got, err := strconv.Atoi(string(bytes.TrimSpace(data[:start]))); err != nil || got != pid {
-		return procStat{}, malformed
+		return procStat{}, malformed()
 	}
-	fields := bytes.Fields(data[end+1:])
-	if len(fields) < 3 || len(fields[0]) != 1 {
-		return procStat{}, malformed
+	var fields [3][]byte
+	rest := data[end+1:]
+	for i := range fields {
+		rest = bytes.TrimLeft(rest, procStatSpace)
+		cut := bytes.IndexAny(rest, procStatSpace)
+		if cut < 0 {
+			cut = len(rest)
+		}
+		fields[i], rest = rest[:cut], rest[cut:]
+	}
+	if len(fields[2]) == 0 || len(fields[0]) != 1 {
+		return procStat{}, malformed()
 	}
 	ppid, err1 := strconv.Atoi(string(fields[1]))
 	pgrp, err2 := strconv.Atoi(string(fields[2]))
 	if err1 != nil || err2 != nil {
-		return procStat{}, malformed
+		return procStat{}, malformed()
 	}
 	return procStat{pid: pid, ppid: ppid, pgrp: pgrp, state: fields[0][0]}, nil
 }
+
+// procStatSpace is the ASCII white space bytes.Fields splits on.
+const procStatSpace = " \t\n\v\f\r"
 
 // ProcGroupLive reports, from /proc, whether the group led by leader, this
 // process's child, has a live member (PGO-V0-006, PGO-V0-009). A running
