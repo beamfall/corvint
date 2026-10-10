@@ -40,8 +40,8 @@ This RC3 cut lane fixes two Corvint Tasks correctness bugs under decision 0493.
 Each regression test fails on base `64b5d174` and passes with the fix, run with `-race`:
 
 - `TestCALV0024_ExactPathKeyNamesTheDirectoryKeyCause`. On base, the refusal named only
-  `docs/build-log/entry.md`. With the fix, it names the key. A `docs/build-log/` key admits the
-  same tree.
+  `docs/build-log/entry.md`. With the fix, it names the key. After the attempt widens to
+  `docs/build-log/`, the same candidate against the same base submits.
 - `TestCALV0074_WorkerRecoveryFromStopping`. A child owner exits at `refresh:STOPPING` with the
   worker recorded. On base, the reopen was refused `MALFORMED` and the program stayed `STOPPING`.
   With the fix, it records `FINISHED`/`PROVED` at epoch plus one with usage unobserved.

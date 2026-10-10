@@ -5,17 +5,19 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // TestCALV0024_ExactPathKeyNamesTheDirectoryKeyCause: a PATH key without a
 // trailing "/" names one path, so submit refuses OUT_OF_SCOPE for a file
 // beneath it and names that key and the directory-key rule, without writing;
-// the same tree is within a directory key ending in "/" (CAL-V0-021,
-// CAL-V0-024, V1-1090).
+// once the attempt widens to the directory key ending in "/", the same
+// candidate against the same base is within scope (CAL-V0-021, CAL-V0-024,
+// V1-1090).
 func TestCALV0024_ExactPathKeyNamesTheDirectoryKeyCause(t *testing.T) {
 	s := newGateStore(t)
-	one, two := s.ticket(t, "one"), s.ticket(t, "two")
+	one := s.ticket(t, "one")
 	claim := s.claim(t, "claim-1", one, 0, "docs/build-log", "src/a.go")
 	gitRun(t, s.root, "checkout", "-q", "-b", "agent")
 	_, tree := s.commit(t, "docs/build-log/entry.md", "src/a.go")
@@ -29,10 +31,12 @@ func TestCALV0024_ExactPathKeyNamesTheDirectoryKeyCause(t *testing.T) {
 	if storeDigest(t, s.repo) != before {
 		t.Fatal("refused submit wrote")
 	}
-	s.lease(t, "release-1", releaseOf(claim), 2, nil)
-	dir := s.claim(t, "claim-2", two, 3, "docs/build-log/", "src/a.go")
-	if r := s.lease(t, "submit-2", submitOf(dir, tree), 4, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("directory key submit: %+v", r)
+	widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: claim.AttemptID, Generation: claim.Generation, Scope: []string{"docs/build-log/"}}
+	if r := s.lease(t, "widen-1", widen, 2, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("widen to the directory key: %+v", r)
+	}
+	if r := s.lease(t, "submit-2", submitOf(claim, tree), 3, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("directory key submit of the same candidate: %+v", r)
 	}
 	auditOK(t, s.repo)
 }
