@@ -17,6 +17,7 @@ import (
 // with a changed block keeps both byte-identical without bumping
 // acceptanceRevision for them.
 func TestCTSV0007_ReimportKeepsRefinedPoolAndRoles(t *testing.T) {
+	t.Parallel()
 	tmp := fixture.TempRepo(t)
 	q := fixture.QueueValue()
 	q.Obj.Set("canonicalWriter", str("ROADMAP"))

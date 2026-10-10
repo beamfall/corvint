@@ -169,6 +169,7 @@ func TestGH494_TimedOutClaimReplaysExactly(t *testing.T) {
 // each lease transaction a command runs, including a claim's reaps, and
 // never changes what the command writes.
 func TestGH494_LeaseTimingSumsEveryTransaction(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	l := claimOf(one, "src/")

@@ -117,6 +117,7 @@ func storeDigest(t *testing.T, repo *intent.Repository) wire.Digest {
 // CREATE reaches the journal, publishes the projection and allocates a
 // serial, and the ticket is then readable from the intent store.
 func TestTMV0005_AS02_CreateCommitsATicket(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	report := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	if report.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -152,6 +153,7 @@ func TestTMV0005_AS02_CreateCommitsATicket(t *testing.T) {
 // half of AS-02: a refine names the revision the create produced and the
 // post record advances exactly one revision.
 func TestTMV0005_AS02_RefineChainsFromTheCommittedRevision(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	refined := mutate(t, repo, envelope("req-refine", mutation.OpRefine, created.Ticket, "1", obj("title", str("Refined"))))
@@ -167,6 +169,7 @@ func TestTMV0005_AS02_RefineChainsFromTheCommittedRevision(t *testing.T) {
 // AS-02 conflict: a mutation naming a superseded revision is refused and
 // nothing anywhere is written, not even a receipt.
 func TestTMV0005_AS02_StaleExpectedRevisionLeavesTheStoreByteIdentical(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	mutate(t, repo, envelope("req-refine", mutation.OpRefine, created.Ticket, "1", obj("title", str("Refined"))))
@@ -188,6 +191,7 @@ func TestTMV0005_AS02_StaleExpectedRevisionLeavesTheStoreByteIdentical(t *testin
 // the real request index: the same envelope bytes replay the original
 // outcome and write no second receipt.
 func TestTMV0006_AS03_IdenticalRetryReplays(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	env := envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket"))
 	first := mutate(t, repo, env)
@@ -212,6 +216,7 @@ func TestTMV0006_AS03_IdenticalRetryReplays(t *testing.T) {
 // the request id is the idempotency key, so reusing it for other bytes is a
 // conflict rather than a second commit.
 func TestTMV0006_AS03_SameRequestIDDifferentBytesConflicts(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	before := storeDigest(t, repo)
@@ -229,6 +234,7 @@ func TestTMV0006_AS03_SameRequestIDDifferentBytesConflicts(t *testing.T) {
 // the real journal and checks that each step carries its own §3.1 receipt
 // kind: a tombstone is an ARCHIVE, and undoing it is a RESTORE.
 func TestTMV0004_AS05_HoldsArchiveAndRestore(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	id := created.Ticket
@@ -268,6 +274,7 @@ func TestTMV0004_AS05_HoldsArchiveAndRestore(t *testing.T) {
 // cleanup for a transaction that both links and renames: a slot consumed by
 // a rename is gone, and every other slot it used is removed.
 func TestTMV0009_AS11_MutationLeavesNoUnassignedStageSlot(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	entries, err := os.ReadDir(filepath.Join(repo.StateDir, "staging"))
@@ -288,6 +295,7 @@ func TestTMV0009_AS11_MutationLeavesNoUnassignedStageSlot(t *testing.T) {
 // before its post files and head were written. The next transaction must
 // finish it, because the receipt is a self-contained redo record.
 func TestTMV0009_AS11_RedoCompletesAPendingReceipt(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	head := filepath.Join(repo.StateDir, "head.json")
 	genesis, err := os.ReadFile(head)
@@ -333,6 +341,7 @@ func TestTMV0009_AS11_RedoCompletesAPendingReceipt(t *testing.T) {
 // half of the redo rule: a projection someone edited by hand is reported as
 // diverged, never silently replaced by the pending receipt's bytes.
 func TestTMV0009_AS35_RedoDoesNotOverwriteAnEditedProjection(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	head := filepath.Join(repo.StateDir, "head.json")
 	genesis, err := os.ReadFile(head)
