@@ -398,3 +398,53 @@ Tests, each failing on `b79e9d9a` unless noted:
     elsewhere, devices scalar, devices `viewport.width`.
 - `TestPlaywrightPureExpressionScopedMemberReads`, which is new. In `TestPlaywrightPureExpression`
   the unscoped member-read rows moved from admitted to refused.
+
+## Review round 9
+
+Codex round 9 on `ce716cab` reported three bypasses. Each one is closed by refusing a whole token
+class rather than one more construct, so the check fails closed. When a fix applies, the use-layer
+identity or the matcher becomes non-static: static selection widens and the producer refuses.
+
+- Escaped identifiers (P1, `TJAA-V0-018`). The occurrence scan matched the root name only as
+  written. So `devices['Desktop Chrome'].defaultBrowserType = 'firefox';` rewrote the
+  descriptor, and the `...devices['Desktop Chrome']` spread still resolved to chromium. Now any `\`
+  in code means the file admits neither root, whatever identifier it is in. In code means outside
+  string, template and regular-expression content; there, only an escaped identifier can hold a
+  backslash.
+- Parenthesized `delete` (P1, `TJAA-V0-018`). `delete (devices['Desktop Firefox'].defaultBrowserType);`
+  passed as a read, because the token before the occurrence was `(`. Now any `delete`, `++` or `--`
+  token in code means the file admits neither root, whatever the operand. We also checked whether a
+  parenthesized reference gets the same assignment, compound-assignment and destructuring-target
+  checks as a direct one. It does: every enclosing bracket group is rejected when its close is
+  followed by an assignment operator, `of` or `in`. Rows now pin that for `(x) =`, `((x)) +=`,
+  `[(x)] =`, `({ a: (x) } =`, and `for ((x) of …)` / `for ((x) in …)`.
+- Brace alternative holding `/` (P2, `TJAA-V0-019`). Brace expansion runs before minimatch splits
+  on runs of `/`. So `e2e/{/,x}*.spec.ts` expands to `**/e2e//*.spec.ts`, which matches
+  `e2e/a.spec.ts`, and a stale listing was stamped. Now any brace alternative containing `/` is
+  non-static. The bundled minimatch 3.1.5 matches `/repo/e2e/b.spec.ts` with each of
+  `**/e2e/{/,x}*.spec.ts`, `**/e2e/{x,/}*.spec.ts`, `**/{e2e/,x}b.spec.ts` and
+  `**/{e2e,x}/b.spec.ts`; it does not match `**/{a/,x}e2e/b.spec.ts`.
+
+New cost:
+- A config with a `delete`, `++` or `--` in code anywhere admits neither member-read root. That
+  includes code unrelated to the config, such as a loop counter.
+- So does a config with an escaped identifier anywhere.
+- So does a glob like `{e2e/,x}b.spec.ts`, even though the static model would read it the same way.
+- In every one of these cases the browser identity, or the membership, widens.
+- Strings, templates and regular expressions are unaffected. `'--headed'` or `/a\.spec\.ts$/`
+  beside a root stays admitted, and a positive row pins this.
+
+Tests, each failing on `ce716cab` unless noted:
+- In `TestPlaywrightMemberReadRoots_GH709Round8`:
+  - both exact repros;
+  - the escaped devices root `\u{65}`, the escaped literal root and an escape in an unrelated
+    identifier;
+  - a parenthesized `delete` of a literal member, plus `delete`, `++` and `--` elsewhere in the
+    file;
+  - the parenthesized assignment, compound-assignment, destructuring and for-in/of rows (these
+    already passed and are pinned);
+  - two positive rows.
+- The brace repro as a stale-listing row in `TestPlaywrightDiscoveryFromListMembership_V1_1066`.
+- `tests/{/,x}*.spec.ts` and `{tests/,x}a.spec.ts` widen rows in
+  `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden` (each narrowed before).
+- Four brace rows in `TestPlaywrightGlobAgreesWithBundledMinimatch`.

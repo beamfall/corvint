@@ -187,7 +187,11 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   dotted or string-literal keys that exist down to a primitive leaf. Every occurrence of either root
   in the file, strings included, MUST be such a read in a read-only position (never an assignment,
   update, `delete` or destructuring target, alias, call or argument of a call such as
-  `Object.defineProperty`), and a file containing the token `eval` admits neither root. Every other
+  `Object.defineProperty`); a parenthesized occurrence gets the same checks, so a
+  parenthesized assignment, compound assignment, destructuring or for-in/of target is refused. A
+  file containing the token `eval`, or in code (outside string, template and regular-expression
+  content) a `delete`, `++` or `--` token or any `\` (only an escaped identifier holds one there),
+  admits neither root, whatever that token's operand. Every other
   member read (`process.env.NAME`, `this.x`, a member of an import from another module, a function
   result or a numeric literal such as `1..x`) MUST keep the identity unresolved. No member read is
   proven primitive: an admitted one is accepted only as a whole value and under the non-coercing
@@ -235,7 +239,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   profile does not model (classes, extglobs, escapes, single-item or range braces, `**` inside a
   component) is not static, and so is a string glob containing `//` (minimatch 3.1.5 splits the
   glob and the path on runs of `/`, so `e2e//*.spec.ts` and a leading `/`, prefixed to `**//`,
-  match paths a literal reading would not), and so is a regular expression with any flag other than `i`, `m` and
+  match paths a literal reading would not) or a brace alternative containing `/` (brace
+  expansion runs first, so `e2e/{/,x}*.spec.ts` can expand to `//`), and so is a regular expression with any flag other than `i`, `m` and
   `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). A regular
   expression body is static only when every construct reads identically in JavaScript without the
   `u` flag and in Go RE2: literal characters; `.`, `^`, `$` and `|`; `(...)` and `(?:...)` groups

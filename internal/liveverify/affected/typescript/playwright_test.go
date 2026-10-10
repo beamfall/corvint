@@ -186,7 +186,9 @@ func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
 		`/a{01}\.spec\.ts$/`, "/\U0001F600?a\\.spec\\.ts$/", "\"**/\U0001F600*.spec.ts\"",
 		// GitHub #709 review round 8: minimatch collapses runs of `/`, and a leading `/` becomes
 		// `**//` once Playwright prefixes `**/`.
-		`"**/tests//*.spec.ts"`, `"tests//a.spec.ts"`, `"/tests/*.spec.ts"`} {
+		`"**/tests//*.spec.ts"`, `"tests//a.spec.ts"`, `"/tests/*.spec.ts"`,
+		// GitHub #709 review round 9: a brace alternative holding `/` can expand to `//`.
+		`"tests/{/,x}*.spec.ts"`, `"{tests/,x}a.spec.ts"`} {
 		root := t.TempDir()
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
@@ -600,7 +602,10 @@ func TestPlaywrightGlobAgreesWithBundledMinimatch(t *testing.T) {
 		}
 	}
 	// minimatch collapses runs of `/` in the glob, so these match in Playwright.
-	for _, glob := range []string{"**/e2e//*.spec.ts", "/repo/e2e/*.spec.ts", "e2e//b.spec.ts", "**/e2e/**//b.spec.ts"} {
+	// GitHub #709 review round 9: brace expansion runs first, so an alternative holding `/` can
+	// introduce `//` (`**/e2e/{/,x}*.spec.ts` matches); any such alternative is refused.
+	for _, glob := range []string{"**/e2e//*.spec.ts", "/repo/e2e/*.spec.ts", "e2e//b.spec.ts", "**/e2e/**//b.spec.ts",
+		"e2e/{/,x}*.spec.ts", "**/e2e/{x,/}*.spec.ts", "**/{e2e/,x}b.spec.ts", "**/{a/,x}e2e/b.spec.ts"} {
 		if _, ok := compilePlaywrightMatcher(`"` + glob + `"`); ok {
 			t.Errorf("%s: a repeated-slash glob was static", glob)
 		}

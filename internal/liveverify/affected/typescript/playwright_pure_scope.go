@@ -21,7 +21,8 @@ import (
 //     deleted, called, destructured into, spread, aliased as an object or shadowed.
 //
 // Every other root (process.env, other imports, globals, `this`, call results) is refused. A
-// config that names `eval` has no admitted roots. Occurrences are found in the comment-stripped
+// config that names `eval`, has a `delete`, `++` or `--` token or a `\` escape in code (only an
+// escaped identifier can hold one there) has no admitted roots, whatever the token's operand. Occurrences are found in the comment-stripped
 // text, string and template contents included, so an unrecognized one fails closed.
 type playwrightPureScope struct {
 	devices  bool
@@ -47,7 +48,7 @@ var (
 func newPlaywrightPureScope(clean string) playwrightPureScope {
 	scope := playwrightPureScope{literals: map[string]playwrightPlainValue{}}
 	lexed, ok := playwrightLex(clean)
-	if !ok || playwrightHasToken(clean, "eval") {
+	if !ok || playwrightHasToken(clean, "eval") || playwrightCodeMutationToken(clean, lexed) {
 		return scope
 	}
 	if match := playwrightDevicesImport.FindStringSubmatchIndex(clean); match != nil && lexed.topLevel(match[0]) {
@@ -80,6 +81,30 @@ func newPlaywrightPureScope(clean string) playwrightPureScope {
 		}
 	}
 	return scope
+}
+
+// playwrightCodeMutationToken reports a `\` (an escaped identifier), `++`, `--` or `delete` in
+// code, outside string, template and regular-expression content.
+func playwrightCodeMutationToken(clean string, lexed playwrightLexed) bool {
+	for index := 0; index < len(clean); index++ {
+		if !lexed.code[index] {
+			continue
+		}
+		switch clean[index] {
+		case '\\':
+			return true
+		case '+', '-':
+			if index+1 < len(clean) && clean[index+1] == clean[index] && lexed.code[index+1] {
+				return true
+			}
+		}
+	}
+	for _, at := range playwrightTokenOffsets(clean, "delete") {
+		if lexed.code[at] {
+			return true
+		}
+	}
+	return false
 }
 
 // memberRead reports whether reading keys from root is admitted.

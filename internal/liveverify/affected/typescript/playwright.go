@@ -1028,7 +1028,8 @@ func playwrightGlobPattern(glob string) (string, bool) {
 			}
 			pattern.WriteString("(?:")
 			for partIndex, part := range parts {
-				if part == "" || strings.ContainsAny(part, "*?{}[]()\\") || strings.Contains(part, "..") {
+				// An alternative holding `/` can expand to `//`, which minimatch collapses.
+				if part == "" || strings.ContainsAny(part, "*?{}[]()\\/") || strings.Contains(part, "..") {
 					return "", false
 				}
 				if partIndex != 0 {

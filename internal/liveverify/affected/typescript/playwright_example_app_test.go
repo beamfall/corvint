@@ -405,6 +405,38 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 			}
 		})
 	}
+	// GitHub #709 review round 9: an escaped identifier names the same binding, and a
+	// parenthesized delete writes the descriptor; both exact repros keep the identity unresolved.
+	for _, row := range []struct{ name, source string }{
+		{"escaped devices write", header + "devic\\u0065s['Desktop Chrome'].defaultBrowserType = 'firefox';\nexport default defineConfig({\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"},
+		{"parenthesized delete", header + "delete (devices['Desktop Firefox'].defaultBrowserType);\nexport default defineConfig({\n  projects: [{ name: 'p', use: { ...devices['Desktop Firefox'] } }],\n});\n"},
+	} {
+		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", row.source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Errorf("%s kept the spread identity: %+v", row.name, unknown)
+		}
+	}
+	for _, row := range []struct{ name, setup, value string }{
+		{"escaped devices root", "devic\\u{65}s['Desktop Chrome'].isMobile = true;", "'http://x'"},
+		{"escaped literal root", "const options = { baseURL: 'http://x' };\nopti\\u006fns.baseURL = 'http://y';", "options.baseURL"},
+		{"escaped literal key", "const options = { baseURL: 'http://x' };\noptions.base\\u0055RL = 'http://y';", "options.baseURL"},
+		{"escape in an unrelated identifier", "const options = { baseURL: 'http://x' };\nconst \\u0061 = 1;", "options.baseURL"},
+		{"parenthesized delete of a literal member", "const options = { baseURL: 'http://x' };\ndelete (options.baseURL);", "options.baseURL"},
+		{"delete anywhere", "const options = { baseURL: 'http://x' };\nconst other = {};\ndelete other.x;", "options.baseURL"},
+		{"prefix increment anywhere", "const options = { baseURL: 'http://x' };\nlet n = 0;\n++n;", "options.baseURL"},
+		{"postfix decrement anywhere", "let n = 0;\nn--;", "devices['Desktop Chrome'].userAgent"},
+		{"parenthesized assignment", "(devices['Desktop Chrome'].defaultBrowserType) = 'firefox';", "'http://x'"},
+		{"parenthesized compound assignment", "const options = { n: 1, baseURL: 'http://x' };\n((options.n)) += 1;", "options.baseURL"},
+		{"parenthesized array destructuring target", "const options = { baseURL: 'http://x' };\n[(options.baseURL)] = ['y'];", "options.baseURL"},
+		{"parenthesized object destructuring target", "const options = { baseURL: 'http://x' };\n({ a: (options.baseURL) } = { a: 'y' });", "options.baseURL"},
+		{"parenthesized for-of target", "const options = { baseURL: 'http://x' };\nfor ((options.baseURL) of ['y']) {}", "options.baseURL"},
+		{"parenthesized for-in target", "for ((devices['Desktop Chrome'].userAgent) in { y: 1 }) {}", "'http://x'"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+				t.Fatalf("value %s under %q was resolved: %+v", row.value, row.setup, unknown)
+			}
+		})
+	}
 	// A top-level write to a devices descriptor rewrites the spread itself.
 	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("devices['Desktop Chrome'].defaultBrowserType = 'firefox';", "'http://x'")); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
 		t.Errorf("a spread after a descriptor write kept its identity: %+v", unknown)
@@ -416,6 +448,10 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"literal read elsewhere", "const options = { baseURL: 'http://x', port: 1 };\nconst port = options.port + 1;", "options.baseURL"},
 		{"devices scalar", "", "devices['Desktop Chrome'].userAgent"},
 		{"devices viewport field", "", "devices['Desktop Chrome'].viewport.width === 1280 ? 'http://x' : 'http://y'"},
+		// GitHub #709 review round 9: escapes, `--`, `++` and `delete` inside strings are not tokens.
+		{"escapes and operators in strings", "const options = { baseURL: 'http://x', flag: '--headed', note: 'a++ \\u0041', verb: 'delete' };", "options.baseURL"},
+		{"parenthesized read", "const options = { baseURL: 'http://x' };", "(options.baseURL)"},
+		{"escapes in a regular expression and a template", "const pattern = /a\\.spec\\.ts$/i;\nconst options = { baseURL: `http://x\\u0041` };", "options.baseURL"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value))
