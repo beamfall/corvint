@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,8 +11,8 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); other AFP-V0 requirements proposed/experimental
-- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488); other AFP-V0 requirements proposed/experimental
+- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -514,6 +514,124 @@ and container qualification; full fallback remains available.
   no selection or skip authority here and needs no AFP-V0-014 qualification. Rollback removes
   `--order` from the workflow.
 
+- **AFP-V0-041:** (accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
+  CI MAY run an owner-allowed package as test slices in several shards, so that no single package
+  sets a floor under the slowest shard. The AFP-V0-022 complete-universe guarantee is unchanged:
+  every unsplit package, and every top-level test of a split package, runs in exactly one shard.
+  (1) A package SHALL split only when the project-owned allow-list
+  `.github/cishards/test-split-allow.json` (`corvint-ci-test-split-allow/0`) names it with a
+  non-empty reason, which records that its tests neither depend on order nor share `TestMain` or
+  package state across tests, and the slice file `.github/cishards/test-slices.json`
+  (`corvint-ci-test-slices/0`) gives it from 2 to min(16, shard count) slices. Every other
+  package, including one whose tests depend on order or on process state, SHALL stay whole.
+  (2) Slices 0..K-2 SHALL each name a non-empty, strictly ascending set of plain top-level names
+  (`^(Test|Example|Fuzz)[A-Za-z0-9_]*$`), disjoint from every other slice, and run as
+  `go test -run '^(A|B|...)$'`. Slice K-1, the catch-all, SHALL run as `go test -skip` over the
+  anchored union of every named slice. A pattern is one element that names top-level tests only,
+  so subtests run with their parent; the anchors keep `TestA` from matching `TestAB`. A test added
+  or renamed after generation therefore runs once, in the catch-all, and a removed name matches
+  nothing.
+  (3) Unusable input SHALL keep packages whole and never drop a test. A file-level failure keeps
+  every package whole: an allow-list or slice file that is not exactly its closed profile (unknown
+  members, trailing data, over 1 MiB), or a source other than a 40-hex revision, `go1.27.1` and a
+  run of this repository. A package-level failure keeps that package whole: a package outside the
+  runtime universe or the allow-list, a cost outside 1..3,000,000 ms, an invalid, repeated or
+  unsorted name, or a pattern over 64 KiB (half of Linux `MAX_ARG_STRLEN`) or that does not
+  compile. Invalid package costs keep the AFP-V0-022 lexical round-robin and split nothing.
+  (4) Placement SHALL be deterministic and advisory. Whole packages carry their AFP-V0-022 cost and
+  slices their recorded cost. Units go longest first, ties by package then slice index, each into
+  the least-loaded shard (lowest index on ties). A slice never goes into a shard that already
+  holds a sibling. With no split package the plan SHALL equal the AFP-V0-022 partition. Costs move
+  units between shards and never change membership.
+  (5) `tools/ci-test-slices generate` SHALL write the slice file from one complete, passing hosted
+  run. `generate` and `replay` SHALL take exactly one log per shard of the declared `--shards N`
+  (default 6, the go-product-shard matrix), each with at least one terminal package outcome, and
+  SHALL refuse any other count ("K of N shard logs present") or an empty log before any work, so
+  a partial run never sets the split target or the predicted sums. In each shard log, every
+  package that appears SHALL run one lifecycle: its start record first, then its tests, every
+  test or subtest that runs ending once, then one terminal pass or skip and no further record.
+  No test, subtest or package fails. After the log prefix (the job and step columns of
+  `gh run view --log`, a byte-order mark, the runner timestamp and an annotation such as
+  `##[error]`), a line whose content starts with `{` SHALL decode completely
+  as a `go test -json` record that names its `Action`, and a record that follows other text on its
+  line SHALL refuse; only lines whose content is not JSON (runner, shell and build output) are
+  skipped. A record without `Package` SHALL be build output that names its `ImportPath`; a
+  `build-fail` record, or any other record without `Package`, SHALL refuse, even when the stream
+  ends right after it. The recorded revision SHALL be a full commit id of the repository, and the
+  file-level source SHALL be checked before any work, whether or not anything splits.
+  Generation checks out exactly that commit's tracked tree into a temporary directory through a
+  temporary index, reads the allow-list there, and enumerates there, so untracked, modified or
+  staged files cannot contribute and the repository index, worktrees and refs are not written. It
+  enumerates each allowed package slower than the target (default: the ideal shard share) with
+  `go test -race -count=1 -list .`, outside workspace and `GOFLAGS` redirection, and excludes
+  benchmarks. A failed or unexpected
+  enumeration keeps the package whole. Named slices are contiguous runs of the sorted plain names
+  that minimise the largest slice. Each name is weighted by its observed top-level time, the
+  median for a name the run lacks, or by count when the run has no test records. Per-test costs
+  (V1-1100) MAY replace those weights. Any of the following SHALL refuse the write: a failed,
+  repeated, restarted or unterminated outcome; a failed build; a damaged, truncated or interleaved
+  record; a revision that is not a full commit id of the repository; a source or file the
+  partition would not admit. So SHALL SIGINT
+  or SIGTERM, which cancels checkout and enumeration and removes the temporary checkout. On unix
+  each checkout and enumeration subprocess SHALL run in its own process group; cancellation
+  interrupts the group, kills every member still alive ten seconds later, and returns only once
+  the group is empty, so no descendant outlives the command. CI never
+  enumerates, and never consults the tested test binary for placement.
+  (6) The slice code, allow-list and slice file SHALL be part of the protected helper. That helper
+  is built independently of tested module directives, and its profile digest (domain
+  `corvint-ci-partition/2`) covers them, and so does the AFP-V0-014 frozen identity. The
+  package-level PR driver SHALL refuse sharded execution while the helper splits any package of
+  the runtime universe, so that a driver shard and a sliced fallback shard cannot mix. A pinned
+  older driver fails on the digest mismatch.
+  (7) The full path SHALL run each slice as its own `go test` invocation, with the same `-exec`
+  confinement and `-json -p 1 -count=1 -race -timeout 50m`. Whole packages keep one invocation.
+  The shard SHALL fail when any invocation fails, before the AFP-V0-024 tested-tree record.
+  Every invocation SHALL run inside the one AFP-V0-040 capture, so the retained stream holds the
+  whole packages and the slices of that shard.
+  (8) `tools/ci-shard-costs` `refresh`, `check` and `check --advisory` SHALL take the CI shard
+  count as a declared `--shards N`, the go-product-shard matrix size, and SHALL refuse unless
+  exactly N logs, one per shard, are given. They SHALL derive the split set from the committed
+  allow-list and slice file (`--allow`, `--slices`) with the same `SplitPackages` call as the
+  partition, over the packages the logs name and with N, never the number of logs supplied, as
+  the shard count. A log SHALL hold at most one terminal outcome per package. A split package
+  SHALL end exactly once per slice, so each slice in a different log, and its cost is the sum of
+  those outcomes. Any other count, a single outcome included, any failed outcome, a repeat of a
+  package the files do not split, a slice that started without a terminal outcome, or an allowed
+  package that the slice file splits into more slices than N SHALL refuse the refresh and make the
+  drift check abstain, so one slice is never counted as the whole package. One slice's outcome is
+  indistinguishable from a whole run, so a run made before the split cannot refresh or check a
+  split package's cost. An
+  unreadable or unusable allow-list or slice file splits nothing, so a sliced run then refuses
+  visibly rather than being half counted.
+  Non-goals: runtime enumeration in CI; splitting subtests; selection or skip authority; sharded
+  container execution; and a hosted speedup claim from replay alone.
+  Limits:
+  - A split loses cross-slice parallel interleavings, including race detection between tests in
+    different slices.
+  - It repeats the package's build, link and `TestMain` in each slice; that overhead is
+    NOT_OBSERVED.
+  - Costs and slices need different runs. `tools/ci-shard-costs` measures a split package only
+    from a sliced run and refuses a run made before the split. `tools/ci-test-slices generate`
+    reads only whole runs and refuses a sliced one ("two terminal outcomes"), so regenerating the
+    slice file needs a complete run in which the package ran whole, which full CI does not make
+    while the package is split (for example, a run of a branch whose slice file is emptied).
+  - A stale slice file only moves time between shards.
+  - `--shards` is declared, not read from the workflow. A count that differs from the matrix
+    refuses a sliced run, or measures only the logs given, but never counts one slice as a whole
+    package. `ci-test-slices` has no cost table to compare, so a partial log set declared as its
+    own shard count (five logs of a six-shard run as `--shards 5`) is not detected there.
+  - On Windows, cancellation kills only the immediate subprocess, not its descendants (no job
+    object). On unix, a descendant that leaves its process group is not reached, and a SIGKILL of
+    the tool itself stops nothing and leaves the temporary checkout behind.
+  - While a package is split, setting the AFP-V0-014 selective PR pins fails every sharded PR
+    run closed, until the slice file is emptied or the driver learns to run slices. The pins are
+    empty today.
+  Replay of hosted run 38055182050 is recorded in build log 2026-10-10-ci-test-level-shards.
+  Falsifier: a passing sliced run in which a top-level test of a split package has zero or two
+  terminal outcomes, or in which a split package also runs whole. Rollback: set `packages` to `{}`
+  in `.github/cishards/test-slices.json`, after which the plan equals AFP-V0-022, or revert the
+  workflow slice loop and the helper files.
+
 ### Declared confined test read scopes
 
 - **AFP-V0-023:** (owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
@@ -866,7 +984,9 @@ and container qualification; full fallback remains available.
   `TestAFPV0040*` tests, `actionlint`, `make ci-least-privilege-check`, and a local dry run of the
   job's steps against the six shard logs of run 38055182050 (build log
   2026-10-10-ci-shard-drift-detection); hosted behaviour is NOT_OBSERVED until the change's own CI
-  runs. Rollback: delete the `ci-shard-cost-drift` job and the retention step, restore the plain
+  runs. Under AFP-V0-041 the capture holds every invocation of the shard, and a split package's
+  slice outcomes combine into one cost as AFP-V0-041 (8) states. Rollback: delete the
+  `ci-shard-cost-drift` job and the retention step, restore the plain
   `go test` invocation in `go-product-shard`, and remove `--advisory` from `tools/ci-shard-costs`.
 
 ## Non-goals and authority
@@ -911,6 +1031,13 @@ shard that did not succeed, fewer or more outcome artifacts than shards, an unre
 empty, malformed, structurally invalid or unfinished package stream, or an invalid cost table; it
 never fails CI on a finding, and a failure of any of its own steps, including the tool's build,
 abstains with its reason in the job summary rather than failing the job.
+In full CI, an unusable test-split allow-list, slice file or cost table keeps every package whole,
+and a split package's catch-all slice runs every top-level test that no named slice names
+(AFP-V0-041). A split package whose slice outcomes are failed, unterminated or not one per slice,
+logs that are not one per declared shard, or a slice file that splits a package into more slices
+than the declared shards, refuses the cost refresh and makes the drift report abstain
+(AFP-V0-041 (8)). Shard logs that are not one per declared shard, or a shard log without any
+terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)).
 
 ## Acceptance evidence and traceability
 
@@ -953,6 +1080,7 @@ abstains with its reason in the job summary rather than failing the job.
 | AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
 | AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
 | AFP-V0-040 | `check --advisory` (`report`, `observeStream`, `scan`, `checkEvent`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the best-effort capture in the tests step and the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAcceptsAFullEventStream`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
+| AFP-V0-041 | `Slice`, `Shard`, `Allowed`, `SplitPackages`, `Splits`, `Plan`, `PlanFrom`, `profileNames` and `--slices` in `.github/cishards`; `.github/cishards/test-split-allow.json`, `.github/cishards/test-slices.json`; `refuseSlices` in `tools/corvint-pr-tests`; `tools/ci-test-slices`, with `inGroup` in its build-tagged `procgroup_unix.go` and `procgroup_other.go`; `outcomes`, `combine`, `--allow` and `--slices` in `tools/ci-shard-costs`; the full-run slice loop through `run_tests` in `.github/workflows/ci.yml` | `TestAFPV0041PlanEqualsPartitionWithoutSplits`, `TestAFPV0041SlicedPlanIsCompleteAndDeterministic`, `TestAFPV0041FallbackKeepsPackagesWhole`, `TestAFPV0041SlicesRunEveryTestExactlyOnce` (real `go test` over added, removed and renamed names, subtests, a parallel test, a fuzz seed and an example), `TestAFPV0041CommittedSlicesAreAdmitted`, `TestAFPIsolatedBuildIgnoresModuleRedirection` (`--slices`), `TestShardedDriverRefusesTestSlices_AFPV0041`, `TestAFPV0041GenerateSplitsOnlySlowListablePackages`, `TestAFPV0041GenerateRefusesUnboundInputs`, `TestAFPV0041GenerateEnumeratesOnlyTheRevision`, `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs`, `TestAFPV0041InterruptRemovesTheCheckout`, `TestAFPV0041CancelStopsTheEnumerationGroup` (a fake `go` whose sleeping child ignores SIGINT), `TestAFPV0041ListParsing`, `TestAFPV0041SliceWithoutTimesSplitsByCount`, `TestAFPV0041MinMaxCutsIsOptimal`, `TestAFPV0041ReplayPredictsShardSums`, `TestAFPV0041RefreshCombinesTestSlices`, `TestAFPV0041AdvisoryCombinesTestSlices`; replay of hosted run 38055182050, a local run of both store slices, and a local run of the workflow's slice loop and capture whose streams `refresh` and `check --advisory` combine, in build log 2026-10-10-ci-test-level-shards; hosted sliced run, paired timing and per-slice overhead NOT_RUN; owner acceptance in decision 0488 |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

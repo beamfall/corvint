@@ -732,6 +732,9 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		if err != nil {
 			return 2, err
 		}
+		if err = refuseSlices(universe, o.shards); err != nil {
+			return 2, err
+		}
 		if err = requireShardSource(ctx, o, universeHead, universeTree); err != nil {
 			return 2, err
 		}
@@ -862,4 +865,14 @@ func (w *cappedWriter) Write(p []byte) (int, error) {
 		return n, err
 	}
 	return n, errors.New("test output limit exceeded")
+}
+
+// refuseSlices fails closed while the protected helper splits a package into
+// test slices (AFP-V0-041): this driver places whole packages, and mixing its
+// shards with sliced fallback shards could run a split package nowhere.
+func refuseSlices(universe []string, shards int) error {
+	if cishards.Splits(universe, shards) {
+		return errors.New("test-level slices are active (AFP-V0-041); the package-level driver refuses sharded execution")
+	}
+	return nil
 }
