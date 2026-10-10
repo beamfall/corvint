@@ -27,6 +27,15 @@ Fixed:
   `TestJSProviderUsageAdmitsTheBuiltProvider` builds the real provider and runs it, and fails with
   the stale expectation. A local `make companion-release-gate` passed with 33 checks, exit 0.
 
+Found after merging main a3607ec5:
+
+- b0b82698 (V1-0825) added a call from the untagged `internal/tasks/journal/projection_order_test.go`
+  to `stubStageSleep`, which it defined in the `darwin || linux` file `stage_slot_wait_test.go`.
+  That broke the Windows cross-vet again. The helper now lives in the untagged
+  `stage_sleep_stub_test.go`, and `make cross-vet` passes. The nightly cross-vet step is the
+  regression check for this class of fault. PR CI builds Windows binaries but does not type-check
+  test files, so the fault reaches main.
+
 Not fixed, needs a decision:
 
 - `TestHostAdapterJavaScriptHosts` (GOC-V0-008) failed on macos-15 in both `host-adapter-test` and
