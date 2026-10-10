@@ -3,6 +3,7 @@
 package store
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ func TestTOLV0027_PreflightStatusStopsAtFirstEntry(t *testing.T) {
 	done := make(chan answer, 1)
 	c := exec.Command("sh", "-c", `printf '?? untracked\0'; exec /bin/sleep 600`)
 	go func() {
-		dirty, err := writesAnything(c)
+		dirty, err := writesAnything(context.Background(), c)
 		done <- answer{dirty, err}
 	}()
 	select {
@@ -34,10 +35,17 @@ func TestTOLV0027_PreflightStatusStopsAtFirstEntry(t *testing.T) {
 		}
 		t.Fatal("the status read did not stop at the first entry")
 	}
-	if dirty, err := writesAnything(exec.Command("true")); dirty || err != nil {
+	// A command that writes nothing is stopped when its context ends.
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if dirty, err := writesAnything(ctx, exec.Command("/bin/sleep", "600")); dirty || err == nil || time.Since(started) > 20*time.Second {
+		t.Fatalf("silent command past its context: dirty=%v err=%v after %s", dirty, err, time.Since(started))
+	}
+	if dirty, err := writesAnything(context.Background(), exec.Command("true")); dirty || err != nil {
 		t.Fatalf("empty status: dirty=%v err=%v", dirty, err)
 	}
-	if _, err := writesAnything(exec.Command("false")); err == nil {
+	if _, err := writesAnything(context.Background(), exec.Command("false")); err == nil {
 		t.Fatal("a failed status read was not an error")
 	}
 }

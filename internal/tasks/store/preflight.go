@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -91,14 +92,16 @@ func TreePathsAtCommit(root, commit string, prefixes []string, keep func(string)
 
 // PreflightGateRun is what one --deep gate observed. Changed names how a
 // gate left the worktree when it is no longer a clean checkout of the
-// commit, else "".
+// commit, else "". Unchecked names why that check did not finish within
+// the gate's timeout, else "".
 type PreflightGateRun struct {
-	GateID   string
-	Passed   bool
-	Class    string
-	ExitCode string
-	Changed  string
-	Output   []byte
+	GateID    string
+	Passed    bool
+	Class     string
+	ExitCode  string
+	Changed   string
+	Unchecked string
+	Output    []byte
 }
 
 // PreflightGateDefinitions resolves each gate id against policy with the
@@ -167,64 +170,130 @@ func PreflightGates(ctx context.Context, root, commit string, defs []*intent.Gat
 		if run.exitCode != nil {
 			r.ExitCode = string(*run.exitCode)
 		}
-		r.Changed = preflightWorktreeChange(wt, commit, tree)
-		r.Passed = run.class == "EXIT" && run.exitCode.Int() == def.ExpectedExit.Int() && r.Changed == ""
+		r.Changed, r.Unchecked = preflightWorktreeChange(ctx, wt, commit, tree, time.Duration(def.TimeoutSeconds.Int())*time.Second)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		r.Passed = run.class == "EXIT" && run.exitCode.Int() == def.ExpectedExit.Int() && r.Changed == "" && r.Unchecked == ""
 		runs = append(runs, r)
-		if r.Changed != "" {
+		if r.Changed != "" || r.Unchecked != "" {
 			break
 		}
 	}
 	return runs, nil
 }
 
-// preflightWorktreeChange is "" when wt is still a clean checkout of
-// commit, else how it differs.
-func preflightWorktreeChange(wt, commit, tree string) string {
-	head, err := resolvePreflightObject(wt, "HEAD")
+// preflightWorktreeChange checks that wt is still a clean checkout of
+// commit after a gate. changed is "" when it is, else how it differs.
+// Reading the worktree can run repository programs, such as a clean filter
+// on a file the gate touched, so every Git call here runs in its own
+// process group, which is killed when ctx ends (the caller's interrupt) or
+// the gate's declared timeout passes. unchecked names a check that did not
+// finish within that timeout; the caller reads ctx itself (TOL-V0-027).
+func preflightWorktreeChange(ctx context.Context, wt, commit, tree string, timeout time.Duration) (changed, unchecked string) {
+	cctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	late := func() string {
+		if cctx.Err() != nil {
+			return "its state was not read within the gate's timeout of " + timeout.String()
+		}
+		return ""
+	}
+	head, err := postGateResolve(cctx, wt, "HEAD")
 	if err != nil {
-		return "its HEAD is unreadable"
+		if l := late(); l != "" {
+			return "", l
+		}
+		return "its HEAD is unreadable", ""
 	}
 	if head != commit {
-		return "its HEAD moved to " + head
+		return "its HEAD moved to " + head, ""
 	}
-	if t, err := resolvePreflightObject(wt, "HEAD^{tree}"); err != nil || t != tree {
-		return "its HEAD tree is not the commit's"
+	t, err := postGateResolve(cctx, wt, "HEAD^{tree}")
+	if l := late(); l != "" {
+		return "", l
 	}
-	c := exec.Command("git", append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "status", "--porcelain", "-z", "--untracked-files=all")...)
+	if err != nil || t != tree {
+		return "its HEAD tree is not the commit's", ""
+	}
+	dirty, err := writesAnything(cctx, postGateGit(wt, "status", "--porcelain", "-z", "--untracked-files=all"))
+	switch {
+	case late() != "":
+		return "", late()
+	case err != nil:
+		return "its status is unreadable", ""
+	case dirty:
+		return "it has uncommitted or untracked changes", ""
+	}
+	return "", ""
+}
+
+// postGateGit is a preflight Git command in wt.
+func postGateGit(wt string, args ...string) *exec.Cmd {
+	c := exec.Command("git", append(append(append([]string{}, preflightGitConfig...), "-c", "credential.helper="), args...)...)
 	c.Dir = wt
 	c.Env = gitEnvironment()
-	dirty, err := writesAnything(c)
-	switch {
-	case err != nil:
-		return "its status is unreadable"
-	case dirty:
-		return "it has uncommitted or untracked changes"
+	return c
+}
+
+// startBounded starts c in its own process group and kills that group when
+// ctx ends. stop ends the watch once c has been waited for.
+func startBounded(ctx context.Context, c *exec.Cmd) (stop func() bool, err error) {
+	containGate(c)
+	c.WaitDelay = gateWaitDelay
+	if err := c.Start(); err != nil {
+		return nil, gitObservationFailed(err)
 	}
-	return ""
+	return context.AfterFunc(ctx, func() { killGate(c) }), nil
+}
+
+func postGateResolve(ctx context.Context, wt, rev string) (string, error) {
+	c := postGateGit(wt, "rev-parse", "--verify", "--end-of-options", rev)
+	var out bytes.Buffer
+	c.Stdout = &out
+	stop, err := startBounded(ctx, c)
+	if err != nil {
+		return "", err
+	}
+	werr := c.Wait()
+	stop()
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if werr != nil {
+		return "", gitObservationFailed(werr)
+	}
+	return strings.TrimSpace(out.String()), nil
 }
 
 // writesAnything runs c and reports whether it writes any output. It reads
-// at most one byte: the first byte settles the answer, so c is then killed
-// rather than read to the end, and a gate that left many untracked files
-// costs no more than one that left one. A command that writes nothing and
-// fails is an error.
-func writesAnything(c *exec.Cmd) (bool, error) {
+// at most one byte: the first byte settles the answer, so c's process group
+// is then killed rather than read to the end, and a gate that left many
+// untracked files costs no more than one that left one. The group is also
+// killed when ctx ends, which returns ctx's error. A command that writes
+// nothing and fails is an error.
+func writesAnything(ctx context.Context, c *exec.Cmd) (bool, error) {
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		return false, gitObservationFailed(err)
 	}
-	c.WaitDelay = gateWaitDelay
-	if err := c.Start(); err != nil {
-		return false, gitObservationFailed(err)
+	stop, err := startBounded(ctx, c)
+	if err != nil {
+		return false, err
 	}
+	defer stop()
 	var first [1]byte
 	n, rerr := io.ReadFull(stdout, first[:])
 	if n == 1 {
-		_ = c.Process.Kill()
+		killGate(c)
 		_ = c.Wait()
 		return true, nil
 	}
-	if werr := c.Wait(); werr != nil || rerr != io.EOF {
+	werr := c.Wait()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if werr != nil || rerr != io.EOF {
 		return false, gitObservationFailed(errors.Join(werr, rerr))
 	}
 	return false, nil

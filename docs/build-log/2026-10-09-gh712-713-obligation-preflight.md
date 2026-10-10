@@ -159,3 +159,33 @@ passes after the fix.
      gets a refusal.
    - `TestTOLV0025_PreflightRefusesALineBreakSpecPath` uses `e2e/a\nb.spec.ts`. It failed with
      `UNNAMED` findings for AC-1, AC-2, AC-3 and AC-5.
+
+## Round-3 review (Codex) and fix
+
+Codex found one P1 in round 3. The first-byte read of the post-gate `git status` watched no
+context or deadline.
+- Repro: a tracked file has a slow clean filter, and the gate rewrites that file at the same size.
+  Git must then hash the file, so status runs the filter and hangs. `SIGINT`/`SIGTERM` cancelled
+  only the context, which nothing was reading, so preflight stayed and the worktree was left
+  behind.
+
+The fix covers every post-gate Git call: the two `rev-parse` calls and the status.
+- Each runs in its own process group (the lease runner's `containGate`).
+- Each is watched by the preflight's signal-aware context plus a deadline, and the group is killed
+  with SIGKILL when either ends.
+- The deadline is the gate's declared `timeoutSeconds`, so it reuses the policy's bound for that
+  gate.
+- A cancel returns the interrupt refusal. A missed deadline is a `DEEP_CHECK_FAILED` finding ("its
+  worktree could not be checked"), never a pass, and no later gate runs.
+- The worktree removal (`git worktree remove --force`) does not run the clean filter, and the
+  worktree is removed on both paths.
+- TOL-V0-027 states the bound. It also states a limit that is out of scope here: creating the
+  worktree, including smudge filters, is still unbounded.
+
+Regression tests (both failed on 96d6cb1c):
+- `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus` sends SIGTERM while the filter runs and
+  before any status byte. It failed with "preflight did not exit after SIGTERM" after 60 s.
+- `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails` uses a 2 s gate timeout. It failed by
+  hanging until the 100 s test timeout. It now returns in about 2.7 s.
+- `TestTOLV0027_PreflightStatusStopsAtFirstEntry` gains a case where a silent command is stopped by
+  its context.

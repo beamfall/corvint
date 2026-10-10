@@ -162,6 +162,9 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 			if r.Changed != "" {
 				detail += " but changed the worktree (" + r.Changed + "); later gates did not run"
 			}
+			if r.Unchecked != "" {
+				detail += " but its worktree could not be checked (" + r.Unchecked + "); later gates did not run"
+			}
 			if line := obligation.FirstActionableLine(string(r.Output)); line != "" {
 				detail += ": " + line
 			}

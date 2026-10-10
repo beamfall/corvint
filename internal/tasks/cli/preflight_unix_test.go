@@ -172,3 +172,77 @@ func TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants(t *testing.T) {
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 	waitGone(t, pid, "the finished gate's background process")
 }
+
+// slowCleanFilterRepo is a preflight repository whose committed slow.txt
+// has a clean filter that, in a preflight worktree only, records its pid
+// beside the worktree and in pidFile and then sleeps for ten minutes. A gate
+// that rewrites slow.txt at the same size makes the post-gate status hash it,
+// which runs the filter.
+func slowCleanFilterRepo(t *testing.T, gates ...string) (*fixture.Repo, string, string) {
+	t.Helper()
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed, gates...)
+	fixture.Write(t, filepath.Join(r.Root, ".gitattributes"), []byte("slow.txt filter=slow\n"))
+	fixture.Write(t, filepath.Join(r.Root, "slow.txt"), []byte("slow\n"))
+	git(t, r.Root, "add", ".gitattributes", "slow.txt")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-m", "slow")
+	pidFile := filepath.Join(t.TempDir(), "filter.pid")
+	git(t, r.Root, "config", "filter.slow.clean",
+		`case "$PWD" in *corvint-tasks-preflight-*) echo $$ > ../filter.pid; echo $$ > '`+pidFile+`'; exec /bin/sleep 600;; esac; cat`)
+	t.Cleanup(func() {
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			if pid, _ := strconv.Atoi(strings.TrimSpace(string(raw))); pid > 0 {
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+			}
+		}
+	})
+	return r, id, pidFile
+}
+
+// TestTOLV0027_PreflightDeepInterruptStopsAHungStatus: SIGTERM while the
+// post-gate status waits on a slow clean filter, before it has written a
+// byte, kills the status's process group, removes the worktree and refuses.
+func TestTOLV0027_PreflightDeepInterruptStopsAHungStatus(t *testing.T) {
+	runInterruptChild()
+	r, id, _ := slowCleanFilterRepo(t, deepGate("touch", "printf 'SLOW\\n' > slow.txt", "900"))
+	worktree, pids, res, child := interruptedPreflight(t, "TestTOLV0027_PreflightDeepInterruptStopsAHungStatus", r, id, []string{"touch"}, "filter.pid")
+	waitGone(t, pids[0], "the status's clean filter")
+	if _, err := os.Stat(worktree); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("temporary worktree %s left behind: %v", worktree, err)
+	}
+	if wt := gitOut(t, r.Root, "worktree", "list", "--porcelain"); strings.Count(wt, "worktree ") != 1 {
+		t.Fatalf("worktree entry left behind:\n%s", wt)
+	}
+	if child.ProcessState.ExitCode() == 0 || res.Outcome != wire.OutcomeRefused {
+		t.Fatalf("interrupted preflight: exit %d %+v", child.ProcessState.ExitCode(), res)
+	}
+}
+
+// TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails: a post-gate
+// status that does not finish within the gate's timeout is killed and the
+// gate is a DEEP_CHECK_FAILED finding, never a clean pass; the worktree is
+// removed.
+func TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails(t *testing.T) {
+	r, id, pidFile := slowCleanFilterRepo(t, deepGate("touch", "printf 'SLOW\\n' > slow.txt", "2"))
+	started := time.Now()
+	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "touch")
+	if elapsed := time.Since(started); elapsed > 60*time.Second {
+		t.Fatalf("preflight took %s", elapsed)
+	}
+	if x.res.Outcome != wire.OutcomeRefused || len(x.res.Items) != 1 {
+		t.Fatalf("preflight: %s", x.stdout)
+	}
+	findings := field(x.res.Items[0], "findings").Arr
+	if len(findings) != 1 || field(findings[0], "kind").Str != "DEEP_CHECK_FAILED" ||
+		!strings.Contains(field(findings[0], "detail").Str, "could not be checked") {
+		t.Fatalf("findings: %s", x.stdout)
+	}
+	if wt := gitOut(t, r.Root, "worktree", "list", "--porcelain"); strings.Count(wt, "worktree ") != 1 {
+		t.Fatalf("worktree entry left behind:\n%s", wt)
+	}
+	raw, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("the clean filter never ran: %v", err)
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	waitGone(t, pid, "the status's clean filter")
+}
