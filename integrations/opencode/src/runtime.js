@@ -440,22 +440,23 @@ function signalGroup(child, signalName) {
 // or an EPERM (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0:
 // it delivers nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives,
 // confirms it. Any other answer, or a failed kill, completes as unconfirmed, never as success (V1-0371).
-// A probe answering EPERM is repeated, never escalated, for at most ZOMBIE_REPROBE_MS: the leader stays
-// a zombie until a poll phase reaps it, which a stalled host can put after the reap timer, and an
-// orphaned member stays one until launchd reaps it (V1-1116).
-const ZOMBIE_REPROBE_MS = 200
+// A probe answering EPERM is repeated, never escalated, up to ZOMBIE_REPROBES times, each at least
+// ZOMBIE_REPROBE_INTERVAL_MS after the last: the leader stays a zombie until a poll phase reaps it,
+// which a stalled host can put after the reap timer, and an orphaned member stays one until launchd
+// reaps it. Each re-probe is a timer, so a poll phase runs before it (V1-1116).
+const ZOMBIE_REPROBES = 40
 const ZOMBIE_REPROBE_INTERVAL_MS = 5
 
 function confirmCleanup(pid, cleanup, settle) {
   if (cleanup === "DELIVERED" || cleanup === "ESRCH") return settle(true)
   if (cleanup !== undefined && cleanup !== "EPERM" && cleanup !== "LEADER-REAPED") return settle(false)
-  probeGroup(pid, performance.now() + ZOMBIE_REPROBE_MS, settle)
+  probeGroup(pid, ZOMBIE_REPROBES, settle)
 }
 
-function probeGroup(pid, deadline, settle) {
+function probeGroup(pid, reprobes, settle) {
   const answer = groupProbe(pid)
-  if (answer === "EPERM" && performance.now() < deadline) {
-    setTimeout(() => probeGroup(pid, deadline, settle), ZOMBIE_REPROBE_INTERVAL_MS)
+  if (answer === "EPERM" && reprobes > 0) {
+    setTimeout(() => probeGroup(pid, reprobes - 1, settle), ZOMBIE_REPROBE_INTERVAL_MS)
     return
   }
   settle(answer === "ESRCH")

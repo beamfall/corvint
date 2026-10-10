@@ -23,19 +23,23 @@ stalled for more than about 75 ms crosses the timer. An orphaned member that lau
 reaped gives the same answer after close (inference for the AHI-032 shell fixture; not observed).
 
 Cause status: the timer-ordering mechanism is reproduced deterministically on Darwin by holding the
-grace for 150 ms (base fails 5 of 5). That the hosted VM stalled past the timer in run 38052349384 is
+grace until the leader is a zombie and 150 ms have passed (base fails 5 of 5 with a single `EPERM`
+probe, the hosted failure). That the hosted VM stalled past the timer in run 38052349384 is
 an inference consistent with the failing set, not an observation.
 
 ## Change
 
-`integrations/opencode/src/runtime.js` 0.7.12: a signal-0 probe answering `EPERM` is repeated every
-5 ms for at most 200 ms; only `ESRCH` confirms, any other answer or a persistent `EPERM` still
-completes as `corvint-process-cleanup-unconfirmed`, and no other signal is sent. Gemini is unchanged.
+`integrations/opencode/src/runtime.js` 0.7.12: a signal-0 probe answering `EPERM` is repeated up to
+40 times, each a timer at least 5 ms after the last, so a poll phase runs before each repeat; the
+bound is a count, not a deadline, so a stalled loop cannot exhaust it without letting a poll phase
+run. Only `ESRCH` confirms; any other answer or an `EPERM` on the last repeat still completes as `corvint-process-cleanup-unconfirmed`, and no other signal is sent. Gemini is unchanged.
 
 ## Evidence
 
 - `V1-1116 OpenCode completion after a stalled termination turn re-probes the zombie group`: fails on
-  the base 5 of 5, passes after.
+  the base 5 of 5, passes after (Darwin only; Linux delivers SIGKILL to a zombie group).
+- Codex review round 1 (FAIL, no P1): timing-dependent bound and an unproven regression path; both
+  addressed by the count bound and the answer assertions.
 - `V1-1116 OpenCode EPERM re-probe confirms only on ESRCH and is bounded`: injected answers.
 - Still required: a hosted macos-15 run of `host-adapter-test` and `TestHostAdapterJavaScriptHosts`.
 
