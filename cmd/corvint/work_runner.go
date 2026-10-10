@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 )
@@ -142,6 +143,10 @@ const workDrainTimeout = 250 * time.Millisecond
 
 const workReapTimeout = time.Second
 
+// workWaitResidue is groupreap.WaitResidue; tests observe or inject the
+// pre-reap residue observation.
+var workWaitResidue = groupreap.WaitResidue
+
 var errWorkBoundExecutableUnqualified = errors.New("bound Corvint executable is unqualified")
 
 func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimit int) ([]byte, workqueue.AdapterReceipt, error) {
@@ -197,7 +202,6 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	if err = command.Start(); err != nil {
 		return finish(err)
 	}
-	defer workKillGroup(command)
 	_ = outWrite.Close()
 	_ = errWrite.Close()
 	overrun := make(chan struct{})
@@ -207,8 +211,16 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	drained := make(chan error, 2)
 	go func() { _, err := io.Copy(stdout, outRead); drained <- err }()
 	go func() { _, err := io.Copy(stderr, errRead); drained <- err }()
+	// Residue is observed while the exited leader is held unreaped, and the
+	// group is SIGKILLed before the reap, so no numeric group signal can
+	// follow the reap and reach a reused group ID (V1-1036).
+	var residue bool
 	done := make(chan error, 1)
-	go func() { done <- command.Wait() }()
+	go func() {
+		var err error
+		residue, err = workWaitResidue(command)
+		done <- err
+	}()
 	var cause error
 	reaped := false
 	operationContext, cancel := context.WithCancel(runner.ctx)
@@ -222,7 +234,7 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 		cause = operationContext.Err()
 	}
 	if !reaped {
-		workKillGroup(command)
+		workStop(command)
 		reapTimer := time.NewTimer(workReapTimeout)
 		select {
 		case err = <-done:
@@ -232,8 +244,8 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 		}
 		reapTimer.Stop()
 	}
-	// A reaped leader cannot hold its group alive. Remaining members are residue.
-	if workTerminateGroup(command) && cause == nil {
+	// A member still live when the leader exited is residue (WQO-V0-032).
+	if reaped && residue && cause == nil {
 		cause = errors.New("process residue")
 	}
 	timer := time.NewTimer(workDrainTimeout)

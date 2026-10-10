@@ -18,6 +18,8 @@ func startProcessCommand(*exec.Cmd) error {
 	return errors.New("process execution with descendant containment is unsupported on this platform")
 }
 
+func releaseProcessCommand(int) {}
+
 func waitProcessExitUnreaped(int) error {
 	return errors.New("unreaped process observation is unsupported on this platform")
 }
