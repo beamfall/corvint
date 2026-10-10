@@ -220,10 +220,20 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   path component, and a regular expression keeps its own flags. A glob using minimatch syntax the
   profile does not model (classes, extglobs, escapes, single-item or range braces, `**` inside a
   component) is not static, and so is a regular expression with any flag other than `i`, `m` and
-  `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). Go's `.` and `(?m)`
-  anchors treat only LF as a line terminator where JavaScript also treats CR, U+2028 and U+2029, so
-  the producer MUST refuse when the repository root, any enumerated candidate path or any listed
-  path contains CR, LF, U+2028 or U+2029, and static selection over such a test path widens with
+  `s` (Playwright tests from `lastIndex` 0, so a sticky `y` cannot be dropped). A regular
+  expression body is static only when every construct reads identically in JavaScript without the
+  `u` flag and in Go RE2: literal characters; `.`, `^`, `$` and `|`; `(...)` and `(?:...)` groups
+  (any other `(?` form is not static); `*`, `+` and `?` after an atom, and `{n}`, `{n,}` and
+  `{n,m}` with n <= m <= 1000, each optionally lazy; non-empty `[...]` and `[^...]` classes of
+  literals, ranges and allowed escapes, without a nested `[`; and only the escapes `\d \D \w \W
+  \b \B \t \n \r \f \v` (not `\b`/`\B` in a class) and a backslash before ASCII syntax
+  punctuation. Every other construct (such as `\A`, a literal A in JavaScript and an anchor in Go;
+  `\s`/`\S`, which include Unicode spaces only in JavaScript; backreferences, `\x`, `\u`, `\p`,
+  POSIX classes, any other `{`) is not static. Go's `.` and `(?m)` anchors treat only LF as a line
+  terminator where JavaScript also treats CR, U+2028 and U+2029, and a JavaScript expression
+  without `u` matches UTF-16 code units, so the producer MUST refuse when the repository root, any
+  enumerated candidate path or any listed path contains CR, LF, U+2028, U+2029 or a character
+  outside the Basic Multilingual Plane, and static selection over such a test path widens with
   `playwright:project-membership-unresolved`. It MUST find candidate files by path alone among
   every file with an extension Playwright's default `testMatch` accepts
   (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts` and their `x` forms), whether or not
@@ -407,7 +417,7 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
 | `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065` in `playwright_example_app_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
-| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
+| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
 | `TJAA-V0-020` (proposed) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

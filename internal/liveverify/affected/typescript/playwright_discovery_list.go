@@ -88,8 +88,8 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 	if err != nil {
 		return nil, fmt.Errorf("repository root is unreadable: %v", err)
 	}
-	if playwrightPathHasLineTerminator(root) || playwrightPathHasLineTerminator(realRoot) {
-		return nil, errors.New("repository root path contains a line terminator, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked")
+	if playwrightPathOutsideMatcherModel(root) || playwrightPathOutsideMatcherModel(realRoot) {
+		return nil, errors.New("repository root path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked")
 	}
 	if listed, ok := playwrightListPath(realRoot, report.Config.ConfigFile); !ok || listed != configPath {
 		return nil, fmt.Errorf("playwright listing config %q is not %s under the repository root", report.Config.ConfigFile, configPath)
@@ -166,8 +166,8 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 	if err != nil {
 		return err
 	}
-	if index := slices.IndexFunc(candidates, playwrightPathHasLineTerminator); index >= 0 {
-		return fmt.Errorf("candidate test path %q contains a line terminator, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidates[index])
+	if index := slices.IndexFunc(candidates, playwrightPathOutsideMatcherModel); index >= 0 {
+		return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidates[index])
 	}
 	selected := map[PlaywrightDiscoveryUnit]bool{}
 	readable := map[string]bool{}
@@ -263,8 +263,8 @@ func checkPlaywrightSkippedDirectories(root, configPath string, projects []Playw
 				return err
 			}
 			relative = filepath.ToSlash(relative)
-			if playwrightPathHasLineTerminator(relative) {
-				return fmt.Errorf("candidate test path %q contains a line terminator, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", relative)
+			if playwrightPathOutsideMatcherModel(relative) {
+				return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", relative)
 			}
 			if skipped := playwrightSkippedAncestor(relative); skipped != "" {
 				inSkipped[relative] = skipped
@@ -347,11 +347,11 @@ func collectPlaywrightListUnits(realRoot, rootDir, file string, suites []playwri
 			if spec.File != "" {
 				specFile = spec.File
 			}
-			if playwrightPathHasLineTerminator(rootDir) || playwrightPathHasLineTerminator(specFile) {
-				return fmt.Errorf("playwright listing file %q contains a line terminator, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", specFile)
+			if playwrightPathOutsideMatcherModel(rootDir) || playwrightPathOutsideMatcherModel(specFile) {
+				return fmt.Errorf("playwright listing file %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", specFile)
 			}
 			test, ok := playwrightListPath(realRoot, filepath.Join(rootDir, filepath.FromSlash(specFile)))
-			if !ok || !hasSourceExtension(test) || playwrightPathHasLineTerminator(test) {
+			if !ok || !hasSourceExtension(test) || playwrightPathOutsideMatcherModel(test) {
 				return fmt.Errorf("playwright listing file %q under rootDir is not a repository-relative source path", specFile)
 			}
 			for _, entry := range spec.Tests {

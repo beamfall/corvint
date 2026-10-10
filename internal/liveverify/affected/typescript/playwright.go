@@ -141,8 +141,8 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	}
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
 	tests := playwrightSourcePaths(result)
-	if playwrightPathHasLineTerminator(root) || slices.ContainsFunc(tests, playwrightPathHasLineTerminator) {
-		configUnknown = append(configUnknown, selectionUnknown(PlaywrightUnknownProjectMembership, "a test path contains a line terminator, which Go and JavaScript regular expressions treat differently"))
+	if playwrightPathOutsideMatcherModel(root) || slices.ContainsFunc(tests, playwrightPathOutsideMatcherModel) {
+		configUnknown = append(configUnknown, selectionUnknown(PlaywrightUnknownProjectMembership, "a test path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently"))
 	}
 	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
 	bindPlaywrightTestMembership(&result, units, configPath)
@@ -763,11 +763,14 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 	return !playwrightAnyMatcher(project.ignores, absolute)
 }
 
-// playwrightPathHasLineTerminator reports whether a path holds CR, LF, U+2028 or U+2029. Go's `.`
-// (without `s`) and `(?m)` anchors treat only LF as a line terminator while JavaScript treats all
-// four, so a matcher's verdict on such a path is not decided statically and membership widens.
-func playwrightPathHasLineTerminator(value string) bool {
-	return strings.ContainsAny(value, "\r\n\u2028\u2029")
+// playwrightPathOutsideMatcherModel reports whether a path holds CR, LF, U+2028, U+2029 or a
+// character outside the Basic Multilingual Plane. Go's `.` (without `s`) and `(?m)` anchors treat
+// only LF as a line terminator while JavaScript treats all four, and a JavaScript regular
+// expression without the u flag matches UTF-16 code units, so `.`, `[^/]` or a negated class
+// consumes half of a surrogate pair where Go consumes the whole rune. A matcher's verdict on such
+// a path is not decided statically and membership widens.
+func playwrightPathOutsideMatcherModel(value string) bool {
+	return strings.ContainsAny(value, "\r\n\u2028\u2029") || strings.ContainsFunc(value, func(character rune) bool { return character > 0xFFFF })
 }
 
 // playwrightDefaultTest applies the `.spec.`/`.test.` markers of Playwright's default testMatch
@@ -816,7 +819,7 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 		return playwrightMatcher{raw: raw, re: re}, err == nil
 	}
 	pattern, flags, ok := playwrightRegexLiteral(raw)
-	if !ok || strings.Contains(pattern, "(?") || strings.Contains(pattern, "\\k<") {
+	if !ok || !playwrightRegexBodyStatic(pattern) {
 		return playwrightMatcher{}, false
 	}
 	// Only flags Go maps exactly are modelled. Sticky `y` anchors at lastIndex 0, which Playwright
@@ -836,6 +839,140 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 	}
 	re, err := regexp.Compile(prefix + pattern)
 	return playwrightMatcher{raw: raw, re: re}, err == nil
+}
+
+// playwrightRegexEscapes are the escapes whose meaning is identical in a JavaScript regular
+// expression without the u flag and in Go RE2: ASCII digit, word and boundary classes, five
+// control characters, and a backslash before ASCII syntax punctuation.
+const (
+	playwrightRegexEscapes      = "dDwWbBtnrfv"
+	playwrightRegexPunctuation  = "^$\\.*+?()[]{}|/-"
+	playwrightRegexMaxRepeat    = 1000
+	playwrightRegexRepeatDigits = 4
+)
+
+// playwrightRegexBodyStatic reports whether a regular-expression literal body uses only constructs
+// that JavaScript (without the u flag) and Go RE2 read identically: literal characters, `.`, `^`,
+// `$`, `|`, `(...)` and `(?:...)` groups, the quantifiers `*`, `+`, `?`, `{n}`, `{n,}` and
+// `{n,m}` (n <= m <= 1000) after an atom, each optionally lazy, classes of literals, ranges and
+// allowed escapes, and the escapes in playwrightRegexEscapes and playwrightRegexPunctuation. Every
+// other construct differs or may differ (`\A` is a literal A in JavaScript and an anchor in Go;
+// `\s` includes Unicode spaces only in JavaScript; `(?i)`, named groups, lookaround,
+// backreferences, `\x`, `\u`, `\p` and POSIX classes), so the matcher is not static.
+func playwrightRegexBodyStatic(body string) bool {
+	atom, lazy := false, false
+	for index := 0; index < len(body); index++ {
+		character := body[index]
+		switch {
+		case character == '\\':
+			if index+1 == len(body) {
+				return false
+			}
+			index++
+			escape := body[index]
+			if !strings.ContainsRune(playwrightRegexEscapes, rune(escape)) && !strings.ContainsRune(playwrightRegexPunctuation, rune(escape)) {
+				return false
+			}
+			atom, lazy = escape != 'b' && escape != 'B', false
+		case character == '(':
+			if index+1 < len(body) && body[index+1] == '?' {
+				if index+2 == len(body) || body[index+2] != ':' {
+					return false
+				}
+				index += 2
+			}
+			atom, lazy = false, false
+		case character == '*' || character == '+' || character == '?':
+			if character == '?' && lazy {
+				atom, lazy = false, false
+				continue
+			}
+			if !atom {
+				return false
+			}
+			atom, lazy = false, true
+		case character == '{':
+			end, valid := playwrightRegexRepeatEnd(body, index)
+			if !atom || !valid {
+				return false
+			}
+			index = end - 1
+			atom, lazy = false, true
+		case character == '[':
+			end, valid := playwrightRegexClassEnd(body, index)
+			if !valid {
+				return false
+			}
+			index = end - 1
+			atom, lazy = true, false
+		case character == '}' || character == ']':
+			return false
+		case character == '^' || character == '$' || character == '|':
+			atom, lazy = false, false
+		default: // a literal, `.` or a group's closing `)`
+			atom, lazy = true, false
+		}
+	}
+	return true
+}
+
+// playwrightRegexRepeatEnd returns the offset past a `{n}`, `{n,}` or `{n,m}` quantifier at
+// body[start] with n <= m <= playwrightRegexMaxRepeat.
+func playwrightRegexRepeatEnd(body string, start int) (int, bool) {
+	closing := strings.IndexByte(body[start:], '}')
+	if closing < 0 {
+		return 0, false
+	}
+	bounds := strings.SplitN(body[start+1:start+closing], ",", 2)
+	number := func(value string) (int, bool) {
+		if value == "" || len(value) > playwrightRegexRepeatDigits || strings.Trim(value, "0123456789") != "" {
+			return 0, false
+		}
+		parsed, err := strconv.Atoi(value)
+		return parsed, err == nil && parsed <= playwrightRegexMaxRepeat
+	}
+	low, valid := number(bounds[0])
+	if !valid {
+		return 0, false
+	}
+	if len(bounds) == 2 && bounds[1] != "" {
+		high, valid := number(bounds[1])
+		if !valid || high < low {
+			return 0, false
+		}
+	}
+	return start + closing + 1, true
+}
+
+// playwrightRegexClassEnd returns the offset past a non-empty `[...]` or `[^...]` class at
+// body[start] holding only literals, ranges and the allowed escapes other than `\b` and `\B`
+// (a backspace in a JavaScript class). A nested `[` (Go's `[:alpha:]` form) is not static.
+func playwrightRegexClassEnd(body string, start int) (int, bool) {
+	index := start + 1
+	if index < len(body) && body[index] == '^' {
+		index++
+	}
+	if index < len(body) && body[index] == ']' {
+		return 0, false // `[]` and `[^]` differ: Go reads `]` as a literal there
+	}
+	for ; index < len(body); index++ {
+		switch body[index] {
+		case ']':
+			return index + 1, true
+		case '[':
+			return 0, false
+		case '\\':
+			if index+1 == len(body) {
+				return 0, false
+			}
+			index++
+			escape := body[index]
+			if escape == 'b' || escape == 'B' || !strings.ContainsRune(playwrightRegexEscapes, rune(escape)) && !strings.ContainsRune(playwrightRegexPunctuation, rune(escape)) {
+				return 0, false
+			}
+		}
+	}
+	return 0, false
 }
 
 func playwrightGlobPattern(glob string) (string, bool) {

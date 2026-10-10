@@ -249,7 +249,9 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 	// (elsewhere it is `*`), and Playwright tests a regular expression from lastIndex 0, so a sticky
 	// one cannot match an absolute path. Neither ignore removes e2e/sub/b.spec.ts in Playwright, so
 	// a listing captured before that file existed is stale and must not be stamped.
-	for _, ignore := range []string{`'**/e2e/**.spec.ts'`, `/b\.spec\.ts$/y`} {
+	// Round 6: in JavaScript `\A` is a literal A, so `/\A.*b\.spec\.ts$/` ignores nothing here; Go
+	// reads it as a begin-text anchor and would ignore e2e/sub/b.spec.ts.
+	for _, ignore := range []string{`'**/e2e/**.spec.ts'`, `/b\.spec\.ts$/y`, `/\A.*b\.spec\.ts$/`} {
 		t.Run("stale listing after a new file testIgnore "+ignore+" keeps", func(t *testing.T) {
 			root := t.TempDir()
 			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', testIgnore: "+ignore+" }] });\n")
@@ -268,6 +270,7 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 	for _, row := range []struct{ name, file, match string }{
 		{"listed and selected", "e2e/a\u2028b.spec.ts", "**/*.spec.ts"},
 		{"unselected candidate", "e2e/x\ry.ts", "**/keep.test.ts"},
+		{"outside the Basic Multilingual Plane", "e2e/a\U0001F600b.spec.ts", "**/*.spec.ts"},
 	} {
 		t.Run("line terminator in path "+row.name, func(t *testing.T) {
 			root := t.TempDir()

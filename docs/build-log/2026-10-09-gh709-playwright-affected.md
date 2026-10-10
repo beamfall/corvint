@@ -253,3 +253,48 @@ Follow-up (orchestrator decision, final), closing the regex limit this round fir
   close it: a Kelvin sign in the pattern folds onto an ASCII `k` in a path. Closing it would take
   both a pattern check and a path check, and refusing every non-ASCII path or pattern would turn
   away legitimate tests. It is not a one-line check.
+
+## Review round 6
+
+The sixth independent review returned FAIL with one P1 finding at `playwright.go:837`: regex bodies
+were compiled by Go as written. In `testIgnore: /\A.*b\.spec\.ts$/`, JavaScript reads `\A` as a
+literal A, so the regex ignores nothing. Go reads it as a begin-text anchor and ignored
+`e2e/sub/b.spec.ts`, so a stale listing was stamped.
+
+The orchestrator's final decision was an allowlist. `playwrightRegexBodyStatic` admits a body only
+when every construct reads identically in JavaScript without `u` and in Go RE2:
+- literal characters, and `.`, `^`, `$`, `|`;
+- `(...)` and `(?:...)` groups only;
+- quantifiers `*`, `+`, `?` after an atom, and `{n}`, `{n,}`, `{n,m}` (n <= m <= 1000), each
+  optionally lazy;
+- non-empty classes of literals, ranges and allowed escapes;
+- the escapes `\d \D \w \W \b \B \t \n \r \f \v`, plus a backslash before ASCII syntax punctuation.
+
+Anything else is non-static. The matcher then follows the existing non-static path: the producer
+refuses and selection widens. Constructs refused this way include:
+- the escapes `\A`, `\z`, `\Q`/`\E`, `\x`, `\u`, `\p`, `\0` and `\c`;
+- backreferences;
+- `(?i)`, named groups, lookaround and other `(?` forms;
+- POSIX classes and any nested `[`;
+- `[]`, `[^]` and `[\b]`;
+- stray `{`, `}` and `]`;
+- quantifiers on an assertion or another quantifier.
+
+`\s` and `\S` are non-static because JavaScript `\s` includes Unicode spaces (U+00A0, U+FEFF,
+U+2000..U+200A, ...) while Go's is ASCII only.
+
+Same failure class, beyond the finding: a JavaScript regex without `u`, and minimatch's compiled
+glob, match UTF-16 code units. `.`, `[^/]` or a negated class therefore consumes half of a surrogate
+pair, where Go consumes the whole rune. The round-5 path rule now also refuses (producer) or widens
+(static selection) when a path contains a character outside the Basic Multilingual Plane.
+
+Tests, each failing on `7b58bad5`:
+- the `/\A.*b\.spec\.ts$/` stale-listing row and an emoji-path row in
+  `TestPlaywrightDiscoveryFromListMembership_V1_1066`;
+- `\A`, `\s`, `(?i)`, backreference, `[[:alpha:]]` and `\x61` rows in
+  `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`;
+- `TestPlaywrightRegexBodyAllowlist`. Its positive cases include `\d`, `\.`, `[a-z]{2,3}` and
+  `(?:a|b)`, and it checks that each allowlisted body also compiles in Go.
+
+The non-ASCII `(?i)` folding limit from round 4 remains recorded. `\w` and `\b` under `i` are part
+of it, because Go folds the Kelvin sign and long s into `\w`.
