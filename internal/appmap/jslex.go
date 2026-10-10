@@ -3,6 +3,7 @@ package appmap
 import (
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -33,9 +34,13 @@ type token struct {
 	// code is the raw source of a template literal from its first ${ to its end: the tokens never
 	// show the substitutions, so a reader that must see every use of a name searches it. unsure
 	// marks a template the lexer cannot bound: a substitution holding a `/` (a comment, regex or
-	// division) or no closing backtick, so code or the tokens after it may hide source.
+	// division) or a backslash (an escaped identifier), or no closing backtick, so code or the
+	// tokens after it may hide source. lexJS also sets it on the first token when it met source it
+	// cannot place anywhere (see lexJS).
 	code   string
 	unsure bool
+	// glued marks punctuation written directly after other punctuation (the second `+` of `++`).
+	glued bool
 }
 
 // literal reports whether t is a string or substitution-free template whose value is exact.
@@ -46,14 +51,24 @@ func literal(t token) bool {
 // substMark stands for one ${} substitution inside a template literal's text.
 const substMark = "\x00"
 
-// lexJS tokenizes text and returns the tokens and a copy of text with every comment and literal
-// body blanked to spaces (newlines kept), for line-shaped scans of code only.
 var (
 	controlKeywords = map[string]bool{"if": true, "while": true, "for": true, "with": true}
-	regexKeywords   = map[string]bool{"return": true, "typeof": true, "case": true, "in": true, "of": true,
+	// regexKeywords are the reserved words after which a `/` starts a regular expression; a
+	// division cannot follow them. contextualKeywords may also be plain names (`let of = 4; of / 2`).
+	regexKeywords = map[string]bool{"return": true, "typeof": true, "case": true, "in": true,
 		"else": true, "do": true, "void": true, "delete": true, "throw": true, "new": true,
-		"instanceof": true, "yield": true, "await": true}
+		"instanceof": true, "extends": true, "default": true, "break": true, "continue": true}
+	contextualKeywords = map[string]bool{"of": true, "yield": true, "await": true}
 )
+
+// lexJS tokenizes text and returns the tokens and a copy of text with every comment and literal
+// body blanked to spaces (newlines kept), for line-shaped scans of code only. Where it cannot be
+// sure the tokens show all the code, it marks the first token unsure, so a reader that must see
+// every use of a name fails closed: a `/` it cannot place as a regular expression or a division
+// (after `}`, a contextual keyword, a TypeScript postfix `!`, a `<` or `>`), a regular expression
+// or string or block comment with no end, a line terminator other than `\n` ending a `//`
+// comment, a non-ASCII identifier character that is not a letter, digit or mark (a Unicode space
+// splits the name), or an HTML-like comment (`<!--`, `-->` opening a line).
 
 func lexJS(text string) ([]token, string) {
 	toks := []token{}
@@ -66,26 +81,61 @@ func lexJS(text string) ([]token, string) {
 			}
 		}
 	}
+	doubt := false
 	// parens records, for each open '(', whether it opens a control-statement condition; after
 	// its ')' a '/' starts a regular expression (if (x) /re/.test(s)), not a division.
 	parens, closedControl := []bool{}, false
-	prevAllowsRegex := func() bool {
-		if len(toks) == 0 {
-			return true
+	// regexStarts reports whether a `/` here starts a regular expression, and whether that is
+	// sure; a keyword after `.` is a property name (`o.return / 2`).
+	regexStarts := func() (bool, bool) {
+		n := len(toks)
+		if n == 0 {
+			return true, true
 		}
-		p := toks[len(toks)-1]
+		p := toks[n-1]
 		switch p.kind {
 		case tokIdent:
-			return regexKeywords[p.text]
-		case tokPunct:
-			if p.text == ")" {
-				return closedControl
+			if property(toks, n-1) {
+				return false, true
 			}
-			return p.text != "]" && p.text != "}"
+			if contextualKeywords[p.text] {
+				return true, false
+			}
+			return regexKeywords[p.text], true
+		case tokPunct:
+			switch p.text {
+			case ")":
+				return closedControl, true
+			case "]":
+				return false, true
+			case "}":
+				return false, false // a block's end (a regex follows) or an object or function expression's
+			case "<":
+				return true, false // a JSX closing tag `</a>`, or a comparison
+			case ">":
+				return true, p.glued && isPunct(toks[n-2], "=") // `=>`; else type arguments' end (`x as T<U> / 2`) or a comparison
+			case "!":
+				return true, n == 1 || !operandEnd(toks, n-2) // after an operand, a TypeScript non-null `x! / 2`
+			case "+", "-":
+				// Maximal munch: an even run ends in `++`/`--`, which no regular expression follows
+				// (`n++ / 2`; `++/re/` is an early error); an odd run ends in a binary or unary operator.
+				run := 1
+				for k := n - 1; k > 0 && toks[k].glued && toks[k-1].text == p.text; k-- {
+					run++
+				}
+				return run%2 == 1, true
+			}
+			return true, true
 		}
-		return false
+		return false, true
 	}
 	i := 0
+	if strings.HasPrefix(text, "#!") { // a hashbang line is a comment
+		for i < len(text) && text[i] != '\n' {
+			i++
+		}
+		blank(0, i)
+	}
 	for i < len(text) {
 		c := text[i]
 		switch {
@@ -99,6 +149,8 @@ func lexJS(text string) ([]token, string) {
 			if j < 0 {
 				j = len(text) - i
 			}
+			// JavaScript also ends the comment at a lone `\r`, U+2028 or U+2029.
+			doubt = doubt || strings.ContainsAny(strings.TrimSuffix(text[i:i+j], "\r"), "\r\u2028\u2029")
 			blank(i, i+j)
 			i += j
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
@@ -106,12 +158,15 @@ func lexJS(text string) ([]token, string) {
 			end := len(text)
 			if j >= 0 {
 				end = i + 2 + j + 2
+			} else {
+				doubt = true
 			}
 			line += strings.Count(text[i:end], "\n")
 			blank(i, end)
 			i = end
 		case c == '\'' || c == '"':
-			body, inexact, end := readQuoted(text, i)
+			body, inexact, closed, end := readQuoted(text, i)
+			doubt = doubt || !closed
 			toks = append(toks, token{kind: tokString, text: body, line: line, inexact: inexact})
 			line += strings.Count(text[i:end], "\n") // line continuations
 			blank(i+1, end-1)
@@ -126,11 +181,17 @@ func lexJS(text string) ([]token, string) {
 			line += strings.Count(text[i:end], "\n")
 			blank(i+1, end-1)
 			i = end
-		case c == '/' && prevAllowsRegex():
-			// A regular-expression literal closes on its own line; otherwise the slash is division.
-			j := regexEnd(text, i)
+		case c == '/':
+			// A regular-expression literal closes on its own line; one that does not was misread.
+			re, sure := regexStarts()
+			doubt = doubt || !sure
+			j := -1
+			if re {
+				j = regexEnd(text, i)
+				doubt = doubt || j < 0
+			}
 			if j < 0 {
-				toks = append(toks, token{kind: tokPunct, text: "/", line: line})
+				toks = append(toks, token{kind: tokPunct, text: "/", line: line, glued: glued(toks, text, i)})
 				i++
 				continue
 			}
@@ -143,6 +204,7 @@ func lexJS(text string) ([]token, string) {
 			for j < len(text) && isIdentPart(text[j]) {
 				j++
 			}
+			doubt = doubt || !identChars(text[i:j])
 			toks = append(toks, token{kind: tokIdent, text: text[i:j], line: line})
 			i = j
 		case c >= '0' && c <= '9':
@@ -155,19 +217,61 @@ func lexJS(text string) ([]token, string) {
 		default:
 			switch c {
 			case '(':
-				prev := len(toks) > 0 && toks[len(toks)-1].kind == tokIdent && controlKeywords[toks[len(toks)-1].text]
-				parens = append(parens, prev)
+				n := len(toks)
+				control := n > 0 && toks[n-1].kind == tokIdent && !property(toks, n-1) &&
+					(controlKeywords[toks[n-1].text] || toks[n-1].text == "await" && word(toks, n-2, "for"))
+				parens = append(parens, control)
 			case ')':
 				closedControl = false
 				if n := len(parens); n > 0 {
 					closedControl, parens = parens[n-1], parens[:n-1]
 				}
 			}
-			toks = append(toks, token{kind: tokPunct, text: string(c), line: line})
+			// An HTML-like comment (Annex B, scripts only): `<!--` anywhere, `-->` opening a line.
+			doubt = doubt || strings.HasPrefix(text[i:], "<!--") ||
+				strings.HasPrefix(text[i:], "-->") && (len(toks) == 0 || toks[len(toks)-1].line < line)
+			toks = append(toks, token{kind: tokPunct, text: string(c), line: line, glued: glued(toks, text, i)})
 			i++
 		}
 	}
+	if doubt && len(toks) > 0 {
+		toks[0].unsure = true
+	}
 	return toks, string(code)
+}
+
+// glued reports whether the punctuation at text[i] directly follows the punctuation token last in
+// toks: no literal, comment or regular expression ends in a punctuation character it could equal.
+func glued(toks []token, text string, i int) bool {
+	n := len(toks)
+	return n > 0 && i > 0 && toks[n-1].kind == tokPunct && toks[n-1].text == text[i-1:i]
+}
+
+// operandEnd reports whether toks[k] can end an operand, so that a following `!` is a TypeScript
+// non-null assertion rather than a prefix `!`.
+func operandEnd(toks []token, k int) bool {
+	switch t := toks[k]; t.kind {
+	case tokIdent:
+		return property(toks, k) || !regexKeywords[t.text]
+	case tokPunct:
+		return t.text == ")" || t.text == "]" || t.text == "}"
+	}
+	return true // a number, string, template or regular expression
+}
+
+// identChars reports whether every non-ASCII character of an identifier the lexer read is one
+// JavaScript allows there; a Unicode space or other separator would end the name instead.
+func identChars(s string) bool {
+	for _, r := range s {
+		if r < utf8.RuneSelf {
+			continue
+		}
+		if r == utf8.RuneError || !(unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) ||
+			unicode.Is(unicode.Pc, r) || unicode.Is(unicode.Nl, r) || r == 0x200C || r == 0x200D) {
+			return false
+		}
+	}
+	return true
 }
 
 func isIdentStart(c byte) bool {
@@ -177,8 +281,9 @@ func isIdentStart(c byte) bool {
 func isIdentPart(c byte) bool { return isIdentStart(c) || (c >= '0' && c <= '9') }
 
 // readQuoted reads a '...' or "..." literal starting at i; it ends at its closing quote or at the
-// line break, so an unterminated literal cannot swallow the rest of the file.
-func readQuoted(text string, i int) (string, bool, int) {
+// line break, so an unterminated literal cannot swallow the rest of the file, and reports whether
+// the quote closed it.
+func readQuoted(text string, i int) (string, bool, bool, int) {
 	q := text[i]
 	var b strings.Builder
 	inexact := false
@@ -194,9 +299,9 @@ func readQuoted(text string, i int) (string, bool, int) {
 		j++
 	}
 	if j < len(text) && text[j] == q {
-		j++
+		return b.String(), inexact, true, j + 1
 	}
-	return b.String(), inexact, j
+	return b.String(), inexact, false, j
 }
 
 // unescape decodes the escape sequence whose character after the backslash is at text[j], writing
@@ -282,7 +387,7 @@ func hexRune(text string, from, to int) (rune, bool) {
 }
 
 // readTemplate reads a template literal starting at i, replacing each ${...} with substMark. It
-// reports whether a substitution holds a `/` it cannot place (see token.unsure).
+// reports whether a substitution holds a `/` or backslash it cannot place (see token.unsure).
 func readTemplate(text string, i int) (string, bool, bool, bool, int) {
 	var b strings.Builder
 	subst, inexact, unsure := false, false, false
@@ -299,7 +404,9 @@ func readTemplate(text string, i int) (string, bool, bool, bool, int) {
 			depth := 0
 			for j < len(text) {
 				if text[j] == '\'' || text[j] == '"' { // a brace in a nested literal does not count
-					_, _, j = readQuoted(text, j)
+					var closed bool
+					_, _, closed, j = readQuoted(text, j)
+					unsure = unsure || !closed
 					continue
 				}
 				if text[j] == '`' {
@@ -308,7 +415,7 @@ func readTemplate(text string, i int) (string, bool, bool, bool, int) {
 					unsure = unsure || inner
 					continue
 				}
-				unsure = unsure || text[j] == '/'
+				unsure = unsure || text[j] == '/' || text[j] == '\\' // a comment, regex or division; an escaped identifier
 				if text[j] == '{' {
 					depth++
 				} else if text[j] == '}' {

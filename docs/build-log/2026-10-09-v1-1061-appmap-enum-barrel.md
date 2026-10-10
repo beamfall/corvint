@@ -78,7 +78,25 @@ injector.
   first `${`, skips nested quotes and templates when bounding a substitution, and marks a template
   it cannot bound (a `/` inside a substitution, or no closing backtick), which makes the file
   unread. This is the
-  spec's "unassigned member read" made conservative; no spec text changes.
+  spec's "unassigned member read" made conservative.
+- Eighth review (lexer fail-closed; chain bindings): the lexer no longer guesses where a `/`
+  starts a regular expression. `regexStarts` reports whether its answer is sure; a `/` after `}`,
+  a contextual `of`/`yield`/`await`, `<`, a `>` not of `=>`, or a TypeScript non-null `x!` is
+  doubt, and so are an unterminated regular expression, string, block comment or template, a `/`
+  or `\` inside a template substitution, a `//` comment holding a lone CR or U+2028/2029, a
+  non-ASCII identifier character that is not a letter, digit, mark or connector, and an HTML-like
+  comment. Doubt marks the first token unsure and `parseConstFile` makes the file unread. Sure
+  answers were corrected: after a `++`/`--` run (maximal munch, counted over glued `+`/`-`) a `/`
+  is division; a keyword after `.` is a property; `.if(` is not a control head; `for await (` is;
+  `extends`, `default`, `break` and `continue` allow a regular expression. A `.tsx`/`.jsx` file
+  with any `<` is unread (JSX text is not lexed). Chain bindings: every file on the AMAP-V0-025
+  chain (registering file, barrel, declaring file) must prove every other binding of the table
+  only read: an alias import of the name (or `default`) passes `onlyRead`, and a namespace
+  import, dynamic `import(...)`, `require(...)` or unreadable import item may name only a package
+  or a repository file that is not the declaring file, re-exports nothing and is read; a
+  non-literal or unresolved specifier fails closed. This makes AMAP-V0-025/026 stricter than the
+  accepted text, which left writes through another binding as a third-module limit; the spec
+  amendment records the stricter rule under decision 0475's fail-closed intent.
 
 ## Evidence
 
@@ -156,6 +174,23 @@ injector.
   `stateinject.go` from `6dc1ea03`, 19 subtests resolve silently (12 star/direct, 7 injected; the
   star/direct `typeof X.Y++` and `typeof X.reset()` already failed closed there because
   `onlyRead` checked members first); all pass with the fix.
+- Eighth review follow-up (escaped identifier in a substitution; postfix division read as a
+  regular expression; write through a barrel's own import): `TestAMAPV0023UnprovableInjectionStaysUnknown`
+  gained an escaped template write and `++`/`--` division on the injected parameter;
+  `TestAMAPV0026PossibleWritesFailClosed` gained, star and direct, `++`/`--` division, a keyword
+  property and a method named `if` before division, a regular expression after `break`, and one
+  after `for await`; its `reads` guard gained division and regular expressions after `)`, `]`,
+  `return`, `typeof`, `void`, `=>` and postfix `++`/`--`. `TestAMAPV0025UnreadDeclaringFileFailsClosed`
+  gained ten lexer-doubt tails (escaped template, contextual `of`, non-null and type-argument
+  division, regular expression after a block, U+2028 and CR comment ends, NBSP, unclosed comment,
+  HTML comment) across its four shapes; new `TestAMAPV0025ChainBindingsFailClosed` (14 cases: alias,
+  same-name, namespace, `require`, dynamic, computed and string-item imports in the barrel, an
+  unresolved specifier, alias and namespace in the registering file, a self namespace and one via
+  the barrel in the declaring file, a direct alias, a namespace import beside a locally declared
+  table) with a reads guard (alias reads, namespace imports of a plain module and a package); and
+  new `TestAMAPV0025JSXFileUnread`. Against `jslex.go`, `stateconst.go` and `stateinject.go` from
+  `92882561`, 70 subtests resolve silently (3 injected, 14 chain, 2 JSX, 40 unread-declaring, 12
+  possible-writes); the reads guards pass before and after; all pass with the fix.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -168,9 +203,12 @@ injector.
   any identifier in such a statement (an initializer's reference, a namespace member) also counts,
   so a barrel can stay `UNKNOWN` where ECMAScript would resolve. The statement end is a top-level
   `;` or the next top-level `export`; without semicolons later non-exported code is scanned too
-  (more uncertainty, never less). A lexing error that keeps brackets balanced, emits no stray
-  backslash and still hides a top-level `export` token (for example a misread regular expression
-  or template swallowing it) is not detected; an `unread` file also blocks an otherwise
+  (more uncertainty, never less). The lexer fails closed where it cannot place a `/` or a
+  literal end, but a wrong sure answer it still believes would hide tokens undetected; the sure
+  rules are the ECMAScript ones for the previous token (identifier, keyword, punctuator, literal)
+  without a full grammar. The fail-closed lexing over-reports: a `/` after `}` or `of`, TypeScript
+  `x! / y`, `f<T>() / y`, `a-->b`, and any `.tsx`/`.jsx` file with `<` (generics included) make a
+  file unread. An `unread` file also blocks an otherwise
   well-formed named re-export. The pure-read rule over-reports: provable reads such as `X.Y < z`,
   `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y ? a : b`, `X.Y ?? d`, `X.Y?.length`, `X.Y(...)` (any
   call through the table), any `delete`, `++` or `--` earlier in the same statement outside a
@@ -182,8 +220,13 @@ injector.
   `let s: X.Y = v` make the table not read whole; a block closed without `;` is climbed like a group, so a following `=`
   at that level also counts. It inherits the lexer's limits (whitespace is not kept, so `X.Y! =
   v` and `X.Y != v` are one case) and reads only the router, registering and declaring files:
-  writes from a third module stay unread, as the spec states, including a write through a
-  barrel's own import or a namespace import (`import * as NS ...; NS.X.Y = v`). The bracket
+  writes from a module off the AMAP-V0-025 chain stay unread, as the spec states. On the chain,
+  another binding of the table fails closed rather than being read: a namespace import of an
+  unresolved or undeclared package, or of any file that re-exports, makes the table not read
+  whole even where the file never touches it. The router-side (AMAP-V0-016, not injected) path
+  does not yet apply the chain-binding check to alias and namespace imports; that needs
+  AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
+  unsure mark. The bracket
   matching relies on `auditExports`, which marks any file with unmatched brackets unread, so
   `enclosingOpen`/`enclosingClose` run only on balanced tokens. No adopter-scale qualification
   (`NOT_RUN`); `make gate` `NOT_RUN` per lane rules.

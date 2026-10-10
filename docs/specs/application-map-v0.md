@@ -344,15 +344,31 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   `namespace` export, a destructuring, a declaration with several declarators) counts every
   identifier in it as a name it may export, and a file whose exports the reader cannot list may
   export any name: one whose brackets do not nest and match, with a backslash outside a string (an
-  escaped identifier), with a string export name, with an export statement the reader rejects or
-  whose module name it cannot decode exactly, or with a top-level `export` no reader consumed.
+  escaped identifier, inside a template substitution too), with a string export name, with an
+  export statement the reader rejects or whose module name it cannot decode exactly, with a
+  top-level `export` no reader consumed, with source the lexer cannot place as code, comment or
+  literal (a `/` it cannot place as a regular expression or a division, as after `}`, `of`,
+  `yield`, `await`, a TypeScript `x!`, `<` or a `>` not of `=>`; an unterminated string, regular
+  expression, block comment or template; a `/` inside a template substitution; a `//` comment
+  holding another line terminator; a non-ASCII identifier character that is not a letter, digit,
+  mark or connector; an HTML-like comment), or a `.tsx`/`.jsx` file with any `<` (the lexer does
+  not read JSX).
   Such a file never yields a declaration: as a candidate it counts as one that does not export the
   name as a readable table, and no table in it is read whole (`not-read-whole`), since an escaped
   identifier or a statement the reader skipped could write it. The table resolves only when
   exactly one candidate module, itself a tracked, indexed and readable file of the repository,
   declares and exports it (or holds the default export it names) under the AMAP-V0-016 and
   AMAP-V0-024 rules; the re-export statement joins the anchors between the declaring line and the
-  registering file's import. Otherwise the name stays `UNKNOWN` with the AMAP-V0-026 reason: two
+  registering file's import. Every file on that chain -- the registering file, the imported
+  barrel and the declaring file, and the registering file when it declares the table itself --
+  MUST pass the same write checks for every other binding of the table it holds: each import of
+  the table's name (or `default`, when the table is a default export) under another local name,
+  from any module, must be only read under the AMAP-V0-016 rule, and no namespace import, dynamic
+  `import(...)`, `require(...)` or import item the reader cannot read may name a module that
+  resolves to the declaring file, to a file that could re-export (any `export ... from`), to a file
+  it cannot read, or that it cannot resolve (a non-literal or unresolved specifier); a package is
+  never such a module. A binding it cannot prove only read leaves the name `UNKNOWN`
+  (`not-read-whole`). Otherwise the name stays `UNKNOWN` with the AMAP-V0-026 reason: two
   candidates, a re-export item the reader cannot read, or an imported file whose exports the
   reader cannot list, `ambiguous-barrel`; a candidate module that does not declare the name but
   could re-export it again, `barrel-depth-exceeded`; a candidate module outside the repository
@@ -367,7 +383,8 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
   the `.constant(...)` call's first line, where `reason` is the first failure the reader met:
   `unreadable-registration` (`T` is neither an object literal nor an identifier, or the name comes
   from an object-map registration), `identifier-not-found`, `ambiguous-binding` (`T` both declared
-  and imported, or bound twice), `not-read-whole` (another use of `T` could change it),
+  and imported, or bound twice), `not-read-whole` (another use of `T`, or of another binding of
+  the table in a file on the AMAP-V0-025 chain, could change it, or the declaring file is unread),
   `out-of-scope`, `ambiguous-barrel`, `barrel-depth-exceeded`, `non-literal-member` (a spread,
   computed or repeated key, or an AMAP-V0-024 enum member), or `member-not-found`. Identical
   unknowns are carried once. The screen keeps its AMAP-V0-023 `non-literal-name` /

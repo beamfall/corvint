@@ -1,6 +1,8 @@
 package appmap
 
 import (
+	"path"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -74,6 +76,10 @@ type constFile struct {
 	// hidden holds every identifier inside a template substitution, which no token shows: a name
 	// there has a use the reader cannot check.
 	hidden map[string]bool
+	// spaces are the modules of the file's namespace imports, dynamic imports, `require` calls and
+	// import items the reader cannot read, each of which may reach a table under another name; ""
+	// is a module name that is not an exact literal.
+	spaces []string
 	// inject, depth and annot are the router-side injection reads (AMAP-V0-022), built on demand.
 	inject  map[string]*diBinding
 	depth   []int
@@ -151,6 +157,8 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 	switch {
 	case declared && imported, imported && imp.bad:
 		return "", nil, "ambiguous-binding" // two bindings for one name
+	case declared && di && !t.bindingsRead(f, f, "", tableNames(f, local)...):
+		return "", nil, "not-read-whole"
 	case declared:
 		return f.read(decl, member, di)
 	case !imported:
@@ -168,8 +176,10 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 	}
 	d := g.decls[name]
 	var via []Anchor // the re-export statement, when the table is one level behind the import
+	var barrel *constFile
 	switch {
 	case d == nil && di:
+		barrel = g
 		if g, name, via, why = t.reexported(g, imp.exported); why != "" {
 			return "", nil, why
 		}
@@ -181,12 +191,59 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 	if g.unlisted || name != "default" && !g.onlyRead(name, -1) {
 		return "", nil, "not-read-whole"
 	}
+	// Every file on the chain may hold the table under another binding (AMAP-V0-025).
+	if di && !(t.bindingsRead(f, g, local, imp.exported) && t.bindingsRead(g, g, "", tableNames(g, name)...) &&
+		(barrel == nil || t.bindingsRead(barrel, g, "", append(tableNames(g, name), imp.exported)...))) {
+		return "", nil, "not-read-whole"
+	}
 	v, at, why := g.read(d, member, di)
 	if why != "" {
 		return "", nil, why
 	}
 	// The bindings are evidence too: re-pointing the import or the re-export changes what the name reads.
 	return v, append(append(at, via...), spanOf(f.entry, f.data, imp.first, imp.last)), ""
+}
+
+// bindingsRead reports whether every other binding f holds of a table that decl declares is only
+// read: each import of one of names under a local other than skip (an alias `import { T as U }`,
+// from any module, so another table of the same name counts too) must pass onlyRead, and no
+// namespace import, dynamic import, `require` or unread import item may reach a module of the
+// repository that is decl, could re-export it or cannot be read (AMAP-V0-025). A module name that
+// is not an exact literal, or a relative one the reader cannot resolve without an index, could be
+// any of them, and so could an unresolved specifier; a package cannot hold the table.
+func (t *constTable) bindingsRead(f, decl *constFile, skip string, names ...string) bool {
+	for local, imp := range f.imports {
+		if local != skip && slices.Contains(names, imp.exported) && !f.onlyRead(local, -1) {
+			return false
+		}
+	}
+	for _, m := range f.spaces {
+		if m == "" || t.resolver == nil && (strings.HasPrefix(m, ".") || strings.HasPrefix(m, "/")) {
+			return false
+		}
+		if t.resolver == nil {
+			continue // a package, out of scope
+		}
+		switch res := t.resolver.Resolve(f.entry.path, m); res.State {
+		case contextindex.WebImportPackage:
+		case contextindex.WebImportRepository:
+			if h := t.file(res.Target); h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 {
+				return false // an unreadable file, the table's own, or one that may re-export it
+			}
+		default:
+			return false // an unresolved specifier may name any file of the repository
+		}
+	}
+	return true
+}
+
+// tableNames are the names an import of the table g declares as name binds: name, and "default"
+// when g exports it as its default.
+func tableNames(g *constFile, name string) []string {
+	if name == "default" || g.dflt == name {
+		return []string{name, "default"}
+	}
+	return []string{name}
 }
 
 // target reads the tracked file an import of module from path resolves to.
@@ -694,12 +751,25 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		}
 	}
 	f.auditExports()
-	for _, t := range toks {
-		if t.kind != tokTemplate {
-			continue
+	// The lexer does not read JSX: text between tags (`<p>don't</p>`) would open a string that
+	// hides code, so a JSX-capable file with any `<` is unread.
+	if ext := strings.ToLower(path.Ext(e.path)); ext == ".tsx" || ext == ".jsx" {
+		for _, t := range toks {
+			if isPunct(t, "<") {
+				f.unread()
+				break
+			}
 		}
+	}
+	for ti, t := range toks {
 		if t.unsure {
 			f.unread()
+		}
+		if (word(toks, ti, "import") || word(toks, ti, "require")) && !property(toks, ti) && next(toks, ti+1, "(") {
+			f.spaces = append(f.spaces, moduleArg(toks, ti+2)) // a dynamic import or CommonJS require
+		}
+		if t.kind != tokTemplate {
+			continue
 		}
 		for k := 0; k < len(t.code); k++ {
 			if !isIdentStart(t.code[k]) {
@@ -969,7 +1039,7 @@ func (f *constFile) readImport(i int) int {
 		j++
 	}
 	type item struct{ local, exported string }
-	items := []item{}
+	items, space := []item{}, false
 	for j < len(toks) && !(toks[j].kind == tokIdent && toks[j].text == "from") {
 		switch t := toks[j]; {
 		case isPunct(t, "{"):
@@ -982,20 +1052,33 @@ func (f *constFile) readImport(i int) int {
 					items = append(items, item{toks[k].text, toks[k].text})
 				case toks[k].kind == tokIdent && k+3 <= end && toks[k+1].text == "as" && toks[k+2].kind == tokIdent && next(toks, k+3, ",", "}"):
 					items = append(items, item{toks[k+2].text, toks[k].text})
+				default:
+					space = true // a string import name, or an item the reader cannot read
 				}
 			}
 			j = end + 1
 		case isPunct(t, "*"):
+			space = true
 			j += 3 // `* as NS`
 		case t.kind == tokIdent:
 			items = append(items, item{t.text, "default"})
 			j++
 		default:
-			return j // not an import statement this reader follows
+			if !typeOnly && !(isPunct(t, "=") && word(toks, j+1, "require")) { // the require scan reads that one
+				f.spaces = append(f.spaces, "") // `import T = NS.X`, or a form the reader does not follow
+			}
+			return j
 		}
 		if next(toks, j, ",") {
 			j++
 		}
+	}
+	if space && !typeOnly {
+		m := ""
+		if j+1 < len(toks) && literal(toks[j+1]) {
+			m = toks[j+1].text
+		}
+		f.spaces = append(f.spaces, m)
 	}
 	if j+1 >= len(toks) || !literal(toks[j+1]) {
 		return j
@@ -1012,4 +1095,13 @@ func (f *constFile) readImport(i int) int {
 		f.imports[it.local] = constImport{module: toks[j+1].text, exported: it.exported, first: toks[i].line, last: toks[j+1].line}
 	}
 	return j + 2
+}
+
+// moduleArg returns the module a call `import(...)` or `require(...)` whose argument starts at
+// toks[k] names, or "" when the argument is not one exact literal.
+func moduleArg(toks []token, k int) string {
+	if k < len(toks) && literal(toks[k]) && next(toks, k+1, ")") {
+		return toks[k].text
+	}
+	return ""
 }
