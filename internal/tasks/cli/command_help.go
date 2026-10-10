@@ -127,6 +127,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "pool sweep" {
 		o.Set("note", wire.String("Requires explicit timeoutSeconds 1..1800 and OWNER or an explicit OPERATOR policy grant. Replays return the original receipt or PENDING without repeating commands. Private logs can contain command-emitted secrets; explicit archive export includes evidence. FREE records operator-declared reset and verification, not proof of external physical safety."))
 	}
+	if name == "doctor" {
+		o.Set("note", wire.String("Advisory pure read, no lock (TQD-V0-001..012): findings NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE from at most 4096 receipts within 7 days plus a bounded process walk, each with kind, source, who, detail, remedy, firstSeen, ageSeconds and evidenceSeqs. --plugins DIR runs the directory's executables (10 s, 64 KiB stdout, a JSON array of {kind,who,detail[,remedy]}); a failing plugin is a PLUGIN_FAILED finding and the envelope is untrusted. Only --refresh writes, and only <git common dir>/taskman-doctor/summary.json. --line prints one plain-text status line from that cache with no store read, or exits 1 when the cache is unavailable. Findings carry no authority."))
+	}
 	if name == "pool status" {
 		o.Set("note", wire.String("Pure read, no lock, no probe and no writes: each configured member's state, current allocation, holder/attempt/generation, quarantine reason with its journal changedSeq, and the last health or cleanup outcome retained with the allocation. The journal records no wall-clock time, so since and observedAt are NOT_OBSERVED, as is any outcome pool state no longer retains. An unknown --pool or --member refuses MALFORMED."))
 	}
@@ -224,6 +227,7 @@ var commandUsage = map[string]string{
 	"complete":           "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
 	"health":             "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]",
 	"pool status":        "corvint-tasks pool status [--pool ID] [--member ID]",
+	"doctor":             "corvint-tasks doctor [--refresh] [--plugins DIR] | corvint-tasks doctor --line",
 	"pool sweep":         "corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role OWNER|OPERATOR]",
 	"pool cleanup":       "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
 	"pool recover":       "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",

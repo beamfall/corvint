@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
@@ -118,4 +121,44 @@ func SubmitObligationWitness(env Env, target, expected, requestID string, check 
 	}
 	f := mutateFlags{role: "OWNER", requestID: requestID, target: target, expected: expected}
 	return submitMutationContext(ctx, env, cmd, ticket.OpObligationsWitness, actor, f, payload)
+}
+
+// SetDoctorClock replaces the doctor's clock for a test and returns the
+// restore function.
+func SetDoctorClock(now func() time.Time) func() {
+	was := doctorClock
+	doctorClock = now
+	return func() { doctorClock = was }
+}
+
+// SetDoctorPluginTimeout shortens the per-plugin timeout for a test and
+// returns the restore function.
+func SetDoctorPluginTimeout(d time.Duration) func() {
+	was := doctorPluginTimeout
+	doctorPluginTimeout = d
+	return func() { doctorPluginTimeout = was }
+}
+
+// WriteDoctorTestRun writes a RUNNING detached run record for the attempt,
+// naming pid and identity as its supervisor and command, as a launched
+// runner would.
+func WriteDoctorTestRun(root, attemptID, generation string, pid int, identity string) error {
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		return err
+	}
+	runID := "0123456789abcdef"
+	dir := filepath.Join(runsDir(repo, attemptID), runID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return writeRunRecord(dir, &runRecord{Profile: runRecordProfile, RunID: runID, AttemptID: attemptID, Generation: generation,
+		ArgvSha256: strings.Repeat("a", 64), TimeoutSeconds: 3600, State: runRunning, LaunchedAt: time.Now().UTC().Format(time.RFC3339),
+		SupervisorPid: pid, SupervisorIdentity: identity, CommandPid: &pid, CommandIdentity: &identity})
+}
+
+// DecodeDoctorCache decodes one doctor summary cache (TQD-V0-011).
+func DecodeDoctorCache(raw []byte) error {
+	_, err := decodeDoctorCache(raw)
+	return err
 }

@@ -3004,6 +3004,18 @@ TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-p
 TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co
 TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT
 TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	38	`corvint-tasks doctor [--refresh] [--plugins DIR]` is a pure read under TM-V0-00
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	39	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	40	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	41	Journal-derived detectors read one bounded backward scan of receipts from the sn
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	42	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	43	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	44	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	45	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	46	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	47	Plugins run only when `--plugins DIR` names a directory. Its regular executable
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	48	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --line` reads only the cache, through the repository resolution walk and
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u

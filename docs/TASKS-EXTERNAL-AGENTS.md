@@ -663,6 +663,29 @@ EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remai
 reasonHistory INCOMPLETE. Only charged readmission increments a bucket. New acceptance resets
 debt, clean handoff preserves it and policy updates change the bound without erasing history.
 
+## Diagnose a stuck queue
+
+`corvint-tasks doctor [--refresh] [--plugins DIR]` is an advisory pure read (proposed
+TQD-V0-001..012, GitHub #715). It scans at most 4096 receipts from the last 7 days and reports
+`summary` (free and total pool lanes, running sessions, completions in 24 hours, alerts) and
+`findings`, each with `kind`, `source`, `who`, `detail`, `remedy`, `firstSeen`, `ageSeconds` and
+`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs),
+REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RECOVERY (an
+allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
+core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor
+still has a live descendant). `scan.truncated` marks a partial scan.
+
+`--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
+timeout and 64 KiB of stdout. A plugin prints one JSON array of at most 64
+`{"kind","who","detail"[,"remedy"]}` objects; its findings appear with source `plugin:NAME` and
+the envelope is marked untrusted. A failing plugin becomes a PLUGIN_FAILED finding.
+
+Only `--refresh` writes, and only `<git common dir>/taskman-doctor/summary.json`.
+`corvint-tasks doctor --line` prints one plain-text status line from that cache, such as
+`lanes 1/2 free | sessions 3 | 24h 5 done | alerts 1`, with `| stale Nm` once the cache is
+15 minutes old; it takes no lock, reads no store and exits 1 when the cache is unavailable.
+Findings carry no authority: nothing claims, releases, reaps or holds because of them.
+
 ## Upgrade the binary with live attempts
 
 Live attempts do not need a drain to replace corvint-tasks build N with build N+1 when both builds
