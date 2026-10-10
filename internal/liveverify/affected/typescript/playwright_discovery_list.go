@@ -135,7 +135,7 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 // subset, so a stale or partial listing is refused instead of stamped with the current bindings.
 // Membership that is not static is refused as well; only an unresolved browser identity, which
 // does not decide file membership, is tolerated, and a config without projects is Playwright's
-// one unnamed default project.
+// one unnamed default project. A selected file the static profile cannot parse is refused too.
 func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
 	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
 	implicit := false
@@ -151,12 +151,17 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 	if implicit {
 		projects = []PlaywrightProject{{TestDir: globalTestDir}}
 	}
-	result, err := New().units(root, true)
+	// Candidates are found by path alone, so a test file the static profile cannot parse or read
+	// (.mts, .cts, non-UTF-8) still counts toward membership instead of disappearing from it.
+	candidates, err := affected.SourceFiles(root, playwrightLoadableName)
 	if err != nil {
 		return err
 	}
 	selected := map[PlaywrightDiscoveryUnit]bool{}
-	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, playwrightSourcePaths(result)) {
+	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
+		if !hasSourceExtension(unit.Test) {
+			return fmt.Errorf("the config selects project %q test %s, which the static profile does not parse; the listing's membership cannot be checked", unit.Project, unit.Test)
+		}
 		selected[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] = true
 	}
 	var extra, missing []PlaywrightDiscoveryUnit

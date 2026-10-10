@@ -165,17 +165,24 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   resolves at runtime (`internal/jstestprovider`), and a test MUST keep the two lists equal. An
   identifier or quoted string key is the same key, so `'browserName': 'firefox'` resolves like
   `browserName: 'firefox'`. A computed value of any other option (`baseURL`, `storageState`, `trace`,
-  ...) MUST NOT leave the project's browser identity unresolved when it is syntactically free of side
-  effects: literals, identifiers, member reads (including optional chaining and `process.env.X`),
-  template literals whose substitutions are themselves admitted, array literals, object literals of
-  `key: value` or shorthand properties, and unary, binary, logical and conditional combinations of
-  those. A literal `...devices['<known name>']` spread beside such options MUST resolve to that
-  device's browser. A value containing any call (including tagged templates and optional calls; there
-  is no call allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function,
-  arrow or class expression, spread, method or accessor definition, comma operator or regular
-  expression literal MUST keep the browser identity unresolved, because evaluating it could rewrite a
-  devices descriptor. So MUST a non-literal identity value, a computed key (`[expr]`), any other
-  spread, a computed device name and a device name outside the recognized table; each widens with
+  ...) MUST NOT leave the project's browser identity unresolved when its evaluation syntactically
+  cannot call user code: literals, identifiers, member reads (including optional chaining), array
+  literals, object literals of `key: value` or shorthand properties, and the non-coercing operators
+  `===`, `!==`, `&&`, `||`, `??`, `?:` (test and branches), `!`, `typeof` and `void` over those.
+  Template substitutions, computed member and property keys (`obj[expr]`, `{ [expr]: v }`), unary
+  `+`, `-` and `~`, and every other binary operator (arithmetic, bitwise, shifts, `<`, `>`, `<=`,
+  `>=`, `==`, `!=`, `in`, `instanceof`) convert their operands and could call a user `toString`,
+  `valueOf`, `Symbol.toPrimitive` or `Symbol.hasInstance`, so they MUST admit only operands proven
+  primitive: string, numeric and template literals, `true`, `false`, `null`, `process.env.NAME`
+  reads (Node keeps every value a string), and the results of these operators over such operands. A
+  literal `...devices['<known name>']` spread beside such options MUST resolve to that device's
+  browser. A value containing any call (including tagged templates and optional calls; there is no
+  call allowlist), assignment, update, `delete`, `new`, `await`, `yield`, `import`, function, arrow
+  or class expression, spread, method or accessor definition, comma operator, regular expression
+  literal or coercion of an operand not proven primitive MUST keep the browser identity unresolved,
+  because evaluating it could rewrite a devices descriptor. So MUST a non-literal identity value, a
+  computed key (`[expr]`) of the `use` layer itself, any other spread, a computed device
+  name and a device name outside the recognized table; each widens with
   `playwright:browser-identity-unresolved`.
 - `TJAA-V0-019`: (proposed, pending owner acceptance; V1-1066; GitHub #709) The command
   `corvint [--root PATH] affected discovery --playwright-config PATH --playwright-list FILE` MUST
@@ -192,11 +199,15 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   outside the root or with an unsupported extension, or has a test without `projectName`. Because it
   stamps the current bindings, it MUST independently enumerate the (project, file) pairs the config
   selects among the current sources through the static profile's `testDir`/`testMatch`/`testIgnore`
-  subset (a config without `projects` is Playwright's one unnamed project) and MUST refuse with
-  `unsupported-playwright-discovery` when any enumerated pair is missing from the listing (a stale or
-  filtered listing), when the listing names a pair the config does not select (including a file absent
-  from the current sources), or when that membership is not statically resolved; only an unresolved
-  browser identity is tolerated. It MUST read HEAD again after its last source observation and fail
+  subset (a config without `projects` is Playwright's one unnamed project), finding candidate files
+  by path alone among every file with an extension Playwright's default `testMatch` accepts
+  (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts` and their `x` forms), whether or not
+  the static profile can parse or read them. It MUST refuse with `unsupported-playwright-discovery`
+  when any enumerated pair is missing from the listing (a stale or filtered listing), when the
+  listing names a pair the config does not select (including a file absent from the current
+  sources), when a selected file is one the static profile does not parse (such as `.mts` or
+  `.cts`), or when that membership is not statically resolved; only an unresolved browser identity
+  is tolerated. It MUST read HEAD again after its last source observation and fail
   with `unsupported-affected-drift` on any HEAD or source change while it runs, even when the tree is
   unchanged. It is read-only and runs no Playwright or config. The listing remains caller-declared:
   the producer cannot prove the report was taken from the bytes it binds, nor that environment-driven

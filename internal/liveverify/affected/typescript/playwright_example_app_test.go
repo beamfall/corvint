@@ -205,11 +205,12 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 	}
 	for _, value := range []string{
 		"process.env.BASE_URL ?? 'http://localhost:3000'",
-		"`http://${process.env.HOST ?? 'localhost'}:${port}/`",
+		"`http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}/`",
 		"process.env.CI ? 'on' : 'off'",
 		"{ 'X-Token': process.env.TOKEN, Accept: 'application/json', nested: [a, b.c] }",
 		"!flag && mode === 'x' || typeof limit === 'number'",
-		"-retries * 2 + options['base']",
+		"-process.env.RETRIES * 2 + 1 > 0 ? options['base'] : options[0]",
+		"url",
 		"settings?.trace ?? (fallback)",
 	} {
 		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config("{ baseURL: "+value+" }", "{ ...devices['Desktop Firefox'] }"))
@@ -242,6 +243,20 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 		"import('./x')",
 		"/x/.source",
 		"Object.assign(devices['Desktop Chrome'], { browserName: 'firefox' })",
+		// Implicit coercion can call a user toString, valueOf, Symbol.toPrimitive or
+		// Symbol.hasInstance, so a coercing operator admits only operands proven primitive.
+		"`${url}`",
+		"`http://${process.env.HOST ?? host}/`",
+		"port * 2",
+		"+port",
+		"base + '/login'",
+		"port < 1024",
+		"port == 80",
+		"options[key]",
+		"options?.[key]",
+		"{ [key]: 'x' }",
+		"'k' in env",
+		"env instanceof Object",
 	} {
 		for _, layer := range [][2]string{{"{ baseURL: " + value + " }", "{ ...devices['Desktop Chrome'] }"}, {"{}", "{ ...devices['Desktop Chrome'], storageState: " + value + " }"}} {
 			_, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(layer[0], layer[1]))
@@ -249,6 +264,12 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 				t.Fatalf("value that can run code or write state was ignored: use %s / %s: %+v", layer[0], layer[1], unknown)
 			}
 		}
+	}
+	// The GitHub #709 round-two repro: the template converts url to a string, which runs its
+	// toString before the project's device spread is evaluated, so Chromium becomes Firefox.
+	repro := "import { defineConfig, devices } from '@playwright/test';\nconst url = {\n  toString() {\n    devices['Desktop Chrome'].defaultBrowserType = 'firefox';\n    return 'http://localhost:3000';\n  }\n};\nexport default defineConfig({\n  use: { baseURL: `${url}` },\n  projects: [{\n    name: 'p',\n    use: { ...devices['Desktop Chrome'] }\n  }]\n});\n"
+	if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", repro); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Fatalf("template coercion of an object with toString was ignored: %+v", unknown)
 	}
 	for _, row := range []struct{ use, browser string }{
 		{`{ 'browserName': 'firefox' }`, "firefox"},

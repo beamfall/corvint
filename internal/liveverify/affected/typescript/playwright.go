@@ -762,17 +762,19 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 
 func playwrightDefaultTest(relative string) bool {
 	base := path.Base(relative)
-	for _, marker := range []string{".spec.", ".test."} {
-		if !strings.Contains(base, marker) {
-			continue
-		}
-		for _, extension := range sourceExtensions {
-			if strings.HasSuffix(base, extension) {
-				return true
-			}
-		}
+	return (strings.Contains(base, ".spec.") || strings.Contains(base, ".test.")) && playwrightLoadableName(base)
+}
+
+// playwrightLoadableName reports whether name has an extension Playwright's default testMatch
+// (`**/*.@(spec|test).?(c|m)[jt]s?(x)`) accepts, including .mts and .cts, which the static profile
+// does not parse.
+func playwrightLoadableName(name string) bool {
+	extension := strings.TrimPrefix(strings.ToLower(path.Ext(name)), ".")
+	if strings.HasPrefix(extension, "c") || strings.HasPrefix(extension, "m") {
+		extension = extension[1:]
 	}
-	return false
+	extension = strings.TrimSuffix(extension, "x")
+	return extension == "js" || extension == "ts"
 }
 
 func playwrightAnyMatcher(matchers []playwrightMatcher, values ...string) bool {

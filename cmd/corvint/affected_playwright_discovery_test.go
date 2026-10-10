@@ -48,26 +48,31 @@ func runAffectedDiscoveryProducer(t *testing.T, root, listing string) (int, []by
 // stamped with the new HEAD and source digest, so e2e-safe selection cannot narrow from it.
 func TestAffectedPlaywrightDiscoveryStaleListing_GH709(t *testing.T) {
 	corpus := loadE2ECorpus(t)
-	root, base, _ := buildE2ECase(t, corpus, corpus.find(t, "search-source"))
-	listing := e2eCorpusListing(t, root, []string{"cart.spec.ts", "checkout.spec.ts", "profile.spec.ts", "search.spec.ts"})
-	code, produced, stderr := runAffectedDiscoveryProducer(t, root, listing)
-	if code != 0 {
-		t.Fatalf("fresh listing: exit=%d stderr=%s", code, stderr)
-	}
-	shopWrite(t, root, map[string]string{"discovery.json": string(produced)})
-	if got := runE2ESelection(t, root, base); got.Discovery.State != "MATCHED" {
-		t.Fatalf("control: produced receipt did not match: %+v", got.Discovery)
-	}
-	shopWrite(t, root, map[string]string{"e2e/refund.spec.ts": "import { test } from '@playwright/test';\ntest('refunds', async () => {});\n"})
-	shopCommit(t, root, "add a spec after the listing")
-	code, produced, stderr = runAffectedDiscoveryProducer(t, root, listing)
-	if code != 2 || len(produced) != 0 || !strings.Contains(stderr, "unsupported-playwright-discovery") || !strings.Contains(stderr, "e2e/refund.spec.ts") {
-		t.Fatalf("stale listing stamped: exit=%d stdout=%s stderr=%s", code, produced, stderr)
-	}
-	shopWrite(t, root, map[string]string{"discovery.json": string(produced)})
-	got := runE2ESelection(t, root, base)
-	if got.Discovery.State == "MATCHED" || got.State != "full-relevant-suite-required" || len(got.OmittedTests) != 0 || !slices.Contains(e2eCodes(got), appflows.CodeInventoryIncomplete) {
-		t.Fatalf("e2e-safe narrowed without a current listing: %+v", got)
+	// .mts and .cts specs are not parsed by the static profile; membership finds them by path.
+	for _, added := range []string{"e2e/refund.spec.ts", "e2e/refund.spec.mts", "e2e/refund.spec.cts"} {
+		t.Run(added, func(t *testing.T) {
+			root, base, _ := buildE2ECase(t, corpus, corpus.find(t, "search-source"))
+			listing := e2eCorpusListing(t, root, []string{"cart.spec.ts", "checkout.spec.ts", "profile.spec.ts", "search.spec.ts"})
+			code, produced, stderr := runAffectedDiscoveryProducer(t, root, listing)
+			if code != 0 {
+				t.Fatalf("fresh listing: exit=%d stderr=%s", code, stderr)
+			}
+			shopWrite(t, root, map[string]string{"discovery.json": string(produced)})
+			if got := runE2ESelection(t, root, base); got.Discovery.State != "MATCHED" {
+				t.Fatalf("control: produced receipt did not match: %+v", got.Discovery)
+			}
+			shopWrite(t, root, map[string]string{added: "import { test } from '@playwright/test';\ntest('refunds', async () => {});\n"})
+			shopCommit(t, root, "add a spec after the listing")
+			code, produced, stderr = runAffectedDiscoveryProducer(t, root, listing)
+			if code != 2 || len(produced) != 0 || !strings.Contains(stderr, "unsupported-playwright-discovery") || !strings.Contains(stderr, added) {
+				t.Fatalf("stale listing stamped: exit=%d stdout=%s stderr=%s", code, produced, stderr)
+			}
+			shopWrite(t, root, map[string]string{"discovery.json": string(produced)})
+			got := runE2ESelection(t, root, base)
+			if got.Discovery.State == "MATCHED" || got.State != "full-relevant-suite-required" || len(got.OmittedTests) != 0 || !slices.Contains(e2eCodes(got), appflows.CodeInventoryIncomplete) {
+				t.Fatalf("e2e-safe narrowed without a current listing: %+v", got)
+			}
+		})
 	}
 }
 

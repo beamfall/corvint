@@ -81,3 +81,27 @@ Limits added by this round:
 - A member read can invoke an existing getter; this is admitted.
 - The `affected` plan path still reads HEAD before its source verification; it is unchanged.
 
+
+## Review round 2
+
+The second independent review returned FAIL with two findings. The orchestrator decided both fixes,
+and each landed with a test that failed first:
+
+- Membership enumeration used only the files the static profile parsed, so a new `.mts` or `.cts`
+  spec dropped out and a stale listing was stamped. The producer now finds candidate test files by
+  path alone, using every extension Playwright's default `testMatch` accepts. It refuses when the
+  config selects a file the static profile does not parse, or when the listing omits a file. That
+  includes a `.ts` spec that is not valid UTF-8. The e2e-safe stale-listing regression now covers
+  `.ts`, `.mts` and `.cts`.
+- The side-effect-free check ignored implicit coercion. In the review's repro, `${url}` calls a
+  user `toString` that rewrites `devices['Desktop Chrome']`, and Chromium becomes Firefox. A
+  recursive-descent checker replaces the tokenizer. Identifiers and member reads may appear only
+  whole or under non-coercing operators. Template substitutions, computed keys and coercing
+  operators admit only operands proven primitive: literals, templates, `process.env.NAME`, and
+  operator results over those. A dynamic template such as `${port}` now widens.
+
+Limits added by this round:
+- A config that shadows `process` can make a `process.env.NAME` read non-primitive. This is not
+  detected.
+- A value admitted whole, such as `baseURL: url`, is not modelled for Playwright's own later use.
+- Files with other extensions that a custom `testMatch` selects are not enumerated.

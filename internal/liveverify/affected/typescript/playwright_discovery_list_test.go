@@ -199,18 +199,37 @@ func minimalPlaywrightListing(t *testing.T, root, rootDir string, projects, file
 // independently enumerate the files the config selects and refuse a listing that is stale,
 // names a file the config does not select, or cannot be checked statically (TJAA-V0-019).
 func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
-	t.Run("stale listing after a new spec", func(t *testing.T) {
+	// The new spec is found by path alone, so a stale listing is caught even when the static
+	// profile cannot parse the file (.mts/.cts) or read it as UTF-8.
+	for _, row := range []struct{ name, body string }{
+		{"b.spec.ts", "test('b', async () => {});\n"},
+		{"b.spec.mts", "test('b', async () => {});\n"},
+		{"b.spec.cts", "test('b', async () => {});\n"},
+		{"b.test.mjs", "test('b', async () => {});\n"},
+		{"b.spec.ts", "test('\xff', async () => {});\n"},
+	} {
+		t.Run("stale listing after a new "+row.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
+			write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
+			listing := minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})
+			if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing); err != nil {
+				t.Fatalf("fresh listing refused: %v", err)
+			}
+			write(t, root, "p/"+row.name, row.body)
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
+			if err == nil || raw != nil || !strings.Contains(err.Error(), `project "p" test p/`+row.name) {
+				t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+			}
+		})
+	}
+	t.Run("unparsed module spec outside every testDir", func(t *testing.T) {
 		root := t.TempDir()
 		write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'p' }] });\n")
 		write(t, root, "p/a.spec.ts", "test('a', async () => {});\n")
-		listing := minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})
-		if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing); err != nil {
-			t.Fatalf("fresh listing refused: %v", err)
-		}
-		write(t, root, "p/b.spec.ts", "test('b', async () => {});\n")
-		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, listing)
-		if err == nil || raw != nil || !strings.Contains(err.Error(), `omits project "p" test p/b.spec.ts`) {
-			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
+		write(t, root, "unit/b.spec.mts", "test('b', async () => {});\n")
+		if _, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, minimalPlaywrightListing(t, root, "p", []string{"p"}, []string{"a.spec.ts"})); err != nil {
+			t.Fatalf("a file no project selects refused the listing: %v", err)
 		}
 	})
 	root, listing := multiProjectListFixture(t)
