@@ -20,16 +20,20 @@ const MaxInputBytes = 8 << 20
 
 // Protected source bytes bind both the driver and its isolated fallback helper.
 //
-//go:embed partition.go order.go cmd/main.go package-costs.json
+//go:embed partition.go order.go slices.go cmd/main.go package-costs.json test-split-allow.json test-slices.json
 var profileFiles embed.FS
 
 //go:embed package-costs.json
 var defaultCosts []byte
 
+// profileNames are the protected sources and data the isolated helper is built
+// from; the digest binds all of them, test-level slices (AFP-V0-041) included.
+var profileNames = []string{"partition.go", "order.go", "slices.go", "cmd/main.go", "package-costs.json", "test-split-allow.json", "test-slices.json"}
+
 func ProfileDigest() string {
 	h := sha256.New()
-	h.Write([]byte("corvint-ci-partition/1\n"))
-	for _, name := range []string{"partition.go", "order.go", "cmd/main.go", "package-costs.json"} {
+	h.Write([]byte("corvint-ci-partition/2\n"))
+	for _, name := range profileNames {
 		b, err := profileFiles.ReadFile(name)
 		if err != nil {
 			panic(err)
