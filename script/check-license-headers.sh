@@ -5,10 +5,10 @@ set -eu
 # layer to the AGPL-3.0-or-later product layer; `LICENSING.md` is the path authority. Over the
 # tracked files under `examples/`:
 #
-#   1. No file carries an Apache-2.0 notice: an `SPDX-License-Identifier` naming Apache, or the
-#      "Licensed under the Apache License" line.
-#   2. Every non-Markdown file carries `SPDX-License-Identifier: AGPL-3.0-or-later` in its first
-#      five lines.
+#   1. No file carries an Apache-2.0 notice: an `SPDX-License-Identifier` expression naming Apache
+#      anywhere, or the "Licensed under the Apache License" line.
+#   2. Every non-Markdown file carries exactly `SPDX-License-Identifier: AGPL-3.0-or-later`, with no
+#      further licence expression, in its first five lines.
 #
 # `protocol/**` stays Apache-2.0 and is not checked here. A third-party file placed under
 # `examples/` would need its own owner-approved exception recorded in `LICENSING.md` and here.
@@ -16,8 +16,8 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 cd "$root"
 
-apache_pattern='SPDX-License-Identifier:[[:space:]]*Apache|Licensed under the Apache License'
-agpl_pattern='SPDX-License-Identifier: AGPL-3\.0-or-later([[:space:]]|$)'
+apache_pattern='SPDX-License-Identifier:.*Apache|Licensed under the Apache License'
+agpl_pattern='SPDX-License-Identifier: AGPL-3\.0-or-later[[:space:]]*$'
 
 failures=0
 checked=0

@@ -63,7 +63,14 @@ printf '# Demo\n\nSPDX-License-Identifier: Apache-2.0\n' >"$test_root/examples/d
 expect_failure "an Apache identifier in Markdown" "examples/demo/README.md carries an Apache-2.0 notice"
 printf '# Demo\n' >"$test_root/examples/demo/README.md"
 
-# 4. A non-Markdown file without the AGPL identifier fails.
+# 4. A compound SPDX expression naming Apache fails, as does a non-exact AGPL expression.
+printf '#!/bin/sh\n# SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0\necho ok\n' >"$test_root/examples/demo/run.sh"
+expect_failure "an AGPL OR Apache expression" "examples/demo/run.sh carries an Apache-2.0 notice"
+printf '#!/bin/sh\n# SPDX-License-Identifier: AGPL-3.0-or-later OR MIT\necho ok\n' >"$test_root/examples/demo/run.sh"
+expect_failure "an AGPL OR MIT expression" "examples/demo/run.sh lacks"
+printf '#!/bin/sh\n# SPDX-License-Identifier: AGPL-3.0-or-later\necho ok\n' >"$test_root/examples/demo/run.sh"
+
+# 5. A non-Markdown file without the AGPL identifier fails.
 printf 'name: demo\n' >"$test_root/examples/demo/workflow.yml"
 expect_failure "a missing AGPL header" "examples/demo/workflow.yml lacks"
 rm "$test_root/examples/demo/workflow.yml"
