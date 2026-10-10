@@ -211,3 +211,7 @@ func SetDoctorCacheHookForTest(hook func(stage string)) func() {
 	doctorCacheHook = hook
 	return func() { doctorCacheHook = old }
 }
+
+// DoctorPluginNamesForTest lists the plugins doctor --plugins would run
+// from dir (TQD-V0-010).
+func DoctorPluginNamesForTest(dir string) ([]string, error) { return doctorPluginNames(dir) }

@@ -808,3 +808,61 @@ func TestTQDV0009_FalseIdleSkipsRunsFIFO(t *testing.T) {
 		t.Fatal("doctor blocked opening a FIFO in place of the run directory")
 	}
 }
+
+// TQD-V0-011: a refresh waits a bounded time for the cache lock; a holder
+// that never releases it makes the refresh refuse LOCK_TIMEOUT, writing
+// nothing, instead of hanging.
+func TestTQDV0011_RefreshLockWaitIsBounded(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	doctorOK(t, root, "--refresh")
+	dir := doctorCacheDir(t, root)
+	lock, err := os.OpenFile(filepath.Join(dir, ".lock"), os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close() // releases the flock
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	before := fixture.TreeSnapshot(t, dir)
+	done := make(chan []byte, 1)
+	go func() { // the test goroutine must stay free to report a hang
+		var out, errb bytes.Buffer
+		cli.Run(cli.Env{Cwd: root, Args: []string{"doctor", "--refresh"}, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+		done <- out.Bytes()
+	}()
+	select {
+	case out := <-done:
+		res, err := wire.DecodeResult(out)
+		if err != nil || res.Outcome == wire.OutcomeOK || !hasCode(res, wire.CodeLockTimeout) {
+			t.Fatalf("refresh under a held lock: %v %s", err, out)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("refresh blocked on a cache lock that is never released")
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, dir)) {
+		t.Fatal("refresh wrote while another holder had the lock")
+	}
+}
+
+// TQD-V0-010: plugin discovery opens the directory without blocking, so a
+// FIFO in its place is a PLUGIN_FAILED reason, never a hang.
+func TestTQDV0010_PluginDiscoveryDoesNotBlockOnFIFO(t *testing.T) {
+	fifo := filepath.Join(t.TempDir(), "plugins")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { // the test goroutine must stay free to report a hang
+		_, err := cli.DoctorPluginNamesForTest(fifo)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("FIFO listed as a plugin directory")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("plugin discovery blocked opening a FIFO")
+	}
+}

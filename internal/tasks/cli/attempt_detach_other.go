@@ -20,5 +20,5 @@ func protectReadiness() {}
 // openRunFile: detached runs are refused here before any run file exists.
 func openRunFile(p string) (*os.File, error) { return os.Open(p) }
 
-// openRunsDir: detached runs are refused here before any runs directory exists.
-func openRunsDir(p string) (*os.File, error) { return os.Open(p) }
+// openDirNonblock: elsewhere a directory to list is opened as os.Open does.
+func openDirNonblock(p string) (*os.File, error) { return os.Open(p) }

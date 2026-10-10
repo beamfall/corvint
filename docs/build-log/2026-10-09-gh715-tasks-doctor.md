@@ -167,3 +167,33 @@ Limit: the location checks bracket each step but are not atomic with it. A direc
 the last pre-rename check and the rename receives the new `summary.json`. The post-rename check
 then refuses UNSUPPORTED_FILESYSTEM rather than reporting success, but the write is not undone. The
 non-darwin/linux writer is unchanged.
+
+## Review fixes, round 4
+
+Codex's fourth review found two more defects. Both are fixed.
+
+1. The refresh took a blocking `flock(LOCK_EX)` on `taskman-doctor/.lock` with no deadline, so a
+   holder that never released it hung every `doctor --refresh`. `doctorLock` now polls
+   `flock(LOCK_EX|LOCK_NB)` every 50 ms for at most 3 s (`doctorLockWait`, `doctorLockPoll`). A
+   lock still held after that wait is refused LOCK_TIMEOUT, the code the tasks CLI already uses
+   for lock contention. Nothing is written.
+2. `--plugins DIR` discovery used a blocking `os.Open`, so a FIFO swapped in after the argv
+   `os.Stat` check hung `doctor`. The round-3 helper `openRunsDir` is renamed `openDirNonblock`
+   and now serves both `listRuns` and `doctorPluginNames`. A non-directory fails ENOTDIR at once
+   and becomes the existing PLUGIN_FAILED "plugin directory unreadable" finding.
+
+A grep of `doctor*.go` finds no other blocking open or flock. The cache reads go through
+`readBounded`, which already opens `O_NOFOLLOW|O_NONBLOCK`.
+
+Each fix has a test that failed on 6fe81af7 and passes now:
+
+- `TestTQDV0011_RefreshLockWaitIsBounded`: the test holds the flock on its own descriptor.
+  Before, the refresh was still blocked at 15 s. Now it refuses LOCK_TIMEOUT after about 3.2 s and
+  leaves the cache directory unchanged.
+- `TestTQDV0010_PluginDiscoveryDoesNotBlockOnFIFO`: plugin discovery on a FIFO. Before, it was
+  still blocked at 10 s. Now it returns an error at once. The test calls discovery directly
+  because the argv check refuses a FIFO that is present from the start. The swap race itself is
+  not reproduced; the open it reaches is the same.
+
+TQD-V0-010, TQD-V0-011, the failure modes, the acceptance evidence and the traceability are
+amended. The requirements stay proposed.

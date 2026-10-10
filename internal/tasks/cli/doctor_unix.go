@@ -11,8 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // doctorPluginGroup runs a plugin in its own process group and kills the
@@ -108,13 +110,7 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 		return err
 	}
 	defer lock.Close()
-	if err := safeopen.Control(lock, func(fd uintptr) error {
-		for {
-			if err := syscall.Flock(int(fd), syscall.LOCK_EX); err != syscall.EINTR {
-				return err
-			}
-		}
-	}); err != nil {
+	if err := doctorLock(lock); err != nil {
 		return err
 	}
 	if doctorCacheHook != nil {
@@ -180,6 +176,31 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 		return err
 	}
 	return inPlace()
+}
+
+// doctorLockWait bounds how long a refresh waits for another holder of the
+// cache lock, polling a non-blocking flock every doctorLockPoll; past it the
+// refresh refuses LOCK_TIMEOUT having written nothing (TQD-V0-011).
+const doctorLockWait, doctorLockPoll = 3 * time.Second, 50 * time.Millisecond
+
+func doctorLock(lock *os.File) error {
+	deadline := time.Now().Add(doctorLockWait)
+	for {
+		err := safeopen.Control(lock, func(fd uintptr) error {
+			for {
+				if err := syscall.Flock(int(fd), syscall.LOCK_EX|syscall.LOCK_NB); err != syscall.EINTR {
+					return err
+				}
+			}
+		})
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			return err
+		}
+		if !time.Now().Before(deadline) {
+			return wire.Errorf(wire.CodeLockTimeout, doctorCacheDirName+"/"+doctorCacheLockName, "doctor cache lock held by another refresh for more than %v; nothing was written", doctorLockWait)
+		}
+		time.Sleep(doctorLockPoll)
+	}
 }
 
 // doctorCacheFile opens name beneath the pinned cache directory without

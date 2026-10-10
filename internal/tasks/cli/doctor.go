@@ -711,9 +711,10 @@ func doctorPlugins(dir, cwd string) []doctorFinding {
 
 // doctorPluginNames lists the regular executables in dir, reading at most
 // doctorMaxPluginEntries entries in fixed-size batches; a larger directory
-// is refused whole, so no plugin runs (TQD-V0-010).
+// is refused whole, so no plugin runs (TQD-V0-010). The directory is opened
+// without blocking, so a FIFO swapped in after the argv check is refused.
 func doctorPluginNames(dir string) ([]string, error) {
-	d, err := os.Open(dir)
+	d, err := openDirNonblock(dir)
 	if err != nil {
 		return nil, fmt.Errorf("plugin directory unreadable: %v", err)
 	}
