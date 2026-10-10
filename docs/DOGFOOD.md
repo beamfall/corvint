@@ -635,6 +635,13 @@ is a review responsibility. Run `corvint dogfood begin --plan FILE` before work 
 original context receipts. One active session owns a worktree because legacy coordination outputs
 are shared. A different session must use its own worktree or wait for explicit completion/cancellation.
 
+A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
+like any other and does not refuse. The loop resolves its private evidence and session directory
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:95`), which for a linked
+worktree is that worktree's own `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
+The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and
+`info/exclude`) is shared with the main checkout, so the ignore entries need adding only once.
+
 Within the same task, resume with `corvint dogfood status`; the unkeyed examples below use the
 current `CODEX_THREAD_ID` or `CODEX_SESSION_ID`. For a handoff of the same enrolled work, retain the
 original worktree and explicit 64-hex session key from its emitted `nextActions`. Resume there with
