@@ -1,8 +1,8 @@
 # VS Code error text and evidence document opening
 
 Owner-requested bounded implementation of V1-0439 and V1-0440 against base
-`2145af619f68698dbb1c097369e29d589e623f7d`. VSC-V0-077 and VSC-V0-078 remain
-proposed, pending owner acceptance; the extension's deferred/FALLBACK status is unchanged.
+`2145af619f68698dbb1c097369e29d589e623f7d`. VSC-V0-077 and VSC-V0-078 were
+accepted by the owner on 2026-10-10 (decision 0503); the extension's deferred/FALLBACK status is unchanged.
 
 Process failures preserve the stable code prefix and display the first non-empty stderr line
 through nonfatal UTF-8 decoding and the shared 200-scalar display sanitizer. Empty/blank stderr

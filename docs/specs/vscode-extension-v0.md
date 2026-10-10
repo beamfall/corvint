@@ -913,13 +913,13 @@ Windows live-provider execution remains explicitly unsupported in this alpha.
 Acceptance evidence for VSC-V0-071..076 is the controller/process regression suite plus the exact
 installed qualification required by PUB-V0-016. Unit stubs alone do not qualify an editor host.
 
-- **VSC-V0-077.** (proposed, pending owner acceptance (V1-0439)) Process failures
+- **VSC-V0-077.** (accepted, decision 0503; V1-0439) Process failures
 MUST retain their stable display code prefix and show the first non-empty stderr line, decoded
 as UTF-8 with replacement for malformed bytes and sanitized by the shared display policy to at
 most 200 Unicode scalars. Blank lines are skipped; absent or blank stderr retains the existing
 "local Corvint process failed" fallback. Later stderr lines MUST NOT be displayed.
 
-- **VSC-V0-078.** (proposed, pending owner acceptance (V1-0440)) Evidence diagnostics
+- **VSC-V0-078.** (accepted, decision 0503; V1-0440) Evidence diagnostics
 MUST NOT open text documents. After the existing file-containment validation, use a sane integer
 1-based evidence line (at least 1) to construct a zero-based range from character 0 to a large
 end column; VS Code validates/clamps document bounds. Evidence beyond the current file length
