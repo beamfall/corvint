@@ -69,13 +69,19 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 						change.PreviousWorkerClean = true
 						change.Next.Phase = "FINISHED"
 						change.Next.Quiescence = "PROVED"
+						// The recovered stage's host output was lost with
+						// the owner, so a stop from STOPPING records its
+						// usage unobserved (CAL-V0-074, V1-1063).
+						if old.Phase == "STOPPING" && change.Next.ResultClass != "NO_EXEC" {
+							change.Next.UsageKnown = false
+						}
 					}
 				}
 				// An owner that died between dispatch and FINISHED after the
 				// attempt recorded a proved stop leaves nothing to recover: the
 				// replacement settles the program FINISHED. A stage stopped
 				// from STOPPING lost its host output, so its usage is
-				// unobserved (CAL-V0-210, proposed).
+				// unobserved (CAL-V0-210).
 				if !change.PreviousWorkerClean && (old.Phase == "SPAWNING" || old.Phase == "STOPPING") {
 					if rec, ok := proof.Records["attempts/"+old.CurrentAttempt+".json"]; ok && rec.Raw != nil {
 						if a, e := snapshot.DecodeAttempt(rec.Raw); e == nil && transaction.BoundStoppedAttempt(a, old) {

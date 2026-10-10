@@ -111,6 +111,29 @@ func covered(resources []ticket.Resource, path string) bool {
 	return false
 }
 
+// exactKeyCause names each PATH key without a trailing "/" that one of the
+// offending paths lies beneath: such a key names one path, and only a
+// directory key ending in "/" covers the paths under it (CAL-V0-021,
+// CAL-V0-024, V1-1090).
+func exactKeyCause(resources []ticket.Resource, bad []string) string {
+	keys := []string{}
+	for _, r := range resources {
+		if r.Class != "PATH" || strings.HasSuffix(r.Key, "/") {
+			continue
+		}
+		for _, p := range bad {
+			if strings.HasPrefix(p, r.Key+"/") {
+				keys = append(keys, r.Key)
+				break
+			}
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	return "; a PATH key without a trailing \"/\" names one path, not the paths beneath it: " + strings.Join(keys, " ") + " (a directory key ends in \"/\")"
+}
+
 // planSubmit records the candidate tree when every changed path is within
 // scope (CAL-V0-015, CAL-V0-024). A resubmitted tree leaves the earlier gate
 // results in place: they stay bound to their own tree, so COMPLETE reads
@@ -127,7 +150,7 @@ func planSubmit(c leaseContext) leaseOutcome {
 		return *out
 	}
 	if bad := outOfScope(a, c.in.LeaseFacts.ChangedPaths); len(bad) > 0 {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodeOutOfScope, "outside the attempt's scope: "+strings.Join(bad, " "))
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeOutOfScope, "outside the attempt's scope: "+strings.Join(bad, " ")+exactKeyCause(a.Scope.Resources, bad))
 	}
 	if a.CandidateTreeOid != nil && *a.CandidateTreeOid == c.l.Tree {
 		return c.unchanged()
