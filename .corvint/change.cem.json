@@ -1,0 +1,300 @@
+{
+  "baseRevision": "71b2eb8fc3e56a9df368b8be8227bf5ad125f8c9",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3265,
+        "start": 2977
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:092ae93b9cdd427aabbea0e204a645a94ad6ea4b1d93a942a4f53da7e621b5ba",
+      "newRange": {
+        "count": 55,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-vscode-error-text-and-evidence-open.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5c862d72b68cd4208288b1e7a73b1fd60a3942240624a37f7b5bb01494238d1a",
+      "newRange": {
+        "count": 37,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0503-vsc-v0-077-078-error-text-and-evidence-open-accepted-2026-10-10.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7218c84471240cbfae0d1e0a17851fc94a096d5f7c56acec11306353fd92a135",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c17731d52bbca1573dddfdd44bd2f6cd6b70b15d9dec30b80574211f784b2e81",
+      "newRange": {
+        "count": 8,
+        "start": 3299
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 3299
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6aedbba4380d5b959a4f3302f891f61ec630f6e66c055a39a31f3f6d73f1548a",
+      "newRange": {
+        "count": 19,
+        "start": 913
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 913
+      },
+      "path": "docs/specs/vscode-extension-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:05bdb59981f86ded9d05f8aa99436d83a6e6ec62fc413e685a5908975771693a",
+      "newRange": {
+        "count": 8,
+        "start": 981
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 968
+      },
+      "path": "docs/specs/vscode-extension-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0c0f7b45a41f5d0858a4d61e5b4bf734c33198444daef680d9d791248297b7fb",
+      "newRange": {
+        "count": 12,
+        "start": 737
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 737
+      },
+      "path": "extensions/vscode/src/extension.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:86e31f7f24a444231aa9fa6478a6184a07c7c7284ac040523274763fec020b20",
+      "newRange": {
+        "count": 14,
+        "start": 172
+      },
+      "oldRange": {
+        "count": 25,
+        "start": 172
+      },
+      "path": "extensions/vscode/src/presentation.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:38e798bcdb7b8b39872e98e437960f61affde6d8ea31d646747a786f43ce6b30",
+      "newRange": {
+        "count": 23,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "extensions/vscode/test/error-presentation.test.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d943a991aff74bb6c2960e1f8777bed230512cae004f9a182f0d70a47a77179d",
+      "newRange": {
+        "count": 47,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "extensions/vscode/test/presentation.test.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:342e3fa5a2ee79ff7bbff4ff90da0e3f8b9625de17315f2d946d3fa3bf47ce79",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1
+      },
+      "path": "extensions/vscode/test/vscode-stub.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2349f3b88bdbb1b4c7e3403bf1340f7496296ee1426e2fd2f197afa0cd1c550d",
+      "newRange": {
+        "count": 7,
+        "start": 19
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 19
+      },
+      "path": "extensions/vscode/test/vscode-stub.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:56f0d2b13c469110f6b1c244438a3fb0e2525bdb22ce9b92c35e84a1cccc1092",
+      "newRange": {
+        "count": 10,
+        "start": 41
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 40
+      },
+      "path": "extensions/vscode/test/vscode-stub.ts",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f7dc2e1ff7cb0fb8567399bd4cba5edc1dd76bd982c1833f833e799630f4acfb",
+      "newRange": {
+        "count": 34,
+        "start": 62
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 57
+      },
+      "path": "extensions/vscode/test/vscode-stub.ts",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "ede41de81c1c71e1f19b8c3a9d5e7d1ed607266c0ca4441aa19945d74b4034da",
+  "spec": "cem/0.2"
+}
