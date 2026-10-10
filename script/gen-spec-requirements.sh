@@ -81,14 +81,19 @@ my @specs;
 my %best;
 for my $file (sort @specs) {
     my $line_number = 0;
+    my $previous_blank = 1;
     for my $line (split /^/, index_blob($file)) {
         ++$line_number;
+        # SRG-V0-003: unmarked definitions start paragraphs, not wrapped prose.
+        my $definition_boundary = $previous_blank || $line =~ /^\s*(?:[-*]\s+|\*\*|`)/;
+        $previous_blank = $line =~ /^\s*$/;
+
         while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
             my $id = $1;
             my $quoted = quotemeta($id);
-            my $is_period = $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?\.(?:\*\*)?\s/;
+            my $is_period = $definition_boundary && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?\.(?:\*\*)?\s/;
             my $rank = $is_period ? 0
-                     : $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?(?:\*\*)?\s*:/ ? 0
+                     : $definition_boundary && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?(?:\*\*)?\s*:/ ? 0
                      : $line =~ /^\s*\|\s*`?$quoted`?(?:\s|\||\.)/ ? 1
                      : 2;
             next if $rank > 1;

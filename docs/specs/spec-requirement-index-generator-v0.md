@@ -72,16 +72,20 @@ No requirement below diverges from the implementation.
   under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
   file contributes no row and a tracked file deleted from the worktree alone still contributes its
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
-- `SRG-V0-002`: The generator MUST recognise a requirement id as a token matching an uppercase
+- `SRG-V0-002`: proposed, pending owner acceptance (V1-0524). The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:86`). An id with a suffix
-  that is not exactly three digits MUST NOT be indexed.
-- `SRG-V0-003`: The generator MUST classify each occurrence of an id into exactly one of three
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:91`). An id with a suffix
+  that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
+  establish a definition; the occurrence MUST also meet SRG-V0-003.
+- `SRG-V0-003`: proposed, pending owner acceptance (V1-0524). The generator MUST classify each occurrence of an id into exactly one of three
   ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
   optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
   colon; rank 1 when the line begins with a table cell holding the id; rank 2 otherwise. It MUST
   discard every rank 2 occurrence, so a passing mention of an id in prose never becomes its
-  indexed location.
+  indexed location. An unmarked definition (no list bullet, bold, or backtick prefix) MUST
+  begin a paragraph: the first line of the file or a line following a blank line. A wrapped
+  prose continuation MUST NOT become rank 0 merely because its first token matches the ID
+  pattern and separator. Marked definitions and table-cell ranking remain unchanged.
 - `SRG-V0-004`: Among retained occurrences of one id the generator MUST select exactly one
   winner, ordering by rank ascending, then by file path ascending, then by line number ascending
   with the number zero-padded so the comparison is numeric rather than lexical. The first
@@ -151,7 +155,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | Requirement | Evidence |
 |---|---|
 | SRG-V0-001 | `MET` at `0ec169f1`: `script/gen-spec-requirements_test.sh` asserts an untracked spec, a worktree-only deletion, and an unstaged edit all leave the index unchanged while a staged edit changes it, and that `docs/specs/README.md` is excluded |
-| SRG-V0-002, SRG-V0-003 | the id regex and the three rank patterns in `script/gen-spec-requirements.sh`; the committed index contains no row whose cited line is a prose mention |
+| SRG-V0-002, SRG-V0-003 | the id regex and the three rank patterns in `script/gen-spec-requirements.sh`; `script/gen-spec-requirements_test.sh` case 5 rejects wrapped prose and preserves marked, paragraph-start and table definitions |
 | SRG-V0-004 | the zero-padded sort key and the `le` comparison that keeps the first winner; deterministic regeneration at `5b496119` |
 | SRG-V0-005 | `MET`: the title is decoded as UTF-8 around the `substr` cut, so truncation counts characters; `script/gen-spec-requirements_test.sh` case 4 requires a 90-character `é` title to come out as exactly 80 characters (it failed at 40 characters, 80 bytes, before the repair). Decision 0105 recorded the byte-truncation defect; regeneration lengthened ten committed rows whose titles carry a multibyte character before the cut. A title that is not valid UTF-8 cannot be decoded and is still cut by byte |
 | SRG-V0-006 | `make spec-requirements-check` passing at `5b496119` against the committed index |
