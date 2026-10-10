@@ -35,6 +35,10 @@ var (
 type Root struct {
 	path string
 	info os.FileInfo
+
+	// BeforeReadOpen is a per-root test seam invoked after metadata capture,
+	// before the safe opener. Nil in production; it never replaces read checks.
+	BeforeReadOpen func(string)
 }
 
 // OpenRoot validates one existing directory as a publication root.
@@ -101,7 +105,7 @@ func (r *Root) ReadBounded(relative string, bound int, code string) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	return ReadBoundedFile(full, bound, code)
+	return readBoundedFile(full, bound, code, r.BeforeReadOpen)
 }
 
 // ReadBoundedFile reads one absolute-path regular file with the same bounds.
@@ -110,6 +114,10 @@ func (r *Root) ReadBounded(relative string, bound int, code string) ([]byte, err
 // bytes flow through a bound-plus-one limiter so growth after the size check
 // can never allocate beyond the bound.
 func ReadBoundedFile(path string, bound int, code string) ([]byte, error) {
+	return readBoundedFile(path, bound, code, nil)
+}
+
+func readBoundedFile(path string, bound int, code string, beforeOpen func(string)) ([]byte, error) {
 	before, err := os.Lstat(path)
 	if err != nil {
 		return nil, cemcode.New(code, "input %q is missing", path)
@@ -119,6 +127,9 @@ func ReadBoundedFile(path string, bound int, code string) ([]byte, error) {
 	}
 	if before.Size() > int64(bound) {
 		return nil, cemcode.New(code, "input %q exceeds %d bytes", path, bound)
+	}
+	if beforeOpen != nil {
+		beforeOpen(path)
 	}
 	file, err := openInputFile(path)
 	if err != nil {
