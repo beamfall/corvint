@@ -86,9 +86,11 @@ writer-locked and refuse at once, as before.
 
 These share the root cause by code path; neither is reproduced here.
 
-- V1-0467: `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` racer `submit-a` was refused
-  `staging/a03`. `prepareLease` runs `AuditForWrite` under the preparation gate, not the writer
-  lock, while a racing writer holds slots `a00`..`a03`.
+- V1-0467: `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` racer 2, `gate-a`, was refused
+  `staging/a03`. At commit `30e306ec`, `GateRun` makes the unlocked lease read before it takes
+  the lock (`unlockedAttemptProof`, then `readLeaseProof`, then `AuditForWrite`;
+  `internal/tasks/store/lease_gate.go:57,108`), while a racing writer holds slots `a00`..`a03`.
+  An earlier version of this entry named `submit-a` and `prepareLease`; that was wrong (V1-1127).
 - V1-0949: `TestATRV0008_DetachedRunSurvivesItsLauncher` polls `store.AttemptRecord`
   (`readLeaseProof`, unlocked) and fails on any read error. Meanwhile the detached supervisor
   process journals heartbeats.
