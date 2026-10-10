@@ -114,8 +114,17 @@ func (o *completionOffers) offer(v *ticket.View) {
 // receiptMaterialBindings folds every retained receipt through the pure
 // ERG-V0-009 review and ESC-V0-010 escalation binding audits, so `receipt
 // audit` refuses an event that does not record its receipt's transition.
-func receiptMaterialBindings(repo *intent.Repository, last wire.Size) error {
-	return store.FoldReceiptBindings(repo, last.Uint64(), nil)
+// A complete audit that folded every receipt it validated supplies the
+// outcome; otherwise every receipt is read and folded again.
+func receiptMaterialBindings(repo *intent.Repository, audited *journal.Result) error {
+	folded, err := audited.ReceiptFold()
+	if err != nil {
+		return err
+	}
+	if audited.Mode == journal.ModeFull && folded != 0 && folded == audited.LastSeq.Uint64() {
+		return nil
+	}
+	return store.FoldReceiptBindings(repo, audited.LastSeq.Uint64(), nil)
 }
 
 type reviewFlags struct {

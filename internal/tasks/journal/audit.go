@@ -3,6 +3,7 @@ package journal
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -76,6 +77,9 @@ type Result struct {
 	IntentError error
 	// Mode is ModeFull for an audit that walked every retained receipt.
 	Mode          string
+	fold          func(*snapshot.Receipt, wire.Digest) error
+	folded        uint64
+	foldErr       error
 	chain         *chain
 	request       *snapshot.Request
 	requestTicket string
@@ -110,17 +114,30 @@ type Reader struct {
 	// stats every intent file into its inventory, and a file whose size
 	// differs is read afresh, so a changed tree still moves the audit or
 	// fails the outer snapshot's comparison.
-	IntentTree      *intent.Tree
-	afterCapture    func() // deterministic capture/body boundary witness
-	divergentIntent string // set only on a value copy by Reconciliation
-	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
-	physical        *PhysicalObservation
-	writerCache     bool
-	intentOnly      bool
-	handoffPolicy   *HandoffPolicySelector
-	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
-	writer          *WriterCheckpoint // AuditForWriter only
-	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
+	IntentTree *intent.Tree
+	// ReceiptFold, when set, starts one fold per complete (ModeFull) audit
+	// attempt over the receipts that attempt validates, in sequence order
+	// from 1, so a caller that must fold every retained receipt does not
+	// read and decode the journal again. The fold sees a receipt only after
+	// the walk has fully validated it, is not called again after its first
+	// error, and never changes the audit; Result.ReceiptFold reports it.
+	ReceiptFold func() func(rc *snapshot.Receipt, sum wire.Digest) error
+	// ExpectHeadSha256, when set, is the head digest of the outer snapshot
+	// the caller binds this audit to. An attempt whose first capture shows
+	// any other head returns SNAPSHOT_MOVED at once, without walking or
+	// falling back: the caller would discard any verdict about that head,
+	// so its outer reader re-probes instead (V1-1060).
+	ExpectHeadSha256 wire.Digest
+	afterCapture     func() // deterministic capture/body boundary witness
+	divergentIntent  string // set only on a value copy by Reconciliation
+	unpauseTickets   bool   // set only on a value copy by BarrierRemoval
+	physical         *PhysicalObservation
+	writerCache      bool
+	intentOnly       bool
+	handoffPolicy    *HandoffPolicySelector
+	observedIntent   bool              // AuditForMutation: select queue, policy and observed tickets/releases
+	writer           *WriterCheckpoint // AuditForWriter only
+	writerBefore     *observation      // AuditForWriter's first capture, set for its second only
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -261,16 +278,20 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 	if r.Checkpoint != nil && request == "" && checkIntent && !r.writerCache && !r.intentOnly && !r.unpauseTickets && r.divergentIntent == "" {
 		for attempt := 0; attempt < 4; attempt++ {
 			result, err := r.auditAttempt(selected, request, lim, checkIntent, r.Checkpoint)
-			if err == nil {
-				return result, nil
+			if err == nil || err == errHeadPassed {
+				return result, err
 			}
-			if wire.CodeOf(err) != wire.CodeSnapshotMoved {
+			var pending inFlight
+			if wire.CodeOf(err) != wire.CodeSnapshotMoved && !errors.As(err, &pending) {
 				break
 			}
 		}
 	}
 	for attempt := 0; attempt < 4; attempt++ {
 		result, err := r.auditAttempt(selected, request, lim, checkIntent, nil)
+		if err == errHeadPassed {
+			return nil, err
+		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
 			continue
 		}
@@ -322,6 +343,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if r.afterCapture != nil {
 		r.afterCapture()
 	}
+	if r.ExpectHeadSha256 != "" && before.identity.HeadSha256 != r.ExpectHeadSha256 {
+		return nil, errHeadPassed
+	}
 	if r.observedIntent {
 		selected = observedSelection(before)
 	}
@@ -348,6 +372,10 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	return result, bodyErr
 }
+
+// errHeadPassed is the SNAPSHOT_MOVED an attempt returns when the head no
+// longer names Reader.ExpectHeadSha256.
+var errHeadPassed = wire.Errorf(wire.CodeSnapshotMoved, "head.json", "head moved past the caller's snapshot")
 
 func sameObservation(a, b *observation) bool {
 	if a.identity != b.identity || len(a.files) != len(b.files) {
