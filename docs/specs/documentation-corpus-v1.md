@@ -345,6 +345,70 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   revision pitfall: the record describes an earlier provider commit and is committed, and anchored,
   in a later one. A test closed-decodes the guide's example and builds an accepted request from it
   under that rule. Status: (accepted, decision 0482; V1-1086; GitHub #717).
+- `DCP-V1-046`: `corvint docs corpus discover-playwright --migration MIGRATION.json --config PATH
+  --playwright-list LIST.json [--receipt RECEIPT.json]` converts a caller-run
+  `playwright test --list --reporter=json` report into the canonical
+  `corvint-playwright-discovery/1` record with mode `live-playwright-list`: the schema-2 migration's
+  revision set, one full-file config anchor and one execution per listed test and project, each a
+  one-line anchor at Playwright's reported line. Every anchor is the Git blob at the migration's
+  source revision in the repository whose root commit is the migration's E2E repository, and the
+  working-tree bytes the listing observed must equal that blob. Corvint never runs Playwright; output
+  is deterministic and the command writes nothing. Status: (accepted, decision 0489;
+  V1-1082; GitHub #717).
+- `DCP-V1-047`: An execution's identity is `playwright:` plus Playwright's own per-project test ID.
+  With `--receipt`, a canonical qualified Playwright receipt for the same config path, config bytes
+  and test-file bytes supplies the identity instead for the one receipt test with the same file,
+  line, project and title; more than one match refuses. The produced record, unchanged, is admitted
+  by `behavior-adapter` as its discovery input, and each registered test whose ID equals an
+  execution identity joins that execution in `discovered_project_executions`. Status: (accepted, decision 0489; V1-1082; GitHub #717).
+- `DCP-V1-048`: `discover-playwright` refuses, with `corpus-refused` and no output, a listing that
+  is filtered (any `test` argument other than `--list`, `--reporter=json` and `--config`), sharded,
+  errored, of another config, rooted outside the repository, has a repeated or missing test ID,
+  location or project, or is empty or over the execution bound; a listing whose project/file pairs
+  differ from those the config selects in the working tree, or that omits a pair the config selects
+  among the regular files at the source revision, under the same static-membership and
+  skipped-directory refusals as `affected` Playwright discovery (a clarification from review round
+  2, not a change of accepted intent); a config or test file that is not a
+  regular blob at the source revision or differs in the working tree; a repository that is not the
+  migration's; a malformed migration, including a `documentation_revision` that is not a Git object
+  ID or differs from `revisions.docs_corpus.revision`; and a receipt that is not qualified or ran other config or
+  test bytes. Status: (accepted, decision 0489; V1-1082; GitHub #717).
+- `DCP-V1-049`: `corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID
+  --report REPORT.json` validates the behavior-adapter request, then emits one deterministic
+  `corvint-behavior-witness-import/1` bundle that binds the contract ID and digest, source revision,
+  the retained receipt input (ID, revision, path, SHA-256), the caller-run Playwright JSON report's
+  SHA-256, and for every registered test either a witness or an unwitnessed entry. The receipt input
+  must be a retained request input other than the migration and discovery inputs. Corvint never runs
+  Playwright. Status: (accepted, decision 0489; V1-1083; GitHub #717).
+- `DCP-V1-050`: A witness is produced only when the qualified receipt test with the registered ID
+  ran the registered project, file bytes, line and title, passed on its only attempt (retry 0) with
+  a `PASSED` projection, no other receipt outcome shares its file, line, project and full title, and
+  the report has exactly one result for that file, line, project and full title path (file, describe
+  and test titles joined with ` > ` as the receipt's `fullName` is) whose status is `expected` with
+  one passed result carrying an explicit retry 0, behavior-event annotations that form one unique
+  passing sequence numbered from 1 with a closed kind, identity and browser context, exactly one
+  `passed` cleanup annotation and the registered fixtures and roles. The
+  witness carries the canonical `corvint-behavior-run/1` document (run digest = receipt digest), its
+  SHA-256, the report test ID and digest, and an observation link whose run identity, project and
+  source paths match `behavior-adapter`'s receipt check. Once the caller retains that document and
+  wires it as the test's runtime, `runtime_witnessed_contracts` counts the contract. Events are read
+  from the report, never copied from the declared flow. Status: (accepted, decision 0489;
+  V1-1083; GitHub #717).
+- `DCP-V1-051`: Every other registered test stays unwitnessed with exactly one named reason and is
+  never credited: `foreign-project`, `source-mismatch`, `receipt-test-missing`, `failed`, `skipped`,
+  `flaky-after-retry` (including any retried pass), `report-ambiguous` (receipt outcomes sharing a
+  test identity or file, line, project and full title, or several report results for one),
+  `report-test-missing` (including a result with an absent or null retry), `report-receipt-disagree`,
+  `events-unobserved`, `event-malformed` (an event that does not decode or breaks the sequence,
+  uniqueness, passing, kind, identity or browser-context rules), `cleanup-unobserved`,
+  `cleanup-failed` or `fixture-role-mismatch`. Status: (accepted, decision 0489; V1-1083;
+  GitHub #717).
+- `DCP-V1-052`: Missing or untrustworthy shared evidence yields uncertainty for every test, never
+  certainty: an unqualified receipt (`receipt-unqualified`), an incomplete, omitted or stale one
+  (`receipt-incomplete`), one of other config bytes (`config-mismatch`), or a report of another config
+  file or runner version (`report-foreign-config`) leaves all tests unwitnessed with that reason. The
+  bundle states the fallback `full-relevant-suite` and its limitations. Status: (accepted, decision
+  0489; V1-1083; GitHub #717).
 
 ## Input and authority boundary
 
@@ -460,6 +524,28 @@ Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
 `TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterCheckRetainsNoAmplifiedKeys`, `TestBehaviorAdapterBuildBoundMessage` and the check subtest of `TestBehaviorAdapterCLI`. The guide example in `DCP-V1-045` is exercised by
 `TestBehaviorAdapterGuideMigrationExample`. Exact consumer inputs, live browser execution and external
 utility qualification remain `NOT_OBSERVED`.
+
+### Experimental Playwright discovery and witness producers (issue 717)
+
+`discover-playwright` and `witness-playwright` produce the two caller-run inputs the behavior
+adapter already checks, so an adopter need not hand-write them (`DCP-V1-046..052`). Both read files
+the caller produced; neither runs Playwright, a browser or the application. `discover-playwright`
+reuses the issue-709 listing validation (`typescript.PlaywrightListedTests`) so its refusals match
+`corvint affected discovery`. `witness-playwright` emits a bundle, not a request: the caller retains
+each witness document byte-for-byte, adds it as an observed input, names it as the test's runtime
+evidence and appends the observation link; `behavior-adapter` then rechecks the join.
+
+Limits: the listing, report and receipt are caller-declared; there is no `--project` filter, since
+narrowing the listing would narrow the discovered denominator. The report digest is retained in the
+bundle, not in the closed `corvint-behavior-run/1` wire, so the corpus compiler does not re-verify the
+report. A qualified receipt is required for witnessing and for identities that the adapter's receipt
+check accepts. Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
+listing and report of a generic project with a synthetic qualified receipt; live browser execution
+by Corvint and external utility qualification remain `NOT_OBSERVED`.
+
+Acceptance: `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`,
+`TestPlaywrightWitnessImporter`, `TestPlaywrightListedTestsMultiProject` and
+`TestDocsCorpusPlaywrightProducersCLI`.
 
 ### Multi-repository behavior declarations (issue 330)
 
@@ -613,6 +699,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-043 | `cmd/corvint-corpus-parity` | `TestCorpusParityCommandEndToEnd`, `TestCorpusParityCommandFailuresExitNonzero` |
 | DCP-V1-044 | `internal/doccorpus/behavior_adapter_check.go`, `behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | `TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`, `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`, `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`, `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`, `TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterCheckRetainsNoAmplifiedKeys`, `TestBehaviorAdapterBuildBoundMessage`, `TestBehaviorAdapterCLI` (`DCP-V1-044 check`) |
 | DCP-V1-045 | `docs/DOCUMENTATION-CORPUS.md` | `TestBehaviorAdapterGuideMigrationExample` |
+| DCP-V1-046..048 | `internal/doccorpus/behavior_playwright_discovery.go`, `internal/liveverify/affected/typescript/playwright_listed_tests.go`, `playwright_discovery_list.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`, `TestPlaywrightListedTestsMultiProject`, `TestDocsCorpusPlaywrightProducersCLI` |
+| DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
