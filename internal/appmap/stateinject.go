@@ -264,34 +264,38 @@ func objectKey(toks []token, i int) bool {
 }
 
 // computedAnnotation reports whether f holds an array literal that may be an inline annotation
-// whose names the reader cannot read: an element before the last is not one exact string, and the
-// last could be the injected function -- a function or arrow, or anything but an exact literal, an
-// object or an array (a function passed by name or member, `['A' + 'B', fn]`, or a call that
-// returns one). An earlier element that passes a function counts too. The dependency list of
-// `module('name', [...])` and a binding pattern (`const [a, b] = v`) are no annotation; any other
-// array of identifiers fails closed.
+// whose names the reader cannot read: when any element but the last is not one exact string, every
+// element must be a value that cannot be a function -- an exact string or number, `true`, `false`,
+// `null`, an object or an array -- whatever its position. A function or arrow, a name or member
+// that may hold one (`undefined`, `NaN` and `Infinity` are names that can be shadowed), a call that
+// may return one, a spread or a hole fails. One trailing comma ends the list without an element.
+// The dependency list of `module('name', [...])` and a binding pattern (`const [a, b] = v`) are no
+// annotation; any other array holding a name fails closed.
 func (f *constFile) computedAnnotation() bool {
 	toks := f.toks
 	for i := range toks {
 		if !isPunct(toks[i], "[") || moduleDeps(toks, i) || i > 0 && (word(toks, i-1, "const") || word(toks, i-1, "let") || word(toks, i-1, "var")) {
 			continue
 		}
-		end, computed := closeParen(toks, i), false
+		end := closeParen(toks, i)
 		if next(toks, end+1, "=") && !next(toks, end+2, "=") && !next(toks, end+2, ">") {
 			continue // an assignment pattern
 		}
+		var elems [][2]int
 		for k := i + 1; k < end; {
 			e := min(skipValue(toks, k), end)
-			for j := k; j < e; j++ {
-				if computed && (word(toks, j, "function") || isPunct(toks[j], "=") && next(toks, j+1, ">")) {
-					return true
-				}
-			}
-			if computed && e == end && !plainElement(toks, k, e) {
-				return true
-			}
-			computed = computed || e != k+1 || !literal(toks[k])
+			elems = append(elems, [2]int{k, e})
 			k = e + 1
+		}
+		computed, plain := false, true
+		for n, el := range elems {
+			if n < len(elems)-1 && (el[1] != el[0]+1 || !literal(toks[el[0]])) {
+				computed = true
+			}
+			plain = plain && plainElement(toks, el[0], el[1])
+		}
+		if computed && !plain {
+			return true
 		}
 	}
 	return false
@@ -302,14 +306,14 @@ func moduleDeps(toks []token, i int) bool {
 	return i >= 4 && isPunct(toks[i-1], ",") && literal(toks[i-2]) && isPunct(toks[i-3], "(") && word(toks, i-4, "module")
 }
 
-// plainElement reports whether toks[k:e] is one exact literal, keyword value, object or array: a
-// value that cannot be a function.
+// plainElement reports whether toks[k:e] is one exact literal, `true`, `false`, `null`, an object
+// or an array: a value that cannot be a function. An empty element (a hole) is not.
 func plainElement(toks []token, k, e int) bool {
 	switch {
 	case e == k+1:
 		t := toks[k]
-		return literal(t) || t.kind == tokNumber || word(toks, k, "true") || word(toks, k, "false") || word(toks, k, "null") || word(toks, k, "undefined")
-	case isPunct(toks[k], "{") || isPunct(toks[k], "["):
+		return literal(t) || t.kind == tokNumber || word(toks, k, "true") || word(toks, k, "false") || word(toks, k, "null")
+	case e > k && (isPunct(toks[k], "{") || isPunct(toks[k], "[")):
 		return closeParen(toks, k) == e-1
 	}
 	return false
@@ -353,13 +357,24 @@ func (t *constTable) examined(roots, chain []*constFile, decl *constFile, inj st
 	return true
 }
 
+// codeSuffix are the extensions of the JavaScript and TypeScript modules the web resolver reaches,
+// declaration files included; assetSuffix are modules that run no code (stylesheets, templates,
+// JSON, images and fonts). The closure reads the first and skips the second; any other extension
+// fails it.
+var (
+	codeSuffix  = map[string]bool{".ts": true, ".tsx": true, ".mts": true, ".cts": true, ".js": true, ".jsx": true, ".mjs": true, ".cjs": true}
+	assetSuffix = map[string]bool{".css": true, ".scss": true, ".sass": true, ".less": true, ".styl": true, ".html": true, ".htm": true,
+		".json": true, ".svg": true, ".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".ico": true,
+		".woff": true, ".woff2": true, ".ttf": true, ".eot": true, ".txt": true, ".md": true}
+)
+
 // closure returns roots (nil skipped) and every repository file they load, transitively, through
 // any import form: a static, side-effect (`import './x'`), type, namespace or dynamic import, a
 // `require`, an unread import item, or a re-export. ok is false when one names a module the
 // reader cannot follow: a name that is not an exact literal, an unresolved specifier, a package
 // that may be repository code (see external), or a repository source the reader cannot read; or
-// when the closure holds more than maxImportClosure files. A module that is not JavaScript or
-// TypeScript (a stylesheet, a template) runs no code.
+// when the closure holds more than maxImportClosure files. A module of a known asset extension
+// runs no code and is skipped; one of any extension the reader does not know fails.
 func (t *constTable) closure(roots []*constFile) ([]*constFile, bool) {
 	var out []*constFile
 	seen := map[string]bool{}
@@ -383,8 +398,14 @@ func (t *constTable) closure(roots []*constFile) ([]*constFile, bool) {
 				continue
 			case res.State != contextindex.WebImportRepository:
 				return nil, false
-			case seen[res.Target] || !webSuffix[strings.ToLower(path.Ext(res.Target))]:
+			case seen[res.Target]:
 				continue
+			}
+			switch ext := strings.ToLower(path.Ext(res.Target)); {
+			case assetSuffix[ext]:
+				continue
+			case !codeSuffix[ext]:
+				return nil, false // a module the reader cannot tell runs no code
 			}
 			h := t.file(res.Target)
 			if h == nil || len(out) >= maxImportClosure {

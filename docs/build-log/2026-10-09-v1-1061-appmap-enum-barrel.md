@@ -200,6 +200,20 @@ injector.
     repository source, or more than 256 files (`maxImportClosure`). A module that is not
     JavaScript or TypeScript runs no code and is skipped. A table declared in the registering
     file gets the same closure check.
+- Fifteenth review (three fail-open paths in the fourteenth review's rules, no spec text change):
+  - A trailing comma (`['Section' + 'Names', mutate,]`, `h.mutate,`) left the callback outside
+    the last-element test. The array rule now classifies every element, whatever its position:
+    when any element but the last is not one exact string, every element must be an exact string
+    or number, `true`, `false`, `null`, an object or an array. A name, a member, a call, a
+    function, a spread or a hole fails. One trailing comma adds no element.
+  - `undefined`, `NaN` and `Infinity` are names a binding can shadow (`const undefined =
+    mutate`), so they count as names, not literals.
+  - The closure skipped `.mts` and `.cts` modules, which the web resolver reaches. It now reads
+    every JavaScript and TypeScript extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`,
+    `.mjs`, `.cjs`), skips only known assets (stylesheets, HTML templates, JSON, images, fonts,
+    text), and fails closed on any other extension (`.vue`, for example). The revision index
+    does not admit `.mts` or `.cts` as text, so the reader cannot read such a module and the
+    closure fails closed when it reaches one.
 
 ## Evidence
 
@@ -376,6 +390,17 @@ injector.
   binding pattern and a `module('m', [uiRouter, ngAnimate])` dependency list. All pass with the
   fix. The full `go test -count=1 -v ./internal/appmap` passes (499 passing tests and
   subtests).
+- Fifteenth review: `TestAMAPV0025ChainBindingsFailClosed` gained these cases:
+  - `di trailing comma` and `di trailing member`, the review's `mutate,` and `h.mutate,`;
+  - `di middle callback` (`['Section' + 'Names', mutate, ,]`, a hole after the callback);
+  - `di mts module`, the review's `import './mutate.mts'`, plus `di cts module` and `di unknown
+    extension` (a `.vue` module);
+  - `di shadowed undefined`, the review's `const undefined = mutate`, and `di shadowed NaN`.
+  Against `12f7bed1`, 7 of these 8 resolve silently (`v1061-r16-gap-before.txt`). `di shadowed
+  NaN` was already caught there, because only `undefined` was read as a literal. The `di closure
+  reads` guard now also holds a trailing comma, `true`, `null`, an object and an array in an
+  array, and a JSON import. It passes before and after. All pass with the fix. The full `go test
+  -count=1 -v ./internal/appmap` passes (507 passing tests and subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -449,7 +474,10 @@ injector.
   file no examined file loads, which the application loads by another route (a bundle entry, a
   script tag, a webpack context). This is the same off-chain class as above. The closure is
   conservative in the other direction: an examined file that loads an unresolved specifier, a
-  repository-backed package or more than 256 files, or that holds an array of names ending in
-  an identifier outside a `module(...)` dependency list, leaves the injected table UNKNOWN. A name the code computes
+  repository-backed package, a module of an unknown extension, a `.mts` or `.cts` module (not
+  in the index's text set), or more than 256 files leaves the injected table UNKNOWN. So does an
+  examined file holding an array whose elements before the last are not all exact strings and
+  that holds a name, call, function, spread or hole anywhere, outside a `module(...)` dependency
+  list or a binding pattern (`[uiRouter, 'x']`, `Promise.all([p1, p2])`). A name the code computes
   without an injector, a decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.

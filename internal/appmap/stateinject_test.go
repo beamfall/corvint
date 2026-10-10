@@ -584,6 +584,16 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"named-import write": {reg + "import { x } from './helpers';\n", map[string]string{"app/setup/helpers.ts": "import { SectionTable as T } from '../tables/routes';\nT.REPORTS = 'other';\nexport const x = 1;\n"}},
 		"declaring import":   {reg, map[string]string{decl: table + "import './mutate';\n", "app/tables/routes/mutate.ts": "import { SectionTable as T } from './index';\nT.REPORTS = 'other';\n"}},
 		"unresolved import":  {reg + "import '@app/mutate';\n", nil},
+		// The fifteenth review's inputs: a trailing comma after the callback, a module the resolver
+		// reaches by an extension the closure skipped, and a shadowed `undefined` callback.
+		"trailing comma":     {reg + "function mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').config(['Section' + 'Names', mutate,]);\n", nil},
+		"trailing member":    {reg + "const h = { mutate(s) { s.REPORTS = 'other'; } };\nangular.module('admin').config(['Section' + 'Names', h.mutate,]);\n", nil},
+		"middle callback":    {reg + "function mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').config(['Section' + 'Names', mutate, ,]);\n", nil},
+		"mts module":         {reg + "import './mutate.mts';\n", map[string]string{"app/setup/mutate.mts": "import { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n"}},
+		"cts module":         {reg + "import './mutate.cts';\n", map[string]string{"app/setup/mutate.cts": "import { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n"}},
+		"unknown extension":  {reg + "import './mutate.vue';\n", map[string]string{"app/setup/mutate.vue": "<script>\nimport { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n</script>\n"}},
+		"shadowed undefined": {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst undefined = mutate;\nangular.module('admin').config(['Section' + 'Names', undefined]);\n", nil},
+		"shadowed NaN":       {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst NaN = mutate;\nangular.module('admin').config(['Section' + 'Names', NaN]);\n", nil},
 	} {
 		t.Run("di "+name, func(t *testing.T) {
 			files := map[string]string{index: star, decl: table}
@@ -602,8 +612,9 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 	// modules that cannot run code, stay readable.
 	t.Run("di closure reads", func(t *testing.T) {
 		checkBarrel(t, reg+"import './read';\n", map[string]string{index: star, decl: table, "app/setup/style.css": "p {}\n",
-			"app/setup/read.ts": "import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport './style.css';\nimport { x } from './more';\n",
-			"app/setup/more.ts": "export const x = [1, 2];\nconst [a, b] = x;\nangular.module('m', [uiRouter, ngAnimate]);\n"}, "", index)
+			"app/setup/read.ts":   "import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport './style.css';\nimport { x } from './more';\nimport './data.json';\n",
+			"app/setup/data.json": "{\"a\": 1}\n",
+			"app/setup/more.ts":   "export const x = [1, 2, true, null, { a: 1 }, ['b'],];\nconst [a, b] = x;\nangular.module('m', [uiRouter, ngAnimate]);\n"}, "", index)
 	})
 	t.Run("di router side-effect write", func(t *testing.T) {
 		_, _, m, err := injectRepo(t, `["app/setup"]`, "import './setup/mutate';\n"+diRouter, map[string]string{diRegAt: reg, index: star, decl: table,
