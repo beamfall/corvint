@@ -216,3 +216,51 @@ func TestCALV0193_SerialFallbackDeferralIsReported(t *testing.T) {
 		}
 	})
 }
+
+// exactDirectoryKeys is the CAL-V0-211 warnings of one result.
+func exactDirectoryKeys(x run) []string {
+	var out []string
+	for _, w := range x.res.Warnings {
+		if strings.HasPrefix(w, "EXACT_KEY_NAMES_DIRECTORY: ") {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// TestCALV0211_SetEffectsWarnsOnExactDirectoryKey: a fresh SET_EFFECTS whose
+// touchPaths or PATH resources hold a key without a trailing "/" that names a
+// directory at the checkout's HEAD commits as before and adds one warning per
+// such key, naming it and the directory key; file keys, directory keys
+// ending in "/" and a replay add none (V1-1118).
+func TestCALV0211_SetEffectsWarnsOnExactDirectoryKey(t *testing.T) {
+	root := serialFallbackStore(t)
+	git(t, root, "init", "-q", "-b", "main")
+	fixture.Write(t, filepath.Join(root, "src", "a.go"), []byte("a"))
+	fixture.Write(t, filepath.Join(root, "lib", "b.go"), []byte("b"))
+	git(t, root, "add", "src", "lib")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+	id, _ := effectsTicket(t, root, "keys", "P2", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
+	setEffects := func(req, rev, effects string) run {
+		t.Helper()
+		x := atm(t, root, nil, "ticket", "set-effects", "--request-id", req, "--target", id, "--expected-revision", rev, "--issued-at", "2026-10-10T12:00:00Z",
+			"--payload", `{"capabilities":[],"effects":`+effects+`,"executionClass":"AUTONOMOUS"}`)
+		if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "outcome").Str != "COMPLETED" {
+			t.Fatalf("set-effects %s: %s", req, x.stdout)
+		}
+		return x
+	}
+	exact := `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"PATH","key":"lib"}],"touchPaths":["absent","src","src/a.go"]}`
+	w := exactDirectoryKeys(setEffects("exact", "1", exact))
+	if len(w) != 2 || !strings.Contains(w[0], "PATH key lib names a directory") || !strings.HasSuffix(w[0], "use lib/ to cover them") ||
+		!strings.Contains(w[1], "PATH key src names a directory") || !strings.HasSuffix(w[1], "use src/ to cover them") {
+		t.Fatalf("warnings = %q", w)
+	}
+	if replay := setEffects("exact", "1", exact); !field(replay.res.Items[0], "replayed").Bool || len(exactDirectoryKeys(replay)) != 0 {
+		t.Fatalf("replay: %s", replay.stdout)
+	}
+	dirs := `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"PATH","key":"lib/"}],"touchPaths":["lib/b.go","src/","src/a.go"]}`
+	if x := setEffects("dirs", "2", dirs); len(exactDirectoryKeys(x)) != 0 {
+		t.Fatalf("file and directory keys warned: %s", x.stdout)
+	}
+}
