@@ -490,6 +490,7 @@ func TestUPDV0004UnchangedCleanupAndDestinationDrift(t *testing.T) {
 
 type interruptedBody struct {
 	ctx    context.Context
+	cancel context.CancelFunc
 	first  bool
 	read   int
 	closed bool
@@ -500,6 +501,7 @@ func (b *interruptedBody) Read(p []byte) (int, error) {
 		b.first = true
 		n := copy(p, []byte("partial archive bytes"))
 		b.read += n
+		b.cancel() // cancel only after the first chunk was read, not on a wall-clock deadline
 		return n, nil
 	}
 	<-b.ctx.Done()
@@ -513,16 +515,17 @@ func TestUPDV0004PartialArchiveCancellation(t *testing.T) {
 	before, _ := digest(dest)
 	releaseClient(t, &e, 163)
 	original := e.client.Transport
+	// No deadline: cancellation is driven only by interruptedBody.Read; the test timeout bounds a hang.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	var body *interruptedBody
 	e.client.Transport = transportFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path == "/archive" {
-			body = &interruptedBody{ctx: req.Context()}
+			body = &interruptedBody{ctx: req.Context(), cancel: cancel}
 			return &http.Response{StatusCode: 200, Body: body}, nil
 		}
 		return original.RoundTrip(req)
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
 	if _, err := e.run(ctx, "apply"); err == nil {
 		t.Fatal("partial cancelled archive accepted")
 	}
