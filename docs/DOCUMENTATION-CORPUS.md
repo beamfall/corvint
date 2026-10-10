@@ -153,6 +153,7 @@ and must equal the request: `schema` is `2`, and `contract_id`, `source_revision
 and revisions are full Git object IDs. In the example below, `PROVIDER_MEMBER` stands for the
 provider-repository member name declared on `BehaviorRevisions.E2E` in
 `internal/doccorpus/behavior.go`. That /1 name is frozen, and the adapter refuses any other spelling.
+New behavior declarations should use the `/2` provider (see Multi-repository behavior records), which names repositories only through the neutral `source` and `repositories` members.
 
 <!-- DCP-V1-045 migration example -->
 ```json

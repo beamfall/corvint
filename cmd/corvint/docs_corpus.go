@@ -13,6 +13,7 @@ import (
 
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
+	playwright                                                                                                        playwrightCorpusOptions
 	apply, check                                                                                                      bool
 	limit, offset                                                                                                     int
 }
@@ -36,6 +37,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	o.op = args[pos+2]
 	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	o.playwright.addFlags(flags)
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
@@ -85,9 +87,11 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	allowed := map[string]string{
 		"manifest": "--revision --scope --timestamp", "build": "--manifest", "render": "--artifact",
-		"behavior-adapter":  "--input --previous --check",
-		"behavior-provider": "--input",
-		"maintain":          "--artifact --page --apply", "cem": "--artifact --cem --id",
+		"behavior-adapter":    "--input --previous --check",
+		"behavior-provider":   "--input",
+		"discover-playwright": "--migration --config --playwright-list --receipt",
+		"witness-playwright":  "--input --receipt-input --report",
+		"maintain":            "--artifact --page --apply", "cem": "--artifact --cem --id",
 		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
 		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
@@ -110,9 +114,11 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	required := map[string][]string{
 		"manifest": {o.revision, o.scope, o.timestamp}, "build": {o.manifest}, "maintain": {o.artifact, o.page}, "cem": {o.artifact, o.cem},
-		"behavior-adapter":  {o.input},
-		"behavior-provider": {o.input},
-		"search":            {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
+		"behavior-adapter":    {o.input},
+		"behavior-provider":   {o.input},
+		"discover-playwright": {o.playwright.migration, o.playwright.config, o.playwright.listing},
+		"witness-playwright":  {o.input, o.playwright.receiptInput, o.playwright.report},
+		"search":              {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
 	}
 	if kind := doccorpus.OperationInput(o.op); kind == "query" {
 		required[o.op] = []string{o.artifact, o.query}
@@ -189,6 +195,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, err
 		}
 		return doccorpus.Encode(a)
+	}
+	if o.op == "discover-playwright" || o.op == "witness-playwright" {
+		return compilePlaywrightCorpus(ctx, o)
 	}
 	if o.op == "behavior-provider" {
 		raw, err := doccorpus.ReadFile(o.root, o.input)
