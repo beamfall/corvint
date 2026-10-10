@@ -180,6 +180,26 @@ injector.
   needs scope analysis. A typed AngularJS component export (`export const C:
   angular.IComponentOptions = {...}`) would read as free, so the guard would turn ordinary
   registrations UNKNOWN. That route stays under Limits with the owner's follow-up ticket.
+- Fourteenth review (owner decisions: structural fail-closed rules, no spec text change). Two
+  routes still resolved. A computed annotation whose function is passed by name,
+  `['Section' + 'Names', mutate]`, carried no function token after the computed name. A
+  side-effect-imported file wrote the table through an ordinary import (`import { SectionTable
+  as T }`, `(T as any).REPORTS = 'other'`), which the one-hop DI check never asked about.
+  - Annotations: an array literal fails closed when an element before its last is not one exact
+    string and its last element is anything but an exact literal, an object or an array: a
+    function, an arrow, a name or member that may hold one, or a call that may return one. Only
+    `module('name', [...])` dependency lists and binding patterns (`const [a, b] = v`, `[a, b] =
+    v`) are exempt, so any other array of identifiers in an examined file fails closed too.
+  - Examined closure (`examined`, `closure`, replacing `importsQuiet`): the router file, the
+    registering file and the chain's files, plus every repository file they load by any import
+    form (static, side-effect, type, namespace, dynamic, `require`, unread item, re-export),
+    transitively. Every closure file must be diQuiet for the name, and every one off the chain
+    gets the chain files' write check (`bindingsRead` over the table's names and any module that
+    may hold it). The closure fails closed when it reaches a module name that is not an exact
+    literal, an unresolved specifier, a package that may be repository code, an unreadable
+    repository source, or more than 256 files (`maxImportClosure`). A module that is not
+    JavaScript or TypeScript runs no code and is skipped. A table declared in the registering
+    file gets the same closure check.
 
 ## Evidence
 
@@ -341,6 +361,21 @@ injector.
   inside a substitution as a loader. The `di other names` guard (another name's annotation, a regex, a lodash
   constant and an object key of the name) passes before and after. All pass with the fix. The
   full `go test -count=1 -v ./internal/appmap` passes (488 passing tests and subtests).
+- Fourteenth review: `TestAMAPV0025ChainBindingsFailClosed` gained these cases:
+  - `di named callback`, the review's `.config(['Section' + 'Names', mutate])`;
+  - `di member callback` (`h.mutate`), `di member name` (`[N.T, mutate]`) and `di stored
+    annotation` (the array in a `const`, passed to `.run(a)`);
+  - `di side-effect write`, the review's enum fixture with `import './mutate'`;
+  - `di two-hop write` (through `boot.ts`), `di named-import write` (a write in a file the
+    registering file imports by name), `di declaring import` (a file the declaring file loads)
+    and `di router side-effect write` (a file the router loads);
+  - `di unresolved import` (`import '@app/mutate'`).
+  Against `ce90bded` all 10 resolve silently (`v1061-r15-gap-before.txt`). The `di closure
+  reads` guard passes before and after. It covers a side-effect-loaded file that only reads the
+  table and imports a stylesheet and another module, and that module holds a number array, a
+  binding pattern and a `module('m', [uiRouter, ngAnimate])` dependency list. All pass with the
+  fix. The full `go test -count=1 -v ./internal/appmap` passes (499 passing tests and
+  subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -408,9 +443,13 @@ injector.
   at run time (`globalThis['ev' + 'al']`, `obj[k]` reaching `constructor`), since only exact
   string keys and the identifier forms are matched. The global route was confirmed with a scratch
   test, and the owner is filing a follow-up ticket for it. Writes through dependency injection
-  are caught only in the examined files (see the thirteenth review addendum). An injection from
-  a file outside that scope is not seen: a `.run` block or service in a file no examined file
-  imports, which the application loads by another route (a bundle entry, a script tag, a
-  webpack context). This is the same off-chain class as above. A name the code computes
+  or through an import binding are caught only in the examined closure (see the fourteenth
+  review): the router, registering and chain files and every file they load, transitively. A
+  write from a file outside that closure is not seen: a `.run` block, service or module in a
+  file no examined file loads, which the application loads by another route (a bundle entry, a
+  script tag, a webpack context). This is the same off-chain class as above. The closure is
+  conservative in the other direction: an examined file that loads an unresolved specifier, a
+  repository-backed package or more than 256 files, or that holds an array of names ending in
+  an identifier outside a `module(...)` dependency list, leaves the injected table UNKNOWN. A name the code computes
   without an injector, a decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.

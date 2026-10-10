@@ -3,6 +3,7 @@ package appmap
 import (
 	"fmt"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -20,6 +21,8 @@ const (
 	maxDIScopePaths = 16
 	maxDIScopeFiles = 20000
 	maxDIScopeBytes = 128 << 20
+	// maxImportClosure bounds the files an injected table's examined closure may hold.
+	maxImportClosure = 256
 )
 
 // diScope is the manifest's di_constants scope: its sources, read once on first use.
@@ -204,7 +207,7 @@ var diReach = map[string]bool{"$injector": true, "$provide": true, "injector": t
 //
 // `.run(['Name', function (s) { s.K = v }])`, `$injector.get('Name').K = v` or
 // `function (Name) { Name.K = v }` would otherwise write the table the router reads. A file the
-// reader does not examine is not seen (see importsQuiet).
+// reader does not examine is not seen (see examined).
 func (f *constFile) diQuiet(name string, reg, allow int) bool {
 	key := quietKey{name, reg, allow}
 	if v, ok := f.quiet[key]; ok {
@@ -260,15 +263,23 @@ func objectKey(toks []token, i int) bool {
 	return o >= 0 && isPunct(toks[o], "{")
 }
 
-// computedAnnotation reports whether f holds an array literal that passes a function after an
-// element that is not one exact string: an inline annotation whose names the reader cannot read.
+// computedAnnotation reports whether f holds an array literal that may be an inline annotation
+// whose names the reader cannot read: an element before the last is not one exact string, and the
+// last could be the injected function -- a function or arrow, or anything but an exact literal, an
+// object or an array (a function passed by name or member, `['A' + 'B', fn]`, or a call that
+// returns one). An earlier element that passes a function counts too. The dependency list of
+// `module('name', [...])` and a binding pattern (`const [a, b] = v`) are no annotation; any other
+// array of identifiers fails closed.
 func (f *constFile) computedAnnotation() bool {
 	toks := f.toks
 	for i := range toks {
-		if !isPunct(toks[i], "[") {
+		if !isPunct(toks[i], "[") || moduleDeps(toks, i) || i > 0 && (word(toks, i-1, "const") || word(toks, i-1, "let") || word(toks, i-1, "var")) {
 			continue
 		}
 		end, computed := closeParen(toks, i), false
+		if next(toks, end+1, "=") && !next(toks, end+2, "=") && !next(toks, end+2, ">") {
+			continue // an assignment pattern
+		}
 		for k := i + 1; k < end; {
 			e := min(skipValue(toks, k), end)
 			for j := k; j < e; j++ {
@@ -276,9 +287,30 @@ func (f *constFile) computedAnnotation() bool {
 					return true
 				}
 			}
+			if computed && e == end && !plainElement(toks, k, e) {
+				return true
+			}
 			computed = computed || e != k+1 || !literal(toks[k])
 			k = e + 1
 		}
+	}
+	return false
+}
+
+// moduleDeps reports whether toks[i] opens the dependency list of `module('name', [...])`.
+func moduleDeps(toks []token, i int) bool {
+	return i >= 4 && isPunct(toks[i-1], ",") && literal(toks[i-2]) && isPunct(toks[i-3], "(") && word(toks, i-4, "module")
+}
+
+// plainElement reports whether toks[k:e] is one exact literal, keyword value, object or array: a
+// value that cannot be a function.
+func plainElement(toks []token, k, e int) bool {
+	switch {
+	case e == k+1:
+		t := toks[k]
+		return literal(t) || t.kind == tokNumber || word(toks, k, "true") || word(toks, k, "false") || word(toks, k, "null") || word(toks, k, "undefined")
+	case isPunct(toks[k], "{") || isPunct(toks[k], "["):
+		return closeParen(toks, k) == e-1
 	}
 	return false
 }
@@ -302,30 +334,85 @@ func lodashName(toks []token, i int) bool {
 		(word(toks, i-4, "_") || word(toks, i-4, "lodash")) && !property(toks, i-4)
 }
 
-// importsQuiet reports whether every repository file f imports or re-exports, a side-effect
-// import (`import './x.run'`) and a namespace, dynamic or `require` module included, is diQuiet for
-// name: a module file's own `.run` block or service may inject the constant.
-func (t *constTable) importsQuiet(f *constFile, name string) bool {
-	if t.resolver == nil {
-		return true
+// examined reports whether every file of the closure of roots (see closure) is diQuiet for inj,
+// and whether every one outside chain holds no binding of the table decl declares under names,
+// or one of a module that may hold it, that is not provably only read (bindingsRead, as for the
+// chain's own files): a module any examined file loads, by any import form and at any depth, runs
+// before the router reads the table and may inject or write it. A closure the reader cannot follow
+// or that exceeds maxImportClosure fails.
+func (t *constTable) examined(roots, chain []*constFile, decl *constFile, inj string, names ...string) bool {
+	files, ok := t.closure(roots)
+	if !ok {
+		return false
 	}
+	for _, h := range files {
+		if !t.quiet(h, inj) || decl != nil && !slices.Contains(chain, h) && !t.bindingsRead(h, decl, "", names...) {
+			return false
+		}
+	}
+	return true
+}
+
+// closure returns roots (nil skipped) and every repository file they load, transitively, through
+// any import form: a static, side-effect (`import './x'`), type, namespace or dynamic import, a
+// `require`, an unread import item, or a re-export. ok is false when one names a module the
+// reader cannot follow: a name that is not an exact literal, an unresolved specifier, a package
+// that may be repository code (see external), or a repository source the reader cannot read; or
+// when the closure holds more than maxImportClosure files. A module that is not JavaScript or
+// TypeScript (a stylesheet, a template) runs no code.
+func (t *constTable) closure(roots []*constFile) ([]*constFile, bool) {
+	var out []*constFile
+	seen := map[string]bool{}
+	for _, r := range roots {
+		if r != nil && !seen[r.entry.path] {
+			seen[r.entry.path] = true
+			out = append(out, r)
+		}
+	}
+	if t.resolver == nil {
+		return out, true
+	}
+	for n := 0; n < len(out); n++ {
+		for _, m := range out[n].modules() {
+			if m == "" {
+				return nil, false
+			}
+			res := t.resolver.Resolve(out[n].entry.path, m)
+			switch {
+			case res.State == contextindex.WebImportPackage && t.external(m):
+				continue
+			case res.State != contextindex.WebImportRepository:
+				return nil, false
+			case seen[res.Target] || !webSuffix[strings.ToLower(path.Ext(res.Target))]:
+				continue
+			}
+			h := t.file(res.Target)
+			if h == nil || len(out) >= maxImportClosure {
+				return nil, false
+			}
+			seen[res.Target] = true
+			out = append(out, h)
+		}
+	}
+	return out, true
+}
+
+// modules lists every module name f loads: its import bindings', namespace, dynamic and `require`
+// modules (spaces), and each exact literal after `from` or a statement-level `import`.
+func (f *constFile) modules() []string {
 	mods := append([]string(nil), f.spaces...)
+	for _, imp := range f.imports {
+		mods = append(mods, imp.module)
+	}
+	for _, r := range f.reexports {
+		mods = append(mods, r.module)
+	}
 	for i, tok := range f.toks {
 		if i > 0 && literal(tok) && (word(f.toks, i-1, "from") || word(f.toks, i-1, "import")) && !property(f.toks, i-1) {
 			mods = append(mods, tok.text)
 		}
 	}
-	for _, m := range mods {
-		if m == "" {
-			continue // mayHold already fails a module the reader cannot name
-		}
-		if res := t.resolver.Resolve(f.entry.path, m); res.State == contextindex.WebImportRepository {
-			if h := t.file(res.Target); h != nil && !t.quiet(h, name) {
-				return false
-			}
-		}
-	}
-	return true
+	return mods
 }
 
 // balanced reports whether toks[open..end] is a bracket group that closes at end, as
@@ -381,11 +468,11 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 		why = "unreadable-registration"
 	case r.table != nil:
 		v, at, why = r.file.read(r.table, member, true)
+		if why == "" && !t.examined([]*constFile{own, r.file}, nil, nil, local) {
+			why = "not-read-whole" // another injection or lookup of the name may write the table
+		}
 	default:
-		v, at, why = t.lookup(r.file, r.ident, member, r.at, local)
-	}
-	if why == "" && !(t.quiet(own, local) && t.importsQuiet(own, local) && t.quiet(r.file, local) && t.importsQuiet(r.file, local)) {
-		why = "not-read-whole" // another injection or lookup of the name may write the table
+		v, at, why = t.lookup(r.file, r.ident, member, r.at, local, own)
 	}
 	if why != "" {
 		// The one in-scope binding of local did not resolve: say why (AMAP-V0-026).

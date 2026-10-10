@@ -161,10 +161,10 @@ func (t *constTable) resolve(f *constFile, local, member string, allow int) (str
 
 // lookup is resolve with the reason it fails (AMAP-V0-026). A registration injected as inj (di)
 // also reads an enum only when every member is a literal string (AMAP-V0-024), follows one level
-// of re-export in the imported file (AMAP-V0-025), and requires the barrel and declaring files and
-// every repository file they import to be diQuiet for inj (injected checks the registering file);
-// a router's own tables keep the AMAP-V0-016 rules.
-func (t *constTable) lookup(f *constFile, local, member string, allow int, inj string) (string, []Anchor, string) {
+// of re-export in the imported file (AMAP-V0-025), and requires every file the registering file f,
+// the chain and the examined roots (the router) load to pass examined; a router's own tables keep
+// the AMAP-V0-016 rules.
+func (t *constTable) lookup(f *constFile, local, member string, allow int, inj string, roots ...*constFile) (string, []Anchor, string) {
 	di := inj != ""
 	if !f.onlyRead(local, allow) {
 		return "", nil, "not-read-whole"
@@ -177,7 +177,11 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, inj s
 	case declared && di && !t.bindingsRead(f, f, "", tableNames(f, local)...):
 		return "", nil, "not-read-whole"
 	case declared:
-		return f.read(decl, member, di)
+		v, at, why := f.read(decl, member, di)
+		if why == "" && di && !t.examined(append(roots, f), []*constFile{f}, f, inj, tableNames(f, local)...) {
+			return "", nil, "not-read-whole"
+		}
+		return v, at, why
 	case !imported:
 		return "", nil, "identifier-not-found"
 	case t.resolver == nil:
@@ -217,8 +221,9 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, inj s
 	if why != "" {
 		return "", nil, why
 	}
-	// No file on the chain, nor one it imports, may inject or look up the name another way.
-	if di && !(t.quiet(g, inj) && t.importsQuiet(g, inj) && (barrel == nil || t.quiet(barrel, inj) && t.importsQuiet(barrel, inj))) {
+	// No file on the chain, nor one any examined file loads, may inject or look up the name another
+	// way, nor hold the table under a binding it may write.
+	if di && !t.examined(append(roots, f, g, barrel), []*constFile{f, g, barrel}, g, inj, append(tableNames(g, name), imp.exported)...) {
 		return "", nil, "not-read-whole"
 	}
 	// The bindings are evidence too: re-pointing the import or the re-export changes what the name reads.

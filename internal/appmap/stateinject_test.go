@@ -573,6 +573,17 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"regex annotation":    {reg + "angular.module('admin').run([/SectionNames/.source, (s) => { s.REPORTS = 'other'; }]);\n", nil},
 		"computed $inject":    {reg + "function boot(s) { s.REPORTS = 'other'; }\nboot.$inject = [['Section', 'Names'].join('')];\nangular.module('admin').run(boot);\n", nil},
 		"imported service":    {reg + "import { boot } from './setup.run';\nangular.module('admin').run(boot);\n", map[string]string{"app/setup/setup.run.ts": "export function boot($injector) { $injector.get('SectionNames').REPORTS = 'other'; }\n"}},
+		// The fourteenth review's inputs: a computed annotation whose function is passed by name, and
+		// a write through an ordinary import in a file a side-effect import loads.
+		"named callback":     {reg + "function mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').config(['Section' + 'Names', mutate]);\n", nil},
+		"member callback":    {reg + "const h = { mutate(s) { s.REPORTS = 'other'; } };\nangular.module('admin').run(['Section' + 'Names', h.mutate]);\n", nil},
+		"member name":        {reg + "const N = { T: 'Section' + 'Names' };\nfunction mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').run([N.T, mutate]);\n", nil},
+		"stored annotation":  {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst a = ['Section' + 'Names', mutate];\nangular.module('admin').run(a);\n", nil},
+		"side-effect write":  {reg + "import './mutate';\n", map[string]string{decl: "export enum SectionTable { REPORTS = 'ledger' }\n", "app/setup/mutate.ts": "import { SectionTable as T } from '../tables/routes/routes.constants';\n(T as any).REPORTS = 'other';\n"}},
+		"two-hop write":      {reg + "import './boot';\n", map[string]string{"app/setup/boot.ts": "import './mutate';\n", "app/setup/mutate.ts": "import { SectionTable as T } from '../tables/routes/routes.constants';\n(T as any).REPORTS = 'other';\n"}},
+		"named-import write": {reg + "import { x } from './helpers';\n", map[string]string{"app/setup/helpers.ts": "import { SectionTable as T } from '../tables/routes';\nT.REPORTS = 'other';\nexport const x = 1;\n"}},
+		"declaring import":   {reg, map[string]string{decl: table + "import './mutate';\n", "app/tables/routes/mutate.ts": "import { SectionTable as T } from './index';\nT.REPORTS = 'other';\n"}},
+		"unresolved import":  {reg + "import '@app/mutate';\n", nil},
 	} {
 		t.Run("di "+name, func(t *testing.T) {
 			files := map[string]string{index: star, decl: table}
@@ -586,6 +597,23 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 	t.Run("di other names", func(t *testing.T) {
 		checkBarrel(t, reg+"angular.module('admin').run(['$rootScope', function ($rootScope) { $rootScope.x = /SectionNames/.test('a'); }]);\n"+
 			"const k = _.constant('SectionNames');\nconst o = { SectionNames: 1 };\n", map[string]string{index: star, decl: table}, "", index)
+	})
+	// Files the chain loads through any import form, transitively, that only read the table, and
+	// modules that cannot run code, stay readable.
+	t.Run("di closure reads", func(t *testing.T) {
+		checkBarrel(t, reg+"import './read';\n", map[string]string{index: star, decl: table, "app/setup/style.css": "p {}\n",
+			"app/setup/read.ts": "import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport './style.css';\nimport { x } from './more';\n",
+			"app/setup/more.ts": "export const x = [1, 2];\nconst [a, b] = x;\nangular.module('m', [uiRouter, ngAnimate]);\n"}, "", index)
+	})
+	t.Run("di router side-effect write", func(t *testing.T) {
+		_, _, m, err := injectRepo(t, `["app/setup"]`, "import './setup/mutate';\n"+diRouter, map[string]string{diRegAt: reg, index: star, decl: table,
+			"app/setup/mutate.ts": "import { SectionTable as T } from '../tables/routes/routes.constants';\n(T as any).REPORTS = 'other';\n"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diResolved(t, m) {
+			t.Fatalf("router side-effect write resolved: %+v", m.Unknowns)
+		}
 	})
 	t.Run("di router run", func(t *testing.T) {
 		_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter+run, map[string]string{diRegAt: reg, index: star, decl: table})
