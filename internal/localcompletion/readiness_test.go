@@ -94,3 +94,25 @@ func TestCompletionNextActions(t *testing.T) {
 		assertNextAction(t, result, key, "status")
 	})
 }
+
+// LCP-V0-019: no continuation is an explicit state, not a missing worklist.
+func TestCompletionNoActionReasons(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	result, err := Evaluate(context.Background(), root, key)
+	if err != nil || len(result.NextActions) != 0 || result.NoActionReason != "enrollment-inactive" {
+		t.Fatalf("inactive: %#v %v", result, err)
+	}
+	beginFixture(t, root, key, plan)
+	result, err = Evaluate(context.Background(), root, key)
+	if err != nil || len(result.NextActions) == 0 || result.NoActionReason != "" {
+		t.Fatalf("active: %#v %v", result, err)
+	}
+	result, err = Cancel(context.Background(), root, key)
+	if err != nil || len(result.NextActions) != 0 || result.NoActionReason != "enrollment-cancelled" {
+		t.Fatalf("cancelled: %#v %v", result, err)
+	}
+	result, err = Evaluate(context.Background(), root, key)
+	if err != nil || result.NoActionReason != "enrollment-cancelled" {
+		t.Fatalf("cancelled status: %#v %v", result, err)
+	}
+}

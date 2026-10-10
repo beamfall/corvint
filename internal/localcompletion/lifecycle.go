@@ -181,6 +181,7 @@ func Evaluate(ctx context.Context, root, key string) (Evaluation, error) {
 func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation, error) {
 	result := Evaluation{Lifecycle: saved.Lifecycle, Unmet: []string{}, Base: saved.Plan.Base, PlanDigest: saved.PlanDigest, Intents: saved.Plan.Intents, IntentPointers: saved.IntentPointers, Plan: &saved.Plan}
 	if saved.Lifecycle == "cancelled" {
+		result.NoActionReason = "enrollment-cancelled"
 		return result, nil
 	}
 	snap, err := repo.snapshot(ctx)
@@ -267,6 +268,8 @@ func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation,
 				result.NextActions[0] = append(result.NextActions[0], "--aggregate-outcome-profile", saved.AggregateOutcome.Profile)
 			}
 		}
+	} else {
+		result.NoActionReason = "workflow-satisfied"
 	}
 	return result, nil
 }
@@ -593,7 +596,7 @@ func (repo *repository) executionDigest(saved *state, check Check) string {
 // active enrollment of the worktree, so a Stop that releases here is not
 // silent about a gate this key cannot see.
 func (repo *repository) inactive() (Evaluation, error) {
-	result := Evaluation{Lifecycle: "inactive", Unmet: []string{}, Intents: []string{}, IntentPointers: []IntentPointer{}}
+	result := Evaluation{Lifecycle: "inactive", NoActionReason: "enrollment-inactive", Unmet: []string{}, Intents: []string{}, IntentPointers: []IntentPointer{}}
 	owner, err := repo.owner()
 	if err != nil || owner == "" {
 		return result, err
