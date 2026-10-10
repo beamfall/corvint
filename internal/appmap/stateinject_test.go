@@ -511,6 +511,28 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 					"app/tables/routes/wrap.ts": "import { SectionTable } from './routes.constants';\nexport const W = { T: SectionTable };\n"}, "not-read-whole", "")
 		})
 	}
+	// The review's round-13 inputs, a module loaded through a property name in a relay and in the
+	// registering file, and every other loader form the reader fails closed on.
+	t.Run("registering module.require", func(t *testing.T) {
+		checkBarrel(t, reg+"module.require('../tables/routes/routes.constants').SectionTable.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table}, "not-read-whole", "")
+	})
+	for name, relay := range map[string]string{
+		"module.require":   "export default module.require('./routes.constants').SectionTable;\n",
+		"mainModule":       "export default process.mainModule.require('./routes.constants').SectionTable;\n",
+		"createRequire":    "import { createRequire } from 'module';\nexport default createRequire(import.meta.url)('./routes.constants').SectionTable;\n",
+		"webpack":          "export default __webpack_require__('./routes.constants').SectionTable;\n",
+		"eval key":         "export default globalThis['eval'](\"require('./routes.constants')\").SectionTable;\n",
+		"constructor":      "export default ({}).constructor.constructor(\"return require('./routes.constants')\")().SectionTable;\n",
+		"System.import":    "export default await System.import('./routes.constants');\n",
+		"module.children":  "export default module.children[0].exports.SectionTable;\n",
+		"template require": "let R;\n`${R = module.require('./routes.constants').SectionTable}`;\nexport default R;\n",
+	} {
+		t.Run("loader "+name, func(t *testing.T) {
+			checkBarrel(t, reg+"import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+				map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": relay}, "not-read-whole", "")
+		})
+	}
 	// The round-11 input without parentheses, and through a named export.
 	for name, relay := range map[string]string{
 		"ns member bare":  "import { NS } from './namespace';\nexport default NS.SectionTable;\n",

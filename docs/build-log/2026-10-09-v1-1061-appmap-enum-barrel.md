@@ -146,6 +146,18 @@ injector.
   package.json names it and none installs or overrides anything from a local protocol or path
   (`file:`, `link:`, `workspace:`, `portal:`, `.`, `/`, or a non-string spec), every tracked
   package.json is readable, and the specifier is not a scheme other than `node:`.
+- Thirteenth review (structural, no spec text change): `module.require(...)` loaded the table
+  through a property name, which both module-load checks skipped. Module-load detection is now
+  one token rule (`moduleLoader`, `loaderName`) that adds a module the reader cannot name for any
+  occurrence -- as a binding, a property name, an exact string key, or inside a template
+  substitution -- of `require` (other than a literal `require('m')` call), `createRequire`,
+  `requirejs`, `parcelRequire`, `getBuiltinModule`, `mainModule`, `importScripts`, `eval`,
+  `execScript`, `Function`, `setTimeout`, `setInterval` (string code), webpack's generated
+  registries (`__webpack_*`, `__non_webpack_*`, `webpackChunk*`, `webpackJsonp*`) and Vite's SSR
+  helpers (`__vite_ssr_*`); and of `import.meta` or `x.import(...)` (`System.import`),
+  `System.register`, a `.constructor` property (`({}).constructor.constructor` is Function),
+  CommonJS `module` other than `module.exports` (`module.children`, `module.parent`) and an AMD
+  `define(...)`.
 
 ## Evidence
 
@@ -278,6 +290,18 @@ injector.
   all 5 resolve silently; the reads guard (an external `@playwright/test` binding) passes before
   and after; all pass with the fix. The full `go test -count=1 -v ./internal/appmap` passes (461
   passing tests and subtests).
+- Thirteenth review follow-up (`module.require` in a relay or the registering file):
+  `TestAMAPV0025ChainBindingsFailClosed` gained the review's input (registered in the fixture's
+  `app/setup` scope), the same load in the registering file writing the table, and relays loading
+  it through `process.mainModule.require`, `createRequire(import.meta.url)`,
+  `__webpack_require__`, `globalThis['eval']`, `({}).constructor.constructor`, `System.import`,
+  `module.children` and `module.require` inside a template substitution. Against
+  `stateconst.go` from `8f8d6ef5`, 9 resolve silently (all but the template one, which the
+  round-12 substitution check already caught); the reads guard passes before and after; all pass
+  with the fix. The full `go test -count=1 -v ./internal/appmap` passes (471 passing tests and
+  subtests). An adversarial pass with scratch tests (not kept) confirmed two open routes recorded
+  under Limits: a write through injection in the registering file, and a table a module off the
+  chain puts on a global that a relay exports by a free name, both still resolve.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -322,7 +346,9 @@ injector.
   module and called leaves the table not read whole). Only an external package is exempt: any
   tracked package.json naming the package, installing anything from a local protocol or path,
   or that the reader cannot read makes packages possible holders too, and a file that mentions
-  `require` other than in a literal call is one. The router-side (AMAP-V0-016, not injected) path
+  `require` other than in a literal call is one, as is one that mentions any module loader name
+  (see the thirteenth review), so a chain file or relay that uses `setTimeout`, `Function`, a
+  `.constructor` property or CommonJS `module` beyond `module.exports` is a possible holder. The router-side (AMAP-V0-016, not injected) path
   does not yet apply the chain-binding check to alias and namespace imports; that needs
   AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
   unsure mark. The bracket
@@ -335,3 +361,13 @@ injector.
   holder. A follow-up ticket covers it. tsconfig/jsconfig `paths` and `baseUrl` are already
   covered: the web resolver applies the governing config's alias stage before its package test,
   so a name they claim resolves to the repository file (or unresolved), never to a package.
+  Import maps and runtime loader hooks (`module.register`, preloads) are in the same class.
+- Values passed outside the module graph are not followed. A table a module off the chain puts on
+  global or shared runtime state (a `globalThis`/`window` property, a prototype, a `Symbol.for`
+  key, a classic script's top-level `var`, an injected `<script>`) and a relay then exports by a
+  free name (`export default ST`) still resolves; so does a value reached by a member key computed
+  at run time (`globalThis['ev' + 'al']`, `obj[k]` reaching `constructor`), since only exact
+  string keys and the identifier forms are matched. Writes through dependency injection
+  (`.run(['SectionNames', (s) => { s.REPORTS = 'x'; }])`, `$injector.get`) are not read, even in
+  the registering file; covering them is left to the owner (it may need AMAP-V0-025 text). Both routes were confirmed with
+  scratch tests.

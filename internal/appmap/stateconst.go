@@ -945,8 +945,8 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		}
 		if (word(toks, ti, "import") || word(toks, ti, "require")) && !property(toks, ti) && next(toks, ti+1, "(") {
 			f.spaces = append(f.spaces, moduleArg(toks, ti+2)) // a dynamic import or CommonJS require
-		} else if word(toks, ti, "require") && !property(toks, ti) {
-			f.spaces = append(f.spaces, "") // `require` passed along or called another way loads any module
+		} else if moduleLoader(toks, ti) {
+			f.spaces = append(f.spaces, "") // a module the reader cannot name
 		}
 		if t.kind != tokTemplate {
 			continue
@@ -963,10 +963,68 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			k = e - 1
 		}
 	}
-	if f.hidden["require"] || f.hidden["import"] {
-		f.spaces = append(f.spaces, "") // a module loaded inside a template substitution
+	for name := range f.hidden {
+		if loaderName(name) || hiddenLoaders[name] {
+			f.spaces = append(f.spaces, "") // a module loader inside a template substitution
+			break
+		}
 	}
 	return f
+}
+
+// loaderNames are the names through which code may load, or reach the value of, another module
+// without an import statement or a literal `require('m')` / `import('m')` call: CommonJS and
+// bundler loaders, the main module, code evaluated from a string (which may itself import), and
+// worker script loading. Any occurrence, as a binding, a property name (`module.require`,
+// `process.mainModule.require`) or an exact string key (`globalThis['eval']`), makes the file
+// load a module the reader cannot name (AMAP-V0-025 fails closed on it).
+var loaderNames = map[string]bool{
+	"require": true, "createRequire": true, "requirejs": true, "parcelRequire": true,
+	"getBuiltinModule": true, "mainModule": true, "importScripts": true, "eval": true,
+	"execScript": true, "Function": true, "setTimeout": true, "setInterval": true,
+}
+
+// hiddenLoaders are the context-dependent loaders of moduleLoader, counted inside a template
+// substitution whatever their context, which the reader does not see.
+var hiddenLoaders = map[string]bool{"import": true, "constructor": true, "module": true, "define": true, "System": true}
+
+// loaderName reports whether name is a loader by itself (see loaderNames), including the
+// generated module registries of webpack (`__webpack_require__`, `__webpack_modules__`,
+// `webpackChunk...`, `webpackJsonp...`) and Vite's SSR transform (`__vite_ssr_import__`).
+func loaderName(name string) bool {
+	return loaderNames[name] || strings.HasPrefix(name, "__webpack_") || strings.HasPrefix(name, "__non_webpack_") ||
+		strings.HasPrefix(name, "webpackChunk") || strings.HasPrefix(name, "webpackJsonp") || strings.HasPrefix(name, "__vite_ssr_")
+}
+
+// moduleLoader reports whether toks[i] may load or reach another module's value other than by an
+// import statement, a re-export or a literal `require('m')` / `import('m')` call, which name
+// their module: a loader name (see loaderName) anywhere, or an exact string key equal to one;
+// `import.meta` and `x.import(...)` (`System.import`); `System.register`; a `.constructor`
+// property (`({}).constructor.constructor` is Function); CommonJS `module` other than
+// `module.exports` (`module.children`, `module.parent`); and an AMD `define(...)`.
+func moduleLoader(toks []token, i int) bool {
+	t := toks[i]
+	if t.kind == tokString || t.kind == tokTemplate && !t.subst {
+		return loaderName(t.text)
+	}
+	if t.kind != tokIdent {
+		return false
+	}
+	switch t.text {
+	case "require":
+		return property(toks, i) || !next(toks, i+1, "(") || moduleArg(toks, i+2) == ""
+	case "import":
+		return property(toks, i) || next(toks, i+1, ".")
+	case "register":
+		return property(toks, i) && word(toks, i-2, "System")
+	case "constructor":
+		return property(toks, i)
+	case "module":
+		return !property(toks, i) && !(next(toks, i+1, ".") && word(toks, i+2, "exports"))
+	case "define":
+		return !property(toks, i) && next(toks, i+1, "(")
+	}
+	return loaderName(t.text)
 }
 
 // unread marks f as a file whose exports the reader cannot list, so it may export any name
