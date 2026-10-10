@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -38,9 +39,14 @@ type playwrightListing struct {
 
 type playwrightListSuite struct {
 	File  string `json:"file"`
+	Title string `json:"title"`
 	Specs []struct {
-		File  string `json:"file"`
-		Tests []struct {
+		ID     string `json:"id"`
+		Title  string `json:"title"`
+		File   string `json:"file"`
+		Line   int    `json:"line"`
+		Column int    `json:"column"`
+		Tests  []struct {
 			ProjectName *string `json:"projectName"`
 		} `json:"tests"`
 	} `json:"specs"`
@@ -56,46 +62,12 @@ type playwrightListSuite struct {
 // root. The listing stays caller-declared evidence: the producer cannot prove it was taken from
 // the bytes it binds.
 func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []byte) ([]byte, error) {
-	if !affected.ValidRelativePath(configPath) || !hasSourceExtension(configPath) {
-		return nil, errors.New("playwright config path is not canonical TypeScript/JavaScript source")
-	}
 	if !playwrightHex(revision, 40) && !playwrightHex(revision, 64) {
 		return nil, errors.New("revision is not a full lowercase object id")
 	}
-	if len(listing) > PlaywrightListMaxBytes {
-		return nil, fmt.Errorf("playwright listing is over the %d-byte bound", PlaywrightListMaxBytes)
-	}
-	var report playwrightListing
-	if err := json.Unmarshal(listing, &report); err != nil {
-		return nil, fmt.Errorf("playwright listing is not a JSON report: %v", err)
-	}
-	if report.Config == nil || report.Suites == nil || report.Errors == nil {
-		return nil, errors.New("playwright listing lacks config, suites or errors; produce it with `playwright test --list --reporter=json`")
-	}
-	if len(report.Errors) != 0 {
-		return nil, fmt.Errorf("playwright listing reports %d error(s); the universe is incomplete", len(report.Errors))
-	}
-	if err := unfilteredPlaywrightArgv(report.Config.Argv); err != nil {
-		return nil, err
-	}
-	if shard := strings.TrimSpace(string(report.Config.Shard)); shard != "" && shard != "null" {
-		return nil, errors.New("playwright listing is sharded; list the whole suite")
-	}
-	realRoot, err := filepath.Abs(root)
-	if err == nil {
-		realRoot, err = filepath.EvalSymlinks(realRoot)
-	}
+	report, realRoot, err := validatePlaywrightListing(root, configPath, listing)
 	if err != nil {
-		return nil, fmt.Errorf("repository root is unreadable: %v", err)
-	}
-	if playwrightPathOutsideMatcherModel(root) || playwrightPathOutsideMatcherModel(realRoot) {
-		return nil, errors.New("repository root path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked")
-	}
-	if listed, ok := playwrightListPath(realRoot, report.Config.ConfigFile); !ok || listed != configPath {
-		return nil, fmt.Errorf("playwright listing config %q is not %s under the repository root", report.Config.ConfigFile, configPath)
-	}
-	if _, ok := playwrightListPath(realRoot, report.Config.RootDir); !ok && !samePlaywrightDir(realRoot, report.Config.RootDir) {
-		return nil, fmt.Errorf("playwright listing rootDir %q is outside the repository root", report.Config.RootDir)
+		return nil, err
 	}
 	seen := map[PlaywrightDiscoveryUnit]bool{}
 	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", report.Suites, 0, seen); err != nil {
@@ -106,19 +78,9 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		units = append(units, unit)
 	}
 	sort.Slice(units, func(i, j int) bool { return discoveryUnitLess(units[i], units[j]) })
-	sourceDigest, err := ObservePlaywrightSources(root, configPath)
+	configBytes, sourceDigest, err := observePlaywrightListMembership(root, configPath, seen, nil)
 	if err != nil {
 		return nil, err
-	}
-	configBytes, err := affected.ReadSource(root, configPath)
-	if err != nil || !utf8.Valid(configBytes) {
-		return nil, errors.New("playwright config is unreadable")
-	}
-	if err := checkPlaywrightListMembership(root, configPath, configBytes, seen); err != nil {
-		return nil, err
-	}
-	if after, err := ObservePlaywrightSources(root, configPath); err != nil || after != sourceDigest {
-		return nil, errors.New("playwright sources changed while the listing was checked")
 	}
 	sum := sha256.Sum256(configBytes)
 	receipt := PlaywrightDiscovery{
@@ -135,14 +97,84 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 	return raw, nil
 }
 
-// checkPlaywrightListMembership compares the listed project/file pairs with the pairs the config
-// selects among the current sources through the static profile's testDir/testMatch/testIgnore
-// subset, so a stale or partial listing is refused instead of stamped with the current bindings.
-// Membership that is not static is refused as well; only an unresolved browser identity, which
-// does not decide file membership, is tolerated, and a config without projects is Playwright's
-// one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
-// refused too.
-func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
+// validatePlaywrightListing decodes a `playwright test --list --reporter=json` report for
+// configPath and refuses one that reports errors, was filtered or sharded, names another config
+// or has a rootDir outside root. It returns the report and the resolved repository root.
+func validatePlaywrightListing(root, configPath string, listing []byte) (playwrightListing, string, error) {
+	var report playwrightListing
+	if !affected.ValidRelativePath(configPath) || !hasSourceExtension(configPath) {
+		return report, "", errors.New("playwright config path is not canonical TypeScript/JavaScript source")
+	}
+	if len(listing) > PlaywrightListMaxBytes {
+		return report, "", fmt.Errorf("playwright listing is over the %d-byte bound", PlaywrightListMaxBytes)
+	}
+	if err := json.Unmarshal(listing, &report); err != nil {
+		return report, "", fmt.Errorf("playwright listing is not a JSON report: %v", err)
+	}
+	if report.Config == nil || report.Suites == nil || report.Errors == nil {
+		return report, "", errors.New("playwright listing lacks config, suites or errors; produce it with `playwright test --list --reporter=json`")
+	}
+	if len(report.Errors) != 0 {
+		return report, "", fmt.Errorf("playwright listing reports %d error(s); the universe is incomplete", len(report.Errors))
+	}
+	if err := unfilteredPlaywrightArgv(report.Config.Argv); err != nil {
+		return report, "", err
+	}
+	if shard := strings.TrimSpace(string(report.Config.Shard)); shard != "" && shard != "null" {
+		return report, "", errors.New("playwright listing is sharded; list the whole suite")
+	}
+	realRoot, err := filepath.Abs(root)
+	if err == nil {
+		realRoot, err = filepath.EvalSymlinks(realRoot)
+	}
+	if err != nil {
+		return report, "", fmt.Errorf("repository root is unreadable: %v", err)
+	}
+	if playwrightPathOutsideMatcherModel(root) || playwrightPathOutsideMatcherModel(realRoot) {
+		return report, "", errors.New("repository root path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked")
+	}
+	if listed, ok := playwrightListPath(realRoot, report.Config.ConfigFile); !ok || listed != configPath {
+		return report, "", fmt.Errorf("playwright listing config %q is not %s under the repository root", report.Config.ConfigFile, configPath)
+	}
+	if _, ok := playwrightListPath(realRoot, report.Config.RootDir); !ok && !samePlaywrightDir(realRoot, report.Config.RootDir) {
+		return report, "", fmt.Errorf("playwright listing rootDir %q is outside the repository root", report.Config.RootDir)
+	}
+	return report, realRoot, nil
+}
+
+// observePlaywrightListMembership runs the listing membership checks every Playwright listing
+// producer shares: it observes the Playwright sources, reads the config, checks the listed
+// project/file pairs against the pairs the config selects in the current sources (and, when
+// revisionPaths is not nil, among those repository-relative paths of a pinned revision), and
+// refuses when the sources changed during the check. It returns the config bytes and the
+// source digest it observed.
+func observePlaywrightListMembership(root, configPath string, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string) ([]byte, string, error) {
+	sourceDigest, err := ObservePlaywrightSources(root, configPath)
+	if err != nil {
+		return nil, "", err
+	}
+	configBytes, err := affected.ReadSource(root, configPath)
+	if err != nil || !utf8.Valid(configBytes) {
+		return nil, "", errors.New("playwright config is unreadable")
+	}
+	if err := checkPlaywrightListMembership(root, configPath, configBytes, listed); err != nil {
+		return nil, "", err
+	}
+	if revisionPaths != nil {
+		if err := checkPlaywrightRevisionMembership(root, configPath, configBytes, listed, revisionPaths); err != nil {
+			return nil, "", err
+		}
+	}
+	if after, err := ObservePlaywrightSources(root, configPath); err != nil || after != sourceDigest {
+		return nil, "", errors.New("playwright sources changed while the listing was checked")
+	}
+	return configBytes, sourceDigest, nil
+}
+
+// staticPlaywrightProjects returns the projects whose test membership the static profile decides.
+// Only an unresolved browser identity, which does not decide file membership, is tolerated, and a
+// config without projects is Playwright's one unnamed default project.
+func staticPlaywrightProjects(configPath string, configBytes []byte) ([]PlaywrightProject, string, error) {
 	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
 	implicit := false
 	for _, entry := range unknown {
@@ -151,11 +183,54 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 		case entry.Reason == PlaywrightUnknownProjectSet && entry.Detail == "projects is absent" && len(projects) == 0:
 			implicit = true
 		default:
-			return fmt.Errorf("the config's test membership is not static (%s: %s); the listing cannot be checked against the bound sources", entry.Reason, entry.Detail)
+			return nil, "", fmt.Errorf("the config's test membership is not static (%s: %s); the listing cannot be checked against the bound sources", entry.Reason, entry.Detail)
 		}
 	}
 	if implicit {
 		projects = []PlaywrightProject{{TestDir: globalTestDir}}
+	}
+	return projects, globalTestDir, nil
+}
+
+// checkPlaywrightRevisionMembership refuses a listing that omits a project/file pair the config
+// selects among the regular files of a pinned revision, so a test file committed at that revision
+// but absent from the working tree the listing observed cannot shrink the denominator. Files below
+// a node_modules directory are not candidates, because Playwright never loads them.
+func checkPlaywrightRevisionMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string) error {
+	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes)
+	if err != nil {
+		return err
+	}
+	candidates := []string{}
+	for _, candidate := range revisionPaths {
+		if !playwrightLoadableName(path.Base(candidate)) || slices.Contains(strings.Split(candidate, "/"), "node_modules") {
+			continue
+		}
+		if playwrightPathOutsideMatcherModel(candidate) {
+			return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidate)
+		}
+		candidates = append(candidates, candidate)
+	}
+	sort.Strings(candidates)
+	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
+		if !listed[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] {
+			return fmt.Errorf("playwright listing omits project %q test %s, which the config selects at the source revision; the listing or working tree is stale", unit.Project, unit.Test)
+		}
+	}
+	return nil
+}
+
+// checkPlaywrightListMembership compares the listed project/file pairs with the pairs the config
+// selects among the current sources through the static profile's testDir/testMatch/testIgnore
+// subset, so a stale or partial listing is refused instead of stamped with the current bindings.
+// Membership that is not static is refused as well; only an unresolved browser identity, which
+// does not decide file membership, is tolerated, and a config without projects is Playwright's
+// one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
+// refused too.
+func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
+	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes)
+	if err != nil {
+		return err
 	}
 	if err := checkPlaywrightSkippedDirectories(root, configPath, projects, globalTestDir); err != nil {
 		return err

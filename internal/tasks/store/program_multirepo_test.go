@@ -197,6 +197,7 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
 // without an integration designation is refused UNSUPPORTED before a grant is
 // recorded or any checkout moves (CAL-V0-087).
 func TestCALV0071_MultiRepositoryProgramFakeHost(t *testing.T) {
+	t.Parallel()
 	f := newMultiFixture(t)
 	f.config.OwnIntegrationCheckout = true
 	self, err := os.Executable()
@@ -271,6 +272,7 @@ func TestCALV0071_MultiRepositoryProgramFakeHost(t *testing.T) {
 // path differs from the pin, is refused before any program record or
 // worktree exists.
 func TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation(t *testing.T) {
+	t.Parallel()
 	f := newMultiFixture(t)
 	programs := filepath.Join(f.s.repo.StateDir, "programs.json")
 	before, _ := os.ReadFile(programs)
@@ -299,6 +301,7 @@ func TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation(t *testing.T) {
 // edits are scope-checked under "@name/": a ticket that declares only the
 // queue repository path blocks a candidate that also edits docs.
 func TestCALV0071_ExtraRepositoryPathsAreScoped(t *testing.T) {
+	t.Parallel()
 	f := newMultiFixture(t, "hello.txt")
 	self, err := os.Executable()
 	if err != nil {
@@ -325,6 +328,7 @@ func TestCALV0071_ExtraRepositoryPathsAreScoped(t *testing.T) {
 // READY_FOR_INTEGRATION (CAL-V0-072). The passing composite gate is proved by
 // TestCALV0087_DesignatedMultiRepositoryIntegration.
 func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
+	t.Parallel()
 	f := buildProgramFixture(t, true, true, []string{"verify"})
 	self, err := os.Executable()
 	if err != nil {
@@ -338,7 +342,7 @@ func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
 	if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "BUILT" {
 		t.Fatalf("implement: %v", err)
 	}
-	restore := store.SetRunFaultForTest(func(point string) error {
+	restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 		if point == "gate:verify" {
 			return os.WriteFile(*w.Attempt().WorktreePath+"@docs/stray.txt", []byte("stray\n"), 0o644)
 		}
@@ -362,6 +366,7 @@ func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
 // keeps its path pin but is refused before Git registers a worktree in, or
 // writes a ref into, the wrong repository (CAL-V0-071).
 func TestCALV0071_RetargetedCheckoutRefusedBeforeWrite(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"reclone", "symlink"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newMultiFixture(t)

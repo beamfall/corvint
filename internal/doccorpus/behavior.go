@@ -280,6 +280,18 @@ func (c *compiler) behaviorGap(subject, kind, reason string) {
 	c.artifact.Gaps = append(c.artifact.Gaps, Gap{subject, kind, reason})
 }
 
+// behaviorEventShapeOK reports whether one runtime event is a passing closed event at sequence with
+// its identity, browser context and, for a page, a closed navigation; uniqueness is the caller's.
+func behaviorEventShapeOK(event BehaviorEvent, sequence int) bool {
+	if event.Sequence != sequence || !event.Passed || !textOK(event.ID) || !textOK(event.Context) || !textOK(event.Page) || !textOK(event.Frame) || !words("page assertion negative-control")[event.Kind] {
+		return false
+	}
+	if event.Kind == "page" && !words("main-frame frame redirect popup setup")[event.Navigation] {
+		return false
+	}
+	return event.Navigation != "popup" || textOK(event.ParentPage)
+}
+
 func validBehaviorRevisions(r BehaviorRevisions) bool {
 	for _, repo := range []Repository{r.App, r.E2E, r.Docs} {
 		if !wire.IsGitOid(repo.ID) || !wire.IsGitOid(repo.Revision) {
@@ -610,13 +622,7 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 	}
 	seen := map[string]bool{}
 	for i, event := range run.Events {
-		if event.Sequence != i+1 || !event.Passed || !textOK(event.ID) || !textOK(event.Context) || !textOK(event.Page) || !textOK(event.Frame) || !words("page assertion negative-control")[event.Kind] || seen[event.Kind+":"+event.ID] {
-			return false
-		}
-		if event.Kind == "page" && !words("main-frame frame redirect popup setup")[event.Navigation] {
-			return false
-		}
-		if event.Navigation == "popup" && !textOK(event.ParentPage) {
+		if !behaviorEventShapeOK(event, i+1) || seen[event.Kind+":"+event.ID] {
 			return false
 		}
 		if event.Kind == "assertion" {

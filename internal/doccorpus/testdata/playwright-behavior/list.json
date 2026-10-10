@@ -1,0 +1,277 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "@ROOT@/node_modules/.bin/playwright",
+      "test",
+      "--list",
+      "--reporter=json"
+    ],
+    "configFile": "@ROOT@/playwright.config.ts",
+    "rootDir": "@ROOT@/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "@ROOT@/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "alpha",
+        "name": "alpha",
+        "testDir": "@ROOT@/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "@ROOT@/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "beta",
+        "name": "beta",
+        "testDir": "@ROOT@/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "items.spec.ts",
+      "file": "items.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "items",
+          "file": "items.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "lists items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-21837f3c425da85aff36",
+              "file": "items.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "rejects empty item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-769bf788668a3e5dd906",
+              "file": "items.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "archives item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "line": 21,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-c27e67d6ff41417b589b",
+              "file": "items.spec.ts",
+              "line": 21,
+              "column": 8
+            },
+            {
+              "title": "retries item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-9daac85beaf9e4289e19",
+              "file": "items.spec.ts",
+              "line": 23,
+              "column": 7
+            },
+            {
+              "title": "lists items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-d18c13f7bb6d93b89eef",
+              "file": "items.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "rejects empty item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-b86543e10a57706dce7d",
+              "file": "items.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "archives item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "line": 21,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-81f5e23c18db5361df13",
+              "file": "items.spec.ts",
+              "line": 21,
+              "column": 8
+            },
+            {
+              "title": "retries item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-7c069548d1c6f9f9a0d1",
+              "file": "items.spec.ts",
+              "line": 23,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-10T02:27:35.638Z",
+    "duration": 613.806,
+    "expected": 0,
+    "skipped": 8,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

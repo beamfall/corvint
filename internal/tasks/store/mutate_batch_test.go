@@ -18,6 +18,7 @@ import (
 // made at that point commits between the two chunks' receipts instead of
 // waiting for the whole batch. Each chunk is bounded by BatchChunkEntries.
 func TestCALV0106_ClaimCommitsBetweenChunks(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	n := store.BatchChunkEntries + 2
 	ids := make([]string, n)
@@ -70,6 +71,7 @@ func TestCALV0106_ClaimCommitsBetweenChunks(t *testing.T) {
 // TestCALV0106_UnadmittedOrMalformedBatchWritesNothing checks that the store
 // boundary decodes every envelope before taking the lock.
 func TestCALV0106_UnadmittedOrMalformedBatchWritesNothing(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("First ticket")))
 	good := envelope("b/0", mutation.OpRefine, created.Ticket, "1", obj("title", str("Refined")))
@@ -93,6 +95,7 @@ func TestCALV0106_UnadmittedOrMalformedBatchWritesNothing(t *testing.T) {
 // (§5.2 crash point C2). Retrying the original batch redoes entry 2, replays
 // entries 0 to 2 under their request IDs, and applies 3 and 4 once each.
 func TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	const n = 5
 	ids := make([]string, n)
