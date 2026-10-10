@@ -1,0 +1,100 @@
+{
+  "baseRevision": "3beedd981f0d71f604175860a7f09e6d869c5687",
+  "evidence": [
+    {
+      "blobOid": "882e8456dd84f7df16944402b4304e6ad4078f78",
+      "id": "evidence:sha256:41294298e04f9a3e2126ad968e6d43b876c09e74f490c910c356bf68c1fca6f9",
+      "path": "docs/specs/operator-update-v0.md",
+      "span": {
+        "end": 15310,
+        "start": 15059
+      },
+      "spanSha256": "d40a037cd2543e7327b5ef28d13057ecb5a23f3f75f41715589478786ecedb33"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:41294298e04f9a3e2126ad968e6d43b876c09e74f490c910c356bf68c1fca6f9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5bb5a3e3088a6a3a91c960ac7336fd7eb9d58d88e56a7552599b4ca64a323f93",
+      "newRange": {
+        "count": 16,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-update-cancel-flake.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:41294298e04f9a3e2126ad968e6d43b876c09e74f490c910c356bf68c1fca6f9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:51212773e7690472eb05faf3565ba6c9a12da9d2cc8833336e597609d20a8b8f",
+      "newRange": {
+        "count": 7,
+        "start": 490
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 490
+      },
+      "path": "internal/update/update_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:41294298e04f9a3e2126ad968e6d43b876c09e74f490c910c356bf68c1fca6f9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:394923650e4e4202ac1713a5176394d41f35bbc7226555d13f36211d067368f5",
+      "newRange": {
+        "count": 7,
+        "start": 501
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 500
+      },
+      "path": "internal/update/update_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:41294298e04f9a3e2126ad968e6d43b876c09e74f490c910c356bf68c1fca6f9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5c48a2d3eb4b12a89bc21961dd072867777e080187c933137f97c3d5849d8596",
+      "newRange": {
+        "count": 17,
+        "start": 515
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 513
+      },
+      "path": "internal/update/update_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3bb016880d1db7de0c78a31826ecddd4389f40efa8193d08589fed2456bef8a3",
+  "spec": "cem/0.2"
+}
