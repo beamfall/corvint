@@ -190,6 +190,7 @@ AHI-046	docs/specs/agent-harness-integration-v0.md	913	(accepted by decision 044
 AHI-047	docs/specs/agent-harness-integration-v0.md	923	(accepted by decision 0441; V1-0939) The Claude Code trusted
 AHI-048	docs/specs/agent-harness-integration-v0.md	939	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
 AHI-050	docs/specs/agent-harness-integration-v0.md	975	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
+AHI-051	docs/specs/agent-harness-integration-v0.md	1028	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -2438,7 +2439,7 @@ PTF-V0-007	docs/specs/playwright-per-test-freshness-v0.md	81	The only supported 
 PTF-V0-008	docs/specs/playwright-per-test-freshness-v0.md	88	Join the control's observed semantic/runtime/source closure to EVERY baseline re
 PTF-V0-009	docs/specs/playwright-per-test-freshness-v0.md	95	Readiness failure, attestation failure, execution failure and cancellation all c
 PTF-V0-010	docs/specs/playwright-per-test-freshness-v0.md	99	Qualify the named consuming path on the exact tuple with actual stable positive/
-PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.2`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.3`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	160	The first companion target is macOS arm64. Qualification MUST exercise the

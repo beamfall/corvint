@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -1025,6 +1025,32 @@ do not reinterpret this Frontier result.
   `cleanupConfirmed` changes in
   `integrations/opencode/src/runtime.js` and `integrations/gemini-cli/hooks/corvint-hook.mjs`, and
   their tests. The adapters then again send a group SIGKILL after the leader is reaped.
+- `AHI-051`: (proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
+  complete host-visible metadata and explicit read-only commands, without adding routine
+  user-visible notices. Its manifest and marketplace entry carry `displayName`, a description
+  that names what Corvint provides, `author`, `homepage`, `repository` and the `LICENSING.md`
+  license, and its `metadata.support` stays `FALLBACK`. Every registered hook declares a
+  `statusMessage` that states its user-visible action in plain words. Besides `context`, the plugin
+  ships the skills `impact`, `affected`, `review`, `status` and `index`. Each maps to one existing
+  verb (`impact`, `affected`, `review`, `dogfood status` with `observations` and `--version`,
+  `index --if-stale`), keeps that verb's uncertainty, omissions and refusals in its report, and
+  pre-approves only that verb and read-only `git` or `ls` commands through `allowed-tools`.
+  `status` and `index` set `disable-model-invocation`, so only the user starts them. Of these five,
+  `index` is the only one that writes, and only the derived snapshot under the Git common
+  directory; `context` keeps its existing enrolled-workflow writes.
+  `status` never invents a session key (`LCP-V0-011`). Decision 0161 is unchanged: hooks add no
+  `systemMessage` for routine receipts, so `/corvint:status` is the on-demand user view, and a
+  persistent status line or pane remains V1-1054.
+  Non-goals: no MCP declaration (V1-0191), no new verb, no change to hook output or the
+  `corvint-dogfood-event/0` receipt, and no Codex skill parity.
+  Failure modes: a host older than skill `allowed-tools` or `disable-model-invocation` support
+  prompts for permission or lets the model start `status`/`index`; both remain read-only apart from
+  the derived snapshot. A skill report is model prose over the verb's output, not a receipt.
+  Acceptance: `claude plugin validate` passes for the plugin and marketplace,
+  `integrations/host-adapters.test.mjs` checks the metadata, status messages and skill frontmatter,
+  and `conformance/host-lifecycle-v1` discovery reports the six skills on the installed host.
+  Rollback: restore the 0.2.3 manifest, marketplace and `hooks.json` and delete the five skill
+  directories under a new plugin version; no store, ledger or wire format changes.
 
 ## Native platform profiles
 
@@ -1238,6 +1264,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
 | `AHI-050` (accepted by decision 0474; V1-0371) | `requestGroupTermination`, `terminatePendingGroups`, `signalGroup`, `holdUnreaped`, `cleanupConfirmed` and `groupGone` in `integrations/opencode/src/runtime.js`; `terminateGroup`, `signalGroup`, `holdUnreaped` and `cleanupConfirmed` and the bounded `settle` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`: `V1-0371 <host> timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`, `V1-0371 <host> normal exit with a surviving descendant reports unconfirmed cleanup, never success`, `V1-0371 <host> timeout names a failed group kill instead of the timeout`, for `opencode` and `gemini`; `V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader's stdout open`, `V1-0371 Gemini exits after reporting a leader whose group kill failed`, `V1-0371 OpenCode concurrent cancellations share one SIGTERM grace` |
+| `AHI-051` (proposed; V1-1070, V1-1071) | `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json`, `hooks/hooks.json`, `skills/*/SKILL.md`, `integrations/claude-code/.claude-plugin/marketplace.json` | `integrations/host-adapters.test.mjs` (`AHI-051 Claude Code plugin presents complete metadata, plain status messages and read-only skills`); `claude plugin validate`; `conformance/host-lifecycle-v1` discovery case |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
