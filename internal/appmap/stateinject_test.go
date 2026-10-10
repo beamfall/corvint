@@ -426,6 +426,9 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
 	star := "export * from './routes.constants';\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
+	// A nested package.json makes app/tables/routes a package directory, so the workspace cases
+	// import the declaring file directly.
+	direct := strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1)
 	for name, c := range map[string]struct {
 		reg   string
 		files map[string]string
@@ -442,7 +445,7 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"registering ns":       {reg + "import * as NS from '../tables/routes';\nNS.SectionTable.REPORTS = 'other';\n", map[string]string{index: star, decl: table}},
 		"declaring self ns":    {reg, map[string]string{index: star, decl: table + "import * as me from './routes.constants';\nme.SectionTable.REPORTS = 'other';\n"}},
 		"declaring via barrel": {reg, map[string]string{index: star, decl: table + "import { SectionTable as S } from './index';\nS.REPORTS = 'other';\n"}},
-		"direct alias":         {strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1) + "import { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n", map[string]string{decl: table}},
+		"direct alias":         {direct + "import { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n", map[string]string{decl: table}},
 		"declared beside":      {"const T = { REPORTS: 'ledger' };\nangular.module('admin').constant('SectionNames', T);\nimport * as me from './setup.module';\nme.T.REPORTS = 'other';\n", nil},
 		// Another name the declaring file or a barrel exports the table under (round 9).
 		"registering default": {reg + "import T from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n", map[string]string{index: star, decl: table + "export default SectionTable;\n"}},
@@ -462,6 +465,23 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 			"import R from '../tables/relay';\nR.REPORTS = 'other';\n",
 			map[string]string{"app/tables/routes.constants.ts": table, "app/tables/namespace.ts": "export * as NS from './routes.constants';\n",
 				"app/tables/relay.ts": "import { NS } from './namespace';\nexport default (NS.SectionTable);\n"}},
+		// The review's round-12 inputs: a module loaded inside a template substitution, and a
+		// workspace package, which the resolver reads as a package, relaying the table.
+		"relay template require": {reg + "import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "let R;\n`${R = require('./routes.constants').SectionTable}`;\nexport default R;\n"}},
+		"relay require alias": {reg + "import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "const load = require;\nexport default load('./routes.constants').SectionTable;\n"}},
+		"relay workspace package": {direct + "import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "package.json": `{"private":true,"workspaces":["app/tables/routes"]}`,
+				"app/tables/routes/package.json": `{"name":"@local/tables","exports":"./routes.constants.ts"}`,
+				"app/tables/routes/relay.ts":     "import { SectionTable as T } from '@local/tables';\nexport default (T);\n"}},
+		"registering workspace package": {direct + "import R from '@local/tables';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "package.json": `{"private":true,"workspaces":["app/tables/routes"]}`,
+				"app/tables/routes/package.json": `{"name":"@local/tables","exports":"./relay.ts"}`,
+				"app/tables/routes/relay.ts":     "import { SectionTable } from './routes.constants';\nexport default (SectionTable);\n"}},
+		"relay file dependency": {reg + "import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "package.json": `{"private":true,"dependencies":{"tables":"file:app/tables/routes"}}`,
+				"app/tables/routes/relay.ts": "import { SectionTable as T } from 'tables';\nexport default (T);\n"}},
 	} {
 		t.Run(name, func(t *testing.T) { checkBarrel(t, c.reg, c.files, "not-read-whole", "") })
 	}

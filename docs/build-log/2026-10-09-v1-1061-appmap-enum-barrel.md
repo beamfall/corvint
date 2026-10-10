@@ -136,6 +136,16 @@ injector.
   module that is not a package's, holds a non-package namespace import, dynamic import, `require`
   or unread import item, or has any re-export. Bindings from a package are excluded, as `mayHold`
   already excluded packages, so an exported helper built from a package import is not a holder.
+- Twelfth review (structural, no spec text change): two module references escaped the relay test.
+  A `require(...)` inside a template substitution is not a token, so it added no module; now a
+  `require` or `import` identifier inside any substitution, and a `require` anywhere that is not
+  called with a literal (`const load = require`), add a module the reader cannot name, which may
+  hold anything. And the resolver's package state also covers workspace and nested packages and
+  dependencies installed from the repository, so trusting it let a workspace package relay the
+  table. A package now counts as external, both in `relays` and in `mayHold`, only when no tracked
+  package.json names it and none installs or overrides anything from a local protocol or path
+  (`file:`, `link:`, `workspace:`, `portal:`, `.`, `/`, or a non-string spec), every tracked
+  package.json is readable, and the specifier is not a scheme other than `node:`.
 
 ## Evidence
 
@@ -260,6 +270,14 @@ injector.
   export counted as a relay); the other new subtests were already caught incidentally and stay as
   guards; all pass with the fix. The full `go test -count=1 -v ./internal/appmap` passes (456
   passing tests and subtests).
+- Twelfth review follow-up (a template-substitution `require` and a workspace package relay the
+  table): `TestAMAPV0025ChainBindingsFailClosed` gained the review's two inputs (the workspace
+  ones import the declaring file directly, since the nested package.json makes the barrel
+  directory a package), a `require` alias, a registering file importing the workspace package
+  whose entry relays the table, and a `file:` dependency. Against `stateconst.go` from `bd670d69`
+  all 5 resolve silently; the reads guard (an external `@playwright/test` binding) passes before
+  and after; all pass with the fix. The full `go test -count=1 -v ./internal/appmap` passes (461
+  passing tests and subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -301,7 +319,10 @@ injector.
   unresolved one, or holds a namespace import, dynamic import or `require` of anything but a
   package: nearly every repository module with repository imports is then a possible holder, and
   every chain import from it must pass the write checks (a helper function imported from such a
-  module and called leaves the table not read whole). The router-side (AMAP-V0-016, not injected) path
+  module and called leaves the table not read whole). Only an external package is exempt: any
+  tracked package.json naming the package, installing anything from a local protocol or path,
+  or that the reader cannot read makes packages possible holders too, and a file that mentions
+  `require` other than in a literal call is one. The router-side (AMAP-V0-016, not injected) path
   does not yet apply the chain-binding check to alias and namespace imports; that needs
   AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
   unsure mark. The bracket

@@ -1,6 +1,7 @@
 package appmap
 
 import (
+	"encoding/json"
 	"path"
 	"slices"
 	"strings"
@@ -23,6 +24,10 @@ type constTable struct {
 	files    map[string]*constFile // tracked path -> parsed file; nil when unreadable
 	di       *diScope              // the manifest's di_constants scope (AMAP-V0-021); nil without one
 	diag     []Unknown             // why an in-scope registration did not resolve (AMAP-V0-026)
+	// local holds the package names repository code may stand behind (see external); anyLocal
+	// marks a manifest the reader cannot read, after which any package may.
+	local    map[string]bool
+	anyLocal bool
 }
 
 // newConstTable prepares one build's constant resolution; a di_constants scope that names no
@@ -241,7 +246,7 @@ func (t *constTable) mayHold(f *constFile, m string, decl *constFile) bool {
 	}
 	switch res := t.resolver.Resolve(f.entry.path, m); res.State {
 	case contextindex.WebImportPackage:
-		return false
+		return !t.external(m)
 	case contextindex.WebImportRepository:
 		h := t.file(res.Target)
 		return h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 || t.relays(h)
@@ -272,8 +277,9 @@ func (t *constTable) relays(f *constFile) bool {
 	return len(f.reexports) > 0
 }
 
-// pkg reports whether module m, imported by f, is a package's, which cannot hold a repository
-// table; a module name that is not an exact literal, or a relative one, could be any module.
+// pkg reports whether module m, imported by f, is an external package's, which cannot hold a
+// repository table (see external); a module name that is not an exact literal, or a relative
+// one, could be any module.
 func (t *constTable) pkg(f *constFile, m string) bool {
 	if m == "" {
 		return false
@@ -281,7 +287,121 @@ func (t *constTable) pkg(f *constFile, m string) bool {
 	if t.resolver == nil {
 		return !strings.HasPrefix(m, ".") && !strings.HasPrefix(m, "/")
 	}
-	return t.resolver.Resolve(f.entry.path, m).State == contextindex.WebImportPackage
+	return t.resolver.Resolve(f.entry.path, m).State == contextindex.WebImportPackage && t.external(m)
+}
+
+// external reports whether package specifier m names code outside the repository. The resolver's
+// package state also covers workspace and nested packages and dependencies installed from the
+// repository itself, so a package is external only when no tracked package.json names it (its
+// own "name", which a workspace or a self-reference resolves to) and none installs or overrides
+// anything from a local protocol or path (`file:`, `link:`, `workspace:`, `portal:`, `.`, `/`,
+// or a value that is not a string), and every tracked package.json is readable. A scheme other
+// than `node:` (a bundler's virtual module) may be generated from repository code.
+func (t *constTable) external(m string) bool {
+	if t.local == nil {
+		t.readManifests()
+	}
+	if t.anyLocal {
+		return false
+	}
+	if scheme, _, ok := strings.Cut(m, ":"); ok && !strings.Contains(scheme, "/") {
+		return scheme == "node"
+	}
+	parts := strings.SplitN(m, "/", 3)
+	name := parts[0]
+	if strings.HasPrefix(m, "@") && len(parts) >= 2 {
+		name += "/" + parts[1]
+	}
+	return !t.local[name]
+}
+
+// readManifests fills local from every tracked package.json (see external).
+func (t *constTable) readManifests() {
+	t.local = map[string]bool{}
+	if t.ix == nil {
+		return
+	}
+	for p, src := range t.ix.Sources {
+		if path.Base(p) != "package.json" {
+			continue
+		}
+		text, valid, loaded := src.Text()
+		var fields map[string]json.RawMessage
+		if !valid || !loaded || json.Unmarshal([]byte(text), &fields) != nil {
+			t.anyLocal = true
+			return
+		}
+		var name string
+		if raw, ok := fields["name"]; ok && json.Unmarshal(raw, &name) == nil && name != "" {
+			t.local[name] = true
+		}
+		for _, group := range []string{"dependencies", "devDependencies", "peerDependencies", "optionalDependencies"} {
+			var deps map[string]json.RawMessage
+			if raw, ok := fields[group]; ok && json.Unmarshal(raw, &deps) != nil {
+				t.anyLocal = true
+				return
+			}
+			for dep, spec := range deps {
+				if localSpec(spec) {
+					t.local[dep] = true
+				}
+			}
+		}
+		// An override or resolution may point any package, at any depth, at repository code.
+		for _, field := range []string{"overrides", "resolutions", "pnpm"} {
+			if raw, ok := fields[field]; ok && localLeaf(raw) {
+				t.anyLocal = true
+				return
+			}
+		}
+	}
+}
+
+// localSpec reports whether a dependency's version spec may install repository code: a local
+// protocol or path, or a value that is not a string.
+func localSpec(raw json.RawMessage) bool {
+	var spec string
+	return json.Unmarshal(raw, &spec) != nil || localPath(spec)
+}
+
+// localPath reports whether a version spec names a local protocol or path.
+func localPath(spec string) bool {
+	spec = strings.TrimSpace(spec)
+	for _, prefix := range []string{"file:", "link:", "workspace:", "portal:", ".", "/"} {
+		if strings.HasPrefix(spec, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// localLeaf reports whether any string in raw, at any depth, is a local spec (see localSpec).
+func localLeaf(raw json.RawMessage) bool {
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return true
+	}
+	var walk func(any) bool
+	walk = func(v any) bool {
+		switch v := v.(type) {
+		case string:
+			return localPath(v)
+		case map[string]any:
+			for _, e := range v {
+				if walk(e) {
+					return true
+				}
+			}
+		case []any:
+			for _, e := range v {
+				if walk(e) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return walk(v)
 }
 
 // mentions reports whether name appears as a binding (not a property name) outside f's import
@@ -825,6 +945,8 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		}
 		if (word(toks, ti, "import") || word(toks, ti, "require")) && !property(toks, ti) && next(toks, ti+1, "(") {
 			f.spaces = append(f.spaces, moduleArg(toks, ti+2)) // a dynamic import or CommonJS require
+		} else if word(toks, ti, "require") && !property(toks, ti) {
+			f.spaces = append(f.spaces, "") // `require` passed along or called another way loads any module
 		}
 		if t.kind != tokTemplate {
 			continue
@@ -840,6 +962,9 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 			f.hidden[t.code[k:e]] = true
 			k = e - 1
 		}
+	}
+	if f.hidden["require"] || f.hidden["import"] {
+		f.spaces = append(f.spaces, "") // a module loaded inside a template substitution
 	}
 	return f
 }
