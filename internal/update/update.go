@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -34,6 +35,11 @@ const extractedLimit = 300 << 20
 type Config struct {
 	Component, BinDir, StateDir string
 	AllowNetwork                bool
+	// RefreshRoots are checkouts whose index snapshot a Core switch refreshes
+	// unconditionally; WorkDir's checkout is refreshed only when it already
+	// has a snapshot store (UPD-V0-008).
+	RefreshRoots []string
+	WorkDir      string
 }
 type Result struct {
 	Component         string `json:"component"`
@@ -50,6 +56,17 @@ type Result struct {
 	// could not classify or remove it, as "path: reason" (proposed UPD-V0-007).
 	Removed []string `json:"removed,omitempty"`
 	Left    []string `json:"left,omitempty"`
+	// IndexRefresh is the outcome of each snapshot refresh after a Core
+	// switch (UPD-V0-008).
+	IndexRefresh []IndexRefresh `json:"indexRefresh,omitempty"`
+}
+
+// IndexRefresh is one checkout's snapshot refresh: State is built, fresh,
+// skipped or failed, and Reason says why for the last two.
+type IndexRefresh struct {
+	Root   string `json:"root"`
+	State  string `json:"state"`
+	Reason string `json:"reason,omitempty"`
 }
 type asset struct {
 	Name string `json:"name"`
@@ -70,6 +87,8 @@ type engine struct {
 	api      string
 	platform string
 	inspect  func(string, string) error
+	// refreshCtx bounds the post-switch snapshot refresh; nil means none.
+	refreshCtx context.Context
 }
 
 func Run(ctx context.Context, command string, c Config) (Result, error) {
@@ -79,9 +98,128 @@ func Run(ctx context.Context, command string, c Config) (Result, error) {
 		}
 		return allowedURL(req.URL)
 	}}, api: "https://api.github.com/repos/beamfall/corvint/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	return e.execute(ctx, command)
+}
+
+// execute runs command under the updater's own bound; a Core switch's
+// snapshot refresh keeps the caller's context instead (UPD-V0-008).
+func (e engine) execute(ctx context.Context, command string) (Result, error) {
+	e.refreshCtx = ctx
+	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	return e.run(ctx, command)
+	return e.run(runCtx, command)
+}
+
+// switched refreshes index snapshots after a successful Core switch. run
+// calls it while it still holds the binary-directory lock, so every refresh
+// runs the binary this run installed (UPD-V0-008).
+func (e engine) switched(r *Result) {
+	c := e.config
+	if c.Component != "core" {
+		return
+	}
+	ctx := e.refreshCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.IndexRefresh = refreshIndexes(ctx, filepath.Join(c.BinDir, "corvint"), c.RefreshRoots, c.WorkDir)
+}
+
+// refreshTimeout bounds one checkout's foreground `index --if-stale`.
+const refreshTimeout = 2 * time.Minute
+
+// refreshIndexes runs the switched Core binary's `index --if-stale` in the
+// foreground for each explicit root and for workDir's checkout when it is
+// already indexed. A snapshot is keyed by the executable's digest, so every
+// switch strands the old ones, and hooks may not rebuild them (IDX-SNAP-V0-012).
+// A failed refresh never fails the switch; its outcome is reported (UPD-V0-008).
+func refreshIndexes(ctx context.Context, binary string, explicit []string, workDir string) []IndexRefresh {
+	var out []IndexRefresh
+	seen := map[string]bool{}
+	add := func(root string, requireStore bool) {
+		key := root
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			key = resolved
+		}
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		if requireStore && !indexed(root) {
+			out = append(out, IndexRefresh{Root: root, State: "skipped", Reason: "no index snapshot store"})
+			return
+		}
+		out = append(out, refreshIndex(ctx, binary, root))
+	}
+	for _, root := range explicit {
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			out = append(out, IndexRefresh{Root: root, State: "failed", Reason: err.Error()})
+			continue
+		}
+		add(abs, false)
+	}
+	if root := checkoutRoot(workDir); root != "" {
+		add(root, true)
+	}
+	return out
+}
+
+// checkoutRoot is the nearest directory at or above dir holding a `.git`
+// entry, or empty when there is none.
+func checkoutRoot(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	for {
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// indexed says whether root already has a snapshot store: the shared one under
+// the Git common directory or the worktree fallback (IDX-SNAP-V0-025).
+func indexed(root string) bool {
+	stores := []string{filepath.Join(root, ".corvint", "index")}
+	if common, err := gitstatus.CommonDirectory(root); err == nil {
+		stores = append(stores, filepath.Join(common, "corvint", "index"))
+	}
+	for _, store := range stores {
+		if info, err := os.Lstat(store); err == nil && info.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func refreshIndex(ctx context.Context, binary, root string) IndexRefresh {
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: []string{binary, "--root", root, "index", "--if-stale"}, Dir: root, Env: os.Environ(), Timeout: refreshTimeout, ShutdownTimeout: 2 * time.Second, OutputLimit: 64 << 10, ObserveDescendants: true})
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		reason := fmt.Sprintf("exit %d", o.ExitStatus)
+		if o.Err != nil {
+			reason = o.Err.Error()
+		} else if line, _, _ := strings.Cut(strings.TrimSpace(string(o.Stderr)), "\n"); line != "" {
+			reason += ": " + line
+		}
+		return IndexRefresh{Root: root, State: "failed", Reason: reason}
+	}
+	var receipt struct {
+		State   string `json:"state"`
+		Mutates bool   `json:"mutates"`
+	}
+	if err := json.Unmarshal(o.Stdout, &receipt); err != nil {
+		return IndexRefresh{Root: root, State: "failed", Reason: "unreadable index receipt"}
+	}
+	if receipt.State == "fresh" && !receipt.Mutates {
+		return IndexRefresh{Root: root, State: "fresh"}
+	}
+	return IndexRefresh{Root: root, State: "built"}
 }
 func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	c := e.config
@@ -130,6 +268,9 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	}
 	if command == "rollback" {
 		r.Receipt, err = e.rollback(ctx, destination)
+		if err == nil {
+			e.switched(&r)
+		}
 		return r, err
 	}
 	if !c.AllowNetwork {
@@ -310,6 +451,7 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.Freshness = "CURRENT"
 		removed, left := retainCommitted(c.StateDir, stage, candidate, rec)
 		r.Removed, r.Left = append(r.Removed, removed...), append(r.Left, left...)
+		e.switched(&r)
 	}
 	return r, err
 }

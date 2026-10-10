@@ -5,7 +5,7 @@ import path from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.7.9"
+export const ADAPTER_VERSION = "0.7.11"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
@@ -381,6 +381,81 @@ function cockpitReadResult(kind, output) {
   }
 }
 
+// The SIGTERM grace before an owned group's SIGKILL. The event loop is held through it, so Node
+// cannot reap the leader and its group ID stays the adapter's to signal (V1-0371).
+const TERMINATION_GRACE_MS = 25
+const unreapedHold = new Int32Array(new SharedArrayBuffer(4))
+
+function holdUnreaped(milliseconds) {
+  try {
+    Atomics.wait(unreapedHold, 0, 0, milliseconds)
+  } catch {
+    for (const end = performance.now() + milliseconds; performance.now() < end; );
+  }
+}
+
+// An unrecorded exit proves the leader unreaped only outside libuv's reap batch: uv__wait_children
+// reaps every exited child before it dispatches any exit callback, so inside another child's exit
+// callback, or a tick or microtask between two of them, a reaped leader still reads exitCode and
+// signalCode null. Every termination is therefore decided in a setImmediate, whose check phase runs
+// only after the poll phase has dispatched the whole batch, and all terminations requested before it
+// share one SIGTERM grace (V1-0371).
+const pendingTerminations = new Set()
+let terminationTurn
+
+function requestGroupTermination(child, decided) {
+  const request = { child, decided }
+  pendingTerminations.add(request)
+  terminationTurn ??= setImmediate(terminatePendingGroups)
+  return () => pendingTerminations.delete(request)
+}
+
+function terminatePendingGroups() {
+  terminationTurn = undefined
+  const requests = [...pendingTerminations]
+  pendingTerminations.clear()
+  const terms = requests.map(({ child }) => signalGroup(child, "SIGTERM"))
+  if (terms.includes("DELIVERED")) holdUnreaped(TERMINATION_GRACE_MS)
+  requests.forEach(({ child, decided }, index) => {
+    const term = terms[index]
+    decided(term === "DELIVERED" || term === "EPERM" ? signalGroup(child, "SIGKILL") : term)
+  })
+}
+
+// signalGroup signals the owned group only while the leader's exit is unrecorded. Called only from
+// terminatePendingGroups, where that proves the leader unreaped and its group ID held.
+function signalGroup(child, signalName) {
+  if (!Number.isInteger(child.pid)) return "ESRCH"
+  if (child.exitCode !== null || child.signalCode !== null) return "LEADER-REAPED"
+  try {
+    process.kill(-child.pid, signalName)
+    return "DELIVERED"
+  } catch (error) {
+    return error?.code ?? "UNKNOWN"
+  }
+}
+
+// cleanupConfirmed decides an owned group's cleanup at completion. A SIGKILL delivered while the
+// leader was unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before termination,
+// or an EPERM (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0:
+// it delivers nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives,
+// confirms it. Any other answer, or a failed kill, completes as unconfirmed, never as success (V1-0371).
+function cleanupConfirmed(pid, cleanup) {
+  if (cleanup === "DELIVERED" || cleanup === "ESRCH") return true
+  if (cleanup === undefined || cleanup === "EPERM" || cleanup === "LEADER-REAPED") return groupGone(pid)
+  return false
+}
+
+function groupGone(pid) {
+  if (!Number.isInteger(pid)) return true
+  try {
+    process.kill(-pid, 0)
+  } catch (error) {
+    return error?.code === "ESRCH"
+  }
+  return false
+}
+
 export function createCorvintRunner(options = {}) {
   const environment = options.environment ?? process.env
   const binary = executable(options.corvintBinary ?? environment.CORVINT_BIN)
@@ -446,10 +521,10 @@ export function createCorvintRunner(options = {}) {
       let overflow = false
       let stderrOutput = ""
       let stderrBytes = 0
-      let forceTimer
       let reapTimer
       let terminationCode
-      let leaderExited = false
+      let cleanup
+      let cancelTermination
       const child = spawn(reading?.tasks ? tasksBinary : reading?.git ? executable(options.gitBinary ?? "git") : binary, args, {
         cwd: root,
         detached: true,
@@ -459,45 +534,24 @@ export function createCorvintRunner(options = {}) {
         windowsHide: true,
       })
       // The leader's close does not end its group: a same-group descendant that ignored SIGTERM and
-      // closed its stdio still runs, so every completion first kills the owned group (V1-0371). A
-      // delivered SIGKILL or ESRCH confirms cleanup; Darwin also answers EPERM for a group whose
-      // members have all exited but are not yet reaped, which is benign only after the leader's exit.
-      const groupCleaned = () => {
-        if (!Number.isInteger(child.pid)) return true
-        try {
-          process.kill(-child.pid, "SIGKILL")
-          return true
-        } catch (error) {
-          return error?.code === "ESRCH" || (leaderExited && error?.code === "EPERM")
-        }
-      }
+      // closed its stdio still runs (V1-0371). Termination therefore sends the group SIGTERM, holds the
+      // event loop through the grace so the leader cannot be reaped, then sends SIGKILL, all from a
+      // turn where an unrecorded exit proves the leader unreaped; see requestGroupTermination.
       const finish = (value) => {
         if (settled) return
         settled = true
         clearTimeout(timer)
-        clearTimeout(forceTimer)
         clearTimeout(reapTimer)
+        cancelTermination?.()
         if (signal) signal.removeEventListener("abort", abort)
-        resolve(groupCleaned() ? value : degradation(event, "corvint-process-cleanup-unconfirmed"))
-      }
-      const killGroup = (signalName) => {
-        if (!Number.isInteger(child.pid)) return
-        try {
-          process.kill(-child.pid, signalName)
-        } catch {
-          try {
-            child.kill(signalName)
-          } catch {
-            // The process already exited and will be reaped by its close event.
-          }
-        }
+        resolve(cleanupConfirmed(child.pid, cleanup) ? value : degradation(event, "corvint-process-cleanup-unconfirmed"))
       }
       const terminate = (code) => {
         if (terminationCode) return
         terminationCode = code
-        killGroup("SIGTERM")
-        forceTimer = setTimeout(() => killGroup("SIGKILL"), 25)
-        forceTimer.unref?.()
+        cancelTermination = requestGroupTermination(child, (decided) => {
+          cleanup = decided
+        })
         reapTimer = setTimeout(() => finish(degradation(event, code, timeoutMs)), 100)
         reapTimer.unref?.()
       }
@@ -509,9 +563,6 @@ export function createCorvintRunner(options = {}) {
         else signal.addEventListener("abort", abort, { once: true })
       }
       child.on("error", () => finish(degradation(event, reading?.tasks ? "task-manager-unavailable" : "corvint-unavailable")))
-      child.once("exit", () => {
-        leaderExited = true
-      })
       child.stdout.on("data", (chunk) => {
         outputBytes += chunk.length
         if (outputBytes > (reading ? 1_048_576 : MAX_OUTPUT_BYTES)) {

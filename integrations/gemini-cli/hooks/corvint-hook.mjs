@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { promptQuery, trimSpace } from "./prompt-bound.mjs";
 
-const ADAPTER_VERSION = "0.2.6";
+const ADAPTER_VERSION = "0.2.8";
 const CORVINT_OUTPUT_LIMIT = 8000;
 // AHI-017: every Corvint deadline is derived from the host kill declared for each hook in
 // ./hooks.json (timeoutsMs.host in ../compatibility.json), never from a free constant.
@@ -297,21 +297,72 @@ function eventInput(adapterEvent, input, cwd) {
   return [adapterEvent, common];
 }
 
-function terminateProcessTree(child, signal, leaderExited) {
+// signalGroup signals the owned group only while the leader's exit is unrecorded. That proves the
+// leader unreaped only outside libuv's reap batch: uv__wait_children reaps every exited child before it
+// dispatches any exit callback, so inside another child's exit callback, or a tick or microtask between
+// two of them, a reaped leader still reads exitCode and signalCode null. It is therefore called only
+// from terminateGroup in a setImmediate, whose check phase runs after the poll phase has dispatched the
+// whole batch. After the reap the numeric ID may name another process's group (V1-0371).
+function signalGroup(child, signal) {
   if (child.pid === undefined) {
-    return;
+    return "ESRCH";
+  }
+  if (process.platform === "win32") {
+    child.kill(signal);
+    return "DELIVERED";
+  }
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return "LEADER-REAPED";
   }
   try {
-    if (process.platform === "win32") {
-      child.kill(signal);
-      return;
-    }
     process.kill(-child.pid, signal);
+    return "DELIVERED";
   } catch (error) {
-    // Darwin returns EPERM for a group whose members have all exited but are not yet reaped.
-    if (error?.code === "ESRCH" || (leaderExited && error?.code === "EPERM")) return;
-    return error;
+    return error?.code ?? "UNKNOWN";
   }
+}
+
+const unreapedHold = new Int32Array(new SharedArrayBuffer(4));
+
+/** Blocks the event loop, so Node cannot reap the leader and its group ID stays held (V1-0371). */
+function holdUnreaped(milliseconds) {
+  try {
+    Atomics.wait(unreapedHold, 0, 0, milliseconds);
+  } catch {
+    for (const end = performance.now() + milliseconds; performance.now() < end;);
+  }
+}
+
+/** SIGTERM, a held grace so the leader stays unreaped, then SIGKILL to the group it still names. */
+function terminateGroup(child) {
+  const term = signalGroup(child, "SIGTERM");
+  if (term === "DELIVERED") {
+    holdUnreaped(TERMINATION_GRACE_MS);
+  }
+  return term === "DELIVERED" || term === "EPERM" ? signalGroup(child, "SIGKILL") : term;
+}
+
+// cleanupConfirmed decides the owned group's cleanup at completion. A SIGKILL delivered while the leader was
+// unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before termination, or EPERM
+// (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0: it delivers
+// nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives, confirms it.
+// Any other answer, or a failed kill, stays unconfirmed (V1-0371).
+function cleanupConfirmed(child, cleanup) {
+  if (cleanup === "DELIVERED" || cleanup === "ESRCH") {
+    return true;
+  }
+  if (cleanup !== undefined && cleanup !== "EPERM" && cleanup !== "LEADER-REAPED") {
+    return false;
+  }
+  if (child.pid === undefined || process.platform === "win32") {
+    return true;
+  }
+  try {
+    process.kill(-child.pid, 0);
+  } catch (error) {
+    return error?.code === "ESRCH";
+  }
+  return false;
 }
 
 function invokeCorvint(cwd, event, input, timeoutMs) {
@@ -349,23 +400,29 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let failureCode;
-    let hardKill;
     let interruptedSignal;
-    let leaderExited = false;
-    let cleanupFailed = false;
-    let cleanupUndecided = false;
+    let cleanup;
+    let terminating = false;
+    let settled = false;
+    let closeBound;
 
-    const signalTree = (signal) => {
-      const error = terminateProcessTree(child, signal, leaderExited);
-      if (error?.code === "EPERM") cleanupUndecided = true;
-      else if (error) cleanupFailed = true;
-    };
-    child.once("exit", () => { leaderExited = true; });
-
+    // The leader's close does not end its group: a same-group descendant that ignored SIGTERM and
+    // closed its stdio still runs, and one that kept the leader's stdout open delays close until it
+    // ends. So termination is decided in a later turn (see signalGroup), signals the group only while
+    // the leader is unreaped, and completes within one more grace even if close never arrives (V1-0371).
     const terminate = (code) => {
       failureCode ??= code;
-      signalTree("SIGTERM");
-      hardKill ??= setTimeout(() => signalTree("SIGKILL"), TERMINATION_GRACE_MS);
+      if (terminating) {
+        return;
+      }
+      terminating = true;
+      setImmediate(() => {
+        if (settled) {
+          return;
+        }
+        cleanup = terminateGroup(child);
+        closeBound = setTimeout(() => settle(child.exitCode), TERMINATION_GRACE_MS);
+      });
     };
     const interrupt = (signal) => {
       interruptedSignal = signal;
@@ -401,25 +458,31 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
       failureCode = error.code === "ENOENT" ? "corvint-missing" : "corvint-exec-failed";
     });
     const timeout = setTimeout(() => terminate("corvint-timeout"), timeoutMs);
-    child.once("close", (status) => {
+    const settle = (status) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timeout);
-      clearTimeout(hardKill);
-      // The owned group outlives its leader's close: a same-group descendant that ignored SIGTERM
-      // and closed its stdio still runs, so the group is killed now, with no pending timer to cancel
-      // (V1-0371). An EPERM before the leader's exit was observed is decided here too: a gone group
-      // answers ESRCH, while a member this process may not signal still answers EPERM.
-      if (terminateProcessTree(child, "SIGKILL", !cleanupUndecided)) cleanupFailed = true;
+      clearTimeout(closeBound);
+      // Neither an inherited pipe a descendant still holds nor a leader that survived an unconfirmed
+      // cleanup may keep this hook alive after it reports.
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.unref();
+      const cleaned = cleanupConfirmed(child, cleanup);
       for (const [signal, handler] of signalHandlers) {
         process.removeListener(signal, handler);
       }
       resolve({
-        failureCode: cleanupFailed ? "corvint-process-cleanup-unconfirmed" : failureCode,
+        failureCode: cleaned ? failureCode : "corvint-process-cleanup-unconfirmed",
         interruptedSignal,
         status,
         stderr: Buffer.concat(stderr).toString("utf8"),
         stdout: Buffer.concat(stdout).toString("utf8"),
       });
-    });
+    };
+    child.once("close", settle);
     child.stdin.on("error", () => {});
     child.stdin.end(`${JSON.stringify(input)}\n`);
   });
