@@ -1424,7 +1424,8 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 }
 
 // noExecHook, when set by a test, runs at a named point of a cancelling
-// NO_EXEC settlement: "stopped" after the attempt stops and before the
+// NO_EXEC settlement: "dispatched" before the settlement writes anything,
+// "stopped" after the attempt stops and before the
 // quiescent program is recorded, "cancel" after that record and before the
 // cancel, "release" after the cancel and before the owner is released. It is
 // nil in the product.
@@ -1435,8 +1436,22 @@ var noExecHook func(point string) error
 // it, so no live competing owner can fence the cancel, yet a replacement owner
 // can take over that safe phase if this one dies. The attempt is then
 // cancelled, releasing its claim and reservation, and only afterwards is the
-// owner released (CAL-V0-074).
+// owner released (CAL-V0-074). An owner that dies before the FINISHED record
+// leaves the program SPAWNING or STOPPING; a replacement settles it FINISHED
+// once the attempt records a proved stop (CAL-V0-210, proposed).
+//
+// Without cancel (stage admission refused, prelaunch preparation failed) the
+// attempt is intentionally not cancelled: a dispatched one stops into WAITING
+// with reason as its question and keeps its claim and reservation, and the
+// owner is released, so the operator answers and resumes it, drains it or
+// cancels it. Only a launch refusal, which no retry clears while the pinned
+// runtime stays unlaunchable, cancels.
 func (w *Workflow) noExec(reason string, cancel bool) error {
+	if cancel {
+		if e := w.noExecPoint("dispatched"); e != nil {
+			return e
+		}
+	}
 	if w.program.Phase == "SPAWNING" {
 		if e := w.persist("STOPPING"); e != nil {
 			return e

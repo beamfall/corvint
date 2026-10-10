@@ -22,6 +22,14 @@ func SetPublishFaultForTest(f func(transaction.Artifact) error) func() {
 	return func() { publishFault = prev }
 }
 
+// SetRedoBarrierObservedForTest runs f between redo's barrier observation and
+// its removal until the returned function restores the previous hook.
+func SetRedoBarrierObservedForTest(f func() error) func() {
+	prev := redoBarrierObserved
+	redoBarrierObserved = f
+	return func() { redoBarrierObserved = prev }
+}
+
 // SetHealthPrepareHookForTest runs f before each health preparation until the
 // returned function restores the previous hook.
 func SetHealthPrepareHookForTest(f func(member string)) func() {

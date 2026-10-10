@@ -101,7 +101,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		}
 	}
 	result.Pending = count == headSeq+1
-	if result.Pending && (r.divergentIntent != "" || r.unpauseTickets) {
+	if result.Pending && (r.divergentIntent != "" || (r.unpauseTickets && !r.pendingUnpause)) {
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
 	st := &chain{canonical: map[string]latest{}}
@@ -151,7 +151,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		if result.IntentError != nil {
 			return result, result.IntentError
 		}
-		result.ProjectionAgreement = "PRE_OR_POST"
+		if !r.unpauseTickets {
+			result.ProjectionAgreement = "PRE_OR_POST"
+		}
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "one fully validated linked receipt awaits head projection; no redo performed")
 	}
 	return result, nil
