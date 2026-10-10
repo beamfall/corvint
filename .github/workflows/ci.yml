@@ -239,14 +239,18 @@ jobs:
         with:
           cache: false
           go-version: "1.27.1"
-      - name: Restore the trusted Go build cache (full-run path only)
+      - name: Restore the trusted Go build cache (main pushes and merge-queue entries only)
         # V1-1098: compiled packages only, in Go's default GOCACHE outside the tested checkout,
-        # so no read scope changes. Only a main push saves (below), so a pull request never
-        # restores a pull-request-written entry. The step is off wherever the race invocation is
-        # off (DOCS, REUSE) and whenever the pinned narrowed driver may run, which keeps its own
-        # cold cache (AFP-V0-014/015). -count=1 stays, so no test result is reused.
+        # so no read scope changes. Provenance: only a main push saves (below). A pull_request run
+        # never restores, because GitHub searches the pull request's own merge-ref scope first,
+        # and a pull request's workflow edits can write entries there. A main push sees only the
+        # main scope; a merge-queue entry sees main plus its own single-use
+        # gh-readonly-queue/main/pr-N-<sha> ref, which only that entry's tree writes to. The step
+        # is off wherever the race invocation is off (DOCS, REUSE). The pinned narrowed driver,
+        # which runs only for pull requests, keeps its own cold cache (AFP-V0-014/015).
+        # -count=1 stays, so no test result is reused.
         id: gocache
-        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && (github.event_name != 'pull_request' || env.CORVINT_PR_TOOL_SOURCE == '')
+        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
         continue-on-error: true
         timeout-minutes: 5
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -52,19 +52,36 @@ owner-directed and proposed, and the edit changes no line numbers.
      value.
 3. **V1-1098: trusted Go build cache.** Only the full-run shard path uses it.
    - **Restore.** `actions/cache/restore` (v6.1.0, pinned by SHA) restores Go's default GOCACHE,
-     `~/.cache/go-build`. It does so only when the race invocation will run, so never on DOCS or
-     REUSE, and only when the pinned narrowed driver cannot run (a push, a merge group, or a
-     pull request with `CORVINT_PR_TOOL_SOURCE` empty). The driver keeps its own owned cold cache
-     (AFP-V0-014/015).
+     `~/.cache/go-build`. It does so only on a `push` to `main` and on a `merge_group` entry whose
+     base is `main`, and only when the race invocation will run there, so never on DOCS or REUSE.
+     **Pull-request runs never restore, so they get no cache speedup.** The pinned narrowed driver
+     runs only for pull requests and keeps its own owned cold cache (AFP-V0-014/015).
    - **Key.** OS, architecture, Go version (the setup-go output), the race flag, the shard and shard
      count, and the `go.sum` hash. The suffix is the commit; the restore key is the same prefix
      without it.
    - **Save.** Only a `push` to `main` whose race invocation passed saves the cache. Before saving,
      it confirms that GOCACHE is the restored path and runs `go clean -testcache`, which expires
      every cached test result. `actions/cache/save` then writes the entry under the same key.
-     Pull-request and merge-group runs never save, so no pull-request-written entry exists for
-     main or another pull request to restore. The cache is a speedup only: every cache step is
-     `continue-on-error`, and a failure only means a cold build.
+     Pull-request and merge-group runs never save. The cache is a speedup only: every cache
+     step is `continue-on-error`, and a failure only means a cold build.
+   - **Provenance boundary.** Every entry a restoring run can see was either written by a main
+     push of reviewed, merged code or written in that run's own single-use ref by that same
+     tree.
+     - A pull-request run is excluded from restoring entirely. GitHub
+       searches the pull request's own merge-ref scope before the base branch, and a pull request
+       can write that scope: a commit that adds a save step and a later commit that removes it
+       leaves a poisoned entry that a prefix restore on the clean head would pick up. `-count=1`
+       does not authenticate cached compiled code, and the `ci-control-plane` consent does not
+       stop the entry from being created. This was the P1 finding of the independent review.
+     - A `push` to `main` sees only the `main` scope, which only `push` runs on `main` can write.
+     - A `merge_group` entry sees `main` and its own
+       `gh-readonly-queue/main/pr-N-<sha>` ref. GitHub's cache documentation states the
+       current-branch-plus-default-branch rule but does not name merge queues. The reading here is
+       an inference: the queue ref is unique per entry, only the entry's own run (the tree that is
+       about to become `main`) can write to it, and no pull-request run writes to that scope. If a
+       hosted listing ever shows otherwise, restrict the restore to `push` on `main`.
+     - No spec text changes. The cold-cache requirements still bind only the qualification rows
+       and the trusted driver, and neither restores this cache.
    - `-count=1` stays on every `go test` invocation, so no test result is reused.
    - **Stays cold:** `go-static`, `docs-plan`, `go-interop`, `artifact-integrity`
      (`script/go-archive-gate` builds with private cold caches by design) and every qualification
@@ -114,7 +131,7 @@ owner-directed and proposed, and the edit changes no line numbers.
 | --- | --- |
 | `go-static` | About 2–2.3 min off the critical path (shard 0 takes 2.9 min on REUSE against 0.6 min for the others). A gofmt or vet failure surfaces in about 3 min instead of after about 38 min. |
 | Pinned ripgrep | 8–18 s per shard, about 0.2 min on the critical path and about 1.5 runner-min per run. |
-| Build cache | About 1–1.5 min on the critical shard, from a median 85 s build/link gap (32–123 s). Restoring the cache costs some of that back, by an amount not yet measured. |
+| Build cache | About 1–1.5 min on the critical shard of main pushes and merge-queue entries, from a median 85 s build/link gap (32–123 s). Restoring the cache costs some of that back, by an amount not yet measured. Pull-request runs get no cache speedup. |
 
 Hosted wall time, the ripgrep step time, the cache entry sizes, the restore time and the change in
 the build/link gap are all `NOT_OBSERVED` until this branch's own CI run and the first main push
