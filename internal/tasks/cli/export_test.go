@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -119,3 +123,95 @@ func SubmitObligationWitness(env Env, target, expected, requestID string, check 
 	f := mutateFlags{role: "OWNER", requestID: requestID, target: target, expected: expected}
 	return submitMutationContext(ctx, env, cmd, ticket.OpObligationsWitness, actor, f, payload)
 }
+
+// SetDoctorClock replaces the doctor's clock for a test and returns the
+// restore function.
+func SetDoctorClock(now func() time.Time) func() {
+	was := doctorClock
+	doctorClock = now
+	return func() { doctorClock = was }
+}
+
+// SetDoctorPluginTimeout shortens the per-plugin timeout for a test and
+// returns the restore function.
+func SetDoctorPluginTimeout(d time.Duration) func() {
+	was := doctorPluginTimeout
+	doctorPluginTimeout = d
+	return func() { doctorPluginTimeout = was }
+}
+
+// WriteDoctorTestRun writes a RUNNING detached run record for the attempt,
+// naming pid and identity as its supervisor and command, as a launched
+// runner would.
+func WriteDoctorTestRun(root, attemptID, generation string, pid int, identity string) error {
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		return err
+	}
+	runID := "0123456789abcdef"
+	dir := filepath.Join(runsDir(repo, attemptID), runID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return writeRunRecord(dir, &runRecord{Profile: runRecordProfile, RunID: runID, AttemptID: attemptID, Generation: generation,
+		ArgvSha256: strings.Repeat("a", 64), TimeoutSeconds: 3600, State: runRunning, LaunchedAt: time.Now().UTC().Format(time.RFC3339),
+		SupervisorPid: pid, SupervisorIdentity: identity, CommandPid: &pid, CommandIdentity: &identity})
+}
+
+// DecodeDoctorCache decodes one doctor summary cache (TQD-V0-011).
+func DecodeDoctorCache(raw []byte) error {
+	_, err := decodeDoctorCache(raw)
+	return err
+}
+
+// DoctorTestAttempt is one synthetic attempt afterimage for
+// DoctorRepeatRefusalSeqs; Fresh marks the receipt that created it.
+type DoctorTestAttempt struct {
+	Ticket, Attempt string
+	Gates           []string
+	Fresh           bool
+}
+
+// DoctorTestEvent is one synthetic scanned receipt.
+type DoctorTestEvent struct {
+	Seq      uint64
+	At       time.Time
+	Attempts []DoctorTestAttempt
+}
+
+// DoctorRepeatRefusalSeqs runs the REPEAT_REFUSAL detector over synthetic
+// receipts whose every gate digest names a FAILED result for tree, and
+// returns each finding's evidence receipts and firstSeen.
+func DoctorRepeatRefusalSeqs(events []DoctorTestEvent, tree string) ([][]uint64, []time.Time) {
+	scan := &doctorScan{}
+	for _, e := range events {
+		ev := doctorEvent{seq: e.Seq, at: e.At}
+		for _, a := range e.Attempts {
+			ev.attempts = append(ev.attempts, &snapshot.Attempt{AttemptID: a.Attempt, TicketID: wire.TicketID{Raw: a.Ticket}, Generation: "1", Phase: "RUNNING", GateResults: a.Gates})
+			ev.fresh = append(ev.fresh, a.Fresh)
+		}
+		scan.events = append(scan.events, ev)
+	}
+	failed := func(string) (*snapshot.GateResult, error) {
+		return &snapshot.GateResult{State: "FAILED", CandidateTreeOid: tree}, nil
+	}
+	var seqs [][]uint64
+	var first []time.Time
+	for _, f := range doctorRepeatRefusal(failed, scan) {
+		seqs, first = append(seqs, f.seqs), append(first, f.firstSeen)
+	}
+	return seqs, first
+}
+
+// SetDoctorCacheHookForTest runs hook at the named steps of a refresh
+// ("open" before the cache directory is opened, "lock" before the
+// destination is rechecked and replaced) and returns the restore function.
+func SetDoctorCacheHookForTest(hook func(stage string)) func() {
+	old := doctorCacheHook
+	doctorCacheHook = hook
+	return func() { doctorCacheHook = old }
+}
+
+// DoctorPluginNamesForTest lists the plugins doctor --plugins would run
+// from dir (TQD-V0-010).
+func DoctorPluginNamesForTest(dir string) ([]string, error) { return doctorPluginNames(dir) }

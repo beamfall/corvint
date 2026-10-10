@@ -217,29 +217,32 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
-AMAP-V0-001	docs/specs/application-map-v0.md	74	The map MUST be compiled from a closed `application-map-manifest/0` document
-AMAP-V0-002	docs/specs/application-map-v0.md	83	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
-AMAP-V0-003	docs/specs/application-map-v0.md	95	Screens MUST be keyed by app plus template. Two resolved screens with the same
-AMAP-V0-004	docs/specs/application-map-v0.md	103	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
-AMAP-V0-005	docs/specs/application-map-v0.md	110	Test files MUST be joined to screens through the contextindex import graph:
-AMAP-V0-006	docs/specs/application-map-v0.md	125	Each screen MUST aggregate permissions and flags (inherited from the nearest
-AMAP-V0-007	docs/specs/application-map-v0.md	129	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
-AMAP-V0-008	docs/specs/application-map-v0.md	148	Edges MUST come only from evidence: `flow-step` edges between adjacent
-AMAP-V0-009	docs/specs/application-map-v0.md	153	The map MUST be deterministic for one revision: sorted nodes, edges, files and
-AMAP-V0-010	docs/specs/application-map-v0.md	157	Every element MUST be pinned to the anchor it was read from. A projection MUST
-AMAP-V0-011	docs/specs/application-map-v0.md	172	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
-AMAP-V0-012	docs/specs/application-map-v0.md	182	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
-AMAP-V0-013	docs/specs/application-map-v0.md	187	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
-AMAP-V0-014	docs/specs/application-map-v0.md	213	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
-AMAP-V0-015	docs/specs/application-map-v0.md	222	Building and projecting MUST NOT write to the repository, the index, or any
-AMAP-V0-016	docs/specs/application-map-v0.md	227	A `.state()` name (positional or `name:`) or `parent` written as a member
-AMAP-V0-017	docs/specs/application-map-v0.md	246	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo
-AMAP-V0-018	docs/specs/application-map-v0.md	255	A map built with an aliased root MUST pin it in `roots`
-AMAP-V0-019	docs/specs/application-map-v0.md	260	A build MUST refuse rather than join part of a tree when an alias the manifest
-AMAP-V0-020	docs/specs/application-map-v0.md	267	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
-AMAP-V0-021	docs/specs/application-map-v0.md	274	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths
-AMAP-V0-022	docs/specs/application-map-v0.md	284	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
-AMAP-V0-023	docs/specs/application-map-v0.md	302	A name or parent the injection path cannot prove MUST stay `UNKNOWN`
+AMAP-V0-001	docs/specs/application-map-v0.md	77	The map MUST be compiled from a closed `application-map-manifest/0` document
+AMAP-V0-002	docs/specs/application-map-v0.md	86	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and
+AMAP-V0-003	docs/specs/application-map-v0.md	98	Screens MUST be keyed by app plus template. Two resolved screens with the same
+AMAP-V0-004	docs/specs/application-map-v0.md	106	Each AFU-V1 navigation step MUST become a map step on the unique screen whose
+AMAP-V0-005	docs/specs/application-map-v0.md	113	Test files MUST be joined to screens through the contextindex import graph:
+AMAP-V0-006	docs/specs/application-map-v0.md	128	Each screen MUST aggregate permissions and flags (inherited from the nearest
+AMAP-V0-007	docs/specs/application-map-v0.md	132	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`
+AMAP-V0-008	docs/specs/application-map-v0.md	151	Edges MUST come only from evidence: `flow-step` edges between adjacent
+AMAP-V0-009	docs/specs/application-map-v0.md	156	The map MUST be deterministic for one revision: sorted nodes, edges, files and
+AMAP-V0-010	docs/specs/application-map-v0.md	160	Every element MUST be pinned to the anchor it was read from. A projection MUST
+AMAP-V0-011	docs/specs/application-map-v0.md	175	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON
+AMAP-V0-012	docs/specs/application-map-v0.md	185	`find` MUST match a 2..128 byte query case-insensitively against element IDs and
+AMAP-V0-013	docs/specs/application-map-v0.md	190	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:
+AMAP-V0-014	docs/specs/application-map-v0.md	216	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o
+AMAP-V0-015	docs/specs/application-map-v0.md	225	Building and projecting MUST NOT write to the repository, the index, or any
+AMAP-V0-016	docs/specs/application-map-v0.md	230	A `.state()` name (positional or `name:`) or `parent` written as a member
+AMAP-V0-017	docs/specs/application-map-v0.md	249	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo
+AMAP-V0-018	docs/specs/application-map-v0.md	258	A map built with an aliased root MUST pin it in `roots`
+AMAP-V0-019	docs/specs/application-map-v0.md	263	A build MUST refuse rather than join part of a tree when an alias the manifest
+AMAP-V0-020	docs/specs/application-map-v0.md	270	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read
+AMAP-V0-021	docs/specs/application-map-v0.md	277	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths
+AMAP-V0-022	docs/specs/application-map-v0.md	287	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router
+AMAP-V0-023	docs/specs/application-map-v0.md	305	A name or parent the injection path cannot prove MUST stay `UNKNOWN`
+AMAP-V0-024	docs/specs/application-map-v0.md	326	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected
+AMAP-V0-025	docs/specs/application-map-v0.md	334	When the tracked file the registering file's import of `T` resolves to (the
+AMAP-V0-026	docs/specs/application-map-v0.md	380	When the `di_constants` scope holds exactly one registration of an injected name
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
@@ -3018,6 +3021,18 @@ TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-p
 TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co
 TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT
 TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	39	`corvint-tasks doctor [--refresh] [--plugins DIR]` is a pure read under TM-V0-00
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	40	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	41	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	42	Journal-derived detectors read one bounded backward scan of receipts from the sn
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	43	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	44	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	45	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	46	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	47	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	48	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	50	`doctor --line` reads only the cache, through the repository resolution walk to
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u

@@ -173,6 +173,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 		release.MutationProfile:        plain(func(b []byte) error { _, e := release.DecodeEnvelope(b); return e }),
 		transaction.RunOutcomeProfile:  plain(func(b []byte) error { _, e := transaction.DecodeRunOutcome(b); return e }),
 		"taskman-attempt-run-record/0": plain(cli.DecodeRunRecord),
+		"taskman-doctor-cache/0":       plain(cli.DecodeDoctorCache),
 		dispatch.ConfigProfile:         plain(func(b []byte) error { _, e := dispatch.DecodeConfig(b); return e }),
 		dispatch.StateProfile: func(t *testing.T, p string) error {
 			dir := t.TempDir()
