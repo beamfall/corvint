@@ -551,6 +551,52 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		checkBarrel(t, reg+"import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
 			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import * as NS from './routes.constants';\nexport default NS.SectionTable;\n"}, "not-read-whole", "")
 	})
+	// The thirteenth review's DI writes: another injection or lookup of the registered name in a
+	// file the reader examines, the registering file, the chain's files and the files they import.
+	run := "angular.module('admin').run(['SectionNames', function (s) { s.REPORTS = 'other'; }]);\n"
+	for name, c := range map[string]struct {
+		reg   string
+		files map[string]string
+	}{
+		"run injected":        {reg + run, nil},
+		"injector get":        {reg + "angular.module('admin').run(['$injector', function ($injector) { $injector.get('SectionNames').REPORTS = 'other'; }]);\n", nil},
+		"injector computed":   {reg + "angular.module('admin').run(['$injector', function (i) { i.get('Section' + 'Names').REPORTS = 'other'; }]);\n", nil},
+		"parameter name":      {reg + "angular.module('admin').run(function (SectionNames) { SectionNames.REPORTS = 'other'; });\n", nil},
+		"$inject list":        {reg + "function boot(s) { s.REPORTS = 'other'; }\nboot.$inject = ['SectionNames'];\nangular.module('admin').run(boot);\n", nil},
+		"decorator computed":  {reg + "const n = 'Section' + 'Names';\nangular.module('admin').decorator(n, (d) => { d.REPORTS = 'other'; return d; });\n", nil},
+		"template":            {reg + "angular.module('admin').run([`SectionNames`, function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"substitution":        {reg + "`${angular.module('admin').run(['SectionNames', function (s) { s.REPORTS = 'other'; }])}`;\n", nil},
+		"barrel run":          {reg, map[string]string{index: star + run}},
+		"declaring run":       {reg, map[string]string{decl: table + run}},
+		"side-effect import":  {reg + "import './setup.run';\n", map[string]string{"app/setup/setup.run.ts": run}},
+		"computed annotation": {reg + "angular.module('admin').run(['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"regex annotation":    {reg + "angular.module('admin').run([/SectionNames/.source, (s) => { s.REPORTS = 'other'; }]);\n", nil},
+		"computed $inject":    {reg + "function boot(s) { s.REPORTS = 'other'; }\nboot.$inject = [['Section', 'Names'].join('')];\nangular.module('admin').run(boot);\n", nil},
+		"imported service":    {reg + "import { boot } from './setup.run';\nangular.module('admin').run(boot);\n", map[string]string{"app/setup/setup.run.ts": "export function boot($injector) { $injector.get('SectionNames').REPORTS = 'other'; }\n"}},
+	} {
+		t.Run("di "+name, func(t *testing.T) {
+			files := map[string]string{index: star, decl: table}
+			for p, text := range c.files {
+				files[p] = text
+			}
+			checkBarrel(t, c.reg, files, "not-read-whole", "")
+		})
+	}
+	// An injection of other names, a lodash constant and an object key of the name stay readable.
+	t.Run("di other names", func(t *testing.T) {
+		checkBarrel(t, reg+"angular.module('admin').run(['$rootScope', function ($rootScope) { $rootScope.x = /SectionNames/.test('a'); }]);\n"+
+			"const k = _.constant('SectionNames');\nconst o = { SectionNames: 1 };\n", map[string]string{index: star, decl: table}, "", index)
+	})
+	t.Run("di router run", func(t *testing.T) {
+		_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter+run, map[string]string{diRegAt: reg, index: star, decl: table})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := diUnknown(m)
+		if diResolved(t, m) || len(got) != 1 || got[0] != (Unknown{Kind: "di-constant", Ref: "SectionNames", Reason: "not-read-whole", Path: diRegAt, Line: 2}) {
+			t.Fatalf("router run resolved: %+v", m.Unknowns)
+		}
+	})
 	// Other bindings the rule proves only read, and namespace imports that cannot reach the table.
 	t.Run("reads", func(t *testing.T) {
 		checkBarrel(t, reg+"import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport * as U from '../util';\n"+

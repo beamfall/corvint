@@ -158,6 +158,28 @@ injector.
   `System.register`, a `.constructor` property (`({}).constructor.constructor` is Function),
   CommonJS `module` other than `module.exports` (`module.children`, `module.parent`) and an AMD
   `define(...)`.
+- Thirteenth review addendum (owner decision: fix DI writes here, fail closed, no spec text
+  change): an injection or lookup of the registered name in a file the reader examines could
+  write the table the router reads. Every examined file must now be quiet for the name
+  (`diQuiet`). The examined files are the router file, the registering file, the barrel and
+  declaring files, and every repository file any of them imports, re-exports or loads, a
+  side-effect import included (`importsQuiet`). A file is not quiet when it holds any of these:
+  - A string or template equal to the name. A template whose literal text holds it, or a string
+    the lexer cannot decode, also counts. Three positions are exempt: the registration's own
+    name, a lodash `_.constant(...)` name, and an annotation entry of a function the router-side
+    `injection` rule accepts.
+  - A use of the identifier name other than as an object key, unless `injection` accepts every
+    use or `onlyRead` proves it only read.
+  - Any `$injector`, `$provide`, `injector` or `decorator` token.
+  - An inline annotation array with a non-literal name before its function, or a `$inject` the
+    reader cannot read.
+  - Any of these inside a template substitution.
+  The check runs after the existing reasons, so their diagnostics are unchanged; a failure
+  reports `not-read-whole` at the registration. The global-state guard (a relay exporting a free
+  identifier) was not added: telling a free name from a type, a builtin or a destructured binding
+  needs scope analysis. A typed AngularJS component export (`export const C:
+  angular.IComponentOptions = {...}`) would read as free, so the guard would turn ordinary
+  registrations UNKNOWN. That route stays under Limits with the owner's follow-up ticket.
 
 ## Evidence
 
@@ -302,6 +324,23 @@ injector.
   subtests). An adversarial pass with scratch tests (not kept) confirmed two open routes recorded
   under Limits: a write through injection in the registering file, and a table a module off the
   chain puts on a global that a relay exports by a free name, both still resolve.
+- Thirteenth review addendum (DI writes): `TestAMAPV0025ChainBindingsFailClosed` gained the
+  `di ...` cases:
+  - the review's `.run(['SectionNames', function (s) { s.REPORTS = 'other'; }])`;
+  - `$injector.get('SectionNames')`, and `$injector` with a concatenated name;
+  - a `function (SectionNames)` parameter, and a `boot.$inject = ['SectionNames']` list;
+  - a computed `.decorator(n, ...)`, a template-literal annotation, and the `.run` inside a
+    template substitution;
+  - the `.run` in the barrel, in the declaring file, and in a side-effect-imported
+    `setup.run.ts`;
+  - an imported service using `$injector`;
+  - a concatenated annotation, a `/SectionNames/.source` annotation, and a computed `$inject`;
+  - `di router run`: the `.run` in the router file itself.
+  Against `stateconst.go` and `stateinject.go` from `6a303f01`, 15 of these 16 resolve
+  silently. The substitution case was already caught, because the round-13 rule reads `module`
+  inside a substitution as a loader. The `di other names` guard (another name's annotation, a regex, a lodash
+  constant and an object key of the name) passes before and after. All pass with the fix. The
+  full `go test -count=1 -v ./internal/appmap` passes (488 passing tests and subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -367,7 +406,11 @@ injector.
   key, a classic script's top-level `var`, an injected `<script>`) and a relay then exports by a
   free name (`export default ST`) still resolves; so does a value reached by a member key computed
   at run time (`globalThis['ev' + 'al']`, `obj[k]` reaching `constructor`), since only exact
-  string keys and the identifier forms are matched. Writes through dependency injection
-  (`.run(['SectionNames', (s) => { s.REPORTS = 'x'; }])`, `$injector.get`) are not read, even in
-  the registering file; covering them is left to the owner (it may need AMAP-V0-025 text). Both routes were confirmed with
-  scratch tests.
+  string keys and the identifier forms are matched. The global route was confirmed with a scratch
+  test, and the owner is filing a follow-up ticket for it. Writes through dependency injection
+  are caught only in the examined files (see the thirteenth review addendum). An injection from
+  a file outside that scope is not seen: a `.run` block or service in a file no examined file
+  imports, which the application loads by another route (a bundle entry, a script tag, a
+  webpack context). This is the same off-chain class as above. A name the code computes
+  without an injector, a decorator or an annotation token is also not seen, for example a
+  provider's `$get` that injects by a computed parameter list.

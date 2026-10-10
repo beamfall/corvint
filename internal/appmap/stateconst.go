@@ -90,7 +90,15 @@ type constFile struct {
 	inject  map[string]*diBinding
 	depth   []int
 	annot   map[string][]string
+	annotAt map[string][]int // the string tokens of each `$inject` list
 	annotOK bool
+	quiet   map[quietKey]bool // memoized diQuiet
+}
+
+// quietKey memoizes diQuiet for one name, registration token and allowed token.
+type quietKey struct {
+	name       string
+	reg, allow int
 }
 
 // readKey memoizes onlyRead for one name and the one token (or -1) allowed to pass it along.
@@ -147,14 +155,17 @@ func (t *constTable) forRouter(e blobEntry, data []byte) constLookup {
 // resolve reads local.member through a table f declares or imports; allow is the one token (or -1)
 // that may pass the table along, the `.constant(...)` argument that registers it (AMAP-V0-022).
 func (t *constTable) resolve(f *constFile, local, member string, allow int) (string, []Anchor, bool) {
-	v, at, why := t.lookup(f, local, member, allow, false)
+	v, at, why := t.lookup(f, local, member, allow, "")
 	return v, at, why == ""
 }
 
-// lookup is resolve with the reason it fails (AMAP-V0-026). An injected registration (di) also
-// reads an enum only when every member is a literal string (AMAP-V0-024) and follows one level of
-// re-export in the imported file (AMAP-V0-025); a router's own tables keep the AMAP-V0-016 rules.
-func (t *constTable) lookup(f *constFile, local, member string, allow int, di bool) (string, []Anchor, string) {
+// lookup is resolve with the reason it fails (AMAP-V0-026). A registration injected as inj (di)
+// also reads an enum only when every member is a literal string (AMAP-V0-024), follows one level
+// of re-export in the imported file (AMAP-V0-025), and requires the barrel and declaring files and
+// every repository file they import to be diQuiet for inj (injected checks the registering file);
+// a router's own tables keep the AMAP-V0-016 rules.
+func (t *constTable) lookup(f *constFile, local, member string, allow int, inj string) (string, []Anchor, string) {
+	di := inj != ""
 	if !f.onlyRead(local, allow) {
 		return "", nil, "not-read-whole"
 	}
@@ -205,6 +216,10 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 	v, at, why := g.read(d, member, di)
 	if why != "" {
 		return "", nil, why
+	}
+	// No file on the chain, nor one it imports, may inject or look up the name another way.
+	if di && !(t.quiet(g, inj) && t.importsQuiet(g, inj) && (barrel == nil || t.quiet(barrel, inj) && t.importsQuiet(barrel, inj))) {
+		return "", nil, "not-read-whole"
 	}
 	// The bindings are evidence too: re-pointing the import or the re-export changes what the name reads.
 	return v, append(append(at, via...), spanOf(f.entry, f.data, imp.first, imp.last)), ""

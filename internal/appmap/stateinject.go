@@ -36,6 +36,7 @@ type diReg struct {
 	file        *constFile
 	ident       string     // T as an identifier
 	at          int        // T's token index
+	name        int        // the registered name's token index
 	table       *constDecl // T as an object literal argument
 	first, last int        // the call's lines
 	bad         bool       // T is neither, or the name came from an object-map registration
@@ -49,8 +50,9 @@ type diBinding struct {
 }
 
 type diFunc struct {
-	from, to    int // body tokens [from, to)
-	first, last int // the parameter list's lines
+	from, to    int   // body tokens [from, to)
+	first, last int   // the parameter list's lines
+	annot       []int // the string tokens of its annotation
 }
 
 // newDIScope collects the indexed web sources under the scope paths (AMAP-V0-021).
@@ -146,7 +148,7 @@ func (s *diScope) collect(f *constFile) {
 		case isPunct(a, ")"):
 			// no argument: registers nothing
 		case literal(a) && next(toks, j+3, ","):
-			r := diReg{file: f, first: toks[j].line, last: toks[end].line}
+			r := diReg{file: f, name: j + 2, first: toks[j].line, last: toks[end].line}
 			k := j + 4
 			switch {
 			case k < end && toks[k].kind == tokIdent && wholeCallArg(toks, k+1, end):
@@ -181,6 +183,149 @@ func (s *diScope) collect(f *constFile) {
 			s.poison = true // a computed name could register anything
 		}
 	}
+}
+
+// diReach are the names through which code reaches an injected value by a name it may compute: the
+// injector service and the decorator hooks.
+var diReach = map[string]bool{"$injector": true, "$provide": true, "injector": true, "decorator": true}
+
+// diQuiet reports whether f names the constant registered as name nowhere but where the reader
+// checks it (AMAP-V0-025). f fails on any of:
+//   - a string or template equal to name, a template whose literal text holds it, or a string
+//     the lexer cannot decode (a regular expression is not a string), except the registration's
+//     own name token reg (or -1), a lodash `_.constant(...)` name, and an annotation entry of a
+//     function injection(name) accepts;
+//   - a use of the identifier name other than as an object key, unless injection(name) accepts
+//     every use or onlyRead(name, allow) proves it only read;
+//   - an injector or decorator token under any name (diReach);
+//   - an annotation the reader cannot read: a `$inject`, or an inline array whose names are not
+//     exact strings;
+//   - any of these inside a template substitution.
+//
+// `.run(['Name', function (s) { s.K = v }])`, `$injector.get('Name').K = v` or
+// `function (Name) { Name.K = v }` would otherwise write the table the router reads. A file the
+// reader does not examine is not seen (see importsQuiet).
+func (f *constFile) diQuiet(name string, reg, allow int) bool {
+	key := quietKey{name, reg, allow}
+	if v, ok := f.quiet[key]; ok {
+		return v
+	}
+	if f.quiet == nil {
+		f.quiet = map[quietKey]bool{}
+	}
+	v := f.quietFor(name, reg, allow)
+	f.quiet[key] = v
+	return v
+}
+
+// quietFor is diQuiet without the memo.
+func (f *constFile) quietFor(name string, reg, allow int) bool {
+	if f.unlisted || f.hidden[name] || !f.annotations() || f.computedAnnotation() {
+		return false
+	}
+	for h := range diReach {
+		if f.hidden[h] {
+			return false
+		}
+	}
+	b := f.injection(name)
+	accepted := map[int]bool{reg: true}
+	for _, fn := range b.fns {
+		for _, k := range fn.annot {
+			accepted[k] = true
+		}
+	}
+	toks, used := f.toks, false
+	for i, t := range toks {
+		switch {
+		case t.kind == tokIdent && diReach[t.text]:
+			return false
+		case t.kind == tokIdent:
+			used = used || t.text == name && !f.skip[i] && !property(toks, i) && !objectKey(toks, i)
+		case (t.kind == tokString || t.kind == tokTemplate) && !accepted[i] && !lodashName(toks, i) &&
+			(t.inexact && t.text != "" || diReach[t.text] || t.text == name || t.subst && strings.Contains(t.text, name)):
+			return false
+		}
+	}
+	return !used || b.ok || f.onlyRead(name, allow)
+}
+
+// objectKey reports whether toks[i] is a key of an object literal, `{ K: v }`, which names no
+// binding.
+func objectKey(toks []token, i int) bool {
+	if i == 0 || !isPunct(toks[i-1], "{") && !isPunct(toks[i-1], ",") || !next(toks, i+1, ":") || next(toks, i+2, ":") {
+		return false
+	}
+	o := enclosingOpen(toks, i)
+	return o >= 0 && isPunct(toks[o], "{")
+}
+
+// computedAnnotation reports whether f holds an array literal that passes a function after an
+// element that is not one exact string: an inline annotation whose names the reader cannot read.
+func (f *constFile) computedAnnotation() bool {
+	toks := f.toks
+	for i := range toks {
+		if !isPunct(toks[i], "[") {
+			continue
+		}
+		end, computed := closeParen(toks, i), false
+		for k := i + 1; k < end; {
+			e := min(skipValue(toks, k), end)
+			for j := k; j < e; j++ {
+				if computed && (word(toks, j, "function") || isPunct(toks[j], "=") && next(toks, j+1, ">")) {
+					return true
+				}
+			}
+			computed = computed || e != k+1 || !literal(toks[k])
+			k = e + 1
+		}
+	}
+	return false
+}
+
+// quiet is diQuiet for one examined file; the registering file may hold its own registration.
+func (t *constTable) quiet(f *constFile, name string) bool {
+	reg, allow := -1, -1
+	if r := t.di.regs[name]; len(r) == 1 && r[0].file.entry.path == f.entry.path {
+		reg = r[0].name
+		if r[0].ident != "" {
+			allow = r[0].at
+		}
+	}
+	return f.diQuiet(name, reg, allow)
+}
+
+// lodashName reports whether toks[i] is the first argument of lodash's `_.constant(...)`, which
+// collect does not read as a registration.
+func lodashName(toks []token, i int) bool {
+	return i >= 4 && isPunct(toks[i-1], "(") && word(toks, i-2, "constant") && isPunct(toks[i-3], ".") &&
+		(word(toks, i-4, "_") || word(toks, i-4, "lodash")) && !property(toks, i-4)
+}
+
+// importsQuiet reports whether every repository file f imports or re-exports, a side-effect
+// import (`import './x.run'`) and a namespace, dynamic or `require` module included, is diQuiet for
+// name: a module file's own `.run` block or service may inject the constant.
+func (t *constTable) importsQuiet(f *constFile, name string) bool {
+	if t.resolver == nil {
+		return true
+	}
+	mods := append([]string(nil), f.spaces...)
+	for i, tok := range f.toks {
+		if i > 0 && literal(tok) && (word(f.toks, i-1, "from") || word(f.toks, i-1, "import")) && !property(f.toks, i-1) {
+			mods = append(mods, tok.text)
+		}
+	}
+	for _, m := range mods {
+		if m == "" {
+			continue // mayHold already fails a module the reader cannot name
+		}
+		if res := t.resolver.Resolve(f.entry.path, m); res.State == contextindex.WebImportRepository {
+			if h := t.file(res.Target); h != nil && !t.quiet(h, name) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // balanced reports whether toks[open..end] is a bracket group that closes at end, as
@@ -237,7 +382,10 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 	case r.table != nil:
 		v, at, why = r.file.read(r.table, member, true)
 	default:
-		v, at, why = t.lookup(r.file, r.ident, member, r.at, true)
+		v, at, why = t.lookup(r.file, r.ident, member, r.at, local)
+	}
+	if why == "" && !(t.quiet(own, local) && t.importsQuiet(own, local) && t.quiet(r.file, local) && t.importsQuiet(r.file, local)) {
+		why = "not-read-whole" // another injection or lookup of the name may write the table
 	}
 	if why != "" {
 		// The one in-scope binding of local did not resolve: say why (AMAP-V0-026).
@@ -363,6 +511,7 @@ func (f *constFile) injectable(i int, name string) (diFunc, bool) {
 				return diFunc{}, false
 			}
 			names, annotated = f.annot[fname]
+			fn.annot = f.annotAt[fname]
 		case len(f.annot) > 0:
 			return diFunc{}, false // an annotation this reader cannot tie to an unnamed function
 		}
@@ -371,6 +520,7 @@ func (f *constFile) injectable(i int, name string) (diFunc, bool) {
 		k := head - 1
 		for k >= 1 && isPunct(toks[k], ",") && literal(toks[k-1]) {
 			names = append([]string{toks[k-1].text}, names...)
+			fn.annot = append(fn.annot, k-1)
 			k -= 2
 		}
 		if k < 0 || !isPunct(toks[k], "[") || !configArg(toks, k-1) || !next(toks, after, "]") || !next(toks, after+1, ")") {
@@ -496,7 +646,7 @@ func (f *constFile) annotations() bool {
 	if f.annot != nil {
 		return f.annotOK
 	}
-	f.annot, f.annotOK = map[string][]string{}, true
+	f.annot, f.annotAt, f.annotOK = map[string][]string{}, map[string][]int{}, true
 	toks := f.toks
 	for k, t := range toks {
 		if t.kind != tokIdent || t.text != "$inject" {
@@ -512,6 +662,11 @@ func (f *constFile) annotations() bool {
 			ok = list && !dup && (after >= len(toks) || isPunct(toks[after], ";") || toks[after].line > toks[after-1].line)
 			if ok {
 				f.annot[toks[k-2].text] = names
+				for j := k + 2; j < after && j < len(toks); j++ {
+					if toks[j].kind == tokString || toks[j].kind == tokTemplate {
+						f.annotAt[toks[k-2].text] = append(f.annotAt[toks[k-2].text], j)
+					}
+				}
 			}
 		}
 		if !ok {
