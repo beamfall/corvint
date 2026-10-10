@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -233,5 +237,87 @@ func TestAFUV1029ObserverRefusesNonDisposableOrigin(t *testing.T) {
 		if _, err := LoadOriginsAt(ctx, root, "flows", "HEAD"); err == nil {
 			t.Errorf("origins.json %s accepted", body)
 		}
+	}
+}
+
+// AFU-V1-057: duplicates and empty files count; refusal precedes even an invalid first file.
+func TestAFUV1057TrafficFileBound(t *testing.T) {
+	empty := filepath.Join(t.TempDir(), "empty.jsonl")
+	if err := os.WriteFile(empty, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, count := range []int{0, maxTrafficFiles - 1, maxTrafficFiles} {
+		files := make([]string, count)
+		for i := range files {
+			files[i] = empty
+		}
+		got, err := ReadTraffic(files)
+		if err != nil || len(got) != 0 {
+			t.Fatalf("%d files: %v %v", count, got, err)
+		}
+	}
+	files := make([]string, maxTrafficFiles+1)
+	for i := range files {
+		files[i] = empty
+	}
+	files[0] = filepath.Join(t.TempDir(), "missing.jsonl")
+	got, err := ReadTraffic(files)
+	if got != nil || codeOf(err) != "navigation-bound-exceeded" || !strings.Contains(err.Error(), "traffic files") {
+		t.Fatalf("file count must refuse before reading: %v %v", got, err)
+	}
+}
+
+// AFU-V1-057: the shared 8,192-record limit remains inclusive across multiple files.
+func TestAFUV1057TrafficRecordBound(t *testing.T) {
+	root := t.TempDir()
+	line := `{"schema":"application-flow-traffic/0","flow_id":"checkout","step_id":"open","method":"GET","form_submit":false}` + "\n"
+	first, last := filepath.Join(root, "first.jsonl"), filepath.Join(root, "last.jsonl")
+	if err := os.WriteFile(first, []byte(strings.Repeat(line, maxRunRecords-1)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(last, []byte(line), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadTraffic([]string{first, last})
+	if err != nil || len(got) != maxRunRecords {
+		t.Fatalf("record boundary: %d %v", len(got), err)
+	}
+	got, err = ReadTraffic([]string{first, last, last})
+	if got != nil || codeOf(err) != "navigation-bound-exceeded" {
+		t.Fatalf("excess records: %v %v", got, err)
+	}
+}
+
+// AFU-V1-058: exact-pair indexing matches the old filter and does not alter caller records.
+func TestAFUV1058TrafficIndexParity(t *testing.T) {
+	traffic := []TrafficRecord{
+		{FlowID: "checkout", StepID: "open", Method: "GET"},
+		{FlowID: "other", StepID: "open", Method: "POST"},
+		{FlowID: "checkout", StepID: "pay", Method: "POST"},
+		{FlowID: "checkout", StepID: "open", Method: "GET", FormSubmit: true},
+		{FlowID: "checkout", StepID: "open", Method: "POST"},
+		{FlowID: "unknown", StepID: "unknown", Method: "POST"},
+	}
+	before := slices.Clone(traffic)
+	index := indexTraffic(traffic)
+	for _, id := range []string{"checkout", "other", "unknown", "absent"} {
+		intent := navSample(id)
+		got := flowTransitions(intent, nil, nil, index, head{})
+		for i, step := range intent.Steps {
+			observed := slices.DeleteFunc(slices.Clone(traffic), func(r TrafficRecord) bool { return r.FlowID != id || r.StepID != step.StepID })
+			if !slices.Equal(index[trafficStep{id, step.StepID}], observed) {
+				t.Fatalf("pair %s/%s lost order or isolation", id, step.StepID)
+			}
+			want := transition(intent, step, intent.Navigation.Steps[i], observed, false)
+			if !reflect.DeepEqual(got[i], want) {
+				t.Fatalf("pair %s/%s: got %+v want %+v", id, step.StepID, got[i], want)
+			}
+		}
+	}
+	if !slices.Equal(traffic, before) {
+		t.Fatal("caller traffic mutated")
+	}
+	if len(indexTraffic(nil)) != 0 {
+		t.Fatal("empty traffic indexed")
 	}
 }
