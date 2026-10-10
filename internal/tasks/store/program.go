@@ -71,6 +71,22 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 						change.Next.Quiescence = "PROVED"
 					}
 				}
+				// An owner that died between dispatch and FINISHED after the
+				// attempt recorded a proved stop leaves nothing to recover: the
+				// replacement settles the program FINISHED. A stage stopped
+				// from STOPPING lost its host output, so its usage is
+				// unobserved (CAL-V0-210, proposed).
+				if !change.PreviousWorkerClean && (old.Phase == "SPAWNING" || old.Phase == "STOPPING") {
+					if rec, ok := proof.Records["attempts/"+old.CurrentAttempt+".json"]; ok && rec.Raw != nil {
+						if a, e := snapshot.DecodeAttempt(rec.Raw); e == nil && transaction.BoundStoppedAttempt(a, old) {
+							change.Next.Phase = "FINISHED"
+							change.Next.Quiescence = "PROVED"
+							if old.Phase == "STOPPING" && change.Next.ResultClass != "NO_EXEC" {
+								change.Next.UsageKnown = false
+							}
+						}
+					}
+				}
 				change.PreviousOwnerGone = true
 			}
 		}

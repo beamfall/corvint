@@ -320,6 +320,13 @@ Rollback needs no network and refuses foreign destination or saved-byte drift. F
 activation leave the destination untouched. Downgrades, unknown builds, symlinked managed paths,
 unsafe archives and incomplete release discovery refuse automatic activation.
 
+Index snapshots are keyed by the Core executable, so a Core apply or rollback then runs the new
+binary's `corvint --root ROOT index --if-stale` in the foreground for each `--refresh-index ROOT`
+and for the checkout you run it from when that checkout is already indexed. The result's
+`indexRefresh` lists each outcome (`built`, `fresh`, `skipped`, `failed`); a failed refresh does
+not undo the switch. Other checkouts, and any Core binary copied into place by hand, still need
+an explicit `corvint index --if-stale`.
+
 Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately. Developer Tasks
 archives retain their explicit unverified/runtime-qualification limits. Checksums detect byte
 changes, not publisher identity. Bounded inventory exhaustion/offline state reports freshness
