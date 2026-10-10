@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -893,6 +894,105 @@ func TestTOLV0032_AbnormalNeighbourRunDisqualifies(t *testing.T) {
 			}
 			if len(v.Neighbours) != 1 || v.Neighbours[0].Verdict != tc.neighbour {
 				t.Fatalf("neighbours %+v", v.Neighbours)
+			}
+		})
+	}
+}
+
+// TOL-V0-033 (Codex round 3, finding 1): an interrupt during the last
+// file's hash still stops the manifest: nothing is published and qualify
+// refuses GATE_FAILED with LANE_FAILED instead of QUALIFIED.
+func TestTOLV0033_InterruptDuringLastManifestHashRefuses(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	root, _ := qualifyRepo(t, []rbSpec{rbPass("e2e/a/cand.spec.ts", "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
+	test, _ := rbTools(t)
+	var cancel context.CancelFunc
+	defer cli.SetJobInterruptContext(func() (context.Context, context.CancelFunc) {
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+		return ctx, cancel
+	})()
+	var hashed []string
+	defer cli.SetManifestHashHook(func(p string) {
+		hashed = append(hashed, p)
+		if p == "verdict.json" {
+			cancel()
+		}
+	})()
+	out := filepath.Join(t.TempDir(), "out")
+	x := atm(t, root, nil, "qualify", "--config", rbConfig(t, test, nil), "--spec", "e2e/a/cand.spec.ts", "--base", "HEAD~1", "--out", out, "--request-id", "q1")
+	if len(hashed) == 0 || hashed[len(hashed)-1] != "verdict.json" {
+		t.Fatalf("verdict.json was not the last file hashed: %v", hashed)
+	}
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeGateFailed) || !strings.Contains(string(x.stdout), "LANE_FAILED: interrupted while the manifest was written") {
+		t.Fatalf("qualify interrupted during the last hash: %s", x.stdout)
+	}
+	if _, err := os.Lstat(filepath.Join(out, "q1", "manifest.json")); !os.IsNotExist(err) {
+		t.Fatalf("a manifest was published after the interrupt: %v", err)
+	}
+}
+
+// TOL-V0-031 (Codex round 3, finding 2): a prior summary is read through
+// the descriptor its type and size were checked on, bounded by 4 MiB: one
+// that grows past the bound after the check refuses LIMIT_EXCEEDED, and one
+// swapped for a FIFO after the check neither blocks nor is read.
+func TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no FIFOs on Windows")
+	}
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	cases := []struct {
+		name string
+		swap func(t *testing.T, file string)
+		code string
+	}{
+		{"grows past the bound", func(t *testing.T, file string) {
+			f, err := os.OpenFile(file, os.O_WRONLY|os.O_APPEND, 0)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer f.Close()
+			if _, err := f.Write(bytes.Repeat([]byte(" "), 5<<20)); err != nil {
+				t.Error(err)
+			}
+		}, wire.CodeLimitExceeded},
+		{"swapped for a FIFO", func(t *testing.T, file string) {
+			if err := os.Rename(file, file+".moved"); err != nil {
+				t.Error(err)
+				return
+			}
+			if err := exec.Command("mkfifo", file).Run(); err != nil {
+				t.Error(err)
+			}
+		}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, id := obligationBatchRepo(t)
+			test, _ := rbTools(t)
+			config := rbConfig(t, test, nil)
+			out := filepath.Join(t.TempDir(), "out")
+			if x := atm(t, r.Root, nil, runBatchArgs(id, config, out, "b1")...); x.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("b1: %s", x.stdout)
+			}
+			prior := filepath.Join(out, "b1", "summary.json")
+			done := false
+			defer cli.SetPriorSummaryReadHook(func(file string) {
+				if file == prior && !done {
+					done = true
+					tc.swap(t, file)
+				}
+			})()
+			x := atmWithin(t, 2*time.Minute, r.Root, runBatchArgs(id, config, out, "b2")...)
+			if !done {
+				t.Fatalf("the prior summary was not read: %s", x.stdout)
+			}
+			if tc.code != "" && !hasCode(x.res, tc.code) {
+				t.Fatalf("want %s: %s", tc.code, x.stdout)
+			}
+			if tc.code == "" && x.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("b2: %s", x.stdout)
 			}
 		})
 	}

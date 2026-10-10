@@ -123,6 +123,21 @@ TOL-V0-030, 032 and 033 changed within the accepted intent (decision 0485):
    `TestTOLV0030_AcquireRefusalCodeIsTheJobs` and `TestTOLV0030_RefusedReleaseFailsTheJob`
    (before: `GATE_FAILED`).
 
+## Codex round 3 fixes
+
+Both fixes tighten TOL-V0-031 and 033 text within the accepted intent (decision 0485). Each test
+failed with only its fix reverted in a scratch worktree at `83331956`:
+
+1. The manifest checks the interrupt after each file's hash and again just before it is
+   published, so an interrupt during the last hash refuses `GATE_FAILED` with `LANE_FAILED:` and
+   writes no manifest. `TestTOLV0033_InterruptDuringLastManifestHashRefuses`, which cancels from a
+   test hook after `verdict.json` is hashed (before: `QUALIFIED` with a manifest).
+2. A prior summary is read through `openRegular` and one descriptor, at most 4 MiB plus one byte,
+   instead of `Lstat` then `os.ReadFile`. `TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor`
+   swaps the file from a hook placed after the check and before the read (before: a file grown to
+   over 5 MiB was read whole without `LIMIT_EXCEEDED`, and a FIFO swapped in blocked past the
+   test's two-minute bound).
+
 ## Acceptance
 
 TOL-V0-028..033 were accepted as amended by review round 1 (decision 0485). The coordinating agent

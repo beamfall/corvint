@@ -360,6 +360,14 @@ func (j *runJob) tampered(reserved ...string) error {
 	return nil
 }
 
+// manifestHashHook runs after the manifest hashes each regular file; tests
+// use it to interrupt a job during the last file's hash.
+var manifestHashHook = func(string) {}
+
+// priorSummaryReadHook runs after a prior summary is opened and before its
+// content is read; tests use it to swap or grow the file at that point.
+var priorSummaryReadHook = func(string) {}
+
 // errNotRegular marks a job file that is a symlink, FIFO, device, socket or
 // directory rather than a regular file.
 var errNotRegular = errors.New("not a regular file")
@@ -577,8 +585,14 @@ func (j *runJob) manifest(ctx context.Context) (wire.Digest, error) {
 			e.Sha256 = hex.EncodeToString(h.Sum(nil))
 		}
 		entries = append(entries, e)
-		return nil
+		manifestHashHook(e.Path)
+		// An interrupt during this file's hash stops the manifest too.
+		return ctx.Err()
 	})
+	if err == nil {
+		// The last check before the manifest is published (TOL-V0-033).
+		err = ctx.Err()
+	}
 	if errors.Is(err, context.Canceled) {
 		return "", wire.Errorf(wire.CodeGateFailed, "--out", "%s interrupted while the manifest was written; verdict.json stands without a manifest", laneFailedDetail)
 	}
@@ -818,6 +832,33 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 	return result
 }
 
+// readPriorSummary reads an earlier summary through one regular-file
+// descriptor, bounded by maxSummaryBytes, so a FIFO or symlink swapped in or
+// a file that grows after the check can neither block nor bypass the bound
+// (TOL-V0-031). A missing or non-regular entry is no summary (nil, nil).
+func readPriorSummary(file string) ([]byte, error) {
+	f, st, err := openRegular(file)
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, errNotRegular) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "--out", "cannot read %s: %v", file, err)
+	}
+	defer f.Close()
+	if st.Size() > maxSummaryBytes {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "--out", "%s exceeds %d bytes", file, maxSummaryBytes)
+	}
+	priorSummaryReadHook(file)
+	raw, err := io.ReadAll(io.LimitReader(f, maxSummaryBytes+1))
+	if err != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "--out", "cannot read %s: %v", file, err)
+	}
+	if len(raw) > maxSummaryBytes {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "--out", "%s exceeds %d bytes", file, maxSummaryBytes)
+	}
+	return raw, nil
+}
+
 func firstNonEmpty(s ...string) string {
 	for _, x := range s {
 		if x != "" {
@@ -900,16 +941,12 @@ func repeatFailures(out, ticketID, fixture string, l *ticket.ObligationLedger, i
 			continue
 		}
 		file := filepath.Join(out, e.Name(), "summary.json")
-		info, err := os.Lstat(file)
-		if err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		if info.Size() > maxSummaryBytes {
-			return wire.Errorf(wire.CodeLimitExceeded, "--out", "%s exceeds %d bytes", file, maxSummaryBytes)
-		}
-		raw, err := os.ReadFile(file)
+		raw, err := readPriorSummary(file)
 		if err != nil {
-			return wire.Errorf(wire.CodeMalformed, "--out", "cannot read %s: %v", file, err)
+			return err
+		}
+		if raw == nil {
+			continue
 		}
 		var s batchSummary
 		if err := json.Unmarshal(raw, &s); err != nil || s.Schema != batchSummarySchema {

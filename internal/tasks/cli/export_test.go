@@ -149,3 +149,19 @@ func FailJobPoolRelease(code string) func() {
 	}
 	return func() { jobLeaseCommand = was }
 }
+
+// SetManifestHashHook runs f after the manifest hashes each regular file
+// and returns the restore function.
+func SetManifestHashHook(f func(path string)) func() {
+	was := manifestHashHook
+	manifestHashHook = f
+	return func() { manifestHashHook = was }
+}
+
+// SetPriorSummaryReadHook runs f after a prior summary is opened, before its
+// content is read, and returns the restore function.
+func SetPriorSummaryReadHook(f func(file string)) func() {
+	was := priorSummaryReadHook
+	priorSummaryReadHook = f
+	return func() { priorSummaryReadHook = was }
+}
