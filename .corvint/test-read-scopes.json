@@ -222,6 +222,7 @@
     ],
     "internal/doccompiler": [],
     "internal/doccorpus": [
+      "docs/DOCUMENTATION-CORPUS.md",
       "examples/documentation-corpus/"
     ],
     "internal/docviews": [],
