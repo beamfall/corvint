@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,8 +11,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
 )
@@ -34,17 +38,24 @@ func write(t *testing.T, path, body string) string {
 func stream(t *testing.T) string {
 	var b strings.Builder
 	b.WriteString("shard (0)\tGo tests\t2026-10-10T13:20:59Z not json {\n")
+	b.WriteString(`2026-10-10T13:20:59Z {"Time":"2026-10-10T13:20:59Z","Action":"start","Package":"example.org/big"}` + "\n")
 	for i, name := range []string{"TestA", "TestB", "TestC", "TestD", "TestE", "TestF"} {
 		ms := 10.0
 		if i == 5 {
 			ms = 20
 		}
+		for _, test := range []string{name, name + "/sub"} {
+			fmt.Fprintf(&b, "2026-10-10T13:20:59Z {\"Action\":\"run\",\"Package\":\"example.org/big\",\"Test\":%q}\n", test)
+		}
 		fmt.Fprintf(&b, "2026-10-10T13:20:59Z {\"Action\":\"pass\",\"Package\":\"example.org/big\",\"Test\":%q,\"Elapsed\":%g}\n", name+"/sub", ms)
 		fmt.Fprintf(&b, "2026-10-10T13:20:59Z {\"Action\":\"pass\",\"Package\":\"example.org/big\",\"Test\":%q,\"Elapsed\":%g}\n", name, ms)
 	}
 	b.WriteString(`{"Action":"pass","Package":"example.org/big","Elapsed":35}
+{"Action":"start","Package":"example.org/small"}
+{"Action":"run","Package":"example.org/small","Test":"TestS"}
 {"Action":"pass","Package":"example.org/small","Test":"TestS","Elapsed":5}
 {"Action":"pass","Package":"example.org/small","Elapsed":5}
+{"Action":"start","Package":"example.org/other"}
 {"Action":"skip","Package":"example.org/other","Elapsed":0}
 `)
 	return write(t, filepath.Join(t.TempDir(), "shard0.log"), b.String())
@@ -150,11 +161,31 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 		}
 	}
 	failed := write(t, filepath.Join(t.TempDir(), "failed.log"), `{"Action":"fail","Package":"example.org/big","Test":"TestA","Elapsed":1}`+"\n")
-	twice := write(t, filepath.Join(t.TempDir(), "twice.log"), `{"Action":"pass","Package":"example.org/big","Elapsed":1}`+"\n")
-	for _, logs := range [][]string{{failed}, {twice, twice}} {
-		if code, err := run(context.Background(), "replay", logs, nil, &bytes.Buffer{}); code != 2 || err == nil {
-			t.Fatalf("unusable run accepted: %v", logs)
+	twice := write(t, filepath.Join(t.TempDir(), "twice.log"), `{"Action":"start","Package":"example.org/big"}`+"\n"+`{"Action":"pass","Package":"example.org/big","Elapsed":1}`+"\n")
+	for want, logs := range map[string][]string{"TestA failed": {failed}, "two terminal outcomes": {twice, twice}} {
+		if code, err := run(context.Background(), "replay", logs, nil, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("unusable run accepted: %v: %v", logs, err)
 		}
+	}
+
+	// Nothing splits under a long target, and the source is still checked, before
+	// the checkout.
+	for name, url := range map[string]string{"bad run URL, empty split": "https://example.org/run", "missing run URL, empty split": ""} {
+		var notes bytes.Buffer
+		code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", url, "--shards", "2", "--target", "1h", log}, nil, &notes)
+		if code != 2 || err == nil || !strings.Contains(err.Error(), "would reject this source") {
+			t.Fatalf("%s: code=%d err=%v", name, code, err)
+		}
+		if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); string(raw) != "{}\n" {
+			t.Fatalf("%s: slice file overwritten: %s", name, raw)
+		}
+	}
+	// The same empty split with a usable source is written and admitted.
+	if code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", "--target", "1h", log}, nil, &bytes.Buffer{}); code != 0 || err != nil {
+		t.Fatalf("empty generation refused: code=%d err=%v", code, err)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); !cishards.SliceFileUsable(raw) {
+		t.Fatalf("empty generation wrote an unusable file: %s", raw)
 	}
 }
 
@@ -244,6 +275,65 @@ func TestAFPV0041GenerateEnumeratesOnlyTheRevision(t *testing.T) {
 	}
 }
 
+// TestAFPV0041InterruptRemovesTheCheckout signals a real generate process while
+// it is blocked in enumeration. The run must be cancelled, the temporary checkout
+// removed and the slice file left unwritten.
+func TestAFPV0041InterruptRemovesTheCheckout(t *testing.T) {
+	if os.Getenv("CI_TEST_SLICES_HELPER") == "interrupt" {
+		enumerate = func(ctx context.Context, tree, _ string) ([]string, error) {
+			fmt.Printf("tree=%s\n", tree)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		os.Exit(command(strings.Split(os.Getenv("CI_TEST_SLICES_ARGS"), "\n"), os.Stdout, os.Stderr))
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGINT and SIGTERM delivery is unix-only")
+	}
+	log := stream(t)
+	for _, sig := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
+		root, head := repo(t, allowBig)
+		tmp := t.TempDir()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAFPV0041InterruptRemovesTheCheckout$")
+		cmd.Env = append(os.Environ(), "CI_TEST_SLICES_HELPER=interrupt", "TMPDIR="+tmp,
+			"CI_TEST_SLICES_ARGS="+strings.Join([]string{"generate", "--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", log}, "\n"))
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		line, _ := bufio.NewReader(stdout).ReadString('\n')
+		tree, ok := strings.CutPrefix(strings.TrimSpace(line), "tree=")
+		if !ok || !strings.HasPrefix(tree, tmp) {
+			_ = cmd.Process.Kill()
+			t.Fatalf("%v: helper did not reach enumeration in a checkout under %s: %q %s", sig, tmp, line, stderr.String())
+		}
+		if _, err = os.Stat(filepath.Join(tree, allowPath)); err != nil {
+			t.Fatalf("%v: no checkout while enumerating: %v", sig, err)
+		}
+		if err = cmd.Process.Signal(sig); err != nil {
+			t.Fatal(err)
+		}
+		err = cmd.Wait()
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.ExitCode() != 2 || !strings.Contains(stderr.String(), "interrupted") {
+			t.Fatalf("%v: exit=%v stderr=%s", sig, err, stderr.String())
+		}
+		if left, _ := os.ReadDir(tmp); len(left) != 0 {
+			t.Fatalf("%v: temporary checkout left behind: %v", sig, left)
+		}
+		if raw, _ := os.ReadFile(filepath.Join(root, slicesPath)); string(raw) != "{}\n" {
+			t.Fatalf("%v: interrupted run wrote the slice file: %s", sig, raw)
+		}
+	}
+}
+
 func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 	small := `{"Action":"start","Package":"example.org/small"}
 {"Action":"run","Package":"example.org/small","Test":"TestS"}
@@ -257,7 +347,9 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 {"Action":"pass","Package":"example.org/big","Test":"TestA","Elapsed":1}
 {"Action":"pass","Package":"example.org/big","Elapsed":2}
 `
-	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), complete)}); err != nil {
+	// Runner, shell and compiler lines are not records, even with braces in them.
+	chatter := "2026-10-10T13:19:03Z Worker ID: {1a7b06f0}\n# example.org/big\n./a.go:3:1: syntax error near {\nprintf '{\"profile\":\"x\",\"tree\":\"%s\"\n"
+	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), chatter+complete)}); err != nil {
 		t.Fatalf("complete passing log refused: %v", err)
 	}
 	for name, c := range map[string]struct{ log, want string }{
@@ -274,6 +366,15 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 {"Action":"pass","Package":"example.org/big","Test":"TestA","Elapsed":1}
 `, "package example.org/big has no terminal pass or skip"},
 		"test never ended": {strings.Replace(complete, `{"Action":"pass","Package":"example.org/big","Test":"TestA/sub","Elapsed":1}`+"\n", "", 1), "test example.org/big TestA/sub started but never ended"},
+		// start -> pass -> start -> EOF: a second lifecycle after the terminal outcome.
+		"restarted after its outcome": {complete + `{"Action":"start","Package":"example.org/big"}` + "\n", "package example.org/big has a start record after its terminal outcome"},
+		"record after its outcome":    {complete + `{"Action":"output","Package":"example.org/big","Output":"late\n"}` + "\n", "package example.org/big has a output record after its terminal outcome"},
+		"started twice":               {strings.Replace(complete, `{"Action":"start","Package":"example.org/big"}`, `{"Action":"start","Package":"example.org/big"}`+"\n"+`{"Action":"start","Package":"example.org/big"}`, 1), "package example.org/big started twice"},
+		"head truncated":              {strings.Replace(complete, `{"Action":"start","Package":"example.org/big"}`+"\n", "", 1), "package example.org/big has a run record before its start"},
+		"test ended without running":  {strings.Replace(complete, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`+"\n", "", 1), "test example.org/big TestA/sub ended without running"},
+		"test ran twice":              {strings.Replace(complete, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`+"\n"+`{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, 1), "test example.org/big TestA/sub ran twice"},
+		"damaged trailing record":     {complete + `2026-10-10T13:21:00Z {"Time":"2026-10-10T13:21:00Z","Action":"pass","Pack`, "line 11: damaged go test -json record"},
+		"damaged middle record":       {strings.Replace(complete, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"`, 1), "line 7: damaged go test -json record"},
 	} {
 		_, err := observe([]string{write(t, filepath.Join(t.TempDir(), "shard.log"), c.log)})
 		if err == nil || !strings.Contains(err.Error(), c.want) {

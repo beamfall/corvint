@@ -4,9 +4,12 @@
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
 // one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`
-// (text before the JSON object is ignored). A log is refused when any test,
-// subtest or package fails, a started package has no terminal pass or skip, or
-// a started test never ends:
+// (text before the JSON object is ignored). Lines without a `go test -json`
+// record are runner, shell or build output and are skipped; a record that does
+// not decode is refused. Each package of a log must run one lifecycle: start, its
+// tests (every one that runs ends), then one terminal pass or skip, and nothing
+// after it. A log is refused when any test, subtest or package fails, or when a
+// package or test is missing, repeated or unterminated:
 //
 //	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 6] [--target 0] LOG...
 //	ci-test-slices replay [--root DIR] [--shards 6] [--costs FILE] [--slices FILE] LOG...
@@ -15,7 +18,10 @@
 // temporary directory through a temporary index, reads the allow-list there and
 // enumerates each allowed package there with `go test -race -list .`, so neither
 // untracked nor modified files of DIR contribute; it then rewrites DIR's slice
-// file. DIR's index, worktrees and refs are not written. A package splits only
+// file. DIR's index, worktrees and refs are not written. SIGINT or SIGTERM cancels
+// checkout and enumeration, removes the temporary directory and leaves the slice
+// file unwritten. The file-level source is checked before any work, so a file the
+// partition would reject is never written, even when nothing splits. A package splits only
 // when its observed time exceeds the target (default: the ideal shard share). Its
 // named slices are contiguous runs of its sorted test names that minimise the
 // largest slice, weighted by the observed time of each top-level test, or by
@@ -40,10 +46,12 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
@@ -56,15 +64,23 @@ const (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: ci-test-slices generate|replay [flags] LOG...")
-		os.Exit(2)
+	os.Exit(command(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+// command runs one mode until it finishes or SIGINT or SIGTERM cancels it; a
+// cancelled run still returns through its deferred cleanup.
+func command(args []string, out, notes io.Writer) int {
+	if len(args) < 1 {
+		fmt.Fprintln(notes, "usage: ci-test-slices generate|replay [flags] LOG...")
+		return 2
 	}
-	code, err := run(context.Background(), os.Args[1], os.Args[2:], os.Stdout, os.Stderr)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	code, err := run(ctx, args[0], args[1:], out, notes)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ci-test-slices:", err)
+		fmt.Fprintln(notes, "ci-test-slices:", err)
 	}
-	os.Exit(code)
+	return code
 }
 
 // enumerate lists a package's top-level tests; tests replace it.
@@ -102,8 +118,9 @@ type observation struct {
 	files    []int64                     // summed package time per log, ms
 }
 
-// observe reads one complete passing run. A failed, repeated or missing outcome
-// is refused: the run is then not a complete, passing measurement of the suite.
+// observe reads one complete passing run. A failed, repeated, missing or
+// unterminated outcome, or a damaged record, is refused: the run is then not a
+// complete, passing measurement of the suite.
 func observe(paths []string) (*observation, error) {
 	o := &observation{packages: map[string]int64{}, tests: map[string]map[string]int64{}}
 	for _, path := range paths {
@@ -119,22 +136,32 @@ func observe(paths []string) (*observation, error) {
 	return o, nil
 }
 
+// record finds a `go test -json` record on a line, after any log prefix. Lines
+// without one are runner, shell or build output.
+var record = regexp.MustCompile(`\{"(Time|Action|ImportPath)":`)
+
+// read checks one log's package lifecycles: a package's first record is its
+// start, every test that runs ends, one terminal pass or skip closes the package,
+// and no record follows it.
 func (o *observation) read(path string) (int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
 	}
 	defer f.Close()
+	const (
+		open   = 1
+		closed = 2
+	)
 	var sum int64
-	started := map[string]bool{} // packages with any event in this log
-	ended := map[string]bool{}   // packages with a terminal pass or skip in this log
+	state := map[string]int{}    // package lifecycle in this log
 	running := map[string]bool{} // "package test" run, subtests included, not yet ended
 	s := bufio.NewScanner(f)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
-	for s.Scan() {
+	for n := 1; s.Scan(); n++ {
 		line := s.Bytes()
-		i := bytes.IndexByte(line, '{')
-		if i < 0 {
+		at := record.FindIndex(line)
+		if at == nil {
 			continue
 		}
 		var e struct {
@@ -143,21 +170,43 @@ func (o *observation) read(path string) (int64, error) {
 			Test    string
 			Elapsed float64
 		}
-		if json.Unmarshal(line[i:], &e) != nil || e.Package == "" {
-			continue
+		if err := json.Unmarshal(line[at[0]:], &e); err != nil {
+			return 0, fmt.Errorf("line %d: damaged go test -json record: %v", n, err)
 		}
-		// Failures and completeness count every event, subtests included,
+		if e.Package == "" {
+			continue // build output names ImportPath, not Package
+		}
+		// Failures and completeness count every record, subtests included,
 		// before only top-level outcomes are kept.
 		if e.Action == "fail" {
 			return 0, fmt.Errorf("%s %s failed", e.Package, e.Test)
 		}
-		started[e.Package] = true
+		switch state[e.Package] {
+		case 0:
+			if e.Action != "start" {
+				return 0, fmt.Errorf("line %d: package %s has a %s record before its start (incomplete log)", n, e.Package, e.Action)
+			}
+			state[e.Package] = open
+			continue
+		case closed:
+			return 0, fmt.Errorf("line %d: package %s has a %s record after its terminal outcome (repeated or restarted)", n, e.Package, e.Action)
+		}
+		if e.Action == "start" {
+			return 0, fmt.Errorf("line %d: package %s started twice", n, e.Package)
+		}
 		if e.Test != "" {
+			key := e.Package + " " + e.Test
 			switch e.Action {
 			case "run":
-				running[e.Package+" "+e.Test] = true
+				if running[key] {
+					return 0, fmt.Errorf("line %d: test %s ran twice", n, key)
+				}
+				running[key] = true
 			case "pass", "skip":
-				delete(running, e.Package+" "+e.Test)
+				if !running[key] {
+					return 0, fmt.Errorf("line %d: test %s ended without running (incomplete log)", n, key)
+				}
+				delete(running, key)
 			}
 		}
 		if strings.Contains(e.Test, "/") || (e.Action != "pass" && e.Action != "skip") {
@@ -165,11 +214,14 @@ func (o *observation) read(path string) (int64, error) {
 		}
 		ms := int64(math.Round(e.Elapsed * 1000))
 		if e.Test == "" {
+			if t := first(running, func(t string) bool { return strings.HasPrefix(t, e.Package+" ") }); t != "" {
+				return 0, fmt.Errorf("test %s started but never ended (incomplete log)", t)
+			}
 			if _, seen := o.packages[e.Package]; seen {
 				return 0, fmt.Errorf("package %s has two terminal outcomes", e.Package)
 			}
 			o.packages[e.Package] = max(1, ms)
-			ended[e.Package] = true
+			state[e.Package] = closed
 			sum += max(1, ms)
 			continue
 		}
@@ -184,11 +236,15 @@ func (o *observation) read(path string) (int64, error) {
 	if err := s.Err(); err != nil {
 		return 0, err
 	}
-	if p := first(started, func(p string) bool { return !ended[p] }); p != "" {
-		return 0, fmt.Errorf("package %s has no terminal pass or skip (incomplete log)", p)
+	var unclosed []string
+	for p, st := range state {
+		if st == open {
+			unclosed = append(unclosed, p)
+		}
 	}
-	if t := first(running, func(string) bool { return true }); t != "" {
-		return 0, fmt.Errorf("test %s started but never ended (incomplete log)", t)
+	if len(unclosed) != 0 {
+		sort.Strings(unclosed)
+		return 0, fmt.Errorf("package %s has no terminal pass or skip (incomplete log)", unclosed[0])
 	}
 	return sum, nil
 }
@@ -226,7 +282,7 @@ var (
 func goList(ctx context.Context, root, pkg string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "test", "-race", "-count=1", "-list", ".", pkg)
+	cmd := child(ctx, "go", "test", "-race", "-count=1", "-list", ".", pkg)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=", "GOTOOLCHAIN=local", "CGO_ENABLED=1")
 	var stderr bytes.Buffer
@@ -283,6 +339,15 @@ type sliceFile struct {
 }
 
 func generate(ctx context.Context, obs *observation, root, revision, runURL string, shards int, target time.Duration, notes io.Writer) (int, error) {
+	var f sliceFile
+	f.Profile = "corvint-ci-test-slices/0"
+	f.Source.Revision, f.Source.RunURL, f.Source.GoVersion = revision, runURL, "go1.27.1"
+	f.Packages = map[string]split{}
+	// The source is checked before any work and whatever splits, so an empty
+	// generation cannot write a file the partition would reject.
+	if raw, err := json.Marshal(f); err != nil || !cishards.SliceFileUsable(raw) {
+		return 2, errors.New("refused: the partition would reject this source (check --revision and --run-url)")
+	}
 	dir, err := checkout(ctx, root, revision)
 	if err != nil {
 		return 2, err
@@ -301,10 +366,6 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	if limit == 0 {
 		limit = max(1, obs.total()/int64(shards))
 	}
-	var f sliceFile
-	f.Profile = "corvint-ci-test-slices/0"
-	f.Source.Revision, f.Source.RunURL, f.Source.GoVersion = revision, runURL, "go1.27.1"
-	f.Packages = map[string]split{}
 	pkgs := make([]string, 0, len(allowed))
 	for p := range allowed {
 		pkgs = append(pkgs, p)
@@ -334,6 +395,10 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 		f.Packages[p] = s
 		fmt.Fprintf(notes, "split %s: %dms into %d slices\n", p, elapsed, len(s.Named)+1)
 	}
+	// A cancelled enumeration looks like a failed one; never write its result.
+	if err := ctx.Err(); err != nil {
+		return 2, fmt.Errorf("interrupted: %w", err)
+	}
 	raw, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return 2, err
@@ -343,13 +408,22 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	for p := range obs.packages {
 		universe = append(universe, p)
 	}
-	if got := cishards.SplitPackages(universe, shards, allowRaw, raw); len(got) != len(f.Packages) {
+	if got := cishards.SplitPackages(universe, shards, allowRaw, raw); !cishards.SliceFileUsable(raw) || len(got) != len(f.Packages) {
 		return 2, errors.New("refused: the partition would not admit every generated split (check --revision, --run-url and the pattern bound)")
 	}
 	return 0, replace(filepath.Join(root, slicesPath), raw)
 }
 
 var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// child runs a subprocess that cancellation interrupts, so that it can stop its
+// own children, and kills if it has not exited ten seconds later.
+func child(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = 10 * time.Second
+	return cmd
+}
 
 // checkout writes exactly the tracked tree of revision into DIR/tree of a new
 // temporary DIR, through the temporary index DIR/index, so that enumeration
@@ -359,7 +433,7 @@ func checkout(ctx context.Context, root, revision string) (string, error) {
 	if !fullCommit.MatchString(revision) {
 		return "", fmt.Errorf("refused: --revision %q is not a full commit id", revision)
 	}
-	got, err := exec.CommandContext(ctx, "git", "-C", root, "rev-parse", "--verify", "--quiet", revision+"^{commit}").Output()
+	got, err := child(ctx, "git", "-C", root, "rev-parse", "--verify", "--quiet", revision+"^{commit}").Output()
 	if err != nil || strings.TrimSpace(string(got)) != revision {
 		return "", fmt.Errorf("refused: --revision %s is not a commit of %s", revision, root)
 	}
@@ -373,7 +447,7 @@ func checkout(ctx context.Context, root, revision string) (string, error) {
 		return "", err
 	}
 	for _, args := range [][]string{{"read-tree", revision}, {"--work-tree=" + tree, "checkout-index", "--all"}} {
-		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
+		cmd := child(ctx, "git", append([]string{"-C", root}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(dir, "index"))
 		if out, err := cmd.CombinedOutput(); err != nil {
 			os.RemoveAll(dir)

@@ -160,6 +160,8 @@ evidence.
 
 ## Review repairs
 
+### Round 1
+
 An independent Codex review of the first two commits found three defects. All three are fixed in
 a follow-up commit:
 
@@ -186,6 +188,46 @@ Each new check was tested by mutation. Seven mutants each fail one of the two te
 The six hosted logs still pass the new checks, with the same replay sums. Regenerating at
 `1f68f622` through the temporary checkout reproduces the committed `test-slices.json` byte for
 byte.
+
+### Round 2
+
+A second Codex review, of `afe0f8df`, found three more defects:
+
+- **(P2) Incomplete logs still passed.**
+  - The sequence start, pass, start, end of file was accepted, because a second lifecycle was never
+    refused.
+  - A damaged JSON record was silently skipped.
+  - The reader now tracks each package's lifecycle in a log: its first record must be `start`, and
+    no record may follow its terminal pass or skip. It also refuses a second start, a test that
+    runs twice or ends without running, and a test still running when its package ends.
+  - A line that carries a `go test -json` record (`{"Time":`, `{"Action":` or `{"ImportPath":`
+    after any log prefix) must decode completely. Other lines are runner, shell or build output.
+    That includes a printf format string beginning `{"profile":` in the workflow's shell output.
+- **(P3) An empty generation skipped source validation.** When nothing split, a bad or missing
+  `--run-url` was written. The file-level check is now `cishards.SliceFileUsable`, shared with
+  `SplitPackages`. It runs before the checkout and again before the write.
+- **(P3) An interruption leaked the temporary checkout.** `main` now runs under
+  `signal.NotifyContext` for SIGINT and SIGTERM.
+  - Child processes get an interrupt on cancellation and are killed after ten seconds.
+  - A cancelled run refuses the write, because a cancelled enumeration otherwise looks like a
+    failed one and would keep packages whole.
+  - `TestAFPV0041InterruptRemovesTheCheckout` signals a real helper process blocked in enumeration
+    with each signal. It checks exit code 2, an empty temporary directory and an unwritten slice
+    file.
+  - SIGKILL cannot be handled, so it still leaks the checkout under `TMPDIR`.
+
+The six hosted logs pass the stricter reader:
+
+- every package starts with `start`;
+- no record follows a terminal outcome;
+- no test ends without running.
+
+Replay sums and the byte-identical regeneration at `1f68f622` are unchanged. Eleven mutants each
+fail a test:
+
+- removing the signal context, the cancellation refusal or the early source check;
+- removing the after-outcome, before-start, twice-started, damaged-record, ran-twice,
+  ended-without-running or running-at-close refusal.
 
 ## Limits and integration
 

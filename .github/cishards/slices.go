@@ -101,16 +101,33 @@ func Allowed(raw []byte) (map[string]string, bool) {
 	return a.Packages, true
 }
 
+// decodeSlices returns the slice file when it is exactly its closed profile with a
+// usable source, whatever packages it splits.
+func decodeSlices(raw []byte) (sliceFile, bool) {
+	var f sliceFile
+	if !strict(raw, &f) || f.Profile != "corvint-ci-test-slices/0" || f.Source.GoVersion != "go1.27.1" || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
+		return f, false
+	}
+	if _, err := hex.DecodeString(f.Source.Revision); err != nil {
+		return f, false
+	}
+	return f, true
+}
+
+// SliceFileUsable reports whether the slice file passes the file-level checks,
+// even when it splits no package. An unusable file splits nothing.
+func SliceFileUsable(raw []byte) bool {
+	_, ok := decodeSlices(raw)
+	return ok
+}
+
 // SplitPackages returns the slices of each package in packages that the allow-list
 // admits and the slice file splits validly into at most total slices. Any unusable
 // file splits nothing; any unusable package entry leaves that package whole.
 func SplitPackages(packages []string, total int, allowRaw, slicesRaw []byte) map[string][]Slice {
 	allowed, ok := Allowed(allowRaw)
-	var f sliceFile
-	if !ok || total < 2 || !strict(slicesRaw, &f) || f.Profile != "corvint-ci-test-slices/0" || f.Source.GoVersion != "go1.27.1" || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
-		return nil
-	}
-	if _, err := hex.DecodeString(f.Source.Revision); err != nil {
+	f, usable := decodeSlices(slicesRaw)
+	if !ok || !usable || total < 2 {
 		return nil
 	}
 	universe := map[string]bool{}
