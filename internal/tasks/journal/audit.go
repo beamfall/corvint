@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -122,6 +123,11 @@ type Reader struct {
 	// the walk has fully validated it, is not called again after its first
 	// error, and never changes the audit; Result.ReceiptFold reports it.
 	ReceiptFold func() func(rc *snapshot.Receipt, sum wire.Digest) error
+	// WriterLocked says the caller holds the writer lock, so no other native
+	// writer can be publishing and any descriptor-less staging slot is a
+	// killed writer's orphan: the audit refuses it at once instead of
+	// waiting for it while blocking every other writer (CTS-V0-008).
+	WriterLocked bool
 	// ExpectHeadSha256, when set, is the head digest of the outer snapshot
 	// the caller binds this audit to. An attempt whose first capture shows
 	// any other head returns SNAPSHOT_MOVED at once, without walking or
@@ -299,18 +305,35 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 			}
 		}
 	}
-	for attempt := 0; attempt < 4; attempt++ {
+	var wait snapshot.StageSlotWait
+	for attempt := 0; attempt < 4; {
 		result, err := r.auditAttempt(selected, request, lim, checkIntent, nil)
 		if err == errHeadPassed {
 			return nil, err
 		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			attempt++
+			continue
+		}
+		var slots slotsInFlight
+		if errors.As(err, &slots) {
+			step, ok := wait.Next()
+			if r.WriterLocked || !ok {
+				return result, slots.error
+			}
+			stageSleep(step)
 			continue
 		}
 		return result, err
 	}
 	return nil, wire.Errorf(wire.CodeSnapshotMoved, "/", "ledger moved during all four observations")
 }
+
+// stageSleep is the CTS-V0-008 wait's pause (snapshot.StageSlotWait). A
+// WriterLocked audit never waits. A pause is not one of the four
+// SNAPSHOT_MOVED attempts, and an observation that moves between pauses
+// still spends one.
+var stageSleep = time.Sleep
 
 func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool, cp *Checkpoint) (result *Result, err error) {
 	if r.physical != nil {

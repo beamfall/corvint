@@ -49,6 +49,7 @@ func initialized(t *testing.T) (*intent.Repository, *store.Report) {
 // genesis transaction: the receipt is linked in, and the head and every post
 // destination exist after it.
 func TestTMV0009_AS11_InitCommitsGenesisReceipt(t *testing.T) {
+	t.Parallel()
 	repo, report := initialized(t)
 	if report.Receipt != "000000000001.json" {
 		t.Fatalf("receipt = %q, want 000000000001.json", report.Receipt)
@@ -71,6 +72,7 @@ func TestTMV0009_AS11_InitCommitsGenesisReceipt(t *testing.T) {
 // exactly the §3.4 directories this slice needs and no lane directory it has
 // not built.
 func TestTMV0010_AS29_InitCreatesTheStateDirectories(t *testing.T) {
+	t.Parallel()
 	repo, report := initialized(t)
 	want := []string{"taskman", "receipts", "evidence", "pinned", "requests", "staging"}
 	if len(report.Directories) != len(want) {
@@ -92,6 +94,7 @@ func TestTMV0010_AS29_InitCreatesTheStateDirectories(t *testing.T) {
 // staging slot is never left occupied without a live descriptor: a leftover
 // slot makes every later reader refuse the store.
 func TestTMV0009_AS11_InitLeavesNoUnassignedStageSlot(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	entries, err := os.ReadDir(filepath.Join(repo.StateDir, "staging"))
 	if err != nil {
@@ -110,6 +113,7 @@ func TestTMV0009_AS11_InitLeavesNoUnassignedStageSlot(t *testing.T) {
 // genesis reports the model's BLOCKED refusal and writes nothing, rather than
 // failing as a filesystem error.
 func TestTMV0002_AS10_InitIsRefusedOnAnInitializedStore(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	before := readTree(t, repo.StateDir)
 
@@ -132,6 +136,7 @@ func TestTMV0002_AS10_InitIsRefusedOnAnInitializedStore(t *testing.T) {
 // queue or policy is reported as the operator's own missing input, and that
 // nothing is created before it is.
 func TestTMV0008_AS07_InitRequiresTheOperatorsIntentStore(t *testing.T) {
+	t.Parallel()
 	repo := fixture.TempRepo(t)
 	resolved, err := intent.Resolve(repo.Root)
 	if err != nil {
@@ -149,6 +154,7 @@ func TestTMV0008_AS07_InitRequiresTheOperatorsIntentStore(t *testing.T) {
 // rule: a post destination holding neither the pre nor the post state is
 // never overwritten, so a concurrent or manual edit survives.
 func TestTMV0009_AS35_InitDoesNotOverwriteAnEditedProjection(t *testing.T) {
+	t.Parallel()
 	repo := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(repo.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(repo.IntentDir, "policy.json"), fixture.PolicyBytes())
@@ -177,6 +183,7 @@ func TestTMV0009_AS35_InitDoesNotOverwriteAnEditedProjection(t *testing.T) {
 // honesty rule: the local-operator binding is recorded, and no coverage axis
 // is promoted to observed by admitting the real premise.
 func TestTMV0001_AS29_InitRecordsAnUnauthenticatedBinding(t *testing.T) {
+	t.Parallel()
 	_, report := initialized(t)
 	for name, got := range map[string]string{
 		"actorAuthentication":         report.Coverage.ActorAuthentication,
@@ -220,6 +227,7 @@ func readTree(t *testing.T, root string) string {
 // ticket or release record would leave that record without a journal
 // afterimage, so init refuses with INTENT_DIVERGED and creates no state dir.
 func TestCTSV0001_InitRefusesOverExistingRecords(t *testing.T) {
+	t.Parallel()
 	for _, dir := range []string{intent.TicketsDir, intent.ReleasesDir} {
 		t.Run(dir, func(t *testing.T) {
 			repo := fixture.TempRepo(t)

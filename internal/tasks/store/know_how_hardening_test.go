@@ -45,6 +45,7 @@ func knowHowStore(t *testing.T) (*intent.Repository, string, string) {
 // rebuilt at the new revision it commits note 2, and note 1 stays
 // byte-identical.
 func TestKHNV0013_CompetingWritersOneWinner(t *testing.T) {
+	t.Parallel()
 	repo, id, _ := knowHowStore(t)
 	first := envelope("kh-a", mutation.OpKnowHowAdd, id, "1", knowHowAddPayload("writer a"))
 	second := envelope("kh-b", mutation.OpKnowHowAdd, id, "1", knowHowAddPayload("writer b"))
@@ -77,6 +78,7 @@ func TestKHNV0013_CompetingWritersOneWinner(t *testing.T) {
 // was linked in before its head and projection were written is redone by
 // the next writer, which publishes the note exactly once.
 func TestKHNV0013_RedoBindsAPendingKnowHowReceipt(t *testing.T) {
+	t.Parallel()
 	repo, id, projection := knowHowStore(t)
 	head := filepath.Join(repo.StateDir, "head.json")
 	headBefore, projectionBefore := mustRead(t, head), mustRead(t, projection)
@@ -101,6 +103,7 @@ func TestKHNV0013_RedoBindsAPendingKnowHowReceipt(t *testing.T) {
 // ticket carries a know-how ledger verifies, and the archived ticket record
 // is byte-identical to the projection and decodes to the same ledger.
 func TestKHNV0012_ArchiveRoundTripKeepsKnowHow(t *testing.T) {
+	t.Parallel()
 	repo, id, projection := knowHowStore(t)
 	mutate(t, repo, envelope("kh-1", mutation.OpKnowHowAdd, id, "1", knowHowAddPayload("archived note")))
 	mutate(t, repo, envelope("kh-2", mutation.OpKnowHowRetract, id, "2", obj("note", str("1"), "reason", str("superseded upstream"))))

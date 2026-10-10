@@ -80,7 +80,7 @@ func barrier(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if head.QueueID.Raw != request.QueueID {
 		return report, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 	}
-	reader := journalReader(repo, head)
+	reader := lockedJournalReader(repo, head)
 	index := journal.RequestIndex{Reader: reader}
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {

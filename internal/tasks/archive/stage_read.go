@@ -352,11 +352,34 @@ func (s *archiveRead) readStage(sc *scan) (files []snapshot.StageFile, validatio
 			n = "a0" + string(wire.SizeOf(uint64(i)))
 		}
 		if exists(n) && !assigned[n] {
-			return files, wire.Errorf(wire.CodeMalformed, n, "unassigned stage slot"), nil
+			refusal := wire.Errorf(wire.CodeMalformed, n, "unassigned stage slot")
+			if d == nil && !exists("active.json.tmp") {
+				// A native writer holds descriptor-less slots under its
+				// lock while it publishes; readArchive waits a bounded
+				// time (CTS-V0-008).
+				return files, slotsInFlight{refusal}, nil
+			}
+			return files, refusal, nil
 		}
 	}
 	return files, nil, nil
 }
+
+// slotsInFlight marks an unassigned-slot refusal observed with no stage
+// descriptor or descriptor temp, as the journal audit's does: the shape a
+// native writer's publish leaves for its lifetime and a killed writer leaves
+// until the next writer clears it. readArchive waits for it
+// (snapshot.StageSlotWait) and then returns the wrapped MALFORMED unchanged.
+type slotsInFlight struct{ error }
+
+func (e slotsInFlight) Unwrap() error { return e.error }
+
+// stageSleep is the CTS-V0-008 wait's pause; a test replaces it.
+var stageSleep = time.Sleep
+
+// patienceSleep is the CTS-V0-006 wait's pause when the Reader names none,
+// as in Export; a test replaces it to act inside an observed wait.
+var patienceSleep = time.Sleep
 
 func (s *archiveRead) validateStage(sc *scan, snap *snapshot.Snapshot, tree intent.Tree) error {
 	if sc.stageErr != nil {
@@ -433,6 +456,10 @@ func sameLayout(a, b *scan) bool {
 // always one-shot. Every attempt draws on one patience deadline, so the
 // export pauses no longer in total than a single read would (CTS-V0-006),
 // and a failure after any pause names the wait and says it is retryable.
+// A writer's descriptor-less staging slots are waited for separately, under
+// the journal audit's backoff and budget, and neither spend an attempt nor
+// draw on that deadline; once that budget is spent the slot's MALFORMED is
+// returned unchanged (CTS-V0-008).
 func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*snapshot.Snapshot, error) {
 	rd.Retries = -1
 	patience := rd.Patience
@@ -443,7 +470,7 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 	deadline := start.Add(patience)
 	sleep := rd.Sleep
 	if sleep == nil {
-		sleep = time.Sleep
+		sleep = patienceSleep
 	}
 	// waits counts every pause; callWaits those of the current Read, which
 	// already names its own wait on the error it returns.
@@ -455,16 +482,31 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 	}
 	var snap *snapshot.Snapshot
 	var err error
-	for n := 0; n < 4; n++ {
+	var slotWait snapshot.StageSlotWait
+	for n := 0; n < 4; {
 		rd.Patience = time.Until(deadline)
 		if rd.Patience <= 0 {
 			rd.Patience = snapshot.NoPatience
 		}
 		callWaits = 0
 		snap, err = rd.Read(attempt)
+		var slots slotsInFlight
+		if errors.As(err, &slots) {
+			step, ok := slotWait.Next()
+			if !ok {
+				return snap, slots.error
+			}
+			// The pause is pushed onto the deadline, so it never spends the
+			// CTS-V0-006 patience a later pending or moved attempt needs.
+			paused := time.Now()
+			stageSleep(step)
+			deadline = deadline.Add(time.Since(paused))
+			continue
+		}
 		if wire.CodeOf(err) != wire.CodeSnapshotMoved {
 			break
 		}
+		n++
 	}
 	if wire.CodeOf(err) == wire.CodeSnapshotMoved {
 		err = wire.Errorf(wire.CodeSnapshotMoved, "archive", "store moved during all four attempts")

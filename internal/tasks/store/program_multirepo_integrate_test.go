@@ -128,6 +128,7 @@ func assertLanded(t *testing.T, f *multiFixture, a *snapshot.Attempt, docsBase s
 // integration lands each candidate only in its designated checkout before
 // native completion (CAL-V0-087).
 func TestCALV0087_DesignatedMultiRepositoryIntegration(t *testing.T) {
+	t.Parallel()
 	f := designatedFixture(t)
 	docsBase := multiGit(t, f.extra, "rev-parse", "HEAD")
 	w := openProgram(t, f)()
@@ -161,6 +162,7 @@ func TestCALV0087_DesignatedMultiRepositoryIntegration(t *testing.T) {
 // removes every registered stage worktree, including each extra repository's
 // sibling, leaving each repository with only its own checkout registered.
 func TestCALV0087_ExtraWorktreeCleanup(t *testing.T) {
+	t.Parallel()
 	f := designatedFixture(t)
 	w := openProgram(t, f)()
 	a := reviewedProgram(t, w)
@@ -200,6 +202,7 @@ func TestCALV0087_ExtraWorktreeCleanup(t *testing.T) {
 // single-repository formula, which omits the extra repository's designated
 // target, is refused before any checkout moves.
 func TestCALV0087_GrantMustNameEveryTarget(t *testing.T) {
+	t.Parallel()
 	f := designatedFixture(t)
 	docsBase := multiGit(t, f.extra, "rev-parse", "HEAD")
 	w := openProgram(t, f)()
@@ -221,6 +224,7 @@ func TestCALV0087_GrantMustNameEveryTarget(t *testing.T) {
 // that advanced past its base, or was switched to another branch, after
 // review is refused before a grant is recorded or any checkout moves.
 func TestCALV0087_DesignatedTargetChecked(t *testing.T) {
+	t.Parallel()
 	for want, change := range map[string]func(t *testing.T, docs string){
 		"TARGET_ADVANCED: repository docs advanced": func(t *testing.T, docs string) {
 			if err := os.WriteFile(filepath.Join(docs, "other.txt"), []byte("other\n"), 0o644); err != nil {
@@ -263,6 +267,7 @@ func TestCALV0087_DesignatedTargetChecked(t *testing.T) {
 // restarted supervisor finishes the integration and each repository gains
 // its candidate exactly once.
 func TestCALV0087_InterruptedIntegrationLandsOnce(t *testing.T) {
+	t.Parallel()
 	for _, point := range []string{"integrate-repo:docs", "transition:INTEGRATED"} {
 		t.Run(strings.ReplaceAll(point, ":", "-"), func(t *testing.T) {
 			f := designatedFixture(t)
@@ -272,7 +277,7 @@ func TestCALV0087_InterruptedIntegrationLandsOnce(t *testing.T) {
 			a := reviewedProgram(t, w)
 			grantIntegration(t, f, programScope(t, f, a))
 			hit := 0
-			restore := store.SetRunFaultForTest(func(at string) error {
+			restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(at string) error {
 				if at == point {
 					hit++
 					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected interruption at %s", at)
@@ -304,6 +309,7 @@ func TestCALV0087_InterruptedIntegrationLandsOnce(t *testing.T) {
 // no integration designation and is never moved, while the queue repository
 // integrates.
 func TestCALV0087_UnchangedRepositoryNeedsNoDesignation(t *testing.T) {
+	t.Parallel()
 	f := buildProgramFixture(t, true, true, []string{"verify"})
 	f.config.OwnIntegrationCheckout = true
 	if err := os.WriteFile(filepath.Join(f.scripts, "docs-unchanged"), nil, 0o644); err != nil {
@@ -335,6 +341,7 @@ func TestCALV0087_UnchangedRepositoryNeedsNoDesignation(t *testing.T) {
 // needs its own READY, fresh Core context: a docs worktree whose Core query
 // fails refuses the stage before it is dispatched.
 func TestCALV0088_ExtraRepositoryContextRequired(t *testing.T) {
+	t.Parallel()
 	f := designatedFixture(t)
 	if err := os.WriteFile(filepath.Join(f.scripts, "no-docs-context"), nil, 0o644); err != nil {
 		t.Fatal(err)
