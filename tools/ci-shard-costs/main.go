@@ -177,6 +177,44 @@ func observeStream(r io.Reader, observed map[string]int64) error {
 	return err
 }
 
+// streamActions is the closed Action set of `go test -json`: the test2json
+// TestEvent actions, the `attr` action of testing.T.Attr, and the interleaved
+// BuildEvent actions, which carry ImportPath instead of Package.
+var streamActions = map[string]bool{
+	"start": true, "run": true, "pause": true, "cont": true, "pass": true, "bench": true,
+	"fail": true, "output": true, "skip": true, "attr": true,
+	"build-output": true, "build-fail": true,
+}
+
+// checkEvent refuses, for a strict stream, an event that is not structurally a
+// `go test -json` event of a passing run: an unknown Action, a missing Package
+// or ImportPath, any failure, or a package start or outcome out of sequence.
+func checkEvent(line int, action, pkg, importPath, test string, started map[string]bool) error {
+	switch {
+	case !streamActions[action]:
+		return fmt.Errorf("line %d has unknown Action %q", line, action)
+	case action == "build-output" || action == "build-fail":
+		if importPath == "" {
+			return fmt.Errorf("line %d: %s event without ImportPath", line, action)
+		}
+		if action == "build-fail" {
+			return fmt.Errorf("build of %s failed", importPath)
+		}
+		return nil
+	case pkg == "":
+		return fmt.Errorf("line %d: %s event without Package", line, action)
+	case action == "fail" && test != "":
+		return fmt.Errorf("test %s of package %s failed", test, pkg)
+	case test != "":
+		return nil
+	case action == "start" && started[pkg]:
+		return fmt.Errorf("package %s started twice", pkg)
+	case (action == "pass" || action == "skip") && !started[pkg]:
+		return fmt.Errorf("package %s has a terminal outcome without a start", pkg)
+	}
+	return nil
+}
+
 func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
 	s := bufio.NewScanner(r)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
@@ -192,16 +230,22 @@ func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
 			continue
 		}
 		var e struct {
-			Action  string
-			Package string
-			Test    string
-			Elapsed float64
+			Action     string
+			Package    string
+			ImportPath string
+			Test       string
+			Elapsed    float64
 		}
 		if json.Unmarshal(raw[i:], &e) != nil {
 			if strict {
 				return terminal, fmt.Errorf("line %d is not a go test -json event", line)
 			}
 			continue
+		}
+		if strict {
+			if err := checkEvent(line, e.Action, e.Package, e.ImportPath, e.Test, started); err != nil {
+				return terminal, err
+			}
 		}
 		if e.Package == "" || e.Test != "" {
 			continue

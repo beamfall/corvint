@@ -23,11 +23,15 @@ only when an operator scrapes the logs and runs it by hand.
   checks out, builds `tools/ci-shard-costs` and runs `check --advisory`. The report step is
   continue-on-error and its shell never propagates the tool's exit status. The job itself and
   every step (download, completeness check, checkout, setup-go, report) are continue-on-error with
-  their own timeouts, so the job never ends red. The job posts no status and never writes the
+  their own timeouts, so the job never ends red. A tool build failure abstains in the report step,
+  and a final always-run step writes `Abstained: <reason>` (naming the step that ended unsuccessfully)
+  whenever no earlier step wrote a summary. The job posts no status and never writes the
   table.
 - `tools/ci-shard-costs check --advisory --shards N [--share P] [--summary FILE]` requires exactly
-  N logs, each a well-formed, finished `go test -json` stream (every non-blank line an event, at
-  least one terminal package outcome, no package start left unfinished), appends a Markdown table to the summary, prints at most ten `::warning::` workflow
+  N logs, each a well-formed, finished `go test -json` stream (every non-blank line an event with a
+  known Action and its Package or build ImportPath, no test, package or build failure, each package
+  outcome after a single start, at least one terminal package outcome, no package start left
+  unfinished), appends a Markdown table to the summary, prints at most ten `::warning::` workflow
   commands (one per material finding plus one count of the rest) and exits 0 on findings. Unusable
   input exits 2 and writes `Abstained: <reason>` to the summary. Plain `check` and `refresh` are
   unchanged.
@@ -67,6 +71,17 @@ only when an operator scrapes the logs and runs it by hand.
   Rerun dry run: the six hosted logs, reduced to raw streams (timestamp prefix stripped, non-event
   lines dropped), gave the same two material warnings and count warning; the logs as downloaded,
   with prefixes, now abstain.
+- Round-2 review of 6b215b78 found two P2 gaps, fixed in the next commit: strict mode checked JSON
+  syntax but not event structure (`{}`, `{"Action":"fail"}` without Package, or an unknown Action
+  passed), and a checkout, setup-go or build failure left no `Abstained:` reason in the summary.
+  Strict mode now applies `checkEvent`; there are new abstention cases (empty object, unknown
+  Action, fail or output without Package, failed test, build-fail, build event without ImportPath,
+  outcome without start, double start) and a positive test over every passing event kind
+  (`TestAFPV0040AdvisoryAcceptsAFullEventStream`). The six real go1.27.1 raw streams still pass
+  strict validation with the same three warnings. A dry run of the extracted steps showed a failing
+  `go` shim abstains with "tools/ci-shard-costs did not build" and exit 0, and the fallback step
+  names checkout, the outcome check or the report step when each ends unsuccessfully. The tightened
+  stream rule only adds abstentions, which AFP-V0-040 already required for unusable input.
 - Hosted behaviour is `NOT_OBSERVED` until this change's own CI runs: artifact upload and
   `pattern`/`merge-multiple` download, annotation rendering, the summary, and the extra minute of
   job time are untested on GitHub. Re-run attempts and the download step's behaviour when no

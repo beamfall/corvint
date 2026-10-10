@@ -838,8 +838,11 @@ and container qualification; full fallback remains available.
   (invariant 2). The advisory form appends a Markdown table to the job summary and SHALL exit 0
   whatever it finds; it exits 2, with `Abstained: <reason>` in the summary, when the logs are not N
   readable, passing shard streams or the table is invalid. Each stream SHALL be well formed and
-  finished: every non-blank line is a `go test -json` event, at least one package reaches a terminal
-  outcome, and no package start lacks one; an empty, malformed or unfinished stream abstains. A finding is material when the time it
+  finished: every non-blank line is a `go test -json` event with an Action from the closed test2json
+  and build-event set, a Package on every test event and an ImportPath on every build event; no
+  test, package or build fails; every package outcome follows that package's single start; at
+  least one package reaches a terminal outcome, and no package start lacks one. An empty,
+  malformed, structurally invalid or unfinished stream abstains. A finding is material when the time it
   misplaces (|observed - recorded| for drift, the observed time for a missing package; a stale
   entry places no package and misplaces nothing) reaches `--share` percent, default 10, of the
   ideal shard (all observed package time divided by N). A material drift is reported even within
@@ -847,8 +850,9 @@ and container qualification; full fallback remains available.
   findings keep the AFP-V0-022 factor and floor. Each material finding gets one `::warning::`
   annotation, and one further warning counts every remaining drift, missing and stale finding, so
   no run exceeds the ten warnings GitHub shows per step. The job and each of its steps are
-  continue-on-error, so a checkout, toolchain, download or report failure abstains and the job never
-  ends red. The 10% default is chosen from run
+  continue-on-error, so a checkout, toolchain, download, build or report failure abstains and the
+  job never ends red. Every abstention SHALL put `Abstained: <reason>` in the job summary; a final
+  always-run step writes it when no earlier step did. The 10% default is chosen from run
   38055182050 (ideal shard 1,281s): hosted per-package noise reached about 60s (5%), while
   `internal/tasks/store` misplaced 1,001s (78%) and the missing `internal/appmap` 132s (10.3%).
   Non-goals: the job is not a required check, never posts or changes the `ci-control-plane` or any
@@ -904,8 +908,9 @@ full `./...` command instead of a narrowed one, so the
 worst case of `make gate-affected` is the cost of `make go-test`, never a skipped package.
 The advisory cost-drift report (AFP-V0-040) abstains, with its reason in the job summary, on a
 shard that did not succeed, fewer or more outcome artifacts than shards, an unreadable, failed,
-empty, malformed or unfinished package stream, or an invalid cost table; it never fails CI on a
-finding, and a failure of any of its own steps abstains rather than failing the job.
+empty, malformed, structurally invalid or unfinished package stream, or an invalid cost table; it
+never fails CI on a finding, and a failure of any of its own steps, including the tool's build,
+abstains with its reason in the job summary rather than failing the job.
 
 ## Acceptance evidence and traceability
 
@@ -947,7 +952,7 @@ finding, and a failure of any of its own steps abstains rather than failing the 
 | AFP-V0-037 | `Unit.Execs`, `Graph.execUsers`, `Graph.builtCommands`, `Graph.execUsersOf`, `WitnessBinaryExec`, `BinaryExecsPath` in `internal/liveverify/affected` (`unit.go`, `graph.go`, `execs.go`, `select.go`); `applyBinaryExecs`, `literalExecs`, `commandDirectory`, `readBinaryExecs`, `matchBinaryExecs`, `FrontierBinaryExecsInvalid` in `internal/liveverify/affected/golang/binaryexecs.go`; `moduleLevelFrontiers` in `tools/gate-affected-select/main.go`; `.corvint/test-binary-execs.json` | `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` (anchored, plain, climbing and module-path literals and a declared runner become `execs`; a change to the command or a package it imports selects every consumer as `BINARY_EXEC` through the command; a literal naming a file under the command directory is no edge; an unrelated change selects no consumer; byte-identical plans), `TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037` (nine invalid declarations raise only the frontier, drop declared edges and keep literal ones; a missing one raises nothing) |
 | AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
 | AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
-| AFP-V0-040 | `check --advisory` (`report`, `observeStream`, `scan`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the best-effort capture in the tests step and the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
+| AFP-V0-040 | `check --advisory` (`report`, `observeStream`, `scan`, `checkEvent`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the best-effort capture in the tests step and the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAcceptsAFullEventStream`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

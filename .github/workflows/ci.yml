@@ -527,6 +527,7 @@ jobs:
             exit 0
           fi
           printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s; a partial run cannot measure the table.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
+          echo 'summarized=1' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         id: checkout
         if: steps.complete.outputs.ok == '1'
@@ -544,15 +545,44 @@ jobs:
           cache: false
           go-version: "1.27.1"
       - name: Report cost drift (advisory; findings never fail)
+        id: report
         if: steps.complete.outputs.ok == '1' && steps.setup-go.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 5
         run: |
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shard-costs" ./tools/ci-shard-costs
+          if ! go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shard-costs" ./tools/ci-shard-costs; then
+            printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: tools/ci-shard-costs did not build. No finding is reported for this run.\n' >> "$GITHUB_STEP_SUMMARY"
+            echo 'summarized=1' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           code=0
           "$RUNNER_TEMP/ci-shard-costs" check --advisory --shards "$SHARDS" --summary "$GITHUB_STEP_SUMMARY" \
             "$RUNNER_TEMP"/shard-costs/shard-*.json || code=$?
           echo "ci-shard-costs check --advisory exited $code (2 means it abstained; see the job summary)"
+          # 0 reports and 2 abstains, each into the summary; any other exit leaves it to the fallback.
+          if [ "$code" = 0 ] || [ "$code" = 2 ]; then
+            echo 'summarized=1' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Record why no drift report was written
+        if: always() && steps.complete.outputs.summarized != '1' && steps.report.outputs.summarized != '1'
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          COMPLETE: ${{ steps.complete.outcome }}
+          CHECKOUT: ${{ steps.checkout.outcome }}
+          SETUP_GO: ${{ steps.setup-go.outcome }}
+          REPORT: ${{ steps.report.outcome }}
+        run: |
+          if [ "$COMPLETE" != success ]; then
+            reason="the shard outcome check ended $COMPLETE"
+          elif [ "$CHECKOUT" != success ]; then
+            reason="checkout ended $CHECKOUT"
+          elif [ "$SETUP_GO" != success ]; then
+            reason="setup-go ended $SETUP_GO"
+          else
+            reason="the report step ended $REPORT without a report"
+          fi
+          printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s. No finding is reported for this run.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
 
   go-interop:
     runs-on: ubuntu-24.04
