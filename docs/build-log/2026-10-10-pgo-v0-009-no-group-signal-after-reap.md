@@ -75,6 +75,17 @@ Packages and checks:
 - V1-0668 still needs hosted Linux amd64 and arm64 qualification. The cem1 producer harness lives
   outside this repository, so it is not addressed here.
 - Platforms without waitid keep the legacy post-reap signal (`PGO-V0-008`).
+- `TestPSRFirstCleanupProbeFailureRetiresChild` became timing-dependent once the pool group is
+  killed before the reap: if the killed child is already collected, the `CAL-V0-188` ESRCH fast
+  path skips the listing whose failure the test injects. Its helper now answers that signal 0
+  with Darwin's zombie-only EPERM. Signal 0 sends nothing, so the test still proves that an
+  UNKNOWN probe quarantines the member.
+- The full `internal/tasks/store` `-race` run hit the 30-minute package timeout on the loaded
+  host. `TestCALV0089_IntegrateCheckpointRestartKeepsGrant` misses its deadline when run with
+  `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable` both on this branch and at base
+  `64b5d174`, and passes alone. It is a pre-existing load flake. The other changed packages
+  (`internal/tasks/cli`, `procgroup`, `releasegate`, `opencodequalification`, `testsupport`,
+  `tasks/dispatch`, `dashboard/repository`) pass in full with `-race`.
 - Pre-existing flake: `TestRetirerRetiresDetachedDescendants` (Darwin) sometimes fails under host
   load with "owner token unreadable for pid N: invalid argument". This happens when a same-user
   process exits during the ownership scan. It passes on rerun, and its path does not call the
