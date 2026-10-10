@@ -25,7 +25,8 @@ claude plugin uninstall corvint@corvint --scope user
 claude plugin marketplace remove corvint
 ```
 
-Commands (skills, `AHI-051`). Each runs one existing read-only verb and reports its uncertainty:
+Commands (skills, `AHI-051`). Each runs existing verbs and reports their uncertainty. Only
+`/corvint:context`, inside an enrolled change workflow, and `/corvint:index` write state:
 
 | Command | Runs | Started by |
 |---|---|---|

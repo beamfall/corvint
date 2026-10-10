@@ -983,8 +983,9 @@ do not reinterpret this Frontier result.
   verb (`impact`, `affected`, `review`, `dogfood status` with `observations` and `--version`,
   `index --if-stale`), keeps that verb's uncertainty, omissions and refusals in its report, and
   pre-approves only that verb and read-only `git` or `ls` commands through `allowed-tools`.
-  `status` and `index` set `disable-model-invocation`, so only the user starts them; `index`
-  is the only one that writes, and only the derived snapshot under the Git common directory.
+  `status` and `index` set `disable-model-invocation`, so only the user starts them. Of these five,
+  `index` is the only one that writes, and only the derived snapshot under the Git common
+  directory; `context` keeps its existing enrolled-workflow writes.
   `status` never invents a session key (`LCP-V0-011`). Decision 0161 is unchanged: hooks add no
   `systemMessage` for routine receipts, so `/corvint:status` is the on-demand user view, and a
   persistent status line or pane remains V1-1054.

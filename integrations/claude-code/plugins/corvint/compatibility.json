@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.3.0"
+    "version": "0.3.1"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
@@ -19,7 +19,7 @@
   "lastValidation": {
     "date": "2026-10-09",
     "level": "STATIC_ONLY",
-    "adapterVersion": "0.3.0",
+    "adapterVersion": "0.3.1",
     "operatingSystem": "macOS"
   },
   "lastConformance": {
