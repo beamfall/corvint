@@ -442,19 +442,19 @@ func awaitGateWaiters(timeout time.Duration) (release, start bool) {
 // reap, so an exiting adapter that reaches them retires the group and never
 // names a reaped leader's group.
 func TestPGOV0009RunFamilyRecordsGroupUntilPreReapRelease(t *testing.T) {
-	retirer, err := NewRetirer()
-	if err != nil {
-		t.Fatal(err)
-	}
 	runs := map[string]func(*exec.Cmd) error{
 		"Run": Run,
-		"RunRetiring": func(command *exec.Cmd) error {
-			return RunRetiring(command, retirer)
-		},
 		"RunContained": func(command *exec.Cmd) error {
 			_, err := RunContained(command)
 			return err
 		},
+	}
+	// The Retirer is Darwin-only; elsewhere RunRetiring is not reachable
+	// with a non-nil Retirer.
+	if retirer, err := NewRetirer(); err == nil {
+		runs["RunRetiring"] = func(command *exec.Cmd) error { return RunRetiring(command, retirer) }
+	} else if runtime.GOOS == "darwin" {
+		t.Fatal(err)
 	}
 	for name, run := range runs {
 		t.Run(name, func(t *testing.T) {
