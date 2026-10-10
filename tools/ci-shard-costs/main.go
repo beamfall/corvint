@@ -3,7 +3,8 @@
 // shards; they never select tests.
 //
 // Inputs are the hosted `go test -json` streams of one complete CI run, one
-// file per shard job, as raw completed JSON streams (AFP-V0-043):
+// file per shard job, as raw completed JSON streams (AFP-V0-043). Logs printed by
+// `gh run view --log` (prefixed lines) are refused; use the raw shard artifacts:
 //
 //	ci-shard-costs refresh --shards 8 --revision SHA --run-url URL shard0.log ... shard7.log
 //	ci-shard-costs check --shards 8 shard0.log ... shard7.log
