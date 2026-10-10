@@ -202,3 +202,12 @@ func DoctorRepeatRefusalSeqs(events []DoctorTestEvent, tree string) ([][]uint64,
 	}
 	return seqs, first
 }
+
+// SetDoctorCacheHookForTest runs hook at the named steps of a refresh
+// ("open" before the cache directory is opened, "lock" before the
+// destination is rechecked and replaced) and returns the restore function.
+func SetDoctorCacheHookForTest(hook func(stage string)) func() {
+	old := doctorCacheHook
+	doctorCacheHook = hook
+	return func() { doctorCacheHook = old }
+}

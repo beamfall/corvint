@@ -3,13 +3,10 @@ package cli
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,6 +46,7 @@ const (
 	doctorPsProcs          = 4096
 	doctorCacheDirName     = "taskman-doctor"
 	doctorCacheFileName    = "summary.json"
+	doctorCacheLockName    = ".lock"
 	doctorLineUnavailable  = "doctor cache unavailable; run corvint-tasks doctor --refresh\n"
 )
 
@@ -139,7 +137,10 @@ func doctorCommand(env Env, args []string) *wire.Result {
 	}
 	scan := &doctorScan{}
 	var findings []doctorFinding
-	rc, err := withStore(env, func(rc *readCtx) error {
+	// The inventory read admits an absent journal so that a store with valid
+	// tracked intent and no local journal refuses MISSING_EVIDENCE rather
+	// than UNINITIALIZED (TQD-V0-001); a present journal is a TM-V0-008 read.
+	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		*scan = doctorScan{}
 		var e error
 		findings, e = doctorStoreFindings(rc, scan)
@@ -937,88 +938,20 @@ func doctorItemOf(rc *readCtx, scan *doctorScan, arr []wire.Value, cut bool, tot
 	return wire.ObjectValue(o)
 }
 
-// writeDoctorCache replaces <commonDir>/taskman-doctor/summary.json through a
-// temporary file, fsync and rename (TQD-V0-011). Every step is rooted at the
-// common directory and follows no link: a cache directory or file that is a
-// link, not a directory or regular file, or not owned by the caller is
-// refused UNSUPPORTED_FILESYSTEM before anything is created, changed or
-// written through it.
-func writeDoctorCache(commonDir string, raw []byte) (err error) {
-	root, err := os.OpenRoot(commonDir)
-	if err != nil {
+// doctorCacheHook observes the refresh between its steps; tests only.
+var doctorCacheHook func(stage string)
+
+func doctorCacheRefusal(what string) error {
+	return wire.Errorf(wire.CodeUnsupportedFilesystem, doctorCacheDirName, "doctor cache %s; refusing to refresh through it", what)
+}
+
+// doctorNewerCache refuses the bytes of a cache written by a later build;
+// any other undecodable cache may be replaced (TQD-V0-011).
+func doctorNewerCache(raw []byte) error {
+	if _, err := decodeDoctorCache(raw); wire.CodeOf(err) == wire.CodeUnsupportedVersion {
 		return err
 	}
-	defer root.Close()
-	refuse := func(what string) error {
-		return wire.Errorf(wire.CodeUnsupportedFilesystem, doctorCacheDirName, "doctor cache %s; refusing to refresh through it", what)
-	}
-	st, err := root.Lstat(doctorCacheDirName)
-	if errors.Is(err, fs.ErrNotExist) {
-		if err = root.Mkdir(doctorCacheDirName, 0o700); err != nil {
-			return err
-		}
-		st, err = root.Lstat(doctorCacheDirName)
-	}
-	if err != nil {
-		return err
-	}
-	if !st.IsDir() || st.Mode()&fs.ModeSymlink != 0 {
-		return refuse("directory is a link or not a directory")
-	}
-	if !doctorOwned(st) {
-		return refuse("directory is not owned by this user")
-	}
-	sub, err := root.OpenRoot(doctorCacheDirName)
-	if err != nil {
-		return err
-	}
-	defer sub.Close()
-	if here, err := sub.Stat("."); err != nil || !os.SameFile(here, st) {
-		return refuse("directory changed while it was opened")
-	}
-	if cur, err := sub.Lstat(doctorCacheFileName); err == nil {
-		if !cur.Mode().IsRegular() {
-			return refuse("file is a link or not a regular file")
-		}
-		if !doctorOwned(cur) {
-			return refuse("file is not owned by this user")
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	if st.Mode().Perm() != 0o700 {
-		if err := sub.Chmod(".", 0o700); err != nil {
-			return err
-		}
-	}
-	var nonce [8]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
-		return err
-	}
-	tmp := ".summary-" + hex.EncodeToString(nonce[:]) + ".tmp"
-	f, err := sub.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			_ = f.Close()
-			_ = sub.Remove(tmp)
-		}
-	}()
-	if _, err = f.Write(raw); err != nil {
-		return err
-	}
-	if err = f.Chmod(0o600); err != nil {
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	return sub.Rename(tmp, doctorCacheFileName)
+	return nil
 }
 
 func readDoctorCache(path string) (wire.Value, error) {

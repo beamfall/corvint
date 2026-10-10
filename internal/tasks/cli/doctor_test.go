@@ -1,3 +1,5 @@
+//go:build darwin || linux
+
 package cli_test
 
 import (
@@ -356,7 +358,7 @@ func TestTQDV0012_LineReadsCache(t *testing.T) {
 		t.Fatalf("cache dir: %v", err)
 	}
 	entries, _ := os.ReadDir(filepath.Dir(cache))
-	if len(entries) != 1 {
+	if len(entries) != 2 || entries[0].Name() != ".lock" || entries[1].Name() != "summary.json" {
 		t.Fatalf("leftover temporary files: %v", entries)
 	}
 	raw, err := os.ReadFile(cache)
@@ -557,8 +559,11 @@ func TestTQDV0011_RefreshRefusesSymlinkedCache(t *testing.T) {
 	if raw, _ := os.ReadFile(victim); string(raw) != "keep\n" {
 		t.Fatalf("victim rewritten: %q", raw)
 	}
-	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
-		t.Fatalf("leftover files: %v", entries)
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".tmp") {
+			t.Fatalf("leftover temporary file: %v", entries)
+		}
 	}
 }
 
@@ -630,5 +635,94 @@ func TestTQDV0011_MaximalPluginOutputStaysReadable(t *testing.T) {
 	}
 	if out, code, _ := lineRun(root); code != 0 || out != "lanes 0/0 free | sessions 0 | 24h 0 done | alerts 640\n" {
 		t.Fatalf("line after maximal refresh: %d %q", code, out)
+	}
+}
+
+// TQD-V0-011: a cache directory swapped for a relative link between the
+// refresh's check and its open is refused; nothing is chmodded or written
+// through the link into the state directory.
+func TestTQDV0011_RefreshRefusesSwappedCacheDir(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doctorOK(t, root, "--refresh")
+	dir := doctorCacheDir(t, root)
+	if err := os.Chmod(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	cache := fixture.TreeSnapshot(t, dir)
+	state := fixture.TreeSnapshot(t, repo.StateDir)
+	moved := filepath.Join(repo.StateDir, "moved-cache")
+	defer cli.SetDoctorCacheHookForTest(func(stage string) {
+		if stage != "open" {
+			return
+		}
+		if err := os.Rename(dir, moved); err != nil {
+			t.Error(err)
+		}
+		if err := os.Symlink(filepath.Join("taskman", "moved-cache"), dir); err != nil {
+			t.Error(err)
+		}
+	})()
+	if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedFilesystem) {
+		t.Fatalf("swapped cache directory not refused: %s", x.stdout)
+	}
+	if st, err := os.Stat(moved); err != nil || st.Mode().Perm() != 0o750 {
+		t.Fatalf("moved cache directory chmodded: %v %v", st, err)
+	}
+	if !fixture.SameTree(cache, fixture.TreeSnapshot(t, moved)) {
+		t.Fatal("refresh wrote into the state directory through the swapped link")
+	}
+	if err := os.RemoveAll(moved); err != nil {
+		t.Fatal(err)
+	}
+	// The state directory's own entry is dropped: the test's rename and
+	// removal, not the refresh, change its modification time.
+	if !fixture.SameTree(state[1:], fixture.TreeSnapshot(t, repo.StateDir)[1:]) {
+		t.Fatal("refresh changed the state directory")
+	}
+}
+
+// TQD-V0-011: the version check is repeated under the cache lock, so a
+// newer cache installed after the command's first check is still refused
+// and left byte-identical.
+func TestTQDV0011_RefreshRechecksVersionUnderLock(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	doctorOK(t, root, "--refresh")
+	cache := filepath.Join(doctorCacheDir(t, root), "summary.json")
+	newer := []byte(`{"profile":"taskman-doctor-cache/1"}` + "\n")
+	defer cli.SetDoctorCacheHookForTest(func(stage string) {
+		if stage == "lock" {
+			if err := os.WriteFile(cache+".new", newer, 0o600); err != nil {
+				t.Error(err)
+			}
+			if err := os.Rename(cache+".new", cache); err != nil {
+				t.Error(err)
+			}
+		}
+	})()
+	if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedVersion) {
+		t.Fatalf("newer cache installed concurrently was replaced: %s", x.stdout)
+	}
+	if raw, _ := os.ReadFile(cache); !bytes.Equal(raw, newer) {
+		t.Fatalf("newer cache changed: %s", raw)
+	}
+}
+
+// TQD-V0-001: valid tracked intent without a local journal refuses
+// MISSING_EVIDENCE, with or without --refresh, and writes nothing.
+func TestTQDV0001_JournalAbsentIsMissingEvidence(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteIntent(t, r, fixture.Ticket("A"))
+	before := fixture.TreeSnapshot(t, r.Root)
+	for _, args := range [][]string{{"doctor"}, {"doctor", "--refresh"}} {
+		if x := atm(t, r.Root, nil, args...); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeMissingEvidence) {
+			t.Fatalf("%v: %s", args, x.stdout)
+		}
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.Root)) {
+		t.Fatal("journal-absent doctor wrote")
 	}
 }

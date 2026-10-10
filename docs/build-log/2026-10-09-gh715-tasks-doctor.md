@@ -86,3 +86,46 @@ Limits:
 - Plugins are not sandboxed.
 - The cache can be stale. `--line` shows its age once it is 15 minutes old.
 - Live qualification against a large real store is NOT_RUN.
+
+## Review fixes, round 2
+
+Codex's second review found three more defects. All three are fixed.
+
+1. The refresh could still be redirected through a directory swap. `os.Root.OpenRoot` follows
+   relative links, and a same-file check proves identity, not location. On darwin and linux the
+   writer now pins the common directory, creates `taskman-doctor` beneath it if absent, and opens it
+   once with `O_NOFOLLOW|O_DIRECTORY`. Type and owner are checked on that descriptor. The fchmod,
+   lock, destination re-read, `O_EXCL|O_NOFOLLOW` temporary create, fsync and rename all run
+   relative to the open directory, and the cache path is never resolved by name again.
+   `safeopen.RootOf` bridges the pinned descriptor to an `os.Root` for the fd-relative rename and
+   remove, because Darwin's `syscall` package has no `Renameat`.
+2. Two concurrent refreshes could overwrite a newer cache. The refresh now takes an exclusive
+   `flock` on `taskman-doctor/.lock`. It opens the lock without following links and requires a
+   regular file it owns. Under the lock it re-reads `summary.json` and repeats the version check
+   before it writes and renames.
+3. On a store with valid tracked intent and no local journal, plain `doctor` returned
+   UNINITIALIZED. It now reads through the inventory store reader, so that store refuses
+   MISSING_EVIDENCE as TQD-V0-001 states, both with and without `--refresh`, and writes nothing.
+
+Each fix has a test that failed before it:
+
+- `TestTQDV0011_RefreshRefusesSwappedCacheDir`: a hook between the check and the open swaps the
+  cache directory for a relative link into `.git/taskman`. Before the fix the refresh returned OK.
+  Now it refuses UNSUPPORTED_FILESYSTEM and leaves `.git/taskman` unchanged, with nothing written
+  and no mode changed.
+- `TestTQDV0011_RefreshRechecksVersionUnderLock`: a hook installs a `taskman-doctor-cache/1`
+  file after the first check. Before the fix the refresh replaced it. Now it refuses
+  UNSUPPORTED_VERSION and the file stays byte-identical.
+- `TestTQDV0001_JournalAbsentIsMissingEvidence`: before the fix the store refused UNINITIALIZED.
+
+TQD-V0-001 and TQD-V0-011, the failure modes and traceability are amended. The requirements stay
+proposed.
+
+Limits:
+
+- The descriptor anchoring and the lock exist on darwin and linux only. Elsewhere the old
+  `os.Root` writer remains, which can follow a swapped-in link inside the common directory and
+  does not serialize refreshes.
+- The lock is advisory. A writer that does not take it can still replace `summary.json` after the
+  re-read.
+- `.lock` is a new persistent file in the cache directory. Rollback deletes it with the directory.

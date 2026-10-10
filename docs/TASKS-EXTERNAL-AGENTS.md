@@ -685,7 +685,10 @@ the envelope is marked untrusted. A failing plugin becomes a PLUGIN_FAILED findi
 Only `--refresh` writes, and only `<git common dir>/taskman-doctor/summary.json`, at most
 1 MiB (trailing findings are cut and `scan.findingsTruncated` is set). It refuses
 UNSUPPORTED_FILESYSTEM when that directory or file is a link or not the caller's own, and
-UNSUPPORTED_VERSION, leaving the file unchanged, when a later build wrote it.
+UNSUPPORTED_VERSION, leaving the file unchanged, when a later build wrote it. On darwin and
+linux it works through one open descriptor on the cache directory and holds an exclusive lock on
+`taskman-doctor/.lock` while it re-checks and replaces the file. On a store whose tracked intent is
+valid but whose local journal is absent, `doctor` refuses MISSING_EVIDENCE.
 `corvint-tasks doctor --line` prints one plain-text status line from that cache, such as
 `lanes 1/2 free | sessions 3 | 24h 5 done | alerts 1`, with `| stale Nm` once the cache is
 15 minutes old; it takes no lock, reads no store or queue manifest and exits 1 when the cache is unavailable.
