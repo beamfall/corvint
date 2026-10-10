@@ -1,0 +1,99 @@
+{
+  "baseRevision": "60c419d7806218bde77cb1b5dd411b51fb586892",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5fa0d1aec133d3549c2e28c878c7a7f83524439a3c2de21f1eed45f1ec103848",
+      "newRange": {
+        "count": 12,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 6
+      },
+      "path": "docs/build-log/2026-10-10-hlq-load-failures.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9424771be924002baad4312f9ceb78c181db155fb222b42845a95e15b8bb598c",
+      "newRange": {
+        "count": 40,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0498-hlq-v1-010-failed-report-retention-accepted-2026-10-10.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:0f9f4b57b68a3ca567dac929f18d542cf51c8c4409eb832c8ecb06a809215767",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:2bad1aea0bf9cdb867ca85fca4c7ff7b8a2952f80d3e8c569a9d3d8578c1cdbf",
+      "newRange": {
+        "count": 7,
+        "start": 1699
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1699
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:69604531a8f0fdd00180e3ad13b41f976f06cc181f62e8db5a0e810273167632",
+      "newRange": {
+        "count": 7,
+        "start": 113
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 113
+      },
+      "path": "docs/specs/host-lifecycle-qualification-v1.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:7ddd931149a1c33853d342992974cbd5fc9e3342c0a6df74750a7a94feb24dfa",
+      "newRange": {
+        "count": 7,
+        "start": 135
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 135
+      },
+      "path": "docs/specs/host-lifecycle-qualification-v1.md",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "3c6730914f8681613b8307ba9760c4f066b6b497c86372eda8929fd6c4bde83f",
+  "spec": "cem/0.2"
+}
