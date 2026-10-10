@@ -506,6 +506,13 @@ func classifyPath(value, label string, tracked map[string]struct{}, containsSecr
 	return currentPathAdmitted, nil
 }
 
+// ValidateVerificationCommands applies the recorder's normalization, secret screening,
+// syntax and count/length limits without recording an outcome or changing state.
+func ValidateVerificationCommands(values []string) error {
+	_, err := normalizeCommands(values)
+	return err
+}
+
 func normalizeCommands(values []string) ([]string, error) {
 	return normalizeCommandsWithMatcher(values, secretscreen.MatchString)
 }
@@ -570,8 +577,8 @@ func safeCommand(value string) error {
 			character >= '0' && character <= '9' || strings.ContainsRune(admittedCommandPunctuation, rune(character)) {
 			continue
 		}
-		return fmt.Errorf("verification command contains unsupported shell syntax: byte %d %q is outside the admitted set of ASCII letters, digits, and %q",
-			offset, character, admittedCommandPunctuation)
+		return fmt.Errorf("verification command contains unsupported shell syntax: byte %d %q is outside the admitted set of ASCII letters, digits, and %q; command %q",
+			offset, character, admittedCommandPunctuation, value)
 	}
 	return nil
 }
