@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 const workCorvintPackage = "github.com/Beamfall/corvint/cmd/corvint"
@@ -273,10 +275,12 @@ func workCorvintSource(file *os.File) (workCorvintSourceIdentity, error) {
 	return result, nil
 }
 
-// workContainVersion owns the version probe's process group and bounds its pipe drain.
+// workContainVersion owns the version probe's process group and bounds its
+// pipe drain. Cancellation signals the leader only; groupreap.Run kills the
+// group while the exited leader is unreaped, so no group signal follows the
+// reap and the group is recorded for the exit kill (PGO-V0-009).
 func workContainVersion(command *exec.Cmd) {
-	workContain(command)
-	command.Cancel = func() error { workKillGroup(command); return nil }
+	groupreap.Contain(command)
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	command.WaitDelay = time.Minute
 }
@@ -291,7 +295,7 @@ func workBoundExecutableVersion(parent context.Context, object *workExecutable, 
 	command.Env = append([]string(nil), environment...)
 	command.Stdout, command.Stderr = stdout, stderr
 	workContainVersion(command)
-	if err := command.Run(); err != nil {
+	if err := groupreap.Run(command); err != nil {
 		return "", fmt.Errorf("Corvint version identity failed: %w", err)
 	}
 	if stdout.exceeded || stderr.exceeded || stderr.count != 0 {
