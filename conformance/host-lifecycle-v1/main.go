@@ -158,7 +158,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if *failedReports != "" {
-		if err := os.MkdirAll(*failedReports, 0o700); err != nil {
+		if err := usableReportDirectory(*failedReports); err != nil {
 			fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
 			return 2
 		}
@@ -192,21 +192,47 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	text := r.render()
 	fmt.Fprint(stdout, text)
-	if *report != "" {
-		if err := os.WriteFile(*report, []byte(text), 0o644); err != nil {
+	return writeReports(stderr, *host, text, *report, *failedReports, r.results, time.Now())
+}
+
+// writeReports writes the report to --report and, independently, retains it under
+// --failed-reports, so a failed --report write never loses the retained copy (HLQ-V1-010). Either
+// failure is a setup error (exit 2); otherwise the exit follows the cases.
+func writeReports(stderr io.Writer, host, text, report, failedReports string, results []result, now time.Time) int {
+	exit := summaryExit(results)
+	if failedReports != "" && retainReport(results) {
+		if path, err := keepReport(failedReports, host, text, now); err != nil {
 			fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
-			return 2
+			exit = 2
+		} else {
+			fmt.Fprintln(stderr, "host-lifecycle-v1: report retained at", path)
 		}
 	}
-	if *failedReports != "" && retainReport(r.results) {
-		path, err := keepReport(*failedReports, *host, text, time.Now())
-		if err != nil {
+	if report != "" {
+		if err := os.WriteFile(report, []byte(text), 0o644); err != nil {
 			fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
-			return 2
+			exit = 2
 		}
-		fmt.Fprintln(stderr, "host-lifecycle-v1: report retained at", path)
 	}
-	return summaryExit(r.results)
+	return exit
+}
+
+// usableReportDirectory creates the --failed-reports directory and proves a file can be created
+// in it, so an unusable directory is a setup error before any case runs (HLQ-V1-010).
+func usableReportDirectory(directory string) error {
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return err
+	}
+	probe, err := os.CreateTemp(directory, ".hlq-probe-*")
+	if err != nil {
+		return fmt.Errorf("--failed-reports %s is not writable: %w", directory, err)
+	}
+	name := probe.Name()
+	err = probe.Close()
+	if removeErr := os.Remove(name); err == nil {
+		err = removeErr
+	}
+	return err
 }
 
 // retainedReportLimit bounds one retained report; every received text in it is already quoted
@@ -228,12 +254,19 @@ func retainReport(results []result) bool {
 	return false
 }
 
+func truncationMarker(omitted int) string {
+	return fmt.Sprintf("\nTRUNCATED\tomittedBytes=%d\n", omitted)
+}
+
 // keepReport writes text, bounded to retainedReportLimit with an explicit omitted-byte count,
 // to a new file in directory named for the host, the UTC time and the process, and never
 // replaces an existing file (HLQ-V1-010).
 func keepReport(directory, host, text string, now time.Time) (string, error) {
 	if len(text) > retainedReportLimit {
-		text = fmt.Sprintf("%s\nTRUNCATED\tomittedBytes=%d\n", text[:retainedReportLimit], len(text)-retainedReportLimit)
+		// The marker for omitting every byte is at least as long as the real one, so the kept
+		// prefix plus the marker never exceeds the limit.
+		keep := retainedReportLimit - len(truncationMarker(len(text)))
+		text = text[:keep] + truncationMarker(len(text)-keep)
 	}
 	base := fmt.Sprintf("hlq-%s-%s-%d", host, now.UTC().Format("20060102T150405.000000000Z"), os.Getpid())
 	for attempt := 0; attempt < 100; attempt++ {

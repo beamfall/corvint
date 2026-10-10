@@ -13,11 +13,15 @@ every requirement text below is proposed.
 
 The runner gains `--failed-reports DIR`, specified by the proposed `HLQ-V1-010`. A run with any
 non-`PASS` case, or any time-bound hook retry, writes a new copy of its report into `DIR`. The file
-is named for the host, the UTC time and the pid. It is opened with `O_EXCL`, mode 0600, and capped
-at 64 KiB with an explicit omitted-byte count. The report text is already the bounded, quoted
-`HLQ-V1-007` text, and it holds nothing from outside the private workspace. `TestFailedReportRetention`
-pins the selection, the no-replace naming, the content, the mode and the truncation; it passes
-under `-race`. A mutation that drops the retry criterion fails it. The lane G loops below used it.
+is named for the host, the UTC time and the pid. It is opened with `O_EXCL` and mode 0600. It is
+at most 64 KiB, including the explicit omitted-byte marker. The report text is already the bounded,
+quoted `HLQ-V1-007` text, and it holds nothing from outside the private workspace.
+
+A probe file proves `DIR` writable before any case runs. Retention is attempted even when the
+`--report` write fails. `TestFailedReportRetention` pins all of this: the selection, the no-replace
+naming, the content, the mode, the truncation bound, retention after a failed `--report` write, and
+the setup error for a file or read-only `DIR`. It passes under `-race`. A mutation that drops the
+retry criterion fails it. The lane G loops below used the retention.
 
 ## Load runs
 
@@ -40,8 +44,10 @@ time. On residue, it also logs the writer pid, the file, how long the file persi
 
 ## V1-1120: frontier fail-open is the specified deadline, a known limit
 
-Every failing frontier case is the V1-0844 shape on all three `HLQ-V1-009` attempts. Each attempt
-ended at 1.53–1.69 s with `systemMessage` `corvint-event-rejected:dogfood-event-deadline`. That is
+All 16 arm C frontier FAIL lines are the V1-0844 shape: "failed open with time-bound degradation
+corvint-event-rejected:dogfood-event-deadline on all 3 attempts". `frontier-attempts.tsv` extracts
+every retried Stop attempt from the 20 reports that `--failed-reports` retained. All 58 attempts
+are `dogfood-event-deadline`, at 1.53–2.07 s as the runner measures from spawn. That is
 the visible fail-open that `LCP-V0-008` specifies when the 1.6 s event deadline expires. The
 deadline is already bounded by the adapter work bound: the 2 s declared host kill, less the
 400 ms reserve and the 100 ms grace (`AHI-017`). So it cannot be widened without changing the
@@ -68,12 +74,15 @@ would shift the envelope, but it is out of scope here and proposed as a separate
 
 ## V1-1119: uninstall residue is Claude Code's own `pluginUsage` bookkeeping
 
-All three uninstall failures flagged Claude Code's config `.claude/.claude.json`, or its
-atomic-write temp file `.claude.json.tmp.<pid>.<hex>`, whose content is the host's usage record
-`"pluginUsage": {"corvint@corvint": {"usageCount": 0, "lastUsedAt": …}}`. Corvint writes neither
-file. The Claude Code 2.1.293 bundle builds and deletes `pluginUsage` entries itself, through a
-deferred config save that also runs at exit (`flushAtExit`). In a passing run, `.claude.json` keeps
-the mtime it got at install time, so that record is never committed.
+All three uninstall failures flagged content in Claude Code's config `.claude/.claude.json` (run
+c1-5) or in its atomic-write temp file `.claude.json.tmp.<pid>.<hex>` (runs c2-6 and a1-1). For c1-5
+and c2-6, the flagged content is the host's usage record
+`"pluginUsage": {"corvint@corvint": {"usageCount": 0, "lastUsedAt": …}}`. Run a1-1 ran without the
+diagnostic patch, so only its file name is retained. Corvint writes neither file.
+
+Read from the Claude Code 2.1.293 bundle, not observed at run time: the host builds and deletes
+`pluginUsage` entries itself, through a deferred config save that is also registered to run at exit
+(`flushAtExit`). In run c2-6, `.claude.json` kept the mtime it got at install time.
 
 In run c2-6, the temp file's writer pid 76364 is the `claude plugin enable` command. That process
 had exited, and the file still existed 3 s later. In run c1-5, the record was committed to
@@ -81,8 +90,11 @@ had exited, and the file still existed 3 s later. In run c1-5, the record was co
 `uninstall` never rewrote the file. That this lock blocked the uninstall's cleanup is an inference,
 not an observation. Run a1-1 had the same temp-file shape, without the diagnostic patch.
 
-Cause: under load, Claude Code's at-exit save of its own plugin-usage record races process exit.
-This is a host race, bounded by the harness and host. It is not a Corvint product defect.
+Observed: the residue is host-owned plugin-usage state, left by the `claude plugin enable` step,
+and Corvint writes none of it. Inferred, not observed: under load, the host's deferred or at-exit
+save of that record races its own process exit, or a stale lock blocks the uninstall's cleanup.
+Either way the defect is in host behaviour that the harness observes. It is not a Corvint product
+defect.
 
 The `HLQ-V1-002` predicate correctly reports it, because the host really does leave text naming the
 plugin in the user's `HOME`. No runner change is made. The predicate is not weakened without an
@@ -93,8 +105,9 @@ owner decision. A classification amendment is proposed in the lane report only.
 The files are in `evidence/v1-1119-1120/`:
 
 - `runs.tsv`: one row per run, with load and failed cases.
+- `frontier-attempts.tsv`: each time-bound Stop retry in the retained arm C reports.
 - `uninstall-diag.txt`: diagnostics for the three uninstall failures. Host user ids are redacted.
 - `arm.sh` and `loop.sh`: the load and loop scripts.
 - `diag.patch`: the scratch runner patch.
 
-The kept reports and stderr were scratch and were removed.
+The full kept reports and stderr were scratch and were removed after these extracts.
