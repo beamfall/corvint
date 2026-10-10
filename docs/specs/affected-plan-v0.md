@@ -869,6 +869,26 @@ and container qualification; full fallback remains available.
   runs. Rollback: delete the `ci-shard-cost-drift` job and the retention step, restore the plain
   `go test` invocation in `go-product-shard`, and remove `--advisory` from `tools/ci-shard-costs`.
 
+- **AFP-V0-042:** (proposed (V1-1117); no GitHub issue; owner consent for the `.github` change
+  under decision 0390) The `go-static` job of `.github/workflows/ci.yml` SHALL run
+  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./...` on the root module and on
+  `interop/cem01-go`, so a `_test.go` file that does not type-check for Windows fails the required
+  `go-product` check before merge; `go build` never compiles test files and the native `go vet`
+  never sees a file excluded by its build constraint. The step SHALL be skipped only on a pull
+  request whose checked-out merge commit has the event base as its first parent and changes no
+  `.go`, `go.mod` or `go.sum` path against it; a push, merge-group entry, missing base parent or
+  failed diff runs the vet (invariant 2). The checkout keeps `fetch-depth: 2` for that diff.
+  Non-goals: `GOOS=linux GOARCH=arm64` stays with the Makefile `cross-vet` and nightly release
+  gates; no new job, no change to shard membership, docs-plan modes or the `ci-control-plane`.
+  Failure modes: a Windows-only vet failure fails `go-static` and therefore `go-product`; a
+  non-Go input that only Windows vet would reject (such as an embedded file) on a skipped pull
+  request is caught by the merge-group and main runs. Falsifier: a pull request adding a
+  `//go:build windows` test that references an undefined name passes `go-static`. Acceptance
+  evidence: `actionlint`, `make ci-least-privilege-check`, and the local fixture run of the step's
+  script (build log 2026-10-10-windows-test-vet): a docs-only merge skips, a merge adding such a
+  test exits 1 while the native vet and Windows build pass; hosted behaviour is NOT_OBSERVED until
+  the change's own CI runs. Rollback: delete the step and the `fetch-depth: 2` line.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -953,6 +973,7 @@ abstains with its reason in the job summary rather than failing the job.
 | AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
 | AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
 | AFP-V0-040 | `check --advisory` (`report`, `observeStream`, `scan`, `checkEvent`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the best-effort capture in the tests step and the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAcceptsAFullEventStream`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
+| AFP-V0-042 | the `Windows vet including test files (AFP-V0-042)` step and `fetch-depth: 2` of `go-static` in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; local fixture run (build log 2026-10-10-windows-test-vet); hosted run `NOT_OBSERVED` until this change's CI runs |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
