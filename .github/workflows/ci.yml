@@ -235,20 +235,57 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        id: go
         with:
           cache: false
           go-version: "1.27.1"
+      - name: Restore the trusted Go build cache (main pushes and merge-queue entries only)
+        # V1-1098: compiled packages only, in Go's default GOCACHE outside the tested checkout,
+        # so no read scope changes. Provenance: only a main push saves (below). A pull_request run
+        # never restores, because GitHub searches the pull request's own merge-ref scope first,
+        # and a pull request's workflow edits can write entries there. A main push sees only the
+        # main scope; a merge-queue entry sees main plus its own single-use
+        # gh-readonly-queue/main/pr-N-<sha> ref, which only that entry's tree writes to. The step
+        # is off wherever the race invocation is off (DOCS, REUSE). The pinned narrowed driver,
+        # which runs only for pull requests, keeps its own cold cache (AFP-V0-014/015).
+        # -count=1 stays, so no test result is reused.
+        id: gocache
+        if: (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'))
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
       - name: Provision the host tools the product's fixed PATH resolves
         # Child processes run under worksource.PlatformPath, which reaches Go through
         # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
         # and the Git fixtures commit under the global identity. Automatic maintenance is off so
         # no detached `git maintenance` outlives a fixture commit and races its TempDir cleanup.
+        # V1-1095: rg is the official ripgrep release binary, pinned by the SHA-256 that the
+        # release publishes (docs/build-log/2026-10-10-ci-critical-path.md), not an apt install;
+        # a checksum mismatch fails the step before anything is extracted.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
           test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)
+          test "$rg_found" = /usr/local/bin/rg
+          case "$("$rg_found" --version | head -n 1)" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *) echo "::error::$rg_found is not ripgrep $RG_VERSION"; exit 1 ;;
+          esac
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false
@@ -283,8 +320,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Build protected partition helper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # .github is owner-protected by the control plane. Only these explicit files enter
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
@@ -296,15 +331,8 @@ jobs:
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-          fi
       - name: Build protected test read-scope wrapper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # AFP-V0-023: the `go test -exec` wrapper that confines each package declared in
           # .corvint/test-read-scopes.json with Landlock. Built like ci-shards, so tested
@@ -320,11 +348,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
           if [ -n "$declared" ]; then
             "$RUNNER_TEMP/test-confine" -probe
-          fi
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
           fi
       - name: Fetch advisory affected-first order plan
         if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS'
@@ -417,15 +440,83 @@ jobs:
             head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
+      - name: Expire cached test results before saving the build cache
+        # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
+        # push compiles nothing, and saving it would make the newest entry an empty one.
+        id: testcache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.gocache.outcome == 'success' && steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        working-directory: source
+        run: |
+          test "$(go env GOCACHE)" = "$HOME/.cache/go-build"
+          go clean -testcache
+      - name: Save the trusted Go build cache (main pushes only)
+        if: steps.testcache.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.gocache.outputs.cache-primary-key }}
+
+  go-static:
+    # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
+    # ran serially after its race tests. They need no docs-plan output, so they start at once,
+    # beside the shards, on every path that starts the shards (FULL, DOCS and REUSE alike).
+    # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
+    # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
       - name: Full static, formatting and build checks
-        if: strategy.job-index == 0
         working-directory: source
         run: |
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: Protected helper self-tests independently of PR module directives
+        working-directory: source
+        run: |
+          # The same isolated modules go-product-shard builds its helpers from, so tested
+          # go.mod/replace directives cannot redirect what these tests exercise.
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
+          t="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$t/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$t/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$t/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.1\n' > "$t/go.mod"
+          for m in "$d" "$t"; do
+            (
+              cd "$m"
+              go test -race -count=1 -timeout 30m ./...
+              go vet ./...
+              CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+            )
+          done
       - name: Independent interop under production toolchain
-        if: strategy.job-index == 0
         working-directory: source/interop/cem01-go
         run: |
           go test -count=1 -timeout 30m ./...
@@ -434,19 +525,21 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success.
     if: always()
-    needs: [go-product-shard, docs-plan]
+    needs: [go-product-shard, go-static, docs-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every go-product shard succeeded
+      - name: Every go-product shard and the static job succeeded
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+          STATIC_RESULT: ${{ needs.go-static.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
         run: |
           if [ "$SHARDS_RESULT" = skipped ]; then
             echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
           fi
           test "$SHARDS_RESULT" = success
+          test "$STATIC_RESULT" = success
           test "$DOCS_RESULT" = success
 
   go-interop:
