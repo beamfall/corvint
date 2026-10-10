@@ -545,7 +545,7 @@ and container qualification; full fallback remains available.
   units between shards and never change membership.
   (5) `tools/ci-test-slices generate` SHALL write the slice file from one complete, passing hosted
   run. `generate` and `replay` SHALL take exactly one log per shard of the declared `--shards N`
-  (default 8, the go-product-shard matrix; proposed by V1-1094 from 6), each with at least one
+  (default 8, the go-product-shard matrix; amended from 6 by decision 0500, V1-1094), each with at least one
   terminal package outcome, and SHALL refuse any other count ("K of N shard logs present") or an
   empty log before any work, so a partial run never sets the split target or the predicted sums.
   In each shard log, every package that appears SHALL run one lifecycle: its start record first,
