@@ -1,7 +1,7 @@
 # GitHub #709 Playwright affected: device spreads, discovery producer, MALFORMED reason
 
-Decision: three proposed requirements in
-`docs/specs/typescript-javascript-affected-adapter-v0.md`, all pending owner acceptance.
+Decision: three requirements in `docs/specs/typescript-javascript-affected-adapter-v0.md`,
+proposed by this lane and accepted by the owner on 2026-10-10 (decision 0483).
 
 - `TJAA-V0-018` (V1-1065): the static `playwright-affected/0` profile already resolved
   `use: { ...devices['<known name>'] }`, but any runtime-computed `use` value (a global

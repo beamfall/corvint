@@ -107,7 +107,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   spreads MAY name a literal `devices[...]` descriptor. The opt-in profile MUST apply literal
   global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
   the inherited input in the project fragment identity. Other `use` values MUST be static literals,
-  except as `TJAA-V0-018` (proposed) admits for options outside the browser/device identity set.
+  except as `TJAA-V0-018` (accepted, decision 0483) admits for options outside the browser/device
+  identity set.
   It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
   exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
   equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
@@ -157,7 +158,7 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   independently enumerated discovery inputs, prove helper-only exclusions and exact universe
   reconciliation, and exercise absent/stale/malformed/missing/extra receipt pairs and one-command
   fallback. Real `--list` evidence and synthetic membership oracles MUST keep their distinct labels.
-- `TJAA-V0-018`: (proposed, pending owner acceptance; V1-1065; GitHub #709) In a global or project
+- `TJAA-V0-018`: (accepted, decision 0483; V1-1065; GitHub #709) In a global or project
   `use` layer, the browser/device identity options MUST have static literal values: `browserName`,
   `defaultBrowserType`, `channel`, `headless`, `connectOptions`, `viewport`, `screen`, `userAgent`,
   `isMobile`, `hasTouch`, `deviceScaleFactor`, `locale`, `timezoneId`, `colorScheme`, `permissions`,
@@ -221,7 +222,7 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   computed key (`[expr]`) of the `use` layer itself, any other spread, a computed device
   name and a device name outside the recognized table; each widens with
   `playwright:browser-identity-unresolved`.
-- `TJAA-V0-019`: (proposed, pending owner acceptance; V1-1066; GitHub #709) The command
+- `TJAA-V0-019`: (accepted, decision 0483; V1-1066; GitHub #709) The command
   `corvint [--root PATH] affected discovery --playwright-config PATH --playwright-list FILE` MUST
   convert the JSON report of a caller-run `playwright test --list --reporter=json` (at most 64 MiB,
   read as a regular file) into the canonical `playwright-discovery/0` receipt on stdout with one
@@ -282,7 +283,7 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   unchanged. It is read-only and runs no Playwright or config. The listing remains caller-declared:
   the producer cannot prove the report was taken from the bytes it binds, nor that environment-driven
   config branches matched.
-- `TJAA-V0-020`: (proposed, pending owner acceptance; V1-1067; GitHub #709) When `discovery.state`
+- `TJAA-V0-020`: (accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
   is `MALFORMED`, the summary MUST carry `reason`, one of `DECODE_FAILED` (over the 4 MiB bound,
   invalid JSON, or a duplicate, unknown or mistyped member), `NON_CANONICAL_BYTES` (with the first
   differing byte offset) or `INVALID_FIELD` (naming the first failing field, such as `profile`,
@@ -311,7 +312,8 @@ The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha
 `test`, sorted by project then path). It describes the complete unfiltered configured listing,
 including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
 not authenticated execution attestation. Corvint never executes Playwright or config to produce it;
-`corvint affected discovery` (`TJAA-V0-019`, proposed) only converts a caller-run JSON listing.
+`corvint affected discovery` (`TJAA-V0-019`, accepted, decision 0483) only converts a caller-run
+JSON listing.
 Each unit's `test` is repository-relative, not relative to Playwright's `rootDir`.
 `sourceDigest` uses the public observer's `playwright-sources:sha256:` identity for current source
 bytes. A receipt generated before dirty source changes is stale. Omitting the optional input safely
@@ -446,8 +448,8 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
-| `TJAA-V0-018` (proposed) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestPlaywrightSlashStartsRegex` in `playwright_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
-| `TJAA-V0-019` (proposed) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
-| `TJAA-V0-020` (proposed) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
+| `TJAA-V0-018` (accepted, decision 0483) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestPlaywrightSlashStartsRegex` in `playwright_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
+| `TJAA-V0-019` (accepted, decision 0483) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
+| `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
