@@ -997,6 +997,13 @@ DCP-V1-040	docs/specs/documentation-corpus-v1.md	272	The separate experimental `
 DCP-V1-041	docs/specs/documentation-corpus-v1.md	291	A companion switch-over harness consumes bounded closed recorded questions and
 DCP-V1-042	docs/specs/documentation-corpus-v1.md	301	The separately started experimental hosted companion serves only embedded digest
 DCP-V1-043	docs/specs/documentation-corpus-v1.md	309	The `corvint-corpus-parity` companion is qualified through its own command bound
+DCP-V1-046	docs/specs/documentation-corpus-v1.md	315	`corvint docs corpus discover-playwright --migration MIGRATION.json --config PAT
+DCP-V1-047	docs/specs/documentation-corpus-v1.md	325	An execution's identity is `playwright:` plus Playwright's own per-project test
+DCP-V1-048	docs/specs/documentation-corpus-v1.md	331	`discover-playwright` refuses, with `corpus-refused` and no output, a listing th
+DCP-V1-049	docs/specs/documentation-corpus-v1.md	338	`corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID
+DCP-V1-050	docs/specs/documentation-corpus-v1.md	345	A witness is produced only when the qualified receipt test with the registered I
+DCP-V1-051	docs/specs/documentation-corpus-v1.md	356	Every other registered test stays unwitnessed with exactly one named reason and
+DCP-V1-052	docs/specs/documentation-corpus-v1.md	362	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
