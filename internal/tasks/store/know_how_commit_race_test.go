@@ -58,7 +58,7 @@ func TestKHNV0015_CommitRaceResolvesOneCommit(t *testing.T) {
 	khRaceGit(t, root, "commit", "-q", "-m", "base")
 	oldHead, oldBlob := khRaceGit(t, root, "rev-parse", "HEAD"), khRaceGit(t, root, "rev-parse", "HEAD:a.go")
 
-	c := exec.Command("git", "cat-file", "--batch-check=%(objectname) %(objecttype)")
+	c := exec.Command("git", "cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)")
 	c.Dir = root
 	c.Env = gitEnvironment()
 	stdin, err := c.StdinPipe()

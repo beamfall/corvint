@@ -3002,8 +3002,8 @@ TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	279	A `test.fail` te
 TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	297	Any other obligation named in a `test.fail` test (in its title path or a step,
 TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	302	`witness --from-playwright-report` MUST accept `--post-check LOG
 TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	311	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check
-TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	332	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at
-TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	336	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le
+TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	338	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at
+TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	342	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed

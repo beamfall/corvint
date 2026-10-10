@@ -313,13 +313,19 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   `*.test.*` with a JavaScript or TypeScript extension, at most 4,096, optionally under `--path`)
   at `--commit` (default `HEAD`), read from Git objects with no checkout. Status: (proposed,
   pending owner acceptance; GitHub #713).
+  - The tree listing is streamed and restricted by `--path` (literal pathspecs), so Git lists
+    nothing outside the prefixes; more than 4,096 spec files, or one path above 64 KiB, refuses
+    `LIMIT_EXCEEDED` while it is read. Object sizes are read before content, so the content of a
+    blob above 1 MiB is never requested.
+  - A test names the ids in its title path (its describe titles and its own title) and its
+    `test.step` titles, as runtime witnessing reads them.
   - `UNNAMED`: no test title, describe title, `test.step` title or `<contract>:<id>` contract
     annotation in a string literal names the id. Comments do not name.
   - `MIXED_EXPECTED_FAIL` with `path` and `line` of the test declaration: a `test.fail` test
     (`test.fail(title, body)`, or a `test.fail(...)` call in the test, its describe or the file)
     names an obligation that is not expected-fail there. An id is expected-fail when its ledger
     state is `DEFECT`, its naming title says expected-fail, the fail description names it, or, for
-    a test-title id, the fail description or test title names a defect id (TOL-V0-022).
+    a title-path id, the fail description or that title names a defect id (TOL-V0-022).
   - `SPLIT_TESTS` with `path` and `line`: two or more tests in one file and describe scope each
     name exactly one obligation, and they name at least two distinct ones. `test.fail` tests and
     tests annotated `isolated` (an annotation type or tag `isolated`/`@isolated`, on the test or a
@@ -336,7 +342,13 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 - `TOL-V0-027`: `preflight --deep --gate GATE ...` MUST run each named policy gate, under the lease
   runner's `COMMAND` gate rules (worktree cwd, expected exit, declared environment, timeout and
   output cap), in one temporary detached worktree of the commit that it removes before returning,
-  so uncommitted state in the caller's checkout never runs. An undeclared gate refuses
+  so uncommitted state in the caller's checkout never runs. Every Git command preflight runs
+  disables repository hooks and the file-system monitor. After each gate the worktree MUST still
+  be a clean checkout of the commit (HEAD, HEAD tree, no change or untracked file), as the lease
+  runner requires; otherwise that gate is a `DEEP_CHECK_FAILED` finding naming the change and no
+  later gate runs. `SIGINT` or `SIGTERM` kills the running gate's process group, waits for it,
+  removes the worktree and refuses `UNSUPPORTED`; `SIGKILL` can leave the worktree, which
+  `git worktree prune` repairs. An undeclared gate refuses
   `GATE_UNKNOWN` and an unsupported one `UNSUPPORTED`, before any worktree is created; `--gate`
   without `--deep` or `--deep` without a gate is a usage `ERROR`. A gate that does not pass is a
   `DEEP_CHECK_FAILED` finding whose `id` is the gate and whose detail quotes its first actionable
@@ -362,7 +374,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 | `test.fail` test that names an obligation | A failing expected-fail test reads as a failed obligation, and an ordinary obligation inside it can never pass | Expected-fail obligations are reported `defectConfirmed` with the defect id and error line and never credit (TOL-V0-022); any other obligation in the test is reported `mixedExpectedFail` with the remedy (TOL-V0-023); `preflight` flags it at file and line before the run (TOL-V0-025). |
 | The run's post-check (lint, contract or consolidation script) failed | A passing report credits anyway | `--post-check` with a non-zero status refuses `GATE_FAILED` (`OBLIGATION_POST_CHECK_FAILED:`) quoting the log's first actionable line, and writes nothing (TOL-V0-024). |
 | Obligations unnamed or split across tests, discovered only after a long run | A whole run is spent before the gap shows | `preflight` refuses `PREFLIGHT_FAILED` with each `UNNAMED`, `MIXED_EXPECTED_FAIL`, `SPLIT_TESTS`, plan and `--deep` gate finding and its remedy, reading the commit's Git objects and writing no queue state (TOL-V0-025..027). The scan is heuristic: a name built only by `${}` interpolation or outside a string literal is not seen. |
-| `preflight --deep` interrupted | — | The temporary detached worktree and its administrative entry may remain; `git worktree prune` repairs it. A failed removal is reported, not ignored. |
+| `preflight --deep` interrupted | A running gate and its checkout outlive preflight | `SIGINT`/`SIGTERM` kills the gate's process group, waits for it and removes the worktree before refusing (TOL-V0-027). Only `SIGKILL` can leave the worktree and its administrative entry; `git worktree prune` repairs it. A failed removal is reported, not ignored. |
 | Older binary meets a record with the member | — | The closed reader refuses the record (fail-closed); see Rollout and rollback. |
 
 ## Non-goals and simpler baseline
@@ -404,7 +416,7 @@ fixture passes.
 | TOL-V0-009..013 | V1-1022 | report reader `internal/tasks/obligation` (no Node dependency), secret screen, receipt audit (`internal/tasks/transaction/obligation_audit.go`) | `TestTOLV0009_ReportAdmissionAndRetention`, `TestTOLV0009_SubsetIgnoresExcludedMatchBound`, `TestTOLV0010_StepOwnErrorCredits`, `TestTOLV0010_Retry0Only`, `TestTOLV0011_ConflictingMatches`, `TestTOLV0012_SourcePresence`, `TestTOLV0013_CreditMismatchAndAudit`, `TestTOLV0013_AuditAfterReportDeleted`, `TestTOLV0013_DeclaredWitnessAudit`, `TestTOLV0013_DeclaredCommitAudited`, `TestTOLV0013_TamperedWorkerGenerationInconsistent` (`internal/tasks/cli`), all on synthetic json reports | live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case (`NOT_RUN`: Playwright is not installed on this host; the qualified version list stays empty) |
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
 | TOL-V0-022..024 (proposed) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
-| TOL-V0-025..027 (proposed) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree` (`internal/tasks/cli`) | preflight against a real Playwright suite (`NOT_RUN`) |
+| TOL-V0-025..027 (proposed) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree` (`internal/tasks/cli`) | preflight against a real Playwright suite (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1

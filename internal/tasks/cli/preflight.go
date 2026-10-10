@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
@@ -92,7 +95,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if resolved == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMissingEvidence, "--commit", "the repository holds no commit %s", prose(commit)))
 	}
-	paths, err := store.TreePathsAtCommit(root, resolved, func(p string) bool {
+	paths, err := store.TreePathsAtCommit(root, resolved, prefixes, func(p string) bool {
 		return obligation.SpecFile(p) && underAny(p, prefixes)
 	})
 	if err != nil {
@@ -120,7 +123,15 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		findings = append(findings, pf...)
 	}
 	if deep {
-		runs, err := store.PreflightGates(writerContext(), root, resolved, defs)
+		// An interrupt kills the running gate's process group and removes
+		// the worktree before preflight refuses.
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		runs, err := store.PreflightGates(ctx, root, resolved, defs)
+		interrupted := ctx.Err() != nil
+		stop()
+		if interrupted {
+			return failure(cmd, rc, wire.Errorf(wire.CodeUnsupported, "--deep", "preflight was interrupted; the running gate was stopped and the temporary worktree removed"))
+		}
 		if err != nil {
 			return errorResult(cmd, err)
 		}
@@ -133,6 +144,9 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 				how = "exited " + r.ExitCode
 			}
 			detail := "gate " + r.GateID + " " + how
+			if r.Changed != "" {
+				detail += " but changed the worktree (" + r.Changed + "); later gates did not run"
+			}
 			if line := obligation.FirstActionableLine(string(r.Output)); line != "" {
 				detail += ": " + line
 			}

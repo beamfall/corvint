@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -454,7 +455,12 @@ func claimKnowHow(repo *intent.Repository, root string, repos map[string]string,
 	return c
 }
 
-type catFileObject struct{ oid, kind string }
+// catFileObject is one `--batch-check` answer: the object's id, type and
+// size in bytes.
+type catFileObject struct {
+	oid, kind string
+	size      int64
+}
 
 // catFileAtCommit answers rev's commit and the object each path names in
 // that commit with one `git cat-file --batch-check` in root. It resolves
@@ -477,7 +483,7 @@ func catFileAtCommit(root, rev string, paths []string) (string, []catFileObject,
 		return "", nil, gitObservationFailed(err)
 	}
 	defer outR.Close()
-	c := exec.Command("git", "-c", "credential.helper=", "cat-file", "--batch-check=%(objectname) %(objecttype)")
+	c := exec.Command("git", "-c", "credential.helper=", "cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)")
 	c.Dir = root
 	c.Env = gitEnvironment()
 	c.Stdin, c.Stdout = inR, outW
@@ -534,21 +540,26 @@ func askAtCommit(stdin io.WriteCloser, out *bufio.Reader, rev string, paths []st
 	return first.oid, objs, nil
 }
 
-// readCatFileObject reads one answer line. A line that is not "<oid> <type>"
-// (for example "<name> missing") is an absent object, never an error.
+// readCatFileObject reads one answer line. A line that is not
+// "<oid> <type> <size>" (for example "<name> missing") is an absent object,
+// never an error.
 func readCatFileObject(out *bufio.Reader) (catFileObject, error) {
 	line, err := out.ReadString('\n')
 	if err != nil {
 		return catFileObject{}, wire.Errorf(wire.CodeUnsupported, "git", "git answered short: %v", err)
 	}
-	oid, kind, ok := strings.Cut(strings.TrimSuffix(line, "\n"), " ")
-	if !ok || strings.Contains(kind, " ") {
+	fields := strings.Split(strings.TrimSuffix(line, "\n"), " ")
+	if len(fields) != 3 {
 		return catFileObject{}, nil
 	}
-	if _, err := wire.ParseOID("oid", oid); err != nil {
+	if _, err := wire.ParseOID("oid", fields[0]); err != nil {
 		return catFileObject{}, nil
 	}
-	return catFileObject{oid: oid, kind: kind}, nil
+	size, err := strconv.ParseInt(fields[2], 10, 64)
+	if err != nil || size < 0 {
+		return catFileObject{}, nil
+	}
+	return catFileObject{oid: fields[0], kind: fields[1], size: size}, nil
 }
 
 func gitObservationFailed(err error) error {
@@ -558,7 +569,8 @@ func gitObservationFailed(err error) error {
 // FilesAtCommit reads paths at rev with the same two Git calls the know-how
 // verifier uses, for the TOL-V0-012 obligation source binding. commit is ""
 // when rev names no commit. present holds every path that is a blob there;
-// content holds its bytes when the blob is small enough to read.
+// content holds its bytes when the blob is small enough to read; a larger
+// blob's size comes from the first call, so its content is never requested.
 func FilesAtCommit(root, rev string, paths []string) (commit string, present map[string]bool, content map[string][]byte, err error) {
 	commit, objs, err := catFileAtCommit(root, rev, paths)
 	if err != nil || commit == "" {
@@ -569,7 +581,9 @@ func FilesAtCommit(root, rev string, paths []string) (commit string, present map
 	for i, o := range objs {
 		if o.kind == "blob" {
 			present[paths[i]] = true
-			oids = append(oids, o.oid)
+			if o.size <= knowHowSymbolMaxBlobBytes {
+				oids = append(oids, o.oid)
+			}
 		}
 	}
 	blobs, err := readKnowHowBlobs(root, oids)

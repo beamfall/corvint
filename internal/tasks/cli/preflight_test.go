@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -122,6 +123,12 @@ func preflightRepo(t *testing.T, body, seed string, gates ...string) (*fixture.R
 	return r, id, headOID(t, r.Root)
 }
 
+// deepGate is a policy COMMAND gate running script under sh in the worktree.
+func deepGate(id, script, timeout string) string {
+	return `{"argv":["sh","-c",` + strings.TrimSpace(string(wire.EncodeFile(wire.String(script)))) + `],"cwd":"WORKTREE","env":[],"evidence":[],` +
+		`"expected":{"exitCode":"0","reducer":null},"gateId":"` + id + `","inputs":[],"kind":"COMMAND","required":false,"reusable":true,"sharedResource":null,"timeoutSeconds":"` + timeout + `"}`
+}
+
 // findingList renders findings as kind:id:path:line.
 func findingList(t *testing.T, v wire.Value) string {
 	t.Helper()
@@ -206,10 +213,7 @@ func TestTOLV0026_PreflightPlanCheck(t *testing.T) {
 // failing gate as DEEP_CHECK_FAILED quoting its first actionable line, and
 // removes the worktree; the caller's dirty checkout is not what runs.
 func TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree(t *testing.T) {
-	gate := func(id, script string) string {
-		return `{"argv":["sh","-c",` + strings.TrimSpace(string(wire.EncodeFile(wire.String(script)))) + `],"cwd":"WORKTREE","env":[],"evidence":[],` +
-			`"expected":{"exitCode":"0","reducer":null},"gateId":"` + id + `","inputs":[],"kind":"COMMAND","required":false,"reusable":true,"sharedResource":null,"timeoutSeconds":"60"}`
-	}
+	gate := func(id, script string) string { return deepGate(id, script, "60") }
 	// lint (a committed script) fails on a TODO in the committed spec;
 	// contract passes only in a clean checkout of the commit. Gates run with
 	// no environment, so the scripts use shell builtins only.
@@ -245,5 +249,115 @@ while IFS= read -r l; do case "$l" in *TODO*) echo "e2e/checkout.spec.ts: error:
 	}
 	if y := atm(t, r.Root, nil, "preflight", id, "--gate", "lint"); y.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("--gate without --deep: %s", y.stdout)
+	}
+}
+
+// gitIn runs git in root with stdin and returns its trimmed output.
+func gitIn(t *testing.T, root, stdin string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir, cmd.Stdin = root, strings.NewReader(stdin)
+	var errb strings.Builder
+	cmd.Stderr = &errb
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, errb.String())
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// TestTOLV0027_PreflightDeepRunsNoRepositoryHooks: a post-checkout hook
+// that would write into the repository does not run when --deep creates or
+// removes its worktree.
+func TestTOLV0027_PreflightDeepRunsNoRepositoryHooks(t *testing.T) {
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed, deepGate("noop", "true", "60"))
+	hooks := gitIn(t, r.Root, "", "rev-parse", "--path-format=absolute", "--git-path", "hooks")
+	common := gitIn(t, r.Root, "", "rev-parse", "--path-format=absolute", "--git-common-dir")
+	marker := filepath.Join(common, "preflight-hook-ran")
+	fixture.Write(t, filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\nprintf changed > \""+marker+"\"\n"))
+	if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "noop")
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("deep preflight: %s", x.stdout)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("preflight --deep ran the repository's post-checkout hook")
+	}
+}
+
+// TestTOLV0027_PreflightDeepGateThatChangesSourceFails: a gate that exits as
+// expected but modifies a tracked file is a DEEP_CHECK_FAILED finding, and
+// the later gates do not run against the changed tree.
+func TestTOLV0027_PreflightDeepGateThatChangesSourceFails(t *testing.T) {
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed,
+		deepGate("truncate", ": > e2e/checkout.spec.ts", "60"), deepGate("after", "exit 3", "60"))
+	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "truncate", "--gate", "after")
+	if x.res.Outcome == wire.OutcomeOK || len(x.res.Items) != 1 {
+		t.Fatalf("source-changing gate passed: %s", x.stdout)
+	}
+	f := field(x.res.Items[0], "findings").Arr
+	if len(f) != 1 || field(f[0], "kind").Str != "DEEP_CHECK_FAILED" || field(f[0], "id").Str != "truncate" ||
+		!strings.Contains(field(f[0], "detail").Str, "changed the worktree") {
+		t.Fatalf("deep findings: %s", x.stdout)
+	}
+	if wt := gitOut(t, r.Root, "worktree", "list", "--porcelain"); strings.Count(wt, "worktree ") != 1 {
+		t.Fatalf("temporary worktree left behind:\n%s", wt)
+	}
+}
+
+// TestTOLV0025_PreflightPathNarrowsTheTreeListing: --path restricts the
+// tree listing itself, so a commit whose unrelated subtree Git cannot read
+// is still checked under the named prefix.
+func TestTOLV0025_PreflightPathNarrowsTheTreeListing(t *testing.T) {
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
+	// A root tree with an "other" subtree whose object is absent.
+	listing := gitIn(t, r.Root, "", "ls-tree", "HEAD") + "\n040000 tree " + strings.Repeat("1", 40) + "\tother\n"
+	tree := gitIn(t, r.Root, listing, "mktree", "--missing")
+	commit := gitIn(t, r.Root, "", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit-tree", "-p", "HEAD", "-m", "unreadable", tree)
+	x := atm(t, r.Root, nil, "preflight", id, "--commit", commit, "--path", "e2e")
+	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 || field(x.res.Items[0], "specFileCount").Str != "1" {
+		t.Fatalf("narrowed preflight: %s", x.stdout)
+	}
+}
+
+// TestTOLV0025_PreflightSkipsOversizedSpecUnread: a spec file above 1 MiB
+// is skipped with a warning from its size alone: its content is never
+// requested, so a blob whose content Git cannot stream does not fail the
+// read.
+func TestTOLV0025_PreflightSkipsOversizedSpecUnread(t *testing.T) {
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
+	big := gitIn(t, r.Root, strings.Repeat("// padding\n", (2<<20)/11), "hash-object", "-w", "--stdin")
+	// Keep only the object's header: its size is readable, its content not.
+	objects := gitIn(t, r.Root, "", "rev-parse", "--path-format=absolute", "--git-path", "objects")
+	loose := filepath.Join(objects, big[:2], big[2:])
+	raw, err := os.ReadFile(loose)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(loose, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) < 2048 {
+		t.Fatalf("loose object of %d bytes", len(raw))
+	}
+	fixture.Write(t, loose, raw[:512])
+	e2e := gitIn(t, r.Root, gitIn(t, r.Root, "", "ls-tree", "HEAD:e2e")+"\n100644 blob "+big+"\tlarge.spec.ts\n", "mktree")
+	var root []string
+	for _, line := range strings.Split(gitIn(t, r.Root, "", "ls-tree", "HEAD"), "\n") {
+		if strings.HasSuffix(line, "\te2e") {
+			line = "040000 tree " + e2e + "\te2e"
+		}
+		root = append(root, line)
+	}
+	tree := gitIn(t, r.Root, strings.Join(root, "\n")+"\n", "mktree")
+	commit := gitIn(t, r.Root, "", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit-tree", "-p", "HEAD", "-m", "large", tree)
+	x := atm(t, r.Root, nil, "preflight", id, "--commit", commit)
+	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 || field(x.res.Items[0], "specFileCount").Str != "1" {
+		t.Fatalf("oversized spec: %s", x.stdout)
+	}
+	if !strings.Contains(strings.Join(x.res.Warnings, "\n"), "large.spec.ts exceeds the preflight read bound") {
+		t.Fatalf("no oversized warning: %s", x.stdout)
 	}
 }

@@ -421,7 +421,9 @@ func contractIDs(re *regexp.Regexp, s string) []string {
 	return out
 }
 
-// sourceTest is one test declaration with what it names.
+// sourceTest is one test declaration with what it names: as in runtime
+// witnessing, its title path is its describe titles (describes, outermost
+// first) and its own title.
 type sourceTest struct {
 	path, title string
 	line        int
@@ -429,6 +431,7 @@ type sourceTest struct {
 	fail        bool
 	failDesc    string
 	isolated    bool
+	describes   []string
 	titleIDs    []string
 	steps       []node
 }
@@ -520,6 +523,7 @@ func fileTests(path string, nodes []node, prefix string) []sourceTest {
 			if nodes[d].isolated {
 				st.isolated = true
 			}
+			st.describes = append([]string{nodes[d].title}, st.describes...)
 		}
 		index[k] = len(tests)
 		tests = append(tests, st)
@@ -538,7 +542,8 @@ func fileTests(path string, nodes []node, prefix string) []sourceTest {
 // without marking it expected-fail (TOL-V0-025, the static form of
 // TOL-V0-023). An id is expected-fail there when its ledger state is DEFECT,
 // the title naming it says expected-fail, the fail description names it, or,
-// for a test-title id, the fail description or the title names a defect id.
+// for a title-path id (a describe or the test title), the fail description
+// or that title names a defect id.
 func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []Finding {
 	var out []Finding
 	for _, t := range tests {
@@ -549,19 +554,25 @@ func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []
 		for _, id := range FindIDs(t.failDesc, prefix) {
 			described[id] = true
 		}
-		defect := len(DefectIDs(t.failDesc, prefix)) > 0 || len(DefectIDs(t.title, prefix)) > 0
+		describedDefect := len(DefectIDs(t.failDesc, prefix)) > 0
 		seen := map[string]bool{}
 		check := func(id, title string, titleID bool) {
 			state, ok := open[id]
 			if !ok || seen[id] {
 				return
 			}
-			if state == ticket.ObligationDefect || SaysExpectedFail(title) || described[id] || (titleID && defect) {
+			defect := titleID && (describedDefect || len(DefectIDs(title, prefix)) > 0)
+			if state == ticket.ObligationDefect || SaysExpectedFail(title) || described[id] || defect {
 				return
 			}
 			seen[id] = true
 			out = append(out, Finding{Kind: FindingMixed, ID: id, Path: t.path, Line: t.line,
 				Detail: "test.fail test " + quote(t.title) + " also names " + id + ", which is not marked expected-fail", Remedy: MixedRemedy})
+		}
+		for _, title := range t.describes {
+			for _, id := range FindIDs(title, prefix) {
+				check(id, title, true)
+			}
 		}
 		for _, id := range t.titleIDs {
 			check(id, t.title, true)
@@ -576,8 +587,9 @@ func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []
 }
 
 // splitFindings reports tests in one file and describe scope that each name
-// exactly one open obligation, when two or more distinct obligations are
-// split that way; test.fail and isolated tests are exempt (TOL-V0-025).
+// exactly one open obligation in their title path and steps, when two or
+// more distinct obligations are split that way; test.fail and isolated
+// tests are exempt (TOL-V0-025).
 func splitFindings(tests []sourceTest, nodes []node, open map[string]string, prefix string) []Finding {
 	type single struct {
 		t  sourceTest
@@ -590,6 +602,13 @@ func splitFindings(tests []sourceTest, nodes []node, open map[string]string, pre
 			continue
 		}
 		ids := map[string]bool{}
+		for _, title := range t.describes {
+			for _, id := range FindIDs(title, prefix) {
+				if _, ok := open[id]; ok {
+					ids[id] = true
+				}
+			}
+		}
 		for _, id := range t.titleIDs {
 			if _, ok := open[id]; ok {
 				ids[id] = true

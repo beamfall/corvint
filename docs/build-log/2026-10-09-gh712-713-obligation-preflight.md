@@ -78,5 +78,44 @@ no decision, and decision 0456 does not cover them.
   - a name built only by `${}` interpolation, or outside a string literal, is not seen;
   - the defect-id shape `[A-Z][A-Z0-9]{0,15}-N` is a heuristic.
 - A cross-ticket prefix collision in shared spec files is narrowed only by `--path`.
-- `--deep` creates a transient worktree administrative entry. If the process is interrupted it can
-  remain, and `git worktree prune` repairs it.
+- `--deep` creates a transient worktree administrative entry. `SIGINT`/`SIGTERM` removes it, but
+  `SIGKILL` can leave the worktree, and `git worktree prune` repairs it.
+
+## Round-1 review (Codex) and fixes
+
+Codex round 1 returned FAIL with six findings; the orchestrator decided to fix all six and amend
+only the proposed TOL-V0-025 and TOL-V0-027 wording. Each fix has a test that failed on `eb9c69c5`
+and passes after.
+
+1. P1, hooks: `--deep` worktree creation ran the repository's `post-checkout` hook. Every Git
+   command preflight runs now passes `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. Checked
+   on git 2.54 that this form suppresses `post-checkout` on `worktree add`.
+   `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks` failed with the hook's marker written.
+2. P1, interrupt: the deep path now runs under `signal.NotifyContext` (INT, TERM). On
+   cancellation, the lease runner's `execute` kills the gate's process group and waits for it, then
+   the worktree is removed and preflight refuses `UNSUPPORTED`.
+   `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree` uses a subprocess, a `sleep 600`
+   gate and SIGTERM. It failed with the gate's group still alive after the process died.
+3. P2, source-changing gate: after each gate, the worktree's HEAD, HEAD tree and porcelain status
+   must still match the commit, as the lease runner requires. Otherwise the gate is a
+   `DEEP_CHECK_FAILED` finding naming the change, and no later gate runs.
+   `TestTOLV0027_PreflightDeepGateThatChangesSourceFails` failed because the truncating gate
+   passed and the later gate ran.
+4. P2, describe titles: a test's describe titles now count as its title path for
+   `MIXED_EXPECTED_FAIL`, with the defect-id rule applied to that title, and for `SPLIT_TESTS`. In
+   SPLIT_TESTS, a test inside an id-bearing describe names that id, so it is no longer a
+   single-id test. `TestTOLV0025_DescribeTitleIDsReachNestedTests` failed, reporting a spurious
+   SPLIT_TESTS where `MIXED_EXPECTED_FAIL:AC-1` was expected.
+5. P2, tree listing: `--path` prefixes are passed to `git ls-tree` as literal pathspecs, and the
+   output is streamed. The 4,096-file limit and a 64 KiB per-path bound are enforced while reading,
+   and the listing stops at the first violation. `TestTOLV0025_PreflightPathNarrowsTheTreeListing`
+   uses a commit whose unrelated subtree object is absent. It failed with a git observation error.
+6. P2, oversized blobs: the `--batch-check` call now also answers `%(objectsize)`. `FilesAtCommit`
+   requests content only for blobs of at most 1 MiB, and the know-how callers ignore the new size.
+   `TestTOLV0025_PreflightSkipsOversizedSpecUnread` uses a 2 MiB blob whose loose object keeps only
+   its header, so its content cannot be streamed. It failed with `git answered short`.
+   The answer parser now requires all three fields, so `TestKHNV0015_CommitRaceResolvesOneCommit`,
+   which starts its own `cat-file`, now uses the same three-field format.
+
+Not added: a bound on the total number of entries scanned without `--path`. The listing is
+streamed in constant memory, but its time still grows with the tree.
