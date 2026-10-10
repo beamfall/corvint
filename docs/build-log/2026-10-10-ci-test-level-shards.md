@@ -229,18 +229,52 @@ fail a test:
 - removing the after-outcome, before-start, twice-started, damaged-record, ran-twice,
   ended-without-running or running-at-close refusal.
 
+### Main merge and cost aggregation
+
+Main gained the AFP-V0-040 shard-cost capture and drift job (decision 0487) while this lane was
+open. The merge at `c8029870` integrates the two:
+
+- **One capture for every invocation.** The tests step now defines `run_tests`, which runs the
+  whole packages and then each slice, each with `< /dev/null`, and returns failure when any
+  invocation failed. Main's capture block is unchanged: it pipes `run_tests` through `tee`, takes
+  `PIPESTATUS[0]`, and sets `costs=1` only on success; without a capture directory it runs
+  `run_tests` uncaptured. The cache restore and save steps are main's, byte for byte.
+- **Semantic conflict in `go-static`.** Main's copy of the protected helper listed only
+  `partition.go`, `order.go` and `package-costs.json`. With this lane's `//go:embed` that build
+  fails with `partition.go:23:34: pattern slices.go: no matching files found`. The copy now lists
+  the same files as the shard job's. An isolated replica of the step passes `go test`, `go vet` and
+  the windows build.
+- **Slice outcomes combine (AFP-V0-041 (8)).** `tools/ci-shard-costs` reads the committed
+  allow-list and slice file (`--allow`, `--slices`) and calls `cishards.SplitPackages` over the
+  logs' packages with the log count as the shard count, so it splits exactly what the partition
+  split. Each log may end a package once. A split package may end once (a run before the split)
+  or exactly once per slice; its cost is the sum. A failed slice, an unterminated slice, a slice
+  count that differs from the file, or a repeat of an unsplit package refuses the refresh and makes
+  the advisory check abstain. `TestAFPV0041RefreshCombinesTestSlices` and
+  `TestAFPV0041AdvisoryCombinesTestSlices` cover both paths. Seven mutants each fail a test:
+  dropping the per-log repeat check, the slice-count check, the unterminated-slice check or the
+  unsplit-repeat check; a shard count of 1; assigning instead of summing; and an empty allow-list
+  path in the advisory form.
+- **End to end.** The workflow's `run_tests` and capture block, extracted verbatim, ran three
+  shards locally with real `go test -json` (a shim drops `-exec`). Two shards ran the two slices
+  of `tools/ci-shard-costs` and exited 0 with `costs=1`. A third ran both slices of a fixture
+  package whose first slice fails: it exited 1 with no `costs` output, and its second slice still
+  ran. Given a fixture allow-list and slice file naming that package, `refresh` over the two
+  passing captures wrote 2,695 ms, the sum of 1,231 ms and 1,464 ms, and `check --advisory
+  --shards 2` reported normally. Without the slice file the same logs abstained with "two
+  terminal outcomes".
+
 ## Limits and integration
 
 - **Lost interleavings.** Splitting loses cross-slice parallel interleavings, including race
   detection between tests in different slices.
 - **Per-slice overhead.** Every slice repeats the package's build or link, process start and
   `TestMain`. This overhead is NOT_OBSERVED on hosted runners.
-- **Cost refresh blocked.** While a package is split:
-  - `tools/ci-shard-costs refresh` refuses the run, because the package has "two terminal outcomes";
-  - the parallel lane's strict drift check abstains, because the package "starts twice".
-
-  So the cost table cannot be refreshed from a sliced run until those tools sum slice outcomes per
-  package. That follow-up is not part of this change.
+- **Slice regeneration needs a whole run.** `tools/ci-shard-costs` now combines slice outcomes,
+  but `tools/ci-test-slices generate` still refuses a sliced run ("two terminal outcomes"). A
+  single outcome of a split package is indistinguishable from a whole run; the advisory check
+  requires all N logs, and refresh refuses logs that lack a listed package, which bounds a
+  missing log.
 - **Stale slice file.** A stale slice file can only move time between shards.
 - **Selective PR pins.** The workflow's selective PR pins (`CORVINT_PR_TOOL_SOURCE` and the
   qualification pins) are empty, so every run takes the FULL path that runs slices. If those pins
@@ -261,6 +295,6 @@ Choose either:
 - Paired hosted timings.
 - Per-slice overhead.
 - Linux enumeration (darwin was used).
-- The parallel lanes' merged `ci.yml`.
+- A hosted run of the merged `ci.yml` (actionlint and the local slice-loop run only).
 - `make gate`.
 - Owner acceptance of AFP-V0-041.
