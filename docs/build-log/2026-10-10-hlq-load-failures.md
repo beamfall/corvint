@@ -6,12 +6,12 @@ RC3 lane E (PR beamfall/corvint#741, `2026-10-10-v1-0397-upgrade-sessionstart-no
 Claude Code HLQ tuple 200 times at load1 52–259. The `uninstall` case failed 7 times (V1-1119) and
 the `frontier` case failed open 11 times (V1-1120). Its loop deleted the report of every run whose
 target case passed, so no failure text was retained (V1-1121). Contracts: `HLQ-V1-002`,
-`HLQ-V1-007`, `HLQ-V1-009`, `LCP-V0-008`, `AHI-017`. No owner acceptance was given in this lane, so
-every requirement text below is proposed.
+`HLQ-V1-007`, `HLQ-V1-009`, `LCP-V0-008`, `AHI-017`. The owner accepted `HLQ-V1-010` on
+2026-10-10 (decision 0498).
 
 ## V1-1121: retention keyed on every case
 
-The runner gains `--failed-reports DIR`, specified by the proposed `HLQ-V1-010`. A run with any
+The runner gains `--failed-reports DIR`, specified by `HLQ-V1-010` (accepted, decision 0498). A run with any
 non-`PASS` case, or any time-bound hook retry, writes a new copy of its report into `DIR`. The file
 is named for the host, the UTC time and the pid. It is opened with `O_EXCL` and mode 0600. It is
 at most 64 KiB, including the explicit omitted-byte marker. The report text is already the bounded,

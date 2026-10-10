@@ -113,7 +113,7 @@ behaviour inside a live model session.
   rerun is safe because hook events are reads (`AGENTS.md` invariant 4). A pass after a retried
   time bound qualifies lifecycle semantics at that load, not latency; host timeouts stay outside the
   nine cases (`HLQ-V1-004`).
-- **HLQ-V1-010:** (proposed; V1-1121) With `--failed-reports DIR`, a run in which any case is
+- **HLQ-V1-010:** (accepted, decision 0498; V1-1121) With `--failed-reports DIR`, a run in which any case is
   not `PASS`, or any case line names a time-bound hook retry (`HLQ-V1-009`), MUST also write its
   report to a new file in `DIR` named for the host, the UTC time and the process id, and MUST NOT
   replace an existing file there. A run whose nine cases all pass with no retry writes nothing
@@ -135,7 +135,7 @@ GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
 `--source` is a clean checkout whose `integrations/` supplies the plugin package. Without
 `--base-corvint`, the upgrade case is `NOT_RUN`, so the tuple does not pass. A repeated or loaded
 run passes `--failed-reports DIR` so the text of any failed or retried case survives the caller
-discarding its passing reports (proposed `HLQ-V1-010`).
+discarding its passing reports (`HLQ-V1-010`, decision 0498).
 
 ## Results
 
