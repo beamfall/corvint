@@ -745,3 +745,16 @@ selector and preserved history. Do not delete a discriminator, reservation, stag
 to force a downgrade. Unsupported predecessor readers, console and receipt-bundle consumers
 refuse the new profile. Held-change recovery and terminal qualification need their separately
 admitted integration; the candidate alone does not complete an existing ticket or held change.
+
+## Wrapper build cache
+
+The wrappers select the first nonempty `CORVINT_GOCACHE`, caller `GOCACHE`, then
+`/tmp/corvint-go-build-cache` for every build, including both check verifiers and the check
+inside seal (`DCW-V0-038`, proposed, pending owner acceptance (V1-0693)). For a private cache,
+use `CORVINT_GOCACHE=/absolute/private/cache make dogfood-check BASE=$BASE`, or
+`make dogfood-check BASE=$BASE CORVINT_GOCACHE=/absolute/private/cache`; the Make targets
+pass that value through. `GOCACHE=/absolute/private/cache` alone also works with Make or
+direct wrapper invocation. Empty values fall through to the next choice. The selected directory
+is used as supplied; no cache is cleaned. Base/current source selection, version checks and
+strict verification stay unchanged. This does not establish containment for prior runs or cover
+other build/cache paths outside these wrappers.

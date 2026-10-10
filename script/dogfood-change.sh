@@ -13,6 +13,7 @@ export LC_ALL=C
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
+go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 
 base_arg=${1:?usage: dogfood-change.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -26,7 +27,7 @@ if [[ -z $expected_version ]]; then
 fi
 if [[ -z $corvint_bin_set ]]; then
   corvint_bin="$evidence/corvint"
-  if ! GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+  if ! GOCACHE="$go_cache" GOTOOLCHAIN=local \
     go build -o "$corvint_bin" ./cmd/corvint 2> /dev/null; then
     printf 'dogfood-change: REFUSE current-tree-corvint-build-failed\n' >&2
     exit 2
