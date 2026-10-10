@@ -17,21 +17,22 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	reapAllowed := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		exitObserved <- waitProcessExitUnreaped(command.Process.Pid)
+		exitObserved <- observeLeaderExit(command.Process.Pid)
 		<-reapAllowed
 		done <- command.Wait()
 	}()
+	observation := &leaderObservation{result: exitObserved}
 
-	var observationErr error
-	exitObservationCompleted := false
 	timedOutOrCancelled := false
 	select {
-	case observationErr = <-exitObserved:
-		exitObservationCompleted = true
+	case observation.err = <-exitObserved:
+		observation.completed = true
 	case <-childContext.Done():
 		timedOutOrCancelled = true
 	}
 
+	exitObservationCompleted := observation.completed
+	observationErr := observation.err
 	observationFailed := exitObservationCompleted && observationErr != nil
 	executableStable := true
 	if exitObservationCompleted && observationErr == nil && !timedOutOrCancelled {
@@ -42,11 +43,15 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	cleanupProven := true
 	if cleanupRequired {
 		closeReader(stdin)
-		cleanupProven = containment.stopAndProveDarwin(cleanupDeadline)
+		// A failed observation (for example ECHILD) unpins the group ID, so
+		// stopAndProveDarwin sends nothing and cleanup stays unproved (V1-1050).
+		cleanupProven = containment.stopAndProveDarwin(cleanupDeadline, observation.pinned)
 	}
-	if !exitObservationCompleted {
-		observationErr = <-exitObserved
+	if !observation.completed {
+		observation.err = <-exitObserved
+		observation.completed = true
 	}
+	observationErr = observation.err
 	close(reapAllowed)
 	waitErr := <-done
 	if timedOutOrCancelled || observationErr != nil {
@@ -104,8 +109,10 @@ func waitidStateChangeOnly(info [128]byte) bool {
 	return code >= 4 && code <= 6
 }
 
-func (containment *childContainment) stopAndProveDarwin(grace time.Duration) bool {
-	if containment.pid <= 0 {
+// stopAndProveDarwin stops the group while the leader is pinned unreaped and
+// sends nothing once pinned reports a failed exit observation (V1-1050).
+func (containment *childContainment) stopAndProveDarwin(grace time.Duration, pinned func() bool) bool {
+	if containment.pid <= 0 || !pinned() {
 		return false
 	}
 	containment.terminate()
@@ -113,14 +120,14 @@ func (containment *childContainment) stopAndProveDarwin(grace time.Duration) boo
 	for darwinGroupHasLiveMembers(containment.pid) && time.Now().Before(until) {
 		time.Sleep(time.Millisecond)
 	}
-	if darwinGroupHasLiveMembers(containment.pid) {
-		containment.force()
-		for darwinGroupHasLiveMembers(containment.pid) {
-			containment.force()
-			time.Sleep(time.Millisecond)
+	for darwinGroupHasLiveMembers(containment.pid) {
+		if !pinned() {
+			return false
 		}
+		containment.force()
+		time.Sleep(time.Millisecond)
 	}
-	return true
+	return pinned()
 }
 
 func darwinGroupHasLiveMembers(pid int) bool {

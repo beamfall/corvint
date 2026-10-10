@@ -299,7 +299,11 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 	containGate(cmd)
 	var timedOut bool
 	var mu sync.Mutex
-	out.kill = func() { killGate(cmd) }
+	// Early kills stop only the unreaped leader; on Darwin and Linux reapGate
+	// SIGKILLs the group while the exited leader is unreaped, so a kill that
+	// races the reap never names a reused group. Other Unix platforms send no
+	// group signal (V1-1047).
+	out.kill = func() { stopGate(cmd) }
 	if err := cmd.Start(); err != nil {
 		return execution{class: "SPAWN_FAILED"}
 	}
@@ -307,10 +311,10 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 		mu.Lock()
 		timedOut = true
 		mu.Unlock()
-		killGate(cmd)
+		stopGate(cmd)
 	})
-	stop := context.AfterFunc(ctx, func() { killGate(cmd) })
-	err := cmd.Wait()
+	stop := context.AfterFunc(ctx, func() { stopGate(cmd) })
+	err := reapGate(cmd)
 	timer.Stop()
 	stop()
 	mu.Lock()
