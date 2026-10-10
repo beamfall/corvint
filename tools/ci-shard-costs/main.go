@@ -3,8 +3,7 @@
 // shards; they never select tests.
 //
 // Inputs are the hosted `go test -json` streams of one complete CI run, one
-// file per shard job, either raw or as printed by
-// `gh run view RUN --job JOB --log` (text before the JSON object is ignored):
+// file per shard job, as raw completed JSON streams (AFP-V0-043):
 //
 //	ci-shard-costs refresh --shards 8 --revision SHA --run-url URL shard0.log ... shard7.log
 //	ci-shard-costs check --shards 8 shard0.log ... shard7.log
@@ -112,7 +111,7 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 		if err != nil {
 			return 2, err
 		}
-		err = observe(f, o)
+		err = observeStream(f, o)
 		f.Close()
 		if err != nil {
 			return 2, fmt.Errorf("%s: %w", name, err)

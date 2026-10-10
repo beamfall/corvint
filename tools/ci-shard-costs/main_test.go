@@ -25,13 +25,14 @@ func write(t *testing.T, name, body string) string {
 
 // AFP-V0-022: costs come from retained hosted package outcomes, with the source recorded.
 func TestAFPV0022RefreshFromHostedOutcomes(t *testing.T) {
-	raw := write(t, "raw.log", `{"Action":"pass","Package":"example.org/a","Test":"TestA","Elapsed":9}
+	raw := write(t, "raw.log", `{"Action":"start","Package":"example.org/a"}
+{"Action":"pass","Package":"example.org/a","Test":"TestA","Elapsed":9}
 {"Action":"output","Package":"example.org/a","Output":"ok\n"}
 {"Action":"pass","Package":"example.org/a","Elapsed":953.5}
 `)
-	hosted := write(t, "hosted.log", "shard (1)\tGo tests\t2026-10-04T11:21:18Z {\"Action\":\"pass\",\"Package\":\"example.org/b\",\"Elapsed\":0.0004}\n"+
-		"shard (1)\tGo tests\t2026-10-04T11:21:19Z {\"Action\":\"skip\",\"Package\":\"example.org/none\",\"Elapsed\":0}\n"+
-		"shard (1)\tGo tests\t2026-10-04T11:21:19Z not json {\n")
+	hosted := write(t, "hosted.log", passed("example.org/b", "0.0004")+
+		"{\"Action\":\"start\",\"Package\":\"example.org/none\"}\n"+
+		"{\"Action\":\"skip\",\"Package\":\"example.org/none\",\"Elapsed\":0}\n")
 	table := filepath.Join(t.TempDir(), "costs.json")
 	if code, err := run("refresh", []string{"--table", table, "--shards", "2", "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
 		t.Fatalf("refresh code=%d err=%v", code, err)
@@ -87,12 +88,7 @@ func TestAFPV0022RefreshRefusesUnusableInput(t *testing.T) {
 
 func TestAFPV0022DriftCheck(t *testing.T) {
 	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/slow":3220,"example.org/fast":910000,"example.org/same":100000,"example.org/tiny":10,"example.org/gone":5000}}`)
-	log := write(t, "log", `{"Action":"pass","Package":"example.org/slow","Elapsed":953.5}
-{"Action":"pass","Package":"example.org/fast","Elapsed":98}
-{"Action":"pass","Package":"example.org/same","Elapsed":199}
-{"Action":"pass","Package":"example.org/tiny","Elapsed":9}
-{"Action":"pass","Package":"example.org/new","Elapsed":144}
-`)
+	log := write(t, "log", passed("example.org/slow", "953.5")+passed("example.org/fast", "98")+passed("example.org/same", "199")+passed("example.org/tiny", "9")+passed("example.org/new", "144"))
 	var out bytes.Buffer
 	code, err := run("check", []string{"--table", table, "--shards", "1", log}, &out)
 	want := `drift example.org/fast recorded=910000ms observed=98000ms
@@ -338,7 +334,7 @@ func TestAFPV0041RefreshCombinesTestSlices(t *testing.T) {
 		"extra-slice":              {slices, 0, []string{shard0, shard1, write(t, "shard-2.log", passed("example.org/split", "1"))}, "package example.org/split has 3 terminal outcomes for its 2 test slices"},
 		"one-log-twice":            {slices, 0, []string{write(t, "shard-0.log", passed("example.org/split", "300")+passed("example.org/split", "200")), write(t, "shard-1.log", passed("example.org/b", "20"))}, "package example.org/split has two terminal outcomes"},
 		"failed-slice":             {slices, 0, []string{shard0, write(t, "shard-1.log", `{"Action":"start","Package":"example.org/split"}`+"\n"+`{"Action":"fail","Package":"example.org/split","Elapsed":1}`+"\n")}, "package example.org/split failed"},
-		"short-slice":              {slices, 0, []string{shard0, write(t, "shard-1.log", `{"Action":"start","Package":"example.org/split"}`+"\n"+passed("example.org/b", "20"))}, "a test slice of package example.org/split started without a terminal outcome"},
+		"short-slice":              {slices, 0, []string{shard0, write(t, "shard-1.log", `{"Action":"start","Package":"example.org/split"}`+"\n"+passed("example.org/b", "20"))}, "package example.org/split started without a terminal outcome"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			shards := tc.shards
@@ -414,5 +410,95 @@ func TestAFPV0041AdvisoryCombinesTestSlices(t *testing.T) {
 				t.Fatalf("code=%d err=%v out=%s summary:\n%s", code, err, out, summary)
 			}
 		})
+	}
+}
+
+// AFP-V0-043: both table-producing refresh and plain check use the strict
+// completed-stream reader, and refusal preserves an existing table.
+func assertStrictTableInputRefused(t *testing.T, suffix, reason string) {
+	t.Helper()
+	for _, mode := range []string{"refresh", "check"} {
+		t.Run(mode, func(t *testing.T) {
+			old, err := encode(map[string]int64{"example.org/a": 1000}, revision, runURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			table := write(t, "costs.json", string(old))
+			log := write(t, "shard.json", passed("example.org/a", "1")+suffix)
+			args := []string{"--table", table, "--shards", "1", "--revision", revision, "--run-url", runURL, log}
+			var out bytes.Buffer
+			code, err := run(mode, args, &out)
+			if code != 2 || err == nil || !strings.Contains(err.Error(), reason) {
+				t.Fatalf("code=%d err=%v; want refusal %q", code, err, reason)
+			}
+			after, err := os.ReadFile(table)
+			if err != nil || !bytes.Equal(after, old) {
+				t.Fatalf("refusal changed table: %v", err)
+			}
+		})
+	}
+}
+
+func TestAFPV0043RefreshRefusesMalformedLine(t *testing.T) {
+	assertStrictTableInputRefused(t, "not JSON\n", "not a go test -json event")
+}
+
+func TestAFPV0043RefreshRefusesTruncatedFinalEvent(t *testing.T) {
+	assertStrictTableInputRefused(t, `{"Action":"start","Package":`, "not a go test -json event")
+}
+
+func TestAFPV0043RefreshRefusesUnfinishedPackage(t *testing.T) {
+	assertStrictTableInputRefused(t, `{"Action":"start","Package":"example.org/b"}`+"\n", "started without a terminal outcome")
+}
+
+func TestAFPV0043RefreshRefusesEmptyShard(t *testing.T) {
+	for _, mode := range []string{"refresh", "check"} {
+		table := write(t, "costs.json", "retained table")
+		logs := []string{write(t, "complete.json", passed("example.org/a", "1")), write(t, "empty.json", "\n")}
+		var out bytes.Buffer
+		code, err := run(mode, append([]string{"--table", table, "--shards", "2", "--revision", revision, "--run-url", runURL}, logs...), &out)
+		if code != 2 || err == nil || !strings.Contains(err.Error(), "no terminal package outcome") {
+			t.Fatalf("%s code=%d err=%v", mode, code, err)
+		}
+		after, err := os.ReadFile(table)
+		if err != nil || string(after) != "retained table" {
+			t.Fatalf("table changed: %v", err)
+		}
+	}
+}
+
+func TestAFPV0043RefreshValidStreamByteParity(t *testing.T) {
+	logs := []string{
+		passed("example.org/a", "953.5"),
+		passed("example.org/b", "0.0004") +
+			"{\"Action\":\"start\",\"Package\":\"example.org/none\"}\n" +
+			"{\"Action\":\"skip\",\"Package\":\"example.org/none\",\"Elapsed\":0}\n",
+	}
+	old := newOutcomes()
+	paths := []string{}
+	for _, log := range logs {
+		if err := observe(strings.NewReader(log), old); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, write(t, "shard.json", log))
+	}
+	// Preserve the old non-strict path's semantics, using the same unsplit inputs.
+	allow, slices := write(t, "allow.json", "{}"), write(t, "slices.json", "{}")
+	costs, err := combine(old, 2, allow, slices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := encode(costs, revision, runURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := filepath.Join(t.TempDir(), "costs.json")
+	args := []string{"--table", table, "--shards", "2", "--allow", allow, "--slices", slices, "--revision", revision, "--run-url", runURL}
+	if code, err := run("refresh", append(args, paths...), nil); code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	got, err := os.ReadFile(table)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("table parity: err=%v\ngot %s\nwant %s", err, got, want)
 	}
 }
