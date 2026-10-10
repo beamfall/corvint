@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 proposed, experimental (no ticket; no GitHub issue); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 proposed, experimental (no ticket; no GitHub issue); other AFP-V0 requirements proposed/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -825,6 +825,40 @@ and container qualification; full fallback remains available.
   `internal/liveverify/affected/fixture_maintenance_test.go` and the two config arguments in each
   fixture helper.
 
+- **AFP-V0-040:** (proposed, experimental, 2026-10-10; no ticket; no GitHub issue; pending owner
+  acceptance) CI SHALL report drift of the AFP-V0-022 cost table without ever failing on it. Each
+  full `go-product-shard` whose `go test -json` invocation passed SHALL keep that stream and upload
+  it as the artifact `ci-shard-costs-<shard>` with 3-day retention; a docs-only, reused, selected
+  or empty shard keeps none, and only `go test`'s own exit status decides the shard. The job
+  `ci-shard-cost-drift` (`needs: go-product-shard`, run unless cancelled) SHALL run
+  `tools/ci-shard-costs check --advisory --shards N` only when every shard succeeded and exactly N
+  outcome artifacts are present, and otherwise SHALL abstain with its reason in the job summary
+  (invariant 2). The advisory form appends a Markdown table to the job summary and SHALL exit 0
+  whatever it finds; it exits 2, with `Abstained: <reason>` in the summary, when the logs are not N
+  readable, passing shard streams or the table is invalid. A finding is material when the time it
+  misplaces (|observed - recorded| for drift, the observed time for a missing package; a stale
+  entry places no package and misplaces nothing) reaches `--share` percent, default 10, of the
+  ideal shard (all observed package time divided by N). A material drift is reported even within
+  the AFP-V0-022 factor, because shard balance depends on absolute time, not ratio; non-material
+  findings keep the AFP-V0-022 factor and floor. Each material finding gets one `::warning::`
+  annotation, and one further warning counts every remaining drift, missing and stale finding, so
+  no run exceeds the ten warnings GitHub shows per step. The 10% default is chosen from run
+  38055182050 (ideal shard 1,281s): hosted per-package noise reached about 60s (5%), while
+  `internal/tasks/store` misplaced 1,001s (78%) and the missing `internal/appmap` 132s (10.3%).
+  Non-goals: the job is not a required check, never posts or changes the `ci-control-plane` or any
+  commit status, never refreshes, rewrites or commits the table, and never changes shard
+  membership or placement; refreshing remains the operator's AFP-V0-022 `refresh` step. Failure
+  modes: a failed, skipped or cancelled shard, or a missing or extra artifact, abstains with its
+  reason; an artifact upload or download failure only removes evidence and is continue-on-error;
+  re-run attempts overwrite their own shard's artifact. Falsifier: a pull request whose required
+  checks fail, or whose shard membership or placement changes, because of this job or the
+  retained stream; or a report over fewer than N shard streams. Acceptance evidence: the
+  `TestAFPV0040*` tests, `actionlint`, `make ci-least-privilege-check`, and a local dry run of the
+  job's steps against the six shard logs of run 38055182050 (build log
+  2026-10-10-ci-shard-drift-detection); hosted behaviour is NOT_OBSERVED until the change's own CI
+  runs. Rollback: delete the `ci-shard-cost-drift` job and the retention step, restore the plain
+  `go test` invocation in `go-product-shard`, and remove `--advisory` from `tools/ci-shard-costs`.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -832,7 +866,9 @@ No provider modification; execution only through the explicitly admitted AFP-V0-
 LPCV-V0 requirement is implemented or promoted by this slice. The fast tier (AFP-V0-011) is not the
 push or release gate and MUST NOT replace `make gate` in any declaration until a 200-commit shadow
 run shows no selected-set miss the plan did not mark `UNKNOWN`; a narrowed run proves nothing about
-the packages it omitted (AFP-V0-004).
+the packages it omitted (AFP-V0-004). The AFP-V0-040 cost-drift report is advisory only: no
+required check, commit status, automatic table refresh or commit, and no effect on shard
+membership or placement.
 
 ## Failure modes
 
@@ -860,6 +896,9 @@ declaration or AFP-V0-037 binary-exec declaration), a dirty root module definiti
 selection over a non-empty diff, or a repository the selector cannot index (AFP-V0-012) runs the
 full `./...` command instead of a narrowed one, so the
 worst case of `make gate-affected` is the cost of `make go-test`, never a skipped package.
+The advisory cost-drift report (AFP-V0-040) abstains, with its reason in the job summary, on a
+shard that did not succeed, fewer or more outcome artifacts than shards, an unreadable or failed
+package stream, or an invalid cost table; it never fails CI on a finding.
 
 ## Acceptance evidence and traceability
 
@@ -901,6 +940,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-037 | `Unit.Execs`, `Graph.execUsers`, `Graph.builtCommands`, `Graph.execUsersOf`, `WitnessBinaryExec`, `BinaryExecsPath` in `internal/liveverify/affected` (`unit.go`, `graph.go`, `execs.go`, `select.go`); `applyBinaryExecs`, `literalExecs`, `commandDirectory`, `readBinaryExecs`, `matchBinaryExecs`, `FrontierBinaryExecsInvalid` in `internal/liveverify/affected/golang/binaryexecs.go`; `moduleLevelFrontiers` in `tools/gate-affected-select/main.go`; `.corvint/test-binary-execs.json` | `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` (anchored, plain, climbing and module-path literals and a declared runner become `execs`; a change to the command or a package it imports selects every consumer as `BINARY_EXEC` through the command; a literal naming a file under the command directory is no edge; an unrelated change selects no consumer; byte-identical plans), `TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037` (nine invalid declarations raise only the frontier, drop declared edges and keep literal ones; a missing one raises nothing) |
 | AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
 | AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
+| AFP-V0-040 | `check --advisory` (`report`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

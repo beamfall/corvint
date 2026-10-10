@@ -14,6 +14,16 @@
 // table lists unless --allow-removed is given. check exits 1 and prints one line per package whose
 // observed time differs from its table entry by more than --factor, that the
 // table is missing, or that the table still lists but the run did not execute.
+//
+//	ci-shard-costs check --advisory --shards 6 [--share 10] [--summary FILE] shard0.json ... shard5.json
+//
+// The advisory form (AFP-V0-040) is the CI report: it needs exactly one log per
+// shard, appends a Markdown report to --summary, prints at most ten
+// `::warning::` workflow commands, and exits 0 whatever it finds. A finding is
+// material when the time it misplaces reaches --share percent of the ideal
+// shard (all observed time divided by --shards); a drift of that size is
+// reported even within --factor. Unusable input exits 2 and the report says
+// why it abstained.
 package main
 
 import (
@@ -56,11 +66,25 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	factor := fs.Float64("factor", 2, "check: tolerated ratio between observed and recorded time")
 	floor := fs.Duration("floor", 10*time.Second, "check: ignore differences smaller than this")
 	allowRemoved := fs.Bool("allow-removed", false, "refresh: accept that packages in the current table were not executed")
+	advisory := fs.Bool("advisory", false, "check: CI report that never fails on findings (AFP-V0-040)")
+	shards := fs.Int("shards", 0, "check --advisory: number of shard logs in one complete run")
+	share := fs.Float64("share", 10, "check --advisory: percent of the ideal shard that makes a finding material")
+	summary := fs.String("summary", "", "check --advisory: append the Markdown report to this file")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
 	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 {
 		return 2, errors.New("usage: ci-shard-costs refresh|check [flags] LOG...")
+	}
+	if *advisory {
+		if mode != "check" || *shards < 1 || *shards > cishards.MaxShards || !(*share > 0 && *share <= 100) {
+			return 2, errors.New("usage: ci-shard-costs check --advisory --shards N [--share PERCENT] [--summary FILE] LOG...")
+		}
+		code, err := report(out, *summary, *table, fs.Args(), *shards, *share, *factor, floor.Milliseconds())
+		if err != nil && *summary != "" {
+			appendFile(*summary, fmt.Sprintf("%s\nAbstained: %v. No finding is reported for this run.\n", reportHeading, err))
+		}
+		return code, err
 	}
 	observed := map[string]int64{}
 	for _, name := range fs.Args() {
@@ -184,24 +208,176 @@ func encode(observed map[string]int64, revision, runURL string) ([]byte, error) 
 	return raw, nil
 }
 
-func drift(recorded, observed map[string]int64, factor float64, floorMS int64) []string {
-	var lines []string
+// finding is one table entry that disagrees with a complete run. Times are in
+// milliseconds; recorded is 0 for a missing package and observed is 0 for a stale one.
+type finding struct {
+	kind, pkg          string
+	recorded, observed int64
+}
+
+func (f finding) String() string {
+	switch f.kind {
+	case "missing":
+		return fmt.Sprintf("missing %s observed=%dms", f.pkg, f.observed)
+	case "stale":
+		return fmt.Sprintf("stale %s recorded=%dms", f.pkg, f.recorded)
+	}
+	return fmt.Sprintf("drift %s recorded=%dms observed=%dms", f.pkg, f.recorded, f.observed)
+}
+
+// misplaced is the time the table's placement got wrong. A stale entry names no
+// package of the universe, so it misplaces nothing.
+func (f finding) misplaced() int64 {
+	if f.kind == "stale" {
+		return 0
+	}
+	return max(f.observed-f.recorded, f.recorded-f.observed)
+}
+
+// findings lists drift beyond factor and floorMS, or of at least materialMS
+// whatever the ratio, then every missing and stale package.
+func findings(recorded, observed map[string]int64, factor float64, floorMS, materialMS int64) []finding {
+	var out []finding
 	for p, got := range observed {
 		want, ok := recorded[p]
 		if !ok {
-			lines = append(lines, fmt.Sprintf("missing %s observed=%dms", p, got))
+			out = append(out, finding{"missing", p, 0, got})
 			continue
 		}
 		lo, hi := min(got, want), max(got, want)
-		if hi-lo >= floorMS && float64(hi) > factor*float64(lo) {
-			lines = append(lines, fmt.Sprintf("drift %s recorded=%dms observed=%dms", p, want, got))
+		if hi-lo >= materialMS || hi-lo >= floorMS && float64(hi) > factor*float64(lo) {
+			out = append(out, finding{"drift", p, want, got})
 		}
 	}
 	for p, want := range recorded {
 		if _, ok := observed[p]; !ok {
-			lines = append(lines, fmt.Sprintf("stale %s recorded=%dms", p, want))
+			out = append(out, finding{"stale", p, want, 0})
 		}
+	}
+	return out
+}
+
+func drift(recorded, observed map[string]int64, factor float64, floorMS int64) []string {
+	var lines []string
+	for _, f := range findings(recorded, observed, factor, floorMS, math.MaxInt64) {
+		lines = append(lines, f.String())
 	}
 	sort.Strings(lines)
 	return lines
+}
+
+const (
+	reportHeading = "### CI shard cost table drift (advisory, AFP-V0-040)\n"
+	// maxWarnings stays inside the ten warning annotations GitHub shows per step.
+	maxWarnings = 10
+)
+
+// report is the advisory CI form of check. Findings never change its exit code;
+// only input that cannot stand for one complete run does, and then it abstains.
+func report(out io.Writer, summary, table string, logs []string, shards int, share, factor float64, floorMS int64) (int, error) {
+	if len(logs) != shards {
+		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the table", len(logs), shards)
+	}
+	observed := map[string]int64{}
+	for _, name := range logs {
+		f, err := os.Open(name)
+		if err != nil {
+			return 2, err
+		}
+		err = observe(f, observed)
+		f.Close()
+		if err != nil {
+			return 2, fmt.Errorf("%s: %w", filepath.Base(name), err)
+		}
+	}
+	if len(observed) == 0 {
+		return 2, errors.New("no terminal package outcome in the logs")
+	}
+	raw, err := os.ReadFile(table)
+	if err != nil {
+		return 2, err
+	}
+	recorded, ok := cishards.Costs(raw)
+	if !ok {
+		return 2, errors.New("cost table is invalid; CI is using the lexical fallback")
+	}
+	var total int64
+	for _, n := range observed {
+		total += n
+	}
+	ideal := float64(total) / float64(shards)
+	materialMS := max(1, int64(math.Ceil(ideal*share/100)))
+	all := findings(recorded, observed, factor, floorMS, materialMS)
+	sort.Slice(all, func(i, j int) bool {
+		if a, b := all[i].misplaced(), all[j].misplaced(); a != b {
+			return a > b
+		}
+		return all[i].String() < all[j].String()
+	})
+	material := 0
+	for material < len(all) && all[material].misplaced() >= materialMS {
+		material++
+	}
+
+	var b strings.Builder
+	b.WriteString(reportHeading)
+	fmt.Fprintf(&b, "\n%d shard logs, %d packages, %s observed; ideal shard %s. A finding is material when it misplaces at least %g%% of the ideal shard (%s). Costs change placement, never membership, and this report never fails CI. Refreshing `%s` is an operator step (`go run ./tools/ci-shard-costs refresh`, AFP-V0-022).\n\n",
+		shards, len(observed), seconds(total), seconds(int64(ideal)), share, seconds(materialMS), table)
+	if len(all) == 0 {
+		b.WriteString("No drift, missing or stale package.\n")
+	} else {
+		b.WriteString("| Finding | Package | Recorded | Observed | Misplaced | Of ideal shard |\n|---|---|---|---|---|---|\n")
+		for i, f := range all {
+			kind := f.kind
+			if i < material {
+				kind = "**" + kind + "** (material)"
+			}
+			fmt.Fprintf(&b, "| %s | `%s` | %s | %s | %s | %.1f%% |\n", kind, f.pkg, optional(f.recorded), optional(f.observed), seconds(f.misplaced()), 100*float64(f.misplaced())/ideal)
+		}
+	}
+	if summary != "" {
+		if err := appendFile(summary, b.String()); err != nil {
+			return 2, err
+		}
+	}
+
+	// One warning per material finding, keeping the last line for everything else.
+	warnings := min(material, maxWarnings-1)
+	for _, f := range all[:warnings] {
+		fmt.Fprintf(out, "::warning title=CI shard cost drift::%s\n", escape(fmt.Sprintf("%s misplaces %s (%.0f%% of the ideal shard); refresh %s (AFP-V0-040)", f, seconds(f.misplaced()), 100*float64(f.misplaced())/ideal, table)))
+	}
+	if rest := all[warnings:]; len(rest) != 0 {
+		counts := map[string]int{}
+		for _, f := range rest {
+			counts[f.kind]++
+		}
+		fmt.Fprintf(out, "::warning title=CI shard cost drift::%s\n", escape(fmt.Sprintf("%d further findings (%d drift, %d missing, %d stale); see the job summary (AFP-V0-040)", len(rest), counts["drift"], counts["missing"], counts["stale"])))
+	}
+	return 0, nil
+}
+
+func seconds(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) }
+
+func optional(ms int64) string {
+	if ms == 0 {
+		return "-"
+	}
+	return seconds(ms)
+}
+
+// escape encodes the characters a workflow command message cannot carry.
+func escape(s string) string {
+	return strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A").Replace(s)
+}
+
+func appendFile(path, text string) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(text)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	return err
 }

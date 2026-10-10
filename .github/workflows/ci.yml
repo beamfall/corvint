@@ -388,8 +388,17 @@ jobs:
             fi
             # The protected helper validates each package as a typed, non-option word.
             # Declared packages run confined to their read scopes (AFP-V0-023).
+            # AFP-V0-040: the JSON stream is also kept for the advisory cost-drift report. Only
+            # go test's own status decides this step; tee's status is never consulted.
+            mkdir -p "$RUNNER_TEMP/shard-costs"
+            set +e
             # shellcheck disable=SC2086
-            CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages
+            CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages |
+              tee "$RUNNER_TEMP/shard-costs/shard-$SHARD.json"
+            status=${PIPESTATUS[0]}
+            set -e
+            [ "$status" = 0 ] || exit "$status"
+            echo "costs=1" >> "$GITHUB_OUTPUT"
             # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
             if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
@@ -408,6 +417,18 @@ jobs:
           name: ${{ steps.tests.outputs.record }}
           path: ${{ runner.temp }}/tested-tree/record.json
           if-no-files-found: ignore
+      - name: Retain package outcomes for the advisory cost-drift report
+        # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes.
+        if: steps.tests.outputs.costs == '1'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-shard-costs-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
       - name: Selection audit
         if: always()
         run: |
@@ -448,6 +469,71 @@ jobs:
           fi
           test "$SHARDS_RESULT" = success
           test "$DOCS_RESULT" = success
+
+  ci-shard-cost-drift:
+    # AFP-V0-040: advisory drift report for .github/cishards/package-costs.json from this run's
+    # shard outcomes. It is not a required check: it never fails on a finding, never changes
+    # shard membership or placement, posts no commit status and never writes the table.
+    # Refreshing the table stays an operator step (AFP-V0-022). Anything but every shard's
+    # outcomes abstains with its reason.
+    if: ${{ always() && !cancelled() }}
+    needs: go-product-shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Must equal the go-product-shard matrix, or every run abstains.
+      SHARDS: "6"
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - name: Fetch shard package outcomes
+        if: needs.go-product-shard.result == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: ci-shard-costs-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/shard-costs
+      - name: Require the outcomes of every shard
+        id: complete
+        env:
+          SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+        run: |
+          d="$RUNNER_TEMP/shard-costs"
+          have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$SHARDS_RESULT" != success ]; then
+            reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "$have" -ne "$SHARDS" ]; then
+            reason="$have of $SHARDS shard outcome artifacts present (a docs-only, reused or selected run executes no complete shard)"
+          else
+            echo 'ok=1' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s; a partial run cannot measure the table.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: steps.complete.outputs.ok == '1'
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.complete.outputs.ok == '1'
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Report cost drift (advisory; findings never fail)
+        if: steps.complete.outputs.ok == '1'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shard-costs" ./tools/ci-shard-costs
+          code=0
+          "$RUNNER_TEMP/ci-shard-costs" check --advisory --shards "$SHARDS" --summary "$GITHUB_STEP_SUMMARY" \
+            "$RUNNER_TEMP"/shard-costs/shard-*.json || code=$?
+          echo "ci-shard-costs check --advisory exited $code (2 means it abstained; see the job summary)"
 
   go-interop:
     runs-on: ubuntu-24.04
