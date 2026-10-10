@@ -148,6 +148,8 @@ func TestAMAPV0016UnprovableConstantsStayUnknown(t *testing.T) {
 		"prefix increment":  {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\n++Names.X;\n", ""},
 		"parenthesized":     {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\n", "(Names.X) = 'app.y';\n"},
 		"destructured":      {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\n", "[Names.X] = ['app.y'];\n"},
+		"asserted here":     {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\n", "(Names.X as string) = 'app.y';\n"},
+		"non-null there":    {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\nNames.X! = 'app.y';\n", ""},
 		"control":           {"import { Names } from './consts/names';", "export const Names = { X: 'app.x' };\n", ""},
 	} {
 		t.Run(name, func(t *testing.T) {
