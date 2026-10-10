@@ -205,27 +205,29 @@ var diReach = map[string]bool{"$injector": true, "$provide": true, "injector": t
 //   - an injector or decorator token under any name (diReach);
 //   - an annotation the reader cannot read: a `$inject`, or an inline array whose names are not
 //     exact strings;
-//   - any of these inside a template substitution.
+//   - any of these inside a template substitution, or any substitution that is not one name,
+//     member chain or literal (see substOpaque);
+//   - an `angular.module` dependency list holding a name, unless exempt (see bindsAngular).
 //
 // `.run(['Name', function (s) { s.K = v }])`, `$injector.get('Name').K = v` or
 // `function (Name) { Name.K = v }` would otherwise write the table the router reads. A file the
 // reader does not examine is not seen (see examined).
-func (f *constFile) diQuiet(name string, reg, allow int) bool {
-	key := quietKey{name, reg, allow}
+func (f *constFile) diQuiet(name string, reg, allow int, exempt bool) bool {
+	key := quietKey{name, reg, allow, exempt}
 	if v, ok := f.quiet[key]; ok {
 		return v
 	}
 	if f.quiet == nil {
 		f.quiet = map[quietKey]bool{}
 	}
-	v := f.quietFor(name, reg, allow)
+	v := f.quietFor(name, reg, allow, exempt)
 	f.quiet[key] = v
 	return v
 }
 
 // quietFor is diQuiet without the memo.
-func (f *constFile) quietFor(name string, reg, allow int) bool {
-	if f.unlisted || f.hidden[name] || !f.annotations() || f.computedAnnotation() {
+func (f *constFile) quietFor(name string, reg, allow int, exempt bool) bool {
+	if f.unlisted || f.hiddenCode || f.hidden[name] || f.hidden["_"+name+"_"] || !f.annotations() || f.computedAnnotation(exempt) {
 		return false
 	}
 	for h := range diReach {
@@ -274,12 +276,12 @@ func objectKey(toks []token, i int) bool {
 // that may hold one (`undefined`, `NaN` and `Infinity` are names that can be shadowed), a call that
 // may return one, a spread or a hole fails. A spread fails in any position, alone included: it may
 // expand to a whole annotation. One trailing comma ends the list without an element. The
-// dependency list of `angular.module('name', [...])` and a binding pattern (`const [a, b] = v`)
-// are no annotation; any other array holding a name fails closed.
-func (f *constFile) computedAnnotation() bool {
+// dependency list of `angular.module('name', [...])` when exempt (see bindsAngular) and a binding
+// pattern (`const [a, b] = v`) are no annotation; any other array holding a name fails closed.
+func (f *constFile) computedAnnotation(exempt bool) bool {
 	toks := f.toks
 	for i := range toks {
-		if !isPunct(toks[i], "[") || moduleDeps(toks, i) || i > 0 && (word(toks, i-1, "const") || word(toks, i-1, "let") || word(toks, i-1, "var")) {
+		if !isPunct(toks[i], "[") || exempt && moduleDeps(toks, i) || i > 0 && (word(toks, i-1, "const") || word(toks, i-1, "let") || word(toks, i-1, "var")) {
 			continue
 		}
 		end := closeParen(toks, i)
@@ -328,7 +330,8 @@ func plainElement(toks []token, k, e int) bool {
 }
 
 // quiet is diQuiet for one examined file; the registering file may hold its own registration.
-func (t *constTable) quiet(f *constFile, name string) bool {
+// exempt grants the `angular.module` dependency-list exemption (see bindsAngular).
+func (t *constTable) quiet(f *constFile, name string, exempt bool) bool {
 	reg, allow := -1, -1
 	if r := t.di.regs[name]; len(r) == 1 && r[0].file.entry.path == f.entry.path {
 		reg = r[0].name
@@ -336,7 +339,109 @@ func (t *constTable) quiet(f *constFile, name string) bool {
 			allow = r[0].at
 		}
 	}
-	return f.diQuiet(name, reg, allow)
+	return f.diQuiet(name, reg, allow, exempt)
+}
+
+// bindsAngular reports whether f may bind the name angular to anything but the global AngularJS
+// object: any identifier angular not followed by `.`, which covers a parameter, a var, let,
+// const, function or class declaration, an import binding, a catch parameter, a destructuring
+// target, an assignment and a value passed on. Then `angular.module('x', [...])` in any examined
+// file may call another function, so no dependency list is exempt.
+func (f *constFile) bindsAngular() bool {
+	for i, t := range f.toks {
+		if t.kind == tokIdent && t.text == "angular" && !next(f.toks, i+1, ".") {
+			return true
+		}
+	}
+	return false
+}
+
+// substOpaque reports whether a template literal's raw source from its first `${` (token.code)
+// holds a substitution that is not one name or member chain (`a`, `a.b`, `a?.b`) or one literal
+// (a string, a number, or an untagged template whose substitutions pass the same test). A call,
+// function, arrow, assignment, operator, spread, `new`, computed member or tagged template there
+// may run code no token shows: an injection, an annotation or a binding.
+func substOpaque(code string) bool {
+	_, opaque := templateText(code, 0)
+	return opaque
+}
+
+// templateText scans template text from code[i] to its closing backtick (or the end) and returns
+// the index after it, and whether a substitution in it is opaque.
+func templateText(code string, i int) (int, bool) {
+	for i < len(code) {
+		switch {
+		case code[i] == '\\':
+			i += 2
+		case code[i] == '`':
+			return i + 1, false
+		case code[i] == '$' && i+1 < len(code) && code[i+1] == '{':
+			var ok bool
+			if i, ok = plainSubst(code, i+2); !ok {
+				return i, true
+			}
+		default:
+			i++
+		}
+	}
+	return i, false
+}
+
+// plainSubst reads one substitution body from code[i] through its `}` and reports whether it is
+// one name, member chain or literal.
+func plainSubst(code string, i int) (int, bool) {
+	space := func() {
+		for i < len(code) && (code[i] == ' ' || code[i] == '\t' || code[i] == '\n' || code[i] == '\r') {
+			i++
+		}
+	}
+	ident := func() bool {
+		if i >= len(code) || !isIdentStart(code[i]) {
+			return false
+		}
+		for i < len(code) && isIdentPart(code[i]) {
+			i++
+		}
+		return true
+	}
+	space()
+	switch {
+	case i >= len(code):
+		return i, false
+	case code[i] == '\'' || code[i] == '"':
+		_, _, closed, end := readQuoted(code, i)
+		if !closed {
+			return end, false
+		}
+		i = end
+	case code[i] == '`':
+		end, opaque := templateText(code, i+1)
+		if opaque {
+			return end, false
+		}
+		i = end
+	case code[i] >= '0' && code[i] <= '9':
+		for i < len(code) && (isIdentPart(code[i]) || code[i] == '.') {
+			i++
+		}
+	case ident():
+		for {
+			switch {
+			case i+1 < len(code) && code[i] == '.' && isIdentStart(code[i+1]):
+				i++
+			case i+2 < len(code) && code[i] == '?' && code[i+1] == '.' && isIdentStart(code[i+2]):
+				i += 2
+			default:
+				space()
+				return i + 1, i < len(code) && code[i] == '}'
+			}
+			ident()
+		}
+	default:
+		return i, false
+	}
+	space()
+	return i + 1, i < len(code) && code[i] == '}'
 }
 
 // lodashName reports whether toks[i] is the first argument of lodash's `_.constant(...)`, which
@@ -357,8 +462,12 @@ func (t *constTable) examined(roots, chain []*constFile, decl *constFile, inj st
 	if !ok {
 		return false
 	}
+	exempt := true
 	for _, h := range files {
-		if !t.quiet(h, inj) || decl != nil && !slices.Contains(chain, h) && !t.bindingsRead(h, decl, "", names...) {
+		exempt = exempt && !h.bindsAngular()
+	}
+	for _, h := range files {
+		if !t.quiet(h, inj, exempt) || decl != nil && !slices.Contains(chain, h) && !t.bindingsRead(h, decl, "", names...) {
 			return false
 		}
 	}

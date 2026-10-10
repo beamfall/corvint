@@ -226,6 +226,25 @@ injector.
     `SectionNames`. A use of the identifier `_SectionNames_` other than as a property or an
     object key now fails the file's injection check. The reader does not resolve a router read
     through such a parameter; it fails closed instead.
+- Seventeenth review (two fail-open paths in the sixteenth review's rules, no spec text change):
+  - The `angular.module` exemption checked only the spelling, so `(function (angular) {
+    angular.module('unused', [...]) })(helper)` forwarded an annotation. The exemption now holds
+    only when no file of the examined closure has an identifier `angular` not followed by `.`.
+    That covers a parameter, a var, let, const, function or class declaration, an import binding
+    (`import angular from 'angular'` included), a catch parameter, a destructuring target, an
+    assignment and a value passed on. Otherwise no dependency list is exempt, and every
+    `.module(...)` array argument is classified as an annotation.
+  - A template substitution hid an injection (`${app.config(function (_SectionNames_) {...})}`)
+    and a computed annotation from the visible-token checks. Substitution bodies are now opaque:
+    an examined file holding a substitution that is not one name, member chain (`a.b`, `a?.b`) or
+    literal (a string, a number, or an untagged template whose substitutions pass the same test)
+    fails the injection check. A call, function, arrow, assignment, operator, spread, `new`,
+    computed member or tagged template counts. `_name_` inside a substitution also fails.
+  - Detector audit against hidden code. The name, `_name_` and injector/decorator checks consult
+    the substitution identifiers (`hidden`). The annotation-array, `$inject`, `angular` binding
+    and implicit-parameter checks need a bracket, call, assignment or function in a substitution,
+    which the opaque rule rejects. The module closure already counts loader names inside a
+    substitution, and `onlyRead` and the binding reads already fail on a hidden table name.
 
 ## Evidence
 
@@ -420,6 +439,15 @@ injector.
   function ($rootScope) {...}]` annotation and an `angular.module('m', [uiRouter, ngAnimate])`
   dependency list) still resolve. The full `go test -count=1 ./internal/appmap` passes (510
   passing tests and subtests); `go vet` and `gofmt` are clean.
+- Seventeenth review: `TestAMAPV0025ChainBindingsFailClosed` gained `di shadowed angular` (the
+  review's input), `di angular bound elsewhere` (`var angular = ...` in a file the registering
+  file imports), `di substitution underscore` (the review's input) and `di substitution
+  annotation` (`${app.config(['Section' + 'Names', mutate])}`). Against `1fba0002` all four
+  resolve silently (`v1061-r18-gap-before.txt`). All pass with the fix. The new `di plain
+  substitutions` guard (`${a.b}`, `${ a?.b }`, `${'s'}`, `${1}`, a nested template and an
+  `angular.module('m', [uiRouter])` list) resolves before and after. `TestAMAPV0025SubstOpaque`
+  classifies plain and opaque substitutions directly. The full `go test -count=1 ./internal/appmap`
+  passes (516 passing tests and subtests); `go vet` and `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -501,3 +529,10 @@ injector.
   `Promise.all([p1, p2])`, `[...items]`). A name the code computes without an injector, a
   decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.
+- Since the seventeenth review, two common forms leave an injected table UNKNOWN. A closure file
+  that binds or passes `angular` (an ES-module `import angular from 'angular'` included) removes
+  the `angular.module` exemption, so a dependency list holding names (`[uiRouter]`) fails. An
+  examined file with a template substitution beyond a name, member chain or literal
+  (`${fmt(x)}`, `${a + b}`) also fails. The opaque rule applies only to the injection check. The
+  global `angular` reassigned by a string key (`globalThis['angular'] = h`) or from a file outside
+  the closure is not seen; this is the off-chain global class above.

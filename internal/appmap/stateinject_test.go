@@ -599,6 +599,14 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"sole spread":        {reg + "function mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').config([\n  ...('Section' + 'Names').split().concat(mutate)\n]);\n", nil},
 		"helper module":      {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst helper = {};\nhelper.module = function (label, annotation) {\n  angular.module('admin').config(annotation);\n};\nhelper.module('unused', ['Section' + 'Names', mutate]);\n", nil},
 		"underscore wrapped": {reg + "angular.module('admin').config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n});\n", nil},
+		// The seventeenth review's inputs: a local binding of angular, here or in another examined
+		// file, and an injection inside a template substitution.
+		"shadowed angular": {reg + "const app = angular.module('admin');\nconst helper = {};\nhelper.module = function (label, annotation) {\n  app.config(annotation);\n};\n" +
+			"(function (angular) {\n  angular.module('unused', [\n    'Section' + 'Names',\n    function (s) { s.REPORTS = 'other'; }\n  ]);\n})(helper);\n", nil},
+		"angular bound elsewhere": {reg + "import './shadow';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n",
+			map[string]string{"app/setup/shadow.ts": "var angular = globalThis.helper;\n"}},
+		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
+		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {
 		t.Run("di "+name, func(t *testing.T) {
 			files := map[string]string{index: star, decl: table}
@@ -612,6 +620,11 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 	t.Run("di other names", func(t *testing.T) {
 		checkBarrel(t, reg+"angular.module('admin').run(['$rootScope', function ($rootScope) { $rootScope.x = /SectionNames/.test('a'); }]);\n"+
 			"const k = _.constant('SectionNames');\nconst o = { SectionNames: 1 };\n", map[string]string{index: star, decl: table}, "", index)
+	})
+	// A template substitution that is one name, member chain or literal stays readable (round 17).
+	t.Run("di plain substitutions", func(t *testing.T) {
+		checkBarrel(t, reg+"const a = { b: 'x' };\nconst u = `/p/${a.b}/q/${ a?.b }`;\nconst v = `${'s'}${1}${`n${a}`}`;\nangular.module('m', [uiRouter]);\n",
+			map[string]string{index: star, decl: table}, "", index)
 	})
 	// Files the chain loads through any import form, transitively, that only read the table, and
 	// modules that cannot run code, stay readable.
@@ -963,4 +976,35 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), map[string]string{
 			"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: table + reads}, "", "app/tables/routes/index.ts")
 	})
+}
+
+// A template substitution is plain only when it is one name, member chain or literal (round 17).
+func TestAMAPV0025SubstOpaque(t *testing.T) {
+	for src, want := range map[string]bool{
+		"`${a}`":                 false,
+		"`x${ a.b }y${a?.b}`":    false,
+		"`${'s}'}${\"t\"}${12}`": false,
+		"`${`n${a.b}`}`":         false,
+		"`\\${a()}`":             false,
+		"`${a()}`":               true,
+		"`${a.b = 1}`":           true,
+		"`${(x) => x}`":          true,
+		"`${function () {}}`":    true,
+		"`${new Foo}`":           true,
+		"`${a[k]}`":              true,
+		"`${...a}`":              true,
+		"`${a + b}`":             true,
+		"`${a.b`t`}`":            true,
+		"`${`n${f()}`}`":         true,
+		"`${a?.()}`":             true,
+		"`${a}${b(c)}`":          true,
+	} {
+		toks, _ := lexJS(src)
+		if len(toks) != 1 || toks[0].kind != tokTemplate {
+			t.Fatalf("%s: lexed %v", src, toks)
+		}
+		if got := substOpaque(toks[0].code); got != want {
+			t.Errorf("substOpaque(%s) = %v, want %v", src, got, want)
+		}
+	}
 }

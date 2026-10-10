@@ -82,6 +82,9 @@ type constFile struct {
 	// hidden holds every identifier inside a template substitution, which no token shows: a name
 	// there has a use the reader cannot check.
 	hidden map[string]bool
+	// hiddenCode marks a template substitution that is not one name, member chain or literal (see
+	// substOpaque): it may inject or write a table where no token shows it.
+	hiddenCode bool
 	// spaces are the modules of the file's namespace imports, dynamic imports, `require` calls and
 	// import items the reader cannot read, each of which may reach a table under another name; ""
 	// is a module name that is not an exact literal.
@@ -95,10 +98,11 @@ type constFile struct {
 	quiet   map[quietKey]bool // memoized diQuiet
 }
 
-// quietKey memoizes diQuiet for one name, registration token and allowed token.
+// quietKey memoizes diQuiet for one name, registration token, allowed token and module exemption.
 type quietKey struct {
 	name       string
 	reg, allow int
+	exempt     bool
 }
 
 // readKey memoizes onlyRead for one name and the one token (or -1) allowed to pass it along.
@@ -971,6 +975,7 @@ func parseConstFile(e blobEntry, data []byte) *constFile {
 		if t.kind != tokTemplate {
 			continue
 		}
+		f.hiddenCode = f.hiddenCode || substOpaque(t.code)
 		for k := 0; k < len(t.code); k++ {
 			if !isIdentStart(t.code[k]) {
 				continue
