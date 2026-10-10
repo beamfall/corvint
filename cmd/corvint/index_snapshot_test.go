@@ -539,11 +539,30 @@ func TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt(t *testing.T) {
 // write with no such store carries none of the three keys.
 func TestIndexReceiptNamesTheSweptLegacyStore(t *testing.T) {
 	t.Parallel()
-	root := taskContextRepository(t)
-	legacy := filepath.Join(root, ".corvint", "index")
-	if err := os.MkdirAll(legacy, 0o755); err != nil {
+	indexReceiptNamesTheSweptLegacyStore(t, taskContextRepository(t))
+}
+
+// TestIndexReceiptNamesTheSweptLegacyStoreThroughSymlinkedRoot passes --root
+// through a symlink, as a macOS temp directory under /var/folders is. The
+// receipt names the resolved repository paths (V1-1112).
+func TestIndexReceiptNamesTheSweptLegacyStoreThroughSymlinkedRoot(t *testing.T) {
+	t.Parallel()
+	link := filepath.Join(t.TempDir(), "linked-repository")
+	if err := os.Symlink(taskContextRepository(t), link); err != nil {
 		t.Fatal(err)
 	}
+	indexReceiptNamesTheSweptLegacyStore(t, link)
+}
+
+func indexReceiptNamesTheSweptLegacyStore(t *testing.T, root string) {
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".corvint", "index"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(resolved, ".corvint", "index")
 	snapshot := filepath.Join(legacy, "sha1-"+strings.Repeat("e", 40)+"-0123456789abcdef.gob")
 	if err := os.WriteFile(snapshot, []byte("superseded"), 0o600); err != nil {
 		t.Fatal(err)
