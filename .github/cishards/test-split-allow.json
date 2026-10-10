@@ -1,0 +1,7 @@
+{
+  "profile": "corvint-ci-test-split-allow/0",
+  "packages": {
+    "github.com/Beamfall/corvint/cmd/corvint": "AFP-V0-041 proposal, pending owner acceptance. TestMain sets GIT_CONFIG_PARAMETERS and removes the sync.Once fixture roots of its own process; each slice process rebuilds what it uses. No test is known to depend on another test's order or side effects.",
+    "github.com/Beamfall/corvint/internal/tasks/store": "AFP-V0-041 proposal, pending owner acceptance. TestMain re-executes the test binary as lane leader or output holder and resolves TMPDIR for its own process. Tests use private temporary stores; no test is known to depend on another test's order or side effects."
+  }
+}

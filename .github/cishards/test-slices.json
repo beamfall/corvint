@@ -1,0 +1,9 @@
+{
+  "profile": "corvint-ci-test-slices/0",
+  "source": {
+    "revision": "284c43129df038decb36d5a5f736879174b41b17",
+    "runURL": "https://github.com/beamfall/corvint/actions/runs/38055182050",
+    "goVersion": "go1.27.1"
+  },
+  "packages": {}
+}

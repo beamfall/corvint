@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -131,7 +132,7 @@ func TestAFPIsolatedBuildIgnoresModuleRedirection(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(source, "go.mod"), []byte(poisoned), 0600); err != nil {
 			t.Fatal(err)
 		}
-		for _, name := range []string{"partition.go", "order.go", "cmd/main.go", "package-costs.json"} {
+		for _, name := range profileNames {
 			raw, err := profileFiles.ReadFile(name)
 			if err != nil {
 				t.Fatal(err)
@@ -160,6 +161,43 @@ func TestAFPIsolatedBuildIgnoresModuleRedirection(t *testing.T) {
 		raw, err := exec.Command(filepath.Join(isolated, "helper"), "--profile").CombinedOutput()
 		if err != nil || strings.TrimSpace(string(raw)) != ProfileDigest() {
 			t.Fatalf("protected profile redirected: %s %v", raw, err)
+		}
+		// AFP-V0-041: the helper prints each shard's whole packages and test slices.
+		universe := []string{"example.org/a", "example.org/b"}
+		var f struct {
+			Packages map[string]json.RawMessage `json:"packages"`
+		}
+		if err = json.Unmarshal(defaultSlices, &f); err != nil {
+			t.Fatal(err)
+		}
+		for p := range f.Packages {
+			universe = append(universe, p)
+		}
+		sort.Strings(universe)
+		plan, err := Plan(universe, 6)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, want := range plan {
+			lines := func(args ...string) []string {
+				cmd := exec.Command(filepath.Join(isolated, "helper"), append([]string{"--shard", strconv.Itoa(i), "--shards", "6"}, args...)...)
+				cmd.Stdin = strings.NewReader(strings.Join(universe, "\n") + "\n")
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("helper shard %d %v: %v", i, args, err)
+				}
+				return strings.Fields(string(out))
+			}
+			gotSlices := []string{}
+			for _, s := range want.Slices {
+				gotSlices = append(gotSlices, s.Flag, s.Pattern, s.Package)
+			}
+			if got := lines(); !reflect.DeepEqual(got, append([]string{}, want.Packages...)) {
+				t.Fatalf("shard %d packages %v, plan %v", i, got, want.Packages)
+			}
+			if got := lines("--slices"); !reflect.DeepEqual(got, gotSlices) {
+				t.Fatalf("shard %d slices %v, plan %v", i, got, gotSlices)
+			}
 		}
 	})
 }

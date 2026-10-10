@@ -290,7 +290,7 @@ jobs:
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
           cd "$d"
@@ -382,14 +382,27 @@ jobs:
             # The same shard as without --order; a readable plan only moves its selected
             # packages to the front, so a failure in a changed package surfaces early.
             packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe")
-            if [ -z "$packages" ]; then
+            # AFP-V0-041 (experimental): this shard's test slices of split packages, one
+            # "FLAG PATTERN PACKAGE" invocation per line; a split package is never whole.
+            slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --slices < "$RUNNER_TEMP/ci-package-universe")
+            if [ -z "$packages" ] && [ -z "$slices" ]; then
               echo "Complete-universe shard $SHARD has no packages."
               exit 0
             fi
-            # The protected helper validates each package as a typed, non-option word.
+            status=0
+            # The protected helper validates each package as a typed, non-option word and
+            # each slice pattern as one anchored element of plain test names.
             # Declared packages run confined to their read scopes (AFP-V0-023).
-            # shellcheck disable=SC2086
-            CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages
+            if [ -n "$packages" ]; then
+              # shellcheck disable=SC2086
+              CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages || status=1
+            fi
+            if [ -n "$slices" ]; then
+              while read -r flag pattern pkg; do
+                CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" || status=1
+              done <<< "$slices"
+            fi
+            [ "$status" = 0 ]
             # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
             if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
