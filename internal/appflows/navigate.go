@@ -25,6 +25,7 @@ const (
 	GrantGranted            = "granted"
 	GrantRequired           = "requires-grant"
 	maxPacketSteps          = 256
+	maxTrafficFiles         = 256
 )
 
 // effectRank orders the effect classes; an unknown class ranks 0 and is never granted.
@@ -139,8 +140,11 @@ type PacketFlow struct {
 }
 
 // ReadTraffic reads --traffic files of application-flow-traffic/0 records with the flow-input
-// discipline; all files together share the run-evidence record bound.
+// discipline; file count and the shared run-evidence record count are bounded (AFU-V1-057).
 func ReadTraffic(filenames []string) ([]TrafficRecord, error) {
+	if len(filenames) > maxTrafficFiles {
+		return nil, navigationBound(fmt.Sprintf("traffic files exceed %d files", maxTrafficFiles))
+	}
 	records := []TrafficRecord{}
 	for _, name := range filenames {
 		raw, err := ReadFile(name)
@@ -227,10 +231,11 @@ func navigationMap(ctx context.Context, root string, set IntentSet, evidence []T
 	}
 	at.stability = readFlowStability(ctx, root, registry, evidence, at)
 	m := NavigationMap{Schema: NavigationMapSchema, Revision: at.commit, States: navStates(set.Flows), Flows: []NavFlow{}}
+	observed := indexTraffic(traffic)
 	for _, intent := range set.Flows {
 		own := flowLinks(links, intent.FlowID)
 		m.Flows = append(m.Flows, NavFlow{FlowID: intent.FlowID, Kind: intent.Kind, Status: status(flowGaps(intent, own, evidence, at)),
-			PreconditionFlows: nonNil(navigationOf(intent).PreconditionFlows), Transitions: flowTransitions(intent, own, evidence, traffic, at)})
+			PreconditionFlows: nonNil(navigationOf(intent).PreconditionFlows), Transitions: flowTransitions(intent, own, evidence, observed, at)})
 	}
 	return m, checkPreconditions(m.Flows)
 }
@@ -285,7 +290,22 @@ func navigationOf(f FlowIntent) FlowNavigation {
 	return *f.Navigation
 }
 
-func flowTransitions(intent FlowIntent, links []EvaluatedLink, evidence []TestRunEvidence, traffic []TrafficRecord, at head) []Transition {
+type trafficStep struct {
+	flowID string
+	stepID string
+}
+
+// indexTraffic attributes each record once, preserving input order per exact pair (AFU-V1-058).
+func indexTraffic(records []TrafficRecord) map[trafficStep][]TrafficRecord {
+	index := make(map[trafficStep][]TrafficRecord)
+	for _, record := range records {
+		key := trafficStep{record.FlowID, record.StepID}
+		index[key] = append(index[key], record)
+	}
+	return index
+}
+
+func flowTransitions(intent FlowIntent, links []EvaluatedLink, evidence []TestRunEvidence, traffic map[trafficStep][]TrafficRecord, at head) []Transition {
 	entries := map[string]NavStep{}
 	for _, e := range navigationOf(intent).Steps {
 		entries[e.StepID] = e
@@ -293,7 +313,7 @@ func flowTransitions(intent FlowIntent, links []EvaluatedLink, evidence []TestRu
 	verified := verifiedSteps(intent, links, evidence, at)
 	out := []Transition{}
 	for _, s := range intent.Steps {
-		observed := slices.DeleteFunc(slices.Clone(traffic), func(r TrafficRecord) bool { return r.FlowID != intent.FlowID || r.StepID != s.StepID })
+		observed := traffic[trafficStep{intent.FlowID, s.StepID}]
 		out = append(out, transition(intent, s, entries[s.StepID], observed, verified[s.StepID]))
 	}
 	return out

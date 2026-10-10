@@ -502,6 +502,16 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   `external-side-effect` transition unless the target origin is listed as disposable in the
   repository-owned `origins.json` in the flows directory.
 
+- `AFU-V1-057`: (proposed, pending owner acceptance (V1-0276)) Navigation traffic
+  input MUST accept at most 256 filenames, counting repeated filenames and empty files.
+  More filenames MUST fail before opening any traffic file with `navigation-bound-exceeded`.
+  The shared 8,192-record bound remains unchanged; refusals emit no navigation output.
+- `AFU-V1-058`: (proposed, pending owner acceptance (V1-0276)) Navigation MUST index traffic
+  once by the exact flow/step pair, preserving record order within each pair. Traffic attribution
+  and filtering MUST take O(R + S) work and O(R) auxiliary space for R records and S steps,
+  rather than scanning or cloning all R records for every step. Existing admitted map and packet
+  output MUST remain byte-identical, including effects, grants and verification state.
+
 ### Navigation wire contract
 
 This subsection fixes the S5 wire shape. It adds no requirement and no root verb.
@@ -515,7 +525,9 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   (`GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH` or `DELETE`) and a `path` template, which are its
   state, and a declared `read` on a method other than `GET`, `HEAD` or `OPTIONS` is refused.
 - Traffic: `--traffic FILE` (repeatable) names `application-flow-traffic/0` JSONL records (`flow_id`,
-  `step_id`, `method`, `form_submit`) read with the flow-input discipline; with no locator or text
+  `step_id`, `method`, `form_submit`) read with the flow-input discipline; the proposed
+  AFU-V1-057 limit is 256 filenames (duplicates and empty files count), refused before any
+  traffic file is opened with `navigation-bound-exceeded`; with no locator or text
   field, a record can only raise a class. A `method` other than `GET`, or `form_submit` true, raises a
   declared `read` to `write-irreversible` (`effect_basis` `observed-traffic`); an absent `effect` is
   `write-irreversible` (`undeclared`); other declared classes stand (`declared`).
@@ -718,6 +730,8 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
+| AFU-V1-057 | `TestAFUV1057TrafficFileBound`, `TestAFUV1057TrafficRecordBound`, `TestAFUV1057TrafficFileBoundCLI` |
+| AFU-V1-058 | `TestAFUV1058TrafficIndexParity`, existing navigation map and packet goldens; `internal/appflows/navigate.go` builds one exact-pair index |
 | AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve` |
 | AFU-V1-026 | `TestAFUV1026LocatorsOnlyFromIntent` (no locator for an unmapped step; traffic with page text refused), `TestAFUV1026NavigationLocatorShapes` |
 | AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |

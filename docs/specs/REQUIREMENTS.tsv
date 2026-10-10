@@ -114,33 +114,35 @@ AFU-V1-026	docs/specs/application-flow-understanding-v1.md	491	Locators MUST com
 AFU-V1-027	docs/specs/application-flow-understanding-v1.md	493	Every transition MUST carry an effect class. A declared class MAY be raised by
 AFU-V1-028	docs/specs/application-flow-understanding-v1.md	496	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
 AFU-V1-029	docs/specs/application-flow-understanding-v1.md	501	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	555	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	558	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	562	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	612	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	619	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	624	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	629	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	631	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	637	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	640	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	564	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	567	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	570	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	574	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	624	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	631	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	636	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	641	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	643	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	649	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	652	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	848	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	856	Logical flow and paragraph IDs depend on provider namespace, repository-relative
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	862	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	868	Materialization requires a new directory under existing nonsymlink parents and
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	874	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	880	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	917	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	924	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	933	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	939	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	945	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
-AFU-V1-054	docs/specs/application-flow-understanding-v1.md	977	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s
-AFU-V1-055	docs/specs/application-flow-understanding-v1.md	981	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it
-AFU-V1-056	docs/specs/application-flow-understanding-v1.md	985	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	862	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	870	Logical flow and paragraph IDs depend on provider namespace, repository-relative
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	876	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	882	Materialization requires a new directory under existing nonsymlink parents and
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	888	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	894	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	931	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	938	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	947	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	953	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	959	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	991	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	995	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	999	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i
+AFU-V1-057	docs/specs/application-flow-understanding-v1.md	505	(proposed, pending owner acceptance (V1-0276)) Navigation traffic
+AFU-V1-058	docs/specs/application-flow-understanding-v1.md	509	(proposed, pending owner acceptance (V1-0276)) Navigation MUST index traffic
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
