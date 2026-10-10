@@ -312,6 +312,39 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   builds from identical inputs emit byte-identical indexed artifacts; query emits the trust-enveloped
   native receipt; parity over a recorded question set binds index and recording digests, reports
   per-tool agreement and repeats byte-identically. A wrong operator pin refuses without a report.
+- `DCP-V1-044`: `corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] --check`
+  validates the whole request. It neither emits nor writes an adapter result or artifact. It emits one
+  deterministic `corvint-behavior-adapter-check/1` report that lists every build stage in build order
+  as `passed`, `refused`, `not-evaluated` or `not-applicable`, and lists every refusal it can determine
+  in that same order, each with its stage, code and message. Items are inputs, mappings,
+  observations, mapped records and discovery executions, and each item is evaluated independently
+  of the other items. Within one item, evaluation stops at the item's first refusal, and exactly one
+  `not-evaluated` entry then names the item: `remaining checks for <item> not evaluated after
+  <refusal>`. A stage or item whose dependency was refused is listed as `not-evaluated` with the
+  stages that blocked it. An identity-uniqueness refusal belongs to the first item, not already
+  refused, whose identity is invalid or repeats an earlier one. When a count bound on inputs,
+  mappings, observations or discovery executions refuses, the items it bounds are not evaluated, and
+  one `not-evaluated` entry says so. The report keeps at most 1024 refusal entries and about 1 MiB of
+  them, always including the first; a terminal `not-evaluated` entry `further entries omitted after
+  <N>` marks any omission. Each entry's message is capped at 4 KiB, cut on a UTF-8 boundary and
+  followed by ` … [truncated <N> bytes]`. Both caps apply as entries are recorded, so the entries a
+  check retains never exceed what the report can list. The check computes and retains no
+  reconciliation frontier, coverage, provider subjects or delta key sets, none of which can refuse a
+  build; the delta check runs the same canonical encodings as the build without keeping their keys. No check is silently omitted, and the report
+  does not list every independent refusal within one item.
+  The report is accepted exactly when the build would succeed, and its first refusal equals the build's
+  refusal truncated by that same cap; the build's own error is unchanged. The command exits 0 when accepted, 1 when refused and 2 when an input file cannot be read;
+  `--check` takes no value and applies to no other corpus operation. The report retains
+  `full-relevant-suite` fallback, and its vocabulary contains no adopter-specific term. Status:
+  (accepted, decision 0482; V1-1084; GitHub #717).
+- `DCP-V1-045`: The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anchor
+  placement rule: every adapter input anchor names the provider repository, equal to the request
+  `source`, which equals the provider entry of `revisions`. It names the refusal correction given
+  otherwise. The guide also gives a minimal valid schema-2 migration identity record (`schema`,
+  `contract_id`, `source_revision`, `documentation_revision`, `revisions`) and the self-referencing
+  revision pitfall: the record describes an earlier provider commit and is committed, and anchored,
+  in a later one. A test closed-decodes the guide's example and builds an accepted request from it
+  under that rule. Status: (accepted, decision 0482; V1-1086; GitHub #717).
 
 ## Input and authority boundary
 
@@ -398,7 +431,7 @@ Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
 
 ### Experimental behavior-provider adapter (issue 53)
 
-`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json]` is a read-only
+`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]` is a read-only
 producer for the issue-40 profile. The request supplies caller-owned documents and immutable input
 identities plus generic mappings for reviewed flows and variations, source candidates, tests, live
 Playwright discovery and runtime witnesses. Each canonical variation retains explicit semantic fields
@@ -419,8 +452,14 @@ Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
 `TestBehaviorAdapterMappingParity`, `TestBehaviorAdapterDelta`,
 `TestBehaviorAdapterReverseLinkKeysDoNotCollide`, `TestBehaviorAdapterMissingReverseLinkNamesEachTest`,
 `TestBehaviorAdapterArtifactsMatchPreviousValidator` and
-`TestBehaviorAdapterCLI` exercise `DCP-V1-027..032`. Exact consumer inputs, live browser execution
-and external utility qualification remain `NOT_OBSERVED`.
+`TestBehaviorAdapterCLI` exercise `DCP-V1-027..032`. The check mode in `DCP-V1-044` is exercised by
+`TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`,
+`TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`,
+`TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`,
+`TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`,
+`TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterCheckRetainsNoAmplifiedKeys`, `TestBehaviorAdapterBuildBoundMessage` and the check subtest of `TestBehaviorAdapterCLI`. The guide example in `DCP-V1-045` is exercised by
+`TestBehaviorAdapterGuideMigrationExample`. Exact consumer inputs, live browser execution and external
+utility qualification remain `NOT_OBSERVED`.
 
 ### Multi-repository behavior declarations (issue 330)
 
@@ -572,6 +611,8 @@ original sources, retained observations and human documentation require no migra
 
 | DCP-V1-038..042 | `internal/doccorpus/typed_query.go`, `trust.go`, `query_index.go`, `internal/corpusindex`, `internal/corpusserve`, separate companion commands | `TestCorpusTypedQueryConformance`, `TestCorpusRetirementBindings`, `TestCorpusCompleteReadAndTypedToolSchema`, `TestIndexedCorpusReproductionAndProvenance`, `TestIndexedCorpusCapacityQualification`, `TestIndexedCorpusSwitchParity`, `TestHostedCorpusHTTPConformance`, `TestHostedCorpusConcurrencyAndCleanup` |
 | DCP-V1-043 | `cmd/corvint-corpus-parity` | `TestCorpusParityCommandEndToEnd`, `TestCorpusParityCommandFailuresExitNonzero` |
+| DCP-V1-044 | `internal/doccorpus/behavior_adapter_check.go`, `behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | `TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`, `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`, `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`, `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`, `TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterCheckRetainsNoAmplifiedKeys`, `TestBehaviorAdapterBuildBoundMessage`, `TestBehaviorAdapterCLI` (`DCP-V1-044 check`) |
+| DCP-V1-045 | `docs/DOCUMENTATION-CORPUS.md` | `TestBehaviorAdapterGuideMigrationExample` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

@@ -1,0 +1,832 @@
+package doccorpus
+
+import (
+	"bytes"
+	jsonstd "encoding/json"
+	"errors"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+	"unicode/utf8"
+)
+
+func behaviorAdapterEditDocument(t *testing.T, request *BehaviorAdapterRequest, inputID string, edit func(map[string]any)) {
+	t.Helper()
+	input := behaviorAdapterRequestInput(request, inputID)
+	var document map[string]any
+	if err := jsonstd.Unmarshal([]byte(input.Document), &document); err != nil {
+		t.Fatal(err)
+	}
+	edit(document)
+	input.Document = string(behaviorAdapterRaw(t, document))
+	input.Anchor.SHA256 = Digest([]byte(input.Document))
+	input.Anchor.SpanSHA256 = input.Anchor.SHA256
+}
+
+func behaviorAdapterCheckStates(report BehaviorAdapterCheck) map[string]BehaviorAdapterCheckStage {
+	states := map[string]BehaviorAdapterCheckStage{}
+	for _, stage := range report.Stages {
+		states[stage.Stage] = stage
+	}
+	return states
+}
+
+// TestBehaviorAdapterCheckParity proves DCP-V1-044: a check is accepted exactly
+// when Build succeeds, its first refusal is Build's error, and the report is
+// deterministic.
+func TestBehaviorAdapterCheckParity(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	other := strings.Repeat("e", 40)
+	previousResult := buildBehaviorAdapter(t, fixture.request, nil)
+	previousRaw, err := Encode(previousResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleResult := previousResult
+	staleResult.Fallback = "none"
+	staleRaw, err := Encode(staleResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name     string
+		previous []byte
+		raw      []byte
+		edit     func(*testing.T, *BehaviorAdapterRequest)
+	}{
+		{name: "accepted"},
+		{name: "accepted with previous", previous: previousRaw},
+		{name: "request decode", raw: []byte(`{"schema":`)},
+		{name: "previous decode", previous: []byte(`[]`)},
+		{name: "previous lineage", previous: staleRaw},
+		{name: "identity", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.Schema = "unknown" }},
+		{name: "revisions", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.DocumentationRevision = "bad" }},
+		{name: "mapping bound", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.Mappings = r.Mappings[:3] }},
+		{name: "input anchor", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterRequestInput(r, "flows").Anchor.Repository = other
+		}},
+		{name: "required input", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.MigrationInput = "absent" }},
+		{name: "mapping field", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.Mappings[3].Fields["bogus"] = "/bogus" }},
+		{name: "observation identity", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.Observations[0].RunID = "bad" }},
+		{name: "migration", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "migration", func(document map[string]any) { document["contract_id"] = "other" })
+		}},
+		{name: "discovery", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) { document["mode"] = "static" })
+		}},
+		{name: "flow shape", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditRow(t, r, "flows", func(row map[string]any) { row["pages"] = "not-a-list" })
+		}},
+		{name: "test project", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditRow(t, r, "tests", func(row map[string]any) { row["browserProject"] = "" })
+		}},
+		{name: "observation subject", edit: func(t *testing.T, r *BehaviorAdapterRequest) { r.Observations[0].Subject = "other" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			request.Mappings = append([]BehaviorAdapterMapping(nil), fixture.request.Mappings...)
+			request.Mappings[3].Fields = map[string]string{}
+			for key, value := range fixture.request.Mappings[3].Fields {
+				request.Mappings[3].Fields[key] = value
+			}
+			request.Observations = append([]ObservationLink(nil), fixture.request.Observations...)
+			if tc.edit != nil {
+				tc.edit(t, &request)
+			}
+			raw := tc.raw
+			if raw == nil {
+				raw = behaviorAdapterRaw(t, request)
+			}
+			_, buildErr := BuildBehaviorAdapter(raw, tc.previous)
+			report := CheckBehaviorAdapter(raw, tc.previous)
+			if report.Accepted != (buildErr == nil) {
+				t.Fatalf("accepted=%v build error=%v report=%+v", report.Accepted, buildErr, report)
+			}
+			if buildErr == nil {
+				if len(report.Refusals) != 0 {
+					t.Fatalf("accepted report lists refusals: %+v", report.Refusals)
+				}
+			} else {
+				var refused *Error
+				if !errors.As(buildErr, &refused) {
+					t.Fatalf("build error is untyped: %v", buildErr)
+				}
+				first := report.Refusals[0]
+				if first.State != "refused" || first.Code != refused.Code || first.Message != behaviorCheckMessage(refused.Message) {
+					t.Fatalf("first refusal %+v, build refused %q", first, refused.Message)
+				}
+			}
+			again := CheckBehaviorAdapter(raw, tc.previous)
+			left, leftErr := Encode(report)
+			right, rightErr := Encode(again)
+			if leftErr != nil || rightErr != nil || !bytes.Equal(left, right) {
+				t.Fatalf("check report is not deterministic: %v %v", leftErr, rightErr)
+			}
+			if bytes.Contains(left, []byte(legacyV1Member(t))) {
+				t.Fatalf("check report vocabulary carries the legacy key: %s", left)
+			}
+		})
+	}
+}
+
+// TestBehaviorAdapterCheckReportsEveryRefusal proves DCP-V1-044 lists refusals
+// from independent stages at once and marks dependent stages not-evaluated.
+func TestBehaviorAdapterCheckReportsEveryRefusal(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	request.Mappings = append([]BehaviorAdapterMapping(nil), fixture.request.Mappings...)
+	request.Schema = "unknown"
+	behaviorAdapterRequestInput(&request, "flows").Anchor.Repository = strings.Repeat("e", 40)
+	behaviorAdapterRequestInput(&request, "candidates").Anchor.Blob = "bad"
+	request.Mappings[1].Fields = map[string]string{"id": "/variationKey"}
+	candidateMapping := -1
+	for index, mapping := range request.Mappings {
+		if mapping.Input == "candidates" {
+			candidateMapping = index
+			fields := map[string]string{}
+			for name, pointer := range mapping.Fields {
+				if name != "id" {
+					fields[name] = pointer
+				}
+			}
+			request.Mappings[index].Fields = fields
+		}
+	}
+	raw := behaviorAdapterRaw(t, request)
+	if _, err := BuildBehaviorAdapter(raw, nil); err == nil || !strings.Contains(err.Error(), "invalid behavior adapter identity") {
+		t.Fatalf("build should stop at the identity refusal: %v", err)
+	}
+	report := CheckBehaviorAdapter(raw, nil)
+	if report.Accepted || report.Fallback != "full-relevant-suite" || len(report.Limitations) == 0 {
+		t.Fatalf("report header: %+v", report)
+	}
+	refused := map[string]int{}
+	blocked := map[string][]string{}
+	order := []string{}
+	for _, refusal := range report.Refusals {
+		if refusal.State == "refused" {
+			refused[refusal.Stage]++
+		} else {
+			blocked[refusal.Stage] = refusal.BlockedBy
+		}
+		if len(order) == 0 || order[len(order)-1] != refusal.Stage {
+			order = append(order, refusal.Stage)
+		}
+	}
+	if refused["identity"] != 1 || refused["inputs"] != 2 || refused["mappings"] != 2 {
+		t.Fatalf("independent refusals missing: %+v", report.Refusals)
+	}
+	for stage, want := range map[string]string{"flows": "mappings", "variations": "mappings", "candidates": "mappings", "observations": "identity", "migration": "identity", "declarations": "flows"} {
+		if len(blocked[stage]) == 0 || blocked[stage][0] != want {
+			t.Fatalf("stage %s blocked_by=%v, want %s first: %+v", stage, blocked[stage], want, report.Refusals)
+		}
+	}
+	if !strings.Contains(strings.Join(func() []string {
+		messages := []string{}
+		for _, refusal := range report.Refusals {
+			if refusal.Stage == "mappings" && refusal.State == "not-evaluated" {
+				messages = append(messages, refusal.Message)
+			}
+		}
+		return messages
+	}(), "\n"), "record checks for /mappings/0 not evaluated because input flows was refused") {
+		t.Fatalf("mapping of a refused input is not reported as not-evaluated: %+v", report.Refusals)
+	}
+	mappingRefused := false
+	for _, refusal := range report.Refusals {
+		if refusal.Stage == "mappings" && refusal.State == "refused" && strings.Contains(refusal.Message, "required field mapping is missing: candidates.id") {
+			mappingRefused = true
+		}
+	}
+	if candidateMapping < 0 || !mappingRefused {
+		t.Fatalf("mapping of a refused input was not validated as its own item: %+v", report.Refusals)
+	}
+	states := behaviorAdapterCheckStates(report)
+	if states["discovery"].State != "passed" || states["tests"].State != "passed" || states["previous"].State != "not-applicable" {
+		t.Fatalf("independent stages were not evaluated: %+v", report.Stages)
+	}
+	stageIndex := map[string]int{}
+	for index, stage := range report.Stages {
+		stageIndex[stage.Stage] = index
+	}
+	for index := 1; index < len(order); index++ {
+		if stageIndex[order[index-1]] >= stageIndex[order[index]] {
+			t.Fatalf("refusals are not in stage order: %v", order)
+		}
+	}
+}
+
+// TestBehaviorAdapterCheckIndependentRefusals proves DCP-V1-044 evaluates each
+// item independently of the other items in its stage: Build's first refusal is
+// unchanged, and the check also reports another item's refusal.
+func TestBehaviorAdapterCheckIndependentRefusals(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name   string
+		edit   func(*testing.T, *BehaviorAdapterRequest)
+		stage  string
+		wanted []string
+	}{
+		{name: "declaration field and duplicate identity", stage: "declarations", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			var flows map[string]any
+			if err := jsonstd.Unmarshal([]byte(behaviorAdapterRequestInput(r, "flows").Document), &flows); err != nil {
+				t.Fatal(err)
+			}
+			flowKey := flows["inventory"].(map[string]any)["items"].([]any)[0].(map[string]any)["flowKey"]
+			behaviorAdapterEditRow(t, r, "candidates", func(row map[string]any) { row["candidateKey"] = flowKey })
+			behaviorAdapterEditRow(t, r, "tests", func(row map[string]any) { row["browserProject"] = "" })
+		}, wanted: []string{"mapped test project is invalid", "mapped behavior identity is duplicated"}},
+		{name: "discovery project and duplicate execution", stage: "discovery", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) {
+				document["executions"] = []any{map[string]any{"id": "duplicate", "project": ""}, map[string]any{"id": "duplicate", "project": "chromium"}}
+			})
+		}, wanted: []string{"discovery project is missing", "discovery execution identity is duplicate or invalid"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			request.Observations = append([]ObservationLink(nil), fixture.request.Observations...)
+			tc.edit(t, &request)
+			raw := behaviorAdapterRaw(t, request)
+			_, buildErr := BuildBehaviorAdapter(raw, nil)
+			var refused *Error
+			if !errors.As(buildErr, &refused) || !strings.Contains(refused.Message, tc.wanted[0]) {
+				t.Fatalf("build should refuse first with %q: %v", tc.wanted[0], buildErr)
+			}
+			report := CheckBehaviorAdapter(raw, nil)
+			if report.Accepted || report.Refusals[0].Code != refused.Code || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
+				t.Fatalf("first refusal %+v, build refused %q", report.Refusals, refused.Message)
+			}
+			found := 0
+			for _, want := range tc.wanted {
+				for _, refusal := range report.Refusals {
+					if refusal.Stage == tc.stage && refusal.State == "refused" && strings.Contains(refusal.Message, want) {
+						found++
+						break
+					}
+				}
+			}
+			if found != len(tc.wanted) {
+				t.Fatalf("check omitted an independent refusal %v: %+v", tc.wanted, report.Refusals)
+			}
+		})
+	}
+}
+
+// TestBehaviorAdapterCheckListsDependentChecks proves DCP-V1-044 lists the
+// checks that depend on a refusal in the same stage as not-evaluated.
+func TestBehaviorAdapterCheckListsDependentChecks(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name, stage, detail string
+		edit                func(*testing.T, *BehaviorAdapterRequest)
+	}{
+		{name: "undecodable discovery", stage: "discovery", detail: "discovery executions not evaluated because the discovery record cannot be decoded", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) { document["unexpected"] = true })
+		}},
+		{name: "refused flow record", stage: "flows", detail: "remaining checks for flows record 0 not evaluated after behavior adapter input=flows field=/inventory/items/0/pages", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditRow(t, r, "flows", func(row map[string]any) { row["pages"] = "not-a-list" })
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			tc.edit(t, &request)
+			report := CheckBehaviorAdapter(behaviorAdapterRaw(t, request), nil)
+			for _, refusal := range report.Refusals {
+				if refusal.Stage == tc.stage && refusal.State == "not-evaluated" && strings.HasPrefix(refusal.Message, tc.detail) && len(refusal.BlockedBy) == 1 && refusal.BlockedBy[0] == tc.stage {
+					if behaviorAdapterCheckStates(report)[tc.stage].State != "refused" {
+						t.Fatalf("stage %s should be refused: %+v", tc.stage, report.Stages)
+					}
+					return
+				}
+			}
+			t.Fatalf("dependent check not listed as not-evaluated: %+v", report.Refusals)
+		})
+	}
+}
+
+// TestBehaviorAdapterCheckStopsAtFirstItemRefusal proves DCP-V1-044: within one
+// item, evaluation stops at the item's first refusal and exactly one
+// not-evaluated entry names the item's remaining checks.
+func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name, stage, want, absent string
+		edit                      func(*testing.T, *BehaviorAdapterRequest) string
+	}{
+		{name: "input blob and path", stage: "inputs", want: "repository, revision or blob identity is invalid", absent: "../outside", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			input := behaviorAdapterRequestInput(r, "flows")
+			input.Anchor.Blob = "bad"
+			input.Anchor.Path = "../outside"
+			for index := range r.Inputs {
+				if r.Inputs[index].ID == "flows" {
+					return "/inputs/" + strconv.Itoa(index)
+				}
+			}
+			t.Fatal("flows input missing")
+			return ""
+		}},
+		{name: "observation identity and source mapping", stage: "observations", want: "invalid behavior adapter observation identity", absent: "invalid behavior adapter observation source mapping", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			r.Observations[0].RunID = "bad"
+			r.Observations[0].SourcePaths = map[string]string{"/repo/test.ts": "../outside"}
+			return "/observations/0"
+		}},
+		{name: "receipt run identity", stage: "artifacts", want: "with the run identity digest", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			migration := behaviorAdapterRequestInput(r, r.MigrationInput)
+			r.Observations[0].Input = migration.Anchor.Path
+			r.Observations[0].InputRevision = migration.Anchor.Revision
+			r.Observations[0].RunID = strings.Repeat("a", 64)
+			return "observation " + r.Observations[0].ID
+		}},
+		{name: "empty discovery execution identity", stage: "discovery", want: "discovery execution identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) {
+				document["executions"] = []any{map[string]any{"id": "", "project": "chromium"}}
+			})
+			return "discovery execution 0"
+		}},
+		{name: "empty candidate identity", stage: "candidates", want: "candidate identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditRow(t, r, "candidates", func(row map[string]any) { row["candidateKey"] = "" })
+			return "candidates record 0"
+		}},
+		{name: "duplicate candidate identity", stage: "candidates", want: "candidate identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			id := ""
+			behaviorAdapterEditDocument(t, r, "candidates", func(document map[string]any) {
+				items := document["inventory"].(map[string]any)["items"].([]any)
+				id = items[0].(map[string]any)["candidateKey"].(string)
+				document["inventory"].(map[string]any)["items"] = append(items, items[0])
+			})
+			return "candidate " + id
+		}},
+		{name: "empty test identity", stage: "tests", want: "test identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditRow(t, r, "tests", func(row map[string]any) { row["testKey"] = "" })
+			return "tests record 0"
+		}},
+		{name: "duplicate observation identity", stage: "observations", want: "duplicate behavior adapter observation identity", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			r.Observations = append(r.Observations, r.Observations[0])
+			return "/observations/" + strconv.Itoa(len(r.Observations)-1)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			request.Observations = append([]ObservationLink(nil), fixture.request.Observations...)
+			item := tc.edit(t, &request)
+			raw := behaviorAdapterRaw(t, request)
+			_, buildErr := BuildBehaviorAdapter(raw, nil)
+			var refused *Error
+			if !errors.As(buildErr, &refused) || !strings.Contains(refused.Message, tc.want) {
+				t.Fatalf("build should refuse with %q: %v", tc.want, buildErr)
+			}
+			report := CheckBehaviorAdapter(raw, nil)
+			if report.Accepted || report.Refusals[0].Stage != tc.stage || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
+				t.Fatalf("first refusal %+v, build refused %q", report.Refusals, refused.Message)
+			}
+			refusals, entries := 0, 0
+			for _, refusal := range report.Refusals {
+				if refusal.Stage != tc.stage {
+					continue
+				}
+				if refusal.State == "refused" {
+					refusals++
+					if tc.absent != "" && strings.Contains(refusal.Message, tc.absent) {
+						t.Fatalf("check evaluated a later check of a refused item: %+v", report.Refusals)
+					}
+				} else if refusal.Message == behaviorCheckMessage("remaining checks for "+item+" not evaluated after "+refused.Message) && len(refusal.BlockedBy) == 1 && refusal.BlockedBy[0] == tc.stage {
+					entries++
+				}
+			}
+			if refusals != 1 || entries != 1 {
+				t.Fatalf("want one refusal and one item entry for %s, got %d and %d: %+v", item, refusals, entries, report.Refusals)
+			}
+		})
+	}
+}
+
+// TestBehaviorAdapterBuildBoundMessage pins Build's bound refusal bytes to the
+// message released before DCP-V1-044 split the bound checks.
+func TestBehaviorAdapterBuildBoundMessage(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name string
+		edit func(*BehaviorAdapterRequest)
+	}{
+		{name: "inputs", edit: func(r *BehaviorAdapterRequest) {
+			r.Inputs = make([]BehaviorAdapterInput, MaxRecords+1)
+		}},
+		{name: "mappings", edit: func(r *BehaviorAdapterRequest) {
+			r.Mappings = append([]BehaviorAdapterMapping(nil), r.Mappings[:3]...)
+		}},
+		{name: "observations", edit: func(r *BehaviorAdapterRequest) {
+			r.Observations = make([]ObservationLink, MaxRecords+1)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			tc.edit(&request)
+			_, err := BuildBehaviorAdapter(behaviorAdapterRaw(t, request), nil)
+			var refused *Error
+			if !errors.As(err, &refused) || refused.Code != "corpus-refused" || refused.Message != "behavior adapter bound exceeded" {
+				t.Fatalf("bound refusal changed: %v", err)
+			}
+		})
+	}
+}
+
+// TestBehaviorAdapterCheckBoundsReport proves DCP-V1-044: a refused count
+// bound stops evaluation of the items it bounds, and the report's entries are
+// capped with a terminal omission entry, so the report stays encodable.
+func TestBehaviorAdapterCheckBoundsReport(t *testing.T) {
+	raw := []byte(`{"mappings":[` + strings.TrimSuffix(strings.Repeat("{},", 10000), ",") + `]}`)
+	report := CheckBehaviorAdapter(raw, nil)
+	encoded, err := Encode(report)
+	if err != nil || report.Accepted || len(encoded) > 64<<10 {
+		t.Fatalf("mapping overflow report is unbounded: %v %d bytes", err, len(encoded))
+	}
+	entry := false
+	for _, refusal := range report.Refusals {
+		if refusal.Stage == "mappings" && refusal.State == "refused" {
+			t.Fatalf("individual mappings evaluated after the count bound refused: %+v", refusal)
+		}
+		entry = entry || refusal.Stage == "mappings-bound" && refusal.State == "not-evaluated" && refusal.Message == "individual mappings not evaluated because the mappings count bound refused"
+	}
+	if !entry || behaviorAdapterCheckStates(report)["mappings"].State != "not-evaluated" {
+		t.Fatalf("mapping overflow does not name the unevaluated mappings: %+v", report.Refusals)
+	}
+
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Observations = make([]ObservationLink, MaxRecords)
+	raw = behaviorAdapterRaw(t, request)
+	_, buildErr := BuildBehaviorAdapter(raw, nil)
+	var refused *Error
+	if !errors.As(buildErr, &refused) {
+		t.Fatalf("build should refuse: %v", buildErr)
+	}
+	report = CheckBehaviorAdapter(raw, nil)
+	encoded, err = Encode(report)
+	last := report.Refusals[len(report.Refusals)-1]
+	if err != nil || report.Accepted || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) || len(report.Refusals) != 1025 || last.Message != "further entries omitted after 1024" || last.State != "not-evaluated" {
+		t.Fatalf("report entries are not capped: %v entries=%d last=%+v", err, len(report.Refusals), last)
+	}
+}
+
+// behaviorAdapterLongRevisionRequest returns a request of exactly MaxBytes
+// whose single input echoes an invalid anchor revision into Build's first
+// refusal (GH #717 review round 4).
+func behaviorAdapterLongRevisionRequest(t *testing.T) []byte {
+	t.Helper()
+	repository := Repository{ID: strings.Repeat("a", 40), Revision: strings.Repeat("b", 40)}
+	request := BehaviorAdapterRequest{
+		Schema: BehaviorAdapterRequestSchema, ProviderID: "p", ProviderVersion: "1", ContractID: "c",
+		Source: repository, Revisions: BehaviorRevisions{App: repository, E2E: repository, Docs: repository},
+		SourceRevision: repository.Revision, DocumentationRevision: repository.Revision,
+		Inputs:   []BehaviorAdapterInput{{ID: "i", Document: "{}"}},
+		Mappings: make([]BehaviorAdapterMapping, 4),
+	}
+	base, err := jsonstd.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Inputs[0].Anchor.Revision = strings.Repeat("x", MaxBytes-len(base))
+	raw, err := jsonstd.Marshal(request)
+	if err != nil || len(raw) != MaxBytes {
+		t.Fatalf("request is %d bytes: %v", len(raw), err)
+	}
+	return raw
+}
+
+// TestBehaviorAdapterCheckCapsMessages proves DCP-V1-044: every report
+// message, including Build's first refusal, is capped at 4 KiB on a UTF-8
+// boundary, so a request at the read bound still gets an encodable report.
+func TestBehaviorAdapterCheckCapsMessages(t *testing.T) {
+	raw := behaviorAdapterLongRevisionRequest(t)
+	_, buildErr := BuildBehaviorAdapter(raw, nil)
+	var refused *Error
+	if !errors.As(buildErr, &refused) || len(refused.Message) < MaxBytes/2 {
+		t.Fatalf("build should echo the long revision: %v", len(buildErr.Error()))
+	}
+	report := CheckBehaviorAdapter(raw, nil)
+	encoded, err := Encode(report)
+	if err != nil || report.Accepted || len(encoded) > 64<<10 {
+		t.Fatalf("report is unbounded: %v %d bytes", err, len(encoded))
+	}
+	first := report.Refusals[0].Message
+	if first != behaviorCheckMessage(refused.Message) || !strings.HasPrefix(refused.Message, strings.Split(first, " … [truncated ")[0]) || !strings.HasSuffix(first, " bytes]") {
+		t.Fatalf("first refusal is not Build's refusal under the cap: %.200q", first)
+	}
+	for _, refusal := range report.Refusals {
+		if len(refusal.Message) > behaviorCheckMaxMessageBytes+64 {
+			t.Fatalf("message exceeds the cap: %d bytes", len(refusal.Message))
+		}
+	}
+	multibyte := strings.Repeat("a", behaviorCheckMaxMessageBytes-1) + "é" + "tail"
+	if capped := behaviorCheckMessage(multibyte); !utf8.ValidString(capped) || !strings.HasPrefix(capped, strings.Repeat("a", behaviorCheckMaxMessageBytes-1)+" … [truncated ") {
+		t.Fatalf("cap did not cut on a UTF-8 boundary: %.80q", capped[len(capped)-40:])
+	}
+}
+
+// TestBehaviorAdapterCheckBoundsRetention proves DCP-V1-044 bounds what a
+// check retains, not only what it reports (GH #717 review round 5). The
+// discovery input identity is 64 KiB, so every execution refusal echoes it.
+func TestBehaviorAdapterCheckBoundsRetention(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	longID := strings.Repeat("d", 64<<10)
+	request := func(t *testing.T, executions int) []byte {
+		request := fixture.request
+		request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+		behaviorAdapterEditDocument(t, &request, "discovery", func(document map[string]any) {
+			list := make([]any, executions)
+			for index := range list {
+				list[index] = map[string]any{}
+			}
+			document["executions"] = list
+		})
+		behaviorAdapterRequestInput(&request, "discovery").ID = longID
+		request.DiscoveryInput = longID
+		raw := behaviorAdapterRaw(t, request)
+		if len(raw) > MaxBytes {
+			t.Fatalf("request is %d bytes", len(raw))
+		}
+		return raw
+	}
+	check := func(t *testing.T, raw []byte, first string) BehaviorAdapterCheck {
+		t.Helper()
+		_, buildErr := BuildBehaviorAdapter(raw, nil)
+		var refused *Error
+		if !errors.As(buildErr, &refused) || !strings.Contains(refused.Message, first) {
+			t.Fatalf("build should refuse with %q: %v", first, buildErr)
+		}
+		var stats runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		baseline, peak := stats.HeapAlloc, stats.HeapAlloc
+		behaviorCheckAfterStage = func() {
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			peak = max(peak, stats.HeapAlloc)
+		}
+		report := CheckBehaviorAdapter(raw, nil)
+		behaviorCheckAfterStage = nil
+		if growth := peak - baseline; growth > 64<<20 {
+			t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+		}
+		encoded, err := Encode(report)
+		t.Logf("peak growth %d KiB, %d entries, %d report bytes, last %.60q", (peak-baseline)>>10, len(report.Refusals), len(encoded), report.Refusals[len(report.Refusals)-1].Message)
+		if err != nil || report.Accepted || len(encoded) > behaviorCheckMaxEntryBytes+64<<10 || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
+			t.Fatalf("report is unbounded or lacks Build's refusal: %v %d bytes", err, len(encoded))
+		}
+		for _, refusal := range report.Refusals {
+			if len(refusal.Message) > behaviorCheckMaxMessageBytes+64 {
+				t.Fatalf("message exceeds the cap: %d bytes", len(refusal.Message))
+			}
+		}
+		return report
+	}
+	overBound := func(t *testing.T, report BehaviorAdapterCheck) {
+		t.Helper()
+		named := false
+		for _, refusal := range report.Refusals {
+			if strings.Contains(refusal.Message, "discovery project is missing") {
+				t.Fatalf("executions evaluated after their count bound refused: %.120q", refusal.Message)
+			}
+			named = named || refusal.Stage == "discovery" && refusal.State == "not-evaluated" && strings.HasPrefix(refusal.Message, "remaining checks for discovery executions not evaluated after behavior adapter input=")
+		}
+		if !named {
+			t.Fatalf("over-bound executions are not named: %+v", report.Stages)
+		}
+	}
+	t.Run("executions at the bound", func(t *testing.T) {
+		check(t, request(t, MaxRecords), "discovery project is missing")
+	})
+	t.Run("executions over the bound", func(t *testing.T) {
+		overBound(t, check(t, request(t, MaxRecords+1), "discovery identity does not match the request"))
+	})
+	if t.Failed() {
+		t.Fatal("the reviewed 100,000-execution request is not run after an earlier failure")
+	}
+	t.Run("reviewed request", func(t *testing.T) {
+		overBound(t, check(t, request(t, 100000), "discovery identity does not match the request"))
+	})
+}
+
+// behaviorAdapterOutcomeFrontierRequest returns the reviewed round-6 shape:
+// one variation with outcomes uniquely named outcomes and an empty test
+// list, plus tests that each reference it with no assertions, claims or
+// flows, and no observations. Build accepts it and its reconciliation
+// records one missing-outcome diagnostic per test and outcome.
+func behaviorAdapterOutcomeFrontierRequest(t *testing.T, outcomes, tests int) []byte {
+	t.Helper()
+	return behaviorAdapterBoundedRaw(t, behaviorAdapterOutcomeFrontierRequestValue(t, outcomes, tests))
+}
+
+func behaviorAdapterBoundedRaw(t *testing.T, request BehaviorAdapterRequest) []byte {
+	t.Helper()
+	raw := behaviorAdapterRaw(t, request)
+	if len(raw) > MaxBytes {
+		t.Fatalf("request is %d bytes", len(raw))
+	}
+	return raw
+}
+
+func behaviorAdapterOutcomeFrontierRequestValue(t *testing.T, outcomes, tests int) BehaviorAdapterRequest {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	request.Observations = []ObservationLink{}
+	variationID := ""
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		variation := items[0].(map[string]any)
+		variationID = variation["variationKey"].(string)
+		template := variation["outcomes"].([]any)[0].(map[string]any)
+		list := make([]any, outcomes)
+		for index := range list {
+			outcome := map[string]any{}
+			for key, value := range template {
+				outcome[key] = value
+			}
+			outcome["id"] = "outcome-" + strconv.Itoa(index)
+			list[index] = outcome
+		}
+		variation["outcomes"] = list
+		variation["testKeys"] = []any{}
+		document["inventory"].(map[string]any)["items"] = []any{variation}
+	})
+	behaviorAdapterEditDocument(t, &request, "tests", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		template := items[0].(map[string]any)
+		list := make([]any, tests)
+		for index := range list {
+			test := map[string]any{}
+			for key, value := range template {
+				test[key] = value
+			}
+			test["testKey"] = "frontier-test-" + strconv.Itoa(index)
+			test["checks"], test["variationClaims"], test["flowKeys"] = []any{}, []any{}, []any{}
+			test["criterionKeys"] = []any{variationID}
+			list[index] = test
+		}
+		document["inventory"].(map[string]any)["items"] = list
+	})
+	return request
+}
+
+// TestBehaviorAdapterCheckRetainsNoFrontier proves DCP-V1-044 check mode
+// retains no reconciliation frontier (GH #717 review round 6). Build accepts
+// the request and records one diagnostic per test and outcome; the check must
+// accept it too without retaining them.
+func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
+	const outcomes, tests = 4096, 160
+	raw := behaviorAdapterOutcomeFrontierRequest(t, outcomes, tests)
+	result, buildErr := BuildBehaviorAdapter(raw, nil)
+	if buildErr != nil || len(result.Frontier) < outcomes*tests {
+		t.Fatalf("build should accept with at least %d diagnostics: %v %d", outcomes*tests, buildErr, len(result.Frontier))
+	}
+	result = BehaviorAdapterResult{}
+	var stats runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&stats)
+	baseline, peak := stats.HeapAlloc, stats.HeapAlloc
+	behaviorCheckAfterStage = func() {
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		peak = max(peak, stats.HeapAlloc)
+	}
+	report := CheckBehaviorAdapter(raw, nil)
+	behaviorCheckAfterStage = nil
+	t.Logf("peak growth %d KiB", (peak-baseline)>>10)
+	if growth := peak - baseline; growth > 64<<20 {
+		t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+	}
+	if !report.Accepted || len(report.Refusals) != 0 {
+		t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+	}
+}
+
+// behaviorAdapterFlowTestRequest is the reviewed round-7 shape: one flow and
+// one variation whose flow identity is 64 KiB, and whose variation lists
+// tests unique short test identities.
+func behaviorAdapterFlowTestRequest(t *testing.T, tests int) []byte {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	flowID := strings.Repeat("f", 64<<10)
+	behaviorAdapterEditDocument(t, &request, "flows", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		items[0].(map[string]any)["flowKey"] = flowID
+		document["inventory"].(map[string]any)["items"] = items[:1]
+	})
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		variation := items[0].(map[string]any)
+		variation["flowKey"] = flowID
+		keys := make([]any, tests)
+		for index := range keys {
+			keys[index] = "ft-" + strconv.Itoa(index)
+		}
+		variation["testKeys"] = keys
+		document["inventory"].(map[string]any)["items"] = items[:1]
+	})
+	return behaviorAdapterBoundedRaw(t, request)
+}
+
+// behaviorAdapterReverseLinkRequest renames the first test to a 64 KiB
+// identity, everywhere it is referenced, and gives it assertions extra
+// assertions, so each reverse-link key would repeat that identity.
+func behaviorAdapterReverseLinkRequest(t *testing.T, assertions int) []byte {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	request.Observations = []ObservationLink{}
+	testID, oldID := strings.Repeat("k", 64<<10), ""
+	behaviorAdapterEditDocument(t, &request, "tests", func(document map[string]any) {
+		test := document["inventory"].(map[string]any)["items"].([]any)[0].(map[string]any)
+		oldID = test["testKey"].(string)
+		test["testKey"] = testID
+		checks := test["checks"].([]any)
+		for index := range assertions {
+			check := map[string]any{}
+			for key, value := range checks[0].(map[string]any) {
+				check[key] = value
+			}
+			check["id"] = "extra-" + strconv.Itoa(index)
+			checks = append(checks, check)
+		}
+		test["checks"] = checks
+	})
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		for _, item := range document["inventory"].(map[string]any)["items"].([]any) {
+			keys := item.(map[string]any)["testKeys"].([]any)
+			for index, key := range keys {
+				if key == oldID {
+					keys[index] = testID
+				}
+			}
+		}
+	})
+	return behaviorAdapterBoundedRaw(t, request)
+}
+
+// TestBehaviorAdapterCheckRetainsNoAmplifiedKeys proves DCP-V1-044 check
+// mode builds no structure that repeats a long identity once per pair (GH
+// #717 review round 7): the per-test flow origin keys, the provider subjects
+// and the delta reverse-link keys. Build accepts each request; the check must
+// accept it too. Retained structures are sampled at each stage boundary; the
+// delta keys are local to the final stage, so its allocation is measured.
+func TestBehaviorAdapterCheckRetainsNoAmplifiedKeys(t *testing.T) {
+	subjects := behaviorAdapterOutcomeFrontierRequestValue(t, 1, 2048)
+	subjects.ProviderID = strings.Repeat("p", 64<<10)
+	reverse := behaviorAdapterReverseLinkRequest(t, 1024)
+	previous, err := BuildBehaviorAdapter(reverse, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous.Frontier = []BehaviorAdapterDiagnostic{}
+	previousRaw, err := Encode(previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous = BehaviorAdapterResult{}
+	for _, tc := range []struct {
+		name          string
+		raw, previous []byte
+	}{
+		{"flow-test origins", behaviorAdapterFlowTestRequest(t, 2048), nil},
+		{"provider subjects", behaviorAdapterBoundedRaw(t, subjects), nil},
+		{"reverse links", reverse, previousRaw},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := BuildBehaviorAdapter(tc.raw, tc.previous); err != nil {
+				t.Fatalf("build should accept: %v", err)
+			}
+			var stats runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			baseline, peak, allocated, last := stats.HeapAlloc, stats.HeapAlloc, stats.TotalAlloc, uint64(0)
+			behaviorCheckAfterStage = func() {
+				runtime.GC()
+				runtime.ReadMemStats(&stats)
+				peak, last, allocated = max(peak, stats.HeapAlloc), stats.TotalAlloc-allocated, stats.TotalAlloc
+			}
+			report := CheckBehaviorAdapter(tc.raw, tc.previous)
+			behaviorCheckAfterStage = nil
+			t.Logf("peak growth %d KiB, final stage allocated %d KiB", (peak-baseline)>>10, last>>10)
+			if !report.Accepted || len(report.Refusals) != 0 {
+				t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+			}
+			if growth := peak - baseline; growth > 64<<20 {
+				t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+			}
+			if last > 16<<20 {
+				t.Fatalf("final stage allocated %d MiB", last>>20)
+			}
+		})
+	}
+}
