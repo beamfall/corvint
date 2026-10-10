@@ -219,6 +219,10 @@ func (c *behaviorAdapterChecker) stage(name string, needs []string, a *behaviorA
 	err := check()
 	if a != nil {
 		refusals = append(refusals, a.refused[c.start:]...)
+		for _, detail := range a.unevaluated {
+			c.notEvaluated(name, detail, name)
+		}
+		a.unevaluated = nil
 	}
 	if err != nil {
 		refusals = append(refusals, err)
@@ -265,8 +269,8 @@ func (c *behaviorAdapterChecker) notEvaluated(stage, detail string, blockedBy ..
 
 func behaviorAdapterCheckLimitations() []string {
 	return []string{
-		"check mode produces no adapter result, coverage, frontier or delta",
+		"check mode neither emits nor writes an adapter result or artifact; it reconciles internally only to determine final-stage refusals and computes no coverage",
 		"a stage blocked by an earlier refusal is reported as not-evaluated; repairing that refusal can reveal further refusals",
-		"within one mapped record, the first refused field hides later checks that need the whole record",
+		"a refused mapped record is excluded from its stage's identity-uniqueness check and from later whole-record checks; each such record is listed as not-evaluated",
 	}
 }

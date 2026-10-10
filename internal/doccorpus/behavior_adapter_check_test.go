@@ -193,3 +193,97 @@ func TestBehaviorAdapterCheckReportsEveryRefusal(t *testing.T) {
 		}
 	}
 }
+
+// TestBehaviorAdapterCheckIndependentRefusals proves DCP-V1-044 evaluates every
+// check within a stage that does not depend on a refusal: Build's first refusal
+// is unchanged, and the check also reports the independent one.
+func TestBehaviorAdapterCheckIndependentRefusals(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name   string
+		edit   func(*testing.T, *BehaviorAdapterRequest)
+		stage  string
+		wanted []string
+	}{
+		{name: "declaration field and duplicate identity", stage: "declarations", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			var flows map[string]any
+			if err := jsonstd.Unmarshal([]byte(behaviorAdapterRequestInput(r, "flows").Document), &flows); err != nil {
+				t.Fatal(err)
+			}
+			flowKey := flows["inventory"].(map[string]any)["items"].([]any)[0].(map[string]any)["flowKey"]
+			behaviorAdapterEditRow(t, r, "candidates", func(row map[string]any) { row["candidateKey"] = flowKey })
+			behaviorAdapterEditRow(t, r, "tests", func(row map[string]any) { row["browserProject"] = "" })
+		}, wanted: []string{"mapped test project is invalid", "mapped behavior identity is duplicated"}},
+		{name: "discovery project and duplicate execution", stage: "discovery", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) {
+				document["executions"] = []any{map[string]any{"id": "duplicate", "project": ""}, map[string]any{"id": "duplicate", "project": "chromium"}}
+			})
+		}, wanted: []string{"discovery project is missing", "discovery execution identity is duplicate or invalid"}},
+		{name: "observation identity and source mapping", stage: "observations", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			r.Observations[0].RunID = "bad"
+			r.Observations[0].SourcePaths = map[string]string{"/repo/test.ts": "../outside"}
+		}, wanted: []string{"invalid behavior adapter observation identity", "invalid behavior adapter observation source mapping"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			request.Observations = append([]ObservationLink(nil), fixture.request.Observations...)
+			tc.edit(t, &request)
+			raw := behaviorAdapterRaw(t, request)
+			_, buildErr := BuildBehaviorAdapter(raw, nil)
+			var refused *Error
+			if !errors.As(buildErr, &refused) || !strings.Contains(refused.Message, tc.wanted[0]) {
+				t.Fatalf("build should refuse first with %q: %v", tc.wanted[0], buildErr)
+			}
+			report := CheckBehaviorAdapter(raw, nil)
+			if report.Accepted || report.Refusals[0].Code != refused.Code || report.Refusals[0].Message != refused.Message {
+				t.Fatalf("first refusal %+v, build refused %q", report.Refusals, refused.Message)
+			}
+			found := 0
+			for _, want := range tc.wanted {
+				for _, refusal := range report.Refusals {
+					if refusal.Stage == tc.stage && refusal.State == "refused" && strings.Contains(refusal.Message, want) {
+						found++
+						break
+					}
+				}
+			}
+			if found != len(tc.wanted) {
+				t.Fatalf("check omitted an independent refusal %v: %+v", tc.wanted, report.Refusals)
+			}
+		})
+	}
+}
+
+// TestBehaviorAdapterCheckListsDependentChecks proves DCP-V1-044 lists a
+// check that depends on a refusal in the same stage as not-evaluated.
+func TestBehaviorAdapterCheckListsDependentChecks(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	for _, tc := range []struct {
+		name, stage, detail string
+		edit                func(*testing.T, *BehaviorAdapterRequest)
+	}{
+		{name: "undecodable discovery", stage: "discovery", detail: "discovery execution project and identity checks need a decodable discovery record", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) { document["unexpected"] = true })
+		}},
+		{name: "refused flow record", stage: "flows", detail: "identity uniqueness and dependent checks for refused flows record 0", edit: func(t *testing.T, r *BehaviorAdapterRequest) {
+			behaviorAdapterEditRow(t, r, "flows", func(row map[string]any) { row["pages"] = "not-a-list" })
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := fixture.request
+			request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+			tc.edit(t, &request)
+			report := CheckBehaviorAdapter(behaviorAdapterRaw(t, request), nil)
+			for _, refusal := range report.Refusals {
+				if refusal.Stage == tc.stage && refusal.State == "not-evaluated" && refusal.Message == tc.detail+"; not evaluated" && len(refusal.BlockedBy) == 1 && refusal.BlockedBy[0] == tc.stage {
+					if behaviorAdapterCheckStates(report)[tc.stage].State != "refused" {
+						t.Fatalf("stage %s should be refused: %+v", tc.stage, report.Stages)
+					}
+					return
+				}
+			}
+			t.Fatalf("dependent check not listed as not-evaluated: %+v", report.Refusals)
+		})
+	}
+}

@@ -14,7 +14,9 @@ No decision record is written.
 ## V1-1084: `--check` (DCP-V1-044)
 
 `corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] --check` prints
-one `corvint-behavior-adapter-check/1` report and produces no result.
+one `corvint-behavior-adapter-check/1` report. It neither emits nor writes a result or artifact.
+Final-stage refusals still need internal reconciliation, so the check runs it, but it skips the
+coverage computation.
 `doccorpus.CheckBehaviorAdapter` runs the same stages as `BuildBehaviorAdapter`, in the same order:
 
 1. request
@@ -64,6 +66,19 @@ inputs and seven mapping fields. Build stops at identity. The check lists all of
 dependent stages as `not-evaluated` in stage order, and still evaluates the independent `discovery`
 and `tests` stages.
 
+Review round 1 found three stages that stopped at their first refusal even when later checks did not
+depend on it:
+
+- a declaration field refusal skipped the global identity-duplicate check;
+- a missing discovery project skipped the duplicate-execution check;
+- an observation identity refusal skipped the source-mapping check.
+
+Each now runs every independent check. A check that does depend on a refusal is listed as
+`not-evaluated`, for example the execution checks of an undecodable discovery record.
+`TestBehaviorAdapterCheckIndependentRefusals` covers each pair and asserts that Build's first refusal
+is unchanged. `TestBehaviorAdapterCheckListsDependentChecks` covers the dependent items. Both tests
+fail on commit `d2d62848` and pass after.
+
 The CLI exits:
 
 - 0 when the check is accepted;
@@ -74,7 +89,8 @@ The CLI exits:
 
 Limits:
 
-- Within one mapped record, the first refused field still skips checks that need the whole record.
+- Within one mapped record, a refused field still excludes the record from whole-record checks and
+  from its stage's identity-uniqueness check. Each excluded record is listed as `not-evaluated`.
 - A repaired refusal can reveal stages that were not evaluated before. The report's limitations
   say so.
 

@@ -124,12 +124,13 @@ anchors, assertions, ordered events, behavior runs and observation links retain 
 shapes. Each input carries its exact JSON text as a string plus a full-file Git anchor whose SHA-256
 matches those bytes.
 
-Add `--check` to validate a request without producing a result. The command prints one
-`corvint-behavior-adapter-check/1` report. It lists every build stage in build order, each as
+Add `--check` to validate a request. The command neither emits nor writes a result or artifact; it
+prints one `corvint-behavior-adapter-check/1` report. It lists every build stage in build order, each as
 `passed`, `refused`, `not-evaluated` or `not-applicable`, and lists every refusal it can determine in
-that same order. A check that depends on a refused earlier stage is listed as `not-evaluated` with
-`blocked_by`, so repairing that refusal can reveal more. A mapping that names a refused input is
-listed this way too. The report is accepted exactly when the build would succeed, and its first
+that same order. Within a stage, every check that does not depend on a refusal still runs. A check
+that depends on a refusal is listed as `not-evaluated` with `blocked_by`, so repairing that refusal
+can reveal more. A mapping that names a refused input, and a refused record left out of its stage's
+identity-uniqueness check, are listed this way too. The report is accepted exactly when the build would succeed, and its first
 refusal is the error the build would return. The exit status is 0 when accepted, 1 when refused,
 and 2 when the request or previous file cannot be read.
 
