@@ -12,7 +12,7 @@
               "session-start"
             ],
             "timeout": 2,
-            "statusMessage": "Loading bounded Corvint context"
+            "statusMessage": "Loading Corvint repository context"
           }
         ]
       }
@@ -29,7 +29,7 @@
               "user-prompt"
             ],
             "timeout": 2,
-            "statusMessage": "Querying Corvint"
+            "statusMessage": "Finding Corvint evidence for this prompt"
           }
         ]
       }
@@ -47,7 +47,7 @@
               "post-tool"
             ],
             "timeout": 2,
-            "statusMessage": "Recording Corvint observation"
+            "statusMessage": "Noting the edit for Corvint"
           }
         ]
       }
@@ -64,7 +64,7 @@
               "stop"
             ],
             "timeout": 2,
-            "statusMessage": "Checking Corvint frontier availability"
+            "statusMessage": "Checking the Corvint change workflow"
           }
         ]
       }
@@ -80,7 +80,8 @@
               "claude-code",
               "session-end"
             ],
-            "timeout": 1
+            "timeout": 1,
+            "statusMessage": "Closing the Corvint session"
           }
         ]
       }
@@ -97,7 +98,7 @@
               "pre-compact"
             ],
             "timeout": 2,
-            "statusMessage": "Pinning Corvint evidence before compaction"
+            "statusMessage": "Saving Corvint evidence before compaction"
           }
         ]
       }
@@ -114,7 +115,7 @@
               "post-compact"
             ],
             "timeout": 2,
-            "statusMessage": "Verifying the Corvint compaction pin"
+            "statusMessage": "Checking Corvint evidence after compaction"
           }
         ]
       }

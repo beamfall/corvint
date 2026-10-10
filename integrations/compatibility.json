@@ -4,7 +4,7 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.2.3",
+      "adapterVersion": "0.3.0",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.3",
+      "adapterVersion": "0.2.4",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",

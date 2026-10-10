@@ -1,6 +1,7 @@
-# Corvint for Claude Code (developer preview)
+# Corvint for Claude Code
 
-This local marketplace contains the `corvint@corvint` plugin. It is intentionally `FALLBACK`: the formal harness hooks
+This local marketplace contains the `corvint@corvint` plugin, which works in the Claude Code terminal
+and in the Code tab of the Claude desktop app. Its support level is intentionally `FALLBACK`: the formal harness hooks
 translate only fields exposed by Claude Code into `corvint-harness-event/0`. Corvint ships an
 experimental local stdio MCP server (`corvint-mcp`), but this plugin does not declare it;
 official-schema execution and official MCP conformance remain `NOT_RUN`. No accepted Frontier
@@ -24,10 +25,25 @@ claude plugin uninstall corvint@corvint --scope user
 claude plugin marketplace remove corvint
 ```
 
+Commands (skills, `AHI-051`). Each runs one existing read-only verb and reports its uncertainty:
+
+| Command | Runs | Started by |
+|---|---|---|
+| `/corvint:context` | `query`, `impact`, `feature` and the enrolled workflow | user or model |
+| `/corvint:impact [BASE \| PATH...]` | `corvint impact` | user or model |
+| `/corvint:affected [BASE]` | `corvint affected` | user or model |
+| `/corvint:review [BASE]` | `corvint review` | user or model |
+| `/corvint:status` | `--version`, `observations`, keyed `dogfood status` | user only |
+| `/corvint:index` | `corvint index --if-stale` (writes only the derived snapshot) | user only |
+
+Hooks add no routine notices to the conversation (decision 0161); their context goes to the model
+only. `/corvint:status` is the on-demand view of versions, index freshness, workflow state and
+recent adapter degradations.
+
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
-check, `/hooks` to inspect the registered hooks, and `/corvint:context` for an explicit query. Corvint
-has no exact-handle expansion command yet (`exact-expansion-command-unavailable`). Plugin changes
-load after `/reload-plugins` or the next session.
+check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet
+(`exact-expansion-command-unavailable`). Plugin changes load after `/reload-plugins` or the next
+session.
 
 `SessionStart`, `UserPromptSubmit`, `Stop`, and `SessionEnd` use the separate native
 `corvint-dogfood-event/0` profile. The session key hashes the raw session ID with the

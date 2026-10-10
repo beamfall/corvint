@@ -1,22 +1,33 @@
 {
   "name": "corvint",
   "owner": {
-    "name": "Corvint Project"
+    "name": "Corvint Project",
+    "url": "https://github.com/beamfall/corvint"
   },
-  "description": "Developer-preview Claude Code integrations for Corvint",
-  "version": "0.1.0",
+  "description": "Corvint plugins for Claude Code",
+  "version": "0.2.0",
   "plugins": [
     {
       "name": "corvint",
       "source": "./plugins/corvint",
-      "description": "Bounded, receipt-linked Corvint context hooks for Claude Code",
-      "version": "0.2.3",
+      "description": "Revision-pinned repository context, impact analysis and affected tests from Corvint, with explicit uncertainty",
+      "version": "0.3.0",
       "category": "Development",
       "tags": [
         "context",
         "evidence",
-        "git"
-      ]
+        "git",
+        "impact",
+        "tests"
+      ],
+      "displayName": "Corvint",
+      "author": {
+        "name": "Corvint Project",
+        "url": "https://github.com/beamfall/corvint"
+      },
+      "homepage": "https://github.com/beamfall/corvint/tree/main/integrations/claude-code",
+      "repository": "https://github.com/beamfall/corvint",
+      "license": "AGPL-3.0-or-later"
     }
   ]
 }

@@ -61,7 +61,7 @@
     "path": "docs/specs/agent-harness-integration-v0.md",
     "title": "Agent Harness Integration V0",
     "reqPrefix": "AHI",
-    "intent": "accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734)",
+    "intent": "accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-051 proposed (V1-1070, V1-1071)",
     "delivery": "experimental",
     "claim": "Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.",
     "dependsOn": [

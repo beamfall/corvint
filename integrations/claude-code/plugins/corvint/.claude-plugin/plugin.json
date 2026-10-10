@@ -2,15 +2,22 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "corvint",
   "displayName": "Corvint",
-  "version": "0.2.3",
-  "description": "Developer-preview, receipt-linked repository context for Claude Code",
+  "version": "0.3.0",
+  "description": "Revision-pinned repository context, impact analysis and affected tests from Corvint, with explicit uncertainty",
   "author": {
-    "name": "Corvint Project"
+    "name": "Corvint Project",
+    "url": "https://github.com/beamfall/corvint"
   },
+  "homepage": "https://github.com/beamfall/corvint/tree/main/integrations/claude-code",
+  "repository": "https://github.com/beamfall/corvint",
+  "license": "AGPL-3.0-or-later",
   "keywords": [
     "context",
     "evidence",
-    "git"
+    "git",
+    "impact",
+    "tests",
+    "code-review"
   ],
   "metadata": {
     "support": "FALLBACK",

@@ -708,6 +708,39 @@ test('AHI-020 CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed s
  const recognised=new Set(matrix.receiptDegradationPolicy.recognised)
  assert.deepEqual(matrix.globalDegradations.filter(code=>recognised.has(code)),[])
 })
+test('AHI-051 Claude Code plugin presents complete metadata, plain status messages and read-only skills',()=>{
+ const read=rel=>JSON.parse(readFileSync(join(here,rel),'utf8'))
+ const root='claude-code/plugins/corvint',manifest=read(`${root}/.claude-plugin/plugin.json`)
+ const entry=read('claude-code/.claude-plugin/marketplace.json').plugins.find(p=>p.name==='corvint')
+ for(const [label,d] of [['plugin.json',manifest],['marketplace entry',entry]]) {
+  for(const key of ['displayName','description','homepage','repository'])assert.ok(typeof d[key]==='string'&&d[key].length>0,`${label}: ${key}`)
+  assert.ok(d.author?.name,`${label}: author.name`)
+  assert.equal(d.license,'AGPL-3.0-or-later',`${label}: license follows LICENSING.md`)
+  assert.doesNotMatch(d.description,/preview/i,`${label}: description names what Corvint provides`)
+ }
+ assert.equal(entry.version,manifest.version)
+ assert.equal(manifest.metadata.support,'FALLBACK')
+ for(const [event,groups] of Object.entries(read(`${root}/hooks/hooks.json`).hooks))for(const group of groups)for(const hook of group.hooks) {
+  assert.ok(typeof hook.statusMessage==='string'&&hook.statusMessage.length>0,`${event}: statusMessage`)
+  assert.doesNotMatch(hook.statusMessage,/frontier|observation|receipt/i,`${event}: statusMessage is plain words`)
+ }
+ const verbs={context:null,impact:['impact'],affected:['affected'],review:['review'],status:['--version','observations','dogfood status'],index:['index']}
+ assert.deepEqual(readdirSync(join(here,root,'skills')).sort(),Object.keys(verbs).sort())
+ for(const [name,allowed] of Object.entries(verbs)) {
+  const text=readFileSync(join(here,root,'skills',name,'SKILL.md'),'utf8'),front=text.split('---')[1]
+  assert.match(front,new RegExp(`^name: ${name}$`,'m'),`${name}: name`)
+  assert.match(front,/^description: \S/m,`${name}: description`)
+  assert.equal(/^disable-model-invocation: true$/m.test(front),name==='status'||name==='index',`${name}: user-only iff status or index`)
+  if(!allowed)continue
+  const tools=front.match(/^allowed-tools: (.*)$/m)[1].split(/,\s*/)
+  for(const tool of tools) {
+   const command=tool.match(/^Bash\((.*?)(:\*)?\)$/)?.[1]
+   assert.ok(command,`${name}: ${tool} is a Bash pattern`)
+   const ok=command.startsWith('git rev-parse')||command.startsWith('git status')||command.startsWith('git merge-base')||command==='ls'||allowed.some(v=>command===`corvint ${v}`)
+   assert.ok(ok,`${name}: ${tool} pre-approves only its verb and read-only git or ls`)
+  }
+ }
+})
 test('AHI-023 host-version disclosure matches what each plugin adapter sends',()=>{
  const degradations=rel=>JSON.parse(readFileSync(join(here,rel),'utf8')).degradations
  const claude=degradations('claude-code/plugins/corvint/compatibility.json'),codex=degradations('codex/plugins/corvint/compatibility.json')
