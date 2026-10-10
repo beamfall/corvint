@@ -178,11 +178,12 @@ func observeStream(r io.Reader, observed map[string]int64) error {
 }
 
 // streamActions is the closed Action set of `go test -json`: the test2json
-// TestEvent actions, the `attr` action of testing.T.Attr, and the interleaved
+// TestEvent actions, the `attr` action of testing.T.Attr, the `artifacts`
+// action of testing.T.ArtifactDir under -artifacts, and the interleaved
 // BuildEvent actions, which carry ImportPath instead of Package.
 var streamActions = map[string]bool{
 	"start": true, "run": true, "pause": true, "cont": true, "pass": true, "bench": true,
-	"fail": true, "output": true, "skip": true, "attr": true,
+	"fail": true, "output": true, "skip": true, "attr": true, "artifacts": true,
 	"build-output": true, "build-fail": true,
 }
 

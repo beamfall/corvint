@@ -196,6 +196,7 @@ func TestAFPV0040AdvisoryAcceptsAFullEventStream(t *testing.T) {
 {"Action":"run","Package":"example.org/a","Test":"TestA"}
 {"Action":"output","Package":"example.org/a","Test":"TestA","Output":"=== RUN   TestA\n","OutputType":"frame"}
 {"Action":"attr","Package":"example.org/a","Test":"TestA","Key":"k","Value":"v"}
+{"Action":"artifacts","Package":"example.org/a","Test":"TestA","Path":"/tmp/artifacts/TestA"}
 {"Action":"pause","Package":"example.org/a","Test":"TestA"}
 {"Action":"start","Package":"example.org/b"}
 {"Action":"cont","Package":"example.org/a","Test":"TestA"}
