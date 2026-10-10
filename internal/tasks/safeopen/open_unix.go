@@ -99,6 +99,11 @@ func Root(path string) (*os.Root, error) {
 	return rootFromFile(dir)
 }
 
+// RootOf returns an os.Root on the directory dir already holds open, through
+// the same descriptor bridge and identity check as Root, so operations on
+// it never re-resolve the directory's path.
+func RootOf(dir *os.File) (*os.Root, error) { return rootFromFile(dir) }
+
 func rootFromFile(dir *os.File) (*os.Root, error) {
 	want, err := dir.Stat()
 	if err != nil {
