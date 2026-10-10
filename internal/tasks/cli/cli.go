@@ -73,7 +73,7 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
+	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
@@ -196,6 +196,12 @@ func Run(env Env) int {
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
 	case "health", "claim", "renew", "reap", "widen", "submit", "complete":
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
+	case "doctor":
+		// --line is the documented plain-text exception (TQD-V0-012).
+		if len(args) == 2 && args[1] == "--line" {
+			return doctorLine(env)
+		}
+		return emit(env.Stdout, doctorCommand(env, args[1:]))
 	case "pool":
 		if len(args) > 1 && args[1] == "sweep" {
 			return emit(env.Stdout, poolSweepCommand(env, args[2:]))
@@ -434,7 +440,7 @@ func LiveFormats() []string {
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
 		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
-		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0",
+		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,

@@ -11,25 +11,32 @@ import (
 
 // Heartbeat freshness describes a recorded signal, never physical quiescence.
 // ttlSeconds is the effective policy TTL (CAL-V0-120); the status is derived
-// on every read and never written.
+// on every read and never written. holderStatus classifies the attempt's
+// recorded heartbeat at now.
+func holderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
+	if a.LastHeartbeatAt == nil {
+		return "NOT_OBSERVED"
+	}
+	at, _ := time.Parse(time.RFC3339, string(*a.LastHeartbeatAt))
+	switch {
+	case !a.Live():
+		return "TERMINAL"
+	case a.Lease != nil && now.UTC().Format(time.RFC3339) >= string(a.Lease.ExpiresAt):
+		return "LEASE_EXPIRED"
+	case now.Before(at):
+		return "CLOCK_BEFORE_HEARTBEAT"
+	case now.Sub(at) >= time.Duration(ttlSeconds)*time.Second:
+		return "STALE_HOLDER"
+	default:
+		return "FRESH_HOLDER"
+	}
+}
+
 func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time, ttlSeconds int64) {
-	status := "NOT_OBSERVED"
+	status := holderStatus(a, now, ttlSeconds)
 	last := wire.Null()
 	if a.LastHeartbeatAt != nil {
 		last = wire.String(string(*a.LastHeartbeatAt))
-		at, _ := time.Parse(time.RFC3339, string(*a.LastHeartbeatAt))
-		switch {
-		case !a.Live():
-			status = "TERMINAL"
-		case a.Lease != nil && now.UTC().Format(time.RFC3339) >= string(a.Lease.ExpiresAt):
-			status = "LEASE_EXPIRED"
-		case now.Before(at):
-			status = "CLOCK_BEFORE_HEARTBEAT"
-		case now.Sub(at) >= time.Duration(ttlSeconds)*time.Second:
-			status = "STALE_HOLDER"
-		default:
-			status = "FRESH_HOLDER"
-		}
 	}
 	o.Set("lastHeartbeatAt", last).Set("holderStatus", wire.String(status)).Set("observedAt", wire.String(now.UTC().Truncate(time.Second).Format(time.RFC3339))).Set("heartbeatTTLSeconds", wire.String(strconv.FormatInt(ttlSeconds, 10)))
 }

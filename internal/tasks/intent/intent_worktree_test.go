@@ -243,3 +243,33 @@ func TestCTWV0007_RepairCommandsUseShellQuoting(t *testing.T) {
 		}
 	}
 }
+
+// TQD-V0-012: ResolveCommonDir names the same common directory as Resolve
+// from the primary and from a linked worktree, but reads no queue manifest,
+// HEAD or linked worktree registration; Resolve, the control, does.
+func TestTQDV0012_ResolveCommonDirReadsNoManifest(t *testing.T) {
+	r := intentRepo(t, "feature")
+	root, _ := linkWorktree(t, r, "wt-main", "main")
+	for _, from := range []string{r.Root, root} {
+		want := resolve(t, from).CommonDir
+		var read []string
+		restore := intent.SetBeforeBoundedReadForTest(func(p string) { read = append(read, p) })
+		common, err := intent.ResolveCommonDir(from)
+		restore()
+		if err != nil || common != want {
+			t.Fatalf("from %s: %q %v, want %q", from, common, err, want)
+		}
+		for _, p := range read {
+			if base := filepath.Base(p); base == "queue.json" || base == "HEAD" || base == "gitdir" {
+				t.Fatalf("from %s: ResolveCommonDir read %s", from, p)
+			}
+		}
+		read = nil
+		restore = intent.SetBeforeBoundedReadForTest(func(p string) { read = append(read, p) })
+		resolve(t, from)
+		restore()
+		if !strings.Contains(strings.Join(read, "\n"), "queue.json") {
+			t.Fatalf("from %s: control Resolve read no manifest: %v", from, read)
+		}
+	}
+}
