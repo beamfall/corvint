@@ -4,12 +4,13 @@ Date: 2026-10-10
 
 GitHub #717 reported friction with `docs corpus behavior-adapter`. This entry covers three of its
 tickets: V1-1084 (gap 3), V1-1086 (gaps 4 and 6) and V1-1085 (gap 5). It adds two requirements to
-`docs/specs/documentation-corpus-v1.md`, both proposed and pending owner acceptance:
+`docs/specs/documentation-corpus-v1.md`. Both were proposed, and the owner accepted both on 2026-10-10 (decision 0482; see Acceptance below):
 
 - `DCP-V1-044`: the check mode.
 - `DCP-V1-045`: the guide's anchor placement rule and its migration example.
 
-No decision record is written.
+The lane wrote no decision record while the requirements were proposed. Decision 0482 records
+the acceptance.
 
 ## V1-1084: `--check` (DCP-V1-044)
 
@@ -384,6 +385,25 @@ emitted key. Other keys, such as `app`, `docs_corpus`, `missing_e2e_review` and
 `playwright_workers_per_node`, are generic role or tool names. The new check report has no
 adopter-specific key, and `TestBehaviorAdapterCheckParity` asserts this.
 
+
+## Acceptance
+
+Independent review round 8 passed on `913a6a0c`. On 2026-10-10 the owner accepted `DCP-V1-044` and
+`DCP-V1-045` in chat ("accept"). Decision
+`docs/decisions/0482-dcp-v1-044-045-behavior-adapter-check-accepted-2026-10-10.md` records it. Both
+requirement statuses and the `docs/specs/README.md` row cite that decision. The spec's overall intent
+stays proposed.
+
+Decision 0481 is reserved for another lane, and 0482 was free on `origin/main` at `41ed0821`. The
+branch merged that commit before the acceptance edits, with no conflicts.
+
+These stay open:
+
+- V1-1085 (the legacy key)
+- V1-1089 (Build's unbounded frontier and amplified keys)
+- the producers half of #717
+
+Live qualification is `NOT_RUN`.
 ## Evidence
 
 Base: `684cca5f7c0e3e4b4900e07203f63949bc73984f`.

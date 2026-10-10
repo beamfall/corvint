@@ -336,7 +336,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   refusal truncated by that same cap; the build's own error is unchanged. The command exits 0 when accepted, 1 when refused and 2 when an input file cannot be read;
   `--check` takes no value and applies to no other corpus operation. The report retains
   `full-relevant-suite` fallback, and its vocabulary contains no adopter-specific term. Status:
-  (proposed, pending owner acceptance; V1-1084; GitHub #717).
+  (accepted, decision 0482; V1-1084; GitHub #717).
 - `DCP-V1-045`: The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anchor
   placement rule: every adapter input anchor names the provider repository, equal to the request
   `source`, which equals the provider entry of `revisions`. It names the refusal correction given
@@ -344,7 +344,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `contract_id`, `source_revision`, `documentation_revision`, `revisions`) and the self-referencing
   revision pitfall: the record describes an earlier provider commit and is committed, and anchored,
   in a later one. A test closed-decodes the guide's example and builds an accepted request from it
-  under that rule. Status: (proposed, pending owner acceptance; V1-1086; GitHub #717).
+  under that rule. Status: (accepted, decision 0482; V1-1086; GitHub #717).
 
 ## Input and authority boundary
 
