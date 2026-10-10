@@ -475,10 +475,11 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 	if err != nil {
 		return transaction.LeaseFacts{}, err
 	}
-	reachable, err := isAncestor(root, l.Commit, "refs/heads/"+q.IntentBranch)
+	reachable, upstream, err := intentIntegrated(root, l.Commit, q.IntentBranch)
 	if err != nil {
 		return transaction.LeaseFacts{}, err
 	}
+	unintegrated := ""
 	var repos []snapshot.RepositoryRecord
 	if a, ok := lockedAttempt(proof, l.AttemptID); ok {
 		if repos, err = attemptRepositories(proof, a); err != nil {
@@ -496,9 +497,54 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 			if reachable, err = repositoryIntegrated(r); err != nil {
 				return transaction.LeaseFacts{}, err
 			}
+			if !reachable {
+				unintegrated = r.Name
+			}
 		}
 	}
-	return transaction.GateFacts(nil, nil, nil, tree, reachable, results), nil
+	return transaction.CompleteFacts(tree, reachable, upstream, unintegrated, results), nil
+}
+
+// intentIntegrated reports whether the intent branch contains commit, or,
+// when it does not, whether the branch's configured upstream does, provided
+// that upstream is an existing remote-tracking ref (CAL-V0-017, V1-1081). A
+// checked-out intent branch can lag a remote main that already merged the
+// commit, and moving it under unrelated staged work is unsafe. It never
+// fetches and never writes a ref; it returns the upstream ref it checked, or
+// "" when none is configured, resolvable or remote-tracking.
+func intentIntegrated(root, commit, branch string) (bool, string, error) {
+	local := "refs/heads/" + branch
+	reachable, err := isAncestor(root, commit, local)
+	if err != nil || reachable {
+		return reachable, "", err
+	}
+	upstream := configuredUpstream(root, local)
+	if upstream == "" {
+		return false, "", nil
+	}
+	reachable, err = isAncestor(root, commit, upstream)
+	return reachable, upstream, err
+}
+
+// configuredUpstream names local's configured upstream when it is an
+// existing refs/remotes/ ref, else "". A missing, unresolvable or local
+// upstream fails closed: the commit then stays unreachable.
+func configuredUpstream(root, local string) string {
+	out, err := gitOutput(root, "for-each-ref", "--format=%(refname)%00%(upstream)", "--end-of-options", local)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		ref, upstream, ok := strings.Cut(line, "\x00")
+		if !ok || ref != local || !strings.HasPrefix(upstream, "refs/remotes/") {
+			continue
+		}
+		if _, err := gitOutput(root, "show-ref", "--verify", "--quiet", "--end-of-options", upstream); err != nil {
+			return ""
+		}
+		return upstream
+	}
+	return ""
 }
 
 // candidateCommits maps each extra repository to its candidate commit.

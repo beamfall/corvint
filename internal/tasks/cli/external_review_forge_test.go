@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -232,8 +233,15 @@ func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 					if !found {
 						t.Fatalf("the observation lost ticket %s", id)
 					}
-					if x := atm(t, root, nil, "receipt", "audit"); (x.res.Outcome == wire.OutcomeOK) != (tc.forge == nil) {
+					x := atm(t, root, nil, "receipt", "audit")
+					if (x.res.Outcome == wire.OutcomeOK) != (tc.forge == nil) {
 						t.Fatalf("receipt audit: %s", x.stdout)
+					}
+					// The fold over the receipts the audit validated refuses
+					// exactly as a separate fold over the retained files.
+					if want := store.FoldReceiptBindings(repo, uint64(seq.Int()), nil); (want == nil) != (tc.forge == nil) ||
+						want != nil && (len(x.res.Codes) != 1 || x.res.Codes[0] != wire.CodeOf(want) || len(x.res.Warnings) != 1 || !strings.Contains(x.res.Warnings[0], strings.TrimPrefix(want.Error(), wire.CodeOf(want)+": "))) {
+						t.Fatalf("receipt audit %v %v, separate fold %v", x.res.Codes, x.res.Warnings, want)
 					}
 					return
 				}
