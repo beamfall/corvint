@@ -4,7 +4,7 @@
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
 // one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`.
-// Both modes refuse unless exactly --shards logs (default 6, the go-product-shard
+// Both modes refuse unless exactly --shards logs (default 8, the go-product-shard
 // matrix) are given and each holds a terminal package outcome, so a partial run
 // never sets the target or the sums.
 // After the log prefix (the job and step columns, a byte-order mark, the runner
@@ -19,8 +19,8 @@
 // after it. A log is refused when any test, subtest or package fails, or when a
 // package or test is missing, repeated or unterminated:
 //
-//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 6] [--target 0] LOG...
-//	ci-test-slices replay [--root DIR] [--shards 6] [--costs FILE] [--slices FILE] LOG...
+//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 8] [--target 0] LOG...
+//	ci-test-slices replay [--root DIR] [--shards 8] [--costs FILE] [--slices FILE] LOG...
 //
 // generate checks out the tracked tree of SHA from the repository at DIR into a
 // temporary directory through a temporary index, reads the allow-list there and
@@ -102,7 +102,7 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	root := fs.String("root", ".", "repository root")
 	revision := fs.String("revision", "", "generate: full commit the root checks out and the slices were listed at")
 	runURL := fs.String("run-url", "", "generate: hosted run that produced the logs")
-	shards := fs.Int("shards", 6, "CI shard count (the go-product-shard matrix): one log per shard of one complete run")
+	shards := fs.Int("shards", 8, "CI shard count (the go-product-shard matrix): one log per shard of one complete run")
 	target := fs.Duration("target", 0, "generate: split packages slower than this (0: the ideal shard share)")
 	costs := fs.String("costs", "", "replay: placement cost table (default: the observed run)")
 	slices := fs.String("slices", "", "replay: slice file (default: ROOT/"+slicesPath+")")

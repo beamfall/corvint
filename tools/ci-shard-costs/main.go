@@ -6,8 +6,8 @@
 // file per shard job, either raw or as printed by
 // `gh run view RUN --job JOB --log` (text before the JSON object is ignored):
 //
-//	ci-shard-costs refresh --shards 6 --revision SHA --run-url URL shard0.log ... shard5.log
-//	ci-shard-costs check --shards 6 shard0.log ... shard5.log
+//	ci-shard-costs refresh --shards 8 --revision SHA --run-url URL shard0.log ... shard7.log
+//	ci-shard-costs check --shards 8 shard0.log ... shard7.log
 //
 // --shards declares the CI shard count, the go-product-shard matrix size, and
 // every mode needs exactly one log per shard. refresh rewrites the table from the
@@ -22,7 +22,7 @@
 // by more than --factor, that the table is missing, or that the table still
 // lists but the run did not execute.
 //
-//	ci-shard-costs check --advisory --shards 6 [--share 10] [--summary FILE] shard0.json ... shard5.json
+//	ci-shard-costs check --advisory --shards 8 [--share 10] [--summary FILE] shard0.json ... shard7.json
 //
 // The advisory form (AFP-V0-040) is the CI report: it needs exactly one raw
 // `go test -json` stream per shard, each well formed and finished, appends a
