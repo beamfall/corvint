@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (proposed, V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -104,7 +104,7 @@ drains, the import-map writer, and writing or changing the foreign export.
   acceptance-relevant keys are set by `REFINE` and are not export fields, so the next revision MUST
   NOT drop them and MUST NOT bump `acceptanceRevision` on their account. A record without them
   stays without them.
-- `CTS-V0-008`: (proposed (V1-0825)) A native writer holds staging slots `staging/aNN` with no
+- `CTS-V0-008`: (accepted, decision 0490; V1-0825) A native writer holds staging slots `staging/aNN` with no
   `staging/active.json` descriptor under its writer lock for the whole of its publish (prepared,
   linked or replaced, then removed). A journal audit or an archive `export` that does not hold the
   writer lock, and sees such slots unchanged across both of its captures with neither
@@ -229,7 +229,7 @@ keys byte-identical, one `acceptanceRevision` bump for the changed `source`, and
 audit. Rollback removes the carry-over in `importer.record`; no store migration is needed, and a
 later re-import then drops the keys again.
 
-CTS-V0-008 (proposed, V1-0825) is evidenced by journal and archive tests that drive the race with
+CTS-V0-008 (accepted, decision 0490; V1-0825) is evidenced by journal and archive tests that drive the race with
 the capture and sleep hooks rather than timing: a descriptor-less slot planted between the captures
 of the first attempt (moved), held across the second and removed during its single pause audits
 clean, and the same test against the unfixed reader reproduces the V1-0825 CI refusal; an export

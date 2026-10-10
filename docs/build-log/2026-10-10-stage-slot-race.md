@@ -20,7 +20,7 @@ retried it. Only a slot that appeared or vanished between the captures was retri
 
 ## Decision
 
-This adds `CTS-V0-008` (proposed) to `docs/specs/corvint-tasks-store-init-v0.md` beside the
+This adds `CTS-V0-008` (accepted, decision 0490) to `docs/specs/corvint-tasks-store-init-v0.md` beside the
 CTS-V0-006 read wait. It also amends the leases spec's killed-writer failure row and the V1-0772
 non-goal to point at it.
 
@@ -102,6 +102,11 @@ readers and the writer-locked exception.
 A second review round found that the export's stage pauses still ran down its CTS-V0-006
 deadline, because the pause did not move it. `readArchive` now adds each measured pause to the
 deadline.
+
+## Owner acceptance
+
+The owner accepted `CTS-V0-008` in chat on 2026-10-10 ("accept CTS-V0-008"), recorded as
+decision 0490.
 
 ## Rollback
 
