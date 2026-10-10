@@ -304,3 +304,102 @@ func TestDegradationCode(t *testing.T) {
 		t.Error("a semantic degradation counted as time-bound")
 	}
 }
+
+// HLQ-V1-010 (V1-1121): a run is retained whenever any case is not PASS or names a time-bound
+// retry, whatever case the caller studies; each retained copy is a new bounded file.
+func TestFailedReportRetention(t *testing.T) {
+	passing := func() []result {
+		results := make([]result, 0, len(caseOrder))
+		for _, name := range caseOrder {
+			results = append(results, result{name, "PASS", "ok"})
+		}
+		return results
+	}
+	if retainReport(passing()) {
+		t.Fatal("an all-PASS run without a retry is retained")
+	}
+	uninstall := passing()
+	uninstall[len(uninstall)-1] = result{"uninstall", "FAIL", "private HOME retains corvint state: x"}
+	retried := passing()
+	retried[5].detail = "blocks" + retriedMarker + "Stop attempt 1 dogfood-event-deadline after 1.6s"
+	missing := passing()[:8]
+	for name, results := range map[string][]result{"non-target uninstall FAIL": uninstall, "PASS after a time-bound retry": retried, "missing case": missing} {
+		if !retainReport(results) {
+			t.Fatalf("%s is not retained", name)
+		}
+	}
+
+	directory := t.TempDir()
+	now := time.Date(2026, 10, 10, 18, 0, 0, 0, time.UTC)
+	text := "case\tupgrade\tPASS\tok\ncase\tuninstall\tFAIL\tprivate HOME retains corvint state: x\n"
+	first, err := keepReport(directory, "claude-code", text, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := keepReport(directory, "claude-code", text, now)
+	if err != nil || second == first {
+		t.Fatalf("a second report at the same instant is %q, %v; want a new file beside %q", second, err, first)
+	}
+	data, err := os.ReadFile(first)
+	if err != nil || string(data) != text {
+		t.Fatalf("retained report is %q, %v", data, err)
+	}
+	if info, err := os.Stat(first); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("retained report mode %v, %v; want 0600", info.Mode().Perm(), err)
+	}
+	long, err := keepReport(directory, "claude-code", strings.Repeat("x", retainedReportLimit+10), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := truncationMarker(10 + len(truncationMarker(retainedReportLimit+10)))
+	if data, _ := os.ReadFile(long); len(data) > retainedReportLimit || !strings.HasSuffix(string(data), marker) {
+		t.Fatalf("an over-limit report is not bounded to %d bytes with the explicit omitted count %q: %d bytes, tail %q", retainedReportLimit, marker, len(data), data[len(data)-40:])
+	}
+
+	// A failed --report write still retains the copy, and both outcomes are reported.
+	var stderr strings.Builder
+	retainedDirectory := t.TempDir()
+	if exit := writeReports(&stderr, "claude-code", text, filepath.Join(t.TempDir(), "missing", "report.tsv"), retainedDirectory, uninstall, now); exit != 2 {
+		t.Fatalf("a failed --report write exits %d; want 2", exit)
+	}
+	if kept, _ := filepath.Glob(filepath.Join(retainedDirectory, "hlq-claude-code-*.tsv")); len(kept) != 1 || !strings.Contains(stderr.String(), "report retained at") {
+		t.Fatalf("a failed --report write lost the retained copy: %v; stderr %q", kept, stderr.String())
+	}
+	if exit := writeReports(&stderr, "claude-code", text, "", retainedDirectory, passing(), now); exit != 0 {
+		t.Fatalf("an all-PASS run exits %d; want 0", exit)
+	}
+
+	// An unusable directory is a setup error before any case runs: the corvint executable named
+	// here does not exist, so only the directory check can produce this error.
+	unusable := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(unusable, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	readOnly := t.TempDir()
+	if err := os.Chmod(readOnly, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(readOnly, 0o700) })
+	directories := []string{unusable}
+	if os.Geteuid() != 0 {
+		directories = append(directories, readOnly)
+	}
+	for _, directory := range directories {
+		stderr.Reset()
+		var stdout strings.Builder
+		exit := run([]string{"--host", "cli", "--corvint", filepath.Join(t.TempDir(), "absent"), "--failed-reports", directory}, &stdout, &stderr)
+		if exit != 2 || !strings.Contains(stderr.String(), directory) || stdout.Len() != 0 {
+			t.Fatalf("--failed-reports %s exits %d with stderr %q, stdout %q; want a setup error naming it", directory, exit, stderr.String(), stdout.String())
+		}
+		if leftovers, _ := filepath.Glob(filepath.Join(readOnly, ".hlq-probe-*")); len(leftovers) != 0 {
+			t.Fatalf("the writability probe was left behind: %v", leftovers)
+		}
+	}
+	probed := t.TempDir()
+	if err := usableReportDirectory(probed); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(probed); len(entries) != 0 {
+		t.Fatalf("the writability probe was left behind: %v", entries)
+	}
+}
