@@ -457,6 +457,20 @@ type snapshot struct {
 }
 
 func (repo *repository) snapshot(ctx context.Context) (snapshot, error) {
+	return repo.snapshotWithContent(ctx, true)
+}
+
+// driftSnapshot resolves identity and cleanliness without listing unused content.
+func (repo *repository) driftSnapshot(ctx context.Context) (snapshot, error) {
+	return repo.snapshotWithContent(ctx, false)
+}
+
+func (repo *repository) clean(ctx context.Context) (bool, error) {
+	status, err := repo.git(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	return len(status) == 0, err
+}
+
+func (repo *repository) snapshotWithContent(ctx context.Context, content bool) (snapshot, error) {
 	var snap snapshot
 	if err := repo.refreshAuthority(); err != nil {
 		return snap, err
@@ -471,11 +485,10 @@ func (repo *repository) snapshot(ctx context.Context) (snapshot, error) {
 		return snap, err
 	}
 	snap.tree = strings.TrimSpace(string(tree))
-	status, err := repo.git(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if err != nil {
+	snap.clean, err = repo.clean(ctx)
+	if err != nil || !content {
 		return snap, err
 	}
-	snap.clean = len(status) == 0
 	listing, err := repo.git(ctx, "ls-tree", "-rz", target)
 	if err != nil {
 		return snap, err

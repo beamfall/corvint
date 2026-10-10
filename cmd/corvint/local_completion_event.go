@@ -282,6 +282,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	// emitted, and the loader read the pair a third time.
 	var before gokernel.Repository
 	var evaluation localcompletion.Evaluation
+	var observed localcompletion.Observed
 	var result map[string]any
 	after, err := gokernel.ProbeRepositoryAround(ctx, options.root, func(ctx context.Context, observation gokernel.Observation) error {
 		var err error
@@ -295,7 +296,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 		}
 		evaluation = localcompletion.Evaluation{Lifecycle: "inactive", Unmet: []string{}}
 		if session, ok := input["sessionIdSha256"].(string); ok {
-			if evaluation, err = localcompletion.Evaluate(ctx, options.root, session); err != nil {
+			if evaluation, observed, err = localcompletion.EvaluateObserved(ctx, options.root, session); err != nil {
 				return err
 			}
 		}
@@ -323,7 +324,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	}
 	// Re-read private policy inputs too: Git status cannot detect their mutation.
 	if session, ok := input["sessionIdSha256"].(string); ok {
-		current, err := localcompletion.Evaluate(ctx, options.root, session)
+		current, err := localEventReevaluate(ctx, options.root, session, observed, after)
 		if err != nil {
 			// A failed re-read observed no drift; report the read failure.
 			return nil, err
@@ -333,6 +334,14 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 		}
 	}
 	return result, nil
+}
+
+// Reuse facts only after the event's closing observation proves their identity.
+func localEventReevaluate(ctx context.Context, root, session string, observed localcompletion.Observed, after gokernel.Repository) (localcompletion.Evaluation, error) {
+	if observed.Matches(after.CommitRevision, after.TreeRevision) {
+		return localcompletion.EvaluateAgainst(ctx, root, session, observed)
+	}
+	return localcompletion.Evaluate(ctx, root, session)
 }
 
 func dogfoodEventEnvelope(options options, input map[string]any, repo gokernel.Repository, evaluation localcompletion.Evaluation) map[string]any {
