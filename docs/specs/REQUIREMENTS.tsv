@@ -1699,6 +1699,7 @@ HLQ-V1-006	docs/specs/host-lifecycle-qualification-v1.md	84	Adapters MUST retain
 HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	92	The runner MUST print one header line, then one `case` line for each case, then
 HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	96	A result MUST be recorded here with the digests of both binaries and the source
 HLQ-V1-009	docs/specs/host-lifecycle-qualification-v1.md	101	A hook output whose degradation frame names a time bound is not evidence for any
+HLQ-V1-010	docs/specs/host-lifecycle-qualification-v1.md	116	(proposed; V1-1121) With `--failed-reports DIR`, a run in which any case is
 HNE-V0-001	docs/specs/heading-navigation-experiment-v0.md	32	The explicit fixture pins a full Git commit, source paths, timestamp, questions
 HNE-V0-002	docs/specs/heading-navigation-experiment-v0.md	36	Both arms use the same actual native corpus lexical document ranking. Baseline r
 HNE-V0-003	docs/specs/heading-navigation-experiment-v0.md	40	Every packet, including JSON escaping, question, metadata, provenance and outlin

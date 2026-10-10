@@ -152,9 +152,16 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	base := flags.String("base-corvint", "", "the N-1 corvint executable for the upgrade case")
 	source := flags.String("source", ".", "checkout whose integrations/ supplies the plugin package")
 	report := flags.String("report", "", "file the report is also written to")
+	failedReports := flags.String("failed-reports", "", "directory that keeps a new copy of the report of every run with a non-PASS case or a time-bound hook retry (HLQ-V1-010)")
 	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 || *current == "" {
-		fmt.Fprintln(stderr, "usage: host-lifecycle-v1 --host cli|claude-code|codex --corvint FILE [--base-corvint FILE] [--source DIR] [--report FILE]")
+		fmt.Fprintln(stderr, "usage: host-lifecycle-v1 --host cli|claude-code|codex --corvint FILE [--base-corvint FILE] [--source DIR] [--report FILE] [--failed-reports DIR]")
 		return 2
+	}
+	if *failedReports != "" {
+		if err := os.MkdirAll(*failedReports, 0o700); err != nil {
+			fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
+			return 2
+		}
 	}
 	_, plugin := profiles[*host]
 	if *host != "cli" && !plugin {
@@ -191,7 +198,64 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 	}
+	if *failedReports != "" && retainReport(r.results) {
+		path, err := keepReport(*failedReports, *host, text, time.Now())
+		if err != nil {
+			fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
+			return 2
+		}
+		fmt.Fprintln(stderr, "host-lifecycle-v1: report retained at", path)
+	}
 	return summaryExit(r.results)
+}
+
+// retainedReportLimit bounds one retained report; every received text in it is already quoted
+// and bounded (HLQ-V1-007, HLQ-V1-009), so the limit only caps an unusually long case line.
+const retainedReportLimit = 64 << 10
+
+// retainReport reports whether a run's report is kept under --failed-reports: any case that is
+// not PASS, or any case line naming a time-bound hook retry, whichever case a caller studies
+// (HLQ-V1-010).
+func retainReport(results []result) bool {
+	if summaryExit(results) != 0 {
+		return true
+	}
+	for _, item := range results {
+		if item.status != "PASS" || strings.Contains(item.detail, retriedMarker) {
+			return true
+		}
+	}
+	return false
+}
+
+// keepReport writes text, bounded to retainedReportLimit with an explicit omitted-byte count,
+// to a new file in directory named for the host, the UTC time and the process, and never
+// replaces an existing file (HLQ-V1-010).
+func keepReport(directory, host, text string, now time.Time) (string, error) {
+	if len(text) > retainedReportLimit {
+		text = fmt.Sprintf("%s\nTRUNCATED\tomittedBytes=%d\n", text[:retainedReportLimit], len(text)-retainedReportLimit)
+	}
+	base := fmt.Sprintf("hlq-%s-%s-%d", host, now.UTC().Format("20060102T150405.000000000Z"), os.Getpid())
+	for attempt := 0; attempt < 100; attempt++ {
+		name := base + ".tsv"
+		if attempt != 0 {
+			name = fmt.Sprintf("%s-%d.tsv", base, attempt)
+		}
+		path := filepath.Join(directory, name)
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		_, err = file.WriteString(text)
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+		return path, err
+	}
+	return "", fmt.Errorf("no free report name for %s in %s", base, directory)
 }
 
 // newRunner creates the private workspace (HLQ-V1-003) and removes it again on any setup error.
@@ -351,7 +415,7 @@ func (r *runner) step(name string, body func() (string, error)) {
 	detail, err := body()
 	retried := ""
 	if len(r.retried) != 0 {
-		retried = "; time-bound hook degradations retried: " + strings.Join(r.retried, ", ")
+		retried = retriedMarker + strings.Join(r.retried, ", ")
 	}
 	switch {
 	case errors.Is(err, errNotRun):
@@ -368,6 +432,9 @@ func (r *runner) step(name string, body func() (string, error)) {
 }
 
 var errNotRun = errors.New("not run")
+
+// retriedMarker opens the part of a case line that names its time-bound hook retries.
+const retriedMarker = "; time-bound hook degradations retried: "
 
 // unchanged runs a case and then requires the fixture worktree to be unchanged (HLQ-V1-006).
 func (r *runner) unchanged(body func() (string, error)) func() (string, error) {

@@ -113,16 +113,27 @@ behaviour inside a live model session.
   rerun is safe because hook events are reads (`AGENTS.md` invariant 4). A pass after a retried
   time bound qualifies lifecycle semantics at that load, not latency; host timeouts stay outside the
   nine cases (`HLQ-V1-004`).
+- **HLQ-V1-010:** (proposed; V1-1121) With `--failed-reports DIR`, a run in which any case is
+  not `PASS`, or any case line names a time-bound hook retry (`HLQ-V1-009`), MUST also write its
+  report to a new file in `DIR` named for the host, the UTC time and the process id, and MUST NOT
+  replace an existing file there. A run whose nine cases all pass with no retry writes nothing
+  there. Retention keys on every case, never on one case a caller studies, so a repeated run keeps
+  the failure text of any case. The retained copy is the `HLQ-V1-007` report, in which every
+  received text is already quoted and bounded, capped at 64 KiB with an explicit omitted-byte
+  count, written with mode 0600; it holds nothing read from outside the private workspace
+  (`HLQ-V1-003`). An unusable `DIR` is a setup error (exit 2) before any case runs.
 
 ## Runner
 
 ```sh
 GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
-  --host cli|claude-code|codex --corvint FILE --base-corvint N1_FILE --source CHECKOUT --report FILE
+  --host cli|claude-code|codex --corvint FILE --base-corvint N1_FILE --source CHECKOUT --report FILE [--failed-reports DIR]
 ```
 
 `--source` is a clean checkout whose `integrations/` supplies the plugin package. Without
-`--base-corvint`, the upgrade case is `NOT_RUN`, so the tuple does not pass.
+`--base-corvint`, the upgrade case is `NOT_RUN`, so the tuple does not pass. A repeated or loaded
+run passes `--failed-reports DIR` so the text of any failed or retried case survives the caller
+discarding its passing reports (proposed `HLQ-V1-010`).
 
 ## Results
 
@@ -286,6 +297,7 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
 | HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` and the enrolled-Stop deadline subtest of `TestClaudeNativeDogfoodLifecycle` in `cmd/corvint` pin the fail-open Stop shape the retry keys on |
+| HLQ-V1-010 | `TestFailedReportRetention` (`retainReport`, `keepReport` in `conformance/host-lifecycle-v1`) |
 
 ## Rollback
 
