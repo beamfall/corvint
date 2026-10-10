@@ -1,0 +1,62 @@
+# HLQ claude-code uninstall failures, lane G 2026-10-10 (runner with diag.patch; local clock UTC-4).
+# a1-1 ran without the diagnostic patch; its report line:
+case	uninstall	FAIL	private HOME retains corvint state: .claude/.claude.json.tmp.98106.776ae735d74c (content)
+
+## run c1-5 report line
+case	uninstall	FAIL	private HOME retains corvint state: .claude/.claude.json (content)
+## run c1-5 uninstall-case commands and residue diagnostics
+DIAG exec pid=49422 start=14:41:03.944 argv=["/opt/homebrew/bin/claude" "plugin" "disable" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:05.017 elapsed=1.073s argv0=claude
+DIAG exec pid=50088 start=14:41:05.017 argv=["/opt/homebrew/bin/claude" "plugin" "list"]
+DIAG exec end=14:41:06.660 elapsed=1.642s argv0=claude
+DIAG exec pid=51088 start=14:41:06.660 argv=["/opt/homebrew/bin/claude" "plugin" "enable" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:08.231 elapsed=1.571s argv0=claude
+DIAG exec pid=52068 start=14:41:08.231 argv=["/opt/homebrew/bin/claude" "plugin" "uninstall" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:10.615 elapsed=2.384s argv0=claude
+DIAG exec pid=53447 start=14:41:10.615 argv=["/opt/homebrew/bin/claude" "plugin" "marketplace" "remove" "corvint"]
+DIAG exec end=14:41:12.271 elapsed=1.656s argv0=claude
+DIAG exec pid=54504 start=14:41:12.272 argv=["/opt/homebrew/bin/claude" "plugin" "list"]
+DIAG exec end=14:41:13.555 elapsed=1.283s argv0=claude
+DIAG residue at 14:41:13.563: [.claude/.claude.json (content)]
+DIAG .claude/.claude.json size=567 err=<nil>
+DIAG excerpt "serID\": \"<redacted>\",\n  \"pluginUsage\": {\n    \"corvint@corvint\": {\n      \"usageCount\": 0,\n      \"lastUsedAt"
+DIAG excerpt "\"<redacted>\",\n  \"pluginUsage\": {\n    \"corvint@corvint\": {\n      \"usageCount\": 0,\n      \"lastUsedAt\": 17916"
+DIAG final .claude.json size=567 corvint=true
+DIAG after +200ms exists=true
+DIAG after +1s exists=true
+DIAG after +3s exists=true
+DIAG ls .claude/.claude.json 567 14:41:08.129
+DIAG ls .claude/.claude.json.lock 64 14:41:08.189
+DIAG ls .claude/backups 96 14:40:38.756
+DIAG ls .claude/plugins 192 14:41:11.608
+DIAG ls .claude/settings.json 59 14:41:11.806
+
+## run c2-6 report line
+case	uninstall	FAIL	private HOME retains corvint state: .claude/.claude.json.tmp.76364.9ed5ab397744 (content)
+## run c2-6 uninstall-case commands and residue diagnostics
+DIAG exec pid=74036 start=14:41:47.505 argv=["/opt/homebrew/bin/claude" "plugin" "disable" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:49.189 elapsed=1.684s argv0=claude
+DIAG exec pid=75080 start=14:41:49.189 argv=["/opt/homebrew/bin/claude" "plugin" "list"]
+DIAG exec end=14:41:51.232 elapsed=2.043s argv0=claude
+DIAG exec pid=76364 start=14:41:51.232 argv=["/opt/homebrew/bin/claude" "plugin" "enable" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:53.958 elapsed=2.726s argv0=claude
+DIAG exec pid=77334 start=14:41:53.958 argv=["/opt/homebrew/bin/claude" "plugin" "uninstall" "corvint@corvint" "--scope" "user"]
+DIAG exec end=14:41:55.558 elapsed=1.599s argv0=claude
+DIAG exec pid=78308 start=14:41:55.558 argv=["/opt/homebrew/bin/claude" "plugin" "marketplace" "remove" "corvint"]
+DIAG exec end=14:41:57.300 elapsed=1.742s argv0=claude
+DIAG exec pid=79390 start=14:41:57.301 argv=["/opt/homebrew/bin/claude" "plugin" "list"]
+DIAG exec end=14:41:58.531 elapsed=1.23s argv0=claude
+DIAG residue at 14:41:58.534: [.claude/.claude.json.tmp.76364.9ed5ab397744 (content)]
+DIAG writer pid 76364: "  PID  PPID ELAPSED COMMAND\n"
+DIAG .claude/.claude.json.tmp.76364.9ed5ab397744 size=567 err=<nil>
+DIAG excerpt "serID\": \"<redacted>\",\n  \"pluginUsage\": {\n    \"corvint@corvint\": {\n      \"usageCount\": 0,\n      \"lastUsedAt"
+DIAG excerpt "\"<redacted>\",\n  \"pluginUsage\": {\n    \"corvint@corvint\": {\n      \"usageCount\": 0,\n      \"lastUsedAt\": 17916"
+DIAG final .claude.json size=423 corvint=false
+DIAG after +200ms exists=true
+DIAG after +1s exists=true
+DIAG after +3s exists=true
+DIAG ls .claude/.claude.json 423 14:41:22.663
+DIAG ls .claude/.claude.json.tmp.76364.9ed5ab397744 567 14:41:53.925
+DIAG ls .claude/backups 96 14:41:22.091
+DIAG ls .claude/plugins 192 14:41:56.503
+DIAG ls .claude/settings.json 59 14:41:56.825

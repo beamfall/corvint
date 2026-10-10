@@ -275,6 +275,16 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
   unretained observation. A slowdown of roughly
   5x reaches the bound, which the rc.2 load of about 245 makes plausible; the rc.2 output itself
   stays unobserved, so the cause remains the most likely hypothesis, not an observation.
+- V1-1120: the frontier fail-open has a load envelope (`2026-10-10-hlq-load-failures`, Claude Code
+  2.1.293 / adapter 0.3.1, 12 CPUs). With a maximum boundary load1 below 150, 0 of 92 runs failed
+  open. At 150–199, 2 of 3 failed, and at 200 or more, 14 of 17 failed. Every failure was
+  `dogfood-event-deadline` on all three `HLQ-V1-009` attempts, at 1.53–1.69 s. That is the specified
+  `LCP-V0-008` fail-open under the `AHI-017` bound, so it is a known limit, not a defect. A tuple
+  result recorded at such a load is a host-capacity observation.
+- V1-1119: under heavy load, the Claude Code 2.1.293 uninstall case can fail on the host's own
+  `pluginUsage` record for `corvint@corvint`. It is left in `.claude.json`, or in an orphaned
+  `.claude.json.tmp.*` atomic-write file whose writer, `claude plugin enable`, has exited.
+  Corvint writes neither file. The case keeps reporting it as residue (same build-log entry).
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
