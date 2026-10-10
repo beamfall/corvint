@@ -353,14 +353,14 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   one-line anchor at Playwright's reported line. Every anchor is the Git blob at the migration's
   source revision in the repository whose root commit is the migration's E2E repository, and the
   working-tree bytes the listing observed must equal that blob. Corvint never runs Playwright; output
-  is deterministic and the command writes nothing. Status: (proposed, pending owner acceptance;
+  is deterministic and the command writes nothing. Status: (accepted, decision 0489;
   V1-1082; GitHub #717).
 - `DCP-V1-047`: An execution's identity is `playwright:` plus Playwright's own per-project test ID.
   With `--receipt`, a canonical qualified Playwright receipt for the same config path, config bytes
   and test-file bytes supplies the identity instead for the one receipt test with the same file,
   line, project and title; more than one match refuses. The produced record, unchanged, is admitted
   by `behavior-adapter` as its discovery input, and each registered test whose ID equals an
-  execution identity joins that execution in `discovered_project_executions`. Status: (proposed, pending owner acceptance; V1-1082; GitHub #717).
+  execution identity joins that execution in `discovered_project_executions`. Status: (accepted, decision 0489; V1-1082; GitHub #717).
 - `DCP-V1-048`: `discover-playwright` refuses, with `corpus-refused` and no output, a listing that
   is filtered (any `test` argument other than `--list`, `--reporter=json` and `--config`), sharded,
   errored, of another config, rooted outside the repository, has a repeated or missing test ID,
@@ -368,14 +368,14 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   regular blob at the source revision or differs in the working tree; a repository that is not the
   migration's; a malformed migration, including a `documentation_revision` that is not a Git object
   ID or differs from `revisions.docs_corpus.revision`; and a receipt that is not qualified or ran other config or
-  test bytes. Status: (proposed, pending owner acceptance; V1-1082; GitHub #717).
+  test bytes. Status: (accepted, decision 0489; V1-1082; GitHub #717).
 - `DCP-V1-049`: `corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID
   --report REPORT.json` validates the behavior-adapter request, then emits one deterministic
   `corvint-behavior-witness-import/1` bundle that binds the contract ID and digest, source revision,
   the retained receipt input (ID, revision, path, SHA-256), the caller-run Playwright JSON report's
   SHA-256, and for every registered test either a witness or an unwitnessed entry. The receipt input
   must be a retained request input other than the migration and discovery inputs. Corvint never runs
-  Playwright. Status: (proposed, pending owner acceptance; V1-1083; GitHub #717).
+  Playwright. Status: (accepted, decision 0489; V1-1083; GitHub #717).
 - `DCP-V1-050`: A witness is produced only when the qualified receipt test with the registered ID
   ran the registered project, file bytes, line and title, passed on its only attempt (retry 0) with
   a `PASSED` projection, no other receipt outcome shares its file, line, project and full title, and
@@ -388,7 +388,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   SHA-256, the report test ID and digest, and an observation link whose run identity, project and
   source paths match `behavior-adapter`'s receipt check. Once the caller retains that document and
   wires it as the test's runtime, `runtime_witnessed_contracts` counts the contract. Events are read
-  from the report, never copied from the declared flow. Status: (proposed, pending owner acceptance;
+  from the report, never copied from the declared flow. Status: (accepted, decision 0489;
   V1-1083; GitHub #717).
 - `DCP-V1-051`: Every other registered test stays unwitnessed with exactly one named reason and is
   never credited: `foreign-project`, `source-mismatch`, `receipt-test-missing`, `failed`, `skipped`,
@@ -397,14 +397,14 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `report-test-missing` (including a result with an absent or null retry), `report-receipt-disagree`,
   `events-unobserved`, `event-malformed` (an event that does not decode or breaks the sequence,
   uniqueness, passing, kind, identity or browser-context rules), `cleanup-unobserved`,
-  `cleanup-failed` or `fixture-role-mismatch`. Status: (proposed, pending owner acceptance; V1-1083;
+  `cleanup-failed` or `fixture-role-mismatch`. Status: (accepted, decision 0489; V1-1083;
   GitHub #717).
 - `DCP-V1-052`: Missing or untrustworthy shared evidence yields uncertainty for every test, never
   certainty: an unqualified receipt (`receipt-unqualified`), an incomplete, omitted or stale one
   (`receipt-incomplete`), one of other config bytes (`config-mismatch`), or a report of another config
   file or runner version (`report-foreign-config`) leaves all tests unwitnessed with that reason. The
-  bundle states the fallback `full-relevant-suite` and its limitations. Status: (proposed, pending
-  owner acceptance; V1-1083; GitHub #717).
+  bundle states the fallback `full-relevant-suite` and its limitations. Status: (accepted, decision
+  0489; V1-1083; GitHub #717).
 
 ## Input and authority boundary
 
