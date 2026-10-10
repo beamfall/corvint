@@ -1,0 +1,90 @@
+{
+  "baseRevision": "a3607ec5b51f019cf8614bd17388456579427cfc",
+  "evidence": [
+    {
+      "blobOid": "6488ba3c3484557427deaa34718e7337431de42b",
+      "id": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 22401,
+        "start": 21850
+      },
+      "spanSha256": "d7988157a4e26598e89b7640a375b7d41d6ba7b30ccfe6ab349692bc9f8ead02"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4082,
+        "start": 3781
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c40330338b67d73341d961f9d6e76927dd1fe90d5584007055714bee7663699b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bb2580465c9f3351064090a4f1344c878a607cd2211c3eb66a09f42cb4e76afd",
+      "newRange": {
+        "count": 14,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-rc3-cut.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f7d6ad8daca529018dd6a846c68183f9be10dfa08940590ef9bdb357ecc0ed68",
+      "newRange": {
+        "count": 46,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0491-rc3-cut-2026-10-10.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abe46075d57b05cd896bb46be63a7283235c8f81f68a538de6adcd8592653ba7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1279a693a657963cf68da032096e91a0f65bbda3b87320a7e3ad137f6d243d90",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "188ecccf5d5b60e1f8aa6af2c1fa5ea932ae7c8830566e71a5c8c587388e7401",
+  "spec": "cem/0.2"
+}
