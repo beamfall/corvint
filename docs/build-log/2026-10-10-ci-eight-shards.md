@@ -65,9 +65,10 @@ pre-speedup run (920 s and 951 s). `ci-test-slices generate --shards 8` over the
 run 38078093034, listed at merge `3b428343`, re-cut the store package into 141 named tests (496 s)
 and the rest (510 s); `cmd/corvint` (653 s) stays whole under the 788 s target. The tool default and
 its refusal test, the `Splits` check of the committed slices and the `ci-shard-costs` usage move to
-8. Replay of that run with the committed cost table (an inference; slices in-sample): previous
-slices max 940 s of test time per shard, re-derived slices max 848 s, about 16.7 min per job with
-the observed 60-150 s of per-shard setup. Whether 17 min holds needs the next hosted runs.
+8. AFP-V0-041 (5) named that default ("default 6, the go-product-shard matrix"); its text now says
+8, marked proposed by V1-1094 pending owner acceptance. Replay of that run with the committed cost
+table (an inference; slices in-sample): previous slices max 940 s of test time per shard,
+re-derived slices max 848 s, about 16.7 min per job with the observed 60-150 s of per-shard setup. Whether 17 min holds needs the next hosted runs.
 
 ## Limits and rollback
 
