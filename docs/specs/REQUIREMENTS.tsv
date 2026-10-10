@@ -2437,7 +2437,7 @@ PTF-V0-007	docs/specs/playwright-per-test-freshness-v0.md	81	The only supported 
 PTF-V0-008	docs/specs/playwright-per-test-freshness-v0.md	88	Join the control's observed semantic/runtime/source closure to EVERY baseline re
 PTF-V0-009	docs/specs/playwright-per-test-freshness-v0.md	95	Readiness failure, attestation failure, execution failure and cancellation all c
 PTF-V0-010	docs/specs/playwright-per-test-freshness-v0.md	99	Qualify the named consuming path on the exact tuple with actual stable positive/
-PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.2`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.3`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	160	The first companion target is macOS arm64. Qualification MUST exercise the
