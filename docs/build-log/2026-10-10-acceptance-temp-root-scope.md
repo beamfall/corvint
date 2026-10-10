@@ -98,3 +98,14 @@ Changed files: `cmd/corvint-tests-accept/main.go`; `internal/testacceptance/exec
 `external.go`, `temp_scope_test.go`; `internal/behaviorfalsify/execute.go`,
 `temp_scope_test.go`; the acceptance and falsification specs, generated REQUIREMENTS.tsv,
 two provider specs with citation-only repairs, and this build-log entry.
+
+## Unsandboxed rerun (batch lane, 2026-10-10)
+
+The blocked standalone-worker and control interruption qualification above was an
+effect of the builder sandbox refusing process snapshots. Outside it, on Darwin
+arm64, Go 1.27.1, merged with origin/main, `go test -race -count=1` passed for the
+full `internal/testacceptance` (116 s), `internal/behaviorfalsify` (175 s),
+`internal/jstestprovider` and `cmd/corvint-tests-accept` packages, including
+`TestNEAV0010StandaloneScope`, `TestBBFV0014TempRootInterruptedStaging`,
+`TestNEAV0010NativeTempScope` and `TestNEAV0010NativeOutputSelection`. A real
+Playwright/Chromium run, Linux, and parent SIGKILL cleanup remain NOT_RUN.

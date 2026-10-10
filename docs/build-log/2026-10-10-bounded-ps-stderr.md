@@ -89,3 +89,13 @@ Verification commands (GOTOOLCHAIN=local, TMPDIR=/private/tmp/claude-501/gotmp, 
 - `sh script/repin-use-case-receipts.sh --check`: PASS.
 
 All owned command sessions and the independent reviewer completed. The final source and tests are unchanged after their passing focused race run; only this evidence record was completed afterward. Real staging, commit-bound dogfood evidence, unsandboxed production ps, Linux runtime and owner acceptance remain outside the demonstrated outcome.
+
+## Unsandboxed rerun (batch lane, 2026-10-10)
+
+The sandbox `/bin/ps` restriction above does not apply outside the builder sandbox.
+On Darwin arm64, Go 1.27.1, merged with origin/main, `go test -race -count=1
+-timeout 12m ./internal/procgroup` passed in full (86 s), including the existing
+descendant and lifecycle tests, so the earlier failures were environmental. The
+cross-ticket packages `internal/testacceptance`, `internal/behaviorfalsify`,
+`internal/jstestprovider` and `cmd/corvint-tests-accept` also passed under
+`-race`. Linux runtime remains NOT_RUN.
