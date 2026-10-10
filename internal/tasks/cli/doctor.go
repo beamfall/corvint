@@ -3,10 +3,13 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,24 +31,25 @@ import (
 // project plugin findings, and writes only its own summary cache on an
 // explicit --refresh. Its findings carry no authority.
 const (
-	doctorProfile         = "taskman-doctor/0"
-	doctorCacheProfile    = "taskman-doctor-cache/0"
-	doctorWindow          = 7 * 24 * time.Hour
-	doctorMaxReceipts     = 4096
-	doctorThreshold       = 3
-	doctorMaxFindings     = 512
-	doctorCacheBytes      = 1 << 20
-	doctorLineStale       = 15 * time.Minute
-	doctorMaxPlugins      = 32
-	doctorPluginOutput    = 64 << 10
-	doctorPluginItems     = 64
-	doctorPluginProse     = 1024
-	doctorPsTimeout       = 5 * time.Second
-	doctorPsBytes         = 4 << 20
-	doctorPsProcs         = 4096
-	doctorCacheDirName    = "taskman-doctor"
-	doctorCacheFileName   = "summary.json"
-	doctorLineUnavailable = "doctor cache unavailable; run corvint-tasks doctor --refresh\n"
+	doctorProfile          = "taskman-doctor/0"
+	doctorCacheProfile     = "taskman-doctor-cache/0"
+	doctorWindow           = 7 * 24 * time.Hour
+	doctorMaxReceipts      = 4096
+	doctorThreshold        = 3
+	doctorMaxFindings      = 512
+	doctorCacheBytes       = 1 << 20
+	doctorLineStale        = 15 * time.Minute
+	doctorMaxPlugins       = 32
+	doctorMaxPluginEntries = 4096
+	doctorPluginOutput     = 64 << 10
+	doctorPluginItems      = 64
+	doctorPluginProse      = 1024
+	doctorPsTimeout        = 5 * time.Second
+	doctorPsBytes          = 4 << 20
+	doctorPsProcs          = 4096
+	doctorCacheDirName     = "taskman-doctor"
+	doctorCacheFileName    = "summary.json"
+	doctorLineUnavailable  = "doctor cache unavailable; run corvint-tasks doctor --refresh\n"
 )
 
 var (
@@ -78,7 +82,10 @@ type doctorEvent struct {
 	seq      uint64
 	at       time.Time
 	attempts []*snapshot.Attempt
-	pools    *snapshot.PoolState
+	// fresh[i] is true when attempts[i] was created by this receipt (its
+	// pre entry records no prior content).
+	fresh []bool
+	pools *snapshot.PoolState
 }
 
 // doctorIdle is a live attempt whose holder is stale or lease-expired.
@@ -146,12 +153,15 @@ func doctorCommand(env Env, args []string) *wire.Result {
 		findings = append(findings, doctorPlugins(plugins, rc.repo.PrimaryWorktree)...)
 	}
 	cacheDir := filepath.Join(rc.repo.CommonDir, doctorCacheDirName)
-	carry := doctorCarry(filepath.Join(cacheDir, doctorCacheFileName))
-	item := doctorItem(rc, scan, findings, carry, doctorProfile)
+	carry, cerr := doctorCarry(filepath.Join(cacheDir, doctorCacheFileName))
+	item := doctorItem(rc, scan, findings, carry, doctorProfile, 0)
 	if refresh {
-		cache := doctorItem(rc, scan, findings, carry, doctorCacheProfile)
-		cache.Obj.Set("refreshedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
-		if e := writeDoctorCache(cacheDir, wire.EncodeFile(cache)); e != nil {
+		// A cache written by a later build is never replaced (TQD-V0-011).
+		if wire.CodeOf(cerr) == wire.CodeUnsupportedVersion {
+			return failure(cmd, rc, cerr)
+		}
+		cache := doctorItem(rc, scan, findings, carry, doctorCacheProfile, doctorCacheBytes)
+		if e := writeDoctorCache(rc.repo.CommonDir, wire.EncodeFile(cache)); e != nil {
 			return failure(cmd, rc, e)
 		}
 	}
@@ -212,7 +222,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan) ([]doctorFinding, error)
 	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
 	out = append(out, doctorNoProgress(scan)...)
-	out = append(out, doctorRepeatRefusal(src, scan)...)
+	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
 	return out, nil
@@ -269,6 +279,10 @@ func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, 
 		return ev, time.Time{}, err
 	}
 	ev.at = at
+	created := map[string]bool{}
+	for _, p := range r.Pre {
+		created[p.Path] = p.Sha256 == nil
+	}
 	for _, p := range r.Post {
 		if p.Sha256 == nil || (p.Path != "pools.json" && !strings.HasPrefix(p.Path, "attempts/")) {
 			continue
@@ -288,6 +302,7 @@ func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, 
 			return ev, at, err
 		}
 		ev.attempts = append(ev.attempts, a)
+		ev.fresh = append(ev.fresh, created[p.Path])
 	}
 	return ev, at, nil
 }
@@ -382,9 +397,23 @@ type doctorRefusal struct {
 	at   time.Time
 }
 
+// doctorGateReader reads one gate result from its verified evidence blob.
+func doctorGateReader(src journal.Native) func(string) (*snapshot.GateResult, error) {
+	return func(d string) (*snapshot.GateResult, error) {
+		raw, err := src.Read("evidence/"+d, snapshot.MaxGateRecordBytes)
+		if err != nil {
+			return nil, err
+		}
+		if wire.Sum(raw) != wire.Digest(d) {
+			return nil, errors.New("digest mismatch")
+		}
+		return snapshot.DecodeGateResult(raw)
+	}
+}
+
 // doctorRepeatRefusal counts review returns and distinct failed gate results
 // per ticket and candidate tree (TQD-V0-006).
-func doctorRepeatRefusal(src journal.Native, scan *doctorScan) []doctorFinding {
+func doctorRepeatRefusal(gateOf func(string) (*snapshot.GateResult, error), scan *doctorScan) []doctorFinding {
 	refusals := map[[2]string]*doctorRefusal{}
 	var order [][2]string
 	count := func(ticketID, tree string, seq uint64, at time.Time) {
@@ -400,22 +429,32 @@ func doctorRepeatRefusal(src journal.Native, scan *doctorScan) []doctorFinding {
 	lastTree := map[string]string{}
 	ended := map[string]bool{}
 	gates := map[string]bool{}
+	// prior holds each attempt's gate results at its previous scanned
+	// afterimage. A result counts only at the receipt that added it: an
+	// attempt the scan first meets already existing carries a baseline
+	// recorded before the window, which never counts (TQD-V0-006).
+	prior := map[string]map[string]bool{}
 	for _, ev := range scan.events {
-		for _, a := range ev.attempts {
+		for i, a := range ev.attempts {
 			t := a.TicketID.Raw
+			before, seen := prior[a.AttemptID]
+			now := make(map[string]bool, len(a.GateResults))
 			for _, d := range a.GateResults {
-				if gates[d] {
+				now[d] = true
+			}
+			prior[a.AttemptID] = now
+			if !seen && !ev.fresh[i] {
+				before = now
+			}
+			for _, d := range a.GateResults {
+				if before[d] || gates[d] {
+					gates[d] = true
 					continue
 				}
 				gates[d] = true
-				raw, err := src.Read("evidence/"+d, snapshot.MaxGateRecordBytes)
-				if err != nil || wire.Sum(raw) != wire.Digest(d) {
-					scan.warnings = append(scan.warnings, prose("doctor could not verify gate result "+d))
-					continue
-				}
-				g, err := snapshot.DecodeGateResult(raw)
+				g, err := gateOf(d)
 				if err != nil {
-					scan.warnings = append(scan.warnings, prose("doctor could not decode gate result "+d))
+					scan.warnings = append(scan.warnings, prose("doctor could not verify gate result "+d))
 					continue
 				}
 				if g.State == "FAILED" {
@@ -653,16 +692,9 @@ func (l *doctorLimited) Write(p []byte) (int, error) {
 // doctorPlugins runs each regular executable in dir under the TQD-V0-010
 // bounds; every failure is a PLUGIN_FAILED finding, never a command failure.
 func doctorPlugins(dir, cwd string) []doctorFinding {
-	entries, err := os.ReadDir(dir)
+	names, err := doctorPluginNames(dir)
 	if err != nil {
-		return []doctorFinding{doctorPluginFailed(filepath.Base(dir), "plugin directory unreadable: "+err.Error())}
-	}
-	var names []string
-	for _, e := range entries {
-		st, err := os.Lstat(filepath.Join(dir, e.Name()))
-		if err == nil && st.Mode().IsRegular() && st.Mode()&0o111 != 0 {
-			names = append(names, e.Name())
-		}
+		return []doctorFinding{doctorPluginFailed(filepath.Base(dir), err.Error())}
 	}
 	sort.Strings(names)
 	var out []doctorFinding
@@ -674,6 +706,39 @@ func doctorPlugins(dir, cwd string) []doctorFinding {
 		out = append(out, doctorRunPlugin(filepath.Join(dir, name), name, cwd)...)
 	}
 	return out
+}
+
+// doctorPluginNames lists the regular executables in dir, reading at most
+// doctorMaxPluginEntries entries in fixed-size batches; a larger directory
+// is refused whole, so no plugin runs (TQD-V0-010).
+func doctorPluginNames(dir string) ([]string, error) {
+	d, err := os.Open(dir)
+	if err != nil {
+		return nil, fmt.Errorf("plugin directory unreadable: %v", err)
+	}
+	defer d.Close()
+	var names []string
+	for seen := 0; ; {
+		batch, err := d.ReadDir(256)
+		seen += len(batch)
+		if seen > doctorMaxPluginEntries {
+			return nil, fmt.Errorf("plugin directory holds more than %d entries; no plugin was run", doctorMaxPluginEntries)
+		}
+		for _, e := range batch {
+			if !e.Type().IsRegular() {
+				continue
+			}
+			if st, err := e.Info(); err == nil && st.Mode().IsRegular() && st.Mode()&0o111 != 0 {
+				names = append(names, e.Name())
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return names, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("plugin directory unreadable: %v", err)
+		}
+	}
 }
 
 func doctorPluginFailed(name, reason string) doctorFinding {
@@ -698,6 +763,7 @@ func doctorRunPlugin(path, name, cwd string) []doctorFinding {
 	doctorPluginGroup(c)
 	c.WaitDelay = time.Second
 	err := c.Run()
+	doctorPluginReap(c)
 	switch {
 	case ctx.Err() != nil:
 		return []doctorFinding{doctorPluginFailed(name, fmt.Sprintf("timed out after %s", doctorPluginTimeout))}
@@ -757,12 +823,13 @@ func doctorDecodePlugin(raw []byte) ([]doctorPluginItem, error) {
 }
 
 // doctorCarry maps each cached finding's kind, source and who to its
-// firstSeen; an absent or invalid cache carries nothing.
-func doctorCarry(path string) map[string]time.Time {
+// firstSeen; an absent or invalid cache carries nothing, and the read error
+// is returned so a refresh can refuse a cache written by a later build.
+func doctorCarry(path string) (map[string]time.Time, error) {
 	out := map[string]time.Time{}
 	v, err := readDoctorCache(path)
 	if err != nil {
-		return out
+		return out, err
 	}
 	fs, _ := v.Obj.Get("findings")
 	for _, f := range fs.Arr {
@@ -776,10 +843,13 @@ func doctorCarry(path string) map[string]time.Time {
 		}
 		out[get("kind")+"\x00"+get("source")+"\x00"+get("who")] = at
 	}
-	return out
+	return out, nil
 }
 
-func doctorItem(rc *readCtx, scan *doctorScan, findings []doctorFinding, carry map[string]time.Time, profile string) wire.Value {
+// doctorItem renders the finding report. A positive maxBytes bounds the
+// encoded cache file: trailing findings, in report order, are dropped until
+// it fits and findingsTruncated is set (TQD-V0-003, TQD-V0-011).
+func doctorItem(rc *readCtx, scan *doctorScan, findings []doctorFinding, carry map[string]time.Time, profile string, maxBytes int) wire.Value {
 	sort.SliceStable(findings, func(i, j int) bool {
 		a, b := findings[i], findings[j]
 		if a.kind != b.kind {
@@ -795,7 +865,6 @@ func doctorItem(rc *readCtx, scan *doctorScan, findings []doctorFinding, carry m
 	if total > doctorMaxFindings {
 		findings, cut = findings[:doctorMaxFindings], true
 	}
-	count := func(n int) wire.Value { return wire.String(string(wire.CountOf(int64(n)))) }
 	arr := make([]wire.Value, 0, len(findings))
 	for _, f := range findings {
 		if f.source == "" {
@@ -826,6 +895,28 @@ func doctorItem(rc *readCtx, scan *doctorScan, findings []doctorFinding, carry m
 		o.Set("evidenceSeqs", wire.Strings(seqs))
 		arr = append(arr, wire.ObjectValue(o))
 	}
+	build := func(n int) wire.Value {
+		return doctorItemOf(rc, scan, arr[:n], cut || n < len(arr), total, profile, maxBytes > 0)
+	}
+	v := build(len(arr))
+	if maxBytes <= 0 || len(wire.EncodeFile(v)) <= maxBytes {
+		return v
+	}
+	// The largest prefix that fits; the empty report always fits.
+	lo, hi := 0, len(arr)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if len(wire.EncodeFile(build(mid))) <= maxBytes {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return build(lo)
+}
+
+func doctorItemOf(rc *readCtx, scan *doctorScan, arr []wire.Value, cut bool, total int, profile string, cache bool) wire.Value {
+	count := func(n int) wire.Value { return wire.String(string(wire.CountOf(int64(n)))) }
 	lanes := wire.NewObject().Set("free", count(scan.lanesFree)).Set("total", count(scan.lanesTotal))
 	summary := wire.NewObject().Set("lanes", wire.ObjectValue(lanes)).Set("runningSessions", count(scan.runningSessions))
 	summary.Set("completions24h", wire.String(scan.completions24h)).Set("alerts", count(total))
@@ -840,27 +931,79 @@ func doctorItem(rc *readCtx, scan *doctorScan, findings []doctorFinding, carry m
 	o.Set("observedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
 	o.Set("summary", wire.ObjectValue(summary)).Set("findings", wire.Array(arr...)).Set("scan", wire.ObjectValue(sc))
 	o.Set("mutationAuthority", wire.Bool(false))
+	if cache {
+		o.Set("refreshedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
+	}
 	return wire.ObjectValue(o)
 }
 
-// writeDoctorCache replaces the cache through a temporary file, fsync and
-// rename (TQD-V0-011).
-func writeDoctorCache(dir string, raw []byte) (err error) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	if err := os.Chmod(dir, 0o700); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(dir, ".summary-*.tmp")
+// writeDoctorCache replaces <commonDir>/taskman-doctor/summary.json through a
+// temporary file, fsync and rename (TQD-V0-011). Every step is rooted at the
+// common directory and follows no link: a cache directory or file that is a
+// link, not a directory or regular file, or not owned by the caller is
+// refused UNSUPPORTED_FILESYSTEM before anything is created, changed or
+// written through it.
+func writeDoctorCache(commonDir string, raw []byte) (err error) {
+	root, err := os.OpenRoot(commonDir)
 	if err != nil {
 		return err
 	}
-	tmp := f.Name()
+	defer root.Close()
+	refuse := func(what string) error {
+		return wire.Errorf(wire.CodeUnsupportedFilesystem, doctorCacheDirName, "doctor cache %s; refusing to refresh through it", what)
+	}
+	st, err := root.Lstat(doctorCacheDirName)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err = root.Mkdir(doctorCacheDirName, 0o700); err != nil {
+			return err
+		}
+		st, err = root.Lstat(doctorCacheDirName)
+	}
+	if err != nil {
+		return err
+	}
+	if !st.IsDir() || st.Mode()&fs.ModeSymlink != 0 {
+		return refuse("directory is a link or not a directory")
+	}
+	if !doctorOwned(st) {
+		return refuse("directory is not owned by this user")
+	}
+	sub, err := root.OpenRoot(doctorCacheDirName)
+	if err != nil {
+		return err
+	}
+	defer sub.Close()
+	if here, err := sub.Stat("."); err != nil || !os.SameFile(here, st) {
+		return refuse("directory changed while it was opened")
+	}
+	if cur, err := sub.Lstat(doctorCacheFileName); err == nil {
+		if !cur.Mode().IsRegular() {
+			return refuse("file is a link or not a regular file")
+		}
+		if !doctorOwned(cur) {
+			return refuse("file is not owned by this user")
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if st.Mode().Perm() != 0o700 {
+		if err := sub.Chmod(".", 0o700); err != nil {
+			return err
+		}
+	}
+	var nonce [8]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return err
+	}
+	tmp := ".summary-" + hex.EncodeToString(nonce[:]) + ".tmp"
+	f, err := sub.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err != nil {
 			_ = f.Close()
-			_ = os.Remove(tmp)
+			_ = sub.Remove(tmp)
 		}
 	}()
 	if _, err = f.Write(raw); err != nil {
@@ -875,7 +1018,7 @@ func writeDoctorCache(dir string, raw []byte) (err error) {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, filepath.Join(dir, doctorCacheFileName))
+	return sub.Rename(tmp, doctorCacheFileName)
 }
 
 func readDoctorCache(path string) (wire.Value, error) {
@@ -918,11 +1061,11 @@ func doctorLine(env Env) int {
 }
 
 func doctorLineText(cwd string) (string, error) {
-	repo, err := intent.Resolve(cwd)
+	common, err := intent.ResolveCommonDir(cwd)
 	if err != nil {
 		return "", err
 	}
-	v, err := readDoctorCache(filepath.Join(repo.CommonDir, doctorCacheDirName, doctorCacheFileName))
+	v, err := readDoctorCache(filepath.Join(common, doctorCacheDirName, doctorCacheFileName))
 	if err != nil {
 		return "", err
 	}

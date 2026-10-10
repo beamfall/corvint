@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -161,4 +162,43 @@ func WriteDoctorTestRun(root, attemptID, generation string, pid int, identity st
 func DecodeDoctorCache(raw []byte) error {
 	_, err := decodeDoctorCache(raw)
 	return err
+}
+
+// DoctorTestAttempt is one synthetic attempt afterimage for
+// DoctorRepeatRefusalSeqs; Fresh marks the receipt that created it.
+type DoctorTestAttempt struct {
+	Ticket, Attempt string
+	Gates           []string
+	Fresh           bool
+}
+
+// DoctorTestEvent is one synthetic scanned receipt.
+type DoctorTestEvent struct {
+	Seq      uint64
+	At       time.Time
+	Attempts []DoctorTestAttempt
+}
+
+// DoctorRepeatRefusalSeqs runs the REPEAT_REFUSAL detector over synthetic
+// receipts whose every gate digest names a FAILED result for tree, and
+// returns each finding's evidence receipts and firstSeen.
+func DoctorRepeatRefusalSeqs(events []DoctorTestEvent, tree string) ([][]uint64, []time.Time) {
+	scan := &doctorScan{}
+	for _, e := range events {
+		ev := doctorEvent{seq: e.Seq, at: e.At}
+		for _, a := range e.Attempts {
+			ev.attempts = append(ev.attempts, &snapshot.Attempt{AttemptID: a.Attempt, TicketID: wire.TicketID{Raw: a.Ticket}, Generation: "1", Phase: "RUNNING", GateResults: a.Gates})
+			ev.fresh = append(ev.fresh, a.Fresh)
+		}
+		scan.events = append(scan.events, ev)
+	}
+	failed := func(string) (*snapshot.GateResult, error) {
+		return &snapshot.GateResult{State: "FAILED", CandidateTreeOid: tree}, nil
+	}
+	var seqs [][]uint64
+	var first []time.Time
+	for _, f := range doctorRepeatRefusal(failed, scan) {
+		seqs, first = append(seqs, f.seqs), append(first, f.firstSeen)
+	}
+	return seqs, first
 }

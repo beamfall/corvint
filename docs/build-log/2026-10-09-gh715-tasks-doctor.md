@@ -48,8 +48,39 @@ Evidence:
 - gofmt and `go vet ./internal/tasks/cli/` are clean. The full `./internal/tasks/cli/` package passes
   (371 s), `./internal/companionrelease/` passes, and the nine doc gates pass.
 
+Review fixes (independent Codex review of `1120e565..582aa0ab`, VERDICT FAIL, seven findings;
+the orchestrator decided each fix):
+
+1. `--refresh` followed a linked `taskman-doctor` directory or `summary.json` and chmodded the
+   target. It now works through `os.Root` from the common directory, refuses a link, a
+   non-directory or non-regular file, or a foreign owner with UNSUPPORTED_FILESYSTEM before any
+   create, chmod or write, and creates its temp file and renames only inside the verified
+   directory.
+2. A plugin's background child outlived the doctor. The plugin's process group is now killed
+   after every exit or timeout.
+3. The cache could exceed the 1 MiB bound that `--line` reads. Refresh now drops trailing
+   findings in report order until the file fits and sets `findingsTruncated`.
+4. REPEAT_REFUSAL counted gate results recorded before the window. A digest now counts only at
+   the receipt that adds it to its attempt; a pre-existing attempt's first scanned afterimage is
+   a baseline.
+5. `--refresh` overwrote a cache written by a later build. It now refuses UNSUPPORTED_VERSION and
+   leaves the file byte-identical; other undecodable caches are still replaced.
+6. `--line` resolved the intent worktree, which read the queue manifest and linked worktree
+   entries. `intent.ResolveCommonDir` now stops at the validated common directory.
+7. Plugin discovery read the whole directory. It now reads in batches up to 4096 entries and runs
+   nothing beyond that.
+
+Each fix has a test that failed before it: `TestTQDV0011_RefreshRefusesSymlinkedCache`,
+`TestTQDV0010_PluginDescendantsAreKilled`, `TestTQDV0011_MaximalPluginOutputStaysReadable`,
+`TestTQDV0006_OldGateResultsAreNotRecentRefusals`, `TestTQDV0011_RefreshKeepsNewerCache`,
+`TestTQDV0012_ResolveCommonDirReadsNoManifest` and `TestTQDV0010_PluginDiscoveryIsBounded`.
+TQD-V0-003, -006, -010, -011 and -012 are amended to match and stay proposed.
+
 Limits:
 
+- A descendant that calls `setsid` leaves the plugin's process group and escapes the kill.
+- A gate result added in the receipt where the scan first meets a pre-existing attempt is
+  treated as baseline, so REPEAT_REFUSAL can under-count by one at the window edge.
 - The scan does not read the dispatcher ledger.
 - The Linux `ps` walk is unqualified. Tests ran only on Darwin arm64.
 - Plugins are not sandboxed.

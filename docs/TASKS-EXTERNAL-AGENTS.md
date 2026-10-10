@@ -676,14 +676,19 @@ core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached 
 still has a live descendant). `scan.truncated` marks a partial scan.
 
 `--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
-timeout and 64 KiB of stdout. A plugin prints one JSON array of at most 64
+timeout and 64 KiB of stdout, in its own process group, which is killed once the plugin exits, so
+no background child outlives the doctor. A directory holding more than 4096 entries runs no
+plugin. A plugin prints one JSON array of at most 64
 `{"kind","who","detail"[,"remedy"]}` objects; its findings appear with source `plugin:NAME` and
 the envelope is marked untrusted. A failing plugin becomes a PLUGIN_FAILED finding.
 
-Only `--refresh` writes, and only `<git common dir>/taskman-doctor/summary.json`.
+Only `--refresh` writes, and only `<git common dir>/taskman-doctor/summary.json`, at most
+1 MiB (trailing findings are cut and `scan.findingsTruncated` is set). It refuses
+UNSUPPORTED_FILESYSTEM when that directory or file is a link or not the caller's own, and
+UNSUPPORTED_VERSION, leaving the file unchanged, when a later build wrote it.
 `corvint-tasks doctor --line` prints one plain-text status line from that cache, such as
 `lanes 1/2 free | sessions 3 | 24h 5 done | alerts 1`, with `| stale Nm` once the cache is
-15 minutes old; it takes no lock, reads no store and exits 1 when the cache is unavailable.
+15 minutes old; it takes no lock, reads no store or queue manifest and exits 1 when the cache is unavailable.
 Findings carry no authority: nothing claims, releases, reaps or holds because of them.
 
 ## Upgrade the binary with live attempts

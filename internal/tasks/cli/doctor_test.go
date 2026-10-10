@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -406,5 +407,228 @@ func TestTQDV0012_LineReadsCache(t *testing.T) {
 	}
 	if out, code, _ := lineRun(root); code == 0 || !strings.Contains(out, "doctor cache unavailable") {
 		t.Fatalf("corrupt cache: %d %q", code, out)
+	}
+}
+
+// TQD-V0-006: a gate result counts once, at the receipt that added it to its
+// attempt. Results a pre-existing attempt already carried when the scan
+// first sees it (recorded before the window) are not recent refusals and do
+// not set firstSeen.
+func TestTQDV0006_OldGateResultsAreNotRecentRefusals(t *testing.T) {
+	at := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+	ev := func(seq uint64, attempt string, fresh bool, gates ...string) cli.DoctorTestEvent {
+		return cli.DoctorTestEvent{Seq: seq, At: at.Add(time.Duration(seq) * time.Minute), Attempts: []cli.DoctorTestAttempt{{Ticket: "T", Attempt: attempt, Gates: gates, Fresh: fresh}}}
+	}
+	if seqs, _ := cli.DoctorRepeatRefusalSeqs([]cli.DoctorTestEvent{ev(10, "a1", false, "g1", "g2", "g3"), ev(11, "a1", false, "g1", "g2", "g3")}, "tree"); len(seqs) != 0 {
+		t.Fatalf("old gate results counted: %v", seqs)
+	}
+	seqs, first := cli.DoctorRepeatRefusalSeqs([]cli.DoctorTestEvent{
+		ev(20, "a2", true), ev(21, "a2", false, "g4"), ev(22, "a2", false, "g4", "g5"), ev(23, "a2", false, "g4", "g5"), ev(24, "a2", false, "g4", "g5", "g6"),
+	}, "tree")
+	if len(seqs) != 1 || fmt.Sprint(seqs[0]) != "[21 22 24]" || !first[0].Equal(at.Add(21*time.Minute)) {
+		t.Fatalf("in-window results: %v %v", seqs, first)
+	}
+	seqs, first = cli.DoctorRepeatRefusalSeqs([]cli.DoctorTestEvent{
+		ev(30, "a3", false, "g1", "g2"), ev(31, "a3", false, "g1", "g2", "g7"), ev(32, "a3", false, "g1", "g2", "g7", "g8"), ev(33, "a3", false, "g1", "g2", "g7", "g8", "g9"),
+	}, "tree")
+	if len(seqs) != 1 || fmt.Sprint(seqs[0]) != "[31 32 33]" || !first[0].Equal(at.Add(31*time.Minute)) {
+		t.Fatalf("results added to a pre-existing attempt: %v %v", seqs, first)
+	}
+}
+
+// TQD-V0-010: a plugin's descendants die with it, whether they detach from
+// its stdout or keep it open.
+func TestTQDV0010_PluginDescendantsAreKilled(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	dir, pids := t.TempDir(), t.TempDir()
+	plugins := map[string]string{
+		"detached":  "/bin/sleep 300 >/dev/null 2>&1 &",
+		"inherited": "/bin/sleep 300 &",
+	}
+	for name, spawn := range plugins {
+		body := "#!/bin/sh\n" + spawn + "\necho $! > '" + filepath.Join(pids, name) + "'\nprintf '[]'\n"
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	doctorOK(t, root, "--plugins", dir)
+	for name := range plugins {
+		raw, err := os.ReadFile(filepath.Join(pids, name))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+		if err != nil || pid <= 1 {
+			t.Fatalf("%s pid %q", name, raw)
+		}
+		t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+		deadline := time.Now().Add(3 * time.Second)
+		for syscall.Kill(pid, 0) != syscall.ESRCH {
+			if time.Now().After(deadline) {
+				t.Fatalf("%s: plugin descendant %d survived the doctor", name, pid)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+}
+
+// TQD-V0-010: discovery reads at most 4096 directory entries; a larger
+// plugin directory runs no plugin and reports one PLUGIN_FAILED.
+func TestTQDV0010_PluginDiscoveryIsBounded(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	dir := t.TempDir()
+	good := "#!/bin/sh\nprintf '%s' '[{\"kind\":\"STALE_DOCS\",\"who\":\"docs/x.md\",\"detail\":\"old\"}]'\n"
+	if err := os.WriteFile(filepath.Join(dir, "a-good"), []byte(good), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 4096; i++ {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("n%04d", i)), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, item := doctorOK(t, root, "--plugins", dir)
+	failed := findingsOf(item, "PLUGIN_FAILED")
+	if len(findingsOf(item, "STALE_DOCS")) != 0 || len(failed) != 1 || !strings.Contains(field(failed[0], "detail").Str, "4096") {
+		t.Fatalf("oversized plugin directory: %s", wire.Encode(item))
+	}
+	if err := os.Remove(filepath.Join(dir, "n0000")); err != nil {
+		t.Fatal(err)
+	}
+	if _, item = doctorOK(t, root, "--plugins", dir); len(findingsOf(item, "STALE_DOCS")) != 1 || len(findingsOf(item, "PLUGIN_FAILED")) != 0 {
+		t.Fatalf("4096-entry plugin directory: %s", wire.Encode(item))
+	}
+}
+
+// TQD-V0-011: --refresh refuses a cache directory or file that is a symlink,
+// and writes and chmods nothing through it.
+func TestTQDV0011_RefreshRefusesSymlinkedCache(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := doctorCacheDir(t, root)
+	refused := func(why string) {
+		t.Helper()
+		if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedFilesystem) {
+			t.Fatalf("%s: refresh not refused: %s", why, x.stdout)
+		}
+	}
+	state := fixture.TreeSnapshot(t, repo.StateDir)
+	if err := os.Symlink(repo.StateDir, dir); err != nil {
+		t.Fatal(err)
+	}
+	stateMode, _ := os.Stat(repo.StateDir)
+	refused("directory linked to the state dir")
+	if after, _ := os.Stat(repo.StateDir); after.Mode() != stateMode.Mode() || !fixture.SameTree(state, fixture.TreeSnapshot(t, repo.StateDir)) {
+		t.Fatal("refresh wrote or chmodded the state dir through the link")
+	}
+	elsewhere := t.TempDir()
+	if err := os.Chmod(elsewhere, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(elsewhere, dir); err != nil {
+		t.Fatal(err)
+	}
+	refused("directory linked elsewhere")
+	if st, _ := os.Stat(elsewhere); st.Mode().Perm() != 0o755 {
+		t.Fatalf("link target chmodded to %v", st.Mode().Perm())
+	}
+	if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
+		t.Fatalf("refresh wrote through the link: %v", entries)
+	}
+	if err := os.Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(elsewhere, "victim.json")
+	if err := os.WriteFile(victim, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dir, "summary.json")); err != nil {
+		t.Fatal(err)
+	}
+	refused("cache file linked elsewhere")
+	if raw, _ := os.ReadFile(victim); string(raw) != "keep\n" {
+		t.Fatalf("victim rewritten: %q", raw)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Fatalf("leftover files: %v", entries)
+	}
+}
+
+// TQD-V0-011: --refresh refuses to replace a cache written in a later
+// format and leaves it byte-identical; plain doctor still answers.
+func TestTQDV0011_RefreshKeepsNewerCache(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	dir := doctorCacheDir(t, root)
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	newer := []byte(`{"profile":"taskman-doctor-cache/1"}` + "\n")
+	cache := filepath.Join(dir, "summary.json")
+	if err := os.WriteFile(cache, newer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedVersion) {
+		t.Fatalf("newer cache overwritten: %s", x.stdout)
+	}
+	if raw, _ := os.ReadFile(cache); !bytes.Equal(raw, newer) {
+		t.Fatalf("newer cache changed: %s", raw)
+	}
+	doctorOK(t, root)
+	// Any other undecodable cache is replaced.
+	if err := os.WriteFile(cache, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	doctorOK(t, root, "--refresh")
+	if out, code, _ := lineRun(root); code != 0 {
+		t.Fatalf("replaced cache: %d %q", code, out)
+	}
+}
+
+// TQD-V0-011, TQD-V0-012: the largest output plugins may produce still
+// refreshes into a cache --line can read; findings are cut by bytes in
+// order and the cut is reported.
+func TestTQDV0011_MaximalPluginOutputStaysReadable(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	dir, data := t.TempDir(), t.TempDir()
+	pad := func(p string) string { return p + strings.Repeat("x", 1024-len(p)) }
+	for p := 0; p < 32; p++ {
+		items := make([]string, 0, 20)
+		for i := 0; i < 20; i++ {
+			items = append(items, fmt.Sprintf(`{"kind":"X","who":%q,"detail":%q,"remedy":%q}`, pad(fmt.Sprintf("p%02d-w%02d-", p, i)), pad("d"), pad("r")))
+		}
+		out := "[" + strings.Join(items, ",") + "]"
+		if len(out) > 64<<10 {
+			t.Fatalf("plugin output %d bytes exceeds the plugin bound", len(out))
+		}
+		file := filepath.Join(data, fmt.Sprintf("p%02d.json", p))
+		if err := os.WriteFile(file, []byte(out), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("p%02d", p)), []byte("#!/bin/sh\nexec /bin/cat '"+file+"'\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, item := doctorOK(t, root, "--refresh", "--plugins", dir)
+	if len(findingsOf(item, "PLUGIN_FAILED")) != 0 {
+		t.Fatalf("plugin failed: %s", wire.Encode(findingsOf(item, "PLUGIN_FAILED")[0]))
+	}
+	raw, err := os.ReadFile(filepath.Join(doctorCacheDir(t, root), "summary.json"))
+	if err != nil || len(raw) > 1<<20 {
+		t.Fatalf("cache %d bytes: %v", len(raw), err)
+	}
+	cached, err := wire.Parse(raw)
+	if err != nil || !field(field(cached, "scan"), "findingsTruncated").Bool || len(field(cached, "findings").Arr) == 0 {
+		t.Fatalf("cache not cut by bytes: %v", err)
+	}
+	if out, code, _ := lineRun(root); code != 0 || out != "lanes 0/0 free | sessions 0 | 24h 0 done | alerts 640\n" {
+		t.Fatalf("line after maximal refresh: %d %q", code, out)
 	}
 }
