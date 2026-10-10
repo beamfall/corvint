@@ -1,15 +1,15 @@
 {
   "profile": "corvint-ci-test-slices/0",
   "source": {
-    "revision": "1f68f622e8ee3af9cd39a57696881e2e9b18c7ac",
-    "runURL": "https://github.com/beamfall/corvint/actions/runs/38055182050",
+    "revision": "3b428343288ff46c34bb5223a0f707592e67413e",
+    "runURL": "https://github.com/beamfall/corvint/actions/runs/38078093034",
     "goVersion": "go1.27.1"
   },
   "packages": {
     "github.com/Beamfall/corvint/internal/tasks/store": {
       "named": [
         {
-          "milliseconds": 920460,
+          "milliseconds": 496425,
           "tests": [
             "TestCALV0001_ImportMappedQueueStaysRefused",
             "TestCALV0001_NonFixtureQueueTakesEveryWrite",
@@ -151,13 +151,11 @@
             "TestCALV0087_DesignatedTargetChecked",
             "TestCALV0087_ExtraWorktreeCleanup",
             "TestCALV0087_GrantMustNameEveryTarget",
-            "TestCALV0087_InterruptedIntegrationLandsOnce",
-            "TestCALV0087_UnchangedRepositoryNeedsNoDesignation",
-            "TestCALV0088_ExtraRepositoryContextRequired"
+            "TestCALV0087_InterruptedIntegrationLandsOnce"
           ]
         }
       ],
-      "restMilliseconds": 951366
+      "restMilliseconds": 509941
     }
   }
 }

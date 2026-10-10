@@ -194,7 +194,7 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 		want string
 	}{
 		"missing log":            {"generate", []string{"--shards", "3", logs[0], logs[1]}, "2 of 3 shard logs present"},
-		"default six shards":     {"generate", logs, "2 of 6 shard logs present"},
+		"default eight shards":   {"generate", logs, "2 of 8 shard logs present"},
 		"extra log":              {"generate", []string{"--shards", "2", logs[0], logs[1], logs[1]}, "3 of 2 shard logs present"},
 		"empty shard log":        {"generate", []string{"--shards", "2", logs[0], empty}, "no terminal package outcome"},
 		"replay missing log":     {"replay", []string{"--shards", "2", logs[0]}, "1 of 2 shard logs present"},
