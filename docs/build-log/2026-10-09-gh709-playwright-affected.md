@@ -487,3 +487,36 @@ Tests:
   visible as code; a slash after `of` refuses.
 - `TestPlaywrightSlashStartsRegex` is new and covers the rule table and the shared splitter. It
   could not run before because the function returned a single bool.
+
+## Review round 11
+
+The coordinator accepted the round-10 refusal after `of`, `yield` and `await`. Round 11 on `ff39970c`
+reported one P2.
+
+**Finding.** The classifier only refused a non-ASCII or escaped identifier when the backward scan
+had found a non-empty ASCII suffix. For `café / 2` and `π / 2` the byte before the slash is
+non-ASCII, so the suffix was empty and the function returned a known division. A trailing
+`\u{61}` escape ended in `}`, so it was read as division too.
+
+Calling these division is right for an identifier. But a non-ASCII byte can also be a non-ASCII
+space or line terminator, as in `x =\u00a0/a/`, and then the slash starts a regex. The ASCII
+classifier cannot tell these apart.
+
+**Fix.** The slash is now unknown, and both callers refuse, when the code byte before it is any of:
+- a non-ASCII byte;
+- a `\`;
+- the `}` that closes a `\u{hex}` escape.
+
+Comments are stripped before either caller runs (`parsePlaywrightConfig` lexes the output of
+`stripComments`), so skipping whitespace is enough.
+
+**Tests.** These failed on `ff39970c`:
+- `café / 2`, `π / 2`, `x =\u00a0/a/` and `a\u{61} / 2` rows in `TestPlaywrightSlashStartsRegex`;
+- splitter and lexer refusal rows for `café`, `π` and `a\u{61}`;
+- the "slash after a non-ASCII identifier" and "slash after a Greek identifier" rows in
+  `TestPlaywrightMemberReadRoots_GH709Round8`.
+
+`a\u0061 / 2` was already refused and is now pinned. A `{} / 2` row stays a known division.
+
+**Cost.** A config that divides a non-ASCII-named or escaped identifier now loses the member-read
+roots, and an array or object holding such a division is refused.

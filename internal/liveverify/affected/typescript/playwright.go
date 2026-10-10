@@ -1326,11 +1326,25 @@ func playwrightPair(open, close byte) bool {
 // playwrightRegexKeywords are the reserved words after which a `/` starts a regular expression.
 var playwrightRegexKeywords = []string{"return", "typeof", "instanceof", "in", "new", "delete", "void", "throw", "case", "do", "else"}
 
+// playwrightEndsCodePointEscape reports whether the `}` at index closes a `\u{hex}` escape.
+func playwrightEndsCodePointEscape(raw string, index int) bool {
+	if raw[index] != '}' {
+		return false
+	}
+	start := index
+	for start > 0 && strings.IndexByte("0123456789abcdefABCDEF", raw[start-1]) >= 0 {
+		start--
+	}
+	return start >= 3 && start < index && raw[start-3:start] == "\\u{"
+}
+
 // playwrightSlashStartsRegex reports whether the `/` at index starts a regular expression: after
 // an operator or opening punctuation, `=>`, a reserved word in playwrightRegexKeywords, or nothing.
 // After an identifier, a number, `)`, `]`, `}` or a property name (`x.return`) it is division.
 // known is false after `of`, `yield` or `await`: each may be an identifier operand of a division
 // or a keyword before a regular expression, so the caller refuses the source rather than guess.
+// It is also false after a non-ASCII byte (an identifier, a space or a line terminator) and after
+// an identifier escape, which this ASCII classifier cannot read.
 func playwrightSlashStartsRegex(raw string, index int) (regex, known bool) {
 	previous := index - 1
 	for previous >= 0 && (raw[previous] == ' ' || raw[previous] == '\t' || raw[previous] == '\n' || raw[previous] == '\r') {
@@ -1341,6 +1355,9 @@ func playwrightSlashStartsRegex(raw string, index int) (regex, known bool) {
 	}
 	if raw[previous] == '>' && previous > 0 && raw[previous-1] == '=' {
 		return true, true
+	}
+	if raw[previous] >= utf8.RuneSelf || raw[previous] == '\\' || playwrightEndsCodePointEscape(raw, previous) {
+		return false, false // a non-ASCII identifier, space or punctuator, or an escaped identifier
 	}
 	from := previous + 1
 	for from > 0 && strings.IndexByte("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", raw[from-1]) >= 0 {

@@ -627,6 +627,10 @@ func TestPlaywrightSlashStartsRegex(t *testing.T) {
 		{"x.return / 2", false, true}, {"x?.in / 2", false, true}, {"returns / 2", false, true}, {"x >= /a/", true, true},
 		{"of / 2", false, false}, {"yield /a/", false, false}, {"await /a/", false, false},
 		{"éreturn / 2", false, false}, {"\\u0061return / 2", false, false},
+		// GitHub #709 review round 11: a non-ASCII byte or an identifier escape directly before the
+		// slash cannot be classified (a non-ASCII space would make it a regex).
+		{"caf\u00e9 / 2", false, false}, {"\u03c0 / 2", false, false}, {"x =\u00a0/a/", false, false},
+		{"a\\u0061 / 2", false, false}, {"a\\u{61} / 2", false, false}, {"x = {} / 2", false, true},
 	} {
 		// The slash under test is the first one in the source.
 		if regex, known := playwrightSlashStartsRegex(row.source, strings.IndexByte(row.source, '/')); regex != row.regex || known != row.known {
@@ -638,7 +642,12 @@ func TestPlaywrightSlashStartsRegex(t *testing.T) {
 	if !ok || len(items) != 2 {
 		t.Errorf("split over an arrow regex = %q, %v", items, ok)
 	}
-	if _, ok := playwrightSplitTopLevel("of / 2, 'c'"); ok {
-		t.Error("split over an ambiguous slash was accepted")
+	for _, source := range []string{"of / 2, 'c'", "caf\u00e9 / 2, 'c'", "\u03c0 / 2, 'c'", "a\\u0061 / 2, 'c'", "a\\u{61} / 2, 'c'"} {
+		if _, ok := playwrightSplitTopLevel(source); ok {
+			t.Errorf("split over an ambiguous slash in %q was accepted", source)
+		}
+		if _, ok := playwrightLex("const x = [" + source + "];\n"); ok {
+			t.Errorf("lexed an ambiguous slash in %q", source)
+		}
 	}
 }

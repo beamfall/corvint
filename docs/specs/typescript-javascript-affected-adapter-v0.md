@@ -194,8 +194,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   admits neither root, whatever that token's operand. A `/` starts a regular expression after
   an operator, opening punctuation, `=>` or one of `return`, `typeof`, `instanceof`, `in`, `new`,
   `delete`, `void`, `throw`, `case`, `do`, `else` (not a property name such as `x.return`), and is
-  division after any other operand; after `of`, `yield` or `await`, which may be identifiers, it
-  is ambiguous and the source is refused as unparsed. Every other
+  division after any other operand; after `of`, `yield` or `await`, which may be identifiers, and
+  directly after a non-ASCII character or an identifier escape (`\u0061`, `\u{61}`), it is
+  ambiguous and the source is refused as unparsed. Every other
   member read (`process.env.NAME`, `this.x`, a member of an import from another module, a function
   result or a numeric literal such as `1..x`) MUST keep the identity unresolved. No member read is
   proven primitive: an admitted one is accepted only as a whole value and under the non-coercing

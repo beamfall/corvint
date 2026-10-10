@@ -436,6 +436,9 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"division after an identifier", "const width = 4; const half = width / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
 		{"division after a parenthesis", "const half = (4) / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = (half) / 3;", "'http://x'"},
 		{"division after a keyword-named property", "const size = { return: 4 }; const half = size.return / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+		// GitHub #709 review round 11: a slash after a non-ASCII identifier is refused too.
+		{"slash after a non-ASCII identifier", "const caf\u00e9 = 4; const half = caf\u00e9 / 2;", "devices['Desktop Chrome'].userAgent"},
+		{"slash after a Greek identifier", "const \u03c0 = 3; const half = \u03c0 / 2;", "devices['Desktop Chrome'].userAgent"},
 		{"slash after a contextual keyword", "const of = 4; const half = of / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
