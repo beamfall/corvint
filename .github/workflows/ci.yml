@@ -388,17 +388,25 @@ jobs:
             fi
             # The protected helper validates each package as a typed, non-option word.
             # Declared packages run confined to their read scopes (AFP-V0-023).
-            # AFP-V0-040: the JSON stream is also kept for the advisory cost-drift report. Only
-            # go test's own status decides this step; tee's status is never consulted.
-            mkdir -p "$RUNNER_TEMP/shard-costs"
-            set +e
-            # shellcheck disable=SC2086
-            CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages |
-              tee "$RUNNER_TEMP/shard-costs/shard-$SHARD.json"
-            status=${PIPESTATUS[0]}
-            set -e
-            [ "$status" = 0 ] || exit "$status"
-            echo "costs=1" >> "$GITHUB_OUTPUT"
+            run_tests() {
+              # shellcheck disable=SC2086
+              CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages
+            }
+            # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
+            # report. Only go test's own status decides this step: a capture file that cannot
+            # be created runs the tests uncaptured, and tee's status is never consulted.
+            capture="$RUNNER_TEMP/shard-costs/shard-$SHARD.json"
+            if mkdir -p "$RUNNER_TEMP/shard-costs" 2> /dev/null && : 2> /dev/null > "$capture"; then
+              set +e
+              run_tests | tee "$capture"
+              status=${PIPESTATUS[0]}
+              set -e
+              [ "$status" = 0 ] || exit "$status"
+              echo "costs=1" >> "$GITHUB_OUTPUT" || true
+            else
+              echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
+              run_tests
+            fi
             # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
             if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
@@ -479,7 +487,10 @@ jobs:
     if: ${{ always() && !cancelled() }}
     needs: go-product-shard
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Every step is continue-on-error and their timeouts sum below this one, so no failure,
+    # timeout or abstention ends the job red.
+    continue-on-error: true
+    timeout-minutes: 20
     env:
       # Must equal the go-product-shard matrix, or every run abstains.
       SHARDS: "6"
@@ -500,6 +511,8 @@ jobs:
           path: ${{ runner.temp }}/shard-costs
       - name: Require the outcomes of every shard
         id: complete
+        continue-on-error: true
+        timeout-minutes: 1
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
         run: |
@@ -515,17 +528,23 @@ jobs:
           fi
           printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s; a partial run cannot measure the table.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        id: checkout
         if: steps.complete.outputs.ok == '1'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        if: steps.complete.outputs.ok == '1'
+        id: setup-go
+        if: steps.complete.outputs.ok == '1' && steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           cache: false
           go-version: "1.27.1"
       - name: Report cost drift (advisory; findings never fail)
-        if: steps.complete.outputs.ok == '1'
+        if: steps.complete.outputs.ok == '1' && steps.setup-go.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 5
         run: |

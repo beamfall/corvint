@@ -17,9 +17,10 @@
 //
 //	ci-shard-costs check --advisory --shards 6 [--share 10] [--summary FILE] shard0.json ... shard5.json
 //
-// The advisory form (AFP-V0-040) is the CI report: it needs exactly one log per
-// shard, appends a Markdown report to --summary, prints at most ten
-// `::warning::` workflow commands, and exits 0 whatever it finds. A finding is
+// The advisory form (AFP-V0-040) is the CI report: it needs exactly one raw
+// `go test -json` stream per shard, each well formed and finished, appends a
+// Markdown report to --summary, prints at most ten `::warning::` workflow
+// commands, and exits 0 whatever it finds. A finding is
 // material when the time it misplaces reaches --share percent of the ideal
 // shard (all observed time divided by --shards); a drift of that size is
 // reported even within --factor. Unusable input exits 2 and the report says
@@ -161,11 +162,32 @@ func replace(path string, raw []byte) error {
 // observe adds each package's terminal outcome from one `go test -json` stream.
 // A failed or repeated package is refused: its time is not a cost of the suite.
 func observe(r io.Reader, observed map[string]int64) error {
+	_, err := scan(r, observed, false)
+	return err
+}
+
+// observeStream is observe for a raw stream that must stand for one finished
+// shard (AFP-V0-040): every line is a JSON event, every started package ends in
+// a terminal outcome, and at least one package does.
+func observeStream(r io.Reader, observed map[string]int64) error {
+	n, err := scan(r, observed, true)
+	if err == nil && n == 0 {
+		err = errors.New("no terminal package outcome")
+	}
+	return err
+}
+
+func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
 	s := bufio.NewScanner(r)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
-	for s.Scan() {
-		line := s.Bytes()
-		i := bytes.IndexByte(line, '{')
+	started := map[string]bool{}
+	terminal := 0
+	for line := 1; s.Scan(); line++ {
+		raw := s.Bytes()
+		i := bytes.IndexByte(raw, '{')
+		if strict && len(bytes.TrimSpace(raw)) != 0 && (i != 0 || !json.Valid(raw)) {
+			return terminal, fmt.Errorf("line %d is not a go test -json event", line)
+		}
 		if i < 0 {
 			continue
 		}
@@ -175,21 +197,42 @@ func observe(r io.Reader, observed map[string]int64) error {
 			Test    string
 			Elapsed float64
 		}
-		if json.Unmarshal(line[i:], &e) != nil || e.Package == "" || e.Test != "" {
+		if json.Unmarshal(raw[i:], &e) != nil {
+			if strict {
+				return terminal, fmt.Errorf("line %d is not a go test -json event", line)
+			}
+			continue
+		}
+		if e.Package == "" || e.Test != "" {
 			continue
 		}
 		switch e.Action {
+		case "start":
+			started[e.Package] = true
 		case "fail":
-			return fmt.Errorf("package %s failed", e.Package)
+			return terminal, fmt.Errorf("package %s failed", e.Package)
 		case "pass", "skip":
 			if _, seen := observed[e.Package]; seen {
-				return fmt.Errorf("package %s has two terminal outcomes", e.Package)
+				return terminal, fmt.Errorf("package %s has two terminal outcomes", e.Package)
 			}
 			// The table admits only positive costs; a package without tests costs the minimum.
 			observed[e.Package] = max(1, int64(math.Round(e.Elapsed*1000)))
+			delete(started, e.Package)
+			terminal++
 		}
 	}
-	return s.Err()
+	if err := s.Err(); err != nil {
+		return terminal, err
+	}
+	if strict && len(started) != 0 {
+		open := make([]string, 0, len(started))
+		for p := range started {
+			open = append(open, p)
+		}
+		sort.Strings(open)
+		return terminal, fmt.Errorf("package %s started without a terminal outcome (unfinished stream)", open[0])
+	}
+	return terminal, nil
 }
 
 func encode(observed map[string]int64, revision, runURL string) ([]byte, error) {
@@ -284,7 +327,7 @@ func report(out io.Writer, summary, table string, logs []string, shards int, sha
 		if err != nil {
 			return 2, err
 		}
-		err = observe(f, observed)
+		err = observeStream(f, observed)
 		f.Close()
 		if err != nil {
 			return 2, fmt.Errorf("%s: %w", filepath.Base(name), err)

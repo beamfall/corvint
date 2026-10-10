@@ -203,7 +203,12 @@ func TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput(t *testing.T) {
 		"partial-run":      {[]string{"--table", table, pass}, "1 of 2 shard logs present"},
 		"missing-artifact": {[]string{"--table", table, pass, filepath.Join(t.TempDir(), "shard-1.json")}, "no such file"},
 		"failed-package":   {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"fail","Package":"example.org/b","Elapsed":1}`+"\n")}, "package example.org/b failed"},
-		"invalid-table":    {[]string{"--table", write(t, "bad.json", `{"profile":"bad"}`), pass, write(t, "shard-1.json", "")}, "cost table is invalid"},
+		"invalid-table":    {[]string{"--table", write(t, "bad.json", `{"profile":"bad"}`), pass, write(t, "shard-1.json", `{"Action":"pass","Package":"example.org/b","Elapsed":1}`+"\n")}, "cost table is invalid"},
+		// Each of these has a valid table and a valid other shard, so only the stream decides.
+		"empty-log":        {[]string{"--table", table, pass, write(t, "shard-1.json", "")}, "shard-1.json: no terminal package outcome"},
+		"malformed-record": {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"pass","Package":"example.org/b","Elapsed":1}`+"\n"+`{"Action":"output","Package":"example.org/c","Out`+"\n")}, "shard-1.json: line 2 is not a go test -json event"},
+		"prefixed-record":  {[]string{"--table", table, pass, write(t, "shard-1.json", `2026-10-10T13:19:03Z {"Action":"pass","Package":"example.org/b","Elapsed":1}`+"\n")}, "shard-1.json: line 1 is not a go test -json event"},
+		"unfinished":       {[]string{"--table", table, pass, write(t, "shard-1.json", `{"Action":"start","Package":"example.org/b"}`+"\n"+`{"Action":"start","Package":"example.org/c"}`+"\n"+`{"Action":"pass","Package":"example.org/c","Elapsed":1}`+"\n")}, "shard-1.json: package example.org/b started without a terminal outcome"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			summary := filepath.Join(t.TempDir(), "summary.md")

@@ -15,14 +15,19 @@ only when an operator scrapes the logs and runs it by hand.
   `$RUNNER_TEMP/shard-costs/shard-<n>.json` and, only when that invocation passed, uploads it as
   `ci-shard-costs-<n>` (3-day retention, `overwrite: true`, continue-on-error). `go test`'s own
   status is read from `PIPESTATUS[0]`, so `tee` can never decide the shard. No extra test run.
+  Capture is best-effort: if the directory or file cannot be created, the shard emits a notice, runs
+  `go test` without `tee` and retains nothing.
 - New job `ci-shard-cost-drift` (`needs: go-product-shard`, `always() && !cancelled()`, not a
   required check): downloads the artifacts, abstains in the job summary unless the shards
   succeeded and exactly `SHARDS` (6, must equal the matrix) artifacts are present, and only then
   checks out, builds `tools/ci-shard-costs` and runs `check --advisory`. The report step is
-  continue-on-error and its shell never propagates the tool's exit status. The job posts no status
-  and never writes the table.
+  continue-on-error and its shell never propagates the tool's exit status. The job itself and
+  every step (download, completeness check, checkout, setup-go, report) are continue-on-error with
+  their own timeouts, so the job never ends red. The job posts no status and never writes the
+  table.
 - `tools/ci-shard-costs check --advisory --shards N [--share P] [--summary FILE]` requires exactly
-  N logs, appends a Markdown table to the summary, prints at most ten `::warning::` workflow
+  N logs, each a well-formed, finished `go test -json` stream (every non-blank line an event, at
+  least one terminal package outcome, no package start left unfinished), appends a Markdown table to the summary, prints at most ten `::warning::` workflow
   commands (one per material finding plus one count of the rest) and exits 0 on findings. Unusable
   input exits 2 and writes `Abstained: <reason>` to the summary. Plain `check` and `refresh` are
   unchanged.
@@ -55,6 +60,13 @@ only when an operator scrapes the logs and runs it by hand.
 
 ## Limits
 
+- Independent review of 22159dea found three P2 gaps, fixed in the following commit: the drift
+  job could end red on a checkout or setup-go failure; an empty, malformed or unfinished stream
+  was accepted; and the capture `mkdir` ran under errexit in the required shard. New abstention
+  cases (empty log, malformed record, prefixed record, unfinished stream) each use a valid table.
+  Rerun dry run: the six hosted logs, reduced to raw streams (timestamp prefix stripped, non-event
+  lines dropped), gave the same two material warnings and count warning; the logs as downloaded,
+  with prefixes, now abstain.
 - Hosted behaviour is `NOT_OBSERVED` until this change's own CI runs: artifact upload and
   `pattern`/`merge-multiple` download, annotation rendering, the summary, and the extra minute of
   job time are untested on GitHub. Re-run attempts and the download step's behaviour when no
