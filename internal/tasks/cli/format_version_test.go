@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -92,6 +93,44 @@ func formatRelease(t *testing.T) []byte {
 // documented exception: its tail reader skips the newer line. A format added
 // to LiveFormats without a row here fails the test.
 func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
+	everyLiveFormatRefusesANewerVersion(t)
+}
+
+// TestCALV0131_SymlinkedTempRoot runs the CAL-V0-131 table with TMPDIR behind
+// a symlink, as macOS's /var/folders is. The store readers refuse a symlinked
+// ancestor as UNSUPPORTED_FILESYSTEM, so the table resolves its temp
+// directories first; this case keeps that true on every host (V1-0960).
+func TestCALV0131_SymlinkedTempRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TMPDIR does not select the Windows temp directory")
+	}
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(real, "target"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(real, "linked-tmp")
+	if err := os.Symlink(filepath.Join(real, "target"), link); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", link)
+	// A subtest, because t.TempDir reuses the root its test created first.
+	t.Run("table", everyLiveFormatRefusesANewerVersion)
+}
+
+// resolvedTempDir is t.TempDir with its symlinked ancestors resolved.
+func resolvedTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 	enc := func(t *testing.T, p string) []byte { return wire.EncodeFile(newerRecord(t, p)) }
 	plain := func(decode func([]byte) error) func(*testing.T, string) error {
 		return func(t *testing.T, p string) error { return decode(enc(t, p)) }
@@ -107,7 +146,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 	}
 	rows := map[string]func(*testing.T, string) error{
 		strings.TrimSpace(snapshot.VersionBytes): func(t *testing.T, p string) error {
-			dir := t.TempDir()
+			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "VERSION"), []byte(nextVersion(t, p)+"\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -176,7 +215,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 		"taskman-doctor-cache/0":       plain(cli.DecodeDoctorCache),
 		dispatch.ConfigProfile:         plain(func(b []byte) error { _, e := dispatch.DecodeConfig(b); return e }),
 		dispatch.StateProfile: func(t *testing.T, p string) error {
-			dir := t.TempDir()
+			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "state.json"), enc(t, p), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -184,7 +223,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 			return err
 		},
 		"taskman-dispatch-reader-lifecycle/0": func(t *testing.T, p string) error {
-			dir := t.TempDir()
+			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "reader-lifecycle.json"), enc(t, p), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -196,7 +235,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 			return wire.Errorf(code, "", "%s", why)
 		},
 		"taskman-dispatch-detached-run/0": func(t *testing.T, p string) error {
-			dir := t.TempDir()
+			dir := resolvedTempDir(t)
 			if err := os.MkdirAll(filepath.Join(dir, "detached"), 0o700); err != nil {
 				t.Fatal(err)
 			}
@@ -222,7 +261,7 @@ func TestCALV0131_EveryLiveFormatRefusesANewerVersion(t *testing.T) {
 	for _, p := range live {
 		if p == dispatch.EventProfile {
 			// Documented exception: the tail reader skips a line it cannot read.
-			dir := t.TempDir()
+			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "events.jsonl"), enc(t, p), 0o600); err != nil {
 				t.Fatal(err)
 			}
