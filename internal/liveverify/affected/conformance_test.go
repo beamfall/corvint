@@ -1,6 +1,7 @@
 package affected_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -139,7 +140,7 @@ func TestSeamSelectsTheDependencyClosureInEveryLanguage(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			graph, err := affected.Build(root, testCase.language)
+			graph, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatalf("build: %v", err)
 			}
@@ -175,7 +176,7 @@ func TestSeamNamesAWitnessChainThatResolvesInTheGraph(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			graph, err := affected.Build(root, testCase.language)
+			graph, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -237,7 +238,7 @@ func TestSeamWidensRatherThanNarrowingOnUnknownInput(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			graph, err := affected.Build(root, testCase.language)
+			graph, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -280,11 +281,11 @@ func TestSeamIsDeterministicAndCanonical(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			first, err := affected.Build(root, testCase.language)
+			first, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatal(err)
 			}
-			second, err := affected.Build(root, testCase.language)
+			second, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -311,7 +312,7 @@ func TestSeamIsDeterministicAndCanonical(t *testing.T) {
 // plugins can collide, so a composed graph is unambiguous.
 func TestSeamNamespacesEveryIdentity(t *testing.T) {
 	root := fixtureRoot(t)
-	graph, err := affected.Build(root, allLanguages()...)
+	graph, err := affected.Build(context.Background(), root, allLanguages()...)
 	if err != nil {
 		t.Fatalf("compose: %v", err)
 	}
@@ -338,12 +339,12 @@ func TestSeamNamespacesEveryIdentity(t *testing.T) {
 // the seam safe to extend.
 func TestComposedGraphKeepsLanguagesIndependent(t *testing.T) {
 	root := fixtureRoot(t)
-	composed, err := affected.Build(root, allLanguages()...)
+	composed, err := affected.Build(context.Background(), root, allLanguages()...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, testCase := range seamCases() {
-		single, err := affected.Build(root, testCase.language)
+		single, err := affected.Build(context.Background(), root, testCase.language)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -403,7 +404,7 @@ func TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			graph, err := affected.Build(root, testCase.language)
+			graph, err := affected.Build(context.Background(), root, testCase.language)
 			if err != nil {
 				t.Fatalf("build: %v", err)
 			}

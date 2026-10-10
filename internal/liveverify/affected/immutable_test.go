@@ -1,6 +1,7 @@
 package affected_test
 
 import (
+	"context"
 	"errors"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
@@ -51,7 +52,7 @@ func testImmutableAllLanguageParity(t *testing.T) {
 	}
 	for _, lang := range languages.All() {
 		t.Run(lang.Name(), func(t *testing.T) {
-			live, err := affected.Build(root, lang)
+			live, err := affected.Build(context.Background(), root, lang)
 			if err != nil {
 				t.Fatal(err)
 			}

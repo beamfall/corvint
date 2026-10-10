@@ -1,6 +1,7 @@
 package golang_test
 
 import (
+	"context"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -20,7 +21,7 @@ const (
 // go.work does not list, which requires a listed one, stays a frontier rather
 // than a mis-attributed unit.
 func TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath(t *testing.T) {
-	result, err := golang.New().Units(workspaceRoot(t))
+	result, err := golang.New().Units(context.Background(), workspaceRoot(t))
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath(t *testing.T) {
 // bench's etcd samples need: a dirty source in one workspace module selects
 // the test in the other module that imports it.
 func TestWorkspaceDirtySourceSelectsTheOtherModulesTest(t *testing.T) {
-	graph, err := affected.Build(workspaceRoot(t), golang.New())
+	graph, err := affected.Build(context.Background(), workspaceRoot(t), golang.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -107,14 +108,14 @@ func TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008(t *testing.T) {
 		"app/app_test.go": "package app\n",
 	})
 	writeFiles(t, parent, map[string]string{"sibling/go.mod": "module example.test/sibling\n", "sibling/s.go": "package sibling\n"})
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(result.Frontier, []string{golang.FrontierWorkspaceModuleOutsideRoot}) {
 		t.Fatalf("frontier = %v, want %s", result.Frontier, golang.FrontierWorkspaceModuleOutsideRoot)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}

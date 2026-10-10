@@ -104,6 +104,11 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 
 ## Requirements
 
+- `MCPV0-035`: proposed, pending owner acceptance (V1-0279). Cancellation of an active
+  `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-057 and return the
+  existing `cancelled` failure without a ready receipt. A regression MUST cancel after the
+  actual language walk begins and prove the call returns, under the race detector.
+
 - `MCPV0-001`: The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly one local
 child process and one repository root. At startup, `ABSOLUTE_ROOT` MUST be absolute, clean, bounded,
 free of control characters, and resolved through existing symlinks once to a canonical absolute
@@ -562,7 +567,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:685@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
 | `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:685@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:686@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+| `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
 
@@ -703,6 +708,7 @@ that focused run.
 | `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
 | `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
+| `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1057FlowsImpactCancelledMidWalk` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

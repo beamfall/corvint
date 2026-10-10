@@ -1,6 +1,7 @@
 package typescript
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -53,7 +54,7 @@ func TestDynamicImportWithCommentBeforeParenthesisRaisesFrontier(t *testing.T) {
 	write(t, root, "vitest.config.ts", `export default {}`)
 	write(t, root, "src/lazy.ts", `export const value = 1`)
 	write(t, root, "src/lazy.test.ts", `import { test } from "vitest"; test("lazy", async () => { await import /* chunk */ ("./lazy") })`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +93,7 @@ func TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration(t *testing.T
 				write(t, root, testCase.config, "export default {}\n")
 			}
 			write(t, root, testCase.path, testCase.body)
-			result, err := New().Units(root)
+			result, err := New().Units(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -109,7 +110,7 @@ func TestPuppeteerUsesItsHostRunnerAndUnknownWithoutOne(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"puppeteer":"1","jest":"1"}}`)
 	write(t, root, "e2e/hosted.test.js", `import { test } from "@jest/globals"; import puppeteer from "puppeteer"`)
 	write(t, root, "e2e/script.js", `import puppeteer from "puppeteer"`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +127,7 @@ func TestPackageScriptsDoNotAssignRunnerOwnership(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "package.json", `{"scripts":{"test":"vitest run"}}`)
 	write(t, root, "tests/orphan.test.ts", `test("a", () => {})`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestPackageScriptsDoNotAssignRunnerOwnership(t *testing.T) {
 func TestFilenameWithoutRunnerEvidenceIsDiscoveredAsUnknown(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "tests/orphan.test.ts", `test("orphan", () => {})`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func TestTopLevelTestDirectoryWithoutRunnerEvidenceIsDiscoveredAsUnknown(t *test
 	root := t.TempDir()
 	write(t, root, "src/value.js", `export const value = 1`)
 	write(t, root, "test/value.js", `import { value } from "../src/value.js"; test("value", () => value)`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +162,7 @@ func TestTopLevelTestDirectoryWithoutRunnerEvidenceIsDiscoveredAsUnknown(t *test
 		t.Fatalf("id=%s frontier=%v", got, result.Frontier)
 	}
 	assertFrontier(t, result, FrontierUnknownRunner)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +177,7 @@ func TestJestDependencyKeepsTestsDirectoryVisibleAsUnknown(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"jest":"29"}}`)
 	write(t, root, "src/sum.js", `module.exports = (a, b) => a + b`)
 	write(t, root, "src/__tests__/sum.js", `const sum = require("../sum"); test("adds", () => expect(sum(1, 2)).toBe(3))`)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,14 +192,14 @@ func TestAvaImportInTopLevelTestDirectoryIsAddressable(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"ava":"1"}}`)
 	write(t, root, "lib/escape.js", `export const escape = value => value`)
 	write(t, root, "test/arguments/escape.js", `import test from "ava"; import { escape } from "../../lib/escape.js"; test("escape", t => t.is(escape("a"), "a"))`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := testUnit(result, "test/arguments/escape.js").ID; got != unitID("ava", "test/arguments/escape.js") {
 		t.Fatalf("id=%s want=%s frontier=%v", got, unitID("ava", "test/arguments/escape.js"), result.Frontier)
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +215,7 @@ func TestOverlappingRunnerEvidenceWidensRatherThanChoosing(t *testing.T) {
 	write(t, root, "vitest.config.ts", "export default {}")
 	write(t, root, "jest.config.js", "module.exports = {}")
 	write(t, root, "tests/shared.test.ts", `describe("shared", () => {})`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +223,7 @@ func TestOverlappingRunnerEvidenceWidensRatherThanChoosing(t *testing.T) {
 		t.Fatalf("id=%s", got)
 	}
 	assertFrontier(t, result, FrontierAmbiguousRunner)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +241,7 @@ func TestImportsBuildAConservativeDependencyClosure(t *testing.T) {
 	write(t, root, "src/leaf.ts", `import { core } from "./mid.js"; export { core }`)
 	write(t, root, "tests/leaf.test.ts", `import { test } from "vitest"; import { core } from "../src/leaf"`)
 	write(t, root, "tests/solo.test.ts", `import { test } from "vitest"`)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +260,7 @@ func TestFrameworkConfigIsAnAffectingSourceUnit(t *testing.T) {
 	write(t, root, "vitest.config.ts", `export default {}`)
 	write(t, root, "tests/a.test.ts", `import { test } from "vitest"`)
 	write(t, root, "tests/b.test.ts", `import { test } from "vitest"`)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +274,7 @@ func TestVitestSpecificViteConfigIsSourceNotTest(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "vite.config.ts", `import { defineConfig } from "vitest/config"; export default defineConfig({ test: {} })`)
 	write(t, root, "tests/a.test.ts", `import { test } from "vitest"`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +285,7 @@ func TestVitestSpecificViteConfigIsSourceNotTest(t *testing.T) {
 			}
 		}
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +302,7 @@ func TestLegacyStorybookUsesOneAddressableStorySet(t *testing.T) {
 	write(t, root, "src/b.stories.ts", `import "./b"`)
 	write(t, root, "src/a.ts", `export const a = 1`)
 	write(t, root, "src/b.ts", `export const b = 1`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +328,7 @@ func TestDynamicAndCrossLanguageInputsRemainExplicitFrontiers(t *testing.T) {
 	write(t, root, "tests/dynamic.test.js", `const target = "../src/a.js"; import(target)`)
 	write(t, root, "features/login.feature", "Feature: login\n")
 	write(t, root, "maestro/login.yaml", "appId: example\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,7 +378,7 @@ func TestQuoteInRegexLiteralHidesNoRequire(t *testing.T) {
 	write(t, root, "src/other.js", `module.exports = 2`)
 	write(t, root, "tests/dep.test.js", "import { test } from \"vitest\"\nconst quote = /\"/;\nconst dep = require('./../src/dep')\nconst text = \"x\".concat(/\"/.source)\n")
 	write(t, root, "tests/division.test.js", "import { test } from \"vitest\"\nconst half = total / 2; const other = require('../src/other') / \"1\"\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +395,7 @@ func TestTemplateSubstitutionRequireBuildsDependencyEdge(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst value = `${require('../src/dep')}`\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,7 +410,7 @@ func TestMultilineJSXQuoteAmbiguityRaisesFrontier(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst first = <p>it's</p>\nconst dep = require('../src/dep')\nconst last = <p>Bob's</p>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,7 +427,7 @@ func TestSameLineJSXApostropheAmbiguityRaisesFrontier(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>it's</p>{require('../src/dep')}<p>Bob's</p></>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +444,7 @@ func TestStandaloneJSXApostrophesRaiseFrontier(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>'</p>{require('../src/dep')}<p>'</p></>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +461,7 @@ func TestJSXTextCannotImitateALiteralOpeningContext(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>return '</p>{require('../src/dep')}<p>'</p></>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +478,7 @@ func TestKeywordEndingJSXTextCannotHideRequireWithoutBraces(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "return.ts", `export const value = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst a=<p>return '</p>; const dep=require('../return'); const b=<p>'</p>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +495,7 @@ func TestJSXAttributeAndExpressionStringsRemainParsed(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "src/dep.ts", `export const dep = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <p title=\"it's\">{require('../src/dep')}</p>\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +510,7 @@ func TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 	write(t, root, "return.ts", `export const value = 1`)
 	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst before = \"ordinary\"\nconst view = <p title=\"it's\">{require('../return')}</p>\nconst after = 'still ordinary'\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -525,7 +526,7 @@ func TestUnownedModuleExtensionTestWidensItsImportedSource(t *testing.T) {
 		write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
 		write(t, root, "src/a.ts", `export const a = 1`)
 		write(t, root, test, "import { test } from \"vitest\"\nimport { a } from \"../src/a\"\n")
-		graph, err := affected.Build(root, New())
+		graph, err := affected.Build(context.Background(), root, New())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -544,7 +545,7 @@ func TestTripleSlashReferencePathIsARelativeEdge(t *testing.T) {
 	write(t, root, "lib/globals.d.ts", "declare var G: number\n")
 	write(t, root, "src/types/local.d.ts", "declare var L: number\n")
 	write(t, root, "src/a.test.ts", "/// <reference path=\"../lib/globals.d.ts\" />\n///<reference path='types/local.d.ts'/>\n/// <reference types=\"node\" />\nimport { test } from \"vitest\"\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,7 +592,7 @@ func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
 	write(t, root, "packages/b/test/b.test.ts", `import { test } from "vitest"; import { util } from "@acme/a"`)
 	write(t, root, "packages/c/package.json", `{"name":"@acme/c"}`)
 	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"`)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -605,7 +606,7 @@ func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
 
 	write(t, root, "packages/d/package.json", `{"name":"@acme/d","main":"dist/index.js"}`)
 	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"; import "@acme/d"`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}

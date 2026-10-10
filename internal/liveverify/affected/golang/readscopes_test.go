@@ -41,11 +41,11 @@ func TestImmutableReadScopeParity_AFPV0023(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				live, err := affected.Build(root, golang.New())
+				live, err := affected.Build(context.Background(), root, golang.New())
 				if err != nil {
 					t.Fatal(err)
 				}
-				liveUnits, err := golang.New().Units(root)
+				liveUnits, err := golang.New().Units(context.Background(), root)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -111,7 +111,7 @@ func TestImmutableReadScopeParity_AFPV0023(t *testing.T) {
 						t.Fatalf("invalid declaration narrowed scope: %+v", b)
 					}
 				}
-				ambient, err := affected.Build(root, golang.New())
+				ambient, err := affected.Build(context.Background(), root, golang.New())
 				if err != nil || ambient.Digest() == immutable.Digest() {
 					t.Fatalf("ambient declaration did not differ: %v", err)
 				}
@@ -165,14 +165,14 @@ func readScopeRepository(t *testing.T, declaration string) string {
 // declaration itself; reaching it through the graph keeps the graph witness.
 func TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023(t *testing.T) {
 	root := readScopeRepository(t, `{"profile":"corvint-test-read-scopes/0","packages":{"caller":["docs/","shared/data.json"]}}`)
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Frontier) != 0 {
 		t.Fatalf("frontier = %v", result.Frontier)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := readScopeRepository(t, declaration)
-			result, err := golang.New().Units(root)
+			result, err := golang.New().Units(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -245,7 +245,7 @@ func TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023(t *testing.T) {
 		if err := os.Symlink(target, filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath))); err != nil {
 			t.Fatal(err)
 		}
-		result, err := golang.New().Units(root)
+		result, err := golang.New().Units(context.Background(), root)
 		if err != nil {
 			t.Fatal(err)
 		}

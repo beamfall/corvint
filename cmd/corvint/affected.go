@@ -582,7 +582,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	if err != nil {
 		return affectedReceipt{}, err
 	}
-	graph, err := affected.Build(root, affectedLanguages()...)
+	graph, err := affected.Build(ctx, root, affectedLanguages()...)
 	if err != nil {
 		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
 	}
@@ -1053,7 +1053,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		}
 		receipt = playwrightAffectedReceipt{Snapshot: snapshot.Scope(), OK: true, Plan: plan, Profile: typescript.PlaywrightProfile, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
 	} else {
-		graph, err := affected.Build(root, affectedLanguages()...)
+		graph, err := affected.Build(ctx, root, affectedLanguages()...)
 		if err != nil {
 			return nil, snapshotAffectedError()
 		}
