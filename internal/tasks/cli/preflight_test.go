@@ -361,3 +361,28 @@ func TestTOLV0025_PreflightSkipsOversizedSpecUnread(t *testing.T) {
 		t.Fatalf("no oversized warning: %s", x.stdout)
 	}
 }
+
+// TestTOLV0025_PreflightRefusesALineBreakSpecPath: a spec file whose path
+// holds a line break is an UNREADABLE_SPEC_PATH finding of its own; it is
+// never asked of Git, so it cannot shift the answers for the other spec
+// files and AC-1 at e2e/checkout.spec.ts stays named.
+func TestTOLV0025_PreflightRefusesALineBreakSpecPath(t *testing.T) {
+	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
+	odd := "e2e/a\nb.spec.ts"
+	fixture.Write(t, filepath.Join(r.Root, filepath.FromSlash(odd)), []byte("// no tests\n"))
+	git(t, r.Root, "add", "e2e")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-m", "odd")
+	x := atm(t, r.Root, nil, "preflight", id)
+	if x.res.Outcome != wire.OutcomeRefused || len(x.res.Items) != 1 {
+		t.Fatalf("line-break path: %s", x.stdout)
+	}
+	if got, want := findingList(t, x.res.Items[0]), "UNREADABLE_SPEC_PATH::"+odd+":"; got != want {
+		t.Fatalf("findings %q, want %q\n%s", got, want, x.stdout)
+	}
+	if got := field(x.res.Items[0], "specFileCount").Str; got != "1" {
+		t.Fatalf("specFileCount %s, want 1", got)
+	}
+	if y := atm(t, r.Root, nil, "preflight", id, "--plan", "a\nb.json"); y.res.Outcome == wire.OutcomeOK || !strings.Contains(string(y.stdout), "line breaks") {
+		t.Fatalf("--plan with a line break: %s", y.stdout)
+	}
+}

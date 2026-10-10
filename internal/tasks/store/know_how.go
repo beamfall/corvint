@@ -467,11 +467,18 @@ type catFileObject struct {
 // rev^{commit} first and asks every path as <commit oid>:<path>, so a
 // concurrent commit cannot mix two commits into one answer (KHN-V0-001,
 // KHN-V0-005). The commit is "" when rev names no commit; a path Git cannot
-// resolve has kind "", so callers read it as absent; a Git failure or a
-// short answer is an error.
+// resolve has kind "", so callers read it as absent; a path with a line
+// break, a Git failure or a short answer is an error.
 func catFileAtCommit(root, rev string, paths []string) (string, []catFileObject, error) {
 	if root == "" {
 		return "", nil, wire.Errorf(wire.CodeUnsupported, "git", "no checkout to observe")
+	}
+	// The questions are line-framed: a path with a line break would shift
+	// every later answer onto the wrong path.
+	for _, p := range paths {
+		if strings.ContainsAny(p, "\n\r") {
+			return "", nil, wire.Errorf(wire.CodeUnsupported, "git", "a path with a line break cannot be asked of git cat-file")
+		}
 	}
 	inR, inW, err := os.Pipe()
 	if err != nil {

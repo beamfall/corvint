@@ -119,3 +119,43 @@ and passes after.
 
 Not added: a bound on the total number of entries scanned without `--path`. The listing is
 streamed in constant memory, but its time still grows with the tree.
+
+## Round-2 review (Codex) and fixes
+
+Codex found three issues in round 2. Each fix has a regression test that failed on 7728f366 and
+passes after the fix.
+
+1. P1, descendants of earlier gates: `execute` stops watching a gate's process group once the
+   gate's own process exits, so a background process the gate started survived later gates and an
+   interrupt. Each gate already runs in its own process group (the lease runner's `Setpgid`), and
+   `execute` now returns that group's id. Preflight kills the group with `SIGKILL` as soon as each
+   gate returns, whether the gate exited or the run was interrupted. The lease runner's own
+   behaviour is unchanged.
+   - `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants` runs Codex's repro: one
+     gate leaves `/bin/sleep 600` in the background, then a later gate is interrupted. It failed
+     with "the earlier gate's background process ... survived".
+   - `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants` checks the same without an
+     interrupt and failed in the same way.
+   - Both tests read the background pid from a file beside the worktree.
+   - Limit: a process that leaves the gate's group, for example with `setsid`, is not tracked.
+   - Limit: the group is killed just after the gate is reaped. While any member is alive, the
+     group id cannot be reused. Once the group is empty, a kill could in principle reach an
+     unrelated new group that reused the id in that window.
+2. P2, buffered status: the post-gate `git status --porcelain -z --untracked-files=all` is now
+   streamed. The first byte settles that the worktree is dirty, so Git is then killed instead of
+   being read to the end.
+   - `TestTOLV0027_PreflightStatusStopsAtFirstEntry` uses a command that writes one entry and then
+     sleeps for 600 s.
+   - Before the fix, with the old buffered `Output()` read applied to the same seam, it failed at
+     its 20 s guard.
+3. P2, a line break in a spec path: such a path broke the line framing of `cat-file --batch-check`
+   and shifted every later answer. In the test, `e2e/checkout.spec.ts` went unread and AC-1 was
+   reported `UNNAMED`.
+   - Preflight now never asks for such a path. It reports an `UNREADABLE_SPEC_PATH` finding for
+     that file (a new finding kind), and the other files read normally.
+   - A `--path` or `--plan` value with a line break is a usage `ERROR`.
+   - `catFileAtCommit` refuses a path with a line break, so no caller can shift the answers. This
+     guard also changes know-how, which previously got corrupted answers for such a path and now
+     gets a refusal.
+   - `TestTOLV0025_PreflightRefusesALineBreakSpecPath` uses `e2e/a\nb.spec.ts`. It failed with
+     `UNNAMED` findings for AC-1, AC-2, AC-3 and AC-5.

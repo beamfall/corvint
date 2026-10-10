@@ -17,6 +17,9 @@ const (
 	FindingSplitTests      = "SPLIT_TESTS"
 	FindingPlanMissing     = "PLAN_MISSING"
 	FindingDeepCheckFailed = "DEEP_CHECK_FAILED"
+	// FindingUnreadableSpecPath is a spec file whose path holds a line
+	// break, which preflight cannot ask Git for (TOL-V0-025).
+	FindingUnreadableSpecPath = "UNREADABLE_SPEC_PATH"
 )
 
 // Remedies of the source findings.

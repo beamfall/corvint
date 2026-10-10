@@ -282,11 +282,13 @@ func gateEnvironment(names []string) ([]string, wire.Digest) {
 	return env, wire.Sum(wire.EncodeFile(wire.Array(entries...)))
 }
 
-// execution is what one process run observed.
+// execution is what one process run observed. group is the gate's process
+// group id (its pid), 0 when it did not start.
 type execution struct {
 	class    string
 	exitCode *wire.Count
 	signal   *string
+	group    int
 }
 
 func execute(ctx context.Context, def *intent.GateDefinition, worktree string, env []string, out *cappedOutput) execution {
@@ -313,21 +315,22 @@ func execute(ctx context.Context, def *intent.GateDefinition, worktree string, e
 	stop()
 	mu.Lock()
 	defer mu.Unlock()
+	group := cmd.Process.Pid
 	switch {
 	case timedOut:
-		return execution{class: "TIMEOUT"}
+		return execution{class: "TIMEOUT", group: group}
 	case out.overflow:
-		return execution{class: "OUTPUT_LIMIT"}
+		return execution{class: "OUTPUT_LIMIT", group: group}
 	}
 	var exit *exec.ExitError
 	if err != nil && !errors.As(err, &exit) {
-		return execution{class: "UNKNOWN"}
+		return execution{class: "UNKNOWN", group: group}
 	}
 	if name := gateSignal(cmd.ProcessState); name != "" {
-		return execution{class: "SIGNAL", signal: &name}
+		return execution{class: "SIGNAL", signal: &name, group: group}
 	}
 	code := wire.CountOf(int64(cmd.ProcessState.ExitCode()))
-	return execution{class: "EXIT", exitCode: &code}
+	return execution{class: "EXIT", exitCode: &code, group: group}
 }
 
 // gateState is the §7.1 state of one run: PASSED only for the expected

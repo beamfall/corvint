@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -155,6 +156,10 @@ func PreflightGates(ctx context.Context, root, commit string, defs []*intent.Gat
 		env, _ := gateEnvironment(def.Env)
 		out := &cappedOutput{}
 		run := execute(ctx, def, wt, env, out)
+		// execute stops watching the group once the gate exits, so a
+		// descendant it left running would outlive it and every later
+		// gate, interrupt and the worktree removal.
+		killGateGroup(run.group)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -185,14 +190,44 @@ func preflightWorktreeChange(wt, commit, tree string) string {
 	if t, err := resolvePreflightObject(wt, "HEAD^{tree}"); err != nil || t != tree {
 		return "its HEAD tree is not the commit's"
 	}
-	status, err := preflightGit(wt, "status", "--porcelain", "--untracked-files=all")
-	if err != nil {
+	c := exec.Command("git", append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "status", "--porcelain", "-z", "--untracked-files=all")...)
+	c.Dir = wt
+	c.Env = gitEnvironment()
+	dirty, err := writesAnything(c)
+	switch {
+	case err != nil:
 		return "its status is unreadable"
-	}
-	if len(status) > 0 {
+	case dirty:
 		return "it has uncommitted or untracked changes"
 	}
 	return ""
+}
+
+// writesAnything runs c and reports whether it writes any output. It reads
+// at most one byte: the first byte settles the answer, so c is then killed
+// rather than read to the end, and a gate that left many untracked files
+// costs no more than one that left one. A command that writes nothing and
+// fails is an error.
+func writesAnything(c *exec.Cmd) (bool, error) {
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		return false, gitObservationFailed(err)
+	}
+	c.WaitDelay = gateWaitDelay
+	if err := c.Start(); err != nil {
+		return false, gitObservationFailed(err)
+	}
+	var first [1]byte
+	n, rerr := io.ReadFull(stdout, first[:])
+	if n == 1 {
+		_ = c.Process.Kill()
+		_ = c.Wait()
+		return true, nil
+	}
+	if werr := c.Wait(); werr != nil || rerr != io.EOF {
+		return false, gitObservationFailed(errors.Join(werr, rerr))
+	}
+	return false, nil
 }
 
 func resolvePreflightObject(root, rev string) (string, error) {

@@ -15,4 +15,6 @@ func killGate(cmd *exec.Cmd) {
 	}
 }
 
+func killGateGroup(int) {}
+
 func gateSignal(*os.ProcessState) string { return "" }

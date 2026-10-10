@@ -31,6 +31,8 @@ var planRemedies = map[string]string{
 const (
 	planMissingRemedy = "commit the plan document at that path, or drop --plan"
 	deepCheckRemedy   = "fix what the gate reports, commit, and rerun preflight --deep"
+
+	unreadableSpecPathRemedy = "rename the spec file so its path holds no line break"
 )
 
 // preflight is the TOL-V0-025..027 read: it checks a ticket's open
@@ -56,8 +58,8 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		return usage(cmd, "--deep runs the named gates: give --deep with one or more --gate GATE")
 	}
 	for _, p := range append(append([]string{}, prefixes...), planPath) {
-		if p != "" && (path.IsAbs(p) || strings.HasPrefix(path.Clean(p), "..") || strings.Contains(p, "\\")) {
-			return usage(cmd, "--path and --plan take repository-relative paths")
+		if p != "" && (path.IsAbs(p) || strings.HasPrefix(path.Clean(p), "..") || strings.ContainsAny(p, "\\\n\r")) {
+			return usage(cmd, "--path and --plan take repository-relative paths without line breaks")
 		}
 	}
 	var rec *ticket.Record
@@ -101,20 +103,33 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	_, present, content, err := store.FilesAtCommit(root, resolved, paths)
+	// Git's object queries are line-framed, so a path with a line break is
+	// never asked: it is a finding of its own and cannot shift the answers
+	// for the other paths.
+	var findings []obligation.Finding
+	readable := paths[:0:0]
+	for _, p := range paths {
+		if strings.ContainsAny(p, "\n\r") {
+			findings = append(findings, obligation.Finding{Kind: obligation.FindingUnreadableSpecPath, Path: p,
+				Detail: "the spec file's path holds a line break, so preflight cannot read it", Remedy: unreadableSpecPathRemedy})
+			continue
+		}
+		readable = append(readable, p)
+	}
+	_, present, content, err := store.FilesAtCommit(root, resolved, readable)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
 	var warnings []string
 	files := map[string][]byte{}
-	for _, p := range paths {
+	for _, p := range readable {
 		if b, ok := content[p]; ok {
 			files[p] = b
 		} else if present[p] {
 			warnings = append(warnings, prose("spec file "+p+" exceeds the preflight read bound and was not scanned"))
 		}
 	}
-	findings := obligation.CheckSources(ledger, files)
+	findings = append(findings, obligation.CheckSources(ledger, files)...)
 	if planPath != "" {
 		pf, err := preflightPlan(root, resolved, planPath, rec, ledger)
 		if err != nil {
