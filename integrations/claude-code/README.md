@@ -103,5 +103,5 @@ ignores the registration silently, and no live compaction cycle has been run aga
 The shipped declaration `plugins/corvint/compatibility.json` records the static validation at
 package build; static validation is not black-box conformance. The published matrix
 (`../compatibility.json`) records the later installed-lifecycle PASS for Claude Code `2.1.293` with
-adapter `0.3.0` on darwin-arm64 against Corvint 1.0.0-rc.2. The compaction hooks remain statically
+adapter `0.3.1` on darwin-arm64 against Corvint 1.0.0-rc.2. The compaction hooks remain statically
 verified against `2.1.267` only; a live compaction cycle is `NOT_RUN`.

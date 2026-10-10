@@ -1,5 +1,5 @@
-host-lifecycle-v1	host=claude-code	surface=plugin	hostVersion=2.1.293	adapterVersion=0.3.0	os=darwin/arm64	corvint=Corvint 1.0.0-rc.2 (build 360)	source=6cb98aa0bffab3d8246a02b87e52a82dceab85d5
-case	install	PASS	corvint@corvint 0.3.0 installed by the host package manager; 9 files byte-equal to source
+host-lifecycle-v1	host=claude-code	surface=plugin	hostVersion=2.1.293	adapterVersion=0.3.1	os=darwin/arm64	corvint=Corvint 1.0.0-rc.2 (build 360)	source=925c36b8d8317b77ae767dc14b78aef8261820e4
+case	install	PASS	corvint@corvint 0.3.1 installed by the host package manager; 9 files byte-equal to source
 case	discovery	PASS	host reports it enabled; hooks PostCompact,PostToolUse,PreCompact,SessionEnd,SessionStart,Stop,UserPromptSubmit and 6 skill
 case	context	PASS	SessionStart: enveloped corvint-dogfood-event/0 receipt, support=FALLBACK, pinned to HEAD
 case	expansion	PASS	UserPromptSubmit naming add.go returns task evidence at its HEAD blob

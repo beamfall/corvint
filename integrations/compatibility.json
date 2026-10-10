@@ -10,7 +10,7 @@
       "host": "claude-code",
       "hostVersion": "2.1.293",
       "hostVersionEvidence": "installed-host-lifecycle",
-      "hostVersionEvidenceAdapterVersion": "0.3.0",
+      "hostVersionEvidenceAdapterVersion": "0.3.1",
       "lifecycleConformance": {
         "corvint": "1.0.0-rc.2",
         "profile": "host-lifecycle-qualification-v1",
