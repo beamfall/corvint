@@ -283,8 +283,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Build protected partition helper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # .github is owner-protected by the control plane. Only these explicit files enter
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
@@ -296,15 +294,8 @@ jobs:
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-          fi
       - name: Build protected test read-scope wrapper independently of PR module directives
         working-directory: source
-        env:
-          SHARD: ${{ strategy.job-index }}
         run: |
           # AFP-V0-023: the `go test -exec` wrapper that confines each package declared in
           # .corvint/test-read-scopes.json with Landlock. Built like ci-shards, so tested
@@ -320,11 +311,6 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
           if [ -n "$declared" ]; then
             "$RUNNER_TEMP/test-confine" -probe
-          fi
-          if [ "$SHARD" = 0 ]; then
-            go test -race -count=1 -timeout 30m ./...
-            go vet ./...
-            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
           fi
       - name: Fetch advisory affected-first order plan
         if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS'
@@ -417,15 +403,64 @@ jobs:
             head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
+
+  go-static:
+    # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
+    # ran serially after its race tests. They need no docs-plan output, so they start at once,
+    # beside the shards, on every path that starts the shards (FULL, DOCS and REUSE alike).
+    # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
+    # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
       - name: Full static, formatting and build checks
-        if: strategy.job-index == 0
         working-directory: source
         run: |
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: Protected helper self-tests independently of PR module directives
+        working-directory: source
+        run: |
+          # The same isolated modules go-product-shard builds its helpers from, so tested
+          # go.mod/replace directives cannot redirect what these tests exercise.
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
+          t="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$t/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$t/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$t/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.1\n' > "$t/go.mod"
+          for m in "$d" "$t"; do
+            (
+              cd "$m"
+              go test -race -count=1 -timeout 30m ./...
+              go vet ./...
+              CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+            )
+          done
       - name: Independent interop under production toolchain
-        if: strategy.job-index == 0
         working-directory: source/interop/cem01-go
         run: |
           go test -count=1 -timeout 30m ./...
@@ -434,19 +469,21 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success.
     if: always()
-    needs: [go-product-shard, docs-plan]
+    needs: [go-product-shard, go-static, docs-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every go-product shard succeeded
+      - name: Every go-product shard and the static job succeeded
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+          STATIC_RESULT: ${{ needs.go-static.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
         run: |
           if [ "$SHARDS_RESULT" = skipped ]; then
             echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
           fi
           test "$SHARDS_RESULT" = success
+          test "$STATIC_RESULT" = success
           test "$DOCS_RESULT" = success
 
   go-interop:
