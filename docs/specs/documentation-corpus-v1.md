@@ -328,7 +328,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   them, always including the first; a terminal `not-evaluated` entry `further entries omitted after
   <N>` marks any omission. Each entry's message is capped at 4 KiB, cut on a UTF-8 boundary and
   followed by ` … [truncated <N> bytes]`. Both caps apply as entries are recorded, so the entries a
-  check retains never exceed what the report can list. No check is silently omitted, and the report
+  check retains never exceed what the report can list. The check computes and retains no
+  reconciliation frontier or coverage, which cannot refuse a build. No check is silently omitted, and the report
   does not list every independent refusal within one item.
   The report is accepted exactly when the build would succeed, and its first refusal equals the build's
   refusal truncated by that same cap; the build's own error is unchanged. The command exits 0 when accepted, 1 when refused and 2 when an input file cannot be read;
@@ -455,7 +456,7 @@ Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
 `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`,
 `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`,
 `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`,
-`TestBehaviorAdapterBuildBoundMessage` and the check subtest of `TestBehaviorAdapterCLI`. The guide example in `DCP-V1-045` is exercised by
+`TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterBuildBoundMessage` and the check subtest of `TestBehaviorAdapterCLI`. The guide example in `DCP-V1-045` is exercised by
 `TestBehaviorAdapterGuideMigrationExample`. Exact consumer inputs, live browser execution and external
 utility qualification remain `NOT_OBSERVED`.
 
@@ -609,7 +610,7 @@ original sources, retained observations and human documentation require no migra
 
 | DCP-V1-038..042 | `internal/doccorpus/typed_query.go`, `trust.go`, `query_index.go`, `internal/corpusindex`, `internal/corpusserve`, separate companion commands | `TestCorpusTypedQueryConformance`, `TestCorpusRetirementBindings`, `TestCorpusCompleteReadAndTypedToolSchema`, `TestIndexedCorpusReproductionAndProvenance`, `TestIndexedCorpusCapacityQualification`, `TestIndexedCorpusSwitchParity`, `TestHostedCorpusHTTPConformance`, `TestHostedCorpusConcurrencyAndCleanup` |
 | DCP-V1-043 | `cmd/corvint-corpus-parity` | `TestCorpusParityCommandEndToEnd`, `TestCorpusParityCommandFailuresExitNonzero` |
-| DCP-V1-044 | `internal/doccorpus/behavior_adapter_check.go`, `behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | `TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`, `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`, `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`, `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`, `TestBehaviorAdapterBuildBoundMessage`, `TestBehaviorAdapterCLI` (`DCP-V1-044 check`) |
+| DCP-V1-044 | `internal/doccorpus/behavior_adapter_check.go`, `behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | `TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`, `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`, `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`, `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`, `TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterBuildBoundMessage`, `TestBehaviorAdapterCLI` (`DCP-V1-044 check`) |
 | DCP-V1-045 | `docs/DOCUMENTATION-CORPUS.md` | `TestBehaviorAdapterGuideMigrationExample` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 

@@ -612,3 +612,88 @@ func TestBehaviorAdapterCheckBoundsRetention(t *testing.T) {
 		overBound(t, check(t, request(t, 100000), "discovery identity does not match the request"))
 	})
 }
+
+// behaviorAdapterOutcomeFrontierRequest returns the reviewed round-6 shape:
+// one variation with outcomes uniquely named outcomes and an empty test
+// list, plus tests that each reference it with no assertions, claims or
+// flows, and no observations. Build accepts it and its reconciliation
+// records one missing-outcome diagnostic per test and outcome.
+func behaviorAdapterOutcomeFrontierRequest(t *testing.T, outcomes, tests int) []byte {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	request.Observations = []ObservationLink{}
+	variationID := ""
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		variation := items[0].(map[string]any)
+		variationID = variation["variationKey"].(string)
+		template := variation["outcomes"].([]any)[0].(map[string]any)
+		list := make([]any, outcomes)
+		for index := range list {
+			outcome := map[string]any{}
+			for key, value := range template {
+				outcome[key] = value
+			}
+			outcome["id"] = "outcome-" + strconv.Itoa(index)
+			list[index] = outcome
+		}
+		variation["outcomes"] = list
+		variation["testKeys"] = []any{}
+		document["inventory"].(map[string]any)["items"] = []any{variation}
+	})
+	behaviorAdapterEditDocument(t, &request, "tests", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		template := items[0].(map[string]any)
+		list := make([]any, tests)
+		for index := range list {
+			test := map[string]any{}
+			for key, value := range template {
+				test[key] = value
+			}
+			test["testKey"] = "frontier-test-" + strconv.Itoa(index)
+			test["checks"], test["variationClaims"], test["flowKeys"] = []any{}, []any{}, []any{}
+			test["criterionKeys"] = []any{variationID}
+			list[index] = test
+		}
+		document["inventory"].(map[string]any)["items"] = list
+	})
+	raw := behaviorAdapterRaw(t, request)
+	if len(raw) > MaxBytes {
+		t.Fatalf("request is %d bytes", len(raw))
+	}
+	return raw
+}
+
+// TestBehaviorAdapterCheckRetainsNoFrontier proves DCP-V1-044 check mode
+// retains no reconciliation frontier (GH #717 review round 6). Build accepts
+// the request and records one diagnostic per test and outcome; the check must
+// accept it too without retaining them.
+func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
+	const outcomes, tests = 4096, 160
+	raw := behaviorAdapterOutcomeFrontierRequest(t, outcomes, tests)
+	result, buildErr := BuildBehaviorAdapter(raw, nil)
+	if buildErr != nil || len(result.Frontier) < outcomes*tests {
+		t.Fatalf("build should accept with at least %d diagnostics: %v %d", outcomes*tests, buildErr, len(result.Frontier))
+	}
+	result = BehaviorAdapterResult{}
+	var stats runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&stats)
+	baseline, peak := stats.HeapAlloc, stats.HeapAlloc
+	behaviorCheckAfterStage = func() {
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		peak = max(peak, stats.HeapAlloc)
+	}
+	report := CheckBehaviorAdapter(raw, nil)
+	behaviorCheckAfterStage = nil
+	t.Logf("peak growth %d KiB", (peak-baseline)>>10)
+	if growth := peak - baseline; growth > 64<<20 {
+		t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+	}
+	if !report.Accepted || len(report.Refusals) != 0 {
+		t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+	}
+}

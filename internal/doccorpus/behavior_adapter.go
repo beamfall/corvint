@@ -840,7 +840,13 @@ func (a *behaviorAdapter) registry(flows []BehaviorFlow, behaviors []BehaviorSou
 
 func (a *behaviorAdapter) result(registry BehaviorRegistry, discovery BehaviorDiscovery, variations []BehaviorAdapterVariation) (BehaviorAdapterResult, error) {
 	provider := a.provider(registry)
-	a.reconcile(&provider, discovery, variations)
+	// Reconciliation only records frontier diagnostics and coverage
+	// readiness. It cannot refuse, and the check report uses neither, so
+	// check mode skips it rather than retain an unbounded frontier
+	// (DCP-V1-044).
+	if !a.checking {
+		a.reconcile(&provider, discovery, variations)
+	}
 	artifacts, err := a.artifacts(provider)
 	if err != nil {
 		return BehaviorAdapterResult{}, err
@@ -1883,6 +1889,9 @@ func (a *behaviorAdapter) inputForPath(revision, path string) (BehaviorAdapterIn
 }
 
 func (a *behaviorAdapter) gap(originKey, kind, subject, field, detail, correction string) {
+	if a.checking {
+		return
+	}
 	origin, ok := a.origins[originKey]
 	if !ok {
 		origin = behaviorAdapterOrigin{Input: a.inputs[a.request.DiscoveryInput], Field: field, Revision: a.request.SourceRevision, Digest: a.inputs[a.request.DiscoveryInput].Anchor.SHA256}
@@ -1894,6 +1903,9 @@ func (a *behaviorAdapter) gap(originKey, kind, subject, field, detail, correctio
 }
 
 func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject, field, detail, correction string) {
+	if a.checking {
+		return
+	}
 	if field == "" {
 		field = "/"
 	}

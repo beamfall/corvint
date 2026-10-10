@@ -212,6 +212,31 @@ failure, so it does not exhaust host memory.
 Build's error construction (`fieldError`) still formats the full echo once per refusal, as Build
 must. That copy is transient garbage: it is never retained.
 
+Review round 6 found that check mode still ran reconciliation. Reconciliation appends one
+missing-outcome diagnostic to the frontier for each pair of referencing test and outcome, with no
+cap. The reviewed shape is the valid fixture cut down to one variation. That variation has 4,096
+uniquely named outcomes and an empty test list. There are 2,000 tests that reference it, each with
+empty assertions, claims and flows, and observations are cleared. That is 8,192,000 retained
+diagnostics, while the report still lists no refusal.
+
+The check report never used the frontier. Reconciliation returns no error and changes no provider
+field. It only records frontier gaps and the readiness flags that coverage reads, and check mode
+already skips coverage. Check mode now skips reconciliation, and the two gap recorders return
+early while checking. The accept/refuse decision cannot change, because nothing that could refuse
+was removed.
+
+`TestBehaviorAdapterCheckRetainsNoFrontier` uses the reviewed shape scaled to 160 tests. Build
+accepts it with at least 655,360 frontier diagnostics. The check must accept it too, with no
+refusal, and peak live-heap growth at the stage hook must stay under 64 MiB. Measured growth after
+the fix is 818 KiB. On commit `d56ac3ec` the same test retains 164 MiB and fails.
+
+Build itself keeps the unbounded frontier, which is a pre-existing defect. This change does not
+alter it: Build's bytes are unchanged. A probe measured 204 MiB live after Build at 200 tests
+(820,607 diagnostics) and 404 MiB at 400 tests. Extrapolating linearly, the reviewed 2,000 tests
+would hold about 2 GiB; that figure is an inference and was not run. `Encode` then refuses the
+result with `output bound exceeded`. The CLI build therefore fails at encoding while
+`BuildBehaviorAdapter` and `--check` both accept. This is left for a separate ticket.
+
 Limits:
 
 - The report does not list every independent refusal within one item. Repairing an item's first
