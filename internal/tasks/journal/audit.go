@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -299,18 +300,45 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 			}
 		}
 	}
-	for attempt := 0; attempt < 4; attempt++ {
+	var waited time.Duration
+	pause := stagePause
+	for attempt := 0; attempt < 4; {
 		result, err := r.auditAttempt(selected, request, lim, checkIntent, nil)
 		if err == errHeadPassed {
 			return nil, err
 		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			attempt++
+			continue
+		}
+		var slots slotsInFlight
+		if errors.As(err, &slots) {
+			if waited >= stagePatience {
+				return result, slots.error
+			}
+			step := min(pause, stagePatience-waited)
+			stageSleep(step)
+			waited += step
+			pause = min(2*pause, stagePauseCeiling)
 			continue
 		}
 		return result, err
 	}
 	return nil, wire.Errorf(wire.CodeSnapshotMoved, "/", "ledger moved during all four observations")
 }
+
+// A native writer holds descriptor-less staging slots under its lock for the
+// whole of its publish, so an unlocked audit that sees them stable across both
+// captures waits for the writer with the snapshot read's backoff, at most
+// stagePatience in total, before returning the MALFORMED a killed writer's
+// orphan earns (CTS-V0-008). It does not follow snapshot.DefaultPatience:
+// test binaries zero that, and the race is real in them too.
+var (
+	stagePatience     = 2 * time.Second
+	stagePause        = 25 * time.Millisecond
+	stagePauseCeiling = 400 * time.Millisecond
+	stageSleep        = time.Sleep
+)
 
 func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool, cp *Checkpoint) (result *Result, err error) {
 	if r.physical != nil {
