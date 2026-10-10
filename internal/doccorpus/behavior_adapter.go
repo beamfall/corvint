@@ -1185,6 +1185,12 @@ func (a *behaviorAdapter) attachBehaviorVariations(flows []BehaviorFlow, variati
 		}
 		flows[index].Criteria = append(flows[index].Criteria, variation.ID)
 		flows[index].Tests = append(flows[index].Tests, variation.Tests...)
+		// The per-test origin keys repeat the flow identity once per test
+		// and only reconciliation reads them, so check mode, which skips
+		// reconciliation, does not build them (DCP-V1-044).
+		if a.checking {
+			continue
+		}
 		origin := a.origins["variation:"+variation.ID]
 		origin.Field = origin.Record + a.mappings["variations"].Fields["tests"]
 		for _, testID := range variation.Tests {
@@ -1378,7 +1384,13 @@ func sortedUnique(values []string) []string {
 func (a *behaviorAdapter) provider(registry BehaviorRegistry) ProviderRecord {
 	provider := ProviderRecord{Schema: BehaviorProviderSchema, ID: a.request.ProviderID, Version: a.request.ProviderVersion, Source: a.request.Source, BehaviorContracts: &registry}
 	provider.Observations = slices.Clone(a.request.Observations)
+	// Each subject repeats the provider identity, and only the emitted
+	// provider record reads them, so check mode does not build them
+	// (DCP-V1-044).
 	for _, test := range registry.Tests {
+		if a.checking {
+			break
+		}
 		provider.Subjects = append(provider.Subjects, Subject{ID: a.request.ProviderID + ":test:" + test.ID, Kind: "test", Name: test.Title, Provider: a.request.ProviderID, Evidence: behaviorAdapterEvidence(test.Evidence)})
 	}
 	if len(provider.Subjects) > 0 {
@@ -2052,6 +2064,29 @@ func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapt
 	return delta, nil
 }
 
+// behaviorAdapterDeltaError returns the refusal behaviorAdapterDelta would
+// return, from the same hashes in the same order, without building the
+// criterion maps or reverse-link sets; check mode needs only the decision,
+// and the link keys repeat identities once per pair (DCP-V1-044).
+func behaviorAdapterDeltaError(previous *BehaviorAdapterResult, current BehaviorAdapterResult) error {
+	if previous == nil {
+		return nil
+	}
+	for _, variations := range [][]BehaviorAdapterVariation{previous.Variations, current.Variations} {
+		for _, variation := range variations {
+			if _, err := hashValue(variation); err != nil {
+				return err
+			}
+		}
+	}
+	for _, result := range []*BehaviorAdapterResult{previous, &current} {
+		if _, err := behaviorReverseLinkSet(*result, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func behaviorVariationDigests(variations []BehaviorAdapterVariation) (map[string]string, error) {
 	result := map[string]string{}
 	for _, variation := range variations {
@@ -2081,6 +2116,13 @@ func reverseLinkJoin(parts ...string) string {
 }
 
 func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool, error) {
+	return behaviorReverseLinkSet(adapterResult, true)
+}
+
+// behaviorReverseLinkSet computes the reverse-link hashes in order and, when
+// retain is set, the link set. Without retain it builds no key and returns
+// only the first hash refusal.
+func behaviorReverseLinkSet(adapterResult BehaviorAdapterResult, retain bool) (map[string]bool, error) {
 	links := map[string]bool{}
 	provider := adapterResult.Provider
 	if provider.BehaviorContracts == nil {
@@ -2094,31 +2136,35 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 			if err != nil {
 				return nil, err
 			}
-			links["assertion:"+reverseLinkJoin(test.ID, assertion.Criterion, assertion.ID, digest)] = true
+			if retain {
+				links["assertion:"+reverseLinkJoin(test.ID, assertion.Criterion, assertion.ID, digest)] = true
+			}
 		}
 	}
-	for _, flow := range provider.BehaviorContracts.Flows {
-		for _, testID := range flow.Tests {
-			test := tests[testID]
-			if !slices.Contains(test.Flows, flow.ID) {
-				continue
-			}
-			for _, criterion := range flow.Criteria {
-				if slices.Contains(test.Criteria, criterion) {
-					links["flow-test:"+reverseLinkJoin(flow.ID, criterion, testID, test.Project)] = true
+	if retain {
+		for _, flow := range provider.BehaviorContracts.Flows {
+			for _, testID := range flow.Tests {
+				test := tests[testID]
+				if !slices.Contains(test.Flows, flow.ID) {
+					continue
+				}
+				for _, criterion := range flow.Criteria {
+					if slices.Contains(test.Criteria, criterion) {
+						links["flow-test:"+reverseLinkJoin(flow.ID, criterion, testID, test.Project)] = true
+					}
 				}
 			}
 		}
-	}
-	for _, variation := range adapterResult.Variations {
-		links["variation-flow:"+reverseLinkJoin(variation.ID, variation.Flow)] = true
-		for _, testID := range variation.Tests {
-			links["variation-test:"+reverseLinkJoin(variation.ID, testID)] = true
+		for _, variation := range adapterResult.Variations {
+			links["variation-flow:"+reverseLinkJoin(variation.ID, variation.Flow)] = true
+			for _, testID := range variation.Tests {
+				links["variation-test:"+reverseLinkJoin(variation.ID, testID)] = true
+			}
 		}
-	}
-	for _, test := range provider.BehaviorContracts.Tests {
-		for _, criterion := range test.Criteria {
-			links["test-variation:"+reverseLinkJoin(test.ID, criterion)] = true
+		for _, test := range provider.BehaviorContracts.Tests {
+			for _, criterion := range test.Criteria {
+				links["test-variation:"+reverseLinkJoin(test.ID, criterion)] = true
+			}
 		}
 	}
 	for _, record := range adapterResult.Claims {
@@ -2126,7 +2172,9 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 		if err != nil {
 			return nil, err
 		}
-		links["claim:"+reverseLinkJoin(record.TestID, record.Claim.VariationID, digest)] = true
+		if retain {
+			links["claim:"+reverseLinkJoin(record.TestID, record.Claim.VariationID, digest)] = true
+		}
 	}
 	return links, nil
 }

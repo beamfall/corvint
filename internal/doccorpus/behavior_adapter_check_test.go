@@ -620,6 +620,20 @@ func TestBehaviorAdapterCheckBoundsRetention(t *testing.T) {
 // records one missing-outcome diagnostic per test and outcome.
 func behaviorAdapterOutcomeFrontierRequest(t *testing.T, outcomes, tests int) []byte {
 	t.Helper()
+	return behaviorAdapterBoundedRaw(t, behaviorAdapterOutcomeFrontierRequestValue(t, outcomes, tests))
+}
+
+func behaviorAdapterBoundedRaw(t *testing.T, request BehaviorAdapterRequest) []byte {
+	t.Helper()
+	raw := behaviorAdapterRaw(t, request)
+	if len(raw) > MaxBytes {
+		t.Fatalf("request is %d bytes", len(raw))
+	}
+	return raw
+}
+
+func behaviorAdapterOutcomeFrontierRequestValue(t *testing.T, outcomes, tests int) BehaviorAdapterRequest {
+	t.Helper()
 	fixture := behaviorAdapterFixture(t)
 	request := fixture.request
 	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
@@ -659,11 +673,7 @@ func behaviorAdapterOutcomeFrontierRequest(t *testing.T, outcomes, tests int) []
 		}
 		document["inventory"].(map[string]any)["items"] = list
 	})
-	raw := behaviorAdapterRaw(t, request)
-	if len(raw) > MaxBytes {
-		t.Fatalf("request is %d bytes", len(raw))
-	}
-	return raw
+	return request
 }
 
 // TestBehaviorAdapterCheckRetainsNoFrontier proves DCP-V1-044 check mode
@@ -695,5 +705,128 @@ func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
 	}
 	if !report.Accepted || len(report.Refusals) != 0 {
 		t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+	}
+}
+
+// behaviorAdapterFlowTestRequest is the reviewed round-7 shape: one flow and
+// one variation whose flow identity is 64 KiB, and whose variation lists
+// tests unique short test identities.
+func behaviorAdapterFlowTestRequest(t *testing.T, tests int) []byte {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	flowID := strings.Repeat("f", 64<<10)
+	behaviorAdapterEditDocument(t, &request, "flows", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		items[0].(map[string]any)["flowKey"] = flowID
+		document["inventory"].(map[string]any)["items"] = items[:1]
+	})
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		items := document["inventory"].(map[string]any)["items"].([]any)
+		variation := items[0].(map[string]any)
+		variation["flowKey"] = flowID
+		keys := make([]any, tests)
+		for index := range keys {
+			keys[index] = "ft-" + strconv.Itoa(index)
+		}
+		variation["testKeys"] = keys
+		document["inventory"].(map[string]any)["items"] = items[:1]
+	})
+	return behaviorAdapterBoundedRaw(t, request)
+}
+
+// behaviorAdapterReverseLinkRequest renames the first test to a 64 KiB
+// identity, everywhere it is referenced, and gives it assertions extra
+// assertions, so each reverse-link key would repeat that identity.
+func behaviorAdapterReverseLinkRequest(t *testing.T, assertions int) []byte {
+	t.Helper()
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+	request.Observations = []ObservationLink{}
+	testID, oldID := strings.Repeat("k", 64<<10), ""
+	behaviorAdapterEditDocument(t, &request, "tests", func(document map[string]any) {
+		test := document["inventory"].(map[string]any)["items"].([]any)[0].(map[string]any)
+		oldID = test["testKey"].(string)
+		test["testKey"] = testID
+		checks := test["checks"].([]any)
+		for index := range assertions {
+			check := map[string]any{}
+			for key, value := range checks[0].(map[string]any) {
+				check[key] = value
+			}
+			check["id"] = "extra-" + strconv.Itoa(index)
+			checks = append(checks, check)
+		}
+		test["checks"] = checks
+	})
+	behaviorAdapterEditDocument(t, &request, "variations", func(document map[string]any) {
+		for _, item := range document["inventory"].(map[string]any)["items"].([]any) {
+			keys := item.(map[string]any)["testKeys"].([]any)
+			for index, key := range keys {
+				if key == oldID {
+					keys[index] = testID
+				}
+			}
+		}
+	})
+	return behaviorAdapterBoundedRaw(t, request)
+}
+
+// TestBehaviorAdapterCheckRetainsNoAmplifiedKeys proves DCP-V1-044 check
+// mode builds no structure that repeats a long identity once per pair (GH
+// #717 review round 7): the per-test flow origin keys, the provider subjects
+// and the delta reverse-link keys. Build accepts each request; the check must
+// accept it too. Retained structures are sampled at each stage boundary; the
+// delta keys are local to the final stage, so its allocation is measured.
+func TestBehaviorAdapterCheckRetainsNoAmplifiedKeys(t *testing.T) {
+	subjects := behaviorAdapterOutcomeFrontierRequestValue(t, 1, 2048)
+	subjects.ProviderID = strings.Repeat("p", 64<<10)
+	reverse := behaviorAdapterReverseLinkRequest(t, 1024)
+	previous, err := BuildBehaviorAdapter(reverse, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous.Frontier = []BehaviorAdapterDiagnostic{}
+	previousRaw, err := Encode(previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous = BehaviorAdapterResult{}
+	for _, tc := range []struct {
+		name          string
+		raw, previous []byte
+	}{
+		{"flow-test origins", behaviorAdapterFlowTestRequest(t, 2048), nil},
+		{"provider subjects", behaviorAdapterBoundedRaw(t, subjects), nil},
+		{"reverse links", reverse, previousRaw},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := BuildBehaviorAdapter(tc.raw, tc.previous); err != nil {
+				t.Fatalf("build should accept: %v", err)
+			}
+			var stats runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			baseline, peak, allocated, last := stats.HeapAlloc, stats.HeapAlloc, stats.TotalAlloc, uint64(0)
+			behaviorCheckAfterStage = func() {
+				runtime.GC()
+				runtime.ReadMemStats(&stats)
+				peak, last, allocated = max(peak, stats.HeapAlloc), stats.TotalAlloc-allocated, stats.TotalAlloc
+			}
+			report := CheckBehaviorAdapter(tc.raw, tc.previous)
+			behaviorCheckAfterStage = nil
+			t.Logf("peak growth %d KiB, final stage allocated %d KiB", (peak-baseline)>>10, last>>10)
+			if !report.Accepted || len(report.Refusals) != 0 {
+				t.Fatalf("check should accept as Build does: %+v", report.Refusals)
+			}
+			if growth := peak - baseline; growth > 64<<20 {
+				t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+			}
+			if last > 16<<20 {
+				t.Fatalf("final stage allocated %d MiB", last>>20)
+			}
+		})
 	}
 }

@@ -237,6 +237,93 @@ would hold about 2 GiB; that figure is an inference and was not run. `Encode` th
 result with `output bound exceeded`. The CLI build therefore fails at encoding while
 `BuildBehaviorAdapter` and `--check` both accept. This is left for a separate ticket.
 
+Review round 7 found that check mode still built the `flow-test:` origin keys in
+`attachBehaviorVariations`. That is one key per pair of flow and referencing test, and each key
+repeats the full flow identity. The reviewed shape is the valid fixture cut to one flow and one
+variation. Both flow keys are 65,536 characters, and the variation lists 4,096 unique short test
+keys. That retains more than 256 MiB. Only reconciliation's `gap` reads those keys, and check mode
+already skips reconciliation, so check mode no longer builds them.
+
+The round also asked for a full audit of what check mode retains. That audit found two more
+amplifying structures:
+
+- **Provider subjects.** `provider()` builds one subject per test, and each repeats the provider
+  identity. Only the emitted provider record reads them; `artifacts` uses the registry's tests and
+  observations instead. Check mode now skips them.
+- **Delta reverse-link sets.** `behaviorReverseLinks` builds keys that repeat a test identity for
+  each assertion and claim, and a flow identity for each pair of test and criterion. The delta's
+  only refusal is a canonical-encoding failure inside those loops. Check mode now calls
+  `behaviorAdapterDeltaError`. It runs the same `hashValue` calls in the same order as the build,
+  including the previous and current variation digests, and keeps no key. The build keeps calling
+  `behaviorReverseLinks`, which now shares that loop with `retain` set, so its bytes are unchanged.
+
+None of the three can refuse a build, so the accept/refuse decision cannot change.
+
+`TestBehaviorAdapterCheckRetainsNoAmplifiedKeys` covers each shape, scaled down to fit the 4 MiB
+request bound and the test budget. For each case, Build must accept and the check must accept with no
+refusal. At the stage hook, peak live-heap growth must stay at or below 64 MiB, and the final stage
+must allocate at most 16 MiB. The final-stage limit catches the delta: Build's reverse-link sets live
+only while that stage runs, so they show up as allocation rather than retention.
+
+| Case | Shape | On `53b6c3ab` | After |
+| --- | --- | --- | --- |
+| Flow-test origins | 64 KiB flow key × 2,048 tests | fails, 145 MiB retained | 576 KiB peak, 0 KiB final stage |
+| Provider subjects | 64 KiB provider ID × 2,048 tests | fails, 149 MiB retained | 6,399 KiB peak, 5 KiB final stage |
+| Reverse links | 64 KiB test key × 1,024 extra assertions, with previous | fails, final stage allocates 292 MiB | 3,142 KiB peak, 3,059 KiB final stage |
+
+The "On `53b6c3ab`" run uses the new test file copied into an archive of that commit.
+`TestBehaviorAdapterCheckRetainsNoFrontier` still passes, at 818 KiB.
+
+Build keeps all three structures. That is pre-existing, and Build's bytes are unchanged. A scratch
+probe measured them; it was deleted after the run.
+
+| Shape | Input | Allocated during Build | Live after Build |
+| --- | --- | --- | --- |
+| Reviewed shape: 64 KiB flow × 4,096 tests | 199,521 B | 2,898 MiB | not measured |
+| 64 KiB provider × 2,400 tests | 3,441,904 B | 326 MiB | 175 MiB (2,400 subjects) |
+| 64 KiB test × 2,001 assertions, with a 1,632,711 B previous result | 1,585,723 B | 4,783 MiB | not measured |
+
+"Not measured" means the live-heap reading fell below the GC baseline. In all three, Build returns
+no error and `--check` accepts with no refusal, but `Encode` refuses the result with
+`output bound exceeded`. The origins and reverse-link sets are transient within Build. The
+subjects stay in the returned result.
+
+Retention audit of check mode. A structure is in class (a) if it is bounded by the 4 MiB request
+times a constant. It is in class (b) if parity or a refusal needs it and it is stored without
+amplification. It is in class (c) if check mode skips it. Locations are functions in
+`internal/doccorpus/behavior_adapter.go` unless noted.
+
+| Retained structure | Location | Class and bound |
+| --- | --- | --- |
+| Decoded request | `CheckBehaviorAdapter` (`behavior_adapter_check.go`), `decodeBounded` | (a) at most 4 MiB raw, decoded once |
+| Inputs, input keys, mappings and the mapping-seen set | `newBehaviorAdapter`, `addInput`, `addMapping` | (a) one entry per input or mapping; records pointers ≤1 KiB, at most 16 segments (`validJSONPointer`) |
+| Declared inputs | `newBehaviorAdapter` | (a) one entry per declared input |
+| Decoded record tree for one kind | `records` | (a) transient per stage, a subtree of the request |
+| Flows, variations, candidates and tests | `flows`, `variations`, `candidates`, `tests` | (a) mapped from records; each string is checked by `textOK` (≤64 KiB) and stored once |
+| `flow:`, `variation:`, `candidate:` and `test:` origins | `origin` | (a) and (b) parity: `originError` names the record and field. Each holds the record and field pointers. That is about 3 KiB per record, so about 48 MiB at the theoretical 16k-record maximum. A record needs a resolvable anchor, so realistic inputs stay nearer 16 MiB. Not restructured; inference, not measured at the maximum |
+| `flow-test:` origins | `attachBehaviorVariations` | (c) skipped (this round) |
+| Test claims and claim records | `tests`, `claimRecords` | (a) one per mapped claim, IDs shared |
+| Identity names, IDs and the refused-item set | `keepIdentity`, `behaviorAdapterIdentityName` | (a) one name per record: a kind prefix plus records pointer, index and ID |
+| Discovery execution IDs and names | `discoveryIdentity` | (a) one per execution, bounded by the execution count bound |
+| Observation IDs and names | `validateObservations` | (a) one per observation; subject strings built transiently in `validateObservationSubjects` |
+| Registry and its canonical encoding | `registry`, `hashValue` | (a) O(request); `Encode` refuses above its output bound |
+| Provider subjects | `provider` | (c) skipped (this round) |
+| Artifacts and their roles map | `artifacts` | (a) one entry per artifact; document strings shared with the inputs |
+| Reconciliation frontier, readiness and coverage | `reconcile`, `gap`, `gapFromInput`, `behaviorAdapterCoverage` | (c) skipped (round 6) |
+| Variation digests | `behaviorVariationDigests` | (c) not built in check. The same `hashValue` calls run in `behaviorAdapterDeltaError`. They would be (a), one 64-byte digest per variation |
+| Delta reverse-link key sets | `behaviorReverseLinkSet` | (c) skipped (this round); encodings still run, keys are not kept |
+| Previous result and lineage maps | `validatePreviousBehaviorAdapterResult`, `validBehaviorAdapterArtifacts` | (a) the previous result decodes under the same 4 MiB bound. Claim keys join one test ID and one variation ID per claim record, so they never exceed that record's bytes |
+| Report entries and stages | `behaviorCheckRoom` (`behavior_adapter_check.go`) | (a) at most 1024 entries, about 1 MiB, 4 KiB per message |
+
+These costs are transient, not retained:
+
+- The test and claim-record sort comparators join IDs on each comparison.
+- `artifacts` digests a copy of each observation's document. That is up to 4 MiB per observation, in
+  Build too: CPU and allocation churn, not retention.
+- The `ContainsFunc` scans in the previous-result validation cost CPU only.
+
+They are recorded here for completeness. This change does not alter them.
+
 Limits:
 
 - The report does not list every independent refusal within one item. Repairing an item's first

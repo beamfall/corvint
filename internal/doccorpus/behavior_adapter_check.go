@@ -208,8 +208,7 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		return err
 	})
 	run("delta", []string{"artifacts", "previous-lineage"}, func() error {
-		_, err := behaviorAdapterDelta(previous, result)
-		return err
+		return behaviorAdapterDeltaError(previous, result)
 	})
 	c.report.Accepted = len(c.report.Refusals) == 0
 	c.report.Refusals = boundBehaviorAdapterRefusals(c.report.Refusals)
@@ -431,7 +430,7 @@ func (c *behaviorAdapterChecker) notEvaluated(stage string, blockedBy []string, 
 
 func behaviorAdapterCheckLimitations() []string {
 	return []string{
-		"check mode neither emits nor writes an adapter result or artifact; it reconciles internally only to determine final-stage refusals and computes no coverage",
+		"check mode neither emits nor writes an adapter result or artifact; it computes no reconciliation frontier, coverage, provider subjects or delta",
 		"a stage blocked by an earlier refusal is reported as not-evaluated; repairing that refusal can reveal further refusals",
 		"items (inputs, mappings, observations, mapped records and discovery executions) are evaluated independently; within one item, evaluation stops at its first refusal and one not-evaluated entry names the item's remaining checks",
 		"when a count bound refuses, the individual items it bounds are not evaluated",
