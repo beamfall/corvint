@@ -23,3 +23,11 @@ func SetBeforeTreeCaptureForTest(hook func()) func() {
 	beforeTreeCapture = hook
 	return func() { beforeTreeCapture = old }
 }
+
+// SetBeforeBoundedReadForTest observes every path readBounded is asked to
+// read, returning the restore.
+func SetBeforeBoundedReadForTest(hook func(path string)) func() {
+	old := beforeBoundedRead
+	beforeBoundedRead = hook
+	return func() { beforeBoundedRead = old }
+}

@@ -19,3 +19,4 @@ func File(string) (*os.File, error)                                     { return
 func PinDir(*os.Root) (*os.File, error)                                 { return nil, unsupported }
 func InDir(*os.File, string, int, os.FileMode) (*os.File, error)        { return nil, unsupported }
 func PinSubDir(*os.Root, string) (*os.File, error)                      { return nil, unsupported }
+func RootOf(*os.File) (*os.Root, error)                                 { return nil, unsupported }

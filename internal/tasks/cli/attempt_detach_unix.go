@@ -25,3 +25,10 @@ func protectReadiness() { syscall.CloseOnExec(readinessFD) }
 func openRunFile(p string) (*os.File, error) {
 	return os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 }
+
+// openDirNonblock opens a directory to list (a runs or plugin directory),
+// following a link as os.Open does, but refuses anything that is not a
+// directory (ENOTDIR) without blocking on a FIFO in its place.
+func openDirNonblock(p string) (*os.File, error) {
+	return os.OpenFile(p, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NONBLOCK, 0)
+}
