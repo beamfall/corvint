@@ -16,17 +16,39 @@ import (
 	"time"
 )
 
-// SafeEnvironment is a fixed local execution environment. Author/request keys
-// cannot opt credentials into it. Browser caches use the trusted host default.
+// SafeEnvironment preserves the default four-key execution environment.
 func SafeEnvironment() []string {
 	return []string{"PATH=/opt/homebrew/bin:/usr/bin:/bin", "LANG=C", "LC_ALL=C", "TMPDIR=/tmp"}
 }
 
-// WorkerEnvironmentSafe rejects a public direct worker invocation before any
-// author/server code can observe inherited credentials or runtime injection.
+// safeTempRoot admits only existing canonical directories, never ambient aliases.
+func safeTempRoot(root string, private bool) bool {
+	if !cleanAbsolute(root) || len(root) > 4096 || strings.ContainsAny(root, "\x00\r\n") {
+		return false
+	}
+	canonical, err := filepath.EvalSymlinks(root)
+	if err != nil || canonical != root {
+		return false
+	}
+	info, err := os.Stat(root)
+	return err == nil && info.IsDir() && (!private || info.Mode().Perm() == 0700)
+}
+
+func workerEnvironment() []string {
+	env := SafeEnvironment()
+	env[3] = "TMPDIR=" + os.Getenv("TMPDIR")
+	return env
+}
+
+// WorkerEnvironmentSafe retains exact fixed keys/values; scoped TMPDIR must be
+// a canonical private directory. /tmp is the backward-compatible default.
 func WorkerEnvironmentSafe() bool {
+	root := os.Getenv("TMPDIR")
+	if root != "/tmp" && !safeTempRoot(root, true) {
+		return false
+	}
 	allowed := map[string]string{}
-	for _, entry := range SafeEnvironment() {
+	for _, entry := range workerEnvironment() {
 		parts := strings.SplitN(entry, "=", 2)
 		allowed[parts[0]] = parts[1]
 	}
@@ -88,7 +110,7 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		}
 		c.PlanDigest = t.Control.Digest
 		input, _ := json.Marshal(t.Control)
-		observation := procgroup.Run(ctx, procgroup.Spec{Argv: []string{t.ControlCommand.Argv[0], "execute-receipt", "--experimental", "--approve-plan", t.Control.Digest}, Dir: r.TestRepository.Root, Env: SafeEnvironment(), Stdin: input, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: 125 * time.Second, ObserveDescendants: true})
+		observation := procgroup.Run(ctx, procgroup.Spec{Argv: []string{t.ControlCommand.Argv[0], "execute-receipt", "--experimental", "--approve-plan", t.Control.Digest}, Dir: r.TestRepository.Root, Env: workerEnvironment(), Stdin: input, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: 125 * time.Second, ObserveDescendants: true})
 		var receipt behaviorfalsify.EvidenceReceipt
 		if observation.Err != nil || observation.ExitStatus != 0 || observation.Cancelled || observation.TimedOut || observation.OutputOverflow || !observation.WaitCompleted || !observation.OwnedProcessGroupCleanup {
 			c.Status = "invalid"
@@ -168,6 +190,9 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		cfg.DeclaredEnvKeys = []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}
 		cfg.ApplicationAttestation = &jstestprovider.ApplicationAttestationProvider{Argv: r.Freshness.Attestation.Argv, ConfigFile: r.Freshness.AttestationConfiguration.Path, Timeout: 5 * time.Second}
 		cfg.TestArgv = []string{"--retries=0", "--workers=1", "--forbid-only"}
+		if os.Getenv("TMPDIR") != "/tmp" {
+			cfg.ScopedTempOutput = true
+		}
 		if target != "" {
 			cfg.TestArgv = append(cfg.TestArgv, "--grep="+isolationPattern(r.Tests[j.TestIndex].Title))
 		}
@@ -264,6 +289,10 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 }
 
 func invoke(ctx context.Context, exe string, j Job) (WorkerResult, Cleanup) {
+	return invokeEnvironment(ctx, exe, j, SafeEnvironment())
+}
+
+func invokeEnvironment(ctx context.Context, exe string, j Job, env []string) (WorkerResult, Cleanup) {
 	b, _ := json.Marshal(j)
 	// Controls have their own bounded executor wall-clock limit; the outer bound
 	// includes cleanup and cannot be extended by request-controlled argv.
@@ -271,7 +300,7 @@ func invoke(ctx context.Context, exe string, j Job) (WorkerResult, Cleanup) {
 	if j.Kind == "control" {
 		timeout = 135 * time.Second
 	}
-	o := procgroup.Run(ctx, procgroup.Spec{Argv: []string{exe, "worker"}, Dir: j.Request.TestRepository.Root, Env: SafeEnvironment(), Stdin: b, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: timeout, ObserveDescendants: true})
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: []string{exe, "worker"}, Dir: j.Request.TestRepository.Root, Env: env, Stdin: b, InputLimit: InputLimit, OutputLimit: ReportLimit, Timeout: timeout, ObserveDescendants: true})
 	c := cleanup(o)
 	var w WorkerResult
 	if o.Err != nil || !o.Started || !o.WaitCompleted || o.ExitStatus != 0 || o.OutputOverflow || o.Cancelled || o.TimedOut {
@@ -289,13 +318,39 @@ func invoke(ctx context.Context, exe string, j Job) (WorkerResult, Cleanup) {
 // Execute requires the independently reviewed request digest. Its executable
 // argument is the trusted companion binary, never a request-selected program.
 func Execute(ctx context.Context, r Request, approved, exe, build string) (Report, error) {
+	return ExecuteWithTempRoot(ctx, r, approved, exe, build, "")
+}
+
+// ExecuteWithTempRoot selects an operator-owned temporary output scope. Empty
+// preserves /tmp; ambient parent TMPDIR never silently changes worker policy.
+func ExecuteWithTempRoot(ctx context.Context, r Request, approved, exe, build, root string) (report Report, err error) {
 	if e := approval(r, approved); e != nil {
 		return Report{}, e
 	}
 	if !cleanAbsolute(exe) || regular(exe) != nil {
 		return Report{}, errors.New("self-worker-invalid")
 	}
-	report := Report{Schema: Schema, RequestDigest: approved, Product: r.Product, TestRepository: r.TestRepository, Environment: r.Environment, Build: build, Runs: []Run{}, Controls: []Control{}, Unknowns: []string{"provider-per-test-freshness", "qualified-baseline-test-and-browser-identity", "authenticated-operator-and-hook-semantics", "full-descendant-containment", "observed-order-with-owned-provider", "runner-and-hook-import-closure-unqualified", "runner-version-claim-only"}}
+	env := SafeEnvironment()
+	if root != "" {
+		if !safeTempRoot(root, false) {
+			return Report{}, errors.New("temporary-root-invalid")
+		}
+		scope, allocationErr := os.MkdirTemp(root, "corvint-acceptance-run-")
+		if allocationErr != nil {
+			return Report{}, errors.New("temporary-root-allocation-failed")
+		}
+		// Parent cleanup also retires output left by forcefully stopped workers.
+		defer func() {
+			if os.RemoveAll(scope) != nil {
+				err = errors.New("temporary-root-cleanup-failed")
+			}
+		}()
+		env[3] = "TMPDIR=" + scope
+	}
+	runWorker := func(job Job) (WorkerResult, Cleanup) {
+		return invokeEnvironment(ctx, exe, job, env)
+	}
+	report = Report{Schema: Schema, RequestDigest: approved, Product: r.Product, TestRepository: r.TestRepository, Environment: r.Environment, Build: build, Runs: []Run{}, Controls: []Control{}, Unknowns: []string{"provider-per-test-freshness", "qualified-baseline-test-and-browser-identity", "authenticated-operator-and-hook-semantics", "full-descendant-containment", "observed-order-with-owned-provider", "runner-and-hook-import-closure-unqualified", "runner-version-claim-only"}}
 	if r.Schema == FreshRequestSchema {
 		report.Schema = FreshSchema
 		report.Unknowns = []string{"authenticated-operator-and-hook-semantics", "full-descendant-containment", "general-browser-and-host-qualification", "compiled-source-provenance", "unsupported-core-mcp-flows-consumers"}
@@ -307,7 +362,7 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 	report.ExecutableSHA256 = Hash(executableBytes)
 	order := files(r)
 	for i := 0; i < r.Repeat; i++ {
-		w, c := invoke(ctx, exe, Job{Request: r, Approved: approved, Kind: "repeat", Files: order})
+		w, c := runWorker(Job{Request: r, Approved: approved, Kind: "repeat", Files: order})
 		run := Run{Kind: "repeat", Ordinal: i + 1, RequestedFiles: order, Reasons: []string{}, Rows: []Row{}}
 		if w.Run != nil {
 			run = *w.Run
@@ -332,7 +387,7 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 			if i == 1 {
 				slices.Reverse(selected)
 			}
-			w, c := invoke(ctx, exe, Job{Request: r, Approved: approved, Kind: kind, Files: selected})
+			w, c := runWorker(Job{Request: r, Approved: approved, Kind: kind, Files: selected})
 			run := Run{Kind: kind, RequestedFiles: selected, Rows: []Row{}, Reasons: []string{}}
 			if w.Run != nil {
 				run = *w.Run
@@ -351,7 +406,7 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 			continue
 		}
 		for n := 1; n <= IsolationRepeats && ctx.Err() == nil; n++ {
-			w, c := invoke(ctx, exe, Job{Request: r, Approved: approved, Kind: "probe-isolated", Files: []string{t.File}, TestIndex: i})
+			w, c := runWorker(Job{Request: r, Approved: approved, Kind: "probe-isolated", Files: []string{t.File}, TestIndex: i})
 			run := Run{Kind: "probe-isolated", RequestedFiles: []string{t.File}, Rows: []Row{}, Reasons: []string{}}
 			if w.Run != nil {
 				run = *w.Run
@@ -366,7 +421,7 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 	for i, t := range r.Tests {
 		c := Control{ID: t.ID, Status: "not-run", Unsupported: []string{"control-not-run"}}
 		if ctx.Err() == nil {
-			w, life := invoke(ctx, exe, Job{Request: r, Approved: approved, Kind: "control", TestIndex: i})
+			w, life := runWorker(Job{Request: r, Approved: approved, Kind: "control", TestIndex: i})
 			if w.Control != nil {
 				c = *w.Control
 			}

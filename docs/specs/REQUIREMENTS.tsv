@@ -343,6 +343,7 @@ BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded 
 BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conformance covers a tautological assertion, hidden duplicate element,
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/
+BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	85	proposed, pending owner acceptance (V1-0686). In a sanitized acceptance
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
@@ -2122,6 +2123,7 @@ NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	47	Repeat and control execut
 NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	50	Emit one bounded report tied to request/source identities, environment and build
 NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	53	Each per-test assessment carries its own repeat counts (passed, failed, other),
 NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	62	The body is a fixed Markdown record containing the overall verdict, the product
+NEA-V0-010	docs/specs/new-e2e-test-acceptance-v0.md	68	proposed, pending owner acceptance (V1-0686). Optional operator-only
 NEC-V0-001	docs/specs/necessity-labels-v0.md	46	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST
 NEC-V0-002	docs/specs/necessity-labels-v0.md	50	The verb MUST load the index exactly as `context --task` does (the tree's snapsh
 NEC-V0-003	docs/specs/necessity-labels-v0.md	54	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,
