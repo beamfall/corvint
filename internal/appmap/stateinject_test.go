@@ -444,14 +444,22 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"declaring via barrel": {reg, map[string]string{index: star, decl: table + "import { SectionTable as S } from './index';\nS.REPORTS = 'other';\n"}},
 		"direct alias":         {strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1) + "import { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n", map[string]string{decl: table}},
 		"declared beside":      {"const T = { REPORTS: 'ledger' };\nangular.module('admin').constant('SectionNames', T);\nimport * as me from './setup.module';\nme.T.REPORTS = 'other';\n", nil},
+		// Another name the declaring file or a barrel exports the table under (round 9).
+		"registering default": {reg + "import T from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n", map[string]string{index: star, decl: table + "export default SectionTable;\n"}},
+		"registering renamed": {strings.Replace(diRegText, "{ SectionTable } from './tables'", "{ Renamed as SectionTable } from '../tables/routes'", 1) +
+			"import { SectionTable as S } from '../tables/routes/routes.constants';\nS.REPORTS = 'other';\n",
+			map[string]string{index: "export { SectionTable as Renamed } from './routes.constants';\n", decl: table}},
+		"registering relay": {reg + "import { R } from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import { SectionTable } from './routes.constants';\nexport { SectionTable as R };\n"}},
 	} {
 		t.Run(name, func(t *testing.T) { checkBarrel(t, c.reg, c.files, "not-read-whole", "") })
 	}
 	// Other bindings the rule proves only read, and namespace imports that cannot reach the table.
 	t.Run("reads", func(t *testing.T) {
-		checkBarrel(t, reg+"import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport * as U from '../util';\n",
+		checkBarrel(t, reg+"import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport * as U from '../util';\n"+
+			"import { Other } from '../tables/routes/routes.constants';\nconst o = Other.A;\nimport { helper } from '../util';\nhelper.call(null);\n",
 			map[string]string{index: star + "import { SectionTable as T } from './routes.constants';\nconst s = T.REPORTS;\nimport * as P from '@playwright/test';\n",
-				decl: table + "import * as V from '../../util';\nrequire('../../util');\n", "app/util.ts": "export const helper = 1;\n"}, "", index)
+				decl: table + "export const Other = { A: 'a' };\nimport * as V from '../../util';\nrequire('../../util');\n", "app/util.ts": "export const helper = 1;\n"}, "", index)
 	})
 }
 
@@ -467,6 +475,28 @@ func TestAMAPV0025JSXFileUnread(t *testing.T) {
 	t.Run("star", func(t *testing.T) {
 		files["app/tables/routes/index.ts"] = "export * from './routes.constants';\n"
 		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), files, "identifier-not-found", "")
+	})
+}
+
+// AMAP-V0-025: a hashbang line ends at any line terminator (LF, CR, U+2028, U+2029); one ended by a
+// lone CR or a separator, after which code shares the counted line, makes the file unread.
+func TestAMAPV0025HashbangLineEnds(t *testing.T) {
+	const decl = "app/tables/routes/routes.constants.ts"
+	for name, end := range map[string]string{"carriage": "\r", "separator": "\u2028", "paragraph": "\u2029"} {
+		files := map[string]string{decl: "#!/usr/bin/env node" + end + "setTimeout(() => { SectionTable.REPORTS = 'other'; });\n" +
+			"export const SectionTable = { REPORTS: 'ledger' };\n"}
+		t.Run("direct "+name, func(t *testing.T) {
+			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes/routes.constants'", 1), files, "not-read-whole", "")
+		})
+		t.Run("star "+name, func(t *testing.T) {
+			all := map[string]string{"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: files[decl]}
+			checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), all, "identifier-not-found", "")
+		})
+	}
+	t.Run("reads", func(t *testing.T) {
+		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), map[string]string{
+			"app/tables/routes/index.ts": "export * from './routes.constants';\n",
+			decl:                         "#!/usr/bin/env node\r\nexport const SectionTable = { REPORTS: 'ledger' };\n// crlf\r\n"}, "", "app/tables/routes/index.ts")
 	})
 }
 
@@ -643,7 +673,11 @@ func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
 		"type args division": "const v = n as Box<number> / (SectionTable.REPORTS = 'other', 1) / 2;\n",
 		"regex after block":  "{}\n/'/.test('a'); SectionTable.REPORTS = 'other';\n",
 		"separator comment":  "// note\u2028SectionTable.REPORTS = 'other';\n",
+		"paragraph comment":  "// note\u2029SectionTable.REPORTS = 'other';\n",
 		"carriage comment":   "// note\rSectionTable.REPORTS = 'other';\n",
+		"double non-null":    "const n = 4;\nn!! / (SectionTable.REPORTS = 'other', 1) / 2;\n",
+		"label after break":  "l: {\nbreak l\n/`/.test('a'); SectionTable.REPORTS = 'other';\n}\n// ` }\n",
+		"debugger regex":     "debugger\n/`/.test('a'); SectionTable.REPORTS = 'other';\n// `\n",
 		"unicode space":      "SectionTable\u00a0.REPORTS = 'other';\n",
 		"unclosed comment":   "/* SectionTable.REPORTS = 'other';\n",
 		"html comment":       "<!-- `\nSectionTable.REPORTS = 'other';\n// `\n",
@@ -737,7 +771,8 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 			"if (typeof SectionTable === 'object') { void typeof SectionTable['REPORTS']; }\nconst u = `${'a'}/b`;\n" +
 			"function f() { let n = 0; n++; }\nconst d = SectionTable.REPORTS;\n" +
 			"const q = 6 / 2 / 1, r = /a'b/.test('c') ? (q) / 2 : [q][0] / 2;\nif (q) /x/.test('y');\nconst g = (a) => /z/.test(a);\n" +
-			"function h(n) { return /r/.test(n) || typeof /t/ === 'object' || void /v/; }\nlet m = 3; m++; m--;\nconst w = m++ / 2 + -/k/.source.length;\n"
+			"function h(n) { return /r/.test(n) || typeof /t/ === 'object' || void /v/; }\nlet m = 3; m++; m--;\nconst w = m++ / 2 + -/k/.source.length;\n" +
+			"const bb = !!/y/.test('z') && (q ? /b/ : /c/).test('d') ? [1].length / 2 : 'x'.length / 2;\n"
 		checkBarrel(t, strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1), map[string]string{
 			"app/tables/routes/index.ts": "export * from './routes.constants';\n", decl: table + reads}, "", "app/tables/routes/index.ts")
 	})

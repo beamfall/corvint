@@ -54,21 +54,107 @@ const substMark = "\x00"
 var (
 	controlKeywords = map[string]bool{"if": true, "while": true, "for": true, "with": true}
 	// regexKeywords are the reserved words after which a `/` starts a regular expression; a
-	// division cannot follow them. contextualKeywords may also be plain names (`let of = 4; of / 2`).
+	// division cannot follow them. A `/` after doubtWords may be either: contextual keywords that
+	// may also be plain names (`let of = 4; of / 2`), and `debugger`, which ends a statement.
 	regexKeywords = map[string]bool{"return": true, "typeof": true, "case": true, "in": true,
 		"else": true, "do": true, "void": true, "delete": true, "throw": true, "new": true,
 		"instanceof": true, "extends": true, "default": true, "break": true, "continue": true}
-	contextualKeywords = map[string]bool{"of": true, "yield": true, "await": true}
+	doubtWords = map[string]bool{"of": true, "yield": true, "await": true, "debugger": true}
+	// regexAfter is the closed list of punctuation after which only an expression can start, so
+	// a `/` there surely starts a regular expression. `+`, `-`, `!`, `)` and `>` are decided by
+	// regexStarts; after any other punctuation a `/` is doubt.
+	regexAfter = map[string]bool{"(": true, ",": true, "=": true, ":": true, "[": true, "?": true,
+		"~": true, "&": true, "|": true, "^": true, "*": true, "%": true, ";": true, "{": true, "/": true}
 )
+
+// regexStarts reports whether a `/` after toks starts a regular expression, and whether that is
+// sure. A regular expression is sure only after a token from a closed list that can precede
+// nothing but an expression (the start, regexAfter, a regexKeywords word, a prefix `!` run there,
+// an odd `+`/`-` run); a division is sure only after a token that can only end an operand (a
+// name, a property, a literal, `]`, a `)` closing no control head, an even `++`/`--` run). control
+// tells whether a final `)` closes a control head (1), does not (0) or is not known (-1). Every
+// other predecessor is doubt: `}`, `<`, a `>` not of `=>`, `.`, a label after break/continue, and
+// a `!` run after an operand (a TypeScript postfix `x!`).
+func regexStarts(toks []token, control int) (re, sure bool) {
+	n := len(toks)
+	if n == 0 {
+		return true, true
+	}
+	p := toks[n-1]
+	switch p.kind {
+	case tokIdent:
+		switch {
+		case property(toks, n-1):
+			return false, true
+		case regexKeywords[p.text]:
+			return true, true
+		case doubtWords[p.text], word(toks, n-2, "break"), word(toks, n-2, "continue"):
+			return false, false // `break label` ends a statement; a regular expression may follow
+		}
+		return false, true
+	case tokPunct:
+		switch p.text {
+		case ")":
+			return control == 1, control >= 0
+		case "]":
+			return false, true
+		case ">":
+			return true, p.glued && isPunct(toks[n-2], "=") // `=>`; else doubt (type arguments' end, a comparison)
+		case "!":
+			// A `!` run is a prefix operator only where an expression surely starts.
+			k := n - 1
+			for k >= 0 && isPunct(toks[k], "!") {
+				k--
+			}
+			if re, sure := regexStarts(toks[:k+1], -1); re && sure {
+				return true, true
+			}
+			return false, false
+		case "+", "-":
+			// Maximal munch: an even run ends in `++`/`--`, which no regular expression follows
+			// (`n++ / 2`; `++/re/` is an early error); an odd run ends in a binary or unary operator.
+			run := 1
+			for k := n - 1; k > 0 && toks[k].glued && toks[k-1].text == p.text; k-- {
+				run++
+			}
+			return run%2 == 1, true
+		}
+		return regexAfter[p.text], regexAfter[p.text]
+	}
+	return false, true // a number, string, template or regular expression
+}
+
+// lineEnd returns the index of the first line terminator (LF, CR, U+2028, U+2029) in text at or
+// after i, or len(text).
+func lineEnd(text string, i int) int {
+	for j := i; j < len(text); j++ {
+		if text[j] == '\n' || text[j] == '\r' || terminatorAt(text, j) {
+			return j
+		}
+	}
+	return len(text)
+}
+
+// oddEnd reports whether the line terminator at text[j] is one the line count does not see: a lone
+// CR, U+2028 or U+2029. A comment or hashbang it ends is doubt, since a reader built on lines
+// would not expect code after it on the same counted line.
+func oddEnd(text string, j int) bool {
+	return j < len(text) && text[j] != '\n' && !(text[j] == '\r' && (j+1 == len(text) || text[j+1] == '\n'))
+}
+
+// terminatorAt reports whether text holds U+2028 or U+2029 at i.
+func terminatorAt(text string, i int) bool {
+	return strings.HasPrefix(text[i:], "\u2028") || strings.HasPrefix(text[i:], "\u2029")
+}
 
 // lexJS tokenizes text and returns the tokens and a copy of text with every comment and literal
 // body blanked to spaces (newlines kept), for line-shaped scans of code only. Where it cannot be
 // sure the tokens show all the code, it marks the first token unsure, so a reader that must see
 // every use of a name fails closed: a `/` it cannot place as a regular expression or a division
-// (after `}`, a contextual keyword, a TypeScript postfix `!`, a `<` or `>`), a regular expression
-// or string or block comment with no end, a line terminator other than `\n` ending a `//`
-// comment, a non-ASCII identifier character that is not a letter, digit or mark (a Unicode space
-// splits the name), or an HTML-like comment (`<!--`, `-->` opening a line).
+// (see regexStarts), a regular expression or string or block comment with no end, a `//` comment
+// or hashbang line ended by a lone CR, U+2028 or U+2029 (it ends there, as in JavaScript), a
+// non-ASCII identifier character that is not a letter, digit or mark (a Unicode space splits the
+// name), or an HTML-like comment (`<!--`, `-->`). Line terminators are LF, CR, U+2028 and U+2029.
 
 func lexJS(text string) ([]token, string) {
 	toks := []token{}
@@ -85,55 +171,10 @@ func lexJS(text string) ([]token, string) {
 	// parens records, for each open '(', whether it opens a control-statement condition; after
 	// its ')' a '/' starts a regular expression (if (x) /re/.test(s)), not a division.
 	parens, closedControl := []bool{}, false
-	// regexStarts reports whether a `/` here starts a regular expression, and whether that is
-	// sure; a keyword after `.` is a property name (`o.return / 2`).
-	regexStarts := func() (bool, bool) {
-		n := len(toks)
-		if n == 0 {
-			return true, true
-		}
-		p := toks[n-1]
-		switch p.kind {
-		case tokIdent:
-			if property(toks, n-1) {
-				return false, true
-			}
-			if contextualKeywords[p.text] {
-				return true, false
-			}
-			return regexKeywords[p.text], true
-		case tokPunct:
-			switch p.text {
-			case ")":
-				return closedControl, true
-			case "]":
-				return false, true
-			case "}":
-				return false, false // a block's end (a regex follows) or an object or function expression's
-			case "<":
-				return true, false // a JSX closing tag `</a>`, or a comparison
-			case ">":
-				return true, p.glued && isPunct(toks[n-2], "=") // `=>`; else type arguments' end (`x as T<U> / 2`) or a comparison
-			case "!":
-				return true, n == 1 || !operandEnd(toks, n-2) // after an operand, a TypeScript non-null `x! / 2`
-			case "+", "-":
-				// Maximal munch: an even run ends in `++`/`--`, which no regular expression follows
-				// (`n++ / 2`; `++/re/` is an early error); an odd run ends in a binary or unary operator.
-				run := 1
-				for k := n - 1; k > 0 && toks[k].glued && toks[k-1].text == p.text; k-- {
-					run++
-				}
-				return run%2 == 1, true
-			}
-			return true, true
-		}
-		return false, true
-	}
 	i := 0
 	if strings.HasPrefix(text, "#!") { // a hashbang line is a comment
-		for i < len(text) && text[i] != '\n' {
-			i++
-		}
+		i = lineEnd(text, 0)
+		doubt = oddEnd(text, i)
 		blank(0, i)
 	}
 	for i < len(text) {
@@ -144,15 +185,13 @@ func lexJS(text string) ([]token, string) {
 			i++
 		case c == ' ' || c == '\t' || c == '\r':
 			i++
+		case terminatorAt(text, i): // U+2028, U+2029: line terminators the line count does not track
+			i += len("\u2028")
 		case c == '/' && i+1 < len(text) && text[i+1] == '/':
-			j := strings.IndexByte(text[i:], '\n')
-			if j < 0 {
-				j = len(text) - i
-			}
-			// JavaScript also ends the comment at a lone `\r`, U+2028 or U+2029.
-			doubt = doubt || strings.ContainsAny(strings.TrimSuffix(text[i:i+j], "\r"), "\r\u2028\u2029")
-			blank(i, i+j)
-			i += j
+			j := lineEnd(text, i)
+			doubt = doubt || oddEnd(text, j)
+			blank(i, j)
+			i = j
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
 			j := strings.Index(text[i+2:], "*/")
 			end := len(text)
@@ -183,7 +222,11 @@ func lexJS(text string) ([]token, string) {
 			i = end
 		case c == '/':
 			// A regular-expression literal closes on its own line; one that does not was misread.
-			re, sure := regexStarts()
+			control := 0
+			if closedControl {
+				control = 1
+			}
+			re, sure := regexStarts(toks, control)
 			doubt = doubt || !sure
 			j := -1
 			if re {
@@ -227,9 +270,9 @@ func lexJS(text string) ([]token, string) {
 					closedControl, parens = parens[n-1], parens[:n-1]
 				}
 			}
-			// An HTML-like comment (Annex B, scripts only): `<!--` anywhere, `-->` opening a line.
-			doubt = doubt || strings.HasPrefix(text[i:], "<!--") ||
-				strings.HasPrefix(text[i:], "-->") && (len(toks) == 0 || toks[len(toks)-1].line < line)
+			// An HTML-like comment (Annex B, scripts only): `<!--` anywhere, `-->` opening a line (any
+			// `-->`, since a line may also start after a CR, U+2028 or U+2029).
+			doubt = doubt || strings.HasPrefix(text[i:], "<!--") || strings.HasPrefix(text[i:], "-->")
 			toks = append(toks, token{kind: tokPunct, text: string(c), line: line, glued: glued(toks, text, i)})
 			i++
 		}
@@ -245,18 +288,6 @@ func lexJS(text string) ([]token, string) {
 func glued(toks []token, text string, i int) bool {
 	n := len(toks)
 	return n > 0 && i > 0 && toks[n-1].kind == tokPunct && toks[n-1].text == text[i-1:i]
-}
-
-// operandEnd reports whether toks[k] can end an operand, so that a following `!` is a TypeScript
-// non-null assertion rather than a prefix `!`.
-func operandEnd(toks []token, k int) bool {
-	switch t := toks[k]; t.kind {
-	case tokIdent:
-		return property(toks, k) || !regexKeywords[t.text]
-	case tokPunct:
-		return t.text == ")" || t.text == "]" || t.text == "}"
-	}
-	return true // a number, string, template or regular expression
 }
 
 // identChars reports whether every non-ASCII character of an identifier the lexer read is one
@@ -288,7 +319,7 @@ func readQuoted(text string, i int) (string, bool, bool, int) {
 	var b strings.Builder
 	inexact := false
 	j := i + 1
-	for j < len(text) && text[j] != q && text[j] != '\n' {
+	for j < len(text) && text[j] != q && text[j] != '\n' && text[j] != '\r' {
 		if text[j] == '\\' && j+1 < len(text) {
 			var ok bool
 			j, ok = unescape(&b, text, j+1)
@@ -443,11 +474,15 @@ func readTemplate(text string, i int) (string, bool, bool, bool, int) {
 func regexEnd(text string, i int) int {
 	inClass := false
 	for j := i + 1; j < len(text); j++ {
-		switch text[j] {
-		case '\n':
+		if text[j] == '\n' || text[j] == '\r' || terminatorAt(text, j) {
 			return -1
+		}
+		switch text[j] {
 		case '\\':
 			j++
+			if j < len(text) && (text[j] == '\n' || text[j] == '\r' || terminatorAt(text, j)) {
+				return -1
+			}
 		case '[':
 			inClass = true
 		case ']':

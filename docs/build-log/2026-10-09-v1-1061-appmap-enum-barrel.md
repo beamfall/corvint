@@ -97,6 +97,24 @@ injector.
   non-literal or unresolved specifier fails closed. This makes AMAP-V0-025/026 stricter than the
   accepted text, which left writes through another binding as a third-module limit; the spec
   amendment records the stricter rule under decision 0475's fail-closed intent.
+- Ninth review (structural, no spec text change): `regexStarts` is now a standalone function
+  that answers "regular expression, surely" only from a closed allowlist of predecessors: the
+  start, `( , = : [ ? ~ & | ^ * % ; { /`, a `regexKeywords` word, an odd `+`/`-` run, a `)`
+  closing a control head, a `=>`, and a `!` run whose own predecessor is on that list. Division is
+  sure only after a name, a property, a literal, `]`, a `)` closing no control head, or an even
+  `++`/`--` run; everything else is doubt, including a `!` run after an operand (`n!! / x`, the
+  TypeScript postfix non-null), `debugger`, a label after `break`/`continue`, `.`, `>>` and `<`.
+  Line terminators are exactly LF, CR, U+2028 and U+2029 everywhere: a hashbang or `//` comment
+  ends at the first of them and is doubt when that is a lone CR or a separator (code after it
+  shares the counted line); strings and regular expressions end unclosed at any of them, and
+  U+2028/U+2029 in code are whitespace. `bindingsRead` now checks, in every chain file, every
+  import from a module that may hold the table under any name (`mayHold`: the declaring file, a
+  file that re-exports or exports a name it imports, one the reader cannot read, or an
+  unresolved specifier) with `onlyRead`, whatever name it imports, so the declaring file's
+  `default`, a barrel's rename and a relaying file's alias are all covered; imports of the
+  table's names from any module stay checked as before. This applies the accepted AMAP-V0-025
+  rule ("every other binding of the table it holds") to names the earlier code did not list, so
+  the spec text is unchanged.
 
 ## Evidence
 
@@ -191,6 +209,17 @@ injector.
   new `TestAMAPV0025JSXFileUnread`. Against `jslex.go`, `stateconst.go` and `stateinject.go` from
   `92882561`, 70 subtests resolve silently (3 injected, 14 chain, 2 JSX, 40 unread-declaring, 12
   possible-writes); the reads guards pass before and after; all pass with the fix.
+- Ninth review follow-up (repeated non-null `!` read as a prefix; `default`/renamed/relayed
+  bindings unchecked; hashbang ended by CR or a separator): `TestAMAPV0025UnreadDeclaringFileFailsClosed`
+  gained `n!! / (...)`, a regular expression after `break label` and after `debugger` (four
+  shapes each); `TestAMAPV0025ChainBindingsFailClosed` gained a default import of the declaring
+  file, the original name imported beside a barrel rename, and an alias through a relaying file;
+  new `TestAMAPV0025HashbangLineEnds` (CR, U+2028, U+2029; direct and star) with a CRLF reads
+  guard. The reads guards gained an import of another table and of a plain module's function
+  (still resolved) and `!!/re/`, `? /re/ :` regular expressions. Against `jslex.go` and
+  `stateconst.go` from `0939aeb7`, 21 subtests resolve silently (12 unread-declaring, 3 chain, 6
+  hashbang); the reads guards pass before and after; all pass with the fix. The full
+  `go test -count=1 ./internal/appmap` passes (AMAP: 72 tests, 335 subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -206,9 +235,11 @@ injector.
   (more uncertainty, never less). The lexer fails closed where it cannot place a `/` or a
   literal end, but a wrong sure answer it still believes would hide tokens undetected; the sure
   rules are the ECMAScript ones for the previous token (identifier, keyword, punctuator, literal)
-  without a full grammar. The fail-closed lexing over-reports: a `/` after `}` or `of`, TypeScript
-  `x! / y`, `f<T>() / y`, `a-->b`, and any `.tsx`/`.jsx` file with `<` (generics included) make a
-  file unread. An `unread` file also blocks an otherwise
+  without a full grammar; a regular expression is sure only after an allowlisted predecessor.
+  The fail-closed lexing over-reports: a `/` after `}`, `of`, `debugger`, `.`, `>>`, a label after
+  `break`/`continue`, TypeScript `x! / y` or `x!! / y`, `if (c) !/re/`, `f<T>() / y`, any `-->`,
+  a `//` comment or hashbang ended by a lone CR or U+2028/U+2029, and any `.tsx`/`.jsx` file
+  with `<` (generics included) make a file unread. An `unread` file also blocks an otherwise
   well-formed named re-export. The pure-read rule over-reports: provable reads such as `X.Y < z`,
   `X.Y != z`, `X.Y in o`, `X.Y as T`, `X.Y ? a : b`, `X.Y ?? d`, `X.Y?.length`, `X.Y(...)` (any
   call through the table), any `delete`, `++` or `--` earlier in the same statement outside a
@@ -223,7 +254,9 @@ injector.
   writes from a module off the AMAP-V0-025 chain stay unread, as the spec states. On the chain,
   another binding of the table fails closed rather than being read: a namespace import of an
   unresolved or undeclared package, or of any file that re-exports, makes the table not read
-  whole even where the file never touches it. The router-side (AMAP-V0-016, not injected) path
+  whole even where the file never touches it, and any import from the declaring file, a barrel,
+  a file that relays an import or an unresolved module must be only read, whatever it imports
+  (a function imported from the declaring file and called fails closed). The router-side (AMAP-V0-016, not injected) path
   does not yet apply the chain-binding check to alias and namespace imports; that needs
   AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
   unsure mark. The bracket

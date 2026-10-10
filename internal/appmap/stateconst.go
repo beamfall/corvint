@@ -69,6 +69,7 @@ type constFile struct {
 	// marks a file whose exports the reader cannot list (see unread), so it may export any name;
 	// claimed holds the `export` tokens a reader consumed, for that check.
 	exports  map[string]bool
+	listed   map[string]bool // the local names of `export { local as name }` lists
 	unlisted bool
 	claimed  map[int]bool
 	skip     []bool // tokens of import and re-export statements and constant declaration headers
@@ -205,36 +206,58 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, di bo
 }
 
 // bindingsRead reports whether every other binding f holds of a table that decl declares is only
-// read: each import of one of names under a local other than skip (an alias `import { T as U }`,
-// from any module, so another table of the same name counts too) must pass onlyRead, and no
-// namespace import, dynamic import, `require` or unread import item may reach a module of the
-// repository that is decl, could re-export it or cannot be read (AMAP-V0-025). A module name that
-// is not an exact literal, or a relative one the reader cannot resolve without an index, could be
-// any of them, and so could an unresolved specifier; a package cannot hold the table.
+// read (AMAP-V0-025). An import under a local other than skip must pass onlyRead when it imports
+// one of names (an alias `import { T as U }`, from any module, so another table of the same name
+// counts too) or whatever name it imports from a module that may hold the table (mayHold): the
+// declaring file's default, a re-export alias along the chain, or any other export of it is then
+// not provably a different value. No namespace import, dynamic import, `require` or unread import
+// item may reach such a module at all.
 func (t *constTable) bindingsRead(f, decl *constFile, skip string, names ...string) bool {
 	for local, imp := range f.imports {
-		if local != skip && slices.Contains(names, imp.exported) && !f.onlyRead(local, -1) {
+		if local != skip && (slices.Contains(names, imp.exported) || t.mayHold(f, imp.module, decl)) &&
+			!f.onlyRead(local, -1) {
 			return false
 		}
 	}
 	for _, m := range f.spaces {
-		if m == "" || t.resolver == nil && (strings.HasPrefix(m, ".") || strings.HasPrefix(m, "/")) {
+		if t.mayHold(f, m, decl) {
 			return false
-		}
-		if t.resolver == nil {
-			continue // a package, out of scope
-		}
-		switch res := t.resolver.Resolve(f.entry.path, m); res.State {
-		case contextindex.WebImportPackage:
-		case contextindex.WebImportRepository:
-			if h := t.file(res.Target); h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 {
-				return false // an unreadable file, the table's own, or one that may re-export it
-			}
-		default:
-			return false // an unresolved specifier may name any file of the repository
 		}
 	}
 	return true
+}
+
+// mayHold reports whether module m, imported by f, may export the table decl declares under some
+// name: decl itself, a file of the repository that re-exports or exports a name it imports (a
+// barrel on the chain or any other), or one the reader cannot read. A module name that is not an
+// exact literal, a relative one the reader cannot resolve without an index, and an unresolved
+// specifier could be any of them; a package cannot hold the table.
+func (t *constTable) mayHold(f *constFile, m string, decl *constFile) bool {
+	if m == "" {
+		return true
+	}
+	if t.resolver == nil {
+		return strings.HasPrefix(m, ".") || strings.HasPrefix(m, "/")
+	}
+	switch res := t.resolver.Resolve(f.entry.path, m); res.State {
+	case contextindex.WebImportPackage:
+		return false
+	case contextindex.WebImportRepository:
+		h := t.file(res.Target)
+		return h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 || h.relays()
+	}
+	return true
+}
+
+// relays reports whether f exports a binding it imports (`import { T } from './a'; export { T }`,
+// `export default T`, or an export statement naming it).
+func (f *constFile) relays() bool {
+	for local := range f.imports {
+		if f.exports[local] || f.listed[local] || f.dflt == local {
+			return true
+		}
+	}
+	return false
 }
 
 // tableNames are the names an import of the table g declares as name binds: name, and "default"
@@ -613,7 +636,7 @@ func inExportList(toks []token, i int) bool {
 func parseConstFile(e blobEntry, data []byte) *constFile {
 	toks, _ := lexJS(string(data))
 	f := &constFile{entry: e, data: data, toks: toks, decls: map[string]*constDecl{}, imports: map[string]constImport{},
-		exports: map[string]bool{}, claimed: map[int]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{},
+		exports: map[string]bool{}, listed: map[string]bool{}, claimed: map[int]bool{}, skip: make([]bool, len(toks)), reads: map[readKey]bool{},
 		hidden: map[string]bool{}}
 	declare := func(name string, d *constDecl) {
 		if prior, dup := f.decls[name]; dup {
@@ -995,7 +1018,7 @@ func (f *constFile) readReexport(i int) (int, bool) {
 		f.claimed[i] = true
 		if !typeOnly {
 			for _, r := range items {
-				f.exports[r.exported] = true
+				f.exports[r.exported], f.listed[r.source] = true, true
 			}
 			f.opaque = f.opaque || opaque
 			if quoted {
