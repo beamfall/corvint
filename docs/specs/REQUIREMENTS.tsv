@@ -70,7 +70,7 @@ AFP-V0-036	docs/specs/affected-plan-v0.md	755	(proposed (V1-0984); no GitHub iss
 AFP-V0-037	docs/specs/affected-plan-v0.md	774	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
 AFP-V0-038	docs/specs/affected-plan-v0.md	804	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
 AFP-V0-039	docs/specs/affected-plan-v0.md	815	(proposed (V1-0662); no GitHub issue) A Go test fixture under
-AFP-V0-040	docs/specs/affected-plan-v0.md	828	(proposed, experimental, 2026-10-10; no ticket; no GitHub issue; pending owner
+AFP-V0-040	docs/specs/affected-plan-v0.md	828	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and

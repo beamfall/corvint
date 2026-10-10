@@ -75,7 +75,8 @@ only when an operator scrapes the logs and runs it by hand.
   `ci-control-plane` status (AFP-V0-016) before it can merge.
 - Every pull-request run with tests reports against the table on its own tested tree. A PR that
   makes a package slower will warn on that PR; that is intended, and is advisory.
-- AFP-V0-040 is proposed and experimental pending owner acceptance.
+- AFP-V0-040 is accepted by decision 0487 (owner approval in chat, 2026-10-10); acceptance settles
+  intent only, and hosted behaviour stays `NOT_OBSERVED`.
 
 ## Rollback
 
