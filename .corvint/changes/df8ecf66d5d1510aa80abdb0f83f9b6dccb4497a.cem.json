@@ -1,0 +1,150 @@
+{
+  "baseRevision": "3beedd981f0d71f604175860a7f09e6d869c5687",
+  "evidence": [
+    {
+      "blobOid": "079c639227468142b5320d1eb3f0ba181fdd97b8",
+      "id": "evidence:sha256:d2ca81c6baef49be75f32014b148e877379b47bef7cb6eb1464292bbd9cf0d0f",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 59453,
+        "start": 59175
+      },
+      "spanSha256": "46446b279c01bd9057de7c958d71a1e8b3d2fcebac8ae03b6646c7f752b9e8f6"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3780,
+        "start": 3294
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d2ca81c6baef49be75f32014b148e877379b47bef7cb6eb1464292bbd9cf0d0f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bdbe39e4745999cf34a3d82834c99843ae260fb8c8b42b1c46367b40fc43b697",
+      "newRange": {
+        "count": 8,
+        "start": 510
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 510
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d2ca81c6baef49be75f32014b148e877379b47bef7cb6eb1464292bbd9cf0d0f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e3c48824cae903d857bdbf90c32c21a459700724ddb49768310098b836e6da7a",
+      "newRange": {
+        "count": 22,
+        "start": 523
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 521
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eb4cb755849d928935c7c34e24fe65c36345df1052971f812eb925bd107470d5",
+      "newRange": {
+        "count": 44,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-windows-test-vet.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4ba8aabefbe15fc1dbec06eec7480478e72046fa495ffff8293d258dc5071842",
+      "newRange": {
+        "count": 7,
+        "start": 71
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 71
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e79fb28d7e62bf469b0b4b8c7fa227b928e8bc8b8ebbe47d96858d6808e9e3a3",
+      "newRange": {
+        "count": 26,
+        "start": 869
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 869
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eb0d954a909bc01e1d5e4cb1dc4d4a449d5e57b415b98cadf0d81baf75d935c5",
+      "newRange": {
+        "count": 7,
+        "start": 973
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 953
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1e966e908c7d4b442f31c893753aea6bde894bcdf4c531a0a331d56cf51ecede",
+  "spec": "cem/0.2"
+}
