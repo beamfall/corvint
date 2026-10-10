@@ -1,0 +1,150 @@
+{
+  "baseRevision": "60c419d7806218bde77cb1b5dd411b51fb586892",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3265,
+        "start": 2977
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    },
+    {
+      "blobOid": "fafc2e833454511de866a8c992b1eeabc40a7a1b",
+      "id": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+      "path": "docs/specs/host-lifecycle-qualification-v1.md",
+      "span": {
+        "end": 12179,
+        "start": 11231
+      },
+      "spanSha256": "482dc66f082939e7d6741388c084197941e55928c3c152acdaa2368e6a9a6b1a"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5fa0d1aec133d3549c2e28c878c7a7f83524439a3c2de21f1eed45f1ec103848",
+      "newRange": {
+        "count": 12,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 6
+      },
+      "path": "docs/build-log/2026-10-10-hlq-load-failures.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9424771be924002baad4312f9ceb78c181db155fb222b42845a95e15b8bb598c",
+      "newRange": {
+        "count": 40,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0498-hlq-v1-010-failed-report-retention-accepted-2026-10-10.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0f9f4b57b68a3ca567dac929f18d542cf51c8c4409eb832c8ecb06a809215767",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2bad1aea0bf9cdb867ca85fca4c7ff7b8a2952f80d3e8c569a9d3d8578c1cdbf",
+      "newRange": {
+        "count": 7,
+        "start": 1699
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1699
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:69604531a8f0fdd00180e3ad13b41f976f06cc181f62e8db5a0e810273167632",
+      "newRange": {
+        "count": 7,
+        "start": 113
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 113
+      },
+      "path": "docs/specs/host-lifecycle-qualification-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:45d45df201eb6569da0da8969154c784a02f1248ae7554e1a47928527a6535b3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7ddd931149a1c33853d342992974cbd5fc9e3342c0a6df74750a7a94feb24dfa",
+      "newRange": {
+        "count": 7,
+        "start": 135
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 135
+      },
+      "path": "docs/specs/host-lifecycle-qualification-v1.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3c6730914f8681613b8307ba9760c4f066b6b497c86372eda8929fd6c4bde83f",
+  "spec": "cem/0.2"
+}
