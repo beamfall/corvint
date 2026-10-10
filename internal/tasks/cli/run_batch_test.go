@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -606,7 +607,8 @@ func TestTOLV0030_RefusedReleaseFailsTheJob(t *testing.T) {
 	q := atm(t, r2.Root, nil, append([]string{"qualify", "--config", config, "--spec", "e2e/ok.spec.ts", "--base", "HEAD", "--out", out, "--request-id", "q1"}, lane2...)...)
 	v := field(q.res.Items[0], "verdict").Str
 	reasons := field(q.res.Items[0], "reasons").Arr
-	if v != "NOT_QUALIFIED" || len(reasons) != 1 || !strings.HasPrefix(reasons[0].Str, "LANE_FAILED: release: ") {
+	if v != "NOT_QUALIFIED" || len(reasons) != 1 || !strings.HasPrefix(reasons[0].Str, "LANE_FAILED: release: ") ||
+		!hasCode(q.res, wire.CodeResourceCollision) || hasCode(q.res, wire.CodeGateFailed) {
 		t.Fatalf("qualify with a refused release: %s", q.stdout)
 	}
 }
@@ -630,6 +632,12 @@ func TestTOLV0030_AcquireRefusalCodeIsTheJobs(t *testing.T) {
 	x := atm(t, r.Root, nil, append([]string{"run-batch", id, "--config", rbConfig(t, test, nil), "--spec", "e2e/ok.spec.ts", "--out", out, "--request-id", "b1"}, lane...)...)
 	if x.res.Outcome == wire.OutcomeOK || hasCode(x.res, wire.CodeGateFailed) || !hasCode(x.res, again.res.Codes[0]) || rbRuns(t, counter) != 0 {
 		t.Fatalf("run-batch with a refused acquire (want %v): %s", again.res.Codes, x.stdout)
+	}
+	// Codex round 2, finding 6: qualify returns the acquisition's code too.
+	q := atm(t, r.Root, nil, append([]string{"qualify", "--config", rbConfig(t, test, nil), "--spec", "e2e/ok.spec.ts", "--base", "HEAD", "--out", out, "--request-id", "q1"}, lane...)...)
+	if q.res.Outcome == wire.OutcomeOK || hasCode(q.res, wire.CodeGateFailed) || !hasCode(q.res, again.res.Codes[0]) ||
+		field(q.res.Items[0], "verdict").Str != "NOT_QUALIFIED" || rbRuns(t, counter) != 0 {
+		t.Fatalf("qualify with a refused acquire (want %v): %s", again.res.Codes, q.stdout)
 	}
 }
 
@@ -680,5 +688,212 @@ func TestTOLV0033_ManifestStreamsAnOversizedArtifact(t *testing.T) {
 	}
 	if grew := after.TotalAlloc - before.TotalAlloc; grew >= size*3/4 {
 		t.Fatalf("qualify allocated %d bytes for a %d-byte artifact; the manifest must stream it", grew, size)
+	}
+}
+
+// atmWithin is atm bounded by d, so a job that would block forever fails
+// the test instead of hanging it.
+func atmWithin(t *testing.T, d time.Duration, cwd string, args ...string) run {
+	t.Helper()
+	done := make(chan run, 1)
+	go func() {
+		var out, errb bytes.Buffer
+		code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+		done <- run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
+	}()
+	select {
+	case x := <-done:
+		res, err := wire.DecodeResult(x.stdout)
+		if err != nil {
+			t.Fatalf("%v: envelope does not decode: %v\n%s", args, err, x.stdout)
+		}
+		x.res = res
+		return x
+	case <-time.After(d):
+		t.Fatalf("%v did not finish within %s", args, d)
+	}
+	return run{}
+}
+
+// rbWrap runs the fake test command, then shell, keeping its exit status.
+func rbWrap(test []string, shell string) []string {
+	return []string{"sh", "-c", "sh '" + test[1] + "' \"$@\"; rc=$?; " + shell + "; exit $rc", "sh"}
+}
+
+// TOL-V0-033 (Codex round 2, finding 1): a FIFO at the report path is
+// refused unread, so the job neither blocks nor credits; the capture still
+// runs. The same holds when the capture swaps the report for a FIFO or
+// changes it before the witness reads it again.
+func TestTOLV0033_ReportPathMustBeARegularFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no FIFOs on Windows")
+	}
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	test, _ := rbTools(t)
+	cases := []struct{ name, testShell, capture, warning, code string }{
+		{"fifo report", "rm -f \"$PLAYWRIGHT_JSON_OUTPUT_NAME\"; mkfifo \"$PLAYWRIGHT_JSON_OUTPUT_NAME\"", "true", "holds no regular file", wire.CodeGateFailed},
+		{"fifo swapped in by the capture", "true", "rm -f \"$CORVINT_RUN_DIR/test/report.json\"; mkfifo \"$CORVINT_RUN_DIR/test/report.json\"", "holds no regular file", wire.CodeMalformed},
+		{"report changed by the capture", "true", "printf ' ' >> \"$CORVINT_RUN_DIR/test/report.json\"", "LANE_FAILED: the report changed after the test run", wire.CodeGateFailed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, id := obligationBatchRepo(t)
+			config := rbConfig(t, rbWrap(test, tc.testShell), func(c map[string]any) {
+				c["captureCommand"] = []string{"sh", "-c", tc.capture + "; echo captured > \"$CORVINT_RUN_DIR/captured.log\""}
+			})
+			out := filepath.Join(t.TempDir(), "out")
+			x := atmWithin(t, 2*time.Minute, r.Root, runBatchArgs(id, config, out, "b1")...)
+			if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, tc.code) || !strings.Contains(string(x.stdout), tc.warning) {
+				t.Fatalf("run-batch: %s", x.stdout)
+			}
+			if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "OPEN" {
+				t.Fatalf("credited from a report that is not the run's regular file: %v", got)
+			}
+			if _, err := os.Stat(filepath.Join(out, "b1", "captured.log")); err != nil {
+				t.Fatalf("the capture did not run: %v", err)
+			}
+			if s := readSummary(t, filepath.Join(out, "b1", "summary.json")); s.Witness.Written {
+				t.Fatalf("summary: %s", causeLine(s))
+			}
+		})
+	}
+	t.Run("qualify", func(t *testing.T) {
+		root, _ := qualifyRepo(t, []rbSpec{rbPass("e2e/a/cand.spec.ts", "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
+		config := rbConfig(t, rbWrap(test, cases[0].testShell), nil)
+		done := make(chan verdictDoc, 1)
+		go func() { _, v, _ := qualifyRun(t, root, config); done <- v }()
+		select {
+		case v := <-done:
+			if v.Verdict != "NOT_QUALIFIED" || len(v.Reasons) != 1 || !strings.HasPrefix(v.Reasons[0], "CANDIDATE_FAILURE: run 1 produced no admissible report") {
+				t.Fatalf("qualify: %+v", v)
+			}
+		case <-time.After(2 * time.Minute):
+			t.Fatal("qualify blocked on a FIFO report")
+		}
+	})
+}
+
+// TOL-V0-033 (Codex round 2, finding 2): the manifest records a symlink and
+// a FIFO by type without following or opening them, and lists a file above
+// the per-file bound by size without hashing it.
+func TestTOLV0033_ManifestRecordsNonRegularEntriesByType(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no FIFOs or /dev/zero on Windows")
+	}
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	root, _ := qualifyRepo(t, []rbSpec{rbPass("e2e/a/cand.spec.ts", "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
+	test, _ := rbTools(t)
+	config := rbConfig(t, rbWrap(test, "ln -sf /dev/zero \"$CORVINT_RUN_DIR/zero\"; mkfifo \"$CORVINT_RUN_DIR/pipe\"; "+
+		"dd if=/dev/zero of=\"$CORVINT_RUN_DIR/big\" bs=1048576 seek=1025 count=0 2>/dev/null"), nil)
+	type entry struct {
+		Path, Type, Sha256 string
+		Size               int64
+	}
+	done := make(chan []entry, 1)
+	go func() {
+		x, v, dir := qualifyRun(t, root, config)
+		var m struct{ Files []entry }
+		raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+		if err != nil || json.Unmarshal(raw, &m) != nil || v.Verdict != "QUALIFIED" {
+			t.Errorf("qualify %s: %v %s", v.Verdict, err, x.stdout)
+		}
+		done <- m.Files
+	}()
+	var files []entry
+	select {
+	case files = <-done:
+	case <-time.After(2 * time.Minute):
+		t.Fatal("the manifest followed a symlink or opened a FIFO")
+	}
+	got := map[string]entry{}
+	for _, e := range files {
+		got[e.Path] = e
+	}
+	want := map[string]entry{"zero": {Path: "zero", Type: "SYMLINK"}, "pipe": {Path: "pipe", Type: "FIFO"}, "big": {Path: "big", Type: "FILE_OVER_LIMIT", Size: 1025 << 20}}
+	for p, w := range want {
+		if g := got[p]; g != w {
+			t.Fatalf("%s: got %+v, want %+v (manifest %+v)", p, g, w, files)
+		}
+	}
+	if g := got["verdict.json"]; g.Type != "FILE" || len(g.Sha256) != 64 {
+		t.Fatalf("verdict.json: %+v", g)
+	}
+}
+
+// TOL-V0-033 (Codex round 2, finding 3): a summary.json a command planted
+// as a symlink is never followed: the file it points at is unchanged, the
+// job refuses and nothing is credited.
+func TestTOLV0033_PlantedSummarySymlinkIsRefused(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id := obligationBatchRepo(t)
+	test, _ := rbTools(t)
+	other := filepath.Join(t.TempDir(), "other.txt")
+	fixture.Write(t, other, []byte("keep\n"))
+	config := rbConfig(t, rbWrap(test, "ln -s '"+other+"' \"$CORVINT_RUN_DIR/summary.json\""), nil)
+	out := filepath.Join(t.TempDir(), "out")
+	x := atm(t, r.Root, nil, runBatchArgs(id, config, out, "b1")...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeGateFailed) || !strings.Contains(string(x.stdout), "already holds summary.json") {
+		t.Fatalf("run-batch: %s", x.stdout)
+	}
+	if raw, err := os.ReadFile(other); err != nil || string(raw) != "keep\n" {
+		t.Fatalf("the symlink target was written: %q %v", raw, err)
+	}
+	if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "OPEN" {
+		t.Fatalf("a job with a planted summary credited: %v", got)
+	}
+}
+
+// TOL-V0-033 (Codex round 2, finding 4): an interrupted witness phase is
+// LANE_FAILED even when it would have credited nothing.
+func TestTOLV0033_ZeroCreditInterruptIsLaneFailed(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id := obligationBatchRepo(t)
+	test, _ := rbTools(t)
+	var cancel context.CancelFunc
+	defer cli.SetJobInterruptContext(func() (context.Context, context.CancelFunc) {
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+		return ctx, cancel
+	})()
+	defer cli.SetWitnessEvidenceReadHook(func() { cancel() })()
+	out := filepath.Join(t.TempDir(), "out")
+	// AC-2 fails, so the witness would credit nothing.
+	x := atm(t, r.Root, nil, runBatchArgs(id, rbConfig(t, test, nil), out, "b1", "--ids", "AC-2")...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeGateFailed) ||
+		!strings.Contains(strings.Join(x.res.Warnings, " "), "LANE_FAILED: interrupted before the witness was submitted") {
+		t.Fatalf("interrupted zero-credit witness: %s", x.stdout)
+	}
+}
+
+// TOL-V0-032 (Codex round 2, finding 5): a neighbour run that ends
+// abnormally disqualifies even when its only failure is pre-existing, and a
+// base run that ends abnormally observes nothing, so no failure is
+// PRE_EXISTING on its word.
+func TestTOLV0032_AbnormalNeighbourRunDisqualifies(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	c, nb := "e2e/a/cand.spec.ts", "e2e/a/nb.spec.ts"
+	nbFail := rbFail(nb, "nb one", "Error: nb broke")
+	cases := []struct{ name, slow, reason, neighbour string }{
+		{"candidate neighbour timeout", "candidate", "NEW_NEIGHBOUR_FAILURE: the neighbour run ended TIMEOUT", "PRE_EXISTING"},
+		{"base timeout", "base", "NEW_NEIGHBOUR_FAILURE: e2e/a/nb.spec.ts > nb one [chromium] (base NOT_OBSERVED)", "NEW_NEIGHBOUR_FAILURE"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root, _ := qualifyRepo(t, []rbSpec{rbPass(c, "cand one")}, nbFail, nbFail)
+			test, _ := rbTools(t)
+			config := rbConfig(t, rbWrap(test, "case \"$PLAYWRIGHT_JSON_OUTPUT_NAME\" in */neighbours/"+tc.slow+"/*) sleep 5;; esac"), func(m map[string]any) {
+				m["neighbours"], m["timeoutSeconds"] = "CHANGED_DIRECTORIES", 1
+			})
+			x, v, _ := qualifyRun(t, root, config)
+			if v.Verdict != "NOT_QUALIFIED" || len(v.Reasons) != 1 || v.Reasons[0] != tc.reason || !hasCode(x.res, wire.CodeGateFailed) {
+				t.Fatalf("verdict %s %q: %s", v.Verdict, v.Reasons, x.stdout)
+			}
+			if len(v.Neighbours) != 1 || v.Neighbours[0].Verdict != tc.neighbour {
+				t.Fatalf("neighbours %+v", v.Neighbours)
+			}
+		})
 	}
 }

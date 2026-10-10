@@ -3015,9 +3015,9 @@ TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	349	`preflight --dee
 TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	372	`run-batch` and `qualify` MUST read their commands from one closed local
 TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	385	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS
 TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	401	A job MUST run only in a clean checkout of the commit: a checkout at another com
-TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	412	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT
-TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	421	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS
-TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	437	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
+TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	413	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT
+TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	422	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS
+TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	440	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed

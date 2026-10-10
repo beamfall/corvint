@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path"
@@ -38,8 +40,12 @@ const (
 	maxRunConfigBytes  = 64 << 10
 	maxRunRuns         = 20
 	maxRunTimeout      = 3600
-	maxSummaryBytes    = 4 << 20
-	maxPriorRuns       = 1024
+	// maxManifestFileBytes bounds what the manifest hashes of one file; a
+	// larger file is listed as FILE_OVER_LIMIT with its size and no digest
+	// (TOL-V0-033).
+	maxManifestFileBytes = 1 << 30
+	maxSummaryBytes      = 4 << 20
+	maxPriorRuns         = 1024
 	// repeatFailureDetail prefixes the TOL-V0-031 LOOP_DETECTED refusal.
 	repeatFailureDetail = "OBLIGATION_REPEAT_FAILURE:"
 	// notQualifiedDetail prefixes the TOL-V0-032 GATE_FAILED refusal.
@@ -174,6 +180,11 @@ type runJob struct {
 	attempt, generation string
 	member, allocation  string
 	steps               []runStep
+	// out is the results directory: every file the job writes is created
+	// through it, never following or replacing an existing entry.
+	out *os.Root
+	// writeErr is the first results-directory write that failed.
+	writeErr error
 }
 
 // runStep is one step of the job as the summary and verdict record it.
@@ -298,7 +309,124 @@ func (j *runJob) open() error {
 		}
 		return wire.Errorf(wire.CodeMalformed, "--out", "cannot create the results directory: %v", err)
 	}
+	out, err := os.OpenRoot(j.dir)
+	if err != nil {
+		return wire.Errorf(wire.CodeMalformed, "--out", "cannot open the results directory: %v", err)
+	}
+	j.out = out
 	return nil
+}
+
+func (j *runJob) close() {
+	if j.out != nil {
+		_ = j.out.Close()
+	}
+}
+
+// create writes a new file under the results directory. It never follows
+// or replaces an existing entry: O_EXCL refuses any name already present,
+// a symlink included, and the root refuses a path that leaves the directory
+// (TOL-V0-033).
+func (j *runJob) create(name string, b []byte) error {
+	rel := filepath.FromSlash(name)
+	if d := filepath.Dir(rel); d != "." {
+		if err := j.out.MkdirAll(d, 0o755); err != nil {
+			return err
+		}
+	}
+	f, err := j.out.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(b)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	return werr
+}
+
+// tampered is the first failed results-directory write, or a reserved name
+// a command planted before the job wrote it, so the job can refuse before
+// anything is credited or concluded (TOL-V0-033).
+func (j *runJob) tampered(reserved ...string) error {
+	if j.writeErr != nil {
+		return j.writeErr
+	}
+	for _, n := range reserved {
+		if _, err := j.out.Lstat(n); !errors.Is(err, fs.ErrNotExist) {
+			return wire.Errorf(wire.CodeGateFailed, "--out", "%s the results directory already holds %s, which the job did not write", laneFailedDetail, n)
+		}
+	}
+	return nil
+}
+
+// errNotRegular marks a job file that is a symlink, FIFO, device, socket or
+// directory rather than a regular file.
+var errNotRegular = errors.New("not a regular file")
+
+// openRegular opens p for reading only when it is a regular file. Anything
+// else is refused from its Lstat before it is opened, and the open neither
+// follows a final symlink nor blocks on a FIFO swapped in after that check
+// where the platform allows; the descriptor's own type is checked again.
+func openRegular(p string) (*os.File, os.FileInfo, error) {
+	if st, err := os.Lstat(p); err != nil {
+		return nil, nil, err
+	} else if !st.Mode().IsRegular() {
+		return nil, nil, fmt.Errorf("%s is a %s: %w", filepath.Base(p), entryType(st.Mode().Type()), errNotRegular)
+	}
+	f, err := openRunFile(p)
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err == nil && !st.Mode().IsRegular() {
+		err = fmt.Errorf("%s is a %s: %w", filepath.Base(p), entryType(st.Mode().Type()), errNotRegular)
+	}
+	if err != nil {
+		_ = f.Close()
+		return nil, nil, err
+	}
+	return f, st, nil
+}
+
+// entryType names a results-directory entry's type for the manifest.
+func entryType(m fs.FileMode) string {
+	switch {
+	case m.IsRegular():
+		return "FILE"
+	case m&fs.ModeSymlink != 0:
+		return "SYMLINK"
+	case m&fs.ModeNamedPipe != 0:
+		return "FIFO"
+	case m&fs.ModeDevice != 0:
+		return "DEVICE"
+	case m&fs.ModeSocket != 0:
+		return "SOCKET"
+	case m.IsDir():
+		return "DIRECTORY"
+	}
+	return "OTHER"
+}
+
+// readJobReport reads the test command's report only from a regular file
+// (TOL-V0-033): a FIFO, symlink or device at the report path is refused
+// unread, so a planted FIFO cannot block the job.
+func readJobReport(p string) (*obligation.Report, error) {
+	f, _, err := openRegular(p)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil, wire.Errorf(wire.CodeMissingEvidence, "--from-playwright-report", "%s the report file does not exist", ticket.ObligationReportDetail)
+	case errors.Is(err, errNotRegular):
+		return nil, wire.Errorf(wire.CodeMalformed, "--from-playwright-report", "%s the report path holds no regular file (%v); it was not read", ticket.ObligationReportDetail, err)
+	case err != nil:
+		return nil, wire.Errorf(wire.CodeMissingEvidence, "--from-playwright-report", "%s the report file is unreadable", ticket.ObligationReportDetail)
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, obligation.MaxReportBytes+1))
+	if err != nil {
+		return nil, wire.Errorf(wire.CodeMissingEvidence, "--from-playwright-report", "%s the report file is unreadable", ticket.ObligationReportDetail)
+	}
+	return obligation.ParseReport(raw, obligationQualifiedVersions())
 }
 
 // acquire takes a pool member for the claimed attempt with the existing
@@ -361,10 +489,12 @@ func (j *runJob) environment(report string) []string {
 	return store.BatchEnvironment(j.cfg.Env, extra...)
 }
 
+// writeLog keeps a command's output; a failed write is kept as writeErr and
+// fails the job before anything is credited or concluded.
 func (j *runJob) writeLog(name string, b []byte) {
-	p := filepath.Join(j.dir, filepath.FromSlash(name))
-	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	_ = os.WriteFile(p, b, 0o644)
+	if err := j.create(name, b); err != nil && j.writeErr == nil {
+		j.writeErr = wire.Errorf(wire.CodeGateFailed, "--out", "%s cannot write %s in the results directory: %v", laneFailedDetail, name, err)
+	}
 }
 
 // runCommand runs one configured command in dir and records it.
@@ -379,11 +509,13 @@ func (j *runJob) runCommand(ctx context.Context, step string, argv []string, dir
 // the run produced no admissible report, and errLine says why.
 func (j *runJob) runTests(ctx context.Context, name, dir string, specs []string) (*obligation.Report, runStep, string) {
 	report := filepath.Join(j.dir, filepath.FromSlash(name), "report.json")
-	_ = os.MkdirAll(filepath.Dir(report), 0o755)
+	if err := j.out.MkdirAll(filepath.FromSlash(name), 0o755); err != nil && j.writeErr == nil {
+		j.writeErr = wire.Errorf(wire.CodeGateFailed, "--out", "%s cannot create %s in the results directory: %v", laneFailedDetail, name, err)
+	}
 	run := store.RunBatchCommand(ctx, append(append([]string{}, j.cfg.TestCommand...), specs...), dir, j.environment(report), j.cfg.TimeoutSeconds)
 	j.writeLog(name+"/output.log", run.Output)
 	s := j.record(name, run, name+"/output.log")
-	rep, err := obligation.ReadReport(report, obligationQualifiedVersions())
+	rep, err := readJobReport(report)
 	if err != nil {
 		return nil, s, prose(err.Error())
 	}
@@ -393,12 +525,17 @@ func (j *runJob) runTests(ctx context.Context, name, dir string, specs []string)
 	return rep, s, ""
 }
 
-// manifest writes manifest.json: every file under the results directory
-// with its sha256 and size, sorted by path.
-func (j *runJob) manifest() (wire.Digest, error) {
+// manifest writes manifest.json: every entry under the results directory
+// with its type, sorted by path (TOL-V0-033). A regular file is hashed as a
+// stream up to maxManifestFileBytes and listed with its sha256 and size; a
+// larger one is FILE_OVER_LIMIT with its size. A symlink, FIFO, device,
+// socket or other entry is listed by type and never followed or read.
+// ctx is checked between files, so an interrupt stops the hashing.
+func (j *runJob) manifest(ctx context.Context) (wire.Digest, error) {
 	type entry struct {
 		Path   string `json:"path"`
-		Sha256 string `json:"sha256"`
+		Type   string `json:"type"`
+		Sha256 string `json:"sha256,omitempty"`
 		Size   int64  `json:"size"`
 	}
 	entries := []entry{}
@@ -406,24 +543,45 @@ func (j *runJob) manifest() (wire.Digest, error) {
 		if err != nil || d.IsDir() {
 			return err
 		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		rel, _ := filepath.Rel(j.dir, p)
 		if rel == "manifest.json" {
 			return nil
 		}
-		// Stream the hash: an artifact can be far larger than memory.
-		f, err := os.Open(p)
+		e := entry{Path: filepath.ToSlash(rel), Type: entryType(d.Type())}
+		if e.Type != "FILE" {
+			entries = append(entries, e)
+			return nil
+		}
+		f, st, err := openRegular(p)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
+		if e.Size = st.Size(); e.Size > maxManifestFileBytes {
+			e.Type = "FILE_OVER_LIMIT"
+			entries = append(entries, e)
+			return nil
+		}
+		// Stream the hash: an artifact can be far larger than memory.
 		h := sha256.New()
-		n, err := io.Copy(h, f)
+		n, err := io.Copy(h, io.LimitReader(f, maxManifestFileBytes+1))
 		if err != nil {
 			return err
 		}
-		entries = append(entries, entry{Path: filepath.ToSlash(rel), Sha256: hex.EncodeToString(h.Sum(nil)), Size: n})
+		if e.Size = n; n > maxManifestFileBytes {
+			e.Type = "FILE_OVER_LIMIT"
+		} else {
+			e.Sha256 = hex.EncodeToString(h.Sum(nil))
+		}
+		entries = append(entries, e)
 		return nil
 	})
+	if errors.Is(err, context.Canceled) {
+		return "", wire.Errorf(wire.CodeGateFailed, "--out", "%s interrupted while the manifest was written; verdict.json stands without a manifest", laneFailedDetail)
+	}
 	if err != nil {
 		return "", wire.Errorf(wire.CodeUnsupported, "--out", "cannot read the results directory: %v", err)
 	}
@@ -437,7 +595,9 @@ func (j *runJob) writeJSON(name string, v any) (wire.Digest, error) {
 		return "", wire.Errorf(wire.CodeUnsupported, "--out", "cannot encode %s: %v", name, err)
 	}
 	raw = append(raw, '\n')
-	if err := os.WriteFile(filepath.Join(j.dir, name), raw, 0o644); err != nil {
+	if err := j.create(name, raw); errors.Is(err, fs.ErrExist) {
+		return "", wire.Errorf(wire.CodeGateFailed, "--out", "%s the results directory already holds %s, which the job did not write; it is left unchanged", laneFailedDetail, name)
+	} else if err != nil {
 		return "", wire.Errorf(wire.CodeUnsupported, "--out", "cannot write %s: %v", name, err)
 	}
 	return wire.Sum(raw), nil
@@ -535,6 +695,7 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
+	defer j.close()
 	ctx, stop := jobInterruptContext()
 	defer stop()
 	summary := batchSummary{Schema: batchSummarySchema, RequestID: j.requestID, TicketID: rec.TicketID.Raw, Commit: j.commit,
@@ -575,6 +736,11 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 		}
 	}
 	summary.Member = j.member
+	// A failed results write or a planted summary.json fails the job before
+	// the witness (TOL-V0-033).
+	if err := j.tampered("summary.json"); err != nil && failCode == wire.CodeGateFailed {
+		earlier, rep, notReached = prose(err.Error()), nil, obligation.CauseUncredited
+	}
 	// A report from an interrupted job or a checkout that changed under the
 	// run credits nothing.
 	if ctx.Err() != nil && failCode == wire.CodeGateFailed {
@@ -618,7 +784,7 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 		}
 		// The job context is checked again just before the witness mutation is
 		// submitted; once submitted, the mutation is atomic (TOL-V0-033).
-		w := obligationsWitnessJob(ctx, env, []string{"ticket", "obligations", "witness"}, append([]string{"--target"}, wargs...))
+		w := obligationsWitnessJob(ctx, rep.Sha256, env, []string{"ticket", "obligations", "witness"}, append([]string{"--target"}, wargs...))
 		written := false
 		if w.Outcome == wire.OutcomeOK && len(w.Items) == 1 {
 			v, _ := w.Items[0].Obj.Get("written")

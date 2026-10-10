@@ -238,7 +238,7 @@ func readPlanFile(file string, max int) ([]byte, error) {
 // declared commit and hands the recomputation to the writer, which refuses a
 // payload that differs (TOL-V0-013). The report itself is never retained.
 func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
-	return obligationsWitnessJob(context.Background(), env, cmd, args)
+	return obligationsWitnessJob(context.Background(), "", env, cmd, args)
 }
 
 // witnessEvidenceReadHook runs after a report witness has read the commit's
@@ -248,8 +248,22 @@ var witnessEvidenceReadHook = func() {}
 // obligationsWitnessJob is the witness verb under a run-batch job context:
 // a job interrupted before the mutation is submitted credits nothing and
 // refuses GATE_FAILED with LANE_FAILED; a submitted mutation is atomic
-// (TOL-V0-033). The plain verb passes a context that never ends.
-func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []string) *wire.Result {
+// (TOL-V0-033). The plain verb passes a context that never ends and no
+// report digest. A job passes the digest of the report its test command
+// wrote: the witness then reads the report and post-check log only as
+// regular files and refuses a report that is no longer that one, since a
+// capture command runs between the test run and the witness.
+func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env, cmd []string, args []string) *wire.Result {
+	open, readReport := os.Open, func(p string) (*obligation.Report, error) {
+		return obligation.ReadReport(p, obligationQualifiedVersions())
+	}
+	if wantReport != "" {
+		open = func(p string) (*os.File, error) {
+			f, _, err := openRegular(p)
+			return f, err
+		}
+		readReport = readJobReport
+	}
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
 	if res := pairFlags(cmd, args, map[string]*string{
@@ -285,7 +299,7 @@ func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []st
 		return usage(cmd, "--post-check belongs to --from-playwright-report")
 	}
 	if postCheck != "" {
-		if err := checkPostCheck(postCheck, postStatus); err != nil {
+		if err := checkPostCheck(postCheck, postStatus, open); err != nil {
 			return errorResult(cmd, err)
 		}
 	}
@@ -364,9 +378,12 @@ func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []st
 			lists.credited = append(lists.credited, id)
 		}
 	} else {
-		rep, err := obligation.ReadReport(report, obligationQualifiedVersions())
+		rep, err := readReport(report)
 		if err != nil {
 			return errorResult(cmd, err)
+		}
+		if wantReport != "" && rep.Sha256 != wantReport {
+			return errorResult(cmd, wire.Errorf(wire.CodeGateFailed, "--from-playwright-report", "%s the report changed after the test run; nothing was credited", laneFailedDetail))
 		}
 		if resolved, err := filepath.EvalSymlinks(rep.RootDir); err == nil {
 			rep.RootDir = resolved
@@ -392,6 +409,11 @@ func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []st
 			failed: res.Failed, unknown: res.Unknown, unknownTruncated: res.UnknownTruncated, unbound: res.Unbound, unmatched: res.Unmatched,
 			defectConfirmed: res.DefectConfirmed, mixed: res.MixedExpectedFail}
 	}
+	if job.Err() != nil {
+		// TOL-V0-033: an interrupted witness phase is LANE_FAILED even when
+		// it would have credited nothing.
+		return errorResult(cmd, wire.Errorf(wire.CodeGateFailed, "--request-id", "%s interrupted before the witness was submitted; nothing was credited", laneFailedDetail))
+	}
 	if len(w.Credits) == 0 && recorded {
 		// A recorded witness always carries credits, so a request that
 		// derives none from the ledger before it cannot be that request.
@@ -404,9 +426,6 @@ func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []st
 		out.Items = []wire.Value{wire.ObjectValue(o)}
 		out.Untrusted = true
 		return out
-	}
-	if job.Err() != nil {
-		return errorResult(cmd, wire.Errorf(wire.CodeGateFailed, "--request-id", "%s interrupted before the witness was submitted; nothing was credited", laneFailedDetail))
 	}
 	ctx := writerContext()
 	if check != nil {
@@ -492,13 +511,14 @@ const maxPostCheckLogBytes = 1 << 20
 
 // checkPostCheck refuses a report witness whose run's post-check exited
 // non-zero, quoting the log's first actionable line (TOL-V0-024). The log
-// must exist either way; only its first MiB is read.
-func checkPostCheck(file, status string) error {
+// must exist either way; only its first MiB is read. open is os.Open for the
+// plain verb and a regular-file-only open under a job (TOL-V0-033).
+func checkPostCheck(file, status string, open func(string) (*os.File, error)) error {
 	n, err := strconv.ParseUint(status, 10, 8)
 	if err != nil {
 		return wire.Errorf(wire.CodeMalformed, "--post-check-status", "%s --post-check-status takes an exit status 0..255", ticket.ObligationPostCheckDetail)
 	}
-	f, err := os.Open(file)
+	f, err := open(file)
 	if err != nil {
 		return wire.Errorf(wire.CodeMissingEvidence, "--post-check", "%s the post-check log is unreadable", ticket.ObligationPostCheckDetail)
 	}

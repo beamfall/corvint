@@ -90,6 +90,39 @@ tree, then running only that test:
    lists it, the verdict is `CANDIDATE_FAILURE` with no admissible report, and qualify allocates
    less than 384 MiB (before: 702,844,944 bytes allocated).
 
+## Codex round 2 fixes
+
+Branch merge `68305cdb` brought in `32075427` (#712/#713: the decision 0397 import edge and
+`PreflightBlobBytes = 1 << 20`); `go test ./internal/tasks` passed after it. Each fix below has a
+test that failed with only that fix reverted in a scratch worktree at `68305cdb`. The spec text of
+TOL-V0-030, 032 and 033 changed within the accepted intent (decision 0485):
+
+1. A job reads the report only as a regular file: `lstat` first, then an open with
+   `O_NOFOLLOW|O_NONBLOCK` on darwin and linux, then `fstat` (TOL-V0-033).
+   `TestTOLV0033_ReportPathMustBeARegularFile` (before: run-batch and qualify both blocked past the
+   test's two-minute bound on a FIFO report). Adjacent: the witness under a job re-reads the
+   report and post-check log the same way and refuses `LANE_FAILED:` when the report digest is not
+   the test run's, because the capture runs between them (before: a FIFO swapped in by the capture
+   blocked, and a report the capture changed was credited).
+2. The manifest lists entries by type, never following or opening a symlink, FIFO, device or
+   socket; each file is hashed up to `maxManifestFileBytes` (1 GiB) and a larger one is
+   `FILE_OVER_LIMIT`; an interrupt is checked between files.
+   `TestTOLV0033_ManifestRecordsNonRegularEntriesByType` (before: blocked past the bound).
+3. Results files are created through an `os.Root` on the results directory with `O_CREATE|O_EXCL`;
+   a planted reserved name or a failed write fails the job with `LANE_FAILED:` before the witness
+   or the verdict. `TestTOLV0033_PlantedSummarySymlinkIsRefused` (before: the symlink target was
+   overwritten and AC-1 was credited).
+4. An interrupted witness phase is `LANE_FAILED` even with zero credits.
+   `TestTOLV0033_ZeroCreditInterruptIsLaneFailed` (before: `OK`, `written: false`).
+5. A neighbour run that ends other than `EXIT` disqualifies with `NEW_NEIGHBOUR_FAILURE: the
+   neighbour run ended <class>`; a base run that ends abnormally observes nothing, so its failures
+   are not `PRE_EXISTING`. The candidate already disqualified on any abnormal end
+   (`CANDIDATE_FAILURE`). `TestTOLV0032_AbnormalNeighbourRunDisqualifies` (before: `QUALIFIED` in
+   both cases).
+6. A `qualify` refused acquire or release returns that refusal's code.
+   `TestTOLV0030_AcquireRefusalCodeIsTheJobs` and `TestTOLV0030_RefusedReleaseFailsTheJob`
+   (before: `GATE_FAILED`).
+
 ## Acceptance
 
 TOL-V0-028..033 were accepted as amended by review round 1 (decision 0485). The coordinating agent
@@ -105,5 +138,7 @@ the owner's words directly.
 - The interrupt tests replace the job context; a real `SIGINT`/`SIGTERM` to a running job is
   `NOT_RUN`.
 - A command that changes only untracked files is not detected by the checkout re-check.
+- On Windows the report and log reads rely on the `lstat` and `fstat` checks alone (no
+  `O_NOFOLLOW`/`O_NONBLOCK`); the FIFO and symlink tests are skipped there.
 - `CORVINT_POOL_MEMBER` is the only way a configured command learns its lane; health preparation is
   whatever `pool acquire` already does.

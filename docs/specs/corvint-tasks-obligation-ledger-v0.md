@@ -407,8 +407,9 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   capture and the release run on a fresh context, not the job's, so an interrupted job still
   captures and releases; the capture stays bounded by `timeoutSeconds`. A refused release fails the
   job: `run-batch` witnesses nothing, records `UNCREDITED` and refuses with the release's code and
-  `LANE_FAILED:`, and `qualify` is `NOT_QUALIFIED` with `LANE_FAILED`. The claim, renewal and
-  HANDOFF stay with the caller. Status: (accepted, decision 0485; GitHub #714).
+  `LANE_FAILED:`, and `qualify` is `NOT_QUALIFIED` with `LANE_FAILED`. A `qualify` verdict that is
+  `NOT_QUALIFIED` after a refused acquire or release refuses with that refusal's code (for example
+  `RESOURCE_COLLISION`), not `GATE_FAILED`. The claim, renewal and HANDOFF stay with the caller. Status: (accepted, decision 0485; GitHub #714).
 - `TOL-V0-031`: Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECTED`
   with `OBLIGATION_REPEAT_FAILURE:` naming each in-scope `OPEN`, `DEFECT` or `BLOCKED` obligation
   that at least two earlier summaries of the same ticket under `--out` record as `FAILED` with the
@@ -427,23 +428,40 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   shares), `CANDIDATE_FAILURE` (a retry-0 result that is not the
   expected status, a top-level report error, no tests, a non-zero exit or no admissible report),
   `POST_CHECK_FAILED`, `NEW_NEIGHBOUR_FAILURE` (a new neighbour test failure, or any top-level
-  error in the neighbour report whether or not a test failed) or `LANE_FAILED`; otherwise
+  error in the neighbour report whether or not a test failed, any abnormal end of the neighbour
+  run, meaning `TIMEOUT`, `SIGNAL`, `OUTPUT_LIMIT`, `SPAWN_FAILED` or `UNKNOWN`, whatever its tests
+  show, or a non-zero exit with no failing test or error to explain it) or `LANE_FAILED`; otherwise
   `QUALIFIED`. Each failing
   neighbour test MUST be re-run at the base in one temporary detached worktree, removed on every
   path; a test that fails there too is `PRE_EXISTING` and does not disqualify, and one the base did
-  not observe is new. `NOT_QUALIFIED` refuses `GATE_FAILED` with `QUALIFY_NOT_QUALIFIED:`.
+  not observe is new. A base run that ended abnormally observes nothing. `NOT_QUALIFIED` refuses `GATE_FAILED` with `QUALIFY_NOT_QUALIFIED:`.
   `qualify` never credits obligations or writes the store. Status: (accepted, decision 0485;
   GitHub #714).
 - `TOL-V0-033`: `qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
   `corvint-tasks-qualify-verdict/0`) with the commit, base, config digest, steps, runs, neighbour
-  results and reasons, and then `manifest.json` listing every other file of the pack with its
-  sha256, hashed as a stream so no file is read whole into memory, and size. `SIGINT` or `SIGTERM`
+  results and reasons, and then `manifest.json` listing every other entry of the pack with its type.
+  A regular file is hashed as a stream, so no file is read whole into memory, and listed with its
+  sha256 and size; one larger than 1 GiB (`maxManifestFileBytes`) is `FILE_OVER_LIMIT` with its size
+  and no digest. A `SYMLINK`, `FIFO`, `DEVICE`, `SOCKET` or other entry is listed by type with no
+  digest and is never followed or opened. An interrupt is checked between files and leaves the
+  verdict without a manifest, refusing `GATE_FAILED` with `LANE_FAILED:`. A job reads the test
+  command's report, and the witness reads it and the post-check log again, only as regular files:
+  the path is refused from `lstat` when it is not one, and opened without following a final
+  symlink and without blocking on a FIFO where the platform allows, so a FIFO or symlink at the
+  report path is no admissible report (`CANDIDATE_FAILURE`, or `UNCREDITED` for `run-batch`) and
+  the capture and release still run. The witness also refuses `GATE_FAILED` with `LANE_FAILED:`
+  when the report's digest is no longer the one the test run produced. Every file a job writes
+  (`summary.json`, `verdict.json`, `manifest.json` and the logs) is created exclusively inside the
+  results directory, never following or replacing an existing entry; a reserved name a command
+  planted, or a failed write, fails the job with `LANE_FAILED:` before anything is credited or
+  concluded, and the planted entry is left unchanged. `SIGINT` or `SIGTERM`
   kills the running command's process group, still runs the capture and releases the lane
   (TOL-V0-030), and records `LANE_FAILED: interrupted`; `run-batch` then credits nothing
   (`UNCREDITED`). The interrupt boundary for `run-batch` is the witness submit: the job context is
   checked after the report and its source evidence are read and before the witness mutation is
   submitted, and an interrupt seen by then credits nothing and refuses `GATE_FAILED` with
-  `LANE_FAILED: interrupted before the witness was submitted`; once submitted, the witness
+  `LANE_FAILED: interrupted before the witness was submitted`, even when the witness would have
+  credited nothing; once submitted, the witness
   mutation is atomic and is not split by a later interrupt. A checkout that changed during the job
   is `LANE_FAILED` for `qualify` and credits nothing for `run-batch`. Status: (accepted, decision
   0485; GitHub #714).
@@ -471,7 +489,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 | `preflight --deep` interrupted | A running gate and its checkout outlive preflight | Each gate's process group is killed when the gate exits, so no earlier gate's background process survives; `SIGINT`/`SIGTERM` kills the running gate's process group, or the post-gate Git check's, waits for it and removes the worktree before refusing (TOL-V0-027). Only `SIGKILL` can leave the worktree and its administrative entry; `git worktree prune` repairs it. A failed removal is reported, not ignored. |
 | A batch obligation fails the same way run after run | Each run spends a lane and a session before anyone sees the repeat | `run-batch` refuses `LOOP_DETECTED` (`OBLIGATION_REPEAT_FAILURE:`) before any lane is acquired once two summaries at the same fixture digest record the same error (TOL-V0-031). |
 | A batch summary that hides why an obligation did not move | — | Every ledger entry gets one cause, with the error line or the earlier failed step (TOL-V0-029). The cause is a heuristic for `NOT_REACHED`, `NOT_NAMED` and `NOT_OBSERVED`: it reads source names with the TOL-V0-025 scanner. |
-| A flaky, partially failing or neighbour-breaking candidate looks final | A green final run hides a retry, a failed post-check or a broken neighbour | `qualify` is `NOT_QUALIFIED` with the named reason (TOL-V0-032); a neighbour failure the base shares is `PRE_EXISTING`. |
+| A flaky, partially failing or neighbour-breaking candidate looks final | A green final run hides a retry, a failed post-check or a broken neighbour | `qualify` is `NOT_QUALIFIED` with the named reason (TOL-V0-032); a neighbour failure the base shares is `PRE_EXISTING`, unless the neighbour run ended abnormally, which disqualifies on its own, or the base run did, which observes nothing. |
+| A command leaves a FIFO, symlink or device in the results directory, or plants a results file | The job blocks on a FIFO, hashes `/dev/zero` forever, or overwrites the file a symlink points at | Reports and logs are read only as regular files without following or blocking; the manifest lists non-regular entries by type unopened and caps each file at 1 GiB; results files are created exclusively, and a planted one fails the job with nothing credited (TOL-V0-033). |
 | The checkout moves or is interrupted under a job | A report from other code credits the commit | The job runs only a clean checkout of the commit, re-checks it after the run, and an interrupt or change credits nothing and fails qualification (TOL-V0-030, 033). An interrupt is honoured up to the witness submit; a submitted witness is atomic. A refused lane release fails the job. A command that changes untracked files only is not detected. |
 | Older binary meets a record with the member | — | The closed reader refuses the record (fail-closed); see Rollout and rollback. |
 
@@ -520,7 +539,7 @@ fixture passes.
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
 | TOL-V0-022..024 (decision 0484) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
 | TOL-V0-025..027 (decision 0484) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
-| TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact` (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, and the release refusal is injected | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
+| TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact`, `TestTOLV0033_ReportPathMustBeARegularFile` (a FIFO report, a FIFO or changed report swapped in by the capture, qualify), `TestTOLV0033_ManifestRecordsNonRegularEntriesByType` (symlink to `/dev/zero`, FIFO, 1025 MiB sparse file), `TestTOLV0033_PlantedSummarySymlinkIsRefused`, `TestTOLV0033_ZeroCreditInterruptIsLaneFailed`, `TestTOLV0032_AbnormalNeighbourRunDisqualifies` (neighbour and base timeouts) (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, and the release refusal is injected; the FIFO and symlink tests skip on Windows | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1

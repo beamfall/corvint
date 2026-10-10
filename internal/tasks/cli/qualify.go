@@ -81,11 +81,15 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
+	defer j.close()
 	ctx, stop := jobInterruptContext()
 	defer stop()
 	v := verdictPack{Schema: verdictSchema, RequestID: j.requestID, Commit: j.commit, Base: base, ConfigSha256: string(cfgSum),
 		Pool: j.pool, Reasons: []string{}, Specs: files, Runs: []qualifyRun{}, NeighbourSpecs: []string{}, Neighbours: []neighbourResult{}}
 	fail := func(reason, detail string) { v.Reasons = append(v.Reasons, reason+": "+detail) }
+	// failCode is the refusal code of a NOT_QUALIFIED verdict: a refused
+	// pool acquisition or release keeps its own code (TOL-V0-030).
+	failCode := wire.CodeGateFailed
 	// Static checks run first and need no lane.
 	for i, argv := range j.cfg.StaticChecks {
 		name := "static/" + strconv.Itoa(i)
@@ -97,14 +101,19 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if len(v.Reasons) == 0 {
 		if err := j.acquire(); err != nil {
 			fail(reasonLane, "acquire: "+prose(err.Error()))
+			failCode = wire.CodeOf(err)
 		} else {
 			j.qualifyLane(ctx, &v, files, base, fail)
 			if err := j.release(); err != nil {
 				fail(reasonLane, "release: "+prose(err.Error()))
+				failCode = wire.CodeOf(err)
 			}
 		}
 	}
 	v.Member = j.member
+	if err := j.tampered("verdict.json", "manifest.json"); err != nil {
+		fail(reasonLane, "results directory: "+prose(err.Error()))
+	}
 	if ctx.Err() != nil {
 		fail(reasonLane, "interrupted")
 	} else if err := j.unchanged(); err != nil {
@@ -119,13 +128,15 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	msum, err := j.manifest()
+	mctx, mstop := jobInterruptContext()
+	msum, err := j.manifest(mctx)
+	mstop()
 	if err != nil {
 		return errorResult(cmd, err)
 	}
 	result := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Untrusted: true, NotRetryable: true}
 	if v.Verdict != "QUALIFIED" {
-		result.Outcome, result.Codes = wire.OutcomeRefused, []string{wire.CodeGateFailed}
+		result.Outcome, result.Codes = wire.OutcomeRefused, []string{failCode}
 		result.Warnings = append(result.Warnings, prose(notQualifiedDetail+" "+strings.Join(v.Reasons, "; ")))
 	}
 	reasons := make([]wire.Value, 0, len(v.Reasons))
@@ -276,8 +287,14 @@ func (j *runJob) neighbours(ctx context.Context, v *verdictPack, files []string,
 	if rep.Errors() > 0 {
 		fail(reasonNeighbour, "the neighbour run reported "+strconv.Itoa(rep.Errors())+" top-level errors")
 	}
+	// An abnormal end (timeout, signal, output cap, spawn or unknown
+	// failure) disqualifies whatever the failing tests show; a non-zero
+	// exit is explained only by the failing tests it reported (TOL-V0-032).
+	if s.Class != "EXIT" {
+		fail(reasonNeighbour, "the neighbour run ended "+s.Class)
+	}
 	if len(failing) == 0 {
-		if !s.OK && rep.Errors() == 0 {
+		if s.Class == "EXIT" && !s.OK && rep.Errors() == 0 {
 			fail(reasonNeighbour, "the neighbour run exited "+s.Class+" "+s.ExitCode)
 		}
 		return
@@ -292,8 +309,10 @@ func (j *runJob) neighbours(ctx context.Context, v *verdictPack, files []string,
 				return nil
 			}
 		}
-		brep, _, _ := j.runTests(ctx, "neighbours/base", wt, failingSpecs)
-		if brep == nil {
+		brep, bs, _ := j.runTests(ctx, "neighbours/base", wt, failingSpecs)
+		// A base run that ended abnormally observes nothing, so none of
+		// its failures can be PRE_EXISTING (TOL-V0-032).
+		if brep == nil || bs.Class != "EXIT" {
 			return nil
 		}
 		atBase = map[string]string{}
