@@ -79,9 +79,10 @@ report was deleted, so no runner reports are retained. The table is the record.
 
 From `evidence/v1-0397/runs.tsv`:
 
-- 200 runs, 17:33:48–18:01:39 UTC: the upgrade case passed in all 200, with 0 SessionStart
+- 200 runs, 17:33:48–18:01:38 UTC: the upgrade case passed in all 200, with 0 SessionStart
   time-bound retries.
-- Start loads: p10 66.8, median 121.9, p90 202.5, max 258.7.
+- Start loads (linear-interpolated quantiles): min 52.0, p10 67.3, median 122.1, p90 202.5,
+  max 258.7.
 - 134 runs had a boundary sample of 100 or more, and 27 had one of 200 or more. In 39 runs the
   higher boundary sample fell inside the historical 81–109 window.
 - Run times, from the start and end columns: mean 16.6 s, longest 31 s.
@@ -101,7 +102,7 @@ Unretained observation: the aborted burst used 24 burners and three loops, at bo
 122–191. It reached the upgrade case 9 times, and all 9 passed with no SessionStart retry. Its rows
 are not in the table.
 
-Focused tests, at the same source, during the loop:
+Focused tests, at the same source, during the loop (unretained observations; their output was not kept):
 
 - PASS: `go test -race -count=50 -timeout 30m ./conformance/host-lifecycle-v1` (182 s).
 - PASS: `go test -race -count=20 -timeout 30m -run
