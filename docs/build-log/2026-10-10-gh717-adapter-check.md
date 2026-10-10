@@ -1,0 +1,155 @@
+# Behavior-adapter check mode, guide additions and the legacy-key fork (GH #717)
+
+Date: 2026-10-10
+
+GitHub #717 reported friction with `docs corpus behavior-adapter`. This entry covers three of its
+tickets: V1-1084 (gap 3), V1-1086 (gaps 4 and 6) and V1-1085 (gap 5). It adds two requirements to
+`docs/specs/documentation-corpus-v1.md`, both proposed and pending owner acceptance:
+
+- `DCP-V1-044`: the check mode.
+- `DCP-V1-045`: the guide's anchor placement rule and its migration example.
+
+No decision record is written.
+
+## V1-1084: `--check` (DCP-V1-044)
+
+`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] --check` prints
+one `corvint-behavior-adapter-check/1` report and produces no result.
+`doccorpus.CheckBehaviorAdapter` runs the same stages as `BuildBehaviorAdapter`, in the same order:
+
+1. request
+2. previous
+3. identity
+4. revisions
+5. the three bounds
+6. inputs
+7. required inputs
+8. mappings
+9. observations
+10. previous lineage
+11. migration
+12. discovery
+13. flows
+14. variations
+15. candidates
+16. tests
+17. declarations
+18. observation subjects
+19. artifacts
+20. delta
+
+Each stage that can still be evaluated runs, and every refusal it finds is kept. Build mode keeps its
+first-refusal behavior through `behaviorAdapter.keep`, which only collects while checking.
+
+A stage whose prerequisite refused is reported as `not-evaluated` with `blocked_by`. Two items are
+reported the same way inside a stage:
+
+- a mapping that names a refused input;
+- a required input that was refused.
+
+The bound check was split into one refusal per bound, so a check can name each violated bound. The
+mapping-count bound message now names the expected kinds. This is the only build-mode message
+change.
+
+The invariant is pinned by `TestBehaviorAdapterCheckParity` over 17 cases, from request decode to
+observation subject:
+
+- the check is accepted exactly when Build succeeds;
+- its first refusal equals Build's error code and message;
+- the report bytes repeat;
+- the report carries no legacy key.
+
+`TestBehaviorAdapterCheckReportsEveryRefusal` covers one request with refusals in identity, two
+inputs and seven mapping fields. Build stops at identity. The check lists all of them, lists
+dependent stages as `not-evaluated` in stage order, and still evaluates the independent `discovery`
+and `tests` stages.
+
+The CLI exits:
+
+- 0 when the check is accepted;
+- 1 when it refuses, with the report still on stdout;
+- 2 for unreadable input, `--check=VALUE`, or `--check` on another corpus operation.
+
+`--check` was added to the help boolean flags.
+
+Limits:
+
+- Within one mapped record, the first refused field still skips checks that need the whole record.
+- A repaired refusal can reveal stages that were not evaluated before. The report's limitations
+  say so.
+
+## V1-1086: guide additions (DCP-V1-045)
+
+`docs/DOCUMENTATION-CORPUS.md` now documents four things:
+
+- **Check mode.** How `--check` works.
+- **Input anchor placement.** Every input anchor names the provider repository (`source`, which
+  equals the provider entry of `revisions`), and the guide gives the correction text of the refusal.
+- **Minimal migration record.** A minimal schema-2 migration identity record.
+- **Self-reference pitfall.** The record describes an earlier provider commit and is committed and
+  anchored in a later one.
+
+The example writes the legacy key as the placeholder `PROVIDER_MEMBER`. It points to the
+declaration on `BehaviorRevisions.E2E` and does not spell the key. `TestBehaviorAdapterGuideMigrationExample`
+checks the guide's example end to end:
+
+- It extracts the marked block and substitutes the declared member through reflection.
+- It closed-decodes the block into `BehaviorMigration`.
+- It builds an accepted request from the block, with every input anchored at a later provider commit.
+- It confirms that the same inputs anchored in the application or documentation repository are
+  refused with the documented correction.
+
+## V1-1085: not changed, and why (fork for the owner)
+
+The ticket asks the adapter to emit a generic role name for the end-to-end member of
+`BehaviorRevisions` and to keep the legacy key only as an input alias. That conflicts with proposed
+`AFU-V1-054..056` (V1-0985), which already govern this exact type:
+
+- The `/1` behavior provider and every `/1`-family wire sharing its `revisions` shape keep the legacy
+  /1 member. The adapter request, the adapter result, the migration, discovery and runtime records
+  and the corpus manifest are all such wires.
+- `/1` encoding stays byte-identical.
+- `/1` gains no alias, and the closed decoder refuses a neutral spelling.
+
+There are two consequences:
+
+- Changing the emitted name would change every `/1` contract digest, because the migration
+  `revisions` participate in `contract_sha256`. Prior adapter results would then fail lineage.
+- `TestAFUV1BehaviorProviderV1BytesUnchanged` pins the `/1` bytes.
+
+DCP-V1-032 already exempts "the legacy compatibility member" from its vocabulary rule as attributed
+input. The neutral path is `/2`, whose `source` and `repositories` carry the repository without the
+legacy key (AFU-V1-055).
+
+No code changed for V1-1085. The owner can choose one of two paths:
+
+- amend the AFU-V1-054/056 proposal to admit a `/1` input alias, accepting the digest break;
+- add a neutral adapter request/result version that maps onto the `/2` provider.
+
+Vocabulary scan of `internal/doccorpus` JSON tags: the legacy key is the only adopter-specific
+emitted key. Other keys, such as `app`, `docs_corpus`, `missing_e2e_review` and
+`playwright_workers_per_node`, are generic role or tool names. The new check report has no
+adopter-specific key, and `TestBehaviorAdapterCheckParity` asserts this.
+
+## Evidence
+
+Base: `684cca5f7c0e3e4b4900e07203f63949bc73984f`.
+
+Failing on base, run from a `git archive` of the base with the new tests copied in:
+
+- `TestBehaviorAdapterGuideMigrationExample`: "guide lacks the marked DCP-V1-045 migration example".
+- `TestBehaviorAdapterCheck*` and the `TestBehaviorAdapterCLI` check subtest: build failure, because
+  `CheckBehaviorAdapter` and its report types are undefined. On base, the CLI rejects `--check` as an
+  "unsupported corpus option".
+
+Passing after:
+
+- `go test -timeout 30m ./internal/doccorpus/...` passes, including the three new tests.
+- `go test -run 'TestBehaviorAdapterCLI|Help' ./cmd/corvint` passes.
+- `go vet` passes for both packages.
+- These doc gates pass: `spec-requirements-check`, `requirement-definitions-check`,
+  `traceability-tests-check`, `decision-numbers-check`, `line-citations-check`,
+  `unbounded-readers-check` and `use-case-receipts-check`.
+
+`corvint affected` (1.0.0-rc.3, build 407) reported scope `UNKNOWN` and advised the full gate. The owner
+waived that gate for this scoped lane, so it is `NOT_RUN`.

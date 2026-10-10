@@ -115,6 +115,48 @@ func TestBehaviorAdapterCLI(t *testing.T) {
 	if result.Schema != doccorpus.BehaviorAdapterResultSchema || result.Fallback != "full-relevant-suite" || len(result.Coverage) != 5 || result.Coverage[0].Defined {
 		t.Fatalf("invalid CLI result: %+v", result)
 	}
+	t.Run("DCP-V1-044 check", func(t *testing.T) {
+		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "request.json", "--check")
+		var report doccorpus.BehaviorAdapterCheck
+		if code != 0 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != doccorpus.BehaviorAdapterCheckSchema || !report.Accepted || len(report.Refusals) != 0 {
+			t.Fatalf("accepted check: code=%d out=%s stderr=%s", code, out, stderr)
+		}
+		refused := request
+		refused.Schema = "unknown"
+		refused.Inputs = append([]doccorpus.BehaviorAdapterInput(nil), request.Inputs...)
+		refused.Inputs[2].Anchor.Repository = strings.Repeat("6", 40)
+		refused.Inputs[4].Anchor.Repository = strings.Repeat("6", 40)
+		raw, err := doccorpus.Encode(refused)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cemWrite(t, root, "refused.json", string(raw))
+		code, out, stderr = corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "refused.json", "--check")
+		report = doccorpus.BehaviorAdapterCheck{}
+		if code != 1 || stderr != "" || json.Unmarshal([]byte(out), &report) != nil || report.Accepted {
+			t.Fatalf("refused check: code=%d out=%s stderr=%s", code, out, stderr)
+		}
+		stages := []string{}
+		for _, refusal := range report.Refusals {
+			if refusal.State == "refused" {
+				stages = append(stages, refusal.Stage)
+			}
+		}
+		if strings.Join(stages, ",") != "identity,inputs,inputs" {
+			t.Fatalf("check did not list every refusal: %+v", report.Refusals)
+		}
+		if code, _, _ := corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "refused.json"); code != 2 {
+			t.Fatalf("build mode exit %d, want 2", code)
+		}
+		for _, args := range [][]string{
+			{"docs", "corpus", "behavior-adapter", "--input", "request.json", "--check=true"},
+			{"docs", "corpus", "behavior-provider", "--input", "request.json", "--check"},
+		} {
+			if code, _, _ := corpusCLI(t, root, args...); code != 2 {
+				t.Fatalf("%v exit %d, want 2", args, code)
+			}
+		}
+	})
 }
 func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 	t.Run("DCP-V1-013 native", func(t *testing.T) {

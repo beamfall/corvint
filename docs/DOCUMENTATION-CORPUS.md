@@ -124,6 +124,49 @@ anchors, assertions, ordered events, behavior runs and observation links retain 
 shapes. Each input carries its exact JSON text as a string plus a full-file Git anchor whose SHA-256
 matches those bytes.
 
+Add `--check` to validate a request without producing a result. The command prints one
+`corvint-behavior-adapter-check/1` report. It lists every build stage in build order, each as
+`passed`, `refused`, `not-evaluated` or `not-applicable`, and lists every refusal it can determine in
+that same order. A check that depends on a refused earlier stage is listed as `not-evaluated` with
+`blocked_by`, so repairing that refusal can reveal more. A mapping that names a refused input is
+listed this way too. The report is accepted exactly when the build would succeed, and its first
+refusal is the error the build would return. The exit status is 0 when accepted, 1 when refused,
+and 2 when the request or previous file cannot be read.
+
+Input anchor placement: every input anchor, including the migration, discovery, inventory, runtime
+and receipt inputs, must name the provider repository. Its `repository` must equal the request
+`source.id`. `source` must equal the provider (end-to-end) entry of `revisions`. An input retained
+in the application or documentation repository is refused with
+`supply immutable Git identities from the provider repository`. Application and documentation
+commits appear only as identities inside `revisions` and inside the mapped evidence anchors.
+
+The migration input is a minimal schema-2 migration identity record. It holds exactly five members
+and must equal the request: `schema` is `2`, and `contract_id`, `source_revision`,
+`documentation_revision` and `revisions` repeat the request values. All six repository identities
+and revisions are full Git object IDs. In the example below, `PROVIDER_MEMBER` stands for the
+provider-repository member name declared on `BehaviorRevisions.E2E` in
+`internal/doccorpus/behavior.go`. That /1 name is frozen, and the adapter refuses any other spelling.
+
+<!-- DCP-V1-045 migration example -->
+```json
+{
+  "schema": 2,
+  "contract_id": "checkout-behavior",
+  "source_revision": "2222222222222222222222222222222222222222",
+  "documentation_revision": "3333333333333333333333333333333333333333",
+  "revisions": {
+    "app": {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": "1111111111111111111111111111111111111111"},
+    "PROVIDER_MEMBER": {"id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "revision": "2222222222222222222222222222222222222222"},
+    "docs_corpus": {"id": "cccccccccccccccccccccccccccccccccccccccc", "revision": "3333333333333333333333333333333333333333"}
+  }
+}
+```
+
+Avoid the self-referencing revision pitfall. `source_revision` and the provider entry of `revisions`
+name the provider commit the record describes, and that commit cannot contain the record. Commit the
+record, and the other inputs, in a later provider commit. Their input anchors name that later commit,
+while `source_revision` keeps naming the described one.
+
 The `corvint-behavior-adapter-result/1` response contains the provider, its normalized normative
 variation projection, canonical test semantic claims, retained migration, discovery, runtime and
 qualified-receipt inputs, separate coverage rows, a reconciliation frontier and an optional
