@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -547,6 +548,9 @@ func TestIndexReceiptNamesTheSweptLegacyStore(t *testing.T) {
 // receipt names the resolved repository paths (V1-1112).
 func TestIndexReceiptNamesTheSweptLegacyStoreThroughSymlinkedRoot(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("creating a symlink needs a privilege Windows does not grant by default")
+	}
 	link := filepath.Join(t.TempDir(), "linked-repository")
 	if err := os.Symlink(taskContextRepository(t), link); err != nil {
 		t.Fatal(err)
