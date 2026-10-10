@@ -127,7 +127,7 @@ one.
 | V1-0795 | CAL-V0-210 | Accepted (decision 0473): a replacement owner settles a dead owner's `SPAWNING` or `STOPPING` program `FINISHED` when its bound current attempt records a proved stop (no worker, no lane); an unproved stop stays refused; focused tests |
 | V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
 | Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
-| V1-1118 | CAL-V0-211 | Proposed: a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
+| V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -5660,7 +5660,7 @@ trailing `/` name exactly one path, so a key that names a directory covers nothi
 `submit` later refuses `OUT_OF_SCOPE` (CAL-V0-024). `ticket set-effects` stored such a key and
 claim reserved it without saying so. The amendment warns and reports; it refuses nothing.
 
-- `CAL-V0-211`: (proposed (V1-1118)) When `corvint-tasks ticket set-effects` commits a fresh
+- `CAL-V0-211`: (accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commits a fresh
   transaction (not a replay, no-change or refusal), or a claim (`claim` or `claim --next`,
   pooled or not) commits a fresh attempt, the command result MUST add one envelope `warnings`
   entry for each distinct `PATH` key that does not end in `/` and names a directory (a Git tree

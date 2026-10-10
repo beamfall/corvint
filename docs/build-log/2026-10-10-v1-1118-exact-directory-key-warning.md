@@ -5,8 +5,8 @@
 Native ticket V1-1118, found in RC3 lane C (V1-1090). Under CAL-V0-021, a `PATH` key without a
 trailing `/` names one path. A key such as `docs/build-log` that names a directory therefore covers
 nothing beneath it, and `submit` refuses `OUT_OF_SCOPE` only later (CAL-V0-024). The change adds
-one proposed requirement, CAL-V0-211 in `docs/specs/corvint-tasks-agent-leases-v0.md`, pending
-owner acceptance. No decision record exists for it.
+one requirement, CAL-V0-211 in `docs/specs/corvint-tasks-agent-leases-v0.md`, which the owner
+accepted on 2026-10-10 (decision 0499).
 
 ## Decisions
 
@@ -40,4 +40,4 @@ owner acceptance. No decision record exists for it.
 
 ## Limits
 
-Owner acceptance of CAL-V0-211 is pending. Live qualification against a real store is NOT_RUN.
+CAL-V0-211 is accepted (decision 0499). Live qualification against a real store is NOT_RUN.
