@@ -12,12 +12,12 @@ records both. No requirement ID is added or changed, and no persisted format cha
 
 | commit (subject) | effect |
 |---|---|
-| `d9635b0a` `tools/tasks-scale: synthetic corvint-tasks scale store generator and command matrix` | `go run ./tools/tasks-scale gen` builds a store through the real CLI; `matrix` reports wall, user/sys CPU, mallocs, allocated bytes, peak descriptors and output bytes per command, with optional pprof. |
+| `d9635b0a` `internal/tasks/scale: synthetic corvint-tasks scale store generator and command matrix` | `go run ./internal/tasks/scale gen` builds a store through the real CLI; `matrix` reports wall, user/sys CPU, mallocs, allocated bytes, peak descriptors and output bytes per command, with optional pprof. |
 | `dd774af7` `tasks/authority: size mount-name decoding to the NUL prefix` | `cString` allocated a full `[1024]` array per mount entry; fails on base (`cstring_test.go`). |
 | `92b31a1a` `tasks: read files into their stat-sized buffer` | `intent.readAll` and the journal's native read start from the stat size, which removes `io.ReadAll` regrowth (35,888 bytes allocated per 3,000-byte file on base; `read_all_test.go` fails on base). |
 | `4c2cbcf0` `tasks: fold receipt bindings from the audited receipts` | `receipt audit` and external-review material bindings reuse the receipts the journal audit already decoded and verified, through `Reader.ReceiptFold`. They no longer re-read and re-parse every receipt. A per-ticket `TicketPosts` memo replaces a quadratic per-step scan. The fold only runs on the complete walk, and its verdict comes from the same verified records. |
 | `393344c7` `tasks: keep plain reads on the checkpoint path under an active writer (V1-1060)` | See below. |
-| `20ac1f16` `tools/tasks-scale: contend mode for reads under a writer pool` | `contend` runs W `churn` writer processes and R concurrent readers, and reports per-read wall/CPU/audit mode/codes. |
+| `20ac1f16` `internal/tasks/scale: contend mode for reads under a writer pool` | `contend` runs W `churn` writer processes and R concurrent readers, and reports per-read wall/CPU/audit mode/codes. |
 
 ## V1-1060: what drops a read into full replay when the head moves
 
