@@ -50,6 +50,7 @@ func TestCALV0114_DivergentProjectionRefusalIsDeterministic(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			repo, r := setup(t)
+			stubStageSleep(t, nil) // orphan slots exhaust the CTS-V0-008 wait
 			appendReceipt(t, repo, "MUTATION", map[string][]byte{
 				ticketPath("A"): fixture.Ticket("A").Encode(),
 				ticketPath("B"): fixture.Ticket("B").Encode(),

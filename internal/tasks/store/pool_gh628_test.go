@@ -204,6 +204,7 @@ func TestPSRV0012PostExitClassification(t *testing.T) {
 // the pinned revision and its inputs are clean; every mismatch refuses before
 // preparation with a named code and runs nothing.
 func TestPSRV0012PinnedExternalCwd(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"pinned", "mismatched-revision", "dirty-tracked", "dirty-untracked", "alias", "subdirectory", "not-a-worktree"} {
 		t.Run(scenario, func(t *testing.T) {
 			ext, old, head := gh628External(t)
@@ -276,6 +277,7 @@ func TestPSRV0012PinnedExternalCwd(t *testing.T) {
 // worktree and frees the member; a mismatched pin refuses admission and runs
 // no phase.
 func TestPSRV0012PinnedSweep(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"pinned", "mismatched-revision"} {
 		t.Run(scenario, func(t *testing.T) {
 			ext, old, head := gh628External(t)

@@ -60,6 +60,7 @@ func mapShared(t *testing.T, p string) (flip func()) {
 // only the fresh inventory's digest shows it. Mutate must refuse it with the
 // separate passes' code and publish nothing.
 func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 70)
 	requestFile, ticketFile := mutationBoundaryFiles(t, repo)
 	for _, tc := range []struct{ name, file, want string }{
@@ -140,8 +141,10 @@ func TestCALV0070_MutateRetriesAuditWithoutWatch(t *testing.T) {
 		descriptorRetryChild(t, mode)
 		return
 	}
+	t.Parallel()
 	for _, mode := range []string{"clean", "corrupt"} {
 		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
 			child := exec.Command(os.Args[0], "-test.run=^TestCALV0070_MutateRetriesAuditWithoutWatch$", "-test.count=1", "-test.v")
 			child.Env = append(os.Environ(), descriptorChildEnv+"="+mode)
 			out, err := child.CombinedOutput()

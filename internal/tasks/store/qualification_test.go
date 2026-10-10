@@ -82,6 +82,7 @@ func (s *leaseStore) consistent(t *testing.T) {
 // tickets over one path, sent at once, admit exactly one; the rest refuse
 // RESOURCE_COLLISION. Two claims of one ticket admit one too.
 func TestCALV0019_ConcurrentCollidingClaimsAdmitOne(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-019 ConcurrentCollidingClaimsAdmitOne", func(t *testing.T) {
 		s := newLeaseStore(t)
 		ids := []string{}
@@ -126,6 +127,7 @@ func TestCALV0019_ConcurrentCollidingClaimsAdmitOne(t *testing.T) {
 // once, each commit or refuse, and the store audits CONSISTENT with no
 // reservation left to a fenced attempt.
 func TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-019 RacingLeaseVerbsLeaveOneConsistentHead", func(t *testing.T) {
 		s := newGateStore(t)
 		a, b, c, d := s.ticket(t, "a"), s.ticket(t, "b"), s.ticket(t, "c"), s.ticket(t, "d")
@@ -158,6 +160,7 @@ func TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead(t *testing.T) {
 // released or reaped, and on a live attempt named by a wrong generation,
 // every verb refuses FENCED and the attempt file keeps its bytes.
 func TestCALV0019_FencedGenerationCannotMoveOrComplete(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-019 FencedGenerationCannotMoveOrComplete", func(t *testing.T) {
 		s := newGateStore(t)
 		one, two, three := s.ticket(t, "one"), s.ticket(t, "two"), s.ticket(t, "three")
@@ -387,6 +390,7 @@ func TestCALV0019KillChild(t *testing.T) {
 // the retry, in a new process, clears them, completes the transaction and
 // audits CONSISTENT, and a later write commits.
 func TestCALV0019_KilledWriterRecovers(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-019 KilledWriterRecovers", func(t *testing.T) {
 		for _, verb := range []string{"claim", "gate-run"} {
 			t.Run(verb, func(t *testing.T) {

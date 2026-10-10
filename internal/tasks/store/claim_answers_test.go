@@ -39,6 +39,7 @@ func deliveredAnswers(t *testing.T, r *store.Report) []string {
 // exact replay; a new generation and claim-next take their own snapshot; an
 // open question is never delivered; a no-answer claim omits the attempt pin.
 func TestESCV0005_ClaimDeliversTheAnswersPinnedByItsAdmission(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	// escalationClaim admitted claim-1 before any question; replay reports it.
 	first := s.lease(t, "claim-1", claimOf(id), 1, nil)

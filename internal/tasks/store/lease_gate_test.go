@@ -152,6 +152,7 @@ func (s *leaseStore) submitted(t *testing.T, id, dir string, minutes int) (*stor
 // BUILT at the tree, the same tree again is a no-op, a new tree replaces it,
 // and a stale generation is fenced.
 func TestCALV0015_SubmitRecordsTheCandidateTree(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
 	_, tree := s.commit(t, "src/a.go")
@@ -183,6 +184,7 @@ func TestCALV0015_SubmitRecordsTheCandidateTree(t *testing.T) {
 // another change merged on the intent branch after the claim is not the
 // candidate's; WHOLE_REPOSITORY covers all.
 func TestCALV0024_SubmitOutsideTheScopeIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	s.commit(t, "keep/old.go", "keep/mod.go")
@@ -219,6 +221,7 @@ func TestCALV0024_SubmitOutsideTheScopeIsRefused(t *testing.T) {
 // that dirties the worktree are recorded with their output as evidence, and
 // a rerun of the same gate replaces its result.
 func TestCALV0016_GateRunRecordsEachResult(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
 	s.passes(t, "gate-1", gateOf(claim, "verify"), 2)
@@ -253,6 +256,7 @@ func TestCALV0016_GateRunRecordsEachResult(t *testing.T) {
 // TestCALV0016_GateRunRefusesWithoutRunning: an unsubmitted attempt, a dirty
 // or moved worktree and an unknown gate are refused and record nothing.
 func TestCALV0016_GateRunRefusesWithoutRunning(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
 	before := storeDigest(t, s.repo)
@@ -288,6 +292,7 @@ func TestCALV0016_GateRunRefusesWithoutRunning(t *testing.T) {
 // ends the attempt COMPLETED and frees its reservation in one MANIFEST
 // receipt.
 func TestCALV0017_CompleteVerifiesTheTicket(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
@@ -324,6 +329,7 @@ func TestCALV0017_CompleteVerifiesTheTicket(t *testing.T) {
 // TestCALV0017_CompletionRefusals: each unmet §7.3 row refuses BLOCKED and
 // writes nothing.
 func TestCALV0017_CompletionRefusals(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
@@ -355,6 +361,7 @@ func TestCALV0017_CompletionRefusals(t *testing.T) {
 // ticket-required gate refuses GATE_FAILED, and an APPROVAL_REQUIRED ticket
 // without a COMPLETE grant refuses APPROVAL_MISSING.
 func TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	ids := map[string]string{}
 	for class, dir := range map[string]string{"APPROVAL_REQUIRED": "approve", "AUTONOMOUS": "plain"} {
@@ -385,6 +392,7 @@ func TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval(t *testing.T) {
 // LOCK_TIMEOUT with Unretryable set, so the CLI marks it not retryable (a retry
 // would run the program again). A refusal before the program starts does not.
 func TestCALV0078_GateRunContentionAfterExecutionIsReported(t *testing.T) {
+	t.Parallel()
 	// The markers live under .git so the worktree stays clean; argv is bounded.
 	s := newLeaseStore(t, commandGate("verify", ": > .git/r; while [ ! -e .git/h ]; do /bin/sleep 0.05; done; printf ok", "120", true))
 	ran, held := filepath.Join(s.root, ".git", "r"), filepath.Join(s.root, ".git", "h")

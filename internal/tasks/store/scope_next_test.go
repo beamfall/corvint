@@ -9,6 +9,7 @@ import (
 )
 
 func TestCALV0022_NextDerivesOnlySelectedTicket(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-022 selected ticket derived scope", func(t *testing.T) {
 		s := newLeaseStore(t)
 		first := s.ticket(t, "first")

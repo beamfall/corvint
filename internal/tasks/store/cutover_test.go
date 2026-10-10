@@ -55,6 +55,7 @@ func has(list []string, want string) bool {
 // receipt named by the decision makes the queue NATIVE with a CUTOVER write
 // barrier; imported records keep their bytes and stop reading CUTOVER_MISSING.
 func TestCALV0004_CutoverSwitchesWriterInOneReceipt(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	runImport(t, repo, importExport(importItem("BF-1", "## BF-1\nfirst\n", nil)))
 	id := fixture.TicketID("BF-1")
@@ -104,6 +105,7 @@ func TestCALV0004_CutoverSwitchesWriterInOneReceipt(t *testing.T) {
 // TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing: a native queue
 // never takes shadow records, so a later import cannot overwrite a record.
 func TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	runImport(t, repo, importExport(importItem("BF-1", "## BF-1\nfirst\n", nil)))
 	cutover(t, repo, operator(), "decision-0500")
@@ -122,6 +124,7 @@ func TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing(t *testing.T) {
 // TestCALV0004_CutoverRefusals: an OPERATOR binding and a present barrier
 // each refuse, and the queue stays ROADMAP-written.
 func TestCALV0004_CutoverRefusals(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	if got := cutover(t, repo, mutation.Binding{ID: "tester", Role: "OPERATOR"}, "decision-0500"); got.Kind != "Refused" || got.Outcome.Outcome != mutation.OutcomeUnauthorized {
 		t.Fatalf("operator cutover: %+v", got)

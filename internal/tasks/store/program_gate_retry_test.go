@@ -56,6 +56,7 @@ func TestCALV0078_SupervisedGateRecordFailureIsNotRetryable(t *testing.T) {
 // fails after a gate passed, a later gate refused after an earlier one ran,
 // and a first gate refused before any ran (CAL-V0-078).
 func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name   string
 		gates  []string
@@ -68,6 +69,7 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 		{"first-gate-before-any-ran", []string{"check", "verify"}, "gate:check", []string{"gate:check"}, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			f := buildProgramFixture(t, true, false, c.gates)
 			self, err := os.Executable()
 			if err != nil {
@@ -82,7 +84,7 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 				t.Fatalf("implement: %+v %v", a, err)
 			}
 			seen := []string{}
-			restore := store.SetRunFaultForTest(func(point string) error {
+			restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 				if strings.HasPrefix(point, "gate:") || point == "ready" {
 					seen = append(seen, point)
 				}
@@ -122,6 +124,7 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 // after review left the attempt CHECKING. A failure before DISPATCH commits
 // leaves the attempt BUILT and stays retryable (CAL-V0-078).
 func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		fail      string
 		forbidden bool
@@ -134,6 +137,7 @@ func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
 		{"role-finished", true, "CHECKING"},
 	} {
 		t.Run(strings.ReplaceAll(c.fail, ":", "-"), func(t *testing.T) {
+			t.Parallel()
 			f := buildProgramFixture(t, true, false, nil)
 			self, err := os.Executable()
 			if err != nil {
@@ -150,7 +154,7 @@ func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
 			}
 			id := a.AttemptID
 			hit := 0
-			restore := store.SetRunFaultForTest(func(point string) error {
+			restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 				if point == c.fail {
 					hit++
 					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)
@@ -180,8 +184,10 @@ func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
 // its code's classification, and the retry finishes the integration
 // (CAL-V0-078).
 func TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable(t *testing.T) {
+	t.Parallel()
 	for _, fail := range []string{"refresh:GRANT", "stage-finished", "role-finished", "refresh:INTEGRATE_INTENT", "refresh:INTEGRATED"} {
 		t.Run(strings.ReplaceAll(fail, ":", "-"), func(t *testing.T) {
+			t.Parallel()
 			f := buildProgramFixture(t, false, false, nil)
 			f.config.OwnIntegrationCheckout = true
 			self, err := os.Executable()
@@ -212,7 +218,7 @@ func TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable(t *testing.
 				t.Fatalf("grant: %+v", r)
 			}
 			hit := 0
-			restore := store.SetRunFaultForTest(func(point string) error {
+			restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 				if point == fail {
 					hit++
 					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)

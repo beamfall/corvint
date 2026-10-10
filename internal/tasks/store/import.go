@@ -146,7 +146,7 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 			paths = append(paths, file.Path)
 		}
 	}
-	proof, err := journalReader(repo, head).Audit(paths...)
+	proof, err := lockedJournalReader(repo, head).Audit(paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (a *importAudit) lookup(repo *intent.Repository, head *snapshot.Head, id st
 	if !a.inv.Has(path) {
 		return mutation.IndexEntry{}, false, nil
 	}
-	index := journal.RequestIndex{Reader: journalReader(repo, head)}
+	index := journal.RequestIndex{Reader: lockedJournalReader(repo, head)}
 	return index.Lookup(id)
 }
 

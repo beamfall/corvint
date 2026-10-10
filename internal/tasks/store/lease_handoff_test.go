@@ -54,6 +54,7 @@ func handoffPoolStore(t *testing.T) *leaseStore {
 // changing the allocated pool's settings still fences. The writer refuses any
 // change to an occupied member's own definition before it can reach a handoff.
 func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"other-reservation", "version-no-pool", "members-add", "other-pool", "pools-add", "capacity", "budget", "retry", "gate", "roles", "environment", "cem", "other-member-replaced", "pool-setting"} {
 		for _, candidate := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/candidate=%v", name, candidate), func(t *testing.T) {
@@ -175,6 +176,7 @@ func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
 // additive. The policy writer already refuses it while the member is occupied,
 // so the attempt keeps its original policy and its clean handoff.
 func TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate(t *testing.T) {
+	t.Parallel()
 	s := handoffPoolStore(t)
 	c := claimOf(s.ticket(t, "own-member"), "src/")
 	c.Stage, c.Pool = "review", "lanes"
@@ -210,6 +212,7 @@ func TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate(t *testing.T) {
 }
 
 func TestCALV0044_ConcurrentCompatibleReturnsCommitOnce(t *testing.T) {
+	t.Parallel()
 	s := handoffPoolStore(t)
 	id := s.ticket(t, "concurrent")
 	c := claimOf(id, "src/")
@@ -248,6 +251,7 @@ func TestCALV0044_ConcurrentCompatibleReturnsCommitOnce(t *testing.T) {
 // The moving-policy racer must either follow a committed return or make the
 // return stale. A prepared compatibility observation cannot cross that commit.
 func TestCALV0044_ConcurrentRelevantPolicyAndReturn(t *testing.T) {
+	t.Parallel()
 	s := handoffPoolStore(t)
 	id := s.ticket(t, "policy-race")
 	c := claimOf(id, "src/")
@@ -310,6 +314,7 @@ func handoffSubmit(t *testing.T, s *leaseStore, a *store.Report, request string,
 
 // CAL-V0-044: scope-checked handoffs exceed three generations while preserving debt.
 func TestCALV0044_CleanHandoffsPreserveRetryDebt(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-044 CleanHandoffsPreserveRetryDebt", func(t *testing.T) {
 		for _, debt := range []int{0, 2, 3} {
 			t.Run(fmt.Sprint(debt), func(t *testing.T) {
@@ -370,6 +375,7 @@ func TestCALV0044_CleanHandoffsPreserveRetryDebt(t *testing.T) {
 
 // CAL-V0-044: caller-selected stage and reason are not proof of clean work.
 func TestCALV0044_HandoffNeedsRecordedEligibility(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-044 HandoffNeedsRecordedEligibility", func(t *testing.T) {
 		for _, name := range []string{"no-submit", "no-stage", "returned-by-author", "expired", "failed-gate"} {
 			t.Run(name, func(t *testing.T) {
@@ -411,6 +417,7 @@ func TestCALV0044_HandoffNeedsRecordedEligibility(t *testing.T) {
 
 // CAL-V0-044: replacing a failed gate result with PASS and resubmitting does not refund it.
 func TestCALV0044_FailedGateRemainsChargedAfterPassAndSubmit(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-044 FailedGateRemainsChargedAfterPassAndSubmit", func(t *testing.T) {
 		dir, err := os.MkdirTemp("", "c412-")
 		if err != nil {
@@ -447,6 +454,7 @@ func TestCALV0044_FailedGateRemainsChargedAfterPassAndSubmit(t *testing.T) {
 
 // CAL-V0-044: review-stage crashes remain subject to ordinary retry limits.
 func TestCALV0044_ReviewExpiryStillExhausts(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-044 ReviewExpiryStillExhausts", func(t *testing.T) {
 		s := newLeaseStore(t)
 		id := s.ticket(t, "expiry")
@@ -466,6 +474,7 @@ func TestCALV0044_ReviewExpiryStillExhausts(t *testing.T) {
 
 // CAL-V0-044: TIMEOUT remains a failure after a passing gate and resubmission.
 func TestCALV0044_TimeoutRemainsSticky(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-044 TimeoutRemainsSticky", func(t *testing.T) {
 		s := newGateStore(t)
 		id := s.ticket(t, "timeout")
@@ -488,6 +497,7 @@ func TestCALV0044_TimeoutRemainsSticky(t *testing.T) {
 }
 
 func TestCALV0046_NoTreeHandoffAndIntegrate(t *testing.T) {
+	t.Parallel()
 	for _, stage := range []string{"implement", "review", "integrate"} {
 		t.Run(stage, func(t *testing.T) {
 			s := newLeaseStore(t)
@@ -536,6 +546,7 @@ func TestCALV0046_NoTreeHandoffAndIntegrate(t *testing.T) {
 }
 
 func TestCALV0046_NoTreeRefusals(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"candidate", "no-stage", "review-return", "policy-changed", "expired", "generation"} {
 		t.Run(name, func(t *testing.T) {
 			s := newGateStore(t)

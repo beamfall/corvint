@@ -38,6 +38,7 @@ func exclusionPolicy(t *testing.T, s *leaseStore, config wire.Value) wire.Value 
 // CAL-V0-065: no excluded health command runs, even in a reserved-first
 // tier or after a failed unreserved member causes another selection round.
 func TestCALV0065_HealthFiltersEveryRound(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	markers := t.TempDir()
 	command := func(argv ...string) wire.Value {
@@ -91,6 +92,7 @@ func TestCALV0065_HealthFiltersEveryRound(t *testing.T) {
 // CAL-V0-065: authoritative replay binds the original allocation across a
 // released generation, a successor, and removal of an excluded FREE member.
 func TestCALV0065_ReplayAfterSuccessorAndPolicyChange(t *testing.T) {
+	t.Parallel()
 	for _, verb := range []string{transaction.LeaseClaim, transaction.LeaseClaimNext} {
 		t.Run(verb, func(t *testing.T) {
 			s := newLeaseStore(t)
@@ -138,6 +140,7 @@ func TestCALV0065_ReplayAfterSuccessorAndPolicyChange(t *testing.T) {
 // CAL-V0-065: both the outside-lock scope deriver and final CLAIM_NEXT
 // selector receive exclusions, including complete capacity exhaustion.
 func TestCALV0065_ClaimNextSelectors(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	want := s.ticket(t, "next-exclusion")

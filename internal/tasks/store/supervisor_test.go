@@ -16,6 +16,7 @@ import (
 )
 
 func TestSupervisorWaitRetainsScopeReleasesWorker(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -123,6 +124,7 @@ func TestSupervisorWaitRetainsScopeReleasesWorker(t *testing.T) {
 }
 
 func TestSupervisorSharedProgramThreeLaneCap(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -176,6 +178,7 @@ func TestSupervisorSharedProgramThreeLaneCap(t *testing.T) {
 }
 
 func TestSupervisorStaleIntentFencesContinuation(t *testing.T) {
+	t.Parallel()
 	for _, changed := range []string{"usage", "policy"} {
 		t.Run(changed, func(t *testing.T) {
 			s := newLeaseStore(t)

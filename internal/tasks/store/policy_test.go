@@ -41,6 +41,7 @@ func auditOK(t *testing.T, repo *intent.Repository) {
 }
 
 func TestTMV0030_AS11_PolicyUpdateCommitsAndReplays(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	oldRaw := fixture.PolicyBytes()
 	newRaw := policyVersion("2")
@@ -91,6 +92,7 @@ func TestTMV0030_AS11_PolicyUpdateCommitsAndReplays(t *testing.T) {
 }
 
 func TestTMV0030_AS11_PolicyUpdateRefusalsPreserveStore(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		outcome string
@@ -168,6 +170,7 @@ func TestTMV0030_AS11_PolicyUpdateRefusalsPreserveStore(t *testing.T) {
 }
 
 func TestTMV0030_AS11_PolicyUpdateRedoesPendingReceiptFirst(t *testing.T) {
+	t.Parallel()
 	repo := pendingMutation(t)
 	report, err := store.PolicyUpdate(context.Background(), repo, operator(), policyRequest("policy-2", "1", policyVersion("2")), now(t))
 	if err != nil || !report.Redone || report.Outcome.Outcome != mutation.OutcomeCompleted || report.Receipt == "" {
@@ -177,6 +180,7 @@ func TestTMV0030_AS11_PolicyUpdateRedoesPendingReceiptFirst(t *testing.T) {
 }
 
 func TestTMV0030_AS11_PolicyUpdatePublicationReturnedFault(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	before := storeDigest(t, repo)
 	fault := errors.New("returned precommit fault")
@@ -196,6 +200,7 @@ func TestTMV0030_AS11_PolicyUpdatePublicationReturnedFault(t *testing.T) {
 }
 
 func TestTMV0030_AS11_PolicyUpdateModelRejectsForeignInputs(t *testing.T) {
+	t.Parallel()
 	r := transaction.Request{Operation: transaction.Pause, QueueID: fixture.QueueID, RequestID: "pause", Actor: operator(), ExpectedPolicyVersion: "1"}
 	if _, err := transaction.Digest(r); wire.CodeOf(err) != wire.CodeMalformed {
 		t.Fatalf("expected version on PAUSE: %v", err)

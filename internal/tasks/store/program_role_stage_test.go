@@ -110,6 +110,7 @@ func TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage(t *testing.T) {
 // stage over an answered, an unanswered and an unsupervised wait and the
 // unchanged per-role phases.
 func TestCALV0197_RoleSelectsByStage(t *testing.T) {
+	t.Parallel()
 	stages := []string{"implement", "review", "integrate"}
 	for _, want := range stages {
 		for _, at := range stages {
@@ -144,6 +145,7 @@ func TestCALV0197_RoleSelectsByStage(t *testing.T) {
 // unanswered, so `run --role` does not reselect it on the answer of the wait
 // it resumed.
 func TestCALV0197_NewQuestionClearsResumedAnswer(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))

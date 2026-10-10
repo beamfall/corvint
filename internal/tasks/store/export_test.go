@@ -55,12 +55,18 @@ func SetGateRecordFaultForTest(f func() error) func() {
 	return func() { gateRecordFault = old }
 }
 
-// SetRunFaultForTest fails a supervised run at a named point, until the
-// returned restore is called.
-func SetRunFaultForTest(f func(point string) error) func() {
-	old := runFault
-	runFault = f
-	return func() { runFault = old }
+// SetRunFaultForTest fails a supervised run over the store at stateDir at a
+// named point, until the returned restore is called. Runs over other stores
+// are unaffected, so tests that set it can run in parallel.
+func SetRunFaultForTest(stateDir string, f func(point string) error) func() {
+	old, had := runFaults.Swap(stateDir, f)
+	return func() {
+		if had {
+			runFaults.Store(stateDir, old)
+		} else {
+			runFaults.Delete(stateDir)
+		}
+	}
 }
 
 // SetPoolCommandSecondForTest shortens the unit of a health/cleanup

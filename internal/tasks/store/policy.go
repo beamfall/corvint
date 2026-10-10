@@ -100,7 +100,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	if report.Redone, err = redoPending(repo, session); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	reader := journalReader(repo, head)
+	reader := lockedJournalReader(repo, head)
 	index := journal.RequestIndex{Reader: reader}
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {

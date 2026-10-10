@@ -45,6 +45,7 @@ func refuseUnchanged(t *testing.T, repo *intent.Repository, code string) {
 }
 
 func TestTMV0007_AS35_WriterRejectsProjectionDrift(t *testing.T) {
+	t.Parallel()
 	for _, field := range []string{"title", "acceptanceCriteria", "queue", "policy"} {
 		t.Run(field, func(t *testing.T) {
 			repo, _ := initialized(t)
@@ -74,6 +75,7 @@ func TestTMV0007_AS35_WriterRejectsProjectionDrift(t *testing.T) {
 }
 
 func TestTMV0007_AS35_WriterObservesPrimaryBranch(t *testing.T) {
+	t.Parallel()
 	for _, head := range []string{"ref: refs/heads/other\n", strings.Repeat("a", 40) + "\n", "missing", "symlink"} {
 		t.Run(head, func(t *testing.T) {
 			repo, _ := initialized(t)
@@ -121,6 +123,7 @@ func pendingMutation(t *testing.T) *intent.Repository {
 }
 
 func TestTMV0009_AS11_WriterGuardsBeforeRedo(t *testing.T) {
+	t.Parallel()
 	for _, pending := range []bool{false, true} {
 		for _, kind := range []string{"version", "primary", "barrier", "restore", "restore-directory", "branch"} {
 			t.Run(kind+map[bool]string{false: "/settled", true: "/pending"}[pending], func(t *testing.T) {
@@ -158,6 +161,7 @@ func TestTMV0009_AS11_WriterGuardsBeforeRedo(t *testing.T) {
 }
 
 func TestTMV0009_AS11_RedoRequiresCompleteJournalProof(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"scope", "generation", "request", "history"} {
 		t.Run(kind, func(t *testing.T) {
 			repo := pendingMutation(t)
@@ -204,6 +208,7 @@ func TestTMV0009_AS11_RedoRequiresCompleteJournalProof(t *testing.T) {
 }
 
 func TestTMV0006_AS03_ReplayPreservesIdentityAndAllowsStableDivergence(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	env := envelope("retry", mutation.OpCreate, "", "", createPayload("original"))
 	first := mutate(t, repo, env)
@@ -228,6 +233,7 @@ func TestTMV0006_AS03_ReplayPreservesIdentityAndAllowsStableDivergence(t *testin
 }
 
 func TestTMV0006_AS03_ActorBindingBeforeReplayAndRedo(t *testing.T) {
+	t.Parallel()
 	for _, pending := range []bool{false, true} {
 		t.Run(map[bool]string{false: "replay", true: "redo"}[pending], func(t *testing.T) {
 			var repo *intent.Repository
@@ -250,6 +256,7 @@ func TestTMV0006_AS03_ActorBindingBeforeReplayAndRedo(t *testing.T) {
 }
 
 func TestTMV0006_AS03_ForgedRequestNeverReplays(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	env := envelope("retry", mutation.OpCreate, "", "", createPayload("original"))
 	mutate(t, repo, env)
@@ -269,6 +276,7 @@ func TestTMV0006_AS03_ForgedRequestNeverReplays(t *testing.T) {
 }
 
 func TestTMV0009_AS11_InvalidInitLeavesCorrectableInput(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"role", "request", "branch", "detached"} {
 		t.Run(kind, func(t *testing.T) {
 			r := fixture.TempRepo(t)
@@ -311,6 +319,7 @@ func TestTMV0009_AS11_InvalidInitLeavesCorrectableInput(t *testing.T) {
 }
 
 func TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	gitdir := filepath.Join(repo.CommonDir, "worktrees", "linked")
 	linked := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "linked")
@@ -331,6 +340,7 @@ func TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD(t *testing.T) {
 }
 
 func TestTMV0016_AS27_AdmissionBarrierAllowsNativeMutation(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	var files []archive.FileEntry
 	var dirs []string

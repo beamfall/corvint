@@ -26,6 +26,7 @@ import (
 // This selector uses durable disposable stores, but no archive producer or
 // native fixture runner. Archive/crash qualification has its own terminal gate.
 func TestPoolLaneUntouched_Replay(t *testing.T) {
+	t.Parallel()
 	t.Run("receipt-payload", untouchedReceiptPayload)
 	t.Run("CAL-V0-067", func(t *testing.T) {
 		for _, reason := range []string{"", wire.CodeHandoff, wire.CodeReviewReturned} {

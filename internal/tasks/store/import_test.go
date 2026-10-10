@@ -103,6 +103,7 @@ func readImported(t *testing.T, repo *intent.Repository, local string) (*ticket.
 }
 
 func TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	dep := func(o *wire.Object) {
 		o.Set("dependencies", wire.Array(obj("gateId", wire.Null(), "obligation", str("COMPLETED"), "ticketId", str(fixture.TicketID("BF-1")))))
@@ -134,6 +135,7 @@ func TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent(t *testing.T)
 }
 
 func TestCTSV0003_ChangedBlockWritesNextRevision(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	runImport(t, repo, importExport(importItem("BF-1", "one\n", nil), importItem("BF-2", "two\n", nil)))
 	old, oldRaw := readImported(t, repo, "BF-1")
@@ -154,6 +156,7 @@ func TestCTSV0003_ChangedBlockWritesNextRevision(t *testing.T) {
 }
 
 func TestCTSV0003_ImportRefusesOverNativeRecord(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	created := mutate(t, repo, envelope("req-native", "CREATE", "", "", createPayload("native")))
 	if created.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -171,6 +174,7 @@ func TestCTSV0003_ImportRefusesOverNativeRecord(t *testing.T) {
 }
 
 func TestCTSV0003_ImportRefusesWithNothingWritten(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, writer string
 		export       []byte
@@ -199,6 +203,7 @@ func TestCTSV0003_ImportRefusesWithNothingWritten(t *testing.T) {
 // TestCTSV0003_ImportBatchesWithinStageLimits imports more records than one
 // IMPORT_APPLY stage holds, including one over the inline post bound.
 func TestCTSV0003_ImportBatchesWithinStageLimits(t *testing.T) {
+	t.Parallel()
 	repo := importStore(t, "ROADMAP")
 	items := []string{importItem("BF-0", strings.Repeat("x", wire.MaxBodyBytes), nil)}
 	for i := 1; i <= 24; i++ {
@@ -227,6 +232,7 @@ func TestCTSV0003_ImportBatchesWithinStageLimits(t *testing.T) {
 // across batches, yet a batch still refuses a head other than the one the
 // previous batch wrote, and a ticket file that changed before it is posted.
 func TestCALV0018_LaterBatchesCheckTheirHeadAndPosts(t *testing.T) {
+	t.Parallel()
 	items := []string{}
 	for i := 0; i < 24; i++ {
 		id := "BF-" + string(wire.CountOf(int64(i)))

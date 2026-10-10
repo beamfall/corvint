@@ -14,6 +14,7 @@ import (
 // pinned receipts/ descriptor with the same bytes, refusals and absence as the
 // per-path reader, and refuses a receipts/ directory replaced during the fold.
 func TestCALV0135_ReceiptFoldPinnedReader(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 80)
 	files := newReceiptFiles(repo)
 	for seq := uint64(1); seq <= 80; seq++ {

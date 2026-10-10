@@ -45,7 +45,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	if decline != nil {
-		if headState.LastSeq.Uint64() < minWriterCheckpointSeq {
+		if headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 			return false, nil, nil
 		}
 		return declined(decline.Error())
@@ -177,7 +177,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if !writerLeaseVerb(request) {
 		return false, false, nil, nil
 	}
-	if head, err := readHead(repo); err != nil || head.LastSeq.Uint64() < minWriterCheckpointSeq {
+	if head, err := readHead(repo); err != nil || head.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return false, false, nil, nil
 	}
 	if _, err := os.Lstat(journal.WriterCheckpointPath(repo.StateDir)); err != nil {

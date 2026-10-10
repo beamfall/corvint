@@ -46,6 +46,7 @@ func reviewOf(id, mode string, exclude ...string) transaction.LeaseRequest {
 // it with explicit exclusions, reports exhaustion with the author named,
 // binds the mode into replay, and refuses unverifiable history.
 func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	id := s.ticket(t, "authored")
@@ -105,6 +106,7 @@ func TestCALV0098_ClaimExcludesImplementAuthor(t *testing.T) {
 // CAL-V0-098: CLAIM_NEXT skips a ticket whose authors are unverifiable and
 // claims the next one on a member its author did not hold.
 func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	// A pooled claim without a stage recorded its member but no stage: no
@@ -137,6 +139,7 @@ func TestCALV0098_ClaimNextExcludesAuthors(t *testing.T) {
 
 // CAL-V0-098: health preparation never probes an excluded author.
 func TestCALV0098_HealthSkipsAuthor(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	markers := t.TempDir()
 	touch := func(name string) wire.Value {

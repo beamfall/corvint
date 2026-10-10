@@ -39,6 +39,7 @@ func nonFixture(t *testing.T, writer string) *intent.Repository {
 // edit, an import, pause, unpause, a policy update and the writer cutover,
 // and its journal audits CONSISTENT.
 func TestCALV0001_NonFixtureQueueTakesEveryWrite(t *testing.T) {
+	t.Parallel()
 	repo := nonFixture(t, "ROADMAP")
 	created := mutate(t, repo, envelope("create-a", mutation.OpCreate, "", "", createPayload("a")))
 	if created.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -71,6 +72,7 @@ func TestCALV0001_NonFixtureQueueTakesEveryWrite(t *testing.T) {
 // an import map or an execution cutover cannot be initialized: init refuses
 // it VALIDATION_FAILED MALFORMED.
 func TestCALV0001_ImportMappedQueueStaysRefused(t *testing.T) {
+	t.Parallel()
 	enabled := obj("enabledBy", str("owner"), "decisionRef", str("decision-1"), "gateEvidence", wire.Strings([]string{string(wire.Sum([]byte("run")))}))
 	for field, value := range map[string]wire.Value{
 		"importMapSha256":  str(string(wire.Sum([]byte("map")))),
@@ -100,6 +102,7 @@ func TestCALV0001_ImportMappedQueueStaysRefused(t *testing.T) {
 // non-fixture queue refuses claim and claim --next BLOCKED CUTOVER_MISSING and
 // writes nothing, while its tickets still take writes.
 func TestCALV0002_NonFixtureQueueRefusesClaims(t *testing.T) {
+	t.Parallel()
 	s := leaseStoreOn(t, nonFixture(t, "NATIVE"))
 	id := s.planned(t, "one", "P1", "src/")
 	before := storeDigest(t, s.repo)

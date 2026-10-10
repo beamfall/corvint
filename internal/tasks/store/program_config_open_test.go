@@ -20,6 +20,7 @@ import (
 // without changing the writer checkpoint (including when none is present),
 // and that a policy allowance lets the same config reach the runtime pin.
 func TestCALV0062_OpenWorkflowRefusesBeforeMutation(t *testing.T) {
+	t.Parallel()
 	for _, present := range []bool{false, true} {
 		name := "checkpoint-absent"
 		if present {

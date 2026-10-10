@@ -47,6 +47,7 @@ func (s *leaseStore) note(t *testing.T, env []byte, minutes int) {
 // the live response nor its exact replay; a new generation and claim-next
 // take their own snapshot; a never-noted claim keeps legacy attempt bytes.
 func TestONV0007_ClaimDeliversTheNotePinnedByItsAdmission(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	plain := s.planned(t, "plain", "P2", "docs/")
 	noted := s.planned(t, "noted", "P1", "src/")
@@ -105,6 +106,7 @@ func TestONV0007_ClaimDeliversTheNotePinnedByItsAdmission(t *testing.T) {
 // MISSING_EVIDENCE, and the exact claim replay refuses before delivery
 // because the full receipt audit cannot bind the absent note history.
 func TestONV0007_UnresolvableNoteFailsClosed(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	noted := s.ticket(t, "noted")
 	s.note(t, noteEnvelope("note-1", mutation.OpNoteSet, noted, "", "First.", "0"), 1)

@@ -43,6 +43,7 @@ func shareBound(t *testing.T, s *leaseStore) []string {
 // PSR-V0-018: an expired bound lease is reaped on its own; the others stay
 // bound, a reaped primary hands the allocation over, and nothing quarantines.
 func TestPSRV0018_ShareLeaseExpiry(t *testing.T) {
+	t.Parallel()
 	for _, primaryExpires := range []bool{true, false} {
 		t.Run(fmt.Sprint("primaryExpires=", primaryExpires), func(t *testing.T) {
 			s := newLeaseStore(t)
@@ -175,6 +176,7 @@ func TestPSRV0016_ShareCrashReplay(t *testing.T) {
 // PSR-V0-019: a shared allocation cannot be released lane-untouched, so the
 // refusal writes nothing. (Supervisor attach is refused in transaction.)
 func TestPSRV0019_ShareExcludesLaneUntouched(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	exclusionPolicy(t, s, wire.Null())
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")

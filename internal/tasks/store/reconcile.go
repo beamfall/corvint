@@ -88,7 +88,7 @@ func reconcile(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	if err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	reader := journalReader(repo, head)
+	reader := lockedJournalReader(repo, head)
 	index := journal.RequestIndex{Reader: reader}
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {
@@ -218,7 +218,7 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err != nil {
 		return report, err
 	}
-	reader := journalReader(repo, head)
+	reader := lockedJournalReader(repo, head)
 	request := transaction.Request{Operation: transaction.Release, QueueID: head.QueueID.Raw, RequestID: choice.RequestID, TargetID: choice.TargetID, Actor: actor, File: bytes.Clone(choice.File), CanonicalSha256: choice.CanonicalSha256}
 	index := journal.RequestIndex{Reader: reader}
 	entry, found, err := index.Lookup(choice.RequestID)

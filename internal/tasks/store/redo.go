@@ -53,9 +53,9 @@ func redoPendingFor(repo *intent.Repository, session *authority.Session, operati
 	// UNPAUSE was, so the unrelated ticket divergence it admitted does not
 	// block its own recovery (V1-0309). The classification only selects the
 	// audit; the audited receipt digest is bound to these bytes below.
-	audit, agreement, unpause := journalReader(repo, head).Audit, "PRE_OR_POST", pendingUnpause(raw)
+	audit, agreement, unpause := lockedJournalReader(repo, head).Audit, "PRE_OR_POST", pendingUnpause(raw)
 	if unpause {
-		audit, agreement = journalReader(repo, head).PendingBarrierRemoval, "TICKETS_NOT_COMPARED"
+		audit, agreement = lockedJournalReader(repo, head).PendingBarrierRemoval, "TICKETS_NOT_COMPARED"
 	}
 	proof, auditErr := audit("intent/queue.json")
 	if wire.CodeOf(auditErr) != wire.CodeRedoPending || proof == nil || !proof.Pending || proof.StructuralConsistency != "CONSISTENT" || proof.ProjectionAgreement != agreement {

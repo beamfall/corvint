@@ -47,6 +47,7 @@ func reconcile(t *testing.T, repo *intent.Repository, request store.ReconcileReq
 }
 
 func TestTMV0007_AS35_NativeKeepThenMutation(t *testing.T) {
+	t.Parallel()
 	for _, empty := range []bool{false, true} {
 		t.Run(map[bool]string{false: "malformed", true: "empty"}[empty], func(t *testing.T) {
 			repo, request, path, canonical := reconcileFixture(t)
@@ -90,6 +91,7 @@ func TestTMV0007_AS35_NativeKeepThenMutation(t *testing.T) {
 }
 
 func TestTMV0007_AS35_NativeAdoptThenMutation(t *testing.T) {
+	t.Parallel()
 	repo, request, path, canonical := reconcileFixture(t)
 	value, err := wire.Parse(canonical)
 	if err != nil {
@@ -117,6 +119,7 @@ func TestTMV0007_AS35_NativeAdoptThenMutation(t *testing.T) {
 }
 
 func TestTMV0007_AS35_NativeReconcileRefusalsPreserveInput(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"protected", "different-file", "stale-canonical", "other-drift", "wrong-branch", "detached", "restore", "primary", "version", "role", "scope"} {
 		t.Run(kind, func(t *testing.T) {
 			repo, request, path, canonical := reconcileFixture(t)
@@ -166,6 +169,7 @@ func TestTMV0007_AS35_NativeReconcileRefusalsPreserveInput(t *testing.T) {
 }
 
 func TestTMV0009_AS11_NativeReconcileRefusesPending(t *testing.T) {
+	t.Parallel()
 	repo := pendingMutation(t)
 	target := "ticket:acme:main:AT-0002"
 	raw, err := os.ReadFile(filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", "AT-0002.json"))
@@ -214,6 +218,7 @@ func emptyActiveDescriptor(t *testing.T, repo *intent.Repository) {
 }
 
 func TestTMV0009_AS11_ActiveDescriptorBlocksFreshWriters(t *testing.T) {
+	t.Parallel()
 	repo, request, path, canonical := reconcileFixture(t)
 	fixture.Write(t, path, canonical)
 	emptyActiveDescriptor(t, repo)
@@ -237,6 +242,7 @@ func TestTMV0009_AS11_ActiveDescriptorBlocksFreshWriters(t *testing.T) {
 }
 
 func TestTMV0009_AS11_KeepEvidencePrecedesCommitAndSurvivesReturnedFault(t *testing.T) {
+	t.Parallel()
 	repo, request, path, _ := reconcileFixture(t)
 	read := func(path string) []byte {
 		t.Helper()
@@ -321,6 +327,7 @@ func reconciliationBarrier(t *testing.T, repo *intent.Repository, scope string) 
 }
 
 func TestTMV0016_AS27_ReconciliationUnderBarriersAndNoChange(t *testing.T) {
+	t.Parallel()
 	for _, scope := range []string{"ALL", "ADMISSION"} {
 		for _, choice := range []string{transaction.KeepJournal, transaction.AdoptFile} {
 			t.Run(scope+"/"+choice, func(t *testing.T) {

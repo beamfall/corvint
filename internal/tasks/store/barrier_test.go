@@ -32,6 +32,7 @@ func changeBarrier(t *testing.T, repo *intent.Repository, operation, id string) 
 }
 
 func TestTMV0016_AS27_NativeBarrierCycleAndReplay(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("create", mutation.OpCreate, "", "", createPayload("barrier cycle")))
 	pause := changeBarrier(t, repo, transaction.Pause, "pause")
@@ -101,6 +102,7 @@ func TestTMV0016_AS27_NativeBarrierCycleAndReplay(t *testing.T) {
 }
 
 func TestTMV0016_AS27_UnpausePreservesMultipleDivergentTickets(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	for _, id := range []string{"first", "second"} {
 		mutate(t, repo, envelope(id, mutation.OpCreate, "", "", createPayload(id)))
@@ -126,6 +128,7 @@ func TestTMV0016_AS27_UnpausePreservesMultipleDivergentTickets(t *testing.T) {
 }
 
 func TestTMV0009_AS11_BarrierPublicationReturnedFaults(t *testing.T) {
+	t.Parallel()
 	for _, point := range []string{"precommit", "predelete"} {
 		t.Run(point, func(t *testing.T) {
 			repo, _ := initialized(t)
@@ -181,6 +184,7 @@ func TestTMV0009_AS11_BarrierPublicationReturnedFaults(t *testing.T) {
 }
 
 func TestTMV0016_AS27_UnpauseALLAndBranchIndependence(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	reconciliationBarrier(t, repo, "ALL")
 	before := storeDigest(t, repo)
@@ -205,6 +209,7 @@ func TestTMV0016_AS27_UnpauseALLAndBranchIndependence(t *testing.T) {
 }
 
 func TestTMV0009_AS11_BarrierRefusalsPreserveStore(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"missing", "extra", "queue", "policy", "private", "staging", "restore", "primary", "version", "role", "identity", "scope", "request", "operation"} {
 		t.Run(kind, func(t *testing.T) {
 			repo, _ := initialized(t)
@@ -255,6 +260,7 @@ func TestTMV0009_AS11_BarrierRefusalsPreserveStore(t *testing.T) {
 }
 
 func TestTMV0009_AS11_ChangedBarrierAfterReceiptStopsBeforeHead(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	changeBarrier(t, repo, transaction.Pause, "pause")
 	headPath := filepath.Join(repo.StateDir, "head.json")

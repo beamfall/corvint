@@ -64,6 +64,7 @@ func symbolAnchors(specs ...string) []ticket.KnowHowAnchor {
 // that is missing or declared twice, or a file no extractor admits, is
 // refused KNOWHOW_UNRESOLVED and nothing is pinned.
 func TestKHNV0016_SymbolPinsReuseTheIndexExtractor(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	gitRun(t, root, "init", "-q", "-b", "main")
 	head := writeCommit(t, root, "base", map[string]string{"sym.go": symGoV1, "lib.py": symPyV1, "notes.txt": "F\n"})
@@ -103,6 +104,7 @@ func TestKHNV0016_SymbolPinsReuseTheIndexExtractor(t *testing.T) {
 // declaration makes it STALE; deleting or renaming it, deleting the file,
 // growing it past 1 MiB, or duplicating it reads UNKNOWN, never CURRENT.
 func TestKHNV0017_SymbolFreshnessFollowsTheDeclaration(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	gitRun(t, root, "init", "-q", "-b", "main")
 	writeCommit(t, root, "base", map[string]string{"sym.go": symGoV1, "lib.py": symPyV1})
@@ -176,6 +178,7 @@ func TestKHNV0017_SymbolFreshnessFollowsTheDeclaration(t *testing.T) {
 // but no pins; a note never re-confirmed and without symbols projects as
 // before.
 func TestKHNV0018_ProjectionShowsEffectivePinsAndProvenance(t *testing.T) {
+	t.Parallel()
 	blobA, blobB := strings.Repeat("a", 40), strings.Repeat("b", 40)
 	d1, d2 := string(wire.Sum([]byte("1"))), string(wire.Sum([]byte("2")))
 	add := knowHowEntry(1, "2026-10-01T00:00:00Z", ticket.KnowHowAnchor{Path: "a.go", Blob: blobA, Symbol: "F", SymbolSha256: d1})

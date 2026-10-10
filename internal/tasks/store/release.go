@@ -60,7 +60,7 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if report.Redone, err = redoPending(repo, session); err != nil {
 		return report, err
 	}
-	reader := journalReader(repo, headState)
+	reader := lockedJournalReader(repo, headState)
 	idx := journal.RequestIndex{Reader: reader}
 	entry, found, err := idx.Lookup(req.RequestID)
 	if err != nil {

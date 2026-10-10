@@ -13,6 +13,7 @@ import (
 )
 
 func TestCALV0048_HeartbeatFenceReplayAndLeaseInvariant(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "heartbeat")
 	c := s.lease(t, "claim-heartbeat", claimOf(id, "src/"), 1, store.NoScopeDeriver)
