@@ -377,6 +377,10 @@ func (e slotsInFlight) Unwrap() error { return e.error }
 // stageSleep is the CTS-V0-008 wait's pause; a test replaces it.
 var stageSleep = time.Sleep
 
+// patienceSleep is the CTS-V0-006 wait's pause when the Reader names none,
+// as in Export; a test replaces it to act inside an observed wait.
+var patienceSleep = time.Sleep
+
 func (s *archiveRead) validateStage(sc *scan, snap *snapshot.Snapshot, tree intent.Tree) error {
 	if sc.stageErr != nil {
 		return sc.stageErr
@@ -466,7 +470,7 @@ func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*s
 	deadline := start.Add(patience)
 	sleep := rd.Sleep
 	if sleep == nil {
-		sleep = time.Sleep
+		sleep = patienceSleep
 	}
 	// waits counts every pause; callWaits those of the current Read, which
 	// already names its own wait on the error it returns.

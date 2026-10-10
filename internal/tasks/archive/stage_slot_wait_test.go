@@ -159,19 +159,20 @@ func TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose(t *testing.T) {
 
 // CTS-V0-008 with CTS-V0-006: a stage-slot pause does not draw on the
 // export's patience deadline. The writer holds its slot for longer than the
-// whole patience and, as the slot clears, leaves the store REDO_PENDING for a
-// short window. The export must wait that window out under its untouched
-// patience instead of reporting REDO_PENDING at once.
+// whole patience and, as the slot clears, leaves the store REDO_PENDING. The
+// writer finishes only inside the export's observed pending wait, so the
+// export succeeds only if that wait still has patience to run; with the
+// pause charged to the deadline it reports REDO_PENDING without waiting.
 func TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending(t *testing.T) {
 	r, repo := repoWithStore(t)
-	const patience = 500 * time.Millisecond
+	const patience = time.Second
 	old := snapshot.DefaultPatience
 	snapshot.DefaultPatience = patience
 	t.Cleanup(func() { snapshot.DefaultPatience = old })
 	headPath := filepath.Join(r.StateDir, "head.json")
 	slot := filepath.Join(r.StateDir, "staging", "a00")
 	fixture.Write(t, slot, []byte("x"))
-	renamed := make(chan error, 1)
+	var settled []byte
 	pauses := stubStageSleep(t, func(int) {
 		time.Sleep(patience + 100*time.Millisecond) // the writer outlasts the patience
 		prior, e := os.ReadFile(headPath)
@@ -179,31 +180,28 @@ func TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending(t *testing.T) {
 			t.Fatal(e)
 		}
 		fixture.Commit(t, r, "MUTATION")
-		settled, e := os.ReadFile(headPath)
-		if e != nil {
+		if settled, e = os.ReadFile(headPath); e != nil {
 			t.Fatal(e)
 		}
 		fixture.Write(t, headPath, prior) // receipt linked in, head not yet renamed
 		if e := os.Remove(slot); e != nil {
 			t.Fatal(e)
 		}
-		go func() {
-			time.Sleep(150 * time.Millisecond)
-			tmp := filepath.Join(filepath.Dir(r.StateDir), "head.json.writer")
-			if e := os.WriteFile(tmp, settled, 0o644); e != nil {
-				renamed <- e
-				return
-			}
-			renamed <- os.Rename(tmp, headPath)
-		}()
 	})
+	waits, renamed := 0, false
+	saved := patienceSleep
+	patienceSleep = func(time.Duration) {
+		waits++
+		if settled != nil && !renamed {
+			fixture.Write(t, headPath, settled) // the writer finishes its rename
+			renamed = true
+		}
+	}
+	t.Cleanup(func() { patienceSleep = saved })
 	if _, _, err := export(t, repo, fixture.TempDirOutside(t)); err != nil {
-		t.Fatalf("stage pause spent the CTS-V0-006 patience: %v", err)
+		t.Fatalf("stage pause spent the CTS-V0-006 patience: %v (pending waits %d)", err, waits)
 	}
-	if e := <-renamed; e != nil {
-		t.Fatal(e)
-	}
-	if len(*pauses) != 1 {
-		t.Fatalf("stage pauses %v; want one", *pauses)
+	if len(*pauses) != 1 || waits == 0 || !renamed {
+		t.Fatalf("stage pauses %v, pending waits %d, renamed in a wait %v; want one pause and a pending wait that renamed", *pauses, waits, renamed)
 	}
 }

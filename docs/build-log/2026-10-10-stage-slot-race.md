@@ -74,10 +74,11 @@ writer-locked and refuse at once, as before.
   pause, and four moves in all end in `SNAPSHOT_MOVED`.
 - `TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot`, `..._ArchiveOrphanSlotMalformedAfterBoundedWait`
   and `..._ArchiveSlotBesideDescriptorRefusedAtOnce` mirror the journal cases through `Export`.
-- `TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending`: with a positive 500 ms CTS-V0-006
-  patience, a slot held for 600 ms and then a 150 ms `REDO_PENDING` window, the export succeeds;
-  before `readArchive` pushed its deadline forward by each stage pause it reported `REDO_PENDING`
-  at once.
+- `TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending`: with a positive 1 s CTS-V0-006
+  patience, a slot held for 1.1 s leaves the store `REDO_PENDING`, and the writer's head rename
+  happens only inside the export's observed pending wait (the `patienceSleep` seam). The export
+  succeeds and the test asserts that wait ran (passed `-race -count=20`). Before `readArchive`
+  pushed its deadline forward by each stage pause it reported `REDO_PENDING` with no wait.
   Against the unfixed `archive/stage_read.go` the first fails with `MALFORMED: a00: unassigned
   stage slot`. `TestCTSV0008_StageSlotWaitBackoffAndBudget` pins the shared pause sequence.
 
