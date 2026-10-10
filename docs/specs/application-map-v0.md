@@ -505,6 +505,12 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
   `appmap-root-dirty`; a same-named path in `--root` never makes an aliased anchor `FRESH`.
 - Limits: per-method and per-file anchors, not per-statement; flow steps cite their intent file;
   `test_join` is global, not per screen.
+- Accepted limit, out of scope (V1-1061; GitHub #705): the injected-table reader (AMAP-V0-021..026)
+  assumes non-adversarial application source. It fails closed on the forms ordinary code uses to
+  replace or shadow `angular.module`, but code that deliberately rebuilds the `angular` global's
+  name, or reaches it through other host objects or string construction, can still leave a stale
+  literal state name. Reviews treat that class as out of scope; repository data is still never
+  evaluated.
 
 ## Deterministic acceptance and traceability
 

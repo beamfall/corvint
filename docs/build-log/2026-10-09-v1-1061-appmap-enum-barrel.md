@@ -287,6 +287,20 @@ injector.
   rest: an identifier in any position (a dotted member `f.call` included) and a string or
   substitution-free template whose value is exactly one of them (a bracket key `x['constructor']`
   or `` x[`prototype`] ``, or a string anywhere).
+- Twenty-second review (one fail-open path, no requirement text change):
+  `Object.getOwnPropertyDescriptor(this, 'angu' + 'lar').value.module = ...` reached the global
+  object through `this`. The reflective names now also include `this`, `Object`, `document`,
+  `defaultView`, `getOwnPropertyDescriptor` and `getOwnPropertyDescriptors`, matched the same
+  way. `require` and `import` are not added: a call with a literal specifier loads a closure
+  file or names `'angular'` (already counted unless it is the accepted binding), and any other
+  use loads a module the reader cannot name, which leaves the closure unresolved; `di require
+  computed`, `di import computed` and `di require alias` guard this.
+- Scope decision (coordinator, final for this lane): the reader stops chasing adversarial
+  obfuscation. The spec's trust-boundary section now records an accepted limit, outside the
+  AMAP-V0-024..026 requirement text: the injected-table reader assumes non-adversarial
+  application source, and code that deliberately rebuilds the `angular` global's name or
+  reaches it through other host objects or string construction can still leave a stale literal.
+  Reviews treat that class as out of scope.
 
 ## Evidence
 
@@ -530,6 +544,15 @@ injector.
   the three `di angular package` cases still resolve. The full `go test -count=1
   ./internal/appmap` passes (543 passing tests and subtests); `go vet` and `gofmt` are clean,
   and the nine CI doc gates pass.
+- Twenty-second review: `di descriptor this` (the review's input), `di this value` (`const g =
+  this`), `di document view` (`document.defaultView`) and `di descriptor string`
+  (`'getOwnPropertyDescriptors'`) resolve silently against `be1a24d4`
+  (`v1061-r23-gap-before.txt`); `di require computed`, `di import computed` and `di require
+  alias` (`const a = require('angular'); a.module = ...`) were already caught and guard the
+  decision not to add `require` and `import`. All seven fail closed with the fix, and `di
+  literal brackets` and the three `di angular package` cases still resolve. The full `go test
+  -count=1 ./internal/appmap` passes (550 passing tests and subtests); `go vet` and `gofmt` are
+  clean, and the nine CI doc gates pass.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -636,3 +659,9 @@ injector.
   closure file also removes the exemption, as a name in any position or an exact string: a class
   `constructor()`, `Foo.prototype.x = ...`, `fn.call(this, ...)`, `fn.apply(null, args)` and
   `this.handler.bind(this)`, all common in AngularJS code.
+- Since the twenty-second review, any `this`, `Object`, `document`, `defaultView` or
+  `getOwnPropertyDescriptor(s)` in a closure file also removes the exemption: controller-as code
+  (`this.items = ...`), `Object.keys(...)`, `Object.freeze(...)` and any DOM access.
+- Accepted limit (out of scope by decision): the reader assumes non-adversarial source. Code that
+  deliberately rebuilds the `angular` global's name or reaches it through host objects or string
+  construction the rules above do not name can still leave a stale literal state name.

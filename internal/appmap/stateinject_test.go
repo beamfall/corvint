@@ -641,10 +641,21 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"constructor key": {reg + "const app = angular.module('admin');\n" +
 			"({})['constructor']['constructor']('return this.angu' + 'lar')().module = function (label, annotation) { app.config(annotation); };\n" +
 			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"constructor dotted":      {reg + "const g = ({}).constructor;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"prototype bracket":       {reg + "const g = ({})[`prototype`];\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"apply string":            {reg + "const k = 'apply';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"call bind dotted":        {reg + "const h = f.call(null);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"constructor dotted": {reg + "const g = ({}).constructor;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"prototype bracket":  {reg + "const g = ({})[`prototype`];\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"apply string":       {reg + "const k = 'apply';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"call bind dotted":   {reg + "const h = f.call(null);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		// The twenty-second review's input, the global object reached through this and a property
+		// descriptor, and the other host and module names in each form (round 23).
+		"descriptor this": {reg + "const app = angular.module('admin');\n" +
+			"Object.getOwnPropertyDescriptor(this, 'angu' + 'lar').value.module = function (label, annotation) { app.config(annotation); };\n" +
+			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"this value":              {reg + "const g = this;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"document view":           {reg + "const w = document.defaultView;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"descriptor string":       {reg + "const d = 'getOwnPropertyDescriptors';\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"require computed":        {reg + "const app = angular.module('admin');\nrequire('angu' + 'lar').module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"import computed":         {reg + "const app = angular.module('admin');\nimport('angu' + 'lar').then((m) => { m.module = function (l, a) { app.config(a); }; });\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"require alias":           {reg + "const app = angular.module('admin');\nconst a = require('angular');\na.module = function (l, b) { app.config(b); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", angularPkg},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {

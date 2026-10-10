@@ -391,11 +391,17 @@ var (
 	// reflective are the names that can define or replace a property, or a whole object's
 	// behavior, without a visible member write (assign stands for Object.assign), or reach
 	// Function or call a function with another this or arguments: constructor
-	// (`({})['constructor']['constructor']` is Function), prototype, call, apply and bind.
+	// (`({})['constructor']['constructor']` is Function), prototype, call, apply and bind; or reach
+	// the global object or a property's value: this, Object, document, defaultView and
+	// getOwnPropertyDescriptor(s). require and import need no entry: a call with a literal
+	// specifier loads a closure file or names 'angular' (see angularSpecifier), and any other use
+	// loads a module the reader cannot name (moduleArg, moduleLoader), which leaves the closure
+	// unresolved.
 	reflective = map[string]bool{"Reflect": true, "Proxy": true, "defineProperty": true,
 		"defineProperties": true, "setPrototypeOf": true, "__proto__": true, "__defineGetter__": true,
 		"__defineSetter__": true, "assign": true, "constructor": true, "prototype": true, "call": true,
-		"apply": true, "bind": true}
+		"apply": true, "bind": true, "this": true, "Object": true, "document": true, "defaultView": true,
+		"getOwnPropertyDescriptor": true, "getOwnPropertyDescriptors": true}
 	// arrayAfter is the punctuation after which a `[` can only open an array literal or pattern.
 	// `{`, `,` and `;` are decided by what follows the group; after `)`, `]`, `}`, `.` (an optional
 	// `?.[` or a spread) and any other punctuation a `[` counts as a computed member.
