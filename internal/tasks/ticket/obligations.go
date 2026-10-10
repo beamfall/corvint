@@ -49,6 +49,9 @@ const (
 	ObligationReportDetail         = "OBLIGATION_REPORT:"
 	ObligationVersionDetail        = "OBLIGATION_REPORT_VERSION_UNQUALIFIED:"
 	ObligationChainDetail          = "OBLIGATION_CHAIN:"
+	// TOL-V0-024: a report witness refused because its run's post-check
+	// failed.
+	ObligationPostCheckDetail = "OBLIGATION_POST_CHECK_FAILED:"
 )
 
 // ObligationStates is the closed entry state set (TOL-V0-003).

@@ -218,9 +218,15 @@ type pwResult struct {
 }
 
 type pwTest struct {
-	ExpectedStatus string     `json:"expectedStatus"`
-	ProjectName    string     `json:"projectName"`
-	Results        []pwResult `json:"results"`
+	ExpectedStatus string         `json:"expectedStatus"`
+	ProjectName    string         `json:"projectName"`
+	Annotations    []pwAnnotation `json:"annotations,omitempty"`
+	Results        []pwResult     `json:"results"`
+}
+
+type pwAnnotation struct {
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
 }
 
 type pwSpec struct {
