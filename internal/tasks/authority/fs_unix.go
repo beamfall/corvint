@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -69,12 +70,17 @@ func directorySync(f *os.File) error {
 
 // cString converts a NUL-terminated fixed C char array to a Go string.
 func cString(b []int8) string {
-	out := make([]byte, 0, len(b))
-	for _, c := range b {
-		if c == 0 {
-			break
-		}
-		out = append(out, byte(c))
+	// Size the result to the NUL-terminated prefix: one allocation of the
+	// name's own length, not a buffer of the whole fixed array per call
+	// (fixture session checks call this per retained parent per operation).
+	n := 0
+	for n < len(b) && b[n] != 0 {
+		n++
 	}
-	return string(out)
+	var out strings.Builder
+	out.Grow(n)
+	for _, c := range b[:n] {
+		out.WriteByte(byte(c))
+	}
+	return out.String()
 }
