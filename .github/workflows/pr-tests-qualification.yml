@@ -16,9 +16,9 @@ on:
         description: Main commit that ends the 200 first-parent pairs
         required: true
       shards:
-        description: "Frozen PR partition count (CI uses 4; shadow rows still execute the full suite)"
+        description: "Frozen PR partition count (CI uses 8; shadow rows still execute the full suite)"
         required: true
-        default: "4"
+        default: "8"
       rows:
         description: "1 (measure one row) or all"
         required: true
