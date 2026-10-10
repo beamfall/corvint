@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -54,8 +55,8 @@ func TestCTSV0008_AuditWaitsForWriterHeldStageSlot(t *testing.T) {
 	if _, err := r.Audit(); err != nil {
 		t.Fatalf("audit beside a writer-held slot: %v", err)
 	}
-	if len(*pauses) != 1 || (*pauses)[0] != stagePause {
-		t.Fatalf("pauses %v; want one of %v", *pauses, stagePause)
+	if len(*pauses) != 1 || (*pauses)[0] != snapshot.StageSlotPause {
+		t.Fatalf("pauses %v; want one of %v", *pauses, snapshot.StageSlotPause)
 	}
 	if captures != 3 {
 		t.Fatalf("attempts %d; want moved, waited, settled", captures)
@@ -64,7 +65,7 @@ func TestCTSV0008_AuditWaitsForWriterHeldStageSlot(t *testing.T) {
 
 // CTS-V0-008: the wait is bounded. A killed writer's orphan slot, which only
 // the next writer removes (CAL-V0-019), still earns the same MALFORMED at the
-// same path once stagePatience is spent, as a plain *wire.Error.
+// same path once snapshot.StageSlotPatience is spent, as a plain *wire.Error.
 func TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait(t *testing.T) {
 	repo, r := setup(t)
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
@@ -79,13 +80,13 @@ func TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait(t *testing.T) {
 	}
 	var total time.Duration
 	for i, d := range *pauses {
-		if d <= 0 || d > stagePauseCeiling || (i > 0 && d > 2*(*pauses)[i-1]) {
+		if d <= 0 || d > snapshot.StageSlotPauseCeiling || (i > 0 && d > 2*(*pauses)[i-1]) {
 			t.Fatalf("pause %d of %v outside the backoff", i, *pauses)
 		}
 		total += d
 	}
-	if total != stagePatience || len(*pauses) > 16 {
-		t.Fatalf("waited %v in %d pauses; want exactly %v", total, len(*pauses), stagePatience)
+	if total != snapshot.StageSlotPatience || len(*pauses) > 16 {
+		t.Fatalf("waited %v in %d pauses; want exactly %v", total, len(*pauses), snapshot.StageSlotPatience)
 	}
 	_, err = r.Audit(ticketPath("A"))
 	requireRefusal(t, err, wire.CodeMalformed, "staging/a00")
@@ -196,7 +197,7 @@ func TestCTSV0008_MovedObservationsAndSpentWaitCompose(t *testing.T) {
 			captures, moves, movedAfterSpent := 0, 0, 0
 			r.afterCapture = func() {
 				captures++
-				spent := waited() == stagePatience
+				spent := waited() == snapshot.StageSlotPatience
 				if !tc.move(captures, movedAfterSpent, spent) {
 					return
 				}
@@ -208,11 +209,11 @@ func TestCTSV0008_MovedObservationsAndSpentWaitCompose(t *testing.T) {
 			}
 			_, err := r.Audit()
 			requireRefusal(t, err, tc.code, tc.path)
-			if waited() != stagePatience {
-				t.Fatalf("waited %v in %v; want exactly %v", waited(), *pauses, stagePatience)
+			if waited() != snapshot.StageSlotPatience {
+				t.Fatalf("waited %v in %v; want exactly %v", waited(), *pauses, snapshot.StageSlotPatience)
 			}
 			for i, d := range *pauses {
-				if d <= 0 || d > stagePauseCeiling || (i > 0 && d > 2*(*pauses)[i-1]) {
+				if d <= 0 || d > snapshot.StageSlotPauseCeiling || (i > 0 && d > 2*(*pauses)[i-1]) {
 					t.Fatalf("pause %d of %v outside the backoff", i, *pauses)
 				}
 			}

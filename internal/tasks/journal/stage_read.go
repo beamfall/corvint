@@ -69,7 +69,7 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 // slotsInFlight marks an unassigned-slot refusal observed with no stage
 // descriptor or descriptor temp: the shape a native writer's publish leaves
 // for its lifetime and a killed writer leaves until the next writer clears
-// it. audit retries it under stagePatience and then returns the wrapped
+// it. audit waits for it (snapshot.StageSlotWait) and then returns the wrapped
 // MALFORMED unchanged (CTS-V0-008).
 type slotsInFlight struct{ error }
 
