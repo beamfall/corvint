@@ -81,7 +81,7 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
-	ctx, stop := interruptContext()
+	ctx, stop := jobInterruptContext()
 	defer stop()
 	v := verdictPack{Schema: verdictSchema, RequestID: j.requestID, Commit: j.commit, Base: base, ConfigSha256: string(cfgSum),
 		Pool: j.pool, Reasons: []string{}, Specs: files, Runs: []qualifyRun{}, NeighbourSpecs: []string{}, Neighbours: []neighbourResult{}}
@@ -99,7 +99,9 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 			fail(reasonLane, "acquire: "+prose(err.Error()))
 		} else {
 			j.qualifyLane(ctx, &v, files, base, fail)
-			j.release(ctx)
+			if err := j.release(); err != nil {
+				fail(reasonLane, "release: "+prose(err.Error()))
+			}
 		}
 	}
 	v.Member = j.member
@@ -251,8 +253,13 @@ func (j *runJob) neighbours(ctx context.Context, v *verdictPack, files []string,
 	}
 	type failure struct{ spec, label, err string }
 	failing := map[string]failure{}
-	var failingSpecs []string
+	var failingSpecs, retried []string
 	for _, o := range rep.Outcomes() {
+		// A neighbour that retried disqualifies whatever the base shows: a
+		// PRE_EXISTING failure never masks a retry.
+		if o.MaxRetry > 0 {
+			retried = append(retried, testLabel(rep.RepoPath(j.root, o.File), o))
+		}
 		if o.OK() {
 			continue
 		}
@@ -262,9 +269,16 @@ func (j *runJob) neighbours(ctx context.Context, v *verdictPack, files []string,
 			failingSpecs = append(failingSpecs, spec)
 		}
 	}
+	if len(retried) > 0 {
+		fail(reasonRetry, "neighbour run retried "+strings.Join(retried, ", "))
+	}
+	// Top-level report errors disqualify whether or not tests failed.
+	if rep.Errors() > 0 {
+		fail(reasonNeighbour, "the neighbour run reported "+strconv.Itoa(rep.Errors())+" top-level errors")
+	}
 	if len(failing) == 0 {
-		if rep.Errors() > 0 || !s.OK {
-			fail(reasonNeighbour, "the neighbour run exited "+s.Class+" "+s.ExitCode+" with "+strconv.Itoa(rep.Errors())+" top-level errors")
+		if !s.OK && rep.Errors() == 0 {
+			fail(reasonNeighbour, "the neighbour run exited "+s.Class+" "+s.ExitCode)
 		}
 		return
 	}

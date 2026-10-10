@@ -44,6 +44,9 @@ const (
 	repeatFailureDetail = "OBLIGATION_REPEAT_FAILURE:"
 	// notQualifiedDetail prefixes the TOL-V0-032 GATE_FAILED refusal.
 	notQualifiedDetail = "QUALIFY_NOT_QUALIFIED:"
+	// laneFailedDetail prefixes a run-batch refusal whose lane was
+	// interrupted or could not be released (TOL-V0-030, 033).
+	laneFailedDetail = "LANE_FAILED:"
 )
 
 // Neighbour policies (TOL-V0-028).
@@ -60,6 +63,13 @@ const (
 	reasonPostCheck = "POST_CHECK_FAILED"
 	reasonNeighbour = "NEW_NEIGHBOUR_FAILURE"
 	reasonLane      = "LANE_FAILED"
+)
+
+// jobInterruptContext and jobLeaseCommand are seams that tests replace to
+// interrupt a job or refuse its lane release deterministically.
+var (
+	jobInterruptContext = interruptContext
+	jobLeaseCommand     = leaseCommand
 )
 
 var runRequestID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$`)
@@ -297,7 +307,7 @@ func (j *runJob) acquire() error {
 	if j.pool == "" {
 		return nil
 	}
-	res := leaseCommand(j.env, "pool acquire", []string{"--attempt", j.attempt, "--generation", j.generation, "--pool", j.pool, "--request-id", j.requestID + ".acquire"})
+	res := jobLeaseCommand(j.env, "pool acquire", []string{"--attempt", j.attempt, "--generation", j.generation, "--pool", j.pool, "--request-id", j.requestID + ".acquire"})
 	if res.Outcome != wire.OutcomeOK || len(res.Items) != 1 {
 		j.steps = append(j.steps, runStep{Step: "acquire", Class: "REFUSED", Error: strings.Join(append(append([]string{}, res.Codes...), res.Warnings...), "; ")})
 		code := wire.CodeResourceCollision
@@ -317,22 +327,29 @@ func (j *runJob) acquire() error {
 }
 
 // release captures the lane's server-side errors before the lane is reset,
-// then returns the allocation with the existing pool release verb.
-func (j *runJob) release(ctx context.Context) {
+// then returns the allocation with the existing pool release verb. Both run
+// on a fresh context, not the job's, so an interrupt that stopped the tests
+// still leaves the capture and the release; the capture is bounded by its
+// own timeout (TOL-V0-030, 033). A refused release is returned with its code.
+func (j *runJob) release() error {
 	if len(j.cfg.CaptureCommand) > 0 {
-		run := store.RunBatchCommand(ctx, j.cfg.CaptureCommand, j.root, j.environment(""), j.cfg.TimeoutSeconds)
+		run := store.RunBatchCommand(context.Background(), j.cfg.CaptureCommand, j.root, j.environment(""), j.cfg.TimeoutSeconds)
 		j.writeLog("capture.log", run.Output)
 		j.record("capture", run, "capture.log")
 	}
 	if j.allocation == "" {
-		return
+		return nil
 	}
-	res := leaseCommand(j.env, "pool release", []string{"--attempt", j.attempt, "--generation", j.generation, "--allocation", j.allocation, "--request-id", j.requestID + ".release"})
+	res := jobLeaseCommand(j.env, "pool release", []string{"--attempt", j.attempt, "--generation", j.generation, "--allocation", j.allocation, "--request-id", j.requestID + ".release"})
 	s := runStep{Step: "release", Class: "OK", OK: res.Outcome == wire.OutcomeOK}
-	if !s.OK {
-		s.Class, s.Error = "REFUSED", strings.Join(append(append([]string{}, res.Codes...), res.Warnings...), "; ")
+	if s.OK {
+		j.steps = append(j.steps, s)
+		return nil
 	}
+	s.Class, s.Error = "REFUSED", strings.Join(append(append([]string{}, res.Codes...), res.Warnings...), "; ")
 	j.steps = append(j.steps, s)
+	return wire.Errorf(firstNonEmpty(append(append([]string{}, res.Codes...), wire.CodeUnsupported)...), "--pool",
+		"%s pool release was refused for allocation %s: %s", laneFailedDetail, j.allocation, prose(s.Error))
 }
 
 // environment is the configured environment plus the runner's variables.
@@ -393,12 +410,18 @@ func (j *runJob) manifest() (wire.Digest, error) {
 		if rel == "manifest.json" {
 			return nil
 		}
-		b, err := os.ReadFile(p)
+		// Stream the hash: an artifact can be far larger than memory.
+		f, err := os.Open(p)
 		if err != nil {
 			return err
 		}
-		sum := sha256.Sum256(b)
-		entries = append(entries, entry{Path: filepath.ToSlash(rel), Sha256: hex.EncodeToString(sum[:]), Size: int64(len(b))})
+		defer f.Close()
+		h := sha256.New()
+		n, err := io.Copy(h, f)
+		if err != nil {
+			return err
+		}
+		entries = append(entries, entry{Path: filepath.ToSlash(rel), Sha256: hex.EncodeToString(h.Sum(nil)), Size: n})
 		return nil
 	})
 	if err != nil {
@@ -512,15 +535,19 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
-	ctx, stop := interruptContext()
+	ctx, stop := jobInterruptContext()
 	defer stop()
 	summary := batchSummary{Schema: batchSummarySchema, RequestID: j.requestID, TicketID: rec.TicketID.Raw, Commit: j.commit,
 		FixtureDigest: string(fixture), ConfigSha256: string(cfgSum), Pool: j.pool, Obligations: []obligation.Cause{}}
 	var rep *obligation.Report
 	var reportErr, earlier string
+	// failCode is the job's refusal code when nothing is witnessed: the lane's
+	// own code for a refused acquire or release (TOL-V0-030), else GATE_FAILED.
+	failCode := wire.CodeGateFailed
+	notReached := obligation.CauseNotReached
 	postLog, postStatus := "", ""
 	if err := j.acquire(); err != nil {
-		earlier = "acquire: " + prose(err.Error())
+		earlier, failCode = "acquire: "+prose(err.Error()), wire.CodeOf(err)
 	} else {
 		if len(j.cfg.PrepCommand) > 0 {
 			if s := j.runCommand(ctx, "prep", j.cfg.PrepCommand, j.root, "prep.log"); !s.OK {
@@ -541,14 +568,17 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 				postStatus = "1" // a post-check that did not exit failed
 			}
 		}
-		j.release(ctx)
+		if err := j.release(); err != nil {
+			// A lane that could not be returned fails the job: nothing is
+			// witnessed and the release refusal is the job's result.
+			earlier, rep, notReached, failCode = prose(err.Error()), nil, obligation.CauseUncredited, wire.CodeOf(err)
+		}
 	}
 	summary.Member = j.member
 	// A report from an interrupted job or a checkout that changed under the
 	// run credits nothing.
-	notReached := obligation.CauseNotReached
-	if ctx.Err() != nil {
-		earlier, rep, notReached = "interrupted", nil, obligation.CauseUncredited
+	if ctx.Err() != nil && failCode == wire.CodeGateFailed {
+		earlier, rep, notReached = laneFailedDetail+" interrupted", nil, obligation.CauseUncredited
 	} else if rep != nil {
 		if err := j.unchanged(); err != nil {
 			earlier, rep, notReached = "the checkout changed during the run: "+prose(err.Error()), nil, obligation.CauseUncredited
@@ -571,7 +601,7 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 			summary.Obligations = append(summary.Obligations, c)
 		}
 		summary.Witness = batchWitness{Outcome: "NOT_RUN", Codes: []string{}, Detail: earlier}
-		result.Outcome, result.Codes = wire.OutcomeRefused, []string{wire.CodeGateFailed}
+		result.Outcome, result.Codes = wire.OutcomeRefused, []string{failCode}
 		result.Warnings = append(result.Warnings, prose("the batch did not reach a report: "+earlier))
 	} else {
 		summary.ReportSha256 = string(rep.Sha256)
@@ -586,7 +616,9 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 		if role == "WORKER" {
 			wargs = append(wargs, "--attempt", j.attempt, "--generation", j.generation)
 		}
-		w := obligationsWitness(env, []string{"ticket", "obligations", "witness"}, append([]string{"--target"}, wargs...))
+		// The job context is checked again just before the witness mutation is
+		// submitted; once submitted, the mutation is atomic (TOL-V0-033).
+		w := obligationsWitnessJob(ctx, env, []string{"ticket", "obligations", "witness"}, append([]string{"--target"}, wargs...))
 		written := false
 		if w.Outcome == wire.OutcomeOK && len(w.Items) == 1 {
 			v, _ := w.Items[0].Obj.Get("written")

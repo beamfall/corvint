@@ -60,13 +60,44 @@ requirements are not accepted. The coordinator delegated the in-task forks; each
 - The tests use a fake `sh` test command that writes Playwright-shaped json from templates. Real
   Playwright is `NOT_RUN`.
 
+## Codex round 1 fixes
+
+Codex round 1 on 80b1f2c7 returned seven findings, fixed in one commit. Each new test was shown to
+fail before its fix by reverting only that fix in a scratch detached worktree that held the fixed
+tree, then running only that test:
+
+1. An interrupt seen after the report's source evidence is read but before the witness mutation is
+   submitted now credits nothing and refuses `GATE_FAILED` with `LANE_FAILED:`; a submitted
+   witness is atomic (TOL-V0-033). `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`
+   (before: the interrupted job credited AC-1).
+2. A neighbour result with retry above 0 is `RETRY` even when the base also fails, and top-level
+   neighbour report errors disqualify whether or not a test failed (TOL-V0-032). Three new
+   `TestTOLV0032_QualifyVerdicts` cases (before: the first two were `QUALIFIED`; the third failed
+   on the reason text only, because the old code already disqualified that case).
+3. A refused lane release fails the job: `run-batch` refuses with the release's code and
+   witnesses nothing, and `qualify` is `NOT_QUALIFIED` with `LANE_FAILED` (TOL-V0-030).
+   `TestTOLV0030_RefusedReleaseFailsTheJob`, with an injected release refusal (before: the job
+   credited and qualify was `QUALIFIED`).
+4. Capture and release run on a fresh context bounded by the capture timeout, so an interrupt
+   during the tests keeps the capture output (TOL-V0-030, 033).
+   `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests` (before: no `server.log`).
+5. The fixture digest for `.` is the commit's root tree id (TOL-V0-031).
+   `TestTOLV0031_RootFixturePathIsDigested` (before: a root-level change stayed `LOOP_DETECTED`).
+6. A refused acquire's code is the job's code, not `GATE_FAILED` (TOL-V0-030).
+   `TestTOLV0030_AcquireRefusalCodeIsTheJobs` (before: `GATE_FAILED`).
+7. The manifest streams each file through sha256 and records the copied size (TOL-V0-033).
+   `TestTOLV0033_ManifestStreamsAnOversizedArtifact` with a 512 MiB sparse report: the manifest
+   lists it, the verdict is `CANDIDATE_FAILURE` with no admissible report, and qualify allocates
+   less than 384 MiB (before: 702,844,944 bytes allocated).
+
 ## Limits and NOT_RUN
 
 - Live Playwright under `run-batch` and `qualify` is `NOT_RUN`. In production the qualified-version
   list is empty, so a real report still refuses `UNSUPPORTED_VERSION` and `run-batch` credits
   nothing until a live fixture qualifies.
 - Not implemented: test-slot accounting and releasing the claim with HANDOFF inside the job.
-- An interrupt of a running job is implemented but not exercised by a test.
+- The interrupt tests replace the job context; a real `SIGINT`/`SIGTERM` to a running job is
+  `NOT_RUN`.
 - A command that changes only untracked files is not detected by the checkout re-check.
 - `CORVINT_POOL_MEMBER` is the only way a configured command learns its lane; health preparation is
   whatever `pool acquire` already does.

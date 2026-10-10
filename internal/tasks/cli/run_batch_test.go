@@ -1,11 +1,14 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -60,9 +63,15 @@ func rbFlaky(file, title string) rbSpec {
 // rbTemplate writes the report template the fake command copies for specs.
 func rbTemplate(t *testing.T, root string, specs []string, tests ...rbSpec) {
 	t.Helper()
+	rbTemplateErrors(t, root, specs, []any{}, tests...)
+}
+
+// rbTemplateErrors is rbTemplate with top-level report errors.
+func rbTemplateErrors(t *testing.T, root string, specs []string, errs []any, tests ...rbSpec) {
+	t.Helper()
 	doc := map[string]any{
 		"config": map[string]any{"version": pwVersion, "rootDir": "@ROOT@"},
-		"errors": []any{},
+		"errors": errs,
 		"stats":  map[string]any{"expected": len(tests)},
 		"suites": []any{map[string]any{"title": "suite", "specs": tests, "suites": []any{}}},
 	}
@@ -354,7 +363,7 @@ func TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire(t *testing.T) {
 // qualifyRepo commits a candidate spec and a neighbour spec in one directory
 // at base, then changes the candidate spec; the neighbour report template
 // differs between base and the candidate as the case says.
-func qualifyRepo(t *testing.T, cand []rbSpec, nbBase, nbCand rbSpec) (root, base string) {
+func qualifyRepo(t *testing.T, cand []rbSpec, nbBase, nbCand rbSpec, nbErrs ...any) (root, base string) {
 	t.Helper()
 	root = t.TempDir()
 	git(t, root, "init", "-q", "-b", "main")
@@ -366,7 +375,7 @@ func qualifyRepo(t *testing.T, cand []rbSpec, nbBase, nbCand rbSpec) (root, base
 	base = commitAll(t, root, "base")
 	fixture.Write(t, filepath.Join(root, c), []byte("test('cand one', async () => { /* changed */ });\n"))
 	rbTemplate(t, root, []string{c}, cand...)
-	rbTemplate(t, root, []string{nb}, nbCand)
+	rbTemplateErrors(t, root, []string{nb}, append([]any{}, nbErrs...), nbCand)
 	commitAll(t, root, "candidate")
 	return root, base
 }
@@ -412,22 +421,29 @@ func TestTOLV0032_QualifyVerdicts(t *testing.T) {
 		reason        string
 		runs          int
 		neighbour     string
+		nbErrs        []any
 	}{
-		{"qualified", pass, nbPass, nbPass, nil, "QUALIFIED", "", 3, ""},
-		{"retry", []rbSpec{rbFlaky(c, "cand one")}, nbPass, nbPass, nil, "NOT_QUALIFIED", "RETRY: run 1 retried e2e/a/cand.spec.ts > cand one [chromium]", 1, ""},
-		{"candidate failure", []rbSpec{rbFail(c, "cand one", "Error: nope")}, nbPass, nbPass, nil, "NOT_QUALIFIED", "CANDIDATE_FAILURE: run 1 failed e2e/a/cand.spec.ts > cand one [chromium] (Error: nope)", 1, ""},
+		{"qualified", pass, nbPass, nbPass, nil, "QUALIFIED", "", 3, "", nil},
+		{"retry", []rbSpec{rbFlaky(c, "cand one")}, nbPass, nbPass, nil, "NOT_QUALIFIED", "RETRY: run 1 retried e2e/a/cand.spec.ts > cand one [chromium]", 1, "", nil},
+		{"candidate failure", []rbSpec{rbFail(c, "cand one", "Error: nope")}, nbPass, nbPass, nil, "NOT_QUALIFIED", "CANDIDATE_FAILURE: run 1 failed e2e/a/cand.spec.ts > cand one [chromium] (Error: nope)", 1, "", nil},
 		{"post-check", pass, nbPass, nbPass, func(m map[string]any) {
 			m["postCheck"] = []string{"sh", "-c", "echo 'contract: GET /api/cart returned 500' >&2; exit 1"}
-		}, "NOT_QUALIFIED", "POST_CHECK_FAILED: contract: GET /api/cart returned 500", 2, ""},
-		{"new neighbour failure", pass, nbPass, nbFail, nil, "NOT_QUALIFIED", "NEW_NEIGHBOUR_FAILURE: e2e/a/nb.spec.ts > nb one [chromium] (base PASSED)", 4, "NEW_NEIGHBOUR_FAILURE"},
-		{"pre-existing neighbour failure", pass, nbFail, nbFail, nil, "QUALIFIED", "", 4, "PRE_EXISTING"},
+		}, "NOT_QUALIFIED", "POST_CHECK_FAILED: contract: GET /api/cart returned 500", 2, "", nil},
+		{"new neighbour failure", pass, nbPass, nbFail, nil, "NOT_QUALIFIED", "NEW_NEIGHBOUR_FAILURE: e2e/a/nb.spec.ts > nb one [chromium] (base PASSED)", 4, "NEW_NEIGHBOUR_FAILURE", nil},
+		{"pre-existing neighbour failure", pass, nbFail, nbFail, nil, "QUALIFIED", "", 4, "PRE_EXISTING", nil},
+		// A retried neighbour disqualifies even when its failure is
+		// pre-existing; top-level report errors disqualify with or without a
+		// failing test (Codex round 1, finding 2).
+		{"retried pre-existing neighbour", pass, nbFail, rbFlaky(nb, "nb one"), nil, "NOT_QUALIFIED", "RETRY: neighbour run retried e2e/a/nb.spec.ts > nb one [chromium]", 4, "PRE_EXISTING", nil},
+		{"neighbour errors with a pre-existing failure", pass, nbFail, nbFail, nil, "NOT_QUALIFIED", "NEW_NEIGHBOUR_FAILURE: the neighbour run reported 1 top-level errors", 4, "PRE_EXISTING", []any{map[string]string{"message": "Error: e2e/a/other.spec.ts failed to load"}}},
+		{"neighbour errors without a failure", pass, nbPass, nbPass, nil, "NOT_QUALIFIED", "NEW_NEIGHBOUR_FAILURE: the neighbour run reported 1 top-level errors", 3, "", []any{map[string]string{"message": "Error: e2e/a/other.spec.ts failed to load"}}},
 		{"static check", pass, nbPass, nbPass, func(m map[string]any) {
 			m["staticChecks"] = [][]string{{"sh", "-c", "echo 'lint: unused import' >&2; exit 2"}}
-		}, "NOT_QUALIFIED", "STATIC_CHECK_FAILED: static/0: lint: unused import", 0, ""},
+		}, "NOT_QUALIFIED", "STATIC_CHECK_FAILED: static/0: lint: unused import", 0, "", nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			root, _ := qualifyRepo(t, tc.cand, tc.nbBase, tc.nbNew)
+			root, _ := qualifyRepo(t, tc.cand, tc.nbBase, tc.nbNew, tc.nbErrs...)
 			test, counter := rbTools(t)
 			config := rbConfig(t, test, func(m map[string]any) {
 				m["runs"], m["neighbours"] = 2, "CHANGED_DIRECTORIES"
@@ -480,5 +496,189 @@ func TestTOLV0028_RunConfigIsClosed(t *testing.T) {
 		if !hasCode(x.res, wire.CodeMalformed) {
 			t.Fatalf("%s: %s", name, x.stdout)
 		}
+	}
+}
+
+// markerInterrupt replaces the job context with one that ends when marker
+// appears, as SIGINT would, and returns the restore function.
+func markerInterrupt(marker string) func() {
+	return cli.SetJobInterruptContext(func() (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			for ctx.Err() == nil {
+				if _, err := os.Stat(marker); err == nil {
+					cancel()
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}()
+		return ctx, cancel
+	})
+}
+
+// TOL-V0-033 (Codex round 1, finding 1): an interrupt seen after the report
+// is read but before the witness mutation is submitted credits nothing and
+// refuses with LANE_FAILED.
+func TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id := obligationBatchRepo(t)
+	test, _ := rbTools(t)
+	var cancel context.CancelFunc
+	defer cli.SetJobInterruptContext(func() (context.Context, context.CancelFunc) {
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+		return ctx, cancel
+	})()
+	defer cli.SetWitnessEvidenceReadHook(func() { cancel() })()
+	out := filepath.Join(t.TempDir(), "out")
+	x := atm(t, r.Root, nil, runBatchArgs(id, rbConfig(t, test, nil), out, "b1")...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeGateFailed) || field(x.res.Items[0], "written").Bool ||
+		!strings.Contains(strings.Join(x.res.Warnings, " "), "LANE_FAILED: interrupted before the witness was submitted") {
+		t.Fatalf("interrupted witness: %s", x.stdout)
+	}
+	if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "OPEN" {
+		t.Fatalf("an interrupted job credited: %v", got)
+	}
+	if s := readSummary(t, filepath.Join(out, "b1", "summary.json")); s.Obligations[0].Cause != "UNCREDITED" || s.Witness.Written {
+		t.Fatalf("summary: %s", causeLine(s))
+	}
+}
+
+// TOL-V0-033 (Codex round 1, finding 4): an interrupt during the tests still
+// runs the capture, on a fresh context, so server-side errors are kept.
+func TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id := obligationBatchRepo(t)
+	out := filepath.Join(t.TempDir(), "out")
+	defer markerInterrupt(filepath.Join(out, "b1", "interrupt.now"))()
+	config := rbConfig(t, []string{"sh", "-c", "touch \"$CORVINT_RUN_DIR/interrupt.now\"; exec sleep 30"}, func(c map[string]any) {
+		c["captureCommand"] = []string{"sh", "-c", "sleep 0.3; echo 'server: 500 on /api/cart' > \"$CORVINT_RUN_DIR/server.log\""}
+	})
+	x := atm(t, r.Root, nil, runBatchArgs(id, config, out, "b1")...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeGateFailed) || !strings.Contains(strings.Join(x.res.Warnings, " "), "LANE_FAILED: interrupted") {
+		t.Fatalf("interrupted job: %s", x.stdout)
+	}
+	if raw, err := os.ReadFile(filepath.Join(out, "b1", "server.log")); err != nil || !strings.Contains(string(raw), "500 on /api/cart") {
+		t.Fatalf("capture after the interrupt: %q %v", raw, err)
+	}
+	s := readSummary(t, filepath.Join(out, "b1", "summary.json"))
+	if s.Obligations[0].Cause != "UNCREDITED" || len(s.Steps) != 2 || s.Steps[1].Step != "capture" || !s.Steps[1].OK {
+		t.Fatalf("summary: %s %+v", causeLine(s), s.Steps)
+	}
+}
+
+// laneRepo is obligationBatchRepo with a claimed attempt and the lane flags
+// for pool db, plus a passing spec e2e/ok.spec.ts.
+func laneRepo(t *testing.T) (*fixture.Repo, string, []string) {
+	t.Helper()
+	r, id := obligationBatchRepo(t)
+	fixture.Write(t, filepath.Join(r.Root, "e2e", "ok.spec.ts"), []byte("test('AC-1 login', async () => {});\n"))
+	rbTemplate(t, r.Root, []string{"e2e/ok.spec.ts"}, rbPass("e2e/ok.spec.ts", "AC-1 login"))
+	commitAll(t, r.Root, "ok spec")
+	claim := atm(t, r.Root, nil, "claim", id, "--holder", "builder", "--request-id", "claim-1", "--stage", "implement")
+	if claim.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim %s", claim.stdout)
+	}
+	return r, id, []string{"--pool", "db", "--attempt", field(claim.res.Items[0], "attemptId").Str, "--generation", field(claim.res.Items[0], "generation").Str}
+}
+
+// TOL-V0-030 (Codex round 1, finding 3): a refused lane release fails the
+// job: run-batch witnesses nothing and returns the release refusal, and
+// qualify is NOT_QUALIFIED with LANE_FAILED.
+func TestTOLV0030_RefusedReleaseFailsTheJob(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	defer cli.FailJobPoolRelease(wire.CodeResourceCollision)()
+	r, id, lane := laneRepo(t)
+	test, _ := rbTools(t)
+	config := rbConfig(t, test, nil)
+	out := filepath.Join(t.TempDir(), "out")
+	x := atm(t, r.Root, nil, append([]string{"run-batch", id, "--config", config, "--spec", "e2e/ok.spec.ts", "--out", out, "--request-id", "b1"}, lane...)...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeResourceCollision) || field(x.res.Items[0], "written").Bool ||
+		!strings.Contains(strings.Join(x.res.Warnings, " "), "LANE_FAILED: pool release was refused") {
+		t.Fatalf("run-batch with a refused release: %s", x.stdout)
+	}
+	if got := entryStates(obligationsShow(t, r.Root, id)); got["AC-1"] != "OPEN" {
+		t.Fatalf("a job whose release was refused credited: %v", got)
+	}
+	// The refused release left that allocation held; qualify uses a fresh lane.
+	r2, _, lane2 := laneRepo(t)
+	q := atm(t, r2.Root, nil, append([]string{"qualify", "--config", config, "--spec", "e2e/ok.spec.ts", "--base", "HEAD", "--out", out, "--request-id", "q1"}, lane2...)...)
+	v := field(q.res.Items[0], "verdict").Str
+	reasons := field(q.res.Items[0], "reasons").Arr
+	if v != "NOT_QUALIFIED" || len(reasons) != 1 || !strings.HasPrefix(reasons[0].Str, "LANE_FAILED: release: ") {
+		t.Fatalf("qualify with a refused release: %s", q.stdout)
+	}
+}
+
+// TOL-V0-030 (Codex round 1, finding 6): a refused acquire is the job's
+// result code, not GATE_FAILED.
+func TestTOLV0030_AcquireRefusalCodeIsTheJobs(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id, lane := laneRepo(t)
+	// The attempt already holds a member, so the job's acquire is refused.
+	held := atm(t, r.Root, nil, "pool", "acquire", lane[2], lane[3], lane[4], lane[5], lane[0], lane[1], "--request-id", "held-1")
+	if held.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("pool acquire: %s", held.stdout)
+	}
+	again := atm(t, r.Root, nil, "pool", "acquire", lane[2], lane[3], lane[4], lane[5], lane[0], lane[1], "--request-id", "held-2")
+	if again.res.Outcome == wire.OutcomeOK || len(again.res.Codes) == 0 {
+		t.Fatalf("second acquire: %s", again.stdout)
+	}
+	test, counter := rbTools(t)
+	out := filepath.Join(t.TempDir(), "out")
+	x := atm(t, r.Root, nil, append([]string{"run-batch", id, "--config", rbConfig(t, test, nil), "--spec", "e2e/ok.spec.ts", "--out", out, "--request-id", "b1"}, lane...)...)
+	if x.res.Outcome == wire.OutcomeOK || hasCode(x.res, wire.CodeGateFailed) || !hasCode(x.res, again.res.Codes[0]) || rbRuns(t, counter) != 0 {
+		t.Fatalf("run-batch with a refused acquire (want %v): %s", again.res.Codes, x.stdout)
+	}
+}
+
+// TOL-V0-031 (Codex round 1, finding 5): a fixture path "." digests the
+// commit's root tree, so a change anywhere clears the repeat refusal.
+func TestTOLV0031_RootFixturePathIsDigested(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	r, id := obligationBatchRepo(t)
+	test, _ := rbTools(t)
+	config := rbConfig(t, test, func(c map[string]any) { c["fixturePaths"] = []string{"."} })
+	out := filepath.Join(t.TempDir(), "out")
+	for _, request := range []string{"b1", "b2"} {
+		if x := atm(t, r.Root, nil, runBatchArgs(id, config, out, request)...); x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%s: %s", request, x.stdout)
+		}
+	}
+	if x := atm(t, r.Root, nil, runBatchArgs(id, config, out, "b3")...); !hasCode(x.res, wire.CodeLoopDetected) {
+		t.Fatalf("repeat failure: %s", x.stdout)
+	}
+	fixture.Write(t, filepath.Join(r.Root, "README.md"), []byte("root fixture change\n"))
+	git(t, r.Root, "add", "README.md")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "root change")
+	if x := atm(t, r.Root, nil, runBatchArgs(id, config, out, "b4")...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("a root-level fixture change did not clear the refusal: %s", x.stdout)
+	}
+}
+
+// TOL-V0-033 (Codex round 1, finding 7): the manifest streams each file's
+// hash, so an artifact far larger than the report bound is listed without
+// being read into memory, and the oversized report is still refused.
+func TestTOLV0033_ManifestStreamsAnOversizedArtifact(t *testing.T) {
+	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	c := "e2e/a/cand.spec.ts"
+	root, _ := qualifyRepo(t, []rbSpec{rbPass(c, "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
+	const size = 512 << 20
+	config := rbConfig(t, []string{"sh", "-c", "dd if=/dev/zero of=\"$PLAYWRIGHT_JSON_OUTPUT_NAME\" bs=1048576 seek=512 count=0 2>/dev/null"}, nil)
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_, v, dir := qualifyRun(t, root, config)
+	runtime.ReadMemStats(&after)
+	if v.Verdict != "NOT_QUALIFIED" || len(v.Reasons) != 1 || !strings.HasPrefix(v.Reasons[0], "CANDIDATE_FAILURE: run 1 produced no admissible report") {
+		t.Fatalf("oversized report: %+v", v)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil || !strings.Contains(string(raw), "\"path\": \"runs/1/report.json\"") || !strings.Contains(string(raw), "\"size\": 536870912") {
+		t.Fatalf("manifest %s %v", raw, err)
+	}
+	if grew := after.TotalAlloc - before.TotalAlloc; grew >= size*3/4 {
+		t.Fatalf("qualify allocated %d bytes for a %d-byte artifact; the manifest must stream it", grew, size)
 	}
 }

@@ -81,8 +81,9 @@ func ResolveCommit(root, rev string) (string, error) {
 func ChangedPaths(root, from, to string) ([]string, error) { return changedPaths(root, from, to) }
 
 // FixtureDigest digests the Git object id of each path at commit (a blob or
-// a whole tree), "ABSENT" for a path the commit does not hold, so two runs
-// at one digest saw the same fixture evidence (TOL-V0-031).
+// a whole tree; the root tree for "."), "ABSENT" for a path the commit does
+// not hold, so two runs at one digest saw the same fixture evidence
+// (TOL-V0-031).
 func FixtureDigest(root, commit string, paths []string) (wire.Digest, error) {
 	clean := make([]string, 0, len(paths))
 	for _, p := range paths {
@@ -94,11 +95,21 @@ func FixtureDigest(root, commit string, paths []string) (wire.Digest, error) {
 		if i > 0 && p == clean[i-1] {
 			continue
 		}
+		oid := "ABSENT"
+		if p == "." {
+			// ls-tree lists no entry named ".": the repository root is the
+			// commit's root tree.
+			tree, err := gitOutput(root, "rev-parse", "--verify", commit+"^{tree}")
+			if err != nil {
+				return "", err
+			}
+			b.WriteString(p + "\x00" + strings.TrimSpace(string(tree)) + "\n")
+			continue
+		}
 		out, err := gitOutput(root, "ls-tree", "-z", "--full-tree", commit, "--", p)
 		if err != nil {
 			return "", err
 		}
-		oid := "ABSENT"
 		for _, entry := range strings.Split(string(out), "\x00") {
 			meta, name, ok := strings.Cut(entry, "\t")
 			if f := strings.Fields(meta); ok && name == p && len(f) == 3 {

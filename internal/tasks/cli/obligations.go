@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -237,6 +238,18 @@ func readPlanFile(file string, max int) ([]byte, error) {
 // declared commit and hands the recomputation to the writer, which refuses a
 // payload that differs (TOL-V0-013). The report itself is never retained.
 func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
+	return obligationsWitnessJob(context.Background(), env, cmd, args)
+}
+
+// witnessEvidenceReadHook runs after a report witness has read the commit's
+// source evidence; tests use it to interrupt a batch job at that point.
+var witnessEvidenceReadHook = func() {}
+
+// obligationsWitnessJob is the witness verb under a run-batch job context:
+// a job interrupted before the mutation is submitted credits nothing and
+// refuses GATE_FAILED with LANE_FAILED; a submitted mutation is atomic
+// (TOL-V0-033). The plain verb passes a context that never ends.
+func obligationsWitnessJob(job context.Context, env Env, cmd []string, args []string) *wire.Result {
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
 	if res := pairFlags(cmd, args, map[string]*string{
@@ -360,6 +373,7 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		}
 		paths := rep.SourcePaths(ledger.Prefix, root)
 		resolved, present, content, err := store.FilesAtCommit(root, commit, paths)
+		witnessEvidenceReadHook()
 		if err != nil {
 			return errorResult(cmd, err)
 		}
@@ -390,6 +404,9 @@ func obligationsWitness(env Env, cmd []string, args []string) *wire.Result {
 		out.Items = []wire.Value{wire.ObjectValue(o)}
 		out.Untrusted = true
 		return out
+	}
+	if job.Err() != nil {
+		return errorResult(cmd, wire.Errorf(wire.CodeGateFailed, "--request-id", "%s interrupted before the witness was submitted; nothing was credited", laneFailedDetail))
 	}
 	ctx := writerContext()
 	if check != nil {

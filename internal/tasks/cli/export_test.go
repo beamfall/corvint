@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
@@ -118,4 +119,33 @@ func SubmitObligationWitness(env Env, target, expected, requestID string, check 
 	}
 	f := mutateFlags{role: "OWNER", requestID: requestID, target: target, expected: expected}
 	return submitMutationContext(ctx, env, cmd, ticket.OpObligationsWitness, actor, f, payload)
+}
+
+// SetJobInterruptContext replaces the run-batch and qualify job context
+// (TOL-V0-033), so a test can interrupt a job without a signal.
+func SetJobInterruptContext(f func() (context.Context, context.CancelFunc)) func() {
+	was := jobInterruptContext
+	jobInterruptContext = f
+	return func() { jobInterruptContext = was }
+}
+
+// SetWitnessEvidenceReadHook runs f after a report witness reads the
+// commit's source evidence (TOL-V0-033).
+func SetWitnessEvidenceReadHook(f func()) func() {
+	was := witnessEvidenceReadHook
+	witnessEvidenceReadHook = f
+	return func() { witnessEvidenceReadHook = was }
+}
+
+// FailJobPoolRelease makes a job's `pool release` refuse with code, without
+// releasing, while `pool acquire` runs for real (TOL-V0-030).
+func FailJobPoolRelease(code string) func() {
+	was := jobLeaseCommand
+	jobLeaseCommand = func(env Env, name string, args []string) *wire.Result {
+		if name == "pool release" {
+			return &wire.Result{Command: strings.Fields(name), Outcome: wire.OutcomeRefused, Codes: []string{code}, Warnings: []string{"injected release refusal"}}
+		}
+		return was(env, name, args)
+	}
+	return func() { jobLeaseCommand = was }
 }
