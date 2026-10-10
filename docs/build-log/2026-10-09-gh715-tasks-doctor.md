@@ -129,3 +129,41 @@ Limits:
 - The lock is advisory. A writer that does not take it can still replace `summary.json` after the
   re-read.
 - `.lock` is a new persistent file in the cache directory. Rollback deletes it with the directory.
+
+## Review fixes, round 3
+
+Codex's third review found three more defects. All three are fixed.
+
+1. A cache directory renamed into the state directory after the refresh opened it still took the
+   write: the descriptor pins the directory, not its place. The darwin/linux writer now checks,
+   before the chmod, after taking the lock, before the temporary create, before the rename and
+   before reporting success, that `taskman-doctor` beneath the pinned common directory
+   (`os.Root.Lstat`, relative to that descriptor, no link followed) is still the opened directory
+   by device and inode. A mismatch or absence refuses UNSUPPORTED_FILESYSTEM and the temporary file
+   is removed.
+2. FALSE_IDLE discovery opened each attempt's runs directory with a blocking `os.Open`, so a FIFO
+   in its place hung `doctor`. `listRuns` now opens through `openRunsDir`, which on darwin and
+   linux adds `O_DIRECTORY|O_NONBLOCK`: a non-directory fails ENOTDIR at once and is skipped. It
+   still follows a link, as `os.Open` did, so the other callers (detached `run` launch and
+   `soleRun`, runs retirement, dispatch `AttemptRuns`) keep their behaviour apart from no longer
+   blocking on a FIFO.
+3. A directory at `taskman-doctor/.lock` failed the open with EISDIR, reported MALFORMED.
+   `doctorCacheFile` now maps EISDIR, ENXIO and EOPNOTSUPP (directory, socket or device refused by
+   the open itself) to UNSUPPORTED_FILESYSTEM.
+
+Each fix has a test that failed on e99ab771 and passes now:
+
+- `TestTQDV0011_RefreshRefusesCacheDirMovedAfterOpen`: the `lock` hook renames the opened
+  directory to `.git/taskman/moved-cache`. Before, the refresh returned OK and replaced
+  `moved-cache/summary.json`. Now it refuses UNSUPPORTED_FILESYSTEM and the moved tree is unchanged.
+- `TestTQDV0011_RefreshRefusesDirectoryLock`: before, the refresh refused MALFORMED.
+- `TestTQDV0009_FalseIdleSkipsRunsFIFO`: a FIFO replaces a stale attempt's runs directory. Before,
+  `doctor` was still blocked after 10 s. Now it answers OK with no FALSE_IDLE.
+
+The full `internal/tasks/cli` package passes. TQD-V0-009, TQD-V0-011, the failure modes, the
+acceptance evidence and the traceability are amended. The requirements stay proposed.
+
+Limit: the location checks bracket each step but are not atomic with it. A directory moved between
+the last pre-rename check and the rename receives the new `summary.json`. The post-rename check
+then refuses UNSUPPORTED_FILESYSTEM rather than reporting success, but the write is not undone. The
+non-darwin/linux writer is unchanged.

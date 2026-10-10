@@ -726,3 +726,85 @@ func TestTQDV0001_JournalAbsentIsMissingEvidence(t *testing.T) {
 		t.Fatal("journal-absent doctor wrote")
 	}
 }
+
+// TQD-V0-001, TQD-V0-011: a cache directory renamed into the state
+// directory after the refresh opened it is refused; the moved directory is
+// left as it was, with no cache or temporary file written into state.
+func TestTQDV0011_RefreshRefusesCacheDirMovedAfterOpen(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doctorOK(t, root, "--refresh")
+	dir := doctorCacheDir(t, root)
+	cache := fixture.TreeSnapshot(t, dir)
+	moved := filepath.Join(repo.StateDir, "moved-cache")
+	defer cli.SetDoctorCacheHookForTest(func(stage string) {
+		if stage == "lock" {
+			if err := os.Rename(dir, moved); err != nil {
+				t.Error(err)
+			}
+		}
+	})()
+	if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedFilesystem) {
+		t.Fatalf("cache directory moved after open not refused: %s", x.stdout)
+	}
+	if !fixture.SameTree(cache[1:], fixture.TreeSnapshot(t, moved)[1:]) {
+		t.Fatal("refresh wrote into the cache directory moved into the state directory")
+	}
+}
+
+// TQD-V0-011: a directory where the lock file belongs is refused
+// UNSUPPORTED_FILESYSTEM, not reported as malformed.
+func TestTQDV0011_RefreshRefusesDirectoryLock(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	dir := doctorCacheDir(t, root)
+	if err := os.MkdirAll(filepath.Join(dir, ".lock"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, root, nil, "doctor", "--refresh"); x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedFilesystem) {
+		t.Fatalf("directory lock not refused UNSUPPORTED_FILESYSTEM: %s", x.stdout)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "summary.json")); !os.IsNotExist(err) {
+		t.Fatalf("cache written beside a directory lock: %v", err)
+	}
+}
+
+// TQD-V0-009: a FIFO in place of a stale attempt's run directory is
+// skipped; FALSE_IDLE discovery never blocks opening it.
+func TestTQDV0009_FalseIdleSkipsRunsFIFO(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	id := planTicket(t, root, "busy", "P1", `["src/"]`)
+	c := handoffCLI(t, root, "claim", id, "--holder", "w", "--stage", "implement", "--request-id", "claim")
+	if c.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim: %s", c.stdout)
+	}
+	base, err := cli.RunDirForTest(root, field(c.res.Items[0], "attemptId").Str)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(base, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	restore := cli.SetDoctorClock(func() time.Time { return time.Now().Add(48 * time.Hour) })
+	defer restore()
+	done := make(chan []byte, 1)
+	go func() { // the test goroutine must stay free to report a hang
+		var out, errb bytes.Buffer
+		cli.Run(cli.Env{Cwd: root, Args: []string{"doctor"}, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+		done <- out.Bytes()
+	}()
+	select {
+	case out := <-done:
+		res, err := wire.DecodeResult(out)
+		if err != nil || res.Outcome != wire.OutcomeOK || len(res.Items) != 1 || len(findingsOf(res.Items[0], "FALSE_IDLE")) != 0 {
+			t.Fatalf("doctor beside a FIFO run directory: %v %s", err, out)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("doctor blocked opening a FIFO in place of the run directory")
+	}
+}

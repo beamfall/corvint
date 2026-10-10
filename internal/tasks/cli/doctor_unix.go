@@ -43,9 +43,16 @@ func doctorOwned(st fs.FileInfo) bool {
 // pinned without following links and the cache directory is opened once,
 // O_NOFOLLOW, beneath it; every later step (fchmod, lock, destination
 // check, temporary create, rename) is relative to that descriptor, so the
-// cache path is never resolved by name again. A link, a non-directory or
-// non-regular file, or a foreign owner is refused UNSUPPORTED_FILESYSTEM
-// before anything is changed or written through it. Under an exclusive
+// cache path is never resolved by name again. A descriptor pins the
+// directory, not its place, so before the chmod, after locking, before the
+// temporary create, before the rename and before success is reported the
+// entry taskman-doctor beneath the pinned common directory must still be
+// that same directory; a directory moved away (for example into the state
+// directory) is refused UNSUPPORTED_FILESYSTEM and the temporary file is
+// removed; a move landing between the last pre-rename check and the rename
+// is reported by the final check, not undone. A link, a non-directory or non-regular file, or a foreign owner
+// is refused UNSUPPORTED_FILESYSTEM before anything is changed or written
+// through it. Under an exclusive
 // flock on taskman-doctor/.lock the destination is re-read and a cache
 // written by a later build is refused UNSUPPORTED_VERSION, unchanged.
 func writeDoctorCache(commonDir string, raw []byte) (err error) {
@@ -78,6 +85,19 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	if !doctorOwned(st) {
 		return doctorCacheRefusal("directory is not owned by this user")
 	}
+	inPlace := func() error {
+		here, err := root.Lstat(doctorCacheDirName)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		if err != nil || !here.IsDir() || !os.SameFile(here, st) {
+			return doctorCacheRefusal("directory moved after it was opened")
+		}
+		return nil
+	}
+	if err := inPlace(); err != nil {
+		return err
+	}
 	if st.Mode().Perm() != 0o700 {
 		if err := dir.Chmod(0o700); err != nil {
 			return err
@@ -99,6 +119,9 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	}
 	if doctorCacheHook != nil {
 		doctorCacheHook("lock")
+	}
+	if err := inPlace(); err != nil {
+		return err
 	}
 	cur, err := doctorCacheFile(dir, doctorCacheFileName, os.O_RDONLY, "file")
 	switch {
@@ -125,6 +148,9 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 		return err
 	}
 	tmp := ".summary-" + hex.EncodeToString(nonce[:]) + ".tmp"
+	if err := inPlace(); err != nil {
+		return err
+	}
 	f, err := safeopen.InDir(dir, tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
@@ -147,7 +173,13 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	return at.Rename(tmp, doctorCacheFileName)
+	if err = inPlace(); err != nil {
+		return err
+	}
+	if err = at.Rename(tmp, doctorCacheFileName); err != nil {
+		return err
+	}
+	return inPlace()
 }
 
 // doctorCacheFile opens name beneath the pinned cache directory without
@@ -156,6 +188,11 @@ func doctorCacheFile(dir *os.File, name string, flags int, what string) (*os.Fil
 	f, err := safeopen.InDir(dir, name, flags, 0o600)
 	if errors.Is(err, syscall.ELOOP) {
 		return nil, doctorCacheRefusal(what + " is a link")
+	}
+	// The open itself fails on a directory (EISDIR) or a socket or device
+	// (ENXIO, EOPNOTSUPP) before the descriptor's type can be checked.
+	if errors.Is(err, syscall.EISDIR) || errors.Is(err, syscall.ENXIO) || errors.Is(err, syscall.EOPNOTSUPP) {
+		return nil, doctorCacheRefusal(what + " is not a regular file")
 	}
 	if err != nil {
 		return nil, err
