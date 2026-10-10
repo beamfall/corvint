@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -697,7 +698,10 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			return "", device, false
 		}
 		if key != "browserName" {
-			if !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
+			// A runtime-computed value of a key outside the browser/device identity set
+			// (baseURL, storageState, trace, ...) cannot change the browser or file
+			// membership; it stays an execution input (TJAA-V0-018).
+			if slices.Contains(PlaywrightUseIdentityKeys, key) && !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
 				return "", device, false
 			}
 			continue
@@ -710,6 +714,11 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 	}
 	return browser, device, true
 }
+
+// PlaywrightUseIdentityKeys are the `use` options that make up a project's browser/device
+// identity. The external provider's qualified reporter resolves the same set at runtime;
+// jstestprovider's tests pin its identityKeys list to this one.
+var PlaywrightUseIdentityKeys = []string{"browserName", "defaultBrowserType", "channel", "headless", "connectOptions", "viewport", "screen", "userAgent", "isMobile", "hasTouch", "deviceScaleFactor", "locale", "timezoneId", "colorScheme", "permissions", "contextOptions", "launchOptions"}
 
 func playwrightDeviceSpread(raw string) (string, bool) {
 	if !strings.HasPrefix(raw, "devices[") || !strings.HasSuffix(raw, "]") {

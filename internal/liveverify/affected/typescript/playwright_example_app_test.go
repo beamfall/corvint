@@ -157,3 +157,41 @@ func TestPlaywrightAliasResolutionBoundaries(t *testing.T) {
 		}
 	})
 }
+
+// GitHub #709 part 1 (V1-1065): a literal known device spread keeps its browser identity when the
+// same `use` layer, or the inherited global layer, also carries runtime-computed values for keys
+// that are not browser/device identity (TJAA-V0-018). Computed identity stays unresolved.
+func TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065(t *testing.T) {
+	for _, row := range []struct{ name, global, local, browser, device string }{
+		{"global env baseURL", `{ baseURL: process.env.BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' }`, `{ ...devices['Desktop Chrome'] }`, "chromium", "Desktop Chrome"},
+		{"project storageState identifier", `{}`, `{ ...devices['Desktop Firefox'], storageState: authFile }`, "firefox", "Desktop Firefox"},
+		{"both layers computed", `{ trace: process.env.CI ? 'on' : 'off' }`, `{ ...devices['Desktop Safari'], extraHTTPHeaders: headers(), video: mode }`, "webkit", "Desktop Safari"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := "import { defineConfig, devices } from '@playwright/test';\nconst authFile = 'playwright/.auth/user.json';\nexport default defineConfig({\n  use: " + row.global + ",\n  projects: [{ name: 'p', use: " + row.local + " }],\n});\n"
+			projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", source)
+			if len(unknown) != 0 || len(projects) != 1 || projects[0].Browser != row.browser || projects[0].Device != row.device {
+				t.Fatalf("projects=%+v unknown=%+v", projects, unknown)
+			}
+		})
+	}
+	for _, use := range []string{
+		`{ ...devices[name] }`,
+		`{ ...devices['Desktop Chrome Canary'] }`,
+		`{ ...devices['Desktop Chrome'], viewport: size }`,
+		`{ ...devices['Desktop Chrome'], channel: process.env.CHANNEL }`,
+		`{ ...devices['Desktop Chrome'], launchOptions: options }`,
+		`{ ...devices['Desktop Chrome'], ...extra }`,
+		`{ ...devices['Desktop Chrome'], [key]: value }`,
+		`{ ...devices['Desktop Chrome'], 'browserName': chosen }`,
+	} {
+		_, _, unknown := parsePlaywrightConfig("playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', use: "+use+" }] })")
+		if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("computed identity was resolved: %s %+v", use, unknown)
+		}
+	}
+	_, _, unknown := parsePlaywrightConfig("playwright.config.ts", "export default defineConfig({ use: { userAgent: agent() }, projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }] })")
+	if !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
+		t.Fatalf("computed inherited identity key was resolved: %+v", unknown)
+	}
+}
