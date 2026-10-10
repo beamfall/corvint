@@ -13,10 +13,12 @@
 // records the source run; it refuses logs that lack a package the current
 // table lists unless --allow-removed is given. A package that the committed
 // allow-list and slice file split across the given number of logs (AFP-V0-041)
-// may end once per test slice, each in a different log: its cost is the sum of
-// its slices, and it passes only when every slice does. check exits 1 and prints one line per package whose
-// observed time differs from its table entry by more than --factor, that the
-// table is missing, or that the table still lists but the run did not execute.
+// must end exactly once per test slice, each in a different log: its cost is the
+// sum of its slices, and any missing, extra, failed or unfinished slice refuses
+// the run, so a run made before the split cannot measure it. check exits 1 and
+// prints one line per package whose observed time differs from its table entry
+// by more than --factor, that the table is missing, or that the table still
+// lists but the run did not execute.
 //
 //	ci-shard-costs check --advisory --shards 6 [--share 10] [--summary FILE] shard0.json ... shard5.json
 //
@@ -315,10 +317,12 @@ func scan(r io.Reader, o *outcomes, strict bool) (int, error) {
 
 // combine returns one cost per package. A package ends once, unless the committed
 // allow-list and slice file split it over a partition of `logs` shards, exactly as
-// the partition does (AFP-V0-041): then it ends once whole (a run before the
-// split) or once per slice, and its cost is the sum. A split package that started
-// without ending in some log is refused even in a hosted log, because its sum
-// would be short. An unreadable or unusable slice input splits nothing, as in CI.
+// the partition does (AFP-V0-041): then it ends exactly once per slice and its
+// cost is the sum. Any other count is refused, a single outcome included: one
+// slice's time is indistinguishable from a whole run, so a run made before the
+// split cannot measure a split package. A split package that started without
+// ending in some log is refused even in a hosted log, because its sum would be
+// short. An unreadable or unusable slice input splits nothing, as in CI.
 func combine(o *outcomes, logs int, allowPath, slicesPath string) (map[string]int64, error) {
 	universe := make([]string, 0, len(o.count)+len(o.open))
 	for p := range o.count {
@@ -339,10 +343,10 @@ func combine(o *outcomes, logs int, allowPath, slicesPath string) (map[string]in
 		switch {
 		case k != 0 && o.open[p]:
 			return nil, fmt.Errorf("a test slice of package %s started without a terminal outcome", p)
+		case k != 0 && n != k:
+			return nil, fmt.Errorf("package %s has %d terminal outcomes for its %d test slices", p, n, k)
 		case n > 1 && k == 0:
 			return nil, fmt.Errorf("package %s has two terminal outcomes", p)
-		case n > 1 && n != k:
-			return nil, fmt.Errorf("package %s has %d terminal outcomes for its %d test slices", p, n, k)
 		case n > 0:
 			// The table admits only positive costs; a package without tests costs the minimum.
 			observed[p] = max(1, o.elapsed[p])

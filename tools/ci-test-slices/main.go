@@ -3,10 +3,13 @@
 // move tests between shards; the catch-all slice keeps every test in exactly one.
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
-// one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`
-// (text before the JSON object is ignored). Lines without a `go test -json`
-// record are runner, shell or build output and are skipped; a record that does
-// not decode is refused. Each package of a log must run one lifecycle: start, its
+// one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`.
+// After the log prefix (the job and step columns, a byte-order mark, the runner
+// timestamp and an annotation such as ##[error]), a line whose content starts
+// with { is a `go test -json` record that must decode completely and name its
+// Action; a damaged or truncated one, or a record that follows other text, is
+// refused. Only lines whose content is not JSON (runner, shell or build output)
+// are skipped. Each package of a log must run one lifecycle: start, its
 // tests (every one that runs ends), then one terminal pass or skip, and nothing
 // after it. A log is refused when any test, subtest or package fails, or when a
 // package or test is missing, repeated or unterminated:
@@ -20,7 +23,9 @@
 // untracked nor modified files of DIR contribute; it then rewrites DIR's slice
 // file. DIR's index, worktrees and refs are not written. SIGINT or SIGTERM cancels
 // checkout and enumeration, removes the temporary directory and leaves the slice
-// file unwritten. The file-level source is checked before any work, so a file the
+// file unwritten; on unix each subprocess runs in its own process group, which
+// cancellation interrupts and, after ten seconds, kills, and Windows stops only
+// the immediate process. The file-level source is checked before any work, so a file the
 // partition would reject is never written, even when nothing splits. A package splits only
 // when its observed time exceeds the target (default: the ideal shard share). Its
 // named slices are contiguous runs of its sorted test names that minimise the
@@ -136,8 +141,12 @@ func observe(paths []string) (*observation, error) {
 	return o, nil
 }
 
-// record finds a `go test -json` record on a line, after any log prefix. Lines
-// without one are runner, shell or build output.
+// prefix matches what a hosted log puts before a line's content: the job and step
+// columns of `gh run view --log`, the first line's byte-order mark, the runner
+// timestamp and an annotation such as ##[error].
+var prefix = regexp.MustCompile(`^(?:[^\t]*\t[^\t]*\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z )?(?:##\[[a-z]+\])?`)
+
+// record finds the start of a `go test -json` record anywhere in a line's content.
 var record = regexp.MustCompile(`\{"(Time|Action|ImportPath)":`)
 
 // read checks one log's package lifecycles: a package's first record is its
@@ -160,9 +169,12 @@ func (o *observation) read(path string) (int64, error) {
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
 	for n := 1; s.Scan(); n++ {
 		line := s.Bytes()
-		at := record.FindIndex(line)
-		if at == nil {
-			continue
+		content := line[len(prefix.Find(line)):]
+		if !bytes.HasPrefix(content, []byte("{")) {
+			if record.Match(content) {
+				return 0, fmt.Errorf("line %d: go test -json record after other text (interleaved or damaged)", n)
+			}
+			continue // runner, shell or build output
 		}
 		var e struct {
 			Action  string
@@ -170,8 +182,11 @@ func (o *observation) read(path string) (int64, error) {
 			Test    string
 			Elapsed float64
 		}
-		if err := json.Unmarshal(line[at[0]:], &e); err != nil {
+		if err := json.Unmarshal(content, &e); err != nil {
 			return 0, fmt.Errorf("line %d: damaged go test -json record: %v", n, err)
+		}
+		if e.Action == "" {
+			return 0, fmt.Errorf("line %d: damaged go test -json record: no Action", n)
 		}
 		if e.Package == "" {
 			continue // build output names ImportPath, not Package
@@ -416,12 +431,17 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 
 var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// child runs a subprocess that cancellation interrupts, so that it can stop its
-// own children, and kills if it has not exited ten seconds later.
+// stopGrace is how long cancellation lets a subprocess and its descendants
+// stop after the interrupt before killing them; tests shorten it.
+var stopGrace = 10 * time.Second
+
+// child runs a subprocess in its own process group where the platform has
+// them, so that cancellation stops every descendant and not only the immediate
+// process (see inGroup).
 func child(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
-	cmd.WaitDelay = 10 * time.Second
+	inGroup(cmd)
+	cmd.WaitDelay = stopGrace
 	return cmd
 }
 

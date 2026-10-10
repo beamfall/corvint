@@ -248,11 +248,12 @@ open. The merge at `c8029870` integrates the two:
 - **Slice outcomes combine (AFP-V0-041 (8)).** `tools/ci-shard-costs` reads the committed
   allow-list and slice file (`--allow`, `--slices`) and calls `cishards.SplitPackages` over the
   logs' packages with the log count as the shard count, so it splits exactly what the partition
-  split. Each log may end a package once. A split package may end once (a run before the split)
-  or exactly once per slice; its cost is the sum. A failed slice, an unterminated slice, a slice
-  count that differs from the file, or a repeat of an unsplit package refuses the refresh and makes
-  the advisory check abstain. `TestAFPV0041RefreshCombinesTestSlices` and
-  `TestAFPV0041AdvisoryCombinesTestSlices` cover both paths. Seven mutants each fail a test:
+  split. Each log may end a package once. A split package must end exactly once per slice; its
+  cost is the sum (round 3 removed a single-outcome exception, below). A failed slice, an
+  unterminated slice, a slice count that differs from the file, or a repeat of an unsplit package
+  refuses the refresh and makes the advisory check abstain.
+  `TestAFPV0041RefreshCombinesTestSlices` and `TestAFPV0041AdvisoryCombinesTestSlices` cover both
+  paths. Seven mutants each fail a test:
   dropping the per-log repeat check, the slice-count check, the unterminated-slice check or the
   unsplit-repeat check; a shard count of 1; assigning instead of summing; and an empty allow-list
   path in the advisory form.
@@ -265,18 +266,56 @@ open. The merge at `c8029870` integrates the two:
   --shards 2` reported normally. Without the slice file the same logs abstained with "two
   terminal outcomes".
 
+### Round 3
+
+The independent review of `0d534a03` found three gaps; each fix is mutation-checked.
+
+- **Exact slice count (P2).** `combine` accepted one terminal outcome for a split package as a
+  run made before the split, so a sliced run that lost a slice's log still refreshed costs. A
+  package the committed slice file splits must now end exactly once per slice in the run; any
+  other count refuses refresh and makes the advisory check abstain. A run made before the split
+  therefore cannot refresh a split package's cost (AFP-V0-041 (8), Limits).
+  `tools/ci-test-slices` keeps its own whole-run reader and is unaffected. Two cases join each of
+  `TestAFPV0041RefreshCombinesTestSlices` and `TestAFPV0041AdvisoryCombinesTestSlices`: a
+  pre-split whole run and a run missing its second slice. Restoring the old rule (`n > 1 && n !=
+  k`) fails all four.
+- **Truncated records (P2).** `tools/ci-test-slices` skipped any line without the
+  `{"Time":`, `{"Action":` or `{"ImportPath":` key prefix, so a completed package followed by a
+  truncated `{"Time"` or `{"Act` was accepted. The reader now strips the hosted prefix (gh job and
+  step columns, the byte-order mark, the runner timestamp and a `##[error]`-style annotation).
+  Content that starts with `{` must decode completely and name its `Action`, and a record after
+  other text on its line refuses. Only non-JSON lines are skipped. Eight truncation and
+  interleaving cases join `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs`, along with a
+  positive case that wraps the passing log in every hosted prefix; the old reader accepts seven of
+  the eight. Under the strict reader, the six retained hosted shard logs still replay to the
+  observed, whole and sliced sums in the table above; one log has 327 `##[error]` record lines.
+- **Process-group cancellation (P3).** Cancellation interrupted only the immediate `go` (or
+  `git`) process, and Go's WaitDelay kill also reaches only that process. Every subprocess now
+  starts in its own process group (`inGroup`, build-tagged `procgroup_unix.go`). Cancel sends
+  SIGINT to the group, waits up to `stopGrace` (10 s) for it to empty, sends SIGKILL to the group,
+  and returns only once the group is empty, so `Wait` cannot return while a descendant runs.
+  `TestAFPV0041CancelStopsTheEnumerationGroup` puts a fake `go` on `PATH` whose `sleep 300` child
+  ignores SIGINT and holds the output pipe, in two variants: an interruptible leader and a leader
+  that traps SIGINT. It checks that the group and the grandchild are gone. Both variants fail
+  under the old leader-only interrupt and under a group interrupt without the SIGKILL step. On
+  other platforms `procgroup_other.go` kills only the immediate process; `GOOS=windows go vet`
+  and a windows test build pass.
+
 ## Limits and integration
 
 - **Lost interleavings.** Splitting loses cross-slice parallel interleavings, including race
   detection between tests in different slices.
 - **Per-slice overhead.** Every slice repeats the package's build or link, process start and
   `TestMain`. This overhead is NOT_OBSERVED on hosted runners.
-- **Slice regeneration needs a whole run.** `tools/ci-shard-costs` now combines slice outcomes,
-  but `tools/ci-test-slices generate` still refuses a sliced run ("two terminal outcomes"). A
-  single outcome of a split package is indistinguishable from a whole run; the advisory check
-  requires all N logs, and refresh refuses logs that lack a listed package, which bounds a
-  missing log.
+- **Costs and slices need different runs.** `tools/ci-shard-costs` measures a split package only
+  from a sliced run and refuses a run made before the split. `tools/ci-test-slices generate` reads
+  only whole runs and refuses a sliced one ("two terminal outcomes"), so regenerating the slice
+  file needs a complete run in which the package ran whole. Full CI does not make one while the
+  package is split; a run of a branch whose slice file is emptied would.
 - **Stale slice file.** A stale slice file can only move time between shards.
+- **Cancellation reach.** On Windows, cancellation kills only the immediate subprocess, not its
+  descendants. On unix, a descendant that leaves its process group is not reached, and a SIGKILL
+  of `ci-test-slices` itself stops nothing and leaves the temporary checkout behind.
 - **Selective PR pins.** The workflow's selective PR pins (`CORVINT_PR_TOOL_SOURCE` and the
   qualification pins) are empty, so every run takes the FULL path that runs slices. If those pins
   are set while a package is split, the driver's refusal fails every sharded PR run closed. Enabling

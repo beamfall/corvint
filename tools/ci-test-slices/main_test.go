@@ -352,6 +352,27 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), chatter+complete)}); err != nil {
 		t.Fatalf("complete passing log refused: %v", err)
 	}
+	// The same records behind every hosted prefix: gh columns, the first line's
+	// byte-order mark, a fractional runner timestamp and a ##[error] annotation.
+	var hosted strings.Builder
+	for i, l := range strings.SplitAfter(chatter+complete, "\n") {
+		if l == "" {
+			continue
+		}
+		hosted.WriteString("shard (0)\tGo tests\t")
+		if i == 0 {
+			hosted.WriteString("\ufeff")
+		}
+		hosted.WriteString("2026-10-10T13:19:03.3027757Z ")
+		l = strings.TrimPrefix(strings.TrimPrefix(l, "2026-10-10T13:19:03Z "), "2026-10-10T13:20:59Z ")
+		if strings.Contains(l, `"Test":"TestA/sub","Elapsed"`) {
+			hosted.WriteString("##[error]")
+		}
+		hosted.WriteString(l)
+	}
+	if o, err := observe([]string{write(t, filepath.Join(t.TempDir(), "hosted.log"), hosted.String())}); err != nil || o.packages["example.org/big"] != 2000 {
+		t.Fatalf("prefixed passing log: %+v, %v", o, err)
+	}
 	for name, c := range map[string]struct{ log, want string }{
 		// One completed package, then a failed subtest and truncated output.
 		"failed subtest, truncated": {small + `{"Action":"start","Package":"example.org/big"}
@@ -375,6 +396,15 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 		"test ran twice":              {strings.Replace(complete, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`+"\n"+`{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, 1), "test example.org/big TestA/sub ran twice"},
 		"damaged trailing record":     {complete + `2026-10-10T13:21:00Z {"Time":"2026-10-10T13:21:00Z","Action":"pass","Pack`, "line 11: damaged go test -json record"},
 		"damaged middle record":       {strings.Replace(complete, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}`, `{"Action":"run","Package":"example.org/big","Test":"TestA/sub"`, 1), "line 7: damaged go test -json record"},
+		// Completed packages followed by a record cut inside its first key.
+		"truncated Time key":      {complete + `{"Time"`, "line 11: damaged go test -json record"},
+		"truncated Action key":    {complete + `{"Act`, "line 11: damaged go test -json record"},
+		"lone brace":              {complete + "{\n", "line 11: damaged go test -json record"},
+		"truncated after stamp":   {complete + `2026-10-10T13:21:00.1234567Z {"Ti`, "line 11: damaged go test -json record"},
+		"truncated gh line":       {complete + "shard (0)\tGo tests\t2026-10-10T13:21:00Z {", "line 11: damaged go test -json record"},
+		"truncated annotation":    {complete + `2026-10-10T13:21:00Z ##[error]{"Action":"pa`, "line 11: damaged go test -json record"},
+		"record without action":   {complete + `{"Time":"2026-10-10T13:21:00Z"}`, "line 11: damaged go test -json record: no Action"},
+		"record after other text": {complete + `stderr {"Action":"output","Package":"example.org/late"}`, "line 11: go test -json record after other text"},
 	} {
 		_, err := observe([]string{write(t, filepath.Join(t.TempDir(), "shard.log"), c.log)})
 		if err == nil || !strings.Contains(err.Error(), c.want) {
