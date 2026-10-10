@@ -770,7 +770,13 @@ func playwrightProjectOwns(root string, project PlaywrightProject, globalTestDir
 // consumes half of a surrogate pair where Go consumes the whole rune. A matcher's verdict on such
 // a path is not decided statically and membership widens.
 func playwrightPathOutsideMatcherModel(value string) bool {
-	return strings.ContainsAny(value, "\r\n\u2028\u2029") || strings.ContainsFunc(value, func(character rune) bool { return character > 0xFFFF })
+	return strings.ContainsAny(value, "\r\n\u2028\u2029") || playwrightOutsideBMP(value)
+}
+
+// playwrightOutsideBMP reports whether value holds a character above U+FFFF, which a JavaScript
+// regular expression without the u flag reads as two UTF-16 code units and Go RE2 as one rune.
+func playwrightOutsideBMP(value string) bool {
+	return strings.ContainsFunc(value, func(character rune) bool { return character > 0xFFFF })
 }
 
 // playwrightDefaultTest applies the `.spec.`/`.test.` markers of Playwright's default testMatch
@@ -812,7 +818,7 @@ func compilePlaywrightMatcher(raw string) (playwrightMatcher, bool) {
 			value = "**/" + value
 		}
 		pattern, valid := playwrightGlobPattern(value)
-		if !valid {
+		if !valid || playwrightOutsideBMP(value) {
 			return playwrightMatcher{}, false
 		}
 		re, err := regexp.Compile("(?i)^(?:" + pattern + ")$")
@@ -854,12 +860,17 @@ const (
 // playwrightRegexBodyStatic reports whether a regular-expression literal body uses only constructs
 // that JavaScript (without the u flag) and Go RE2 read identically: literal characters, `.`, `^`,
 // `$`, `|`, `(...)` and `(?:...)` groups, the quantifiers `*`, `+`, `?`, `{n}`, `{n,}` and
-// `{n,m}` (n <= m <= 1000) after an atom, each optionally lazy, classes of literals, ranges and
-// allowed escapes, and the escapes in playwrightRegexEscapes and playwrightRegexPunctuation. Every
-// other construct differs or may differ (`\A` is a literal A in JavaScript and an anchor in Go;
-// `\s` includes Unicode spaces only in JavaScript; `(?i)`, named groups, lookaround,
+// `{n,m}` (n <= m <= 1000, each bound `0` or digits without a leading zero) after an atom, each
+// optionally lazy, classes of literals, ranges and allowed escapes, and the escapes in
+// playwrightRegexEscapes and playwrightRegexPunctuation. Every other construct differs or may
+// differ (`\A` is a literal A in JavaScript and an anchor in Go; `\s` includes Unicode spaces only
+// in JavaScript; `{01}` repeats in JavaScript and is literal text in Go; a character above U+FFFF
+// is a surrogate pair in JavaScript and one rune in Go; `(?i)`, named groups, lookaround,
 // backreferences, `\x`, `\u`, `\p` and POSIX classes), so the matcher is not static.
 func playwrightRegexBodyStatic(body string) bool {
+	if playwrightOutsideBMP(body) {
+		return false
+	}
 	atom, lazy := false, false
 	for index := 0; index < len(body); index++ {
 		character := body[index]
@@ -917,7 +928,10 @@ func playwrightRegexBodyStatic(body string) bool {
 }
 
 // playwrightRegexRepeatEnd returns the offset past a `{n}`, `{n,}` or `{n,m}` quantifier at
-// body[start] with n <= m <= playwrightRegexMaxRepeat.
+// body[start] with n <= m <= playwrightRegexMaxRepeat. Each bound is `0` or ASCII digits without a
+// leading zero: JavaScript (Annex B) reads `{01}` as a repeat, while Go's parser rejects the
+// leading zero and reads the braces as literal text. Spaces, a missing first bound (`{,n}`, a
+// literal in both) and any other form are refused rather than modelled.
 func playwrightRegexRepeatEnd(body string, start int) (int, bool) {
 	closing := strings.IndexByte(body[start:], '}')
 	if closing < 0 {
@@ -925,7 +939,7 @@ func playwrightRegexRepeatEnd(body string, start int) (int, bool) {
 	}
 	bounds := strings.SplitN(body[start+1:start+closing], ",", 2)
 	number := func(value string) (int, bool) {
-		if value == "" || len(value) > playwrightRegexRepeatDigits || strings.Trim(value, "0123456789") != "" {
+		if value == "" || len(value) > playwrightRegexRepeatDigits || strings.Trim(value, "0123456789") != "" || len(value) > 1 && value[0] == '0' {
 			return 0, false
 		}
 		parsed, err := strconv.Atoi(value)

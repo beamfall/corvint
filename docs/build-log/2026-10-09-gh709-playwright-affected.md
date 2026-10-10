@@ -298,3 +298,30 @@ Tests, each failing on `7b58bad5`:
 
 The non-ASCII `(?i)` folding limit from round 4 remains recorded. `\w` and `\b` under `i` are part
 of it, because Go folds the Kelvin sign and long s into `\w`.
+
+## Review round 7
+
+Two P1 findings, both fixed by refusing the construct. The matcher becomes non-static, so the
+producer refuses and static selection widens.
+
+- Leading-zero repeat bound. JavaScript (Annex B) reads `b{01}` as one `b`. Go's `regexp/syntax`
+  rejects a leading zero in a repeat count and reads the braces as literal text. So
+  `testMatch: /keep\.test\.ts$|b{01}\.spec\.ts$/` selected `b.spec.ts` only in JavaScript, and a
+  listing captured before that file existed was stamped. A bound must now be `0` or ASCII digits
+  without a leading zero, with n <= m <= 1000. Cross-check against Go's `parseRepeat`: Go parses
+  `{n}`, `{n,}` and `{n,m}` as repeats only with such bounds (and errors on counts above 1000 or
+  m < n); every other brace form is literal in Go. JavaScript treats those same allowed forms as the
+  same repeats, so they agree, and `{01}`, `{1,02}`, `{1, 2}`, `{ 1}` and `{,2}` are refused.
+- Character above U+FFFF in a regex body. JavaScript without `u` reads `😀?` as a high surrogate
+  and an optional low surrogate; Go reads an optional emoji. `testIgnore: /😀?b\.spec\.ts$/`
+  therefore ignored `b.spec.ts` only in Go. Any such character in a body is now non-static,
+  whether literal, in a class or escaped. The same rule applies to string globs compiled as
+  minimatch patterns, which also compile to a regex without `u`.
+
+Tests, each failing on `f6b8eb5a`:
+- both exact repros as stale-listing rows in `TestPlaywrightDiscoveryFromListMembership_V1_1066`;
+- `{01}`, `{00}`, `{1,02}` and non-BMP literal, class, range and escape rows in
+  `TestPlaywrightRegexBodyAllowlist` (`{1, 2}`, `{ 1}`, `{,2}` and the escaped form were already
+  refused and are now pinned), with `{0}`, `{0,0}`, `{10,100}` and BMP non-ASCII positives;
+- `/a{01}\.spec\.ts$/`, an emoji regex and an emoji glob row in
+  `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`.

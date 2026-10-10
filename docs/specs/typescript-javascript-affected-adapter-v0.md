@@ -224,12 +224,16 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   expression body is static only when every construct reads identically in JavaScript without the
   `u` flag and in Go RE2: literal characters; `.`, `^`, `$` and `|`; `(...)` and `(?:...)` groups
   (any other `(?` form is not static); `*`, `+` and `?` after an atom, and `{n}`, `{n,}` and
-  `{n,m}` with n <= m <= 1000, each optionally lazy; non-empty `[...]` and `[^...]` classes of
+  `{n,m}` with n <= m <= 1000, each bound `0` or ASCII digits without a leading zero, each
+  optionally lazy; non-empty `[...]` and `[^...]` classes of
   literals, ranges and allowed escapes, without a nested `[`; and only the escapes `\d \D \w \W
   \b \B \t \n \r \f \v` (not `\b`/`\B` in a class) and a backslash before ASCII syntax
   punctuation. Every other construct (such as `\A`, a literal A in JavaScript and an anchor in Go;
   `\s`/`\S`, which include Unicode spaces only in JavaScript; backreferences, `\x`, `\u`, `\p`,
-  POSIX classes, any other `{`) is not static. Go's `.` and `(?m)` anchors treat only LF as a line
+  POSIX classes, any other `{`, including `{01}`, which repeats in JavaScript and is literal text in
+  Go, `{1, 2}` and `{,2}`) is not static. A regular-expression body or string glob containing any
+  character above U+FFFF, literal, in a class or escaped, is not static, because JavaScript
+  without `u` and minimatch read it as two UTF-16 code units and Go as one rune. Go's `.` and `(?m)` anchors treat only LF as a line
   terminator where JavaScript also treats CR, U+2028 and U+2029, and a JavaScript expression
   without `u` matches UTF-16 code units, so the producer MUST refuse when the repository root, any
   enumerated candidate path or any listed path contains CR, LF, U+2028, U+2029 or a character

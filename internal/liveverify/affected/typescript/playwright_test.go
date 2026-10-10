@@ -180,7 +180,10 @@ func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
 		`"**/tests/**.spec.ts"`, `"**/a**.spec.ts"`, `"**/***/a.spec.ts"`, `"tests/**a/*.spec.ts"`,
 		`/a\.spec\.ts$/y`, `/a\.spec\.ts$/g`, `/a\.spec\.ts$/u`, `/a\.spec\.ts$/d`, `/a\.spec\.ts$/v`,
 		// GitHub #709 review round 6: regex bodies Go and JavaScript read differently.
-		`/\A.*a\.spec\.ts$/`, `/\sa\.spec\.ts$/`, `/(?i)a\.spec\.ts$/`, `/(a)\1\.spec\.ts$/`, `/[[:alpha:]]\.spec\.ts$/`, `/\x61\.spec\.ts$/`} {
+		`/\A.*a\.spec\.ts$/`, `/\sa\.spec\.ts$/`, `/(?i)a\.spec\.ts$/`, `/(a)\1\.spec\.ts$/`, `/[[:alpha:]]\.spec\.ts$/`, `/\x61\.spec\.ts$/`,
+		// GitHub #709 review round 7: a leading-zero repeat bound is repetition only in JavaScript, and
+		// a character outside the Basic Multilingual Plane is two UTF-16 code units in JavaScript.
+		`/a{01}\.spec\.ts$/`, "/\U0001F600?a\\.spec\\.ts$/", "\"**/\U0001F600*.spec.ts\""} {
 		root := t.TempDir()
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
@@ -549,7 +552,7 @@ func TestPlaywrightLineTerminatorPathWidensMembership(t *testing.T) {
 // GitHub #709 review round 6: only regex constructs JavaScript (without u) and Go RE2 read the
 // same way are static; `\A` is a literal A in JavaScript and a begin-text anchor in Go.
 func TestPlaywrightRegexBodyAllowlist(t *testing.T) {
-	for _, body := range []string{`\d+\.spec\.ts$`, `\.`, `[a-z]{2,3}`, `(?:a|b)`, `^\/x\/(a)*?b{2}c{1,}d{0,1000}?$`, `[^/\]\-]+\/\w\W\D\b\B\t\n\r\f\v.`, `[-a-c_]|x+?`} {
+	for _, body := range []string{`\d+\.spec\.ts$`, `\.`, `[a-z]{2,3}`, `(?:a|b)`, `^\/x\/(a)*?b{2}c{1,}d{0,1000}?$`, `a{0}b{0,0}c{10,100}`, "\u00e9\uffff", `[^/\]\-]+\/\w\W\D\b\B\t\n\r\f\v.`, `[-a-c_]|x+?`} {
 		if !playwrightRegexBodyStatic(body) {
 			t.Errorf("refused %q", body)
 		}
@@ -559,7 +562,10 @@ func TestPlaywrightRegexBodyAllowlist(t *testing.T) {
 	}
 	for _, body := range []string{`\A.*b`, `a\z`, `\s`, `\S`, `(?i)a`, `(?<n>a)`, `(?P<n>a)`, `(?=a)`, `(?!a)`, `(?<=a)`, `(a)\1`, `\k<n>`,
 		`[[:alpha:]]`, `[a[b]`, `[]`, `[^]`, `[\b]`, `\x41`, `\u0041`, `\0`, `\p{L}`, `\Q.\E`, `\cA`, `\e`, `a{`, `a{1001}`, `a{3,2}`, `a{,2}`,
-		`a{1}{2}`, `{1}`, `*a`, `a**`, `a???`, `^*`, `\b+`, `a}`, `a]`, `[a`, `a\`, `(?`} {
+		`a{1}{2}`, `{1}`, `*a`, `a**`, `a???`, `^*`, `\b+`, `a}`, `a]`, `[a`, `a\`, `(?`,
+		// GitHub #709 review round 7: JavaScript reads a leading-zero bound as a repeat count and Go
+		// as literal text; a non-BMP character is a surrogate pair in JavaScript and one rune in Go.
+		`a{01}`, `a{00}`, `a{1,02}`, `a{1, 2}`, `a{ 1}`, `a{,2}`, "\U0001F600", "a\U0001F600?", "[\U0001F600]", "[a-\U0001F600]", "\\\U0001F600"} {
 		if playwrightRegexBodyStatic(body) {
 			t.Errorf("admitted %q", body)
 		}

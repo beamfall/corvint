@@ -251,10 +251,14 @@ func TestPlaywrightDiscoveryFromListMembership_V1_1066(t *testing.T) {
 	// a listing captured before that file existed is stale and must not be stamped.
 	// Round 6: in JavaScript `\A` is a literal A, so `/\A.*b\.spec\.ts$/` ignores nothing here; Go
 	// reads it as a begin-text anchor and would ignore e2e/sub/b.spec.ts.
-	for _, ignore := range []string{`'**/e2e/**.spec.ts'`, `/b\.spec\.ts$/y`, `/\A.*b\.spec\.ts$/`} {
-		t.Run("stale listing after a new file testIgnore "+ignore+" keeps", func(t *testing.T) {
+	// Round 7: JavaScript reads `b{01}` as one b (Go as the literal text `b{01}`), and `😀?` as a
+	// high surrogate followed by an optional low surrogate (Go as an optional emoji), so in
+	// JavaScript both configs select e2e/sub/b.spec.ts.
+	for _, matcher := range []string{`testIgnore: '**/e2e/**.spec.ts'`, `testIgnore: /b\.spec\.ts$/y`, `testIgnore: /\A.*b\.spec\.ts$/`,
+		`testMatch: /keep\.test\.ts$|b{01}\.spec\.ts$/`, "testIgnore: /\U0001F600?b\\.spec\\.ts$/"} {
+		t.Run("stale listing after a new file "+matcher+" keeps", func(t *testing.T) {
 			root := t.TempDir()
-			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', testIgnore: "+ignore+" }] });\n")
+			write(t, root, "playwright.config.ts", "export default defineConfig({ projects: [{ name: 'p', testDir: 'e2e', "+matcher+" }] });\n")
 			write(t, root, "e2e/keep.test.ts", "test('keep', async () => {});\n")
 			listing := minimalPlaywrightListing(t, root, "e2e", []string{"p"}, []string{"keep.test.ts"})
 			write(t, root, "e2e/sub/b.spec.ts", "test('b', async () => {});\n")
