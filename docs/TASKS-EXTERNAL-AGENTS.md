@@ -106,6 +106,15 @@ corvint-tasks complete --attempt "$attempt" --generation "$generation" --request
 corvint-tasks receipt audit
 ```
 
+The commit counts as integrated when the local intent branch contains it or, when that branch is
+behind, when the branch's configured upstream is a remote-tracking ref (for example
+`refs/remotes/origin/main`) that contains it. `complete` never fetches and never moves a branch, so
+a checked-out `main` with unrelated staged work can stay where it is: run `git fetch` so the
+remote-tracking ref includes the merged commit, then complete again. A commit in neither refuses
+`STALE_TREE` with `COMMIT_NOT_INTEGRATED`, and the detail names both refs checked (or says no
+upstream is configured); `STALE_TREE` alone means the commit's tree is not the candidate or an
+extra repository's candidate is not integrated (CAL-V0-017, CAL-V0-087).
+
 The gate worktree must be clean. Resubmitting invalidates earlier gate results. `complete-manual`
 is an operator disposition, not an external-agent completion shortcut. `release --reason` takes
 only the `releaseReasonCodes` returned by `help` (for example `GATE_FAILED`); free prose refuses.

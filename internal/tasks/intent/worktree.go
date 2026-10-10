@@ -281,12 +281,27 @@ func readAll(r io.Reader, path string, max int, hint int) ([]byte, error) {
 	if hint < 0 || hint > max {
 		hint = max
 	}
+	// Read straight into the hinted buffer: the stat size plus one byte, so
+	// a file that did not grow is consumed with no copy and its EOF lands in
+	// the spare byte. A read never asks for more than max+1 bytes in total,
+	// so an oversized file is still refused after at most one byte past max.
 	buf := make([]byte, 0, hint+1)
-	tmp := make([]byte, 32*wire.KiB)
 	for {
-		n, rerr := r.Read(tmp)
+		if len(buf) == cap(buf) {
+			buf = append(buf, 0)[:len(buf)]
+		}
+		window := buf[len(buf):cap(buf)]
+		if room := max + 1 - len(buf); len(window) > room {
+			window = window[:room]
+		}
+		n, rerr := r.Read(window)
+		if n < 0 || n > len(window) {
+			// A reader that claims bytes it could not have stored is
+			// refused rather than trusted or truncated.
+			return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "read failed after %d bytes: reader returned %d bytes for a %d-byte buffer", len(buf), n, len(window))
+		}
 		if n > 0 {
-			buf = append(buf, tmp[:n]...)
+			buf = buf[:len(buf)+n]
 			if len(buf) > max {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, path, "file larger than %d bytes", max)
 			}

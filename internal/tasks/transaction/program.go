@@ -102,7 +102,8 @@ func planProgram(c leaseContext) leaseOutcome {
 		if recovering {
 			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
 			recovered := change.PreviousWorkerClean && next.Phase == "FINISHED" && next.Quiescence == "PROVED"
-			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered) || old.Worktree != next.Worktree {
+			settled := (old.Phase == "SPAWNING" || old.Phase == "STOPPING") && next.Phase == "FINISHED" && next.Quiescence == "PROVED" && BoundStoppedAttempt(c.st.attempts[old.CurrentAttempt], old)
+			if !change.PreviousOwnerGone || next.Epoch != old.Epoch+1 || (!safePhase && !recovered && !settled) || old.Worktree != next.Worktree {
 				return c.recordProgramRefusal("prior program owner not proved stopped")
 			}
 		} else if old.Epoch != next.Epoch {
@@ -204,6 +205,17 @@ func planProgram(c leaseContext) leaseOutcome {
 		posts["evidence/"+next.ResultSHA256] = change.Output
 	}
 	return leaseOutcome{posts: posts, effect: &leaseEffect{kind: "TRANSITION", outcome: mutation.OutcomeCompleted, codes: []string{}}, detail: next.Phase}
+}
+
+// BoundStoppedAttempt reports whether a, the attempt record the program's
+// current assignment names, is bound to that exact program generation and
+// records a stopped, quiescent stage: no worker, no lane and proved
+// quiescence. A replacement owner may then settle a SPAWNING or STOPPING
+// program FINISHED; an unproved or survivor stop keeps it refused (CAL-V0-210,
+// proposed).
+func BoundStoppedAttempt(a *snapshot.Attempt, p snapshot.Program) bool {
+	return a != nil && p.CurrentAttempt != "" && a.AttemptID == p.CurrentAttempt && string(a.Generation) == p.CurrentGeneration &&
+		a.Supervision != nil && a.Supervision.ProgramID == p.ID && !a.Supervision.Worker && a.Lane == nil && a.Quiescence == "PROVED"
 }
 
 func (c leaseContext) recordProgramRefusal(reason string) leaseOutcome {

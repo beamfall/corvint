@@ -42,10 +42,15 @@ func RequestProgramControl(ctx context.Context, repo *intent.Repository, actor m
 		if p.ID != id {
 			continue
 		}
-		p.Control = control
-		r, e := ProgramTransition(ctx, repo, actor, q.QueueID.Raw, id+"-control-"+fmt.Sprint(time.Now().UnixNano()), p)
-		if e = transitionOK(r, e); e != nil {
-			return e
+		// A control already pending is the one requested again, for example
+		// after a read failed once the first request had recorded it: wait
+		// on it rather than write an unchanged record.
+		if p.Control != control {
+			p.Control = control
+			r, e := ProgramTransition(ctx, repo, actor, q.QueueID.Raw, id+"-control-"+fmt.Sprint(time.Now().UnixNano()), p)
+			if e = transitionOK(r, e); e != nil {
+				return e
+			}
 		}
 		until := time.NewTimer(15 * time.Second)
 		defer until.Stop()
