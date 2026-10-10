@@ -472,6 +472,63 @@ test('V1-0371 OpenCode concurrent cancellations share one SIGTERM grace',async t
  assert.deepEqual(results.map(result=>result.code),Array(16).fill('host-aborted'))
  assert.equal(holds.length,1,'each cancellation blocked the thread for its own grace')
 })
+// V1-1116: libuv runs due timers right after the check phase, before the next poll phase reaps a child.
+// A termination turn that ends after the 100 ms reap timer is due (a stalled hosted VM; here a grace
+// held until the leader is a zombie and at least 150 ms have passed) therefore completes while that
+// leader is unreaped, and Darwin answers EPERM to every signal, signal 0 included, for a zombie-only
+// group. On the base this completed as corvint-process-cleanup-unconfirmed. Linux delivers the group
+// SIGKILL to a zombie, so the path is Darwin's only.
+test('V1-1116 OpenCode completion after a stalled termination turn re-probes the zombie group',{skip:process.platform!=='darwin'&&'Darwin-only EPERM answer for a zombie-only group',timeout:30000},async t=>{
+ const f=fixture(t),controller=new AbortController(),wait=Atomics.wait,kill=process.kill,answers=[];let group,held=0
+ t.after(()=>{Atomics.wait=wait;process.kill=kill})
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+ process.kill=function(pid,signal){
+  if(pid>=0)return kill.call(process,pid,signal)
+  group=-pid
+  try{const result=kill.call(process,pid,signal);answers.push(`${signal}:OK`);return result}catch(error){answers.push(`${signal}:${error.code}`);throw error}
+ }
+ const zombie=()=>{try{return execFileSync('ps',['-o','stat=','-p',String(group)],{encoding:'utf8'}).trim().startsWith('Z')}catch{return false}}
+ Atomics.wait=function(array,index,value){
+  const started=performance.now();held++
+  while(performance.now()-started<150||(!zombie()&&performance.now()-started<5000))wait.call(Atomics,array,index,value,10)
+  return 'timed-out'
+ }
+ const pending=f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+ await new Promise(r=>setTimeout(r,100));controller.abort()
+ const result=await pending;Atomics.wait=wait;process.kill=kill
+ assert.equal(held,1,'the termination grace was not held')
+ assert.deepEqual(answers.slice(0,3),['SIGTERM:OK','SIGKILL:EPERM','0:EPERM'],'the completion did not probe an unreaped zombie leader')
+ assert.equal(answers.at(-1),'0:ESRCH');assert.ok(answers.slice(3).every(a=>a.startsWith('0:')),'the re-probe sent a non-zero group signal')
+ assert.equal(result.code,'host-aborted',JSON.stringify(result))
+})
+// V1-1116: the EPERM re-probe sends only signal 0, confirms only on ESRCH and is bounded by a count: a
+// group that keeps answering EPERM is probed 41 times and still completes as the degradation. The
+// group SIGKILL is delivered and then answered as Darwin's EPERM, and the probe answers are injected,
+// so the test depends neither on the platform nor on when the leader is reaped.
+test('V1-1116 OpenCode EPERM re-probe confirms only on ESRCH and is bounded',{timeout:30000},async t=>{
+ const kill=process.kill;t.after(()=>{process.kill=kill})
+ const refuse=code=>Object.assign(new Error(code),{code})
+ const run=async eperms=>{
+  const f=fixture(t),controller=new AbortController(),signals=[];let probes=0
+  writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+  process.kill=function(pid,signal){
+   if(pid>=0)return kill.call(process,pid,signal)
+   signals.push(signal)
+   if(signal==='SIGKILL'){try{kill.call(process,pid,signal)}catch{};throw refuse('EPERM')}
+   if(signal===0)throw refuse(probes++<eperms?'EPERM':'ESRCH')
+   return kill.call(process,pid,signal)
+  }
+  const pending=f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+  await new Promise(r=>setTimeout(r,100));controller.abort()
+  const result=await pending;process.kill=kill
+  assert.deepEqual(signals.filter(s=>s!==0),['SIGTERM','SIGKILL'],'the re-probe sent a non-zero group signal')
+  return {result,probes}
+ }
+ const cleared=await run(3)
+ assert.equal(cleared.result.code,'host-aborted',JSON.stringify(cleared.result));assert.equal(cleared.probes,4)
+ const stuck=await run(Infinity)
+ assert.equal(stuck.result.code,'corvint-process-cleanup-unconfirmed',JSON.stringify(stuck.result));assert.equal(stuck.probes,41)
+})
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)
  for(const raw of ['{','[]',JSON.stringify({hook_event_name:'Wrong',cwd:f.root}),JSON.stringify({hook_event_name:'SessionStart',cwd:f.root,padding:'x'.repeat(140000)})]) {
