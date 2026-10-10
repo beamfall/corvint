@@ -673,9 +673,15 @@ func (e engine) relate(ctx context.Context, rel release, r *Result) {
 		r.AvailableBuild, r.RelationBasis = build, "build"
 		cmp = r.InstalledBuild - build
 	} else {
-		installed := semverRE.FindString(r.InstalledVersion)
+		installed := ""
+		for _, field := range strings.Fields(r.InstalledVersion) {
+			if semverRE.MatchString(field) {
+				installed = field
+				break
+			}
+		}
 		available := strings.TrimPrefix(rel.Tag, "v")
-		if installed == "" || semverRE.FindString(available) != available {
+		if installed == "" || !semverRE.MatchString(available) {
 			r.RelationReason = "installed version or release tag is not a semantic version"
 			return
 		}
@@ -687,8 +693,10 @@ func (e engine) relate(ctx context.Context, rel release, r *Result) {
 		r.Relation = "UPDATE_AVAILABLE"
 	case cmp == 0:
 		r.Relation = "CURRENT"
+	case r.RelationBasis == "build":
+		r.Relation, r.RelationReason = "LOCAL_NEWER", "the available release declares an older build than the installed one; apply would be a downgrade and is refused"
 	default:
-		r.Relation, r.RelationReason = "LOCAL_NEWER", "the available release is older than the installed build; apply would be a downgrade and is refused"
+		r.Relation, r.RelationReason = "LOCAL_NEWER", "the available release version precedes the installed version; installing it would be a downgrade, and apply refuses it only when the verified candidate build is lower"
 	}
 }
 
@@ -717,11 +725,15 @@ func (e engine) declaredTasksBuild(ctx context.Context, rel release) (int, error
 	return build, nil
 }
 
-var semverRE = regexp.MustCompile(`[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?`)
+// semverRE matches one whole semantic version (semver.org 2.0.0): no leading
+// zeros in numeric identifiers, optional prerelease and build metadata.
+var semverRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
 
 // compareSemver orders two semantic versions by precedence, ignoring build
 // metadata: negative when a is lower, zero when equal, positive when higher.
 func compareSemver(a, b string) int {
+	a, _, _ = strings.Cut(a, "+")
+	b, _, _ = strings.Cut(b, "+")
 	ac, ap, _ := strings.Cut(a, "-")
 	bc, bp, _ := strings.Cut(b, "-")
 	if c := compareIdentifiers(strings.Split(ac, "."), strings.Split(bc, ".")); c != 0 {
@@ -739,23 +751,19 @@ func compareSemver(a, b string) int {
 }
 
 func compareIdentifiers(a, b []string) int {
-	numeric := func(s string) (int, error) {
-		if strings.Trim(s, "0123456789") != "" {
-			return 0, strconv.ErrSyntax
-		}
-		return strconv.Atoi(s)
-	}
+	// Numeric identifiers have no leading zeros (semverRE), so a longer one is
+	// larger and equal lengths compare bytewise, without integer overflow.
+	numeric := func(s string) bool { return strings.Trim(s, "0123456789") == "" }
 	for i := 0; i < len(a) && i < len(b); i++ {
-		an, aErr := numeric(a[i])
-		bn, bErr := numeric(b[i])
+		an, bn := numeric(a[i]), numeric(b[i])
 		switch {
-		case aErr == nil && bErr == nil && an != bn:
-			return an - bn
-		case aErr == nil && bErr != nil:
+		case an && bn && len(a[i]) != len(b[i]):
+			return len(a[i]) - len(b[i])
+		case an && !bn:
 			return -1
-		case aErr != nil && bErr == nil:
+		case !an && bn:
 			return 1
-		case aErr != nil && a[i] != b[i]:
+		case a[i] != b[i]:
 			return strings.Compare(a[i], b[i])
 		}
 	}
