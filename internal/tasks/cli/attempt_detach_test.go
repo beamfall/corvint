@@ -121,15 +121,21 @@ func heartbeatAfter(t *testing.T, root, attemptID string, after time.Time) {
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		rec, err := store.AttemptRecord(context.Background(), repo, attemptID)
-		if err != nil {
+		// The supervisor beats every 200 ms here, so a loaded host can see
+		// the store move during every attempt of one unlocked read; that
+		// read is retryable and this loop already polls (V1-0949).
+		if err != nil && wire.CodeOf(err) != wire.CodeSnapshotMoved {
 			t.Fatal(err)
 		}
-		if rec.LastHeartbeatAt != nil {
+		if err == nil && rec.LastHeartbeatAt != nil {
 			if at, err := time.Parse(time.RFC3339, string(*rec.LastHeartbeatAt)); err == nil && at.After(after.Truncate(time.Second)) {
 				return
 			}
 		}
 		if time.Now().After(deadline) {
+			if err != nil {
+				t.Fatalf("no heartbeat read after the launcher exited at %s: %v", after.Format(time.RFC3339), err)
+			}
 			t.Fatalf("no heartbeat after the launcher exited at %s; last %v", after.Format(time.RFC3339), rec.LastHeartbeatAt)
 		}
 		time.Sleep(50 * time.Millisecond)

@@ -402,10 +402,10 @@ func TestAFPV0041CommittedSlicesAreAdmitted(t *testing.T) {
 		}
 		universe = append(universe, p)
 	}
-	if got := SplitPackages(universe, 6, defaultAllow, defaultSlices); len(got) != len(universe) {
+	if got := SplitPackages(universe, 8, defaultAllow, defaultSlices); len(got) != len(universe) {
 		t.Fatalf("admitted %d of %d committed splits", len(got), len(universe))
 	}
-	if len(universe) != 0 && !Splits(universe, 6) {
+	if len(universe) != 0 && !Splits(universe, 8) {
 		t.Fatal("Splits disagrees with the committed slices")
 	}
 	if Splits(universe, 1) {
