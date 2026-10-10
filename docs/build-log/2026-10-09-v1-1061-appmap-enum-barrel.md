@@ -115,6 +115,17 @@ injector.
   table's names from any module stay checked as before. This applies the accepted AMAP-V0-025
   rule ("every other binding of the table it holds") to names the earlier code did not list, so
   the spec text is unchanged.
+- Tenth review (structural, no spec text change): a parenthesized default export of an imported
+  table (`export default (SectionTable)`) recorded neither a default nor an exported reference,
+  so the relaying file was not a possible holder and the registering file's write through it went
+  unchecked. Rather than recognize more export forms, `relays` (now a `constTable` method) asks
+  how the file uses what it imports: a file relays when it exports an import binding by name, uses
+  one in any way `onlyRead` does not prove a member read or `typeof` (an alias, an argument, a
+  parenthesized, `as`, `satisfies`, `!` or sequence expression), starts an `export default`
+  expression with one (`export default T || {}`), or holds a namespace import, dynamic import,
+  `require` or unread import item of anything but a package. A file can hold another module's
+  value only through those bindings, so any default-export expression the reader does not
+  understand fails closed.
 
 ## Evidence
 
@@ -220,6 +231,14 @@ injector.
   `stateconst.go` from `0939aeb7`, 21 subtests resolve silently (12 unread-declaring, 3 chain, 6
   hashbang); the reads guards pass before and after; all pass with the fix. The full
   `go test -count=1 ./internal/appmap` passes (AMAP: 72 tests, 335 subtests).
+- Tenth review follow-up (a parenthesized default export relays the table unchecked):
+  `TestAMAPV0025ChainBindingsFailClosed` gained the review's input (registration moved to line 2)
+  and a default import from a relaying file that exports the table as `(T)`, `T as ...`,
+  `T satisfies ...`, `T!`, `(0, T)`, `T || {}`, `wrap(T)`, a local alias, `export const R = T`
+  and `NS.SectionTable` through a namespace import. Against `stateconst.go` from `c120f247`, 10
+  subtests resolve silently (all but `export const R = T`, which the loose export already caught);
+  the reads guard passes before and after; all pass with the fix. The full
+  `go test -count=1 -v ./internal/appmap` passes (447 passing tests and subtests).
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -256,7 +275,11 @@ injector.
   unresolved or undeclared package, or of any file that re-exports, makes the table not read
   whole even where the file never touches it, and any import from the declaring file, a barrel,
   a file that relays an import or an unresolved module must be only read, whatever it imports
-  (a function imported from the declaring file and called fails closed). The router-side (AMAP-V0-016, not injected) path
+  (a function imported from the declaring file and called fails closed). A file relays, and so
+  may hold the table, whenever it uses an import other than as a member read or `typeof`, or
+  holds a namespace import, dynamic import or `require` of anything but a package: a helper
+  module that calls what it imports makes every chain import from it subject to the write
+  checks. The router-side (AMAP-V0-016, not injected) path
   does not yet apply the chain-binding check to alias and namespace imports; that needs
   AMAP-V0-016 text and is left open. `router.go` and `tests.go` do not consume the lexer's
   unsure mark. The bracket

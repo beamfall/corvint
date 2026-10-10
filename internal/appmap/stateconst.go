@@ -228,8 +228,8 @@ func (t *constTable) bindingsRead(f, decl *constFile, skip string, names ...stri
 }
 
 // mayHold reports whether module m, imported by f, may export the table decl declares under some
-// name: decl itself, a file of the repository that re-exports or exports a name it imports (a
-// barrel on the chain or any other), or one the reader cannot read. A module name that is not an
+// name: decl itself, a file of the repository that re-exports or may pass on a binding it imports
+// (relays: a barrel on the chain or any other), or one the reader cannot read. A module name that is not an
 // exact literal, a relative one the reader cannot resolve without an index, and an unresolved
 // specifier could be any of them; a package cannot hold the table.
 func (t *constTable) mayHold(f *constFile, m string, decl *constFile) bool {
@@ -244,16 +244,33 @@ func (t *constTable) mayHold(f *constFile, m string, decl *constFile) bool {
 		return false
 	case contextindex.WebImportRepository:
 		h := t.file(res.Target)
-		return h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 || h.relays()
+		return h == nil || h == decl || h.unlisted || h.opaque || len(h.reexports) > 0 || t.relays(h)
 	}
 	return true
 }
 
-// relays reports whether f exports a binding it imports (`import { T } from './a'; export { T }`,
-// `export default T`, or an export statement naming it).
-func (f *constFile) relays() bool {
+// relays reports whether f may pass on a value it imports, so that one of its exports may be
+// another module's table. A file holds another module's value only through an import binding or a
+// module reference, so this asks no question of the export forms: any import binding f exports by
+// name (`export { T }`, `export default T`) or uses other than as a provable member read (an
+// alias, an argument, `export default (T)`, `T as X`, any default-export or other expression the
+// reader does not prove a read) relays, and so does an `export default T ...` expression that
+// starts with it (`export default T || {}`), and any namespace import, dynamic import, `require`
+// or unread import item that is not a package's.
+func (t *constTable) relays(f *constFile) bool {
 	for local := range f.imports {
-		if f.exports[local] || f.listed[local] || f.dflt == local {
+		if f.exports[local] || f.listed[local] || f.dflt == local || !f.onlyRead(local, -1) {
+			return true
+		}
+	}
+	for i, tok := range f.toks {
+		if _, imported := f.imports[tok.text]; imported && tok.kind == tokIdent && !f.skip[i] &&
+			word(f.toks, i-1, "default") && word(f.toks, i-2, "export") {
+			return true
+		}
+	}
+	for _, m := range f.spaces {
+		if m == "" || t.resolver == nil || t.resolver.Resolve(f.entry.path, m).State != contextindex.WebImportPackage {
 			return true
 		}
 	}

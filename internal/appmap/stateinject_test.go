@@ -451,9 +451,36 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 			map[string]string{index: "export { SectionTable as Renamed } from './routes.constants';\n", decl: table}},
 		"registering relay": {reg + "import { R } from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
 			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import { SectionTable } from './routes.constants';\nexport { SectionTable as R };\n"}},
+		// The review's round-10 input (the registration moved to line 2, where checkBarrel expects
+		// it): a parenthesized default export of the imported table.
+		"registering paren default": {"import { SectionTable } from '../tables/routes.constants';\nangular.module('admin').constant('SectionNames', SectionTable);\n" +
+			"import R from '../tables/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{"app/tables/routes.constants.ts": table, "app/tables/relay.ts": "import { SectionTable } from './routes.constants';\nexport default (SectionTable);\n"}},
 	} {
 		t.Run(name, func(t *testing.T) { checkBarrel(t, c.reg, c.files, "not-read-whole", "") })
 	}
+	// Any other expression a relay exports, or any use of an import it does not prove a read,
+	// makes it a possible holder of the table (round 10).
+	for name, relay := range map[string]string{
+		"paren":     "export default (SectionTable);\n",
+		"as":        "export default SectionTable as typeof SectionTable;\n",
+		"satisfies": "export default SectionTable satisfies object;\n",
+		"non-null":  "export default SectionTable!;\n",
+		"sequence":  "export default (0, SectionTable);\n",
+		"or":        "export default SectionTable || {};\n",
+		"call":      "export default wrap(SectionTable);\n",
+		"alias":     "const S = SectionTable;\nexport default S;\n",
+		"named":     "export const R = SectionTable;\n",
+	} {
+		t.Run("relay "+name, func(t *testing.T) {
+			checkBarrel(t, reg+"import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+				map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import { SectionTable } from './routes.constants';\n" + relay}, "not-read-whole", "")
+		})
+	}
+	t.Run("relay namespace", func(t *testing.T) {
+		checkBarrel(t, reg+"import R from '../tables/routes/relay';\nR.REPORTS = 'other';\n",
+			map[string]string{index: star, decl: table, "app/tables/routes/relay.ts": "import * as NS from './routes.constants';\nexport default NS.SectionTable;\n"}, "not-read-whole", "")
+	})
 	// Other bindings the rule proves only read, and namespace imports that cannot reach the table.
 	t.Run("reads", func(t *testing.T) {
 		checkBarrel(t, reg+"import { SectionTable as T } from '../tables/routes';\nconst r = T.REPORTS;\nimport * as U from '../util';\n"+
