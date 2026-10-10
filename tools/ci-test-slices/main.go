@@ -9,7 +9,9 @@
 // with { is a `go test -json` record that must decode completely and name its
 // Action; a damaged or truncated one, or a record that follows other text, is
 // refused. Only lines whose content is not JSON (runner, shell or build output)
-// are skipped. Each package of a log must run one lifecycle: start, its
+// are skipped. A record without Package must be build output that names its
+// ImportPath; a build-fail record, or any other record without Package, is refused.
+// Each package of a log must run one lifecycle: start, its
 // tests (every one that runs ends), then one terminal pass or skip, and nothing
 // after it. A log is refused when any test, subtest or package fails, or when a
 // package or test is missing, repeated or unterminated:
@@ -177,10 +179,11 @@ func (o *observation) read(path string) (int64, error) {
 			continue // runner, shell or build output
 		}
 		var e struct {
-			Action  string
-			Package string
-			Test    string
-			Elapsed float64
+			Action     string
+			Package    string
+			ImportPath string
+			Test       string
+			Elapsed    float64
 		}
 		if err := json.Unmarshal(content, &e); err != nil {
 			return 0, fmt.Errorf("line %d: damaged go test -json record: %v", n, err)
@@ -189,7 +192,17 @@ func (o *observation) read(path string) (int64, error) {
 			return 0, fmt.Errorf("line %d: damaged go test -json record: no Action", n)
 		}
 		if e.Package == "" {
-			continue // build output names ImportPath, not Package
+			// Only build output names ImportPath instead of Package. A failed build
+			// fails the run, even when the stream ends right after it.
+			switch {
+			case e.Action == "build-fail":
+				return 0, fmt.Errorf("line %d: build of %s failed", n, e.ImportPath)
+			case e.Action != "build-output":
+				return 0, fmt.Errorf("line %d: %s record without Package", n, e.Action)
+			case e.ImportPath == "":
+				return 0, fmt.Errorf("line %d: build-output record without ImportPath", n)
+			}
+			continue
 		}
 		// Failures and completeness count every record, subtests included,
 		// before only top-level outcomes are kept.

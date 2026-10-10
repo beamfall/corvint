@@ -349,7 +349,9 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 `
 	// Runner, shell and compiler lines are not records, even with braces in them.
 	chatter := "2026-10-10T13:19:03Z Worker ID: {1a7b06f0}\n# example.org/big\n./a.go:3:1: syntax error near {\nprintf '{\"profile\":\"x\",\"tree\":\"%s\"\n"
-	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), chatter+complete)}); err != nil {
+	// Build output names ImportPath, not Package, and is skipped.
+	built := `{"ImportPath":"example.org/big [example.org/big.test]","Action":"build-output","Output":"# example.org/big\n"}` + "\n"
+	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), chatter+built+complete)}); err != nil {
 		t.Fatalf("complete passing log refused: %v", err)
 	}
 	// The same records behind every hosted prefix: gh columns, the first line's
@@ -405,6 +407,11 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 		"truncated annotation":    {complete + `2026-10-10T13:21:00Z ##[error]{"Action":"pa`, "line 11: damaged go test -json record"},
 		"record without action":   {complete + `{"Time":"2026-10-10T13:21:00Z"}`, "line 11: damaged go test -json record: no Action"},
 		"record after other text": {complete + `stderr {"Action":"output","Package":"example.org/late"}`, "line 11: go test -json record after other text"},
+		// A completed passing package, then a failed build and EOF.
+		"build failed, truncated":   {small + `{"Action":"build-fail","ImportPath":"example.org/broken"}` + "\n", "line 5: build of example.org/broken failed"},
+		"fail without package":      {small + `{"Action":"fail"}` + "\n", "line 5: fail record without Package"},
+		"output without package":    {small + `{"Action":"output","Output":"ok\n"}` + "\n", "line 5: output record without Package"},
+		"build output without path": {small + `{"Action":"build-output","Output":"x"}` + "\n", "line 5: build-output record without ImportPath"},
 	} {
 		_, err := observe([]string{write(t, filepath.Join(t.TempDir(), "shard.log"), c.log)})
 		if err == nil || !strings.Contains(err.Error(), c.want) {

@@ -56,21 +56,21 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	396	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	422	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
 AFP-V0-021	docs/specs/affected-plan-v0.md	433	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFP-V0-022	docs/specs/affected-plan-v0.md	482	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
-AFP-V0-023	docs/specs/affected-plan-v0.md	623	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
-AFP-V0-024	docs/specs/affected-plan-v0.md	661	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
-AFP-V0-025	docs/specs/affected-plan-v0.md	687	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
-AFP-V0-026	docs/specs/affected-plan-v0.md	722	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
-AFP-V0-027	docs/specs/affected-plan-v0.md	747	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-031	docs/specs/affected-plan-v0.md	760	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-AFP-V0-032	docs/specs/affected-plan-v0.md	798	(accepted by decision 0438; V1-0865) Only a declaration path that
-AFP-V0-033	docs/specs/affected-plan-v0.md	807	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	823	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
-AFP-V0-035	docs/specs/affected-plan-v0.md	840	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
-AFP-V0-036	docs/specs/affected-plan-v0.md	859	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
-AFP-V0-037	docs/specs/affected-plan-v0.md	878	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
-AFP-V0-038	docs/specs/affected-plan-v0.md	908	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
-AFP-V0-039	docs/specs/affected-plan-v0.md	919	(proposed (V1-0662); no GitHub issue) A Go test fixture under
-AFP-V0-040	docs/specs/affected-plan-v0.md	932	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
+AFP-V0-023	docs/specs/affected-plan-v0.md	632	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	670	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	696	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	731	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
+AFP-V0-027	docs/specs/affected-plan-v0.md	756	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+AFP-V0-031	docs/specs/affected-plan-v0.md	769	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+AFP-V0-032	docs/specs/affected-plan-v0.md	807	(accepted by decision 0438; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	816	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	832	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	849	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+AFP-V0-036	docs/specs/affected-plan-v0.md	868	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+AFP-V0-037	docs/specs/affected-plan-v0.md	887	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
+AFP-V0-038	docs/specs/affected-plan-v0.md	917	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+AFP-V0-039	docs/specs/affected-plan-v0.md	928	(proposed (V1-0662); no GitHub issue) A Go test fixture under
+AFP-V0-040	docs/specs/affected-plan-v0.md	941	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
 AFP-V0-041	docs/specs/affected-plan-v0.md	517	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/

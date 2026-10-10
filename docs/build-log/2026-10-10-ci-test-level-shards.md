@@ -301,6 +301,37 @@ The independent review of `0d534a03` found three gaps; each fix is mutation-chec
   other platforms `procgroup_other.go` kills only the immediate process; `GOOS=windows go vet`
   and a windows test build pass.
 
+### Round 4
+
+The independent review of `732433c4` found two P2 gaps; each fix is mutation-checked.
+
+- **Declared shard and slice counts (P2).** `refresh` and `check` passed the number of logs
+  supplied to `SplitPackages`. With fewer logs than slices, the split package fell back to whole,
+  so one surviving slice was accepted as the whole package's cost. Every mode now takes the CI
+  shard count as `--shards N` (the go-product-shard matrix, as `check --advisory` already did) and
+  refuses unless exactly N logs are given. `combine` splits with N, never the log count. It also
+  refuses an allowed package that the slice file splits into more slices than N, so no
+  declaration can count one slice as whole (AFP-V0-041 (8), Limits). Four cases join each of
+  `TestAFPV0041RefreshCombinesTestSlices` (now run through `refresh` and `check`) and
+  `TestAFPV0041AdvisoryCombinesTestSlices`:
+  - one log of two shards;
+  - one log declared as one shard;
+  - two logs of a three-slice package declared as three shards;
+  - the same two logs declared as two shards.
+  Dropping the log-count refusal, dropping the slice-file refusal, or splitting with a one-shard
+  count each fails a case. The AFP-V0-022 calls declare `--shards`. The partial-refresh case
+  declares one shard so that it still reaches the stale-package refusal. Against the six retained
+  pre-split hosted logs, `check --shards 6` refuses the split store package ("1 terminal outcomes
+  for its 2 test slices"), and `check` without `--shards` refuses.
+- **Package-less failures (P2).** `tools/ci-test-slices` skipped every record without `Package`,
+  so a completed passing package followed by `{"Action":"build-fail","ImportPath":...}` and EOF
+  was accepted. Before that skip, the reader now refuses `build-fail` ("build of ... failed"), any
+  other action without `Package`, and build output without `ImportPath`, mirroring
+  `ci-shard-costs`. Four cases join `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs`, one of
+  them that exact truncated stream; the passing case gains a `build-output` record. The pre-fix
+  skip accepts all four. The six retained hosted logs hold no build record and still replay
+  unchanged.
+
 ## Limits and integration
 
 - **Lost interleavings.** Splitting loses cross-slice parallel interleavings, including race
@@ -313,6 +344,9 @@ The independent review of `0d534a03` found three gaps; each fix is mutation-chec
   file needs a complete run in which the package ran whole. Full CI does not make one while the
   package is split; a run of a branch whose slice file is emptied would.
 - **Stale slice file.** A stale slice file can only move time between shards.
+- **Declared shard count.** `ci-shard-costs --shards` is declared, not read from the workflow. A
+  count that differs from the matrix refuses a sliced run or measures only the logs given, but
+  never counts one slice as a whole package.
 - **Cancellation reach.** On Windows, cancellation kills only the immediate subprocess, not its
   descendants. On unix, a descendant that leaves its process group is not reached, and a SIGKILL
   of `ci-test-slices` itself stops nothing and leaves the temporary checkout behind.

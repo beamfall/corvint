@@ -551,7 +551,9 @@ and container qualification; full fallback remains available.
   annotation such as `##[error]`), a line whose content starts with `{` SHALL decode completely
   as a `go test -json` record that names its `Action`, and a record that follows other text on its
   line SHALL refuse; only lines whose content is not JSON (runner, shell and build output) are
-  skipped. The recorded revision SHALL be a full commit id of the repository, and the
+  skipped. A record without `Package` SHALL be build output that names its `ImportPath`; a
+  `build-fail` record, or any other record without `Package`, SHALL refuse, even when the stream
+  ends right after it. The recorded revision SHALL be a full commit id of the repository, and the
   file-level source SHALL be checked before any work, whether or not anything splits.
   Generation checks out exactly that commit's tracked tree into a temporary directory through a
   temporary index, reads the allow-list there, and enumerates there, so untracked, modified or
@@ -563,9 +565,9 @@ and container qualification; full fallback remains available.
   that minimise the largest slice. Each name is weighted by its observed top-level time, the
   median for a name the run lacks, or by count when the run has no test records. Per-test costs
   (V1-1100) MAY replace those weights. Any of the following SHALL refuse the write: a failed,
-  repeated, restarted or unterminated outcome; a damaged, truncated or interleaved record; a
-  revision that is not a full
-  commit id of the repository; a source or file the partition would not admit. So SHALL SIGINT
+  repeated, restarted or unterminated outcome; a failed build; a damaged, truncated or interleaved
+  record; a revision that is not a full commit id of the repository; a source or file the
+  partition would not admit. So SHALL SIGINT
   or SIGTERM, which cancels checkout and enumeration and removes the temporary checkout. On unix
   each checkout and enumeration subprocess SHALL run in its own process group; cancellation
   interrupts the group, kills every member still alive ten seconds later, and returns only once
@@ -582,15 +584,19 @@ and container qualification; full fallback remains available.
   The shard SHALL fail when any invocation fails, before the AFP-V0-024 tested-tree record.
   Every invocation SHALL run inside the one AFP-V0-040 capture, so the retained stream holds the
   whole packages and the slices of that shard.
-  (8) `tools/ci-shard-costs` `refresh`, `check` and `check --advisory` SHALL derive the split set
-  from the committed allow-list and slice file (`--allow`, `--slices`) with the same
-  `SplitPackages` call as the partition, over the packages the logs name and with the log count
-  as the shard count. A log SHALL hold at most one terminal outcome per package. A split package
+  (8) `tools/ci-shard-costs` `refresh`, `check` and `check --advisory` SHALL take the CI shard
+  count as a declared `--shards N`, the go-product-shard matrix size, and SHALL refuse unless
+  exactly N logs, one per shard, are given. They SHALL derive the split set from the committed
+  allow-list and slice file (`--allow`, `--slices`) with the same `SplitPackages` call as the
+  partition, over the packages the logs name and with N, never the number of logs supplied, as
+  the shard count. A log SHALL hold at most one terminal outcome per package. A split package
   SHALL end exactly once per slice, so each slice in a different log, and its cost is the sum of
   those outcomes. Any other count, a single outcome included, any failed outcome, a repeat of a
-  package the files do not split, or a slice that started without a terminal outcome SHALL refuse
-  the refresh and make the drift check abstain. One slice's outcome is indistinguishable from a
-  whole run, so a run made before the split cannot refresh or check a split package's cost. An
+  package the files do not split, a slice that started without a terminal outcome, or an allowed
+  package that the slice file splits into more slices than N SHALL refuse the refresh and make the
+  drift check abstain, so one slice is never counted as the whole package. One slice's outcome is
+  indistinguishable from a whole run, so a run made before the split cannot refresh or check a
+  split package's cost. An
   unreadable or unusable allow-list or slice file splits nothing, so a sliced run then refuses
   visibly rather than being half counted.
   Non-goals: runtime enumeration in CI; splitting subtests; selection or skip authority; sharded
@@ -606,6 +612,9 @@ and container qualification; full fallback remains available.
     slice file needs a complete run in which the package ran whole, which full CI does not make
     while the package is split (for example, a run of a branch whose slice file is emptied).
   - A stale slice file only moves time between shards.
+  - `--shards` is declared, not read from the workflow. A count that differs from the matrix
+    refuses a sliced run, or measures only the logs given, but never counts one slice as a whole
+    package.
   - On Windows, cancellation kills only the immediate subprocess, not its descendants (no job
     object). On unix, a descendant that leaves its process group is not reached, and a SIGKILL of
     the tool itself stops nothing and leaves the temporary checkout behind.
@@ -1019,8 +1028,10 @@ never fails CI on a finding, and a failure of any of its own steps, including th
 abstains with its reason in the job summary rather than failing the job.
 In full CI, an unusable test-split allow-list, slice file or cost table keeps every package whole,
 and a split package's catch-all slice runs every top-level test that no named slice names
-(AFP-V0-041). A split package whose slice outcomes are failed, unterminated or not one per slice
-refuses the cost refresh and makes the drift report abstain (AFP-V0-041 (8)).
+(AFP-V0-041). A split package whose slice outcomes are failed, unterminated or not one per slice,
+logs that are not one per declared shard, or a slice file that splits a package into more slices
+than the declared shards, refuses the cost refresh and makes the drift report abstain
+(AFP-V0-041 (8)).
 
 ## Acceptance evidence and traceability
 
