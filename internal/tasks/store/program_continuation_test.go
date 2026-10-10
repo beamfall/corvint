@@ -528,7 +528,7 @@ func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 		// The request waits for the owner to retire, so it runs beside the
 		// owner, which proceeds once the control is recorded.
 		var drained chan error
-		defer store.SetRunFaultForTest(func(point string) error {
+		defer store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 			if point != "stage-finished" || drained != nil {
 				return nil
 			}
@@ -566,7 +566,7 @@ func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 		w := f.open(t)
 		var drained error
 		requested := false
-		defer store.SetRunFaultForTest(func(point string) error {
+		defer store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 			if point != "refresh:ANSWER" || requested {
 				return nil
 			}
@@ -656,6 +656,7 @@ func TestCALV0089_IntegrateCheckpointRestartKeepsGrant(t *testing.T) {
 // the shared program wall, not its own stage wall, does not continue, and a
 // later operator retry is refused by the expired program wall.
 func TestCALV0089_ProgramWallExpiryEndsContinuation(t *testing.T) {
+	t.Parallel()
 	f := newContinuationFixture(t, continuationOptions{continuations: "3", programWall: "1", wallSeconds: 600})
 	f.touch(t, "stall-implement")
 	a, err := f.open(t).RunRole(context.Background(), "implementer", "")
@@ -681,6 +682,7 @@ func TestCALV0089_ProgramWallExpiryEndsContinuation(t *testing.T) {
 // (Claude Code), or when a lane or program token cap is set, since no host
 // reports an interrupted turn's usage.
 func TestCALV0089_UnsupportedContinuationRefusedBeforeMutation(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		o    continuationOptions
 		want string

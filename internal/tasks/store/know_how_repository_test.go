@@ -25,6 +25,7 @@ func repositoryEntry(seq int64, alias string, anchors ...ticket.KnowHowAnchor) t
 // paths carry its alias, so the unchanged KHN-V0-006 rule matches it against
 // a qualified touchPath or --path and never against the bare path.
 func TestKHNV0026_QualifiedAnchorsMatchTouchPaths(t *testing.T) {
+	t.Parallel()
 	blob := strings.Repeat("a", 40)
 	one := fixture.Ticket("AT-01")
 	one.KnowHow = []ticket.KnowHowEntry{
@@ -61,6 +62,7 @@ func TestKHNV0026_QualifiedAnchorsMatchTouchPaths(t *testing.T) {
 // store checkout, even where that checkout holds an identical blob; a note
 // without a repository resolves exactly as before.
 func TestKHNV0027_RepositoryFreshness(t *testing.T) {
+	t.Parallel()
 	storeRoot, storeHead, storeBlobs := knowHowRepo(t)
 	e2eRoot, e2eHead, e2eBlobs := knowHowRepo(t)
 	if err := os.WriteFile(filepath.Join(e2eRoot, "b.go"), []byte("package b // changed\n"), 0o644); err != nil {
@@ -120,6 +122,7 @@ func TestKHNV0027_RepositoryFreshness(t *testing.T) {
 // alias and a Git work-tree top level, resolved against the working
 // directory; anything else, or an alias given twice, is refused.
 func TestKHNV0027_RepositoryArguments(t *testing.T) {
+	t.Parallel()
 	root, _, _ := knowHowRepo(t)
 	resolved, err := filepath.EvalSymlinks(root)
 	if err != nil {

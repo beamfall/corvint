@@ -34,6 +34,7 @@ func setRetryPolicy(t *testing.T, s *leaseStore, limit int, minute int) {
 // CAL-V0-045: initial admission plus N charged retries, including zero and >3;
 // current policy controls explicit/next admission and safe OWNER readmission.
 func TestCALV0045_PolicyControlsAdmissionAndRecovery(t *testing.T) {
+	t.Parallel()
 	for _, limit := range []int{0, 1, 3, 4, 16} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
 			s := newLeaseStore(t)
@@ -76,6 +77,7 @@ func TestCALV0045_PolicyControlsAdmissionAndRecovery(t *testing.T) {
 }
 
 func TestCALV0045_RecoveryUsesCurrentPolicy(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "current")
 	setRetryPolicy(t, s, 0, 0)

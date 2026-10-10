@@ -118,7 +118,7 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	// inventory that matches every digest it read, decide whether the second
 	// Audit may reuse it; without a watch, or after a refusal, the inventory
 	// and Audit run fresh, as before.
-	reader := journalReader(repo, headState)
+	reader := lockedJournalReader(repo, headState)
 	// The writer checkpoint this audit derives is bound to the invalidation
 	// token read before it (CAL-V0-117, proposed).
 	token := writerInvalidation(repo)

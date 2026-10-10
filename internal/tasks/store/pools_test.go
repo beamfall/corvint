@@ -21,6 +21,7 @@ import (
 
 // CAL-V0-028, CAL-V0-029, CAL-V0-030 and CAL-V0-034.
 func TestPoolAllocationQuarantine(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -102,6 +103,7 @@ func TestPoolAllocationQuarantine(t *testing.T) {
 
 // CAL-V0-029 and CAL-V0-034.
 func TestPoolAllocationPrefersMatchingStageReservation(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -136,6 +138,7 @@ func TestPoolAllocationPrefersMatchingStageReservation(t *testing.T) {
 
 // CAL-V0-031 and CAL-V0-032.
 func TestPoolHealthSkipsFailedMember(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -182,6 +185,7 @@ func TestPoolHealthSkipsFailedMember(t *testing.T) {
 
 // CAL-V0-033.
 func TestPoolNoHealthConfigReference(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"valid", "missing-revision", "missing-path", "wrong-blob", "symlink"} {
 		t.Run(scenario, func(t *testing.T) {
 			s := newLeaseStore(t)
@@ -240,6 +244,7 @@ func TestPoolNoHealthConfigReference(t *testing.T) {
 
 // CAL-V0-029 and CAL-V0-030.
 func TestPoolReplayReturnsOriginalAllocation(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -278,6 +283,7 @@ func TestPoolReplayReturnsOriginalAllocation(t *testing.T) {
 // reports Unretryable once the member's program ran, so the CLI marks any coded
 // result not retryable; a command refused before running does not.
 func TestCALV0078_PoolCommandReportsExecution(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))

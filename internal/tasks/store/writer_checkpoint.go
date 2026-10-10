@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
@@ -24,8 +25,21 @@ import (
 
 // minWriterCheckpointSeq is the smallest audited head a writer checkpoint is
 // retained or used for (CAL-V0-115, proposed). Below it the complete audit is
-// already cheap. Tests lower it to exercise the route on small stores.
-var minWriterCheckpointSeq uint64 = 128
+// already cheap.
+const minWriterCheckpointSeq uint64 = 128
+
+// writerCheckpointFloors holds, per store state directory, the lower
+// threshold a package test set to exercise the route on a small store. Keying
+// by store lets those tests run in parallel; it is empty in production.
+var writerCheckpointFloors sync.Map // state directory -> uint64
+
+// writerCheckpointMin is repo's writer-checkpoint threshold.
+func writerCheckpointMin(repo *intent.Repository) uint64 {
+	if floor, ok := writerCheckpointFloors.Load(repo.StateDir); ok {
+		return floor.(uint64)
+	}
+	return minWriterCheckpointSeq
+}
 
 // errWriterRoute marks why the writer-checkpoint route declined. It is never
 // returned to a caller: the complete route runs instead.
@@ -71,9 +85,9 @@ func boundWriterCheckpoint(repo *intent.Repository) (*journal.WriterCheckpoint, 
 // refusal recorded meanwhile is never undone. Like retainCheckpoint it is
 // best effort and runs under the writer lock, so the fixed temporary name
 // cannot collide; a lost write costs the next writer one complete audit. A
-// checkpoint below minWriterCheckpointSeq is not kept.
+// checkpoint below writerCheckpointMin is not kept.
 func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint, since writerToken) {
-	if wc == nil || wc.Seq.Uint64() < minWriterCheckpointSeq || !since.ok || writerInvalidation(repo) != since {
+	if wc == nil || wc.Seq.Uint64() < writerCheckpointMin(repo) || !since.ok || writerInvalidation(repo) != since {
 		return
 	}
 	wc.Invalidation = since.digest()
@@ -179,7 +193,7 @@ func (w *writerObservation) tail() uint64 {
 // route would not observe again; terminal is a failed native close, which no
 // route may retry past.
 func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool) (w *writerObservation, decline, terminal error) {
-	if headState == nil || headState.LastSeq.Uint64() < minWriterCheckpointSeq {
+	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
 	wc, token := boundWriterCheckpoint(repo)

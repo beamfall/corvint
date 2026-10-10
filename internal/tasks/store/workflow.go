@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -115,7 +116,7 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	f.ProgramID = w.program.ID
 	f.OwnerPID = w.program.OwnerPID
 	f.OwnerStarted = w.program.OwnerStarted
-	if e := fault("transition:" + action); e != nil {
+	if e := fault(w.repo, "transition:"+action); e != nil {
 		return e
 	}
 	r, e := SupervisorTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.attempt.AttemptID, w.attempt.Generation, f)
@@ -125,7 +126,7 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	if action == "DISPATCH" {
 		w.departed = true
 	}
-	if e = fault("refresh:" + action); e != nil {
+	if e = fault(w.repo, "refresh:"+action); e != nil {
 		return e
 	}
 	if e = w.refresh(context.Background()); e != nil {
@@ -598,7 +599,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			case <-ticker.C:
 				entries, e := ProgramRecords(deadline, w.repo)
 				if e == nil {
-					e = fault("watch-read")
+					e = fault(w.repo, "watch-read")
 				}
 				if e != nil {
 					// An unlocked read can race a concurrent writer's
@@ -728,7 +729,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
-		if e = fault("stage-finished"); e != nil {
+		if e = fault(w.repo, "stage-finished"); e != nil {
 			return out, e
 		}
 		if e = w.persist("FINISHED"); e != nil {
@@ -924,23 +925,25 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	return w, nil
 }
 
-// runFault, when set by a package test, fails a supervised run at a named point
-// ("transition:<action>" and "refresh:<action>" around a supervisor transition's
-// commit, "stage-finished", "role-finished", "gate:<id>", "ready",
+// runFaults holds, per store state directory, the hook a package test set to
+// fail a supervised run over that store at a named point ("transition:<action>"
+// and "refresh:<action>" around a supervisor transition's commit,
+// "stage-finished", "role-finished", "gate:<id>", "ready",
 // "integrate-repo:<name>" after an extra repository lands, and "watch-read"
-// after each stage watcher read, from the watcher goroutine); it is nil in
-// production.
-var runFault func(point string) error
+// after each stage watcher read, from the watcher goroutine). Keying by store
+// lets tests over different stores run in parallel; it is empty in production.
+var runFaults sync.Map // state directory -> func(point string) error
 
 // watchReadTolerance bounds how long the stage watcher tolerates failing
 // unlocked program reads before it stops the stage.
 const watchReadTolerance = 30 * time.Second
 
-func fault(point string) error {
-	if runFault == nil {
+func fault(repo *intent.Repository, point string) error {
+	f, ok := runFaults.Load(repo.StateDir)
+	if !ok {
 		return nil
 	}
-	return runFault(point)
+	return f.(func(point string) error)(point)
 }
 
 // RunRole runs one stage of the attempt. Once the stage DISPATCH commits, the
@@ -1024,7 +1027,7 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 	if e != nil {
 		return w.attempt, e
 	}
-	if e = fault("role-finished"); e != nil {
+	if e = fault(w.repo, "role-finished"); e != nil {
 		return w.attempt, e
 	}
 	if e = w.persist("FINISHED"); e != nil {
@@ -1046,7 +1049,7 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 		}
 		sort.Strings(list)
 		for _, id := range list {
-			if e = fault("gate:" + id); e != nil {
+			if e = fault(w.repo, "gate:"+id); e != nil {
 				return w.attempt, e
 			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
@@ -1055,7 +1058,7 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 				return w.attempt, e
 			}
 		}
-		if e = fault("ready"); e != nil {
+		if e = fault(w.repo, "ready"); e != nil {
 			return w.attempt, e
 		}
 		if e = w.step("READY", transaction.SupervisorChange{}); e != nil {
@@ -1178,7 +1181,7 @@ func (w *Workflow) integrate() error {
 		e = fmt.Errorf("TARGET_ADVANCED")
 	}
 	if e == nil {
-		e = landRepositories(targets)
+		e = landRepositories(w.repo, targets)
 	}
 	if e == nil {
 		_, e = gitOutput(root, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", "--no-edit", w.program.CandidateCommit)
@@ -1818,7 +1821,7 @@ func checkRepoCandidate(r snapshot.RepositoryRecord) error {
 // INTEGRATE_INTENT. A checkout already at its candidate was landed by an
 // interrupted run and is skipped, so no candidate lands twice; every target
 // is checked before the first landing (CAL-V0-087).
-func landRepositories(targets []snapshot.RepositoryRecord) error {
+func landRepositories(repo *intent.Repository, targets []snapshot.RepositoryRecord) error {
 	for _, r := range targets {
 		if e := checkRepoCandidate(r); e != nil {
 			return e
@@ -1838,7 +1841,7 @@ func landRepositories(targets []snapshot.RepositoryRecord) error {
 		if _, e = gitOutput(r.Checkout, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", "--no-edit", r.Candidate); e != nil {
 			return e
 		}
-		if e = fault("integrate-repo:" + r.Name); e != nil {
+		if e = fault(repo, "integrate-repo:"+r.Name); e != nil {
 			return e
 		}
 	}

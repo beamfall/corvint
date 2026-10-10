@@ -46,6 +46,7 @@ func (s *leaseStore) executionCutover(t *testing.T, actor mutation.Binding, deci
 // with the decision and the run's digest and posts the run as evidence; the
 // non-fixture queue then admits a claim, and the same request replays.
 func TestCALV0020_ExecutionCutoverAdmitsClaims(t *testing.T) {
+	t.Parallel()
 	s := leaseStoreOn(t, nonFixture(t, "NATIVE"))
 	id := s.planned(t, "one", "P1", "src/")
 	refusedWith(t, s.lease(t, "claim-0", claimOf(id), 0, nil), mutation.OutcomeBlocked, wire.CodeCutoverMissing)
@@ -86,6 +87,7 @@ func TestCALV0020_ExecutionCutoverAdmitsClaims(t *testing.T) {
 // cut over, and a run that is not go test -json, lacks a suite test or has a
 // failing test; every refusal leaves the store unchanged.
 func TestCALV0020_ExecutionCutoverRefusals(t *testing.T) {
+	t.Parallel()
 	failing := `{"Action":"fail","Package":"` + transaction.QualificationPackage + `","Test":"TestCALV0019_KilledWriterRecovers"}`
 	cases := []struct {
 		name, writer    string

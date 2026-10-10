@@ -14,6 +14,7 @@ import (
 // ESCALATION_PENDING naming the question and write nothing; the operator's
 // answer lifts the derived hold with no further write, and the ticket claims.
 func TestIssue502_WriterReferenceHoldsAndReleases(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
 	released := s.lease(t, "release-1", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: src.AttemptID, Generation: src.Generation}, 2, nil)

@@ -168,6 +168,7 @@ func releaseOf(a *store.Report) transaction.LeaseRequest {
 // external-agent attempt with a lease and one ACTIVE reservation entry in a
 // single ADMIT receipt, and its retry replays the same attempt.
 func TestCALV0007_ClaimAdmitsOneRunningAttempt(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "one")
 	report := s.claim(t, "claim-1", id, 0, "src/a.go")
@@ -200,6 +201,7 @@ func TestCALV0007_ClaimAdmitsOneRunningAttempt(t *testing.T) {
 // TestCALV0007_ClaimRefusesBudgetUnknown: the fixture policy requires
 // enforced budget fields, which an external agent never reports.
 func TestCALV0007_ClaimRefusesBudgetUnknown(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	id := mutate(t, repo, envelope("create-b", "CREATE", "", "", createPayload("b"))).Ticket
 	before := storeDigest(t, repo)
@@ -217,6 +219,7 @@ func TestCALV0007_ClaimRefusesBudgetUnknown(t *testing.T) {
 // TestCALV0023_CollidingClaimsAdmitOne: the second claim over the same
 // path refuses RESOURCE_COLLISION naming the first attempt and writes nothing.
 func TestCALV0023_CollidingClaimsAdmitOne(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	first := s.claim(t, "claim-1", one, 0, "src/")
@@ -233,6 +236,7 @@ func TestCALV0023_CollidingClaimsAdmitOne(t *testing.T) {
 
 // TestCALV0023_DisjointPathScopesAreBothAdmitted.
 func TestCALV0023_DisjointPathScopesAreBothAdmitted(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	s.claim(t, "claim-1", one, 0, "src/a")
@@ -246,6 +250,7 @@ func TestCALV0023_DisjointPathScopesAreBothAdmitted(t *testing.T) {
 // TestCALV0021_DeclaredNonPathResourcesJoinTheScope: two claims on disjoint
 // paths still collide when both tickets declare the same database.
 func TestCALV0021_DeclaredNonPathResourcesJoinTheScope(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	ids := []string{}
 	for _, title := range []string{"one", "two"} {
@@ -269,6 +274,7 @@ func TestCALV0021_DeclaredNonPathResourcesJoinTheScope(t *testing.T) {
 // paths, with no --scope and an abstaining deriver, holds WHOLE_REPOSITORY,
 // which collides with any other claim.
 func TestCALV0021_WholeRepositoryBlocksEverything(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	whole := s.claim(t, "claim-1", one, 0)
@@ -281,6 +287,7 @@ func TestCALV0021_WholeRepositoryBlocksEverything(t *testing.T) {
 // TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone: the injected deriver
 // supplies the scope and its input digest; an invalid result abstains.
 func TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	digest := string(wire.Sum([]byte("index")))
@@ -302,6 +309,7 @@ func TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone(t *testing.T) {
 // TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim: the expired attempt
 // is reaped in its own receipt, then the claim is admitted.
 func TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	l := claimOf(one, "src/")
@@ -324,6 +332,7 @@ func TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim(t *testing.T) {
 // TestCALV0011_ReapAndRelease: reap without an attempt reaps every expired
 // lease; release cancels and frees the entry.
 func TestCALV0011_ReapAndRelease(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	l := claimOf(one, "src/a")
@@ -358,6 +367,7 @@ func TestCALV0011_ReapAndRelease(t *testing.T) {
 // TestCALV0011_ReapReportsEveryFreshChildReceipt binds each completed reap to
 // the actual receipt published by that per-attempt transaction.
 func TestCALV0011_ReapReportsEveryFreshChildReceipt(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-011 multiple child reap receipts", func(t *testing.T) {
 		s := newLeaseStore(t)
 		first := claimOf(s.ticket(t, "one"), "src/a")
@@ -403,6 +413,7 @@ func assertReapReceipt(t *testing.T, repo *intent.Repository, reaped transaction
 
 // TestCALV0009_StaleGenerationIsFencedAndRecorded.
 func TestCALV0009_StaleGenerationIsFencedAndRecorded(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src")
 	stale := renewOf(claim)
@@ -422,6 +433,7 @@ func TestCALV0009_StaleGenerationIsFencedAndRecorded(t *testing.T) {
 
 // TestCALV0010_RenewExtendsAndIsFencedAfterExpiry.
 func TestCALV0010_RenewExtendsAndIsFencedAfterExpiry(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src")
 	if r := s.lease(t, "renew-1", renewOf(claim), 30, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -435,6 +447,7 @@ func TestCALV0010_RenewExtendsAndIsFencedAfterExpiry(t *testing.T) {
 
 // TestCALV0012_LeaseBoundsAndBackwardClock.
 func TestCALV0012_LeaseBoundsAndBackwardClock(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "one")
 	for _, minutes := range []wire.Size{"4", "1441"} {
@@ -456,6 +469,7 @@ func TestCALV0012_LeaseBoundsAndBackwardClock(t *testing.T) {
 // claimable again as the same attempt's next generation three times, then
 // refuses RETRY_EXHAUSTED.
 func TestCALV0013_RetryAsNextGenerationUpToThree(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-013 RetryAsNextGenerationUpToThree", func(t *testing.T) {
 		s := newLeaseStore(t)
 		id := s.ticket(t, "one")
@@ -478,6 +492,7 @@ func TestCALV0013_RetryAsNextGenerationUpToThree(t *testing.T) {
 
 // TestCALV0025_WidenAddsPathsAndRefusesCollision.
 func TestCALV0025_WidenAddsPathsAndRefusesCollision(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	a := s.claim(t, "claim-1", one, 0, "src/a")
@@ -504,6 +519,7 @@ func TestCALV0025_WidenAddsPathsAndRefusesCollision(t *testing.T) {
 // earlier than the head receipt refuses STORAGE_FAILED without a receipt, so
 // a lease a later write has outlived cannot be renewed.
 func TestCALV0012_BackwardClockRefusesEveryWriter(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src")
 	later, err := store.Mutate(context.Background(), s.repo, operator(), envelope("create-later", "CREATE", "", "", createPayload("later")), s.at(t, 70))
@@ -526,6 +542,7 @@ func TestCALV0012_BackwardClockRefusesEveryWriter(t *testing.T) {
 // backward. Under a live clock it samples again against the head it holds;
 // a live clock that is itself behind the head still refuses without writing.
 func TestCALV0012_WriterBehindNewerHeadSamplesAgain(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "one")
 	live := func(minutes int) context.Context {
@@ -589,6 +606,7 @@ func TestCALV0012_WriterBehindNewerHeadSamplesAgain(t *testing.T) {
 // TestCALV0025_WidenRefusedUnderAdmissionBarrier: pause refuses
 // scope-expand (TCP-00 §3.4) without writing, while renew proceeds.
 func TestCALV0025_WidenRefusedUnderAdmissionBarrier(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	a := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/a")
 	pause, err := store.Barrier(context.Background(), s.repo, operator(), barrierRequest(transaction.Pause, "pause-1"), s.at(t, 1))
@@ -613,6 +631,7 @@ func TestCALV0025_WidenRefusedUnderAdmissionBarrier(t *testing.T) {
 // and reap through, as it does cancel (TCP-00 §3.4), and still refuses
 // claim and renew.
 func TestCALV0011_ReleaseAndReapPassAnAllBarrier(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	a := s.claim(t, "claim-1", one, 0, "src/a")
@@ -651,6 +670,7 @@ var claimNext = transaction.LeaseRequest{Verb: transaction.LeaseClaimNext, Holde
 // declared paths collide with a live reservation, and refuses BLOCKED once
 // nothing is SELECTED.
 func TestCALV0008_ClaimNextTakesThePlanInPriorityOrder(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	low := s.planned(t, "low", "P3", "docs/")
 	high := s.planned(t, "high", "P1", "src/")
@@ -680,6 +700,7 @@ func TestCALV0008_ClaimNextTakesThePlanInPriorityOrder(t *testing.T) {
 // TestCALV0008_ClaimNextRefusesWithoutACandidate: an empty queue refuses
 // TICKET_STATE; spent capacity refuses LIMIT_EXCEEDED.
 func TestCALV0008_ClaimNextRefusesWithoutACandidate(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	refusedWith(t, s.lease(t, "next-empty", claimNext, 0, nil), mutation.OutcomeBlocked, wire.CodeTicketState)
 	for _, dir := range []string{"a", "b", "c", "d"} {
@@ -692,6 +713,7 @@ func TestCALV0008_ClaimNextRefusesWithoutACandidate(t *testing.T) {
 // TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst: an expired lease
 // anywhere is reaped before the plan, so the reaped ticket can be retried.
 func TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.planned(t, "one", "P1", "src/")
 	l := claimOf(id)

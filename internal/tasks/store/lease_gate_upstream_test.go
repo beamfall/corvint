@@ -38,6 +38,7 @@ func notIntegrated(t *testing.T, report *store.Report, want ...string) {
 // upstream each refuse STALE_TREE plus COMMIT_NOT_INTEGRATED, write nothing,
 // and leave every ref where it was; a tree mismatch keeps STALE_TREE alone.
 func TestCALV0017_CompleteAcceptsAnUpstreamIntegratedCommit(t *testing.T) {
+	t.Parallel()
 	s := newGateStore(t)
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
