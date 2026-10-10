@@ -148,6 +148,12 @@ func TestBehaviorAdapterCLI(t *testing.T) {
 		if code, _, _ := corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "refused.json"); code != 2 {
 			t.Fatalf("build mode exit %d, want 2", code)
 		}
+		cemWrite(t, root, "overflow.json", `{"mappings":[`+strings.TrimSuffix(strings.Repeat("{},", 10000), ",")+`]}`)
+		code, out, stderr = corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "overflow.json", "--check")
+		report = doccorpus.BehaviorAdapterCheck{}
+		if code != 1 || stderr != "" || len(out) > 64<<10 || json.Unmarshal([]byte(out), &report) != nil || report.Accepted {
+			t.Fatalf("mapping overflow check: code=%d bytes=%d stderr=%s", code, len(out), stderr)
+		}
 		for _, args := range [][]string{
 			{"docs", "corpus", "behavior-adapter", "--input", "request.json", "--check=true"},
 			{"docs", "corpus", "behavior-provider", "--input", "request.json", "--check"},

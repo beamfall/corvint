@@ -119,6 +119,32 @@ mapping and observation overflow to the literal base string. The round-1 observa
 the new test because it now expects one refusal plus the item entry. These tests fail on commit
 `12b87f4d` and pass after.
 
+Review round 3 found two more gaps:
+
+- **Unbounded report.** After `mappings-bound` refused, each mapping was still evaluated. A
+  30 KB request of 10,000 empty mappings produced about 5.2 MB of entries, over the 4 MiB encoder
+  bound, so the CLI exited 2 with no report. Now, when a count bound (inputs, mappings or
+  observations) refuses, the items it bounds are not evaluated, and one `not-evaluated` entry on the
+  bound stage says so. The mappings stage now also needs `mappings-bound`. The report also keeps at
+  most 1024 entries and about 1 MiB of encoded entries, always including the first, and ends with
+  `further entries omitted after <N>` when it drops any. A readable refused request therefore always
+  gets a bounded report and exit 1.
+- **Identity refusals without an item entry.** Discovery-execution, candidate and test identity
+  uniqueness used `keep`, so an empty identity gave a refusal but no item entry. Every
+  identity-uniqueness check (discovery executions, observations, flows, variations, candidates,
+  tests and the declarations cross-kind check) now goes through `keepIdentity`. It charges the
+  refusal to the first item, not already refused, whose identity is invalid or repeats an earlier
+  one, refused or not. The item is named by identity, or by position when the identity is invalid
+  (`candidates record 0`). Because already-refused items are skipped, an observation with an invalid
+  identity no longer also gets a duplicate-identity refusal. Build still returns the same error at
+  the same point.
+
+`TestBehaviorAdapterCheckBoundsReport` covers the 10,000-mapping request and the entry cap (4096
+invalid observations give 1024 entries plus the omission entry). The CLI check subtest asserts exit
+1 and a report under 64 KiB for the same request. `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`
+gains empty discovery-execution, candidate and test identities, a duplicate candidate and a duplicate
+observation. These fail on commit `62187812` and pass after.
+
 Limits:
 
 - The report does not list every independent refusal within one item. Repairing an item's first
@@ -192,8 +218,8 @@ Failing on base, run from a `git archive` of the base with the new tests copied 
 
 Passing after:
 
-- `go test -timeout 30m ./internal/doccorpus/...` passes, including the new tests of both review
-  rounds.
+- `go test -timeout 30m ./internal/doccorpus/...` passes, including the new tests of every review
+  round.
 - `go test -run 'TestBehaviorAdapterCLI|Help' ./cmd/corvint` passes.
 - `go vet` passes for both packages.
 - These doc gates pass: `spec-requirements-check`, `requirement-definitions-check`,

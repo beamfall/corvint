@@ -340,6 +340,33 @@ func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
 			r.Observations[0].RunID = strings.Repeat("a", 64)
 			return "observation " + r.Observations[0].ID
 		}},
+		{name: "empty discovery execution identity", stage: "discovery", want: "discovery execution identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditDocument(t, r, "discovery", func(document map[string]any) {
+				document["executions"] = []any{map[string]any{"id": "", "project": "chromium"}}
+			})
+			return "discovery execution 0"
+		}},
+		{name: "empty candidate identity", stage: "candidates", want: "candidate identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditRow(t, r, "candidates", func(row map[string]any) { row["candidateKey"] = "" })
+			return "candidates record 0"
+		}},
+		{name: "duplicate candidate identity", stage: "candidates", want: "candidate identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			id := ""
+			behaviorAdapterEditDocument(t, r, "candidates", func(document map[string]any) {
+				items := document["inventory"].(map[string]any)["items"].([]any)
+				id = items[0].(map[string]any)["candidateKey"].(string)
+				document["inventory"].(map[string]any)["items"] = append(items, items[0])
+			})
+			return "candidate " + id
+		}},
+		{name: "empty test identity", stage: "tests", want: "test identity is duplicate or invalid", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			behaviorAdapterEditRow(t, r, "tests", func(row map[string]any) { row["testKey"] = "" })
+			return "tests record 0"
+		}},
+		{name: "duplicate observation identity", stage: "observations", want: "duplicate behavior adapter observation identity", edit: func(t *testing.T, r *BehaviorAdapterRequest) string {
+			r.Observations = append(r.Observations, r.Observations[0])
+			return "/observations/" + strconv.Itoa(len(r.Observations)-1)
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			request := fixture.request
@@ -404,5 +431,43 @@ func TestBehaviorAdapterBuildBoundMessage(t *testing.T) {
 				t.Fatalf("bound refusal changed: %v", err)
 			}
 		})
+	}
+}
+
+// TestBehaviorAdapterCheckBoundsReport proves DCP-V1-044: a refused count
+// bound stops evaluation of the items it bounds, and the report's entries are
+// capped with a terminal omission entry, so the report stays encodable.
+func TestBehaviorAdapterCheckBoundsReport(t *testing.T) {
+	raw := []byte(`{"mappings":[` + strings.TrimSuffix(strings.Repeat("{},", 10000), ",") + `]}`)
+	report := CheckBehaviorAdapter(raw, nil)
+	encoded, err := Encode(report)
+	if err != nil || report.Accepted || len(encoded) > 64<<10 {
+		t.Fatalf("mapping overflow report is unbounded: %v %d bytes", err, len(encoded))
+	}
+	entry := false
+	for _, refusal := range report.Refusals {
+		if refusal.Stage == "mappings" && refusal.State == "refused" {
+			t.Fatalf("individual mappings evaluated after the count bound refused: %+v", refusal)
+		}
+		entry = entry || refusal.Stage == "mappings-bound" && refusal.State == "not-evaluated" && refusal.Message == "individual mappings not evaluated because the mappings count bound refused"
+	}
+	if !entry || behaviorAdapterCheckStates(report)["mappings"].State != "not-evaluated" {
+		t.Fatalf("mapping overflow does not name the unevaluated mappings: %+v", report.Refusals)
+	}
+
+	fixture := behaviorAdapterFixture(t)
+	request := fixture.request
+	request.Observations = make([]ObservationLink, MaxRecords)
+	raw = behaviorAdapterRaw(t, request)
+	_, buildErr := BuildBehaviorAdapter(raw, nil)
+	var refused *Error
+	if !errors.As(buildErr, &refused) {
+		t.Fatalf("build should refuse: %v", buildErr)
+	}
+	report = CheckBehaviorAdapter(raw, nil)
+	encoded, err = Encode(report)
+	last := report.Refusals[len(report.Refusals)-1]
+	if err != nil || report.Accepted || report.Refusals[0].Message != refused.Message || len(report.Refusals) != 1025 || last.Message != "further entries omitted after 1024" || last.State != "not-evaluated" {
+		t.Fatalf("report entries are not capped: %v entries=%d last=%+v", err, len(report.Refusals), last)
 	}
 }

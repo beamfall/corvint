@@ -154,6 +154,7 @@ type behaviorAdapter struct {
 	checking              bool
 	refused               []error
 	unevaluated           []string
+	refusedItems          map[string]bool
 }
 
 var behaviorAdapterFields = map[string]map[string]bool{
@@ -517,7 +518,13 @@ func (a *behaviorAdapter) validateObservations() error {
 		}
 	}
 	if !uniqueIdentities(ids) {
-		return fail("duplicate behavior adapter observation identity")
+		names := make([]string, len(ids))
+		for index := range ids {
+			names[index] = "/observations/" + strconv.Itoa(index)
+		}
+		if err := fail("duplicate behavior adapter observation identity"); !a.keepIdentity(names, ids, err) {
+			return err
+		}
 	}
 	return nil
 }
@@ -549,12 +556,38 @@ func (a *behaviorAdapter) keepItem(item string, err error) bool {
 	if !a.keep(err) {
 		return false
 	}
+	if a.refusedItems == nil {
+		a.refusedItems = map[string]bool{}
+	}
+	a.refusedItems[item] = true
 	message := err.Error()
 	var typed *Error
 	if errors.As(err, &typed) {
 		message = typed.Message
 	}
 	a.unevaluate("remaining checks for " + item + " not evaluated after " + message)
+	return true
+}
+
+// keepIdentity keeps an identity-uniqueness refusal while checking. The
+// refusal belongs to the first item not already refused whose identity is
+// invalid or repeats an earlier item's, refused or not (DCP-V1-044). names and ids
+// are parallel. It reports whether the caller may continue; Build mode never
+// keeps.
+func (a *behaviorAdapter) keepIdentity(names, ids []string, err error) bool {
+	if !a.checking {
+		return false
+	}
+	seen := map[string]bool{}
+	for index, id := range ids {
+		if (!textOK(id) || seen[id]) && !a.refusedItems[names[index]] {
+			return a.keepItem(names[index], err)
+		}
+		seen[id] = true
+	}
+	if len(ids) > MaxRecords {
+		return a.keep(err)
+	}
 	return true
 }
 
@@ -849,7 +882,11 @@ func (a *behaviorAdapter) discoveryIdentity() (BehaviorDiscovery, error) {
 		}
 	}
 	if !uniqueIdentities(executionIDs) {
-		if err := a.fieldError(discoveryInput, "/executions", "discovery execution identity is duplicate or invalid", "retain one exact execution identity per discovered test"); !a.keep(err) {
+		names := make([]string, len(executionIDs))
+		for index := range executionIDs {
+			names[index] = "discovery execution " + strconv.Itoa(index)
+		}
+		if err := a.fieldError(discoveryInput, "/executions", "discovery execution identity is duplicate or invalid", "retain one exact execution identity per discovered test"); !a.keepIdentity(names, executionIDs, err) {
 			return discovery, err
 		}
 	}
@@ -887,7 +924,18 @@ func (a *behaviorAdapter) flows() ([]BehaviorFlow, error) {
 		a.origin("flow:"+flow.ID, mapping, index, "id")
 		flows = append(flows, flow)
 	}
-	return uniqueBehaviorFlows(flows)
+	unique, err := uniqueBehaviorFlows(flows)
+	if err != nil {
+		names, ids := make([]string, len(flows)), make([]string, len(flows))
+		for index, flow := range flows {
+			names[index], ids[index] = "flow "+flow.ID, flow.ID
+		}
+		if !a.keepIdentity(names, ids, err) {
+			return nil, err
+		}
+		return flows, nil
+	}
+	return unique, nil
 }
 
 func (a *behaviorAdapter) variations() ([]BehaviorAdapterVariation, error) {
@@ -929,7 +977,14 @@ func (a *behaviorAdapter) variations() ([]BehaviorAdapterVariation, error) {
 	sort.Slice(variations, func(i, j int) bool { return variations[i].ID < variations[j].ID })
 	for index := 1; index < len(variations); index++ {
 		if variations[index-1].ID == variations[index].ID {
-			return nil, a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity is duplicated", "supply one globally unique variation identity")
+			names, ids := make([]string, len(variations)), make([]string, len(variations))
+			for position, variation := range variations {
+				names[position], ids[position] = "variation "+variation.ID, variation.ID
+			}
+			if err := a.fieldError(a.inputs[mapping.Input], behaviorAdapterFieldPointer(mapping, index, "id"), "variation identity is duplicated", "supply one globally unique variation identity"); !a.keepIdentity(names, ids, err) {
+				return nil, err
+			}
+			break
 		}
 	}
 	return variations, nil
@@ -958,6 +1013,7 @@ func (a *behaviorAdapter) candidates() ([]BehaviorSource, error) {
 		return nil, err
 	}
 	values := make([]BehaviorSource, 0, len(records))
+	names, ids := []string{}, []string{}
 	for index, record := range records {
 		value := BehaviorSource{}
 		item := &behaviorAdapterItem{name: "candidates record " + strconv.Itoa(index)}
@@ -976,10 +1032,13 @@ func (a *behaviorAdapter) candidates() ([]BehaviorSource, error) {
 		sort.Strings(value.Flows)
 		a.origin("candidate:"+value.ID, mapping, index, "id")
 		values = append(values, value)
+		names, ids = append(names, behaviorAdapterIdentityName("candidate", "candidates", value.ID, index)), append(ids, value.ID)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i].ID < values[j].ID })
 	if !uniqueSourceIDs(values) {
-		return nil, a.fieldError(a.inputs[mapping.Input], mapping.Records, "candidate identity is duplicate or invalid", "supply globally unique nonempty candidate identities")
+		if err := a.fieldError(a.inputs[mapping.Input], mapping.Records, "candidate identity is duplicate or invalid", "supply globally unique nonempty candidate identities"); !a.keepIdentity(names, ids, err) {
+			return nil, err
+		}
 	}
 	return values, nil
 }
@@ -990,6 +1049,7 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		return nil, err
 	}
 	values := make([]BehaviorTest, 0, len(records))
+	names, testIDs := []string{}, []string{}
 	for index, record := range records {
 		value := BehaviorTest{}
 		claims := []BehaviorAdapterTestClaim{}
@@ -1030,6 +1090,7 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		a.origin("test:"+value.ID, mapping, index, "id")
 		a.testClaims[value.ID] = claims
 		values = append(values, value)
+		names, testIDs = append(names, behaviorAdapterIdentityName("test", "tests", value.ID, index)), append(testIDs, value.ID)
 	}
 	sort.Slice(values, func(i, j int) bool {
 		return values[i].ID+"\x00"+values[i].Project < values[j].ID+"\x00"+values[j].Project
@@ -1039,7 +1100,9 @@ func (a *behaviorAdapter) tests() ([]BehaviorTest, error) {
 		ids = append(ids, value.ID)
 	}
 	if !uniqueIdentities(ids) {
-		return nil, a.fieldError(a.inputs[mapping.Input], mapping.Records, "test identity is duplicate or invalid", "supply globally unique nonempty test identities")
+		if err := a.fieldError(a.inputs[mapping.Input], mapping.Records, "test identity is duplicate or invalid", "supply globally unique nonempty test identities"); !a.keepIdentity(names, testIDs, err) {
+			return nil, err
+		}
 	}
 	return values, nil
 }
@@ -1068,6 +1131,15 @@ func uniqueBehaviorFlows(values []BehaviorFlow) ([]BehaviorFlow, error) {
 		}
 	}
 	return values, nil
+}
+
+// behaviorAdapterIdentityName names a mapped record by its identity, or by its
+// position when the identity is invalid (DCP-V1-044).
+func behaviorAdapterIdentityName(kind, records, id string, index int) string {
+	if textOK(id) {
+		return kind + " " + id
+	}
+	return records + " record " + strconv.Itoa(index)
 }
 
 func uniqueSourceIDs(values []BehaviorSource) bool {
@@ -1236,20 +1308,21 @@ func (a *behaviorAdapter) validateMappedBehaviorAdapterDeclarations(flows []Beha
 		}
 	}
 	ids := make([]string, 0, len(flows)+len(behaviors)+len(tests))
+	names := make([]string, 0, cap(ids))
 	for _, flow := range flows {
-		ids = append(ids, flow.ID)
+		ids, names = append(ids, flow.ID), append(names, "flow "+flow.ID)
 	}
 	for _, behavior := range behaviors {
-		ids = append(ids, behavior.ID)
+		ids, names = append(ids, behavior.ID), append(names, "candidate "+behavior.ID)
 	}
 	for _, test := range tests {
-		ids = append(ids, test.ID)
+		ids, names = append(ids, test.ID), append(names, "test "+test.ID)
 	}
 	duplicated := func() error {
 		return a.fieldError(a.inputs[a.request.DiscoveryInput], "/", "mapped behavior identity is duplicated", "supply globally unique flow, candidate and test identities")
 	}
 	if !uniqueIdentities(ids) {
-		if err := duplicated(); !a.keep(err) {
+		if err := duplicated(); !a.keepIdentity(names, ids, err) {
 			return err
 		}
 	}

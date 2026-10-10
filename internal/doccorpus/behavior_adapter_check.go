@@ -84,7 +84,13 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 	run("identity", []string{"request"}, func() error { return behaviorAdapterIdentityError(request) })
 	run("revisions", []string{"request"}, func() error { return behaviorAdapterRevisionError(request) })
 	for _, bound := range behaviorAdapterBounds {
-		run(bound+"-bound", []string{"request"}, func() error { return behaviorAdapterBoundError(request, bound) })
+		run(bound+"-bound", []string{"request"}, func() error {
+			err := behaviorAdapterBoundError(request, bound)
+			if err != nil {
+				c.notEvaluated(bound+"-bound", "individual "+bound+" not evaluated because the "+bound+" count bound refused", bound+"-bound")
+			}
+			return err
+		})
 	}
 	run("inputs", []string{"inputs-bound"}, func() error {
 		for index, input := range request.Inputs {
@@ -114,7 +120,7 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		}
 		return nil
 	})
-	run("mappings", []string{"inputs-bound"}, func() error {
+	run("mappings", []string{"inputs-bound", "mappings-bound"}, func() error {
 		for index, mapping := range request.Mappings {
 			item := "/mappings/" + strconv.Itoa(index)
 			var refused *BehaviorAdapterInput
@@ -201,7 +207,34 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		return err
 	})
 	c.report.Accepted = len(c.report.Refusals) == 0
+	c.report.Refusals = boundBehaviorAdapterRefusals(c.report.Refusals)
 	return c.report
+}
+
+// The check report lists at most behaviorCheckMaxEntries refusal entries and
+// about behaviorCheckMaxEntryBytes of encoded entries, so a readable request
+// always yields an encodable report (DCP-V1-044).
+const (
+	behaviorCheckMaxEntries    = 1024
+	behaviorCheckMaxEntryBytes = 1 << 20
+)
+
+// boundBehaviorAdapterRefusals keeps the first entry, which is Build's
+// refusal, and then entries in order while both bounds hold. A terminal
+// not-evaluated entry says how many entries were kept when any were omitted.
+func boundBehaviorAdapterRefusals(refusals []BehaviorAdapterRefusal) []BehaviorAdapterRefusal {
+	size := 0
+	for index, refusal := range refusals {
+		encoded, err := Encode(refusal)
+		if err == nil {
+			size += len(encoded)
+		}
+		if index > 0 && (err != nil || index >= behaviorCheckMaxEntries || size > behaviorCheckMaxEntryBytes) {
+			kept := append([]BehaviorAdapterRefusal(nil), refusals[:index]...)
+			return append(kept, BehaviorAdapterRefusal{Stage: "report", State: behaviorCheckNotEvaluated, Code: "", Message: "further entries omitted after " + strconv.Itoa(index), BlockedBy: []string{}})
+		}
+	}
+	return refusals
 }
 
 // stageRefused reports whether the stage currently running has kept a
@@ -282,5 +315,7 @@ func behaviorAdapterCheckLimitations() []string {
 		"check mode neither emits nor writes an adapter result or artifact; it reconciles internally only to determine final-stage refusals and computes no coverage",
 		"a stage blocked by an earlier refusal is reported as not-evaluated; repairing that refusal can reveal further refusals",
 		"items (inputs, mappings, observations, mapped records and discovery executions) are evaluated independently; within one item, evaluation stops at its first refusal and one not-evaluated entry names the item's remaining checks",
+		"when a count bound refuses, the individual items it bounds are not evaluated",
+		"the report lists at most 1024 refusal entries and about 1 MiB of them; a terminal entry says further entries were omitted",
 	}
 }
