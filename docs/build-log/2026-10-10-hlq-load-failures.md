@@ -48,10 +48,12 @@ All 16 arm C frontier FAIL lines are the V1-0844 shape: "failed open with time-b
 corvint-event-rejected:dogfood-event-deadline on all 3 attempts". `frontier-attempts.tsv` extracts
 every retried Stop attempt from the 20 reports that `--failed-reports` retained. All 58 attempts
 are `dogfood-event-deadline`, at 1.53–2.07 s as the runner measures from spawn. That is
-the visible fail-open that `LCP-V0-008` specifies when the 1.6 s event deadline expires. The
-deadline is already bounded by the adapter work bound: the 2 s declared host kill, less the
-400 ms reserve and the 100 ms grace (`AHI-017`). So it cannot be widened without changing the
-hook timeout that the package declares to the host.
+the visible fail-open that `LCP-V0-008` specifies on expiry. `runLocalCompletionEvent` bounds the
+event by the nominal 1.6 s `dogfoodEventDeadline`, derived from the adapter's own context.
+That context already expires at the adapter work bound, about 1.5 s from process start: the 2 s
+declared host kill, less the 400 ms reserve and the 100 ms grace (`AHI-017`). The work bound
+therefore governs, and both expiries surface as `dogfood-event-deadline`. Neither can be widened
+without changing the hook timeout that the package declares to the host.
 
 This is not a regression of V1-0844. That change fixed the runner's reporting and retry, and its
 known gap predicted that a slowdown of roughly 5x would reach the bound.
