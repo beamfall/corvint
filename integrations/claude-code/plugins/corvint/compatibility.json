@@ -17,9 +17,9 @@
     "mcp": "UNAVAILABLE"
   },
   "lastValidation": {
-    "date": "2026-09-13",
+    "date": "2026-10-09",
     "level": "STATIC_ONLY",
-    "adapterVersion": "0.1.4",
+    "adapterVersion": "0.3.0",
     "operatingSystem": "macOS"
   },
   "lastConformance": {
