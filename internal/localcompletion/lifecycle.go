@@ -307,8 +307,12 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 		end, err = repo.driftSnapshot(ctx)
 	} else {
 		end = snap
+		// A moved HEAD with an identical tree stays clean, so re-resolve the commit.
 		if err = repo.refreshAuthority(); err == nil {
 			end.clean, err = repo.clean(ctx)
+		}
+		if err == nil {
+			end.target, err = repo.auth.Resolve(ctx, "HEAD")
 		}
 	}
 	if err != nil {

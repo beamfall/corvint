@@ -173,7 +173,34 @@ func TestEvaluateAgainstChangedBase(t *testing.T) {
 		t.Fatalf("changed base: %#v, %v; want %#v", got, err, want)
 	}
 	raw, err := os.ReadFile(log)
-	if err != nil || strings.Count(string(raw), "\n") != 3 || !strings.Contains(string(raw), "merge-base --is-ancestor "+plan.Base+" "+observed.target) {
+	if err != nil || strings.Count(string(raw), "\n") != 4 || !strings.Contains(string(raw), "merge-base --is-ancestor "+plan.Base+" "+observed.target) {
 		t.Fatalf("missing fresh ancestry proof: %s, %v", raw, err)
+	}
+}
+
+// LCP-V0-019: a clean HEAD move to a same-tree commit during the pinned read is drift.
+func TestEvaluateAgainstDetectsSameTreeHeadMove(t *testing.T) {
+	ctx := context.Background()
+	root, key, plan := fixture(t, []string{"true"})
+	beginFixture(t, root, key, plan)
+	_, observed, err := EvaluateObserved(ctx, root, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := localGit(t, root, "rev-parse", "HEAD^{tree}")
+	other := localGit(t, root, "commit-tree", tree, "-m", "same tree")
+	real, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "status-seen")
+	shim := "#!/bin/sh\ncase \" $* \" in\n*' status --porcelain=v1 '*)\nif [ -f '" + marker + "' ]; then '" + real + "' -C '" + root + "' update-ref HEAD " + other + "; else printf seen > '" + marker + "'; fi;;\nesac\nexec '" + real + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, err = EvaluateAgainst(ctx, root, key, observed); err == nil || err.Error() != "repository-snapshot-drift" {
+		t.Fatalf("same-tree HEAD move: %v", err)
 	}
 }
