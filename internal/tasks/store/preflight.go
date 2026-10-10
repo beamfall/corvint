@@ -23,7 +23,7 @@ const MaxPreflightSpecFiles = 4096
 
 // PreflightBlobBytes is the largest file preflight reads at a commit; a
 // larger spec file is skipped with a warning and a larger plan refused.
-const PreflightBlobBytes = knowHowSymbolMaxBlobBytes
+const PreflightBlobBytes = 1 << 20
 
 // maxPreflightTreeEntryBytes bounds one path of the tree listing.
 const maxPreflightTreeEntryBytes = 64 << 10

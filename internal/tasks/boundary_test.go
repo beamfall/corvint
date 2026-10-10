@@ -58,6 +58,11 @@ func importViolation(rel, path string) string {
 	if (rel == "internal/tasks/mutation/know_how.go" || rel == "internal/tasks/mutation/know_how_test.go") && path == modulePrefix+"internal/secretscreen" {
 		return ""
 	}
+	// The expected-fail excerpt's secret screen (decision 0397's #712
+	// addendum) admits only that one obligation file.
+	if rel == "internal/tasks/obligation/expected_fail.go" && path == modulePrefix+"internal/secretscreen" {
+		return ""
+	}
 	// Know-how symbol anchors (decision 0397's V1-0963 addendum) reuse the
 	// context index's declaration extents through this one store file.
 	if rel == "internal/tasks/store/know_how_symbols.go" && path == modulePrefix+"internal/contextindex" {
@@ -115,6 +120,8 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/mutation/know_how.go", modulePrefix + "internal/gitstatus"},
 		{"internal/tasks/store/know_how.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/store/know_how_symbols.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/obligation/report.go", modulePrefix + "internal/secretscreen"},
+		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/gitstatus"},
 	}
 	for _, c := range cases {
 		if importViolation(c.rel, c.path) == "" {
@@ -137,6 +144,7 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/mutation/know_how.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/mutation/know_how_test.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/store/know_how_symbols.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/secretscreen"},
 	} {
 		if got := importViolation(c.rel, c.path); got != "" {
 			t.Errorf("accepted Core edge refused: %s", got)
