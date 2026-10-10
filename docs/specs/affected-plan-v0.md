@@ -840,6 +840,9 @@ and container qualification; full fallback remains available.
   their admission effect can only widen to FULL. Shadow SHALL first enable the queue,
   full-event policy and rows with PR tests still FULL, computing and retaining S before the
   full shard. Shadow PR runs SHALL produce rows from their same-commit complete outcomes.
+  Shadow is enabled only after a real PR has merged through the queue with `go-product`,
+  `doc-gates` and `ci-control-plane` reported on the queue commit, `main` equal to that commit
+  and `dogfood-check` reading its seal; until then it is `NOT_OBSERVED`.
   Narrowing requires 20 complete shadow rows, at least 5 with failing packages, and none
   with a miss other than `FLAKY`. Hosted queue branch form, `workflow_run` delivery,
   branch-rules API and `main` reaching the tested queue commit remain assumed, `NOT_OBSERVED`.
