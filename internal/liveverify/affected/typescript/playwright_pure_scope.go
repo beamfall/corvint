@@ -480,7 +480,11 @@ func playwrightLex(raw string) (playwrightLexed, bool) {
 			lexed.code[index] = false
 			push(index)
 		case '/':
-			if !playwrightSlashStartsRegex(raw, index) {
+			regex, known := playwrightSlashStartsRegex(raw, index)
+			if !known {
+				return lexed, false
+			}
+			if !regex {
 				continue
 			}
 			class := false

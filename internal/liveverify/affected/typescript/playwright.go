@@ -1219,7 +1219,10 @@ func playwrightSplitTopLevel(raw string) ([]string, bool) {
 			}
 			index = end - 1
 		case '/':
-			regex = playwrightSlashStartsRegex(raw, index)
+			var known bool
+			if regex, known = playwrightSlashStartsRegex(raw, index); !known {
+				return nil, false
+			}
 		case '{', '[', '(':
 			stack = append(stack, character)
 		case '}', ']', ')':
@@ -1320,14 +1323,49 @@ func playwrightPair(open, close byte) bool {
 	return open == '{' && close == '}' || open == '[' && close == ']' || open == '(' && close == ')'
 }
 
-func playwrightSlashStartsRegex(raw string, index int) bool {
-	for previous := index - 1; previous >= 0; previous-- {
-		if raw[previous] == ' ' || raw[previous] == '\t' || raw[previous] == '\n' || raw[previous] == '\r' {
-			continue
-		}
-		return strings.ContainsRune("([{:;,=!?&|", rune(raw[previous]))
+// playwrightRegexKeywords are the reserved words after which a `/` starts a regular expression.
+var playwrightRegexKeywords = []string{"return", "typeof", "instanceof", "in", "new", "delete", "void", "throw", "case", "do", "else"}
+
+// playwrightSlashStartsRegex reports whether the `/` at index starts a regular expression: after
+// an operator or opening punctuation, `=>`, a reserved word in playwrightRegexKeywords, or nothing.
+// After an identifier, a number, `)`, `]`, `}` or a property name (`x.return`) it is division.
+// known is false after `of`, `yield` or `await`: each may be an identifier operand of a division
+// or a keyword before a regular expression, so the caller refuses the source rather than guess.
+func playwrightSlashStartsRegex(raw string, index int) (regex, known bool) {
+	previous := index - 1
+	for previous >= 0 && (raw[previous] == ' ' || raw[previous] == '\t' || raw[previous] == '\n' || raw[previous] == '\r') {
+		previous--
 	}
-	return true
+	if previous < 0 {
+		return true, true
+	}
+	if raw[previous] == '>' && previous > 0 && raw[previous-1] == '=' {
+		return true, true
+	}
+	from := previous + 1
+	for from > 0 && strings.IndexByte("_$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", raw[from-1]) >= 0 {
+		from--
+	}
+	if word := raw[from : previous+1]; word != "" {
+		before := from - 1
+		for before >= 0 && (raw[before] == ' ' || raw[before] == '\t' || raw[before] == '\n' || raw[before] == '\r') {
+			before--
+		}
+		if before >= 0 && raw[before] == '.' && (before == 0 || raw[before-1] != '.') {
+			return false, true // a property name, never a keyword
+		}
+		if from > 0 && (raw[from-1] >= utf8.RuneSelf || raw[from-1] == '\\') {
+			return false, false // part of a non-ASCII or escaped identifier
+		}
+		switch {
+		case word == "of" || word == "yield" || word == "await":
+			return false, false
+		case slices.Contains(playwrightRegexKeywords, word):
+			return true, true
+		}
+		return false, true
+	}
+	return strings.ContainsRune("([{:;,=!?&|", rune(raw[previous])), true
 }
 
 func playwrightString(raw string) (string, bool) {

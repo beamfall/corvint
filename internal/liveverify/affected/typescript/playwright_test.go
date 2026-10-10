@@ -611,3 +611,34 @@ func TestPlaywrightGlobAgreesWithBundledMinimatch(t *testing.T) {
 		}
 	}
 }
+
+// GitHub #709 review round 10: a `/` after `=>` or a reserved word starts a regular expression;
+// after an operand it is division; after a contextual keyword it is ambiguous and refused.
+func TestPlaywrightSlashStartsRegex(t *testing.T) {
+	for _, row := range []struct {
+		source       string
+		regex, known bool
+	}{
+		{"/a/", true, true}, {"x = /a/", true, true}, {"f(/a/", true, true}, {"() => /a/", true, true},
+		{"return /a/", true, true}, {"typeof /a/", true, true}, {"x instanceof /a/", true, true},
+		{"k in /a/", true, true}, {"new /a/", true, true}, {"delete /a/", true, true}, {"void /a/", true, true},
+		{"throw /a/", true, true}, {"case /a/", true, true}, {"do /a/", true, true}, {"else /a/", true, true},
+		{"x / 2", false, true}, {"(x) / 2", false, true}, {"a[0] / 2", false, true}, {"2 / 2", false, true},
+		{"x.return / 2", false, true}, {"x?.in / 2", false, true}, {"returns / 2", false, true}, {"x >= /a/", true, true},
+		{"of / 2", false, false}, {"yield /a/", false, false}, {"await /a/", false, false},
+		{"éreturn / 2", false, false}, {"\\u0061return / 2", false, false},
+	} {
+		// The slash under test is the first one in the source.
+		if regex, known := playwrightSlashStartsRegex(row.source, strings.IndexByte(row.source, '/')); regex != row.regex || known != row.known {
+			t.Errorf("%q: regex=%v known=%v, want %v %v", row.source, regex, known, row.regex, row.known)
+		}
+	}
+	// The array splitter shares the rule: a regex after `=>` keeps its comma inside one item.
+	items, ok := playwrightSplitTopLevel("() => /a,b/, 'c'")
+	if !ok || len(items) != 2 {
+		t.Errorf("split over an arrow regex = %q, %v", items, ok)
+	}
+	if _, ok := playwrightSplitTopLevel("of / 2, 'c'"); ok {
+		t.Error("split over an ambiguous slash was accepted")
+	}
+}

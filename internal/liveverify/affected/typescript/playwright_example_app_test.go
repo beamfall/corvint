@@ -430,6 +430,13 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		{"parenthesized object destructuring target", "const options = { baseURL: 'http://x' };\n({ a: (options.baseURL) } = { a: 'y' });", "options.baseURL"},
 		{"parenthesized for-of target", "const options = { baseURL: 'http://x' };\nfor ((options.baseURL) of ['y']) {}", "options.baseURL"},
 		{"parenthesized for-in target", "for ((devices['Desktop Chrome'].userAgent) in { y: 1 }) {}", "'http://x'"},
+		// GitHub #709 review round 10: a `/` after an identifier, `)` or a property named like a
+		// keyword is division, so the escaped write between two divisions stays code; after a
+		// contextual keyword (`of`, `yield`, `await`) it is ambiguous and the file is refused.
+		{"division after an identifier", "const width = 4; const half = width / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+		{"division after a parenthesis", "const half = (4) / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = (half) / 3;", "'http://x'"},
+		{"division after a keyword-named property", "const size = { return: 4 }; const half = size.return / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
+		{"slash after a contextual keyword", "const of = 4; const half = of / 2; devic\\u0065s['Desktop Chrome'].isMobile = true; const third = half / 3;", "'http://x'"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", config(row.setup, row.value)); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {
@@ -451,6 +458,11 @@ func TestPlaywrightMemberReadRoots_GH709Round8(t *testing.T) {
 		// GitHub #709 review round 9: escapes, `--`, `++` and `delete` inside strings are not tokens.
 		{"escapes and operators in strings", "const options = { baseURL: 'http://x', flag: '--headed', note: 'a++ \\u0041', verb: 'delete' };", "options.baseURL"},
 		{"parenthesized read", "const options = { baseURL: 'http://x' };", "(options.baseURL)"},
+		// GitHub #709 review round 10: a `/` after `=>` or a keyword such as `return` starts a
+		// regular expression, so its escapes are not code.
+		{"regular expression after an arrow", "const makePattern = () => /a\\.spec\\.ts$/;", "devices['Desktop Chrome'].userAgent"},
+		{"regular expression after return", "const options = { baseURL: 'http://x' };\nfunction pattern() { return /x\\.y/; }", "options.baseURL"},
+		{"regular expressions after other keywords", "const options = { baseURL: 'http://x' };\nconst kind = typeof /a\\.b/;\nconst test = (x) => { if (x) { throw /c\\.d/; } else return void /e\\.f/; };", "options.baseURL"},
 		{"escapes in a regular expression and a template", "const pattern = /a\\.spec\\.ts$/i;\nconst options = { baseURL: `http://x\\u0041` };", "options.baseURL"},
 	} {
 		t.Run(row.name, func(t *testing.T) {

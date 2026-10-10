@@ -448,3 +448,42 @@ Tests, each failing on `ce716cab` unless noted:
 - `tests/{/,x}*.spec.ts` and `{tests/,x}a.spec.ts` widen rows in
   `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden` (each narrowed before).
 - Four brace rows in `TestPlaywrightGlobAgreesWithBundledMinimatch`.
+
+## Review round 10
+
+Codex round 10 on `e514e8bb` reported one P2, which costs precision but does not affect soundness.
+`playwrightSlashStartsRegex` read a `/` after `=>` or after `return` as division. So in
+`const makePattern = () => /a\.spec\.ts$/;` the regex backslashes counted as code, the round-9
+escape guard dropped the `devices` root, and a valid config fell back to the full suite.
+
+Two callers share the rule: the module lexer behind the member-read scope, and
+`playwrightSplitTopLevel`, which splits array and object items. For both, a `/` now starts a regular
+expression in these positions:
+- after an operator or opening punctuation, as before;
+- after `=>`;
+- after one of the reserved words `return`, `typeof`, `instanceof`, `in`, `new`, `delete`, `void`,
+  `throw`, `case`, `do` or `else`.
+
+Everywhere else it is division: after an identifier, a number, `)`, `]`, `}` or a property name such
+as `x.return`.
+
+This deviates from the decision in one respect. `of`, `yield` and `await` can also be identifiers,
+for example `const of = 4; of / 2`. If we read a division after one of them as a regex, code would
+be hidden from the escape, mutation-token and occurrence scans, which would be unsound. A `/` after
+one of these words is therefore treated as ambiguous: the lexer fails, so neither root is admitted,
+and the splitter refuses. A word glued to a non-ASCII byte or a `\` is also refused, since it is
+part of a longer identifier.
+
+The cost is that a regex literal directly after `of`, `yield` or `await` (for example
+`for (const r of /x/ …)`) now refuses the source. Before this change it was misread as division.
+
+Tests:
+- These rows in `TestPlaywrightMemberReadRoots_GH709Round8` failed on `e514e8bb`:
+  - the arrow repro;
+  - `return /x\.y/`;
+  - a row with `typeof`, `throw` and `else return void` regexes.
+- These negative rows already passed and are now pinned: division after an identifier, after `)`
+  and after a keyword-named property each keep an escaped `devices` write between two divisions
+  visible as code; a slash after `of` refuses.
+- `TestPlaywrightSlashStartsRegex` is new and covers the rule table and the shared splitter. It
+  could not run before because the function returned a single bool.
