@@ -214,6 +214,18 @@ injector.
     text), and fails closed on any other extension (`.vue`, for example). The revision index
     does not admit `.mts` or `.cts` as text, so the reader cannot read such a module and the
     closure fails closed when it reaches one.
+- Sixteenth review (three fail-open paths in the fifteenth review's rules, no spec text change):
+  - A sole spread element (`[...('Section' + 'Names').split().concat(mutate)]`) has no element
+    before the last, so it was never classified. A spread in any position, alone included, now
+    makes the array a computed annotation; it may expand to a whole annotation.
+  - Any method named `module` (`helper.module('unused', ['Section' + 'Names', mutate])`) got the
+    dependency-list exemption. Only `angular.module('name', [...])`, with `angular` an identifier
+    and not a property, is exempt now; any other call's array arguments are checked.
+  - AngularJS strips matching surrounding underscores from an implicit parameter name
+    (angular.js v1.8.2 `src/auto/injector.js`), so `function (_SectionNames_)` injects
+    `SectionNames`. A use of the identifier `_SectionNames_` other than as a property or an
+    object key now fails the file's injection check. The reader does not resolve a router read
+    through such a parameter; it fails closed instead.
 
 ## Evidence
 
@@ -401,6 +413,13 @@ injector.
   reads` guard now also holds a trailing comma, `true`, `null`, an object and an array in an
   array, and a JSON import. It passes before and after. All pass with the fix. The full `go test
   -count=1 -v ./internal/appmap` passes (507 passing tests and subtests).
+- Sixteenth review: `TestAMAPV0025ChainBindingsFailClosed` gained `di sole spread`, `di helper
+  module` and `di underscore wrapped`, the review's three inputs appended to the registering
+  file. Against `ef2ca8db` all three resolve silently (`v1061-r17-gap-before.txt`). All pass with
+  the fix, and the `di other names` and `di closure reads` guards (an ordinary `['$rootScope',
+  function ($rootScope) {...}]` annotation and an `angular.module('m', [uiRouter, ngAnimate])`
+  dependency list) still resolve. The full `go test -count=1 ./internal/appmap` passes (510
+  passing tests and subtests); `go vet` and `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -476,8 +495,9 @@ injector.
   conservative in the other direction: an examined file that loads an unresolved specifier, a
   repository-backed package, a module of an unknown extension, a `.mts` or `.cts` module (not
   in the index's text set), or more than 256 files leaves the injected table UNKNOWN. So does an
-  examined file holding an array whose elements before the last are not all exact strings and
-  that holds a name, call, function, spread or hole anywhere, outside a `module(...)` dependency
-  list or a binding pattern (`[uiRouter, 'x']`, `Promise.all([p1, p2])`). A name the code computes
-  without an injector, a decorator or an annotation token is also not seen, for example a
+  examined file holding an array that holds a spread, or whose elements before the last are not
+  all exact strings and that holds a name, call, function or hole anywhere, outside an
+  `angular.module(...)` dependency list or a binding pattern (`[uiRouter, 'x']`,
+  `Promise.all([p1, p2])`, `[...items]`). A name the code computes without an injector, a
+  decorator or an annotation token is also not seen, for example a
   provider's `$get` that injects by a computed parameter list.

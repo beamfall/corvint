@@ -594,6 +594,11 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		"unknown extension":  {reg + "import './mutate.vue';\n", map[string]string{"app/setup/mutate.vue": "<script>\nimport { SectionTable as T } from '../tables/routes/routes.constants';\nT.REPORTS = 'other';\n</script>\n"}},
 		"shadowed undefined": {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst undefined = mutate;\nangular.module('admin').config(['Section' + 'Names', undefined]);\n", nil},
 		"shadowed NaN":       {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst NaN = mutate;\nangular.module('admin').config(['Section' + 'Names', NaN]);\n", nil},
+		// The sixteenth review's inputs: a sole spread element, a method named module that is not
+		// angular.module, and an implicit parameter AngularJS strips of its surrounding underscores.
+		"sole spread":        {reg + "function mutate(s) { s.REPORTS = 'other'; }\nangular.module('admin').config([\n  ...('Section' + 'Names').split().concat(mutate)\n]);\n", nil},
+		"helper module":      {reg + "function mutate(s) { s.REPORTS = 'other'; }\nconst helper = {};\nhelper.module = function (label, annotation) {\n  angular.module('admin').config(annotation);\n};\nhelper.module('unused', ['Section' + 'Names', mutate]);\n", nil},
+		"underscore wrapped": {reg + "angular.module('admin').config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n});\n", nil},
 	} {
 		t.Run("di "+name, func(t *testing.T) {
 			files := map[string]string{index: star, decl: table}

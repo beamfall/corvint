@@ -200,6 +200,8 @@ var diReach = map[string]bool{"$injector": true, "$provide": true, "injector": t
 //     function injection(name) accepts;
 //   - a use of the identifier name other than as an object key, unless injection(name) accepts
 //     every use or onlyRead(name, allow) proves it only read;
+//   - a use of the identifier `_name_` other than as an object key: AngularJS strips matching
+//     surrounding underscores from an implicit parameter name and injects name;
 //   - an injector or decorator token under any name (diReach);
 //   - an annotation the reader cannot read: a `$inject`, or an inline array whose names are not
 //     exact strings;
@@ -243,6 +245,8 @@ func (f *constFile) quietFor(name string, reg, allow int) bool {
 		switch {
 		case t.kind == tokIdent && diReach[t.text]:
 			return false
+		case t.kind == tokIdent && t.text == "_"+name+"_" && !property(toks, i) && !objectKey(toks, i):
+			return false // AngularJS injects an implicit parameter `_name_` as name; its uses are not checked
 		case t.kind == tokIdent:
 			used = used || t.text == name && !f.skip[i] && !property(toks, i) && !objectKey(toks, i)
 		case (t.kind == tokString || t.kind == tokTemplate) && !accepted[i] && !lodashName(toks, i) &&
@@ -268,9 +272,10 @@ func objectKey(toks []token, i int) bool {
 // element must be a value that cannot be a function -- an exact string or number, `true`, `false`,
 // `null`, an object or an array -- whatever its position. A function or arrow, a name or member
 // that may hold one (`undefined`, `NaN` and `Infinity` are names that can be shadowed), a call that
-// may return one, a spread or a hole fails. One trailing comma ends the list without an element.
-// The dependency list of `module('name', [...])` and a binding pattern (`const [a, b] = v`) are no
-// annotation; any other array holding a name fails closed.
+// may return one, a spread or a hole fails. A spread fails in any position, alone included: it may
+// expand to a whole annotation. One trailing comma ends the list without an element. The
+// dependency list of `angular.module('name', [...])` and a binding pattern (`const [a, b] = v`)
+// are no annotation; any other array holding a name fails closed.
 func (f *constFile) computedAnnotation() bool {
 	toks := f.toks
 	for i := range toks {
@@ -289,8 +294,8 @@ func (f *constFile) computedAnnotation() bool {
 		}
 		computed, plain := false, true
 		for n, el := range elems {
-			if n < len(elems)-1 && (el[1] != el[0]+1 || !literal(toks[el[0]])) {
-				computed = true
+			if n < len(elems)-1 && (el[1] != el[0]+1 || !literal(toks[el[0]])) || isPunct(toks[el[0]], ".") {
+				computed = true // a spread may supply every name and the function
 			}
 			plain = plain && plainElement(toks, el[0], el[1])
 		}
@@ -301,9 +306,12 @@ func (f *constFile) computedAnnotation() bool {
 	return false
 }
 
-// moduleDeps reports whether toks[i] opens the dependency list of `module('name', [...])`.
+// moduleDeps reports whether toks[i] opens the dependency list of `angular.module('name', [...])`,
+// with `angular` itself an identifier, not a property. Any other method named module is an
+// ordinary call whose array arguments may be annotations.
 func moduleDeps(toks []token, i int) bool {
-	return i >= 4 && isPunct(toks[i-1], ",") && literal(toks[i-2]) && isPunct(toks[i-3], "(") && word(toks, i-4, "module")
+	return i >= 6 && isPunct(toks[i-1], ",") && literal(toks[i-2]) && isPunct(toks[i-3], "(") && word(toks, i-4, "module") &&
+		isPunct(toks[i-5], ".") && word(toks, i-6, "angular") && !property(toks, i-6)
 }
 
 // plainElement reports whether toks[k:e] is one exact literal, `true`, `false`, `null`, an object
