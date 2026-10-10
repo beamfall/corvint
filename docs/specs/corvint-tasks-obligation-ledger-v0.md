@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-08
-Intent status: accepted (decision 0456; V1-1022)
+Intent status: accepted (decisions 0456 and 0484; V1-1022)
 Delivery status: experimental
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
@@ -11,8 +11,8 @@ was agent-drafted. The owner accepted TOL-V0-001..021 as written in chat on 2026
 0456; V1-1022), which also resolved the former Unresolved decisions by accepting the positions this
 text takes. Acceptance settles intent only. The V1-1022 implementation is experimental (see the Agent digest),
 and nothing may be promoted or advertised as delivered until its acceptance evidence exists.
-The agent-drafted additions TOL-V0-022..027 (GitHub beamfall/corvint#712 and #713) are proposed,
-pending owner acceptance; decision 0456 does not cover them. The profile reuses unchanged the ticket, mutation,
+The agent-drafted additions TOL-V0-022..027 (GitHub beamfall/corvint#712 and #713) were accepted
+as written in chat on 2026-10-10 (decision 0484). The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
@@ -23,7 +23,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: TOL-V0-001..021 accepted (decision 0456; V1-1022; owner issue #680); TOL-V0-022..027 proposed, pending owner acceptance (GitHub #712, #713); experimental; TOL-V0-001..018 and 020..027 implemented with focused tests; the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Status: accepted (decisions 0456 and 0484; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680) and TOL-V0-022..027 by decision 0484 (GitHub #712, #713); experimental; TOL-V0-001..018 and 020..027 implemented with focused tests; the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -277,7 +277,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - A raise observed while a session is running restarts the count at that session's finish, as a
     status change does.
 - `TOL-V0-022`: A `test.fail` test MUST never credit, and an obligation it marks expected-fail MUST
-  be reported `defectConfirmed`, not `failed`. Status: (proposed, pending owner acceptance; GitHub #712).
+  be reported `defectConfirmed`, not `failed`. Status: (accepted, decision 0484; GitHub #712).
   - A test is a `test.fail` test when its `expectedStatus` is `failed` or the test or its retry-0
     result carries a `fail` annotation; the annotation's description is the fail description.
   - A step id is expected-fail when the step title says expected-fail (`expected-fail`,
@@ -298,7 +298,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   passing or failing) MUST be reported in `mixedExpectedFail` `[{id, tests, remedy}]` with the
   `<specId>@<project>` test keys and the remedy to move the expected-fail obligation into its own
   test. It is not credited, not `failed`, and other tests in the same report still credit.
-  Status: (proposed, pending owner acceptance; GitHub #712).
+  Status: (accepted, decision 0484; GitHub #712).
 - `TOL-V0-024`: `witness --from-playwright-report` MUST accept `--post-check LOG
   --post-check-status N` naming the run's post-check log and exit status (0..255). Both flags are
   given together and only with a report, else usage `ERROR`. A missing or unreadable log refuses
@@ -307,12 +307,12 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   non-blank line naming an error, failure, mismatch or violation or carrying a failure mark, else
   the first non-blank line, cleaned and screened as in TOL-V0-022), before any write, so nothing
   from that run is credited. A zero status credits as without the flags. The post-check is not
-  recorded in the event. Status: (proposed, pending owner acceptance; GitHub #712).
+  recorded in the event. Status: (accepted, decision 0484; GitHub #712).
 - `TOL-V0-025`: `corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check a
   ledger ticket's `OPEN`, `DEFECT` and `BLOCKED` obligations against the spec files (`*.spec.*`,
   `*.test.*` with a JavaScript or TypeScript extension, at most 4,096, optionally under `--path`)
-  at `--commit` (default `HEAD`), read from Git objects with no checkout. Status: (proposed,
-  pending owner acceptance; GitHub #713).
+  at `--commit` (default `HEAD`), read from Git objects with no checkout. Status: (accepted,
+  decision 0484; GitHub #713).
   - The tree listing is streamed and restricted by `--path` (literal pathspecs), so Git lists
     nothing outside the prefixes; more than 4,096 spec files, or one path above 64 KiB, refuses
     `LIMIT_EXCEEDED` while it is read. Object sizes are read before content, so the content of a
@@ -342,7 +342,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 - `TOL-V0-026`: `preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at
   `PATH` in the commit, with that path. A path that is not a file there is a `PLAN_MISSING`
   finding; an oversized, malformed or other-ticket plan refuses as `ticket obligations plan` does.
-  Status: (proposed, pending owner acceptance; GitHub #713).
+  Status: (accepted, decision 0484; GitHub #713).
 - `TOL-V0-027`: `preflight --deep --gate GATE ...` MUST run each named policy gate, under the lease
   runner's `COMMAND` gate rules (worktree cwd, expected exit, declared environment, timeout and
   output cap), in one temporary detached worktree of the commit that it removes before returning, so
@@ -365,7 +365,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   `--deep` without a gate is a usage `ERROR`. A gate that does not pass is a `DEEP_CHECK_FAILED`
   finding whose `id` is the gate and whose detail quotes its first actionable line. Gate runs record
   no gate result.
-  Status: (proposed, pending owner acceptance; GitHub #713).
+  Status: (accepted, decision 0484; GitHub #713).
 
 ## Failure modes and trust
 
@@ -399,11 +399,11 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 - Consuming PWP-V0 qualified receipts. The `/2` redaction profile retains steps, so a later
   `VERIFIED_RECEIPT` source could credit from a receipt Corvint itself produced; it is excluded here.
 - Playwright tags or annotations as id carriers in the report; other test frameworks; the blob or
-  html reporters. (Proposed TOL-V0-025 reads `<contract>:<id>` string literals and an `isolated`
+  html reporters. (TOL-V0-025 reads `<contract>:<id>` string literals and an `isolated`
   annotation from spec source for preflight only; they never credit.)
 - The `fp-ledger.py` `splits` heuristic (same spec, describe and project without an `isolated`
   annotation) as a witness or plan rule. The plan check reports SPLIT per obligation instead;
-  proposed TOL-V0-025 reports a source-level `SPLIT_TESTS` finding in `preflight` only.
+  TOL-V0-025 reports a source-level `SPLIT_TESTS` finding in `preflight` only.
 - Running preflight automatically at pool acquire or claim. That hook is a follow-up (GitHub #713);
   V0 offers the explicit read only.
 - Dispatcher role predicates that match on witnessed counts.
@@ -428,8 +428,8 @@ fixture passes.
 | TOL-V0-005..008, 014, 015 | V1-1022 | `internal/tasks/mutation` (payloads, Apply), `internal/tasks/intent` (grants, policy key), `internal/tasks/transaction` (adopt/import guards, claim checks), `internal/tasks/cli` | `TestTOLV0005_SeedPrefixAndDuplicates`, `TestTOLV0006_ShowIsReadOnly`, `TestTOLV0007_SetTransitions`, `TestTOLV0008_DeclaredWitness`, `TestTOLV0014_RevisionOnlyWrite`, `TestTOLV0014_WitnessReplay` (CAS, replay, HELD admitted, COMPLETED refused), `TestTOLV0015_RoleMatrix`, `TestTOLV0015_WorkerStaleGenerationFenced` (same actor after reclamation) (`internal/tasks/cli`) | native archive round trip; two-process CAS; interrupted-commit redo (`NOT_RUN`) |
 | TOL-V0-009..013 | V1-1022 | report reader `internal/tasks/obligation` (no Node dependency), secret screen, receipt audit (`internal/tasks/transaction/obligation_audit.go`) | `TestTOLV0009_ReportAdmissionAndRetention`, `TestTOLV0009_SubsetIgnoresExcludedMatchBound`, `TestTOLV0010_StepOwnErrorCredits`, `TestTOLV0010_Retry0Only`, `TestTOLV0011_ConflictingMatches`, `TestTOLV0012_SourcePresence`, `TestTOLV0013_CreditMismatchAndAudit`, `TestTOLV0013_AuditAfterReportDeleted`, `TestTOLV0013_DeclaredWitnessAudit`, `TestTOLV0013_DeclaredCommitAudited`, `TestTOLV0013_TamperedWorkerGenerationInconsistent` (`internal/tasks/cli`), all on synthetic json reports | live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case (`NOT_RUN`: Playwright is not installed on this host; the qualified version list stays empty) |
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
-| TOL-V0-022..024 (proposed) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
-| TOL-V0-025..027 (proposed) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
+| TOL-V0-022..024 (decision 0484) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
+| TOL-V0-025..027 (decision 0484) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -492,6 +492,6 @@ TOL-V0-021 ledger version cannot be rolled back in place: an older build refuses
 `UNSUPPORTED_VERSION` (CAL-V0-132), so the operator stops the dispatcher and restores or removes
 its state file first.
 
-The proposed TOL-V0-022..027 add no stored state: the `defectConfirmed` and `mixedExpectedFail` lists and the
+The additions TOL-V0-022..027 add no stored state: the `defectConfirmed` and `mixedExpectedFail` lists and the
 `preflight` verb are read-side output, and the witness event is unchanged, so rolling them back is
 reverting the change.

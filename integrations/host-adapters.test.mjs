@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { execFileSync, spawn } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, chmodSync, cpSync, readdirSync, lstatSync } from 'node:fs'
+import { ChildProcess, execFileSync, spawn } from 'node:child_process'
+import { appendFileSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, chmodSync, cpSync, readdirSync, lstatSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -134,7 +134,7 @@ test('OpenCode boundedTask trims Go strings.TrimSpace whitespace before the boun
 })
 test('CRB-V0-012 Gemini exact transport and only normalized task/path fields',async t=>{
  const f=fixture(t);const start=await f.gemini('session-start');assert.equal(start.output.continue,true);assert.equal(start.output.hookSpecificOutput?.hookEventName,'SessionStart',start.output.systemMessage ?? JSON.stringify(start.output));const [row]=f.captured();noSecret(row)
- assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.6','--event','session-start','--input','-','--budget-bytes','8000'])
+ assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.8','--event','session-start','--input','-','--budget-bytes','8000'])
  assert.deepEqual(row.input,{sessionIdSha256:sha('raw-session-secret')})
  await f.gemini('user-prompt',{messages:[{secret:'hidden'}]});const prompt=f.captured().at(-1);assert.deepEqual(prompt.input,{sessionIdSha256:sha('raw-session-secret'),task:'repair the parser'})
  await f.gemini('after-tool',{tool_name:'write_file',tool_input:{file_path:join(f.root,'src/../src/parser.py'),content:'hidden'},tool_response:{success:true}})
@@ -319,39 +319,159 @@ async function descendantGone(witness) {
  for(const deadline=Date.now()+10000;Date.now()<deadline;await new Promise(r=>setTimeout(r,10))){try{process.kill(pid,0)}catch{rmSync(witness);return}}
  assert.fail('owned same-group descendant survived the leader')
 }
+// V1-0371: Node reaps a child before it emits 'exit', so from then on the leader's numeric group ID is
+// no longer held and may name another process's group. This spy records, for OpenCode in this process
+// and for the Gemini hook through a preload, every delivered (non-zero) signal sent to a group whose
+// leader's exit was already emitted, and can make a group SIGKILL fail. A zero probe delivers nothing.
+function installLateSignalSpy(ChildProcess,appendFileSync) {
+ const exited=new Set(),emit=ChildProcess.prototype.emit,kill=process.kill
+ ChildProcess.prototype.emit=function(name,...rest){if(name==='exit')exited.add(this.pid);return emit.call(this,name,...rest)}
+ process.kill=function(pid,signal){
+  if(pid<0&&signal!==0&&exited.has(-pid))appendFileSync(process.env.CORVINT_TEST_LATE_SIGNALS,`${pid} ${signal}\n`)
+  if(pid<0&&signal==='SIGKILL'&&process.env.CORVINT_TEST_FAIL_GROUP_KILL==='1')throw Object.assign(new Error('injected'),{code:'EINVAL'})
+  return kill.call(process,pid,signal)
+ }
+}
+function lateSignalSpy(t,host,failGroupKill=false) {
+ const dir=mkdtempSync(join(tmpdir(),'corvint-kill-')),preload=join(dir,'late-signal-spy.cjs'),log=join(dir,'late-signals');t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const environment={CORVINT_TEST_LATE_SIGNALS:log,CORVINT_TEST_FAIL_GROUP_KILL:failGroupKill?'1':'0'}
+ if(host==='gemini'){writeFileSync(preload,`(${installLateSignalSpy})(require('node:child_process').ChildProcess,require('node:fs').appendFileSync)\n`);environment.NODE_OPTIONS=`--require=${preload}`}
+ return {environment,late:()=>existsSync(log)?readFileSync(log,'utf8').split('\n').filter(Boolean):[]}
+}
+// Installs the same spy in this process around one OpenCode run, then restores process.kill and emit.
+async function withOpenCodeSpy(spy,run) {
+ const own=Object.hasOwn(ChildProcess.prototype,'emit'),emit=ChildProcess.prototype.emit,kill=process.kill,saved={...process.env}
+ Object.assign(process.env,spy.environment);installLateSignalSpy(ChildProcess,appendFileSync)
+ try{return await run()}finally{
+  process.kill=kill;if(own)ChildProcess.prototype.emit=emit;else delete ChildProcess.prototype.emit
+  for(const key of Object.keys(spy.environment)){if(key in saved)process.env[key]=saved[key];else delete process.env[key]}
+ }
+}
 for(const host of ['opencode','gemini']) {
- test(`V1-0371 ${host} timeout and cancellation kill a TERM-ignoring descendant that closed its stdio`,async t=>{
-  const timed=fixture(t,'orphan-hang')
-  if(host==='opencode'){const result=await timed.runOpen(request(timed.root,'user-prompt'));assert.equal(result.code,'timeout');assert.equal(result.deadlineMs,OPEN_TIMEOUTS.queryTimeoutMs)}
+ test(`V1-0371 ${host} timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`,async t=>{
+  const spy=lateSignalSpy(t,host),timed=fixture(t,'orphan-hang',undefined,spy.environment)
+  if(host==='opencode'){const result=await withOpenCodeSpy(spy,()=>timed.runOpen(request(timed.root,'user-prompt')));assert.equal(result.code,'timeout');assert.equal(result.deadlineMs,OPEN_TIMEOUTS.queryTimeoutMs);assert.equal(result.support,'FALLBACK')}
   else assert.match((await timed.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-timeout\)/)
   await descendantGone(timed.childPID)
-  const cancelled=fixture(t,'orphan-hang'),controller=new AbortController()
-  const pending=host==='opencode'?cancelled.runOpen({...request(cancelled.root,'user-prompt'),signal:controller.signal}):cancelled.gemini('user-prompt')
-  let settled=false;pending.then(()=>{settled=true},()=>{settled=true})
-  while(!settled&&!existsSync(cancelled.childPID))await new Promise(r=>setTimeout(r,5))
-  if(host==='opencode')controller.abort();else cancelled.interruptGemini()
-  const result=await pending
+  const cancelled=fixture(t,'orphan-hang',undefined,spy.environment),controller=new AbortController()
+  const result=await (host==='opencode'?withOpenCodeSpy(spy,async()=>{
+   const pending=cancelled.runOpen({...request(cancelled.root,'user-prompt'),signal:controller.signal})
+   let settled=false;pending.then(()=>{settled=true},()=>{settled=true})
+   while(!settled&&!existsSync(cancelled.childPID))await new Promise(r=>setTimeout(r,5))
+   controller.abort();return pending
+  }):(async()=>{
+   const pending=cancelled.gemini('user-prompt')
+   let settled=false;pending.then(()=>{settled=true},()=>{settled=true})
+   while(!settled&&!existsSync(cancelled.childPID))await new Promise(r=>setTimeout(r,5))
+   cancelled.interruptGemini();return pending
+  })())
   if(host==='opencode')assert.equal(result.code,'host-aborted');else assert.equal(result.code,143)
   await descendantGone(cancelled.childPID)
+  assert.deepEqual(spy.late(),[],'a group was signalled after its leader was reaped')
  })
- test(`V1-0371 ${host} normal exit kills a surviving descendant and names a failed kill`,async t=>{
-  const f=fixture(t,'orphan-valid')
-  if(host==='opencode')assert.equal((await f.runOpen(request(f.root,'user-prompt'))).ok,true)
-  else assert.equal((await f.gemini('user-prompt')).output.hookSpecificOutput?.hookEventName,'BeforeAgent')
-  await descendantGone(f.childPID)
-  // A group SIGKILL that fails for any reason but ESRCH is reported, never passed off as a success.
-  const preload=join(mkdtempSync(join(tmpdir(),'corvint-kill-')),'fail-group-kill.cjs');t.after(()=>rmSync(dirname(preload),{recursive:true,force:true}))
-  writeFileSync(preload,"const kill=process.kill.bind(process);process.kill=(pid,signal)=>{if(pid<0&&signal==='SIGKILL')throw Object.assign(new Error('injected'),{code:'EINVAL'});return kill(pid,signal)}\n")
-  const failed=fixture(t,'orphan-valid',undefined,{NODE_OPTIONS:`--require=${preload}`})
+ test(`V1-0371 ${host} normal exit with a surviving descendant reports unconfirmed cleanup, never success`,async t=>{
+  // The leader exits normally while its descendant runs, so the group is only observed after the reap:
+  // it is probed, never signalled, and the survivor is reported. The fixture's cleanup kills it by PID.
+  const spy=lateSignalSpy(t,host),f=fixture(t,'orphan-valid',undefined,spy.environment)
   if(host==='opencode'){
-   const kill=process.kill;process.kill=(pid,signal)=>{if(pid<0&&signal==='SIGKILL')throw Object.assign(new Error('injected'),{code:'EINVAL'});return kill.call(process,pid,signal)}
-   let result;try{result=await failed.runOpen(request(failed.root,'user-prompt'))}finally{process.kill=kill}
+   const result=await withOpenCodeSpy(spy,()=>f.runOpen(request(f.root,'user-prompt')))
    assert.equal(result.ok,false);assert.equal(result.support,'FALLBACK');assert.equal(result.code,'corvint-process-cleanup-unconfirmed')
   }
-  else assert.match((await failed.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+  else assert.match((await f.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+  assert.deepEqual(spy.late(),[],'a group was signalled after its leader was reaped')
+  const pid=Number(readFileSync(f.childPID,'utf8'));assert.doesNotThrow(()=>process.kill(pid,0),'the reported descendant is the survivor')
+ })
+ test(`V1-0371 ${host} timeout names a failed group kill instead of the timeout`,async t=>{
+  // A group SIGKILL that fails for any reason but ESRCH is reported, never passed off as a success.
+  const spy=lateSignalSpy(t,host,true),f=fixture(t,'orphan-hang',undefined,spy.environment)
+  if(host==='opencode'){
+   const result=await withOpenCodeSpy(spy,()=>f.runOpen(request(f.root,'user-prompt')))
+   assert.equal(result.ok,false);assert.equal(result.support,'FALLBACK');assert.equal(result.code,'corvint-process-cleanup-unconfirmed')
+  }
+  else assert.match((await f.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+  assert.deepEqual(spy.late(),[],'a group was signalled after its leader was reaped')
  })
 }
 
+// V1-0371: libuv reaps every exited child before it dispatches any exit callback, so inside a sibling's
+// exit callback the adapter's reaped leader still reads exitCode === null. The witness is ps, never the
+// exit event: both children are blocked into zombies first so one reap batch takes them together.
+const psRows=pids=>{try{return execFileSync('ps',['-o','pid=,stat=','-p',pids.join(',')],{encoding:'utf8'}).trim().split('\n').filter(Boolean).map(row=>row.trim().split(/\s+/))}catch{return []}}
+function blockUntilZombies(pids) {
+ for(const deadline=Date.now()+10000;;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10)){
+  const rows=psRows(pids);if(rows.length===pids.length&&rows.every(([,stat])=>stat.startsWith('Z')))return
+  if(Date.now()>deadline)throw new Error('children did not exit')
+ }
+}
+function siblingBatchProbe(blockUntilZombies,psRows,ChildProcess,spawnChild,log,onSiblingExit) {
+ // Records the leader's state in the sibling's exit callback and every non-zero signal sent to its group.
+ const original=ChildProcess.prototype.spawn,kill=process.kill,write=row=>log(JSON.stringify(row))
+ let leader
+ ChildProcess.prototype.spawn=function(...rest){
+  if(leader)return original.apply(this,rest)
+  leader=this;ChildProcess.prototype.spawn=original
+  const sibling=spawnChild('/bin/sleep',['0.2'],{stdio:'ignore'}),result=original.apply(this,rest)
+  sibling.once('exit',()=>{write({exitCode:leader.exitCode,signalCode:leader.signalCode,listed:psRows([leader.pid]).length});onSiblingExit()})
+  blockUntilZombies([sibling.pid,leader.pid])
+  return result
+ }
+ process.kill=function(pid,signal){if(leader&&pid===-leader.pid&&signal!==0)write({signalled:signal});return kill.call(process,pid,signal)}
+ return ()=>{ChildProcess.prototype.spawn=original;process.kill=kill}
+}
+const reapedInBatch={exitCode:null,signalCode:null,listed:0}
+test('V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit',async t=>{
+ const f=fixture(t),controller=new AbortController(),rows=[]
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 0.2\n',{mode:0o700})
+ const restore=siblingBatchProbe(blockUntilZombies,psRows,ChildProcess,spawn,row=>rows.push(JSON.parse(row)),()=>controller.abort());t.after(restore)
+ const result=await f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+ await new Promise(r=>setTimeout(r,50));restore()
+ assert.deepEqual(rows[0],reapedInBatch,'the leader was reaped before its exit was recorded')
+ assert.deepEqual(rows.slice(1),[],'a reaped leader\'s group was signalled')
+ assert.equal(result.code,'host-aborted')
+})
+test('V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'corvint-batch-')),log=join(dir,'batch.log'),preload=join(dir,'batch-probe.cjs');t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ writeFileSync(preload,`const {execFileSync,spawn,ChildProcess}=require('node:child_process'),{appendFileSync}=require('node:fs');const psRows=${psRows};const blockUntilZombies=${blockUntilZombies};(${siblingBatchProbe})(blockUntilZombies,psRows,ChildProcess,spawn,row=>appendFileSync(${JSON.stringify(log)},row+'\\n'),()=>process.emit('SIGTERM','SIGTERM'))\n`)
+ const f=fixture(t,'valid',undefined,{NODE_OPTIONS:`--require=${preload}`})
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 0.2\n',{mode:0o700})
+ const result=await f.gemini('user-prompt')
+ const rows=readFileSync(log,'utf8').split('\n').filter(Boolean).map(JSON.parse)
+ assert.deepEqual(rows[0],reapedInBatch,'the leader was reaped before its exit was recorded')
+ assert.deepEqual(rows.slice(1),[],'a reaped leader\'s group was signalled')
+ assert.equal(result.code,143)
+})
+test('V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader\'s stdout open',async t=>{
+ // The leader exits at once while a same-group descendant inherits its stdout, so close cannot arrive
+ // before the descendant ends. The group is never signalled after the reap, and the hook still completes.
+ const f=fixture(t),witness=join(f.dir,'descendant.pid')
+ writeFileSync(f.binary,`#!/bin/sh\n/bin/sleep 20 &\necho $! > ${shellQuote(witness)}\nexit 0\n`,{mode:0o700})
+ t.after(()=>{if(existsSync(witness))try{process.kill(Number(readFileSync(witness,'utf8')),'SIGKILL')}catch{}})
+ const started=performance.now(),result=await f.gemini('user-prompt',{},undefined,1500)
+ assert.ok(performance.now()-started<1500+5000,'the hook waited for the descendant\'s inherited pipe')
+ assert.match(result.output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+ assert.doesNotThrow(()=>process.kill(Number(readFileSync(witness,'utf8')),0),'the reported descendant is the survivor')
+})
+test('V1-0371 Gemini exits after reporting a leader whose group kill failed',async t=>{
+ // The leader ignores SIGTERM and the group SIGKILL fails, so it outlives the report; the hook must
+ // still exit within its deadline instead of waiting on the leader's process handle.
+ const spy=lateSignalSpy(t,'gemini',true),f=fixture(t,'valid',undefined,spy.environment),witness=join(f.dir,'leader.pid')
+ writeFileSync(f.binary,`#!/bin/sh\ntrap '' TERM\necho $$ > ${shellQuote(witness)}\nexec /bin/sleep 20\n`,{mode:0o700})
+ t.after(()=>{if(existsSync(witness))try{process.kill(Number(readFileSync(witness,'utf8')),'SIGKILL')}catch{}})
+ const started=performance.now(),result=await f.gemini('user-prompt',{},undefined,1500)
+ assert.ok(performance.now()-started<3000,'the hook outlived its deadline waiting on the leader')
+ assert.match(result.output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+ assert.doesNotThrow(()=>process.kill(Number(readFileSync(witness,'utf8')),0),'the reported leader is the survivor')
+})
+test('V1-0371 OpenCode concurrent cancellations share one SIGTERM grace',async t=>{
+ const f=fixture(t),controller=new AbortController(),holds=[],wait=Atomics.wait
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+ Atomics.wait=function(...rest){holds.push(rest[3]);return wait.apply(Atomics,rest)};t.after(()=>{Atomics.wait=wait})
+ const pending=Array.from({length:16},()=>f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal}))
+ await new Promise(r=>setTimeout(r,100));controller.abort()
+ const results=await Promise.all(pending);Atomics.wait=wait
+ assert.deepEqual(results.map(result=>result.code),Array(16).fill('host-aborted'))
+ assert.equal(holds.length,1,'each cancellation blocked the thread for its own grace')
+})
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)
  for(const raw of ['{','[]',JSON.stringify({hook_event_name:'Wrong',cwd:f.root}),JSON.stringify({hook_event_name:'SessionStart',cwd:f.root,padding:'x'.repeat(140000)})]) {
@@ -707,6 +827,39 @@ test('AHI-020 CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed s
  }
  const recognised=new Set(matrix.receiptDegradationPolicy.recognised)
  assert.deepEqual(matrix.globalDegradations.filter(code=>recognised.has(code)),[])
+})
+test('AHI-051 Claude Code plugin presents complete metadata, plain status messages and read-only skills',()=>{
+ const read=rel=>JSON.parse(readFileSync(join(here,rel),'utf8'))
+ const root='claude-code/plugins/corvint',manifest=read(`${root}/.claude-plugin/plugin.json`)
+ const entry=read('claude-code/.claude-plugin/marketplace.json').plugins.find(p=>p.name==='corvint')
+ for(const [label,d] of [['plugin.json',manifest],['marketplace entry',entry]]) {
+  for(const key of ['displayName','description','homepage','repository'])assert.ok(typeof d[key]==='string'&&d[key].length>0,`${label}: ${key}`)
+  assert.ok(d.author?.name,`${label}: author.name`)
+  assert.equal(d.license,'AGPL-3.0-or-later',`${label}: license follows LICENSING.md`)
+  assert.doesNotMatch(d.description,/preview/i,`${label}: description names what Corvint provides`)
+ }
+ assert.equal(entry.version,manifest.version)
+ assert.equal(manifest.metadata.support,'FALLBACK')
+ for(const [event,groups] of Object.entries(read(`${root}/hooks/hooks.json`).hooks))for(const group of groups)for(const hook of group.hooks) {
+  assert.ok(typeof hook.statusMessage==='string'&&hook.statusMessage.length>0,`${event}: statusMessage`)
+  assert.doesNotMatch(hook.statusMessage,/frontier|observation|receipt/i,`${event}: statusMessage is plain words`)
+ }
+ const verbs={context:null,impact:['impact'],affected:['affected'],review:['review'],status:['--version','observations','dogfood status'],index:['index']}
+ assert.deepEqual(readdirSync(join(here,root,'skills')).sort(),Object.keys(verbs).sort())
+ for(const [name,allowed] of Object.entries(verbs)) {
+  const text=readFileSync(join(here,root,'skills',name,'SKILL.md'),'utf8'),front=text.split('---')[1]
+  assert.match(front,new RegExp(`^name: ${name}$`,'m'),`${name}: name`)
+  assert.match(front,/^description: \S/m,`${name}: description`)
+  assert.equal(/^disable-model-invocation: true$/m.test(front),name==='status'||name==='index',`${name}: user-only iff status or index`)
+  if(!allowed)continue
+  const tools=front.match(/^allowed-tools: (.*)$/m)[1].split(/,\s*/)
+  for(const tool of tools) {
+   const command=tool.match(/^Bash\((.*?)(:\*)?\)$/)?.[1]
+   assert.ok(command,`${name}: ${tool} is a Bash pattern`)
+   const ok=command.startsWith('git rev-parse')||command.startsWith('git status')||command.startsWith('git merge-base')||command==='ls'||allowed.some(v=>command===`corvint ${v}`)
+   assert.ok(ok,`${name}: ${tool} pre-approves only its verb and read-only git or ls`)
+  }
+ }
 })
 test('AHI-023 host-version disclosure matches what each plugin adapter sends',()=>{
  const degradations=rel=>JSON.parse(readFileSync(join(here,rel),'utf8')).degradations

@@ -251,3 +251,14 @@ Tests:
     `[retire signal reaped cancel signal]`.
   - Restoring the round-4 order (kill after `Wait`) failed with
     `[retire cancel signal reaped signal]`.
+
+## Acceptance and closeout
+
+- Codex review round 6 passed on 33debb49.
+- The owner accepted TOL-V0-022..027 as written, in chat on 2026-10-10 ("accept tol"), recorded as
+  decision 0484.
+- The spec's intent line, digest status, requirement statuses and traceability rows record it, as
+  do the `docs/specs/README.md` row and `docs/specs/INDEX.json`.
+- Delivery stays experimental.
+- The live Playwright `test.fail` fixture and preflight against a real Playwright suite remain
+  `NOT_RUN`.

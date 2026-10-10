@@ -1,0 +1,40 @@
+{
+  "baseRevision": "684cca5f7c0e3e4b4900e07203f63949bc73984f",
+  "evidence": [
+    {
+      "blobOid": "4fcea0d831a0d857341c9e732f2781a692ced6c9",
+      "id": "evidence:sha256:8011fb0180787b074ff5c2fd972b5b2d5f1234a4975a69d147e0bb957623220f",
+      "path": "docs/specs/mcp-server-2026-07-28-v0.md",
+      "span": {
+        "end": 44520,
+        "start": 44152
+      },
+      "spanSha256": "ca2f56acb8503fcc12778de812f0ad3e0fff05fb186b2b19a815edf8845a54b3"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8011fb0180787b074ff5c2fd972b5b2d5f1234a4975a69d147e0bb957623220f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:073aa7a87ecc0308062c6a3bf6cf1efa621e4df4601c812191ff3b6a5177db7f",
+      "newRange": {
+        "count": 12,
+        "start": 150
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 150
+      },
+      "path": "extensions/vscode/src/model.ts",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "484efef5d25ebae205acefae32feda37bf3dc244523675187c5951335e81500c",
+  "spec": "cem/0.2"
+}
