@@ -5,7 +5,7 @@ import path from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.7.11"
+export const ADAPTER_VERSION = "0.7.12"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
@@ -435,25 +435,40 @@ function signalGroup(child, signalName) {
   }
 }
 
-// cleanupConfirmed decides an owned group's cleanup at completion. A SIGKILL delivered while the
+// confirmCleanup decides an owned group's cleanup at completion. A SIGKILL delivered while the
 // leader was unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before termination,
 // or an EPERM (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0:
 // it delivers nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives,
 // confirms it. Any other answer, or a failed kill, completes as unconfirmed, never as success (V1-0371).
-function cleanupConfirmed(pid, cleanup) {
-  if (cleanup === "DELIVERED" || cleanup === "ESRCH") return true
-  if (cleanup === undefined || cleanup === "EPERM" || cleanup === "LEADER-REAPED") return groupGone(pid)
-  return false
+// A probe answering EPERM is repeated, never escalated, for at most ZOMBIE_REPROBE_MS: the leader stays
+// a zombie until a poll phase reaps it, which a stalled host can put after the reap timer, and an
+// orphaned member stays one until launchd reaps it (V1-1116).
+const ZOMBIE_REPROBE_MS = 200
+const ZOMBIE_REPROBE_INTERVAL_MS = 5
+
+function confirmCleanup(pid, cleanup, settle) {
+  if (cleanup === "DELIVERED" || cleanup === "ESRCH") return settle(true)
+  if (cleanup !== undefined && cleanup !== "EPERM" && cleanup !== "LEADER-REAPED") return settle(false)
+  probeGroup(pid, performance.now() + ZOMBIE_REPROBE_MS, settle)
 }
 
-function groupGone(pid) {
-  if (!Number.isInteger(pid)) return true
+function probeGroup(pid, deadline, settle) {
+  const answer = groupProbe(pid)
+  if (answer === "EPERM" && performance.now() < deadline) {
+    setTimeout(() => probeGroup(pid, deadline, settle), ZOMBIE_REPROBE_INTERVAL_MS)
+    return
+  }
+  settle(answer === "ESRCH")
+}
+
+function groupProbe(pid) {
+  if (!Number.isInteger(pid)) return "ESRCH"
   try {
     process.kill(-pid, 0)
   } catch (error) {
-    return error?.code === "ESRCH"
+    return error?.code ?? "UNKNOWN"
   }
-  return false
+  return "PRESENT"
 }
 
 export function createCorvintRunner(options = {}) {
@@ -544,7 +559,9 @@ export function createCorvintRunner(options = {}) {
         clearTimeout(reapTimer)
         cancelTermination?.()
         if (signal) signal.removeEventListener("abort", abort)
-        resolve(cleanupConfirmed(child.pid, cleanup) ? value : degradation(event, "corvint-process-cleanup-unconfirmed"))
+        confirmCleanup(child.pid, cleanup, (confirmed) => {
+          resolve(confirmed ? value : degradation(event, "corvint-process-cleanup-unconfirmed"))
+        })
       }
       const terminate = (code) => {
         if (terminationCode) return

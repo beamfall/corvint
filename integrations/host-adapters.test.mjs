@@ -472,6 +472,49 @@ test('V1-0371 OpenCode concurrent cancellations share one SIGTERM grace',async t
  assert.deepEqual(results.map(result=>result.code),Array(16).fill('host-aborted'))
  assert.equal(holds.length,1,'each cancellation blocked the thread for its own grace')
 })
+// V1-1116: libuv runs due timers right after the check phase, before the next poll phase reaps a child.
+// A termination turn that ends after the 100 ms reap timer is due (a stalled hosted VM; here a grace
+// held for 150 ms) therefore completes while the leader that SIGTERM killed is still an unreaped
+// zombie, and Darwin answers EPERM to every signal, including the signal-0 probe, for a zombie-only
+// group. On Darwin this failed on the base as corvint-process-cleanup-unconfirmed.
+test('V1-1116 OpenCode completion after a stalled termination turn re-probes the zombie group',async t=>{
+ const f=fixture(t),controller=new AbortController(),wait=Atomics.wait
+ writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+ Atomics.wait=function(array,index,value){return wait.call(Atomics,array,index,value,150)};t.after(()=>{Atomics.wait=wait})
+ const pending=f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+ await new Promise(r=>setTimeout(r,100));controller.abort()
+ const result=await pending;Atomics.wait=wait
+ assert.equal(result.code,'host-aborted',JSON.stringify(result))
+})
+// V1-1116: the EPERM re-probe sends only signal 0, confirms only on ESRCH and is bounded: a group
+// that keeps answering EPERM still completes as the degradation, within the bound. The group SIGKILL
+// is delivered and then answered as Darwin's EPERM, and the probe answers are injected, so the test
+// does not depend on the platform or on when the leader is reaped.
+test('V1-1116 OpenCode EPERM re-probe confirms only on ESRCH and is bounded',async t=>{
+ const kill=process.kill;t.after(()=>{process.kill=kill})
+ const refuse=code=>Object.assign(new Error(code),{code})
+ const run=async eperms=>{
+  const f=fixture(t),controller=new AbortController(),signals=[];let probes=0
+  writeFileSync(f.binary,'#!/bin/sh\nexec /bin/sleep 5\n',{mode:0o700})
+  process.kill=function(pid,signal){
+   if(pid>=0)return kill.call(process,pid,signal)
+   signals.push(signal)
+   if(signal==='SIGKILL'){try{kill.call(process,pid,signal)}catch{};throw refuse('EPERM')}
+   if(signal===0)throw refuse(probes++<eperms?'EPERM':'ESRCH')
+   return kill.call(process,pid,signal)
+  }
+  const pending=f.runOpen({...request(f.root,'user-prompt'),signal:controller.signal})
+  await new Promise(r=>setTimeout(r,100));controller.abort()
+  const started=performance.now(),result=await pending,elapsed=performance.now()-started;process.kill=kill
+  assert.deepEqual(signals.filter(s=>s!==0),['SIGTERM','SIGKILL'],'the re-probe sent a non-zero group signal')
+  return {result,elapsed,probes}
+ }
+ const cleared=await run(3)
+ assert.equal(cleared.result.code,'host-aborted',JSON.stringify(cleared.result));assert.equal(cleared.probes,4)
+ const stuck=await run(Infinity)
+ assert.equal(stuck.result.code,'corvint-process-cleanup-unconfirmed',JSON.stringify(stuck.result))
+ assert.ok(stuck.probes>1,'EPERM was not re-probed');assert.ok(stuck.elapsed<5000,'the re-probe outlived its bound')
+})
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)
  for(const raw of ['{','[]',JSON.stringify({hook_event_name:'Wrong',cwd:f.root}),JSON.stringify({hook_event_name:'SessionStart',cwd:f.root,padding:'x'.repeat(140000)})]) {

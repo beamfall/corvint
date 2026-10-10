@@ -1051,6 +1051,35 @@ do not reinterpret this Frontier result.
   and `conformance/host-lifecycle-v1` discovery reports the six skills on the installed host.
   Rollback: restore the 0.2.3 manifest, marketplace and `hooks.json` and delete the five skill
   directories under a new plugin version; no store, ledger or wire format changes.
+- `AHI-052`: (proposed; V1-1116; amends `AHI-050` for OpenCode only, pending owner acceptance) When
+  the OpenCode adapter's cleanup probe `kill(-pid, 0)` answers `EPERM`, the adapter MUST repeat that
+  signal-0 probe every 5 ms until it answers `ESRCH` or 200 ms have passed, and MUST NOT send any
+  other signal to the group meanwhile. Only `ESRCH` confirms cleanup; an `EPERM` that persists past
+  the bound, or any other answer, completes as `corvint-process-cleanup-unconfirmed`, as in `AHI-050`.
+  Darwin answers `EPERM` to every signal, signal 0 included, for a group whose members are all
+  unreaped zombies. Node reaps the leader only in libuv's poll phase, and libuv runs due timers right
+  after the check phase, so a termination turn that ends after the 100 ms completion timer is due (a
+  stalled host) probes while the leader that SIGTERM killed is still a zombie; an orphaned member
+  stays one until launchd reaps it. For OpenCode this replaces `AHI-050`'s "OpenCode completes 100 ms
+  after the request" with "100 ms after the request, plus at most the 200 ms re-probe when the probe
+  answers `EPERM`", and its "Any other signal or probe answer, including Darwin `EPERM`, completes as
+  that degradation" with the bounded re-probe above.
+  Acceptance: `V1-1116 OpenCode completion after a stalled termination turn re-probes the zombie
+  group` holds the termination grace for 150 ms, so the completion timer fires before the leader is
+  reaped; on Darwin it failed on the base as `corvint-process-cleanup-unconfirmed` (5 of 5) and passes
+  after. `V1-1116 OpenCode EPERM re-probe confirms only on ESRCH and is bounded` injects the probe
+  answers: three `EPERM`s then `ESRCH` confirm after four probes, a persistent `EPERM` completes as the
+  degradation, and no non-zero group signal follows the SIGKILL. A hosted macos-15 run passing
+  `host-adapter-test` and `TestHostAdapterJavaScriptHosts`, with its run id retained, is still required.
+  Non-goals: no change to Gemini, which keeps `AHI-050` as accepted; no change to which answers
+  confirm, to the group signals, the SIGTERM grace or the 100 ms timer; no wait for close.
+  Failure modes: a group holding a live member of another user answers `EPERM` throughout, so it
+  completes 200 ms later and still unconfirmed. A host stalled past the bound still reads a zombie-only
+  group as unconfirmed. The re-probe timer is referenced, so it holds the host process for at most the
+  bound.
+  Rollback: restore the single `groupGone` probe in `integrations/opencode/src/runtime.js` in place of
+  `confirmCleanup`, `probeGroup` and `groupProbe`, and remove the two tests. OpenCode again completes
+  100 ms after the request and reads a zombie-only group as unconfirmed.
 
 ## Native platform profiles
 
