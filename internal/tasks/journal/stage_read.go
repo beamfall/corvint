@@ -54,11 +54,26 @@ func (r Reader) readStage(o *observation) (files []snapshot.StageFile, validatio
 	}
 	for _, p := range sortedPaths(o.files) {
 		if strings.HasPrefix(p, "staging/a") && p != "staging/active.json" && p != "staging/active.json.tmp" && !assigned[strings.TrimPrefix(p, "staging/")] {
-			return files, wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot"), nil
+			refusal := wire.Errorf(wire.CodeMalformed, p, "unassigned stage slot")
+			if d == nil && o.files["staging/active.json.tmp"] == nil {
+				// A native writer holds descriptor-less slots under its lock
+				// while it publishes; audit waits a bounded time (CTS-V0-008).
+				return files, slotsInFlight{refusal}, nil
+			}
+			return files, refusal, nil
 		}
 	}
 	return files, nil, nil
 }
+
+// slotsInFlight marks an unassigned-slot refusal observed with no stage
+// descriptor or descriptor temp: the shape a native writer's publish leaves
+// for its lifetime and a killed writer leaves until the next writer clears
+// it. audit waits for it (snapshot.StageSlotWait) and then returns the wrapped
+// MALFORMED unchanged (CTS-V0-008).
+type slotsInFlight struct{ error }
+
+func (e slotsInFlight) Unwrap() error { return e.error }
 
 func (r Reader) validateStage(o *observation, genesisQueue []byte) error {
 	if o.stageErr != nil {

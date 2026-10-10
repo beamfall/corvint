@@ -22,6 +22,7 @@ import (
 // records it as a PathText rather than an Identifier. Before the fix DISPATCH
 // refused LIMIT_EXCEEDED after the worktree and its program records existed.
 func TestCALV0086_LongWorkRootStageDispatches(t *testing.T) {
+	t.Parallel()
 	f := buildProgramFixture(t, false, true, nil)
 	f.config.WorkRoot = filepath.Join(fixture.TempDirOutside(t), strings.Repeat("w", 160))
 	self, err := os.Executable()
@@ -47,6 +48,7 @@ func TestCALV0086_LongWorkRootStageDispatches(t *testing.T) {
 // with LIMIT_EXCEEDED before any directory, program record or Git worktree
 // exists.
 func TestCALV0086_OverlongWorktreeRefusedBeforeMutation(t *testing.T) {
+	t.Parallel()
 	f := buildProgramFixture(t, false, false, nil)
 	base := fixture.TempDirOutside(t)
 	f.config.WorkRoot = filepath.Join(base, strings.Repeat(strings.Repeat("w", 200)+"/", 21))
@@ -149,12 +151,13 @@ func TestCALV0086_UnprovedStopIsNotFinished(t *testing.T) {
 // "MALFORMED: staging/a00: unassigned stage slot"): failures shorter than the
 // watcher's bounded tolerance leave the stage to finish and build.
 func TestCALV0086_WatcherToleratesTransientReadFailure(t *testing.T) {
+	t.Parallel()
 	f := buildProgramFixture(t, false, false, nil)
 	if err := os.WriteFile(filepath.Join(f.scripts, "slow"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var reads atomic.Int32
-	defer store.SetRunFaultForTest(func(point string) error {
+	defer store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
 		if point == "watch-read" {
 			reads.Add(1)
 			return wire.Errorf(wire.CodeMalformed, "staging/a00", "unassigned stage slot")

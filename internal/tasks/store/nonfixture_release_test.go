@@ -41,6 +41,7 @@ func applyRelease(t *testing.T, repo *intent.Repository, raw []byte) *store.Repo
 
 // CAL-V0-027: release intent is admitted after the existing qualification switch too.
 func TestCALV0027_ReleaseAfterQualifiedCutover(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-027 witness", testCALV0027_ReleaseAfterQualifiedCutover)
 }
 
@@ -146,6 +147,7 @@ func testCALV0027_ReleaseInterruptionRecovery(t *testing.T) {
 
 // CAL-V0-027: reconciliation retains the settled-state boundary and original bytes.
 func TestCALV0027_ReleaseActiveStageAndReconciliation(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-027 witness", testCALV0027_ReleaseActiveStageAndReconciliation)
 }
 
@@ -196,6 +198,7 @@ func testCALV0027_ReleaseActiveStageAndReconciliation(t *testing.T) {
 
 // CAL-V0-027: the trusted caller binding still outranks the submitted actor.
 func TestCALV0027_ReleaseWrongActor(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-027 witness", testCALV0027_ReleaseWrongActor)
 }
 

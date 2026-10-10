@@ -147,6 +147,7 @@ func refusedEscalation(t *testing.T, report *store.Report, outcome, code, reduce
 // (ESC-V0-001, ESC-V0-003, ESC-V0-010); a retry replays the same event; the
 // sole-open ANSWER shorthand resolves and reports its target (ESC-V0-004).
 func TestIssue502_OpenAnswerCommitsTicketAndEvents(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	before, _ := escalationRefs(t, s, id)
 	open := openRequest(t, "q-1", src, "", "")
@@ -234,6 +235,7 @@ func TestIssue502_SupersedePostsBothEvents(t *testing.T) {
 // events are retained evidence published before the commit point, so the
 // retry reads them back rather than rewriting them.
 func TestIssue502_RedoRepublishesTheTicket(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	head := filepath.Join(s.repo.StateDir, "head.json")
 	before, err := os.ReadFile(head)
@@ -267,6 +269,7 @@ func TestIssue502_RedoRepublishesTheTicket(t *testing.T) {
 // never REQUEST_ID_CONFLICT, and an OPERATOR without an explicit grant may
 // not answer (ESC-V0-001, ESC-V0-004).
 func TestIssue502_ActorBindingBeforeReplay(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	open := openRequest(t, "q-1", src, "", "")
 	refusedEscalation(t, escalate(t, s, operator(), open, 1), mutation.OutcomeUnauthorized, "", "ACTOR_BINDING")
@@ -280,6 +283,7 @@ func TestIssue502_ActorBindingBeforeReplay(t *testing.T) {
 // TestIssue502_OpenAuditsTheClaim: a forged receipt digest abstains, an
 // expired lease is fenced; neither writes.
 func TestIssue502_OpenAuditsTheClaim(t *testing.T) {
+	t.Parallel()
 	s, _, src := escalationClaim(t)
 	forged := src
 	forged.ReceiptSha256 = wire.Sum([]byte("forged"))
@@ -290,6 +294,7 @@ func TestIssue502_OpenAuditsTheClaim(t *testing.T) {
 // TestIssue502_AnswerRaceHasOneWinner: two answers under the same question
 // CAS race through the store lock; exactly one commits.
 func TestIssue502_AnswerRaceHasOneWinner(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
 	_, refs := escalationRefs(t, s, id)
@@ -327,6 +332,7 @@ func TestIssue502_AnswerRaceHasOneWinner(t *testing.T) {
 // to after its claim cannot escalate through the external-agent path until
 // the supervised grant adapter is qualified (ESC-V0-001).
 func TestIssue502_SupervisedAttemptIsUnsupported(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -379,6 +385,7 @@ func TestIssue502_SupervisedAttemptIsUnsupported(t *testing.T) {
 // published before the commit point, so a redo or replay that finds it
 // missing refuses JOURNAL_FORKED rather than recreating it.
 func TestIssue502_DeletedEventIsJournalDamage(t *testing.T) {
+	t.Parallel()
 	s, _, src := escalationClaim(t)
 	open := openRequest(t, "q-1", src, "", "")
 	committed(t, escalate(t, s, holder, open, 1), "OPEN")
@@ -410,6 +417,7 @@ func TestIssue502_DeletedEventIsJournalDamage(t *testing.T) {
 // replays the question it resolved, even after a later OPEN would make the
 // same shorthand resolve another question (ESC-V0-004, ESC-V0-010).
 func TestIssue502_ShorthandAnswerReplaysAfterLaterOpen(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
 	reply := answerRequest(t, "a-1", id, operator(), "", "")
@@ -430,6 +438,7 @@ func TestIssue502_ShorthandAnswerReplaysAfterLaterOpen(t *testing.T) {
 // through a policy.roles.OPERATOR row that names ANSWER (ESC-V0-004), and a
 // row for any other non-owner role may not name it at all.
 func TestIssue502_OperatorAnswersThroughExplicitGrant(t *testing.T) {
+	t.Parallel()
 	s, id, src := escalationClaim(t)
 	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
 	op := mutation.Binding{ID: "op-1", Role: "OPERATOR"}
@@ -625,6 +634,7 @@ func requestSum(r ticket.EscalationRequest) (wire.Digest, error) {
 // JOURNAL_FORKED with the projection unchanged, and once settled refuses the
 // receipt binding fold that receipt audit runs (ESC-V0-010).
 func TestIssue502_ForgedEventRefusesAsJournalDamage(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, detail string
 		forge        func(*ticket.EscalationEvent)
@@ -708,6 +718,7 @@ func forkedWith(t *testing.T, err error, detail string) {
 // admission, and are never dropped (ESC-V0-010); an unreferenced event blob
 // is accepted.
 func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
+	t.Parallel()
 	s, _, src := escalationClaim(t)
 	first := escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1)
 	committed(t, first, "OPEN")
@@ -852,6 +863,7 @@ func receiptHistory(t *testing.T, s *leaseStore, last uint64) ([]*snapshot.Recei
 // The history is the real one with the ATTACH receipt's attempt post moved
 // ahead of the OPEN (ESC-V0-010).
 func TestIssue502_SupervisedSinceClaimFoldRefuses(t *testing.T) {
+	t.Parallel()
 	s := newLeaseStore(t)
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))

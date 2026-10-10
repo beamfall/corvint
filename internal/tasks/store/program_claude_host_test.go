@@ -122,6 +122,7 @@ func (f *claudeFixture) setPolicy(t *testing.T, executable, policyHost string) {
 // is UNSUPPORTED and a missing, unpinned or digest-mismatched executable is
 // CAPABILITY_UNAVAILABLE, each before any program record, worktree or lease.
 func TestCALV0074_OpenWorkflowRefusesHostBeforeMutation(t *testing.T) {
+	t.Parallel()
 	f := newClaudeFixture(t, supervisor.HostClaudeCode)
 	codexPolicy := newClaudeFixture(t, "")
 	unpinned := filepath.Join(f.scripts, "unpinned-claude")
@@ -172,6 +173,7 @@ func TestCALV0074_OpenWorkflowRefusesHostBeforeMutation(t *testing.T) {
 // resumed) independent review session accepts every claim, and usage is
 // re-derived in the Claude Code vocabulary.
 func TestCALV0075_ClaudeCodeProgramFakeHost(t *testing.T) {
+	t.Parallel()
 	f := newClaudeFixture(t, supervisor.HostClaudeCode)
 	self, err := os.Executable()
 	if err != nil {
@@ -265,6 +267,7 @@ func (f *claudeFixture) program(t *testing.T, id string) snapshot.Program {
 // admission settles the dispatched stage as NO_EXEC and cancels the attempt,
 // leaving no live claim or reservation.
 func TestCALV0074_AdmissionRunsLaunchCheck(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	for _, tc := range []struct {
 		name, want string
@@ -566,6 +569,7 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 // keeps its claim and cannot be reopened under the Codex pin; restoring the
 // Claude Code pin recovers bounded cancel access without a stage launch.
 func TestCALV0074_HostSwitchAndRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	f := newClaudeFixture(t, supervisor.HostClaudeCode)
 	self, err := os.Executable()

@@ -121,6 +121,7 @@ func untouched(t *testing.T, repo *intent.Repository, linked string) wire.Digest
 // the intent branch, CREATE commits, the projection lands in the linked
 // worktree, and the primary's HEAD, index and projection are untouched.
 func TestCTWV0002_FeatureBranchPrimaryFilesIntoTheIntentWorktree(t *testing.T) {
+	t.Parallel()
 	base, _ := initialized(t)
 	fixture.Write(t, filepath.Join(base.CommonDir, "index"), []byte("DIRC fixture index bytes"))
 	repo, linked := moveToFeature(t, base)
@@ -177,6 +178,7 @@ func TestCTWV0002_FeatureBranchPrimaryFilesIntoTheIntentWorktree(t *testing.T) {
 // INTENT_BRANCH_MISMATCH when no linked worktree holds the intent branch, adds
 // the exact fix, and writes nothing.
 func TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix(t *testing.T) {
+	t.Parallel()
 	base, _ := initialized(t)
 	fixture.Write(t, filepath.Join(base.CommonDir, "HEAD"), []byte("ref: refs/heads/feature\n"))
 	repo, err := intent.Resolve(base.PrimaryWorktree)
@@ -198,6 +200,7 @@ func TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix(t *testing.T) {
 // TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix: a registration whose
 // worktree was deleted is not admitted; the refusal names prune and add.
 func TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix(t *testing.T) {
+	t.Parallel()
 	base, _ := initialized(t)
 	_, linked := moveToFeature(t, base)
 	if err := os.RemoveAll(linked); err != nil {
@@ -225,6 +228,7 @@ func TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix(t *testing.T) {
 // existing audit, the refusal names the linked projection, and nothing is
 // written anywhere.
 func TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix(t *testing.T) {
+	t.Parallel()
 	base, _ := initialized(t)
 	repo, linked := moveToFeature(t, base)
 	editJSON(t, filepath.Join(linked, intent.Dir, "policy.json"), func(v wire.Value) {
@@ -247,6 +251,7 @@ func TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix(t *testing.T) {
 // primary a drift refusal carries no CTW repair text even when linked
 // worktrees exist, and writes still publish into the primary.
 func TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	admin := filepath.Join(repo.CommonDir, "worktrees", "side")
 	side := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "side")
@@ -275,6 +280,7 @@ func TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged(t *testing.T) {
 // acceptance with real `git worktree add`, checking the primary's branch,
 // index file and `git status` before and after.
 func TestCTWV0002_RealGitWorktreeFilesWithoutSwitchingThePrimary(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git unavailable")
 	}

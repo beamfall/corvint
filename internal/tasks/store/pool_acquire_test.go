@@ -78,6 +78,7 @@ func (s *leaseStore) poolEntries(t *testing.T) map[string]snapshot.PoolEntry {
 // second member, returns the exact allocation into quarantine while staying
 // live, cannot acquire again in that generation, and completes holding none.
 func TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
+	t.Parallel()
 	s := acquireStore(t, nil)
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
@@ -152,6 +153,7 @@ func TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation(t *testing.T) {
 // CAL-V0-202: completing, releasing or reaping an attempt that holds an
 // acquired allocation quarantines it exactly as a claimed one.
 func TestCALV0202_EndingQuarantinesAcquiredAllocation(t *testing.T) {
+	t.Parallel()
 	for _, end := range []string{"complete", "release", "reap"} {
 		t.Run(end, func(t *testing.T) {
 			s := acquireStore(t, nil)
@@ -184,6 +186,7 @@ func TestCALV0202_EndingQuarantinesAcquiredAllocation(t *testing.T) {
 // CAL-V0-199: acquire runs the pooled-claim health preparation for the
 // attempt's holder and stage, skipping a failing member.
 func TestCALV0199_AcquirePreparesHealth(t *testing.T) {
+	t.Parallel()
 	s := acquireStore(t, map[string]string{"a": "1", "b": "0"})
 	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
 	got := s.lease(t, "acquire-1", acquireOf(claim, "db"), 1, nil)
@@ -204,6 +207,7 @@ func TestCALV0199_AcquirePreparesHealth(t *testing.T) {
 // skips the member that implemented the ticket, including one an implement
 // attempt acquired and returned early; an implement attempt cannot ask.
 func TestCALV0200_AcquireExcludesAuthors(t *testing.T) {
+	t.Parallel()
 	s := acquireStore(t, nil)
 	id := s.ticket(t, "one")
 	implement := claimOf(id, "src/")
@@ -250,6 +254,7 @@ func TestCALV0200_AcquireExcludesAuthors(t *testing.T) {
 // CAL-V0-199, CAL-V0-201: an admission barrier pauses acquire but not the
 // early return of an allocation.
 func TestCALV0199_BarrierPausesAcquireNotRelease(t *testing.T) {
+	t.Parallel()
 	s := acquireStore(t, nil)
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	first := s.claim(t, "claim-1", one, 0, "src/")
