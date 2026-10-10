@@ -4,13 +4,18 @@
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
 // one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`
-// (text before the JSON object is ignored):
+// (text before the JSON object is ignored). A log is refused when any test,
+// subtest or package fails, a started package has no terminal pass or skip, or
+// a started test never ends:
 //
 //	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 6] [--target 0] LOG...
 //	ci-test-slices replay [--root DIR] [--shards 6] [--costs FILE] [--slices FILE] LOG...
 //
-// generate enumerates each allowed package with `go test -race -list .` in DIR,
-// whose clean HEAD must be SHA, and rewrites the slice file. A package splits only
+// generate checks out the tracked tree of SHA from the repository at DIR into a
+// temporary directory through a temporary index, reads the allow-list there and
+// enumerates each allowed package there with `go test -race -list .`, so neither
+// untracked nor modified files of DIR contribute; it then rewrites DIR's slice
+// file. DIR's index, worktrees and refs are not written. A package splits only
 // when its observed time exceeds the target (default: the ideal shard share). Its
 // named slices are contiguous runs of its sorted test names that minimise the
 // largest slice, weighted by the observed time of each top-level test, or by
@@ -97,8 +102,8 @@ type observation struct {
 	files    []int64                     // summed package time per log, ms
 }
 
-// observe reads one complete passing run. A failed or repeated outcome is refused:
-// its time is not a cost of the suite.
+// observe reads one complete passing run. A failed, repeated or missing outcome
+// is refused: the run is then not a complete, passing measurement of the suite.
 func observe(paths []string) (*observation, error) {
 	o := &observation{packages: map[string]int64{}, tests: map[string]map[string]int64{}}
 	for _, path := range paths {
@@ -121,6 +126,9 @@ func (o *observation) read(path string) (int64, error) {
 	}
 	defer f.Close()
 	var sum int64
+	started := map[string]bool{} // packages with any event in this log
+	ended := map[string]bool{}   // packages with a terminal pass or skip in this log
+	running := map[string]bool{} // "package test" run, subtests included, not yet ended
 	s := bufio.NewScanner(f)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
 	for s.Scan() {
@@ -135,13 +143,24 @@ func (o *observation) read(path string) (int64, error) {
 			Test    string
 			Elapsed float64
 		}
-		if json.Unmarshal(line[i:], &e) != nil || e.Package == "" || strings.Contains(e.Test, "/") {
+		if json.Unmarshal(line[i:], &e) != nil || e.Package == "" {
 			continue
 		}
+		// Failures and completeness count every event, subtests included,
+		// before only top-level outcomes are kept.
 		if e.Action == "fail" {
 			return 0, fmt.Errorf("%s %s failed", e.Package, e.Test)
 		}
-		if e.Action != "pass" && e.Action != "skip" {
+		started[e.Package] = true
+		if e.Test != "" {
+			switch e.Action {
+			case "run":
+				running[e.Package+" "+e.Test] = true
+			case "pass", "skip":
+				delete(running, e.Package+" "+e.Test)
+			}
+		}
+		if strings.Contains(e.Test, "/") || (e.Action != "pass" && e.Action != "skip") {
 			continue
 		}
 		ms := int64(math.Round(e.Elapsed * 1000))
@@ -150,6 +169,7 @@ func (o *observation) read(path string) (int64, error) {
 				return 0, fmt.Errorf("package %s has two terminal outcomes", e.Package)
 			}
 			o.packages[e.Package] = max(1, ms)
+			ended[e.Package] = true
 			sum += max(1, ms)
 			continue
 		}
@@ -161,7 +181,31 @@ func (o *observation) read(path string) (int64, error) {
 		}
 		o.tests[e.Package][e.Test] = ms
 	}
-	return sum, s.Err()
+	if err := s.Err(); err != nil {
+		return 0, err
+	}
+	if p := first(started, func(p string) bool { return !ended[p] }); p != "" {
+		return 0, fmt.Errorf("package %s has no terminal pass or skip (incomplete log)", p)
+	}
+	if t := first(running, func(string) bool { return true }); t != "" {
+		return 0, fmt.Errorf("test %s started but never ended (incomplete log)", t)
+	}
+	return sum, nil
+}
+
+// first returns the smallest key of set that keep admits, or "".
+func first(set map[string]bool, keep func(string) bool) string {
+	var keys []string
+	for k := range set {
+		if keep(k) {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	if len(keys) == 0 {
+		return ""
+	}
+	return keys[0]
 }
 
 func (o *observation) total() int64 {
@@ -239,10 +283,13 @@ type sliceFile struct {
 }
 
 func generate(ctx context.Context, obs *observation, root, revision, runURL string, shards int, target time.Duration, notes io.Writer) (int, error) {
-	if err := cleanAt(ctx, root, revision); err != nil {
+	dir, err := checkout(ctx, root, revision)
+	if err != nil {
 		return 2, err
 	}
-	allowRaw, err := os.ReadFile(filepath.Join(root, allowPath))
+	defer os.RemoveAll(dir)
+	tree := filepath.Join(dir, "tree")
+	allowRaw, err := os.ReadFile(filepath.Join(tree, allowPath))
 	if err != nil {
 		return 2, err
 	}
@@ -274,7 +321,7 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 			fmt.Fprintf(notes, "whole %s: %dms within the %dms target\n", p, elapsed, limit)
 			continue
 		}
-		names, err := enumerate(ctx, root, p)
+		names, err := enumerate(ctx, tree, p)
 		if err != nil {
 			fmt.Fprintf(notes, "whole %s: %v\n", p, err)
 			continue
@@ -302,20 +349,38 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	return 0, replace(filepath.Join(root, slicesPath), raw)
 }
 
-// cleanAt requires the enumerated tree to be exactly the recorded revision.
-func cleanAt(ctx context.Context, root, revision string) error {
-	head, err := exec.CommandContext(ctx, "git", "-C", root, "rev-parse", "HEAD").Output()
+var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// checkout writes exactly the tracked tree of revision into DIR/tree of a new
+// temporary DIR, through the temporary index DIR/index, so that enumeration
+// cannot see untracked or modified files of root and root's own index, worktrees
+// and refs are never written. The caller removes DIR.
+func checkout(ctx context.Context, root, revision string) (string, error) {
+	if !fullCommit.MatchString(revision) {
+		return "", fmt.Errorf("refused: --revision %q is not a full commit id", revision)
+	}
+	got, err := exec.CommandContext(ctx, "git", "-C", root, "rev-parse", "--verify", "--quiet", revision+"^{commit}").Output()
+	if err != nil || strings.TrimSpace(string(got)) != revision {
+		return "", fmt.Errorf("refused: --revision %s is not a commit of %s", revision, root)
+	}
+	dir, err := os.MkdirTemp("", "ci-test-slices-")
 	if err != nil {
-		return fmt.Errorf("revision unavailable: %v", err)
+		return "", err
 	}
-	if strings.TrimSpace(string(head)) != revision {
-		return fmt.Errorf("refused: %s checks out %s, not --revision %q", root, strings.TrimSpace(string(head)), revision)
+	tree := filepath.Join(dir, "tree")
+	if err = os.Mkdir(tree, 0o755); err != nil {
+		os.RemoveAll(dir)
+		return "", err
 	}
-	dirty, err := exec.CommandContext(ctx, "git", "-C", root, "status", "--porcelain", "--untracked-files=no").Output()
-	if err != nil || len(dirty) != 0 {
-		return errors.New("refused: tracked files differ from --revision")
+	for _, args := range [][]string{{"read-tree", revision}, {"--work-tree=" + tree, "checkout-index", "--all"}} {
+		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(dir, "index"))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			os.RemoveAll(dir)
+			return "", fmt.Errorf("checkout of %s: %v: %s", revision, err, strings.TrimSpace(string(out)))
+		}
 	}
-	return nil
+	return dir, nil
 }
 
 // slice splits one package into k slices: k-1 named runs of its sorted nameable

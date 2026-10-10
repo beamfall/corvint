@@ -517,7 +517,7 @@ and container qualification; full fallback remains available.
 - **AFP-V0-041:** (proposed (V1-1096); no GitHub issue; experimental until owner acceptance) Full
   CI MAY run an owner-allowed package as test slices in several shards, so that no single package
   sets a floor under the slowest shard. The AFP-V0-022 complete-universe guarantee is unchanged:
-  every package, and every top-level test of a split package, runs in exactly one shard.
+  every unsplit package, and every top-level test of a split package, runs in exactly one shard.
   (1) A package SHALL split only when the project-owned allow-list
   `.github/cishards/test-split-allow.json` (`corvint-ci-test-split-allow/0`) names it with a
   non-empty reason, which records that its tests neither depend on order nor share `TestMain` or
@@ -544,13 +544,19 @@ and container qualification; full fallback remains available.
   holds a sibling. With no split package the plan SHALL equal the AFP-V0-022 partition. Costs move
   units between shards and never change membership.
   (5) `tools/ci-test-slices generate` SHALL write the slice file from one complete, passing hosted
-  run, at a clean checkout whose HEAD is the recorded revision. It enumerates each allowed package
-  slower than the target (default: the ideal shard share) with `go test -race -count=1 -list .`,
+  run. That run is complete only when every package that appears ends in a pass or skip, every
+  test or subtest that starts ends, and no test, subtest or package fails. The recorded revision
+  SHALL be a full commit id of the repository. Generation checks out exactly that commit's tracked
+  tree into a temporary directory through a temporary index, reads the allow-list there, and
+  enumerates there, so untracked, modified or staged files cannot contribute and the repository
+  index, worktrees and refs are not written. It enumerates each allowed package slower than the
+  target (default: the ideal shard share) with `go test -race -count=1 -list .`,
   outside workspace and `GOFLAGS` redirection, and excludes benchmarks. A failed or unexpected
   enumeration keeps the package whole. Named slices are contiguous runs of the sorted plain names
   that minimise the largest slice. Each name is weighted by its observed top-level time, the
   median for a name the run lacks, or by count when the run has no test records. Per-test costs
-  (V1-1100) MAY replace those weights. A failed or repeated outcome, or a file the partition
+  (V1-1100) MAY replace those weights. A failed, repeated or unterminated outcome, a revision that
+  is not a full commit id of the repository, or a file the partition
   would not admit, SHALL refuse the write. CI never enumerates, and never consults the tested
   test binary for placement.
   (6) The slice code, allow-list and slice file SHALL be part of the protected helper. That helper
@@ -971,7 +977,7 @@ and a split package's catch-all slice runs every top-level test that no named sl
 | AFP-V0-037 | `Unit.Execs`, `Graph.execUsers`, `Graph.builtCommands`, `Graph.execUsersOf`, `WitnessBinaryExec`, `BinaryExecsPath` in `internal/liveverify/affected` (`unit.go`, `graph.go`, `execs.go`, `select.go`); `applyBinaryExecs`, `literalExecs`, `commandDirectory`, `readBinaryExecs`, `matchBinaryExecs`, `FrontierBinaryExecsInvalid` in `internal/liveverify/affected/golang/binaryexecs.go`; `moduleLevelFrontiers` in `tools/gate-affected-select/main.go`; `.corvint/test-binary-execs.json` | `TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037` (anchored, plain, climbing and module-path literals and a declared runner become `execs`; a change to the command or a package it imports selects every consumer as `BINARY_EXEC` through the command; a literal naming a file under the command directory is no edge; an unrelated change selects no consumer; byte-identical plans), `TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037` (nine invalid declarations raise only the frontier, drop declared edges and keep literal ones; a missing one raises nothing) |
 | AFP-V0-038 | `compactAffectedAdvice`, `affectedCompactCheck`, `adviceAdvisoryGoTest` in `cmd/corvint/affected_compact.go` and `cmd/corvint/affected.go` | `TestAFPV0038CompactAdviceReferencesProviderPackages` (fixture default vs `--full`, a quoted package path, a non-matching command kept whole); advice resolution in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` and `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`; core-freeze golden `affected-committed-range.json` |
 | AFP-V0-039 | command-local `-c maintenance.auto=false -c gc.auto=0` in the Git helpers of `internal/liveverify/affected/observation_test.go`, `internal/liveverify/affected/golang/golang_test.go`, `internal/liveverify/affected/typescript/mocha_qualification_test.go` and `internal/liveverify/pymutate/pymutate_test.go`; `unguardedFixture` in `internal/liveverify/affected/fixture_maintenance_test.go` | `TestLiveVerifyGitFixturesDisableDetachedMaintenance` (fails on the three unfixed helpers and on the pre-c4f9604d observation helper), `TestUnguardedFixtureDetectsAMissingSafeguard`; `GIT_TRACE2_EVENT` child-launch counts in build log 2026-10-08-liveverify-fixture-maintenance; hosted Linux Git 2.55 cleanup NOT_RUN |
-| AFP-V0-041 | `Slice`, `Shard`, `Allowed`, `SplitPackages`, `Splits`, `Plan`, `PlanFrom`, `profileNames` and `--slices` in `.github/cishards`; `.github/cishards/test-split-allow.json`, `.github/cishards/test-slices.json`; `refuseSlices` in `tools/corvint-pr-tests`; `tools/ci-test-slices`; the full-run slice loop in `.github/workflows/ci.yml` | `TestAFPV0041PlanEqualsPartitionWithoutSplits`, `TestAFPV0041SlicedPlanIsCompleteAndDeterministic`, `TestAFPV0041FallbackKeepsPackagesWhole`, `TestAFPV0041SlicesRunEveryTestExactlyOnce` (real `go test` over added, removed and renamed names, subtests, a parallel test, a fuzz seed and an example), `TestAFPV0041CommittedSlicesAreAdmitted`, `TestAFPIsolatedBuildIgnoresModuleRedirection` (`--slices`), `TestShardedDriverRefusesTestSlices_AFPV0041`, `TestAFPV0041GenerateSplitsOnlySlowListablePackages`, `TestAFPV0041GenerateRefusesUnboundInputs`, `TestAFPV0041ListParsing`, `TestAFPV0041SliceWithoutTimesSplitsByCount`, `TestAFPV0041MinMaxCutsIsOptimal`, `TestAFPV0041ReplayPredictsShardSums`; replay of hosted run 38055182050 and a local run of both store slices in build log 2026-10-10-ci-test-level-shards; hosted sliced run, paired timing, per-slice overhead and owner acceptance NOT_RUN |
+| AFP-V0-041 | `Slice`, `Shard`, `Allowed`, `SplitPackages`, `Splits`, `Plan`, `PlanFrom`, `profileNames` and `--slices` in `.github/cishards`; `.github/cishards/test-split-allow.json`, `.github/cishards/test-slices.json`; `refuseSlices` in `tools/corvint-pr-tests`; `tools/ci-test-slices`; the full-run slice loop in `.github/workflows/ci.yml` | `TestAFPV0041PlanEqualsPartitionWithoutSplits`, `TestAFPV0041SlicedPlanIsCompleteAndDeterministic`, `TestAFPV0041FallbackKeepsPackagesWhole`, `TestAFPV0041SlicesRunEveryTestExactlyOnce` (real `go test` over added, removed and renamed names, subtests, a parallel test, a fuzz seed and an example), `TestAFPV0041CommittedSlicesAreAdmitted`, `TestAFPIsolatedBuildIgnoresModuleRedirection` (`--slices`), `TestShardedDriverRefusesTestSlices_AFPV0041`, `TestAFPV0041GenerateSplitsOnlySlowListablePackages`, `TestAFPV0041GenerateRefusesUnboundInputs`, `TestAFPV0041GenerateEnumeratesOnlyTheRevision`, `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs`, `TestAFPV0041ListParsing`, `TestAFPV0041SliceWithoutTimesSplitsByCount`, `TestAFPV0041MinMaxCutsIsOptimal`, `TestAFPV0041ReplayPredictsShardSums`; replay of hosted run 38055182050 and a local run of both store slices in build log 2026-10-10-ci-test-level-shards; hosted sliced run, paired timing, per-slice overhead and owner acceptance NOT_RUN |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

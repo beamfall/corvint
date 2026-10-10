@@ -77,11 +77,20 @@ loop belongs inside that function.
 
 ## Generation
 
-The generator is `tools/ci-test-slices generate`. It requires a clean checkout at the recorded
-revision. It enumerates with `go test -race -count=1 -list .`, without workspace or `GOFLAGS`
-redirection, and splits each allowed package that is slower than the target. The target defaults
-to the ideal share. Named slices minimise the largest slice over sorted names, weighted by observed
-top-level time; a name the run lacks takes the package median.
+The generator is `tools/ci-test-slices generate`. It accepts only a complete, passing run:
+
+- every package that appears ends in a pass or skip;
+- every test or subtest that starts ends;
+- no test, subtest or package fails.
+
+The revision must be a full commit id of the repository. The generator checks out that commit's
+tracked tree into a temporary directory through a temporary index, then reads the allow-list and
+enumerates there. Untracked, modified or staged files therefore cannot contribute, and the
+repository's index, worktrees and refs are not written. It enumerates with
+`go test -race -count=1 -list .`, without workspace or `GOFLAGS` redirection, and splits each
+allowed package that is slower than the target. The target defaults to the ideal share. Named
+slices minimise the largest slice over sorted names, weighted by observed top-level time; a name
+the run lacks takes the package median.
 
 The committed file was generated at `1f68f622e8ee3af9cd39a57696881e2e9b18c7ac` (the implementation
 commit), from run 38055182050, on darwin/arm64 with go1.27.1:
@@ -148,6 +157,35 @@ against a stage wall clock. The machine had 12 cores at a load average of 35 to 
 lanes running this package's tests at the same time. This failure is therefore read as load-timing
 sensitivity, not as a slicing defect; that reading is an inference. Local wall times are not hosted
 evidence.
+
+## Review repairs
+
+An independent Codex review of the first two commits found three defects. All three are fixed in
+a follow-up commit:
+
+- **(P2) Incomplete or failed logs passed.** Subtest events were dropped before the failure
+  check, and a package needed only one terminal outcome. Failures are now checked before any
+  filtering. Every started package must reach a terminal pass or skip, and every started test
+  must end. `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs` covers a failed subtest, a failed
+  package, a truncated package and a test that never ends.
+- **(P2) Enumeration was not bound to the revision.** The old clean-tree check ignored untracked
+  files. Generation now uses the temporary checkout described above.
+  `TestAFPV0041GenerateEnumeratesOnlyTheRevision` adds an untracked test file, a staged
+  modification and a working-tree allow-list that drops the package. It checks that:
+  - only the committed test is sliced;
+  - the checkout lies outside the repository and is removed;
+  - status, the staged index, the worktree list and the refs are unchanged.
+- **(P3) Spec wording.** The complete-universe sentence now says "every unsplit package".
+
+Each new check was tested by mutation. Seven mutants each fail one of the two tests:
+
+- removing any of the three refusals;
+- pointing allow-list reading, enumeration or the index back at the repository;
+- dropping the removal of the temporary checkout.
+
+The six hosted logs still pass the new checks, with the same replay sums. Regenerating at
+`1f68f622` through the temporary checkout reproduces the committed `test-slices.json` byte for
+byte.
 
 ## Limits and integration
 

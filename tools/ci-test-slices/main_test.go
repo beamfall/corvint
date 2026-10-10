@@ -139,23 +139,145 @@ func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 	fakeList(t, map[string][]string{"example.org/big": {"TestA", "TestB"}})
 	root, head := repo(t, allowBig)
 	for name, args := range map[string][]string{
-		"other revision": {"--revision", strings.Repeat("0", 40)},
-		"bad run URL":    {"--revision", head, "--run-url", "https://example.org/run"},
+		"absent revision": {"--revision", strings.Repeat("0", 40)},
+		"short revision":  {"--revision", head[:12]},
+		"symbolic":        {"--revision", "HEAD"},
+		"bad run URL":     {"--revision", head, "--run-url", "https://example.org/run"},
 	} {
 		a := append([]string{"--root", root, "--shards", "2", "--run-url", runURL}, args...)
 		if code, err := run(context.Background(), "generate", append(a, log), nil, &bytes.Buffer{}); code != 2 || err == nil {
 			t.Fatalf("%s: code=%d err=%v", name, code, err)
 		}
 	}
-	write(t, filepath.Join(root, allowPath), allowBig+"\n")
-	if code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, log}, nil, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), "tracked files differ") {
-		t.Fatalf("dirty tree: code=%d err=%v", code, err)
-	}
 	failed := write(t, filepath.Join(t.TempDir(), "failed.log"), `{"Action":"fail","Package":"example.org/big","Test":"TestA","Elapsed":1}`+"\n")
 	twice := write(t, filepath.Join(t.TempDir(), "twice.log"), `{"Action":"pass","Package":"example.org/big","Elapsed":1}`+"\n")
 	for _, logs := range [][]string{{failed}, {twice, twice}} {
 		if code, err := run(context.Background(), "replay", logs, nil, &bytes.Buffer{}); code != 2 || err == nil {
 			t.Fatalf("unusable run accepted: %v", logs)
+		}
+	}
+}
+
+// TestAFPV0041GenerateEnumeratesOnlyTheRevision proves enumeration and the
+// allow-list come from a checkout of exactly --revision: an untracked test file,
+// a modified tracked test file and a modified allow-list in the working tree
+// contribute nothing, and the repository's index and worktrees are untouched.
+func TestAFPV0041GenerateEnumeratesOnlyTheRevision(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, allowPath), allowBig)
+	write(t, filepath.Join(root, slicesPath), "{}\n")
+	write(t, filepath.Join(root, "big", "a_test.go"), "package big\n\nfunc TestTracked(t *testing.T) {}\n")
+	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.org", "commit", "-q", "-m", "fixture"}} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	rev, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := strings.TrimSpace(string(rev))
+	write(t, filepath.Join(root, "big", "untracked_test.go"), "package big\n\nfunc TestUntracked(t *testing.T) {}\n")
+	write(t, filepath.Join(root, "big", "a_test.go"), "package big\n\nfunc TestModified(t *testing.T) {}\n")
+	write(t, filepath.Join(root, allowPath), `{"profile":"corvint-ci-test-split-allow/0","packages":{"example.org/small":"fixture"}}`)
+	// A staged change makes the repository's index differ from --revision.
+	if out, err := exec.Command("git", "-C", root, "add", "big/a_test.go").CombinedOutput(); err != nil {
+		t.Fatalf("git add: %v %s", err, out)
+	}
+	state := func() string {
+		var b strings.Builder
+		for _, args := range [][]string{{"status", "--porcelain", "--untracked-files=all"}, {"ls-files", "--stage"}, {"worktree", "list", "--porcelain"}, {"for-each-ref"}} {
+			out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %v %s", args, err, out)
+			}
+			b.Write(out)
+		}
+		return b.String()
+	}
+	before := state()
+	var seen string
+	old := enumerate
+	enumerate = func(_ context.Context, tree string, pkg string) ([]string, error) {
+		seen = tree
+		var names []string
+		for _, f := range []string{"a_test.go", "untracked_test.go"} {
+			raw, err := os.ReadFile(filepath.Join(tree, "big", f))
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(string(raw), "\n") {
+				if name, ok := strings.CutPrefix(line, "func "); ok {
+					names = append(names, strings.SplitN(name, "(", 2)[0])
+				}
+			}
+		}
+		return names, nil
+	}
+	t.Cleanup(func() { enumerate = old })
+	var notes bytes.Buffer
+	if code, err := run(context.Background(), "generate", []string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", stream(t)}, nil, &notes); code != 0 || err != nil {
+		t.Fatalf("generate code=%d err=%v notes=%s", code, err, notes.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(root, slicesPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f sliceFile
+	if err = json.Unmarshal(raw, &f); err != nil {
+		t.Fatal(err)
+	}
+	// The committed allow-list admits big; the working tree's does not.
+	big, ok := f.Packages["example.org/big"]
+	if !ok || !reflect.DeepEqual(big.Named[0].Tests, []string{"TestTracked"}) {
+		t.Fatalf("enumerated beyond --revision: %s", raw)
+	}
+	if seen == "" || strings.HasPrefix(seen, root) {
+		t.Fatalf("enumerated in %q, not a checkout of the revision", seen)
+	}
+	if _, err = os.Stat(seen); !os.IsNotExist(err) {
+		t.Fatalf("checkout %s left behind: %v", seen, err)
+	}
+	write(t, filepath.Join(root, slicesPath), "{}\n")
+	if after := state(); after != before {
+		t.Fatal("generate changed the repository's index, status or worktrees")
+	}
+}
+
+func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
+	small := `{"Action":"start","Package":"example.org/small"}
+{"Action":"run","Package":"example.org/small","Test":"TestS"}
+{"Action":"pass","Package":"example.org/small","Test":"TestS","Elapsed":5}
+{"Action":"pass","Package":"example.org/small","Elapsed":5}
+`
+	complete := small + `{"Action":"start","Package":"example.org/big"}
+2026-10-10T13:20:59Z {"Action":"run","Package":"example.org/big","Test":"TestA"}
+{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}
+{"Action":"pass","Package":"example.org/big","Test":"TestA/sub","Elapsed":1}
+{"Action":"pass","Package":"example.org/big","Test":"TestA","Elapsed":1}
+{"Action":"pass","Package":"example.org/big","Elapsed":2}
+`
+	if _, err := observe([]string{write(t, filepath.Join(t.TempDir(), "complete.log"), complete)}); err != nil {
+		t.Fatalf("complete passing log refused: %v", err)
+	}
+	for name, c := range map[string]struct{ log, want string }{
+		// One completed package, then a failed subtest and truncated output.
+		"failed subtest, truncated": {small + `{"Action":"start","Package":"example.org/big"}
+{"Action":"run","Package":"example.org/big","Test":"TestA"}
+{"Action":"run","Package":"example.org/big","Test":"TestA/sub"}
+{"Action":"fail","Package":"example.org/big","Test":"TestA/sub","Elapsed":1}
+{"Action":"outp`, "example.org/big TestA/sub failed"},
+		"failed subtest only": {strings.Replace(complete, `"pass","Package":"example.org/big","Test":"TestA/sub"`, `"fail","Package":"example.org/big","Test":"TestA/sub"`, 1), "example.org/big TestA/sub failed"},
+		"failed package":      {strings.Replace(complete, `"pass","Package":"example.org/big","Elapsed"`, `"fail","Package":"example.org/big","Elapsed"`, 1), "example.org/big  failed"},
+		"truncated package": {small + `{"Action":"start","Package":"example.org/big"}
+{"Action":"run","Package":"example.org/big","Test":"TestA"}
+{"Action":"pass","Package":"example.org/big","Test":"TestA","Elapsed":1}
+`, "package example.org/big has no terminal pass or skip"},
+		"test never ended": {strings.Replace(complete, `{"Action":"pass","Package":"example.org/big","Test":"TestA/sub","Elapsed":1}`+"\n", "", 1), "test example.org/big TestA/sub started but never ended"},
+	} {
+		_, err := observe([]string{write(t, filepath.Join(t.TempDir(), "shard.log"), c.log)})
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Fatalf("%s: err=%v, want %q", name, err, c.want)
 		}
 	}
 }
