@@ -66,6 +66,15 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 		observation.completed = true
 	}
 	observationErr = observation.err
+	// Quiescence is read from /proc while the exited leader is still held
+	// unreaped; no numeric group probe follows the reap, when the group ID
+	// may name a reused group (PGO-V0-009). A failed exit observation or an
+	// unreadable table is not quiescent.
+	groupQuiescent := false
+	if observationErr == nil {
+		live, err := linuxGroupLive(containment.pid)
+		groupQuiescent = err == nil && !live
+	}
 	close(reapAllowed)
 	waitErr := <-done
 	if timedOutOrCancelled || observationErr != nil {
@@ -74,9 +83,6 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	if observationErr != nil {
 		cleanupProven = false
 	}
-	// Observation only (signal 0): a group ID reused after the reap can only
-	// make the run unavailable, never accepted.
-	groupQuiescent := containment.quiescent()
 	return containmentOutcome{
 		waitErr: waitErr, timedOutOrCancelled: timedOutOrCancelled,
 		residueAfterLeader: residueAfterLeader, cleanupProven: cleanupProven,

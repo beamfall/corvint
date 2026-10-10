@@ -15,8 +15,6 @@ func killGate(cmd *exec.Cmd) {
 	}
 }
 
-func killGateGroup(int) {}
-
 func stopGate(cmd *exec.Cmd) { killGate(cmd) }
 
 func reapGate(cmd *exec.Cmd) error { return cmd.Wait() }

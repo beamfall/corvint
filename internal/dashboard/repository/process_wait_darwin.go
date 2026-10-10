@@ -131,7 +131,7 @@ func (containment *childContainment) stopAndProveDarwin(grace time.Duration, pin
 }
 
 func darwinGroupHasLiveMembers(pid int) bool {
-	err := syscall.Kill(-pid, 0)
+	err := groupSignal(-pid, 0)
 	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.ESRCH) {
 		return false
 	}

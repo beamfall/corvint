@@ -37,6 +37,7 @@ func poolGroupLive(pid int) (bool, error) {
 	defer cancel()
 	return poolGroupLiveContext(ctx, pid)
 }
+
 // poolGroupSignal is syscall.Kill; tests observe every signal the pool sends
 // to a process group itself.
 var poolGroupSignal = syscall.Kill

@@ -3,11 +3,9 @@
 package repository
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 )
 
 type childContainment struct {
@@ -27,8 +25,9 @@ func (containment *childContainment) attach(process *os.Process) bool {
 	return true
 }
 
-// groupSignal is syscall.Kill; tests check that terminate and force run only
-// while the leader is unreaped (V1-1047).
+// groupSignal is syscall.Kill; tests check that terminate, force and the
+// Darwin signal-0 probe run only while the leader is unreaped (V1-1047,
+// PGO-V0-009).
 var groupSignal = syscall.Kill
 
 func (containment *childContainment) terminate() {
@@ -41,36 +40,6 @@ func (containment *childContainment) force() {
 	if containment.pid > 0 {
 		_ = groupSignal(-containment.pid, syscall.SIGKILL)
 	}
-}
-
-func (containment *childContainment) quiescent() bool {
-	return containment.pid > 0 && !groupExists(containment.pid)
-}
-
-func (containment *childContainment) stopAndProve(grace time.Duration) bool {
-	if containment.pid <= 0 {
-		return false
-	}
-	containment.terminate()
-	until := time.Now().Add(grace)
-	for groupExists(containment.pid) && time.Now().Before(until) {
-		time.Sleep(time.Millisecond)
-	}
-	if groupExists(containment.pid) {
-		containment.force()
-		// Never return while the group may remain. SIGKILL has no second grace
-		// window: this loop is proof of quiescence, not another timeout.
-		for groupExists(containment.pid) {
-			containment.force()
-			time.Sleep(time.Millisecond)
-		}
-	}
-	return true
-}
-
-func groupExists(pid int) bool {
-	err := syscall.Kill(-pid, 0)
-	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 func (*childContainment) close() {}
