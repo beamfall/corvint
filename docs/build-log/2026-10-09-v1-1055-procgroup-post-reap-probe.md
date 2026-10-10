@@ -1,8 +1,8 @@
-# V1-1055: procgroup proves quiescence before the reap (AHI-049, proposed)
+# V1-1055: procgroup proves quiescence before the reap (AHI-049, accepted)
 
 Date: 2026-10-09. Ticket: V1-1055. Lane base: `92e91583` (batch Q integration, which contains
-V1-1040). Requirement: `AHI-049` (proposed) in `docs/specs/agent-harness-integration-v0.md`,
-extended by this change and not accepted.
+V1-1040). Requirement: `AHI-049` in `docs/specs/agent-harness-integration-v0.md`, extended by this
+change; the owner accepted the amendment on 2026-10-09 (decision 0479).
 
 ## Decision
 
@@ -52,8 +52,8 @@ pre-reap grace probe and SIGKILL. A new `quietProof` hook replaces `HeldGroupQui
 passes no hooks.
 
 `CRR-V0-003`(d) is accepted and requires the post-reap identity-bound probe. This change adds a
-dated note there proposing its replacement under `AHI-049`. The note needs owner acceptance and is
-not marked accepted.
+dated note there replacing it under `AHI-049`. The owner accepted the replacement on 2026-10-09
+(decision 0479).
 
 ## Evidence
 

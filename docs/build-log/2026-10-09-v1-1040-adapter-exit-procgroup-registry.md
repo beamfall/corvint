@@ -1,8 +1,8 @@
-# V1-1040: adapter exit kills procgroup groups (AHI-049, proposed)
+# V1-1040: adapter exit kills procgroup groups (AHI-049, accepted by decision 0477)
 
 Date: 2026-10-09. Ticket: V1-1040. Lane base: `b2a0b8c69cfa8687ed23ecdeedc1e490a39b1089`;
-branch starts at the reviewed V1-1036 head `dad48885`. Requirement: `AHI-049` (proposed) in
-`docs/specs/agent-harness-integration-v0.md`. It extends `AHI-048` and is not accepted.
+branch starts at the reviewed V1-1036 head `dad48885`. Requirement: `AHI-049` (accepted by decision 0477) in
+`docs/specs/agent-harness-integration-v0.md`. It extends `AHI-048`.
 
 ## Decision
 

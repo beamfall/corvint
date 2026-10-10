@@ -216,7 +216,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     identity cannot be recorded, or cannot be re-read while a post-reap group is present, the runner
     retains the signal-only quiet-period probe and records `DescendantCleanupQualification` as
     `PARTIAL`. This adds no exported field and changes no frozen wire shape or bytes.
-    (V1-1055, proposed under `AHI-049`, pending owner acceptance: the post-reap probe and its
+    (V1-1055, under `AHI-049`, accepted by decision 0479: the post-reap probe and its
     start-time identity binding are replaced by a pre-reap proof while the exited leader is held
     unreaped, so no numeric group probe follows the reap; a group the held proof cannot show
     zombie-only stays present, `TestRunProcessQuiescenceTreatsPermissionDeniedAsPresent`.)
