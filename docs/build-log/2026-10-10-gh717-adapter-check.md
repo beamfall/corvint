@@ -171,6 +171,47 @@ rune at the cut is not split. The CLI check subtest asserts exit 1, empty stderr
 exceeded`. A behavior-only probe of the same request also fails there: the first refusal is
 4,193,265 bytes and `Encode` refuses. Both pass after.
 
+Review round 5 found that the caps ran only after accumulation, so memory was unbounded. The
+discovery stage kept evaluating executions after their count bound refused. Each refusal echoed the
+discovery input identity, and `keepItem` copied it again. Take the valid fixture, rename the
+discovery input to 65,536 `d` bytes, and give it 100,000 empty executions. That request stays under
+4 MiB but retained more than 12 GiB before the final cap. Build stops at the count refusal.
+
+- **Count bound.** A refused discovery-execution count bound now stops evaluation of the
+  individual executions, as Build does. One entry says
+  `remaining checks for discovery executions not evaluated after <refusal>`. The inputs, mappings
+  and observations bounds already did this (round 3). Mapped record lists and field mappings
+  refuse before iterating. Per-record lists refuse the whole record.
+- **Caps at accumulation.** Each stage gets the room the report has left: entries and message
+  bytes. Kept refusals, `keepItem` and `keepIdentity` entries, and checker `not-evaluated` entries
+  are each admitted against a copy of that room. Every message is capped at 4 KiB when it is
+  recorded. Item entries are built by `behaviorCheckJoin`, which copies only the capped prefix of
+  the joined parts and computes the marker from their total length. The full echo is never
+  concatenated. Once a buffer runs out of room, it records one internal omission marker and drops
+  the rest. The final bound cuts the report at the first marker. Message bytes never exceed encoded
+  bytes, so every entry the final bound would keep is still admitted. The report is therefore the
+  same prefix the unbounded check would give. Parity with Build is unchanged.
+
+`TestBehaviorAdapterCheckBoundsRetention` uses a 64 KiB discovery input identity in three cases:
+4,096 empty executions (at the bound), 4,097 (over it) and the reviewed 100,000. A test-only hook
+runs after each stage while its buffers are still held. It forces a GC and samples `HeapAlloc`. The
+test asserts:
+
+- peak live-heap growth under 64 MiB;
+- a report within the entry bounds, with entry 0 equal to Build's capped refusal and every message
+  capped;
+- for the over-bound cases, no execution refusals, plus the `remaining checks for discovery
+  executions` entry.
+
+Measured growth after the fix: 3.7 MiB at the bound (249 entries, cut at 1 MiB), 1.0 MiB over the
+bound, and 26 MiB for 100,000 executions. That last figure is mostly the decoded execution list,
+which Build also decodes. On commit `ee40435d`, with the same hook injected as instrumentation only,
+both scaled cases retain 578 MiB and fail. The 100,000 case is skipped there after the earlier
+failure, so it does not exhaust host memory.
+
+Build's error construction (`fieldError`) still formats the full echo once per refusal, as Build
+must. That copy is transient garbage: it is never retained.
+
 Limits:
 
 - The report does not list every independent refusal within one item. Repairing an item's first

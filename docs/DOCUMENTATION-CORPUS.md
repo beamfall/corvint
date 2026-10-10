@@ -132,11 +132,11 @@ and each item is checked independently of the others. Within one item, checking 
 first refusal, and one `not-evaluated` entry says `remaining checks for <item> not evaluated after
 <refusal>`. A stage or item that depends on a refusal, such as the record checks of a mapping whose
 input was refused, is listed as `not-evaluated` with `blocked_by`. A duplicate or invalid identity
-is charged to the first such item that was not already refused. If the number of inputs, mappings
-or observations exceeds its bound, those items are not checked one by one. The report keeps at most
-1024 entries, ending with `further entries omitted after <N>` when it drops any, and caps each
-message at 4 KiB with a ` … [truncated <N> bytes]` marker. Repairing a refusal can therefore reveal
-more. The report is accepted exactly when the build would succeed, and its first refusal is the error
+is charged to the first such item that was not already refused. If the number of inputs, mappings,
+observations or discovery executions exceeds its bound, those items are not checked one by one.
+The report keeps at most 1024 entries, ending with `further entries omitted after <N>` when it drops
+any, and caps each message at 4 KiB with a ` … [truncated <N> bytes]` marker. Repairing a refusal
+can therefore reveal more. The report is accepted exactly when the build would succeed, and its first refusal is the error
 the build would return, under the same 4 KiB cap. The exit status is 0 when accepted, 1 when refused,
 and 2 when the request or previous file cannot be read.
 

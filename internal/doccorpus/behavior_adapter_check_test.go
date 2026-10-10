@@ -4,6 +4,7 @@ import (
 	"bytes"
 	jsonstd "encoding/json"
 	"errors"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -526,4 +527,88 @@ func TestBehaviorAdapterCheckCapsMessages(t *testing.T) {
 	if capped := behaviorCheckMessage(multibyte); !utf8.ValidString(capped) || !strings.HasPrefix(capped, strings.Repeat("a", behaviorCheckMaxMessageBytes-1)+" … [truncated ") {
 		t.Fatalf("cap did not cut on a UTF-8 boundary: %.80q", capped[len(capped)-40:])
 	}
+}
+
+// TestBehaviorAdapterCheckBoundsRetention proves DCP-V1-044 bounds what a
+// check retains, not only what it reports (GH #717 review round 5). The
+// discovery input identity is 64 KiB, so every execution refusal echoes it.
+func TestBehaviorAdapterCheckBoundsRetention(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	longID := strings.Repeat("d", 64<<10)
+	request := func(t *testing.T, executions int) []byte {
+		request := fixture.request
+		request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
+		behaviorAdapterEditDocument(t, &request, "discovery", func(document map[string]any) {
+			list := make([]any, executions)
+			for index := range list {
+				list[index] = map[string]any{}
+			}
+			document["executions"] = list
+		})
+		behaviorAdapterRequestInput(&request, "discovery").ID = longID
+		request.DiscoveryInput = longID
+		raw := behaviorAdapterRaw(t, request)
+		if len(raw) > MaxBytes {
+			t.Fatalf("request is %d bytes", len(raw))
+		}
+		return raw
+	}
+	check := func(t *testing.T, raw []byte, first string) BehaviorAdapterCheck {
+		t.Helper()
+		_, buildErr := BuildBehaviorAdapter(raw, nil)
+		var refused *Error
+		if !errors.As(buildErr, &refused) || !strings.Contains(refused.Message, first) {
+			t.Fatalf("build should refuse with %q: %v", first, buildErr)
+		}
+		var stats runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		baseline, peak := stats.HeapAlloc, stats.HeapAlloc
+		behaviorCheckAfterStage = func() {
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			peak = max(peak, stats.HeapAlloc)
+		}
+		report := CheckBehaviorAdapter(raw, nil)
+		behaviorCheckAfterStage = nil
+		if growth := peak - baseline; growth > 64<<20 {
+			t.Fatalf("check retained %d MiB at a stage boundary", growth>>20)
+		}
+		encoded, err := Encode(report)
+		t.Logf("peak growth %d KiB, %d entries, %d report bytes, last %.60q", (peak-baseline)>>10, len(report.Refusals), len(encoded), report.Refusals[len(report.Refusals)-1].Message)
+		if err != nil || report.Accepted || len(encoded) > behaviorCheckMaxEntryBytes+64<<10 || report.Refusals[0].Message != behaviorCheckMessage(refused.Message) {
+			t.Fatalf("report is unbounded or lacks Build's refusal: %v %d bytes", err, len(encoded))
+		}
+		for _, refusal := range report.Refusals {
+			if len(refusal.Message) > behaviorCheckMaxMessageBytes+64 {
+				t.Fatalf("message exceeds the cap: %d bytes", len(refusal.Message))
+			}
+		}
+		return report
+	}
+	overBound := func(t *testing.T, report BehaviorAdapterCheck) {
+		t.Helper()
+		named := false
+		for _, refusal := range report.Refusals {
+			if strings.Contains(refusal.Message, "discovery project is missing") {
+				t.Fatalf("executions evaluated after their count bound refused: %.120q", refusal.Message)
+			}
+			named = named || refusal.Stage == "discovery" && refusal.State == "not-evaluated" && strings.HasPrefix(refusal.Message, "remaining checks for discovery executions not evaluated after behavior adapter input=")
+		}
+		if !named {
+			t.Fatalf("over-bound executions are not named: %+v", report.Stages)
+		}
+	}
+	t.Run("executions at the bound", func(t *testing.T) {
+		check(t, request(t, MaxRecords), "discovery project is missing")
+	})
+	t.Run("executions over the bound", func(t *testing.T) {
+		overBound(t, check(t, request(t, MaxRecords+1), "discovery identity does not match the request"))
+	})
+	if t.Failed() {
+		t.Fatal("the reviewed 100,000-execution request is not run after an earlier failure")
+	}
+	t.Run("reviewed request", func(t *testing.T) {
+		overBound(t, check(t, request(t, 100000), "discovery identity does not match the request"))
+	})
 }

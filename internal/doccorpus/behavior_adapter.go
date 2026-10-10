@@ -3,7 +3,6 @@ package doccorpus
 import (
 	"bytes"
 	json "encoding/json/v2"
-	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -152,8 +151,11 @@ type behaviorAdapter struct {
 	variationRuntimeReady map[string]bool
 	mappingSeen           map[string]bool
 	checking              bool
+	kept                  int
 	refused               []error
-	unevaluated           []string
+	refusedRoom           behaviorCheckRoom
+	unevaluated           []BehaviorAdapterRefusal
+	unevaluatedRoom       behaviorCheckRoom
 	refusedItems          map[string]bool
 }
 
@@ -532,19 +534,30 @@ func (a *behaviorAdapter) validateObservations() error {
 // keep records a refusal while CheckBehaviorAdapter collects every refusal
 // (DCP-V1-044) and reports whether the caller may continue past it. Build
 // mode never keeps, so the first refusal still ends the request.
+// The kept refusal's message is capped, and it is retained only while the
+// stage's report room lasts, so memory stays bounded (DCP-V1-044).
 func (a *behaviorAdapter) keep(err error) bool {
 	if !a.checking {
 		return false
 	}
-	a.refused = append(a.refused, err)
+	a.kept++
+	code, message := behaviorCheckError(err)
+	message = behaviorCheckMessage(message)
+	switch a.refusedRoom.admit(message) {
+	case behaviorCheckAdmitted:
+		a.refused = append(a.refused, &Error{Code: code, Message: message})
+	case behaviorCheckFirstOmission:
+		a.refused = append(a.refused, errBehaviorCheckOmitted)
+	}
 	return true
 }
 
 // unevaluate records, while checking, one check that depends on a refusal the
-// stage already kept; the checker lists it as not-evaluated (DCP-V1-044).
-func (a *behaviorAdapter) unevaluate(detail string) {
+// stage already kept; the checker lists it as not-evaluated (DCP-V1-044). The
+// parts are joined under the message cap without retaining the full text.
+func (a *behaviorAdapter) unevaluate(parts ...string) {
 	if a.checking {
-		a.unevaluated = append(a.unevaluated, detail)
+		a.unevaluated = a.unevaluatedRoom.append(a.unevaluated, BehaviorAdapterRefusal{State: behaviorCheckNotEvaluated, Message: behaviorCheckJoin(parts...)})
 	}
 }
 
@@ -560,12 +573,8 @@ func (a *behaviorAdapter) keepItem(item string, err error) bool {
 		a.refusedItems = map[string]bool{}
 	}
 	a.refusedItems[item] = true
-	message := err.Error()
-	var typed *Error
-	if errors.As(err, &typed) {
-		message = typed.Message
-	}
-	a.unevaluate("remaining checks for " + item + " not evaluated after " + message)
+	_, message := behaviorCheckError(err)
+	a.unevaluate("remaining checks for ", item, " not evaluated after ", message)
 	return true
 }
 
@@ -864,11 +873,18 @@ func (a *behaviorAdapter) discoveryIdentity() (BehaviorDiscovery, error) {
 	discoveryInput := a.inputs[a.request.DiscoveryInput]
 	decodeErr := decode([]byte(discoveryInput.Document), &discovery)
 	if decodeErr != nil || discovery.Schema != "corvint-playwright-discovery/1" || discovery.Mode != "live-playwright-list" || discovery.Revisions != a.request.Revisions || len(discovery.Executions) > MaxRecords {
-		if err := a.fieldError(discoveryInput, "", "discovery identity does not match the request", "supply the exact live Playwright discovery record"); !a.keep(err) {
+		err := a.fieldError(discoveryInput, "", "discovery identity does not match the request", "supply the exact live Playwright discovery record")
+		// Like Build, a refused execution count bound stops evaluation of
+		// the individual executions.
+		overBound := decodeErr == nil && len(discovery.Executions) > MaxRecords
+		if overBound && !a.keepItem("discovery executions", err) || !overBound && !a.keep(err) {
 			return discovery, err
 		}
 		if decodeErr != nil {
 			a.unevaluate("discovery executions not evaluated because the discovery record cannot be decoded")
+			return discovery, nil
+		}
+		if overBound {
 			return discovery, nil
 		}
 	}
@@ -1216,7 +1232,7 @@ func (a *behaviorAdapter) validateMappedBehaviorAdapterDeclarations(flows []Beha
 	if err := validateBehaviorAdapterDeclarations(flows, behaviors, tests); err == nil {
 		return nil
 	}
-	before := len(a.refused)
+	before := a.kept
 	for _, flow := range flows {
 		if !words("generated source-derived declared imported")[flow.Derivation] {
 			if err := a.originError("flow:"+flow.ID, "derivation", "mapped flow derivation is invalid", "supply one supported derivation"); !a.keepItem("flow "+flow.ID, err) {
@@ -1326,7 +1342,7 @@ func (a *behaviorAdapter) validateMappedBehaviorAdapterDeclarations(flows []Beha
 			return err
 		}
 	}
-	if len(a.refused) > before {
+	if a.kept > before {
 		return nil
 	}
 	return duplicated()

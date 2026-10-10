@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -47,10 +48,13 @@ type BehaviorAdapterRefusal struct {
 }
 
 type behaviorAdapterChecker struct {
-	report BehaviorAdapterCheck
-	states map[string]string
-	items  []BehaviorAdapterRefusal
-	start  int
+	report    BehaviorAdapterCheck
+	bytes     int
+	states    map[string]string
+	items     []BehaviorAdapterRefusal
+	room      behaviorCheckRoom
+	start     int
+	keptStart int
 }
 
 // CheckBehaviorAdapter evaluates the stages of BuildBehaviorAdapter in the
@@ -88,7 +92,7 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		run(bound+"-bound", []string{"request"}, func() error {
 			err := behaviorAdapterBoundError(request, bound)
 			if err != nil {
-				c.notEvaluated(bound+"-bound", "individual "+bound+" not evaluated because the "+bound+" count bound refused", bound+"-bound")
+				c.notEvaluated(bound+"-bound", []string{bound + "-bound"}, "individual "+bound+" not evaluated because the "+bound+" count bound refused")
 			}
 			return err
 		})
@@ -116,7 +120,7 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 		}
 		for _, id := range []string{request.MigrationInput, request.DiscoveryInput} {
 			if refusedInput(id) {
-				c.notEvaluated("required-inputs", "required input "+id+" not evaluated because the input was refused", "inputs")
+				c.notEvaluated("required-inputs", []string{"inputs"}, "required input ", id, " not evaluated because the input was refused")
 			}
 		}
 		return nil
@@ -134,7 +138,7 @@ func CheckBehaviorAdapter(requestRaw, previousRaw []byte) BehaviorAdapterCheck {
 				continue
 			}
 			if refused != nil {
-				c.notEvaluated("mappings", "record checks for "+item+" not evaluated because input "+mapping.Input+" was refused", "inputs")
+				c.notEvaluated("mappings", []string{"inputs"}, "record checks for ", item, " not evaluated because input ", mapping.Input, " was refused")
 			}
 		}
 		return nil
@@ -221,33 +225,109 @@ const (
 	behaviorCheckMaxMessageBytes = 4 << 10
 )
 
+// behaviorCheckOmittedState marks, inside the checker only, the position of
+// the first entry a stage dropped because the report room was exhausted.
+// boundBehaviorAdapterRefusals cuts the report there, so the report stays a
+// prefix of every determinable entry; the state is never emitted.
+const behaviorCheckOmittedState = "omitted"
+
+var errBehaviorCheckOmitted = &Error{Code: "", Message: behaviorCheckOmittedState}
+
+// behaviorCheckAfterStage, when set by a test, runs after each evaluated
+// stage while its buffers are still held, so retention can be measured.
+var behaviorCheckAfterStage func()
+
+type behaviorCheckAdmission int
+
+const (
+	behaviorCheckAdmitted behaviorCheckAdmission = iota
+	behaviorCheckFirstOmission
+	behaviorCheckDropped
+)
+
+// behaviorCheckRoom is the report room left when a stage starts. Each stage
+// buffer admits entries against its own copy, so it retains no more than the
+// report can still list and memory stays bounded however many items refuse.
+// Message bytes never exceed encoded bytes, so every entry the final bound
+// would keep is admitted.
+type behaviorCheckRoom struct {
+	entries, bytes int
+	full           bool
+}
+
+func (r *behaviorCheckRoom) admit(message string) behaviorCheckAdmission {
+	switch {
+	case r.full:
+		return behaviorCheckDropped
+	case r.entries <= 0 || len(message) > r.bytes:
+		r.full = true
+		return behaviorCheckFirstOmission
+	}
+	r.entries--
+	r.bytes -= len(message)
+	return behaviorCheckAdmitted
+}
+
+func (r *behaviorCheckRoom) append(entries []BehaviorAdapterRefusal, entry BehaviorAdapterRefusal) []BehaviorAdapterRefusal {
+	switch r.admit(entry.Message) {
+	case behaviorCheckAdmitted:
+		return append(entries, entry)
+	case behaviorCheckFirstOmission:
+		return append(entries, BehaviorAdapterRefusal{State: behaviorCheckOmittedState})
+	}
+	return entries
+}
+
+// behaviorCheckError returns the code and message the report lists for err.
+func behaviorCheckError(err error) (string, string) {
+	var typed *Error
+	if errors.As(err, &typed) {
+		return typed.Code, typed.Message
+	}
+	return "corpus-refused", err.Error()
+}
+
 // behaviorCheckMessage caps one report message at behaviorCheckMaxMessageBytes,
 // cut on a UTF-8 boundary and marked with the number of bytes removed. Entry 0
 // equals Build's refusal message under this rule (DCP-V1-044).
 func behaviorCheckMessage(message string) string {
-	if len(message) <= behaviorCheckMaxMessageBytes {
-		return message
+	return behaviorCheckJoin(message)
+}
+
+// behaviorCheckJoin returns behaviorCheckMessage of the joined parts without
+// building more than the capped prefix, so a request string echoed into many
+// entries is never copied in full.
+func behaviorCheckJoin(parts ...string) string {
+	total := 0
+	for _, part := range parts {
+		total += len(part)
+	}
+	if total <= behaviorCheckMaxMessageBytes {
+		return strings.Join(parts, "")
+	}
+	prefix := make([]byte, 0, behaviorCheckMaxMessageBytes+1)
+	for _, part := range parts {
+		prefix = append(prefix, part[:min(len(part), cap(prefix)-len(prefix))]...)
 	}
 	cut := behaviorCheckMaxMessageBytes
-	for cut > 0 && !utf8.RuneStart(message[cut]) {
+	for cut > 0 && !utf8.RuneStart(prefix[cut]) {
 		cut--
 	}
-	return message[:cut] + " … [truncated " + strconv.Itoa(len(message)-cut) + " bytes]"
+	return string(prefix[:cut]) + " … [truncated " + strconv.Itoa(total-cut) + " bytes]"
 }
 
 // boundBehaviorAdapterRefusals keeps the first entry, which is Build's
-// refusal, and then entries in order while both bounds hold. A terminal
-// not-evaluated entry says how many entries were kept when any were omitted.
+// refusal, and then entries in order while both bounds hold and no stage
+// dropped an entry. A terminal not-evaluated entry says how many entries were
+// kept when any were omitted. Messages were capped when appended.
 func boundBehaviorAdapterRefusals(refusals []BehaviorAdapterRefusal) []BehaviorAdapterRefusal {
 	size := 0
-	for index := range refusals {
-		refusals[index].Message = behaviorCheckMessage(refusals[index].Message)
-		refusal := refusals[index]
+	for index, refusal := range refusals {
 		encoded, err := Encode(refusal)
 		if err == nil {
 			size += len(encoded)
 		}
-		if index > 0 && (err != nil || index >= behaviorCheckMaxEntries || size > behaviorCheckMaxEntryBytes) {
+		if refusal.State == behaviorCheckOmittedState || index > 0 && (err != nil || index >= behaviorCheckMaxEntries || size > behaviorCheckMaxEntryBytes) {
 			kept := append([]BehaviorAdapterRefusal(nil), refusals[:index]...)
 			return append(kept, BehaviorAdapterRefusal{Stage: "report", State: behaviorCheckNotEvaluated, Code: "", Message: "further entries omitted after " + strconv.Itoa(index), BlockedBy: []string{}})
 		}
@@ -258,7 +338,15 @@ func boundBehaviorAdapterRefusals(refusals []BehaviorAdapterRefusal) []BehaviorA
 // stageRefused reports whether the stage currently running has kept a
 // refusal; the checker records the refusal count when the stage starts.
 func (c *behaviorAdapterChecker) stageRefused(a *behaviorAdapter) bool {
-	return len(a.refused) > c.start
+	return a.kept > c.keptStart
+}
+
+// add appends report entries directly; stage buffers were already bounded.
+func (c *behaviorAdapterChecker) add(entries ...BehaviorAdapterRefusal) {
+	for _, entry := range entries {
+		c.bytes += len(entry.Message)
+	}
+	c.report.Refusals = append(c.report.Refusals, entries...)
 }
 
 func (c *behaviorAdapterChecker) stage(name string, needs []string, a *behaviorAdapter, check func() error) {
@@ -273,39 +361,52 @@ func (c *behaviorAdapterChecker) stage(name string, needs []string, a *behaviorA
 		return
 	}
 	c.items = nil
-	refusals := []error{}
+	c.room = behaviorCheckRoom{entries: behaviorCheckMaxEntries - len(c.report.Refusals), bytes: behaviorCheckMaxEntryBytes - c.bytes}
+	refusedRoom := c.room
+	kept := []error{}
 	if a != nil {
-		c.start = len(a.refused)
+		c.start, c.keptStart = len(a.refused), a.kept
+		a.refusedRoom, a.unevaluatedRoom = c.room, c.room
 	}
 	err := check()
+	if behaviorCheckAfterStage != nil {
+		behaviorCheckAfterStage()
+	}
+	refused := err != nil
 	if a != nil {
-		refusals = append(refusals, a.refused[c.start:]...)
-		for _, detail := range a.unevaluated {
-			c.notEvaluated(name, detail, name)
+		kept = a.refused[c.start:]
+		refused = refused || a.kept > c.keptStart
+		refusedRoom = a.refusedRoom
+		for _, item := range a.unevaluated {
+			item.Stage, item.BlockedBy = name, []string{name}
+			c.items = append(c.items, item)
 		}
 		a.unevaluated = nil
 	}
-	if err != nil {
-		refusals = append(refusals, err)
-	}
 	state := behaviorCheckPassed
 	switch {
-	case len(refusals) > 0:
+	case refused:
 		state = behaviorCheckRefused
 	case len(c.items) > 0:
 		state = behaviorCheckNotEvaluated
 	}
 	c.states[name] = state
 	c.report.Stages = append(c.report.Stages, BehaviorAdapterCheckStage{Stage: name, State: state, BlockedBy: []string{}})
-	for _, refusal := range refusals {
-		code, message := "corpus-refused", refusal.Error()
-		var typed *Error
-		if errors.As(refusal, &typed) {
-			code, message = typed.Code, typed.Message
+	entries := make([]BehaviorAdapterRefusal, 0, len(kept)+1)
+	for _, refusal := range kept {
+		code, message := behaviorCheckError(refusal)
+		if refusal == errBehaviorCheckOmitted {
+			entries = append(entries, BehaviorAdapterRefusal{Stage: name, State: behaviorCheckOmittedState})
+			continue
 		}
-		c.report.Refusals = append(c.report.Refusals, BehaviorAdapterRefusal{Stage: name, State: behaviorCheckRefused, Code: code, Message: message, BlockedBy: []string{}})
+		entries = append(entries, BehaviorAdapterRefusal{Stage: name, State: behaviorCheckRefused, Code: code, Message: message, BlockedBy: []string{}})
 	}
-	c.report.Refusals = append(c.report.Refusals, c.items...)
+	if err != nil {
+		code, message := behaviorCheckError(err)
+		entries = refusedRoom.append(entries, BehaviorAdapterRefusal{Stage: name, State: behaviorCheckRefused, Code: code, Message: behaviorCheckMessage(message), BlockedBy: []string{}})
+	}
+	c.add(entries...)
+	c.add(c.items...)
 	c.items = nil
 }
 
@@ -314,7 +415,7 @@ func (c *behaviorAdapterChecker) stage(name string, needs []string, a *behaviorA
 func (c *behaviorAdapterChecker) block(name string, blockedBy ...string) {
 	c.states[name] = behaviorCheckNotEvaluated
 	c.report.Stages = append(c.report.Stages, BehaviorAdapterCheckStage{Stage: name, State: behaviorCheckNotEvaluated, BlockedBy: blockedBy})
-	c.report.Refusals = append(c.report.Refusals, BehaviorAdapterRefusal{Stage: name, State: behaviorCheckNotEvaluated, Code: "", Message: "stage was not evaluated because an earlier stage refused", BlockedBy: blockedBy})
+	c.add(BehaviorAdapterRefusal{Stage: name, State: behaviorCheckNotEvaluated, Code: "", Message: "stage was not evaluated because an earlier stage refused", BlockedBy: blockedBy})
 }
 
 func (c *behaviorAdapterChecker) skip(name string) {
@@ -323,9 +424,9 @@ func (c *behaviorAdapterChecker) skip(name string) {
 }
 
 // notEvaluated records one item inside an evaluated stage that depends on an
-// item an earlier stage refused.
-func (c *behaviorAdapterChecker) notEvaluated(stage, detail string, blockedBy ...string) {
-	c.items = append(c.items, BehaviorAdapterRefusal{Stage: stage, State: behaviorCheckNotEvaluated, Code: "", Message: detail, BlockedBy: blockedBy})
+// item an earlier stage refused. The parts are joined under the message cap.
+func (c *behaviorAdapterChecker) notEvaluated(stage string, blockedBy []string, parts ...string) {
+	c.items = c.room.append(c.items, BehaviorAdapterRefusal{Stage: stage, State: behaviorCheckNotEvaluated, Code: "", Message: behaviorCheckJoin(parts...), BlockedBy: blockedBy})
 }
 
 func behaviorAdapterCheckLimitations() []string {
