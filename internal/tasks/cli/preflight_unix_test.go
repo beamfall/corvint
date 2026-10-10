@@ -180,6 +180,15 @@ func TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants(t *testing.T) {
 // which runs the filter.
 func slowCleanFilterRepo(t *testing.T, gates ...string) (*fixture.Repo, string, string) {
 	t.Helper()
+	return cleanFilterRepo(t, `echo $$ > ../filter.pid; echo $$ > 'PIDFILE'; exec /bin/sleep 600;;`, gates...)
+}
+
+// cleanFilterRepo commits slow.txt under a clean filter that runs action,
+// with PIDFILE replaced by the returned pid file, only inside a preflight
+// worktree, and otherwise passes the content through. Cleanup kills the
+// pid the filter recorded.
+func cleanFilterRepo(t *testing.T, action string, gates ...string) (*fixture.Repo, string, string) {
+	t.Helper()
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed, gates...)
 	fixture.Write(t, filepath.Join(r.Root, ".gitattributes"), []byte("slow.txt filter=slow\n"))
 	fixture.Write(t, filepath.Join(r.Root, "slow.txt"), []byte("slow\n"))
@@ -187,7 +196,7 @@ func slowCleanFilterRepo(t *testing.T, gates ...string) (*fixture.Repo, string, 
 	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-m", "slow")
 	pidFile := filepath.Join(t.TempDir(), "filter.pid")
 	git(t, r.Root, "config", "filter.slow.clean",
-		`case "$PWD" in *corvint-tasks-preflight-*) echo $$ > ../filter.pid; echo $$ > '`+pidFile+`'; exec /bin/sleep 600;; esac; cat`)
+		`case "$PWD" in *corvint-tasks-preflight-*) `+strings.ReplaceAll(action, "PIDFILE", pidFile)+` esac; cat`)
 	t.Cleanup(func() {
 		if raw, err := os.ReadFile(pidFile); err == nil {
 			if pid, _ := strconv.Atoi(strings.TrimSpace(string(raw))); pid > 0 {
@@ -214,6 +223,28 @@ func TestTOLV0027_PreflightDeepInterruptStopsAHungStatus(t *testing.T) {
 	}
 	if child.ProcessState.ExitCode() == 0 || res.Outcome != wire.OutcomeRefused {
 		t.Fatalf("interrupted preflight: exit %d %+v", child.ProcessState.ExitCode(), res)
+	}
+}
+
+// TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup: a post-gate status
+// that ends cleanly still has its process group killed, so a clean filter
+// that passes the content through but leaves a background child running
+// does not outlive preflight.
+func TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup(t *testing.T) {
+	r, id, pidFile := cleanFilterRepo(t, `/bin/sleep 600 </dev/null >/dev/null 2>&1 & echo $! > 'PIDFILE';;`,
+		deepGate("touch", "printf 'slow\\n' > slow.txt", "900"))
+	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "touch")
+	if x.res.Outcome == wire.OutcomeRefused {
+		t.Fatalf("preflight: %s", x.stdout)
+	}
+	raw, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("the clean filter never ran: %v", err)
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	waitGone(t, pid, "the clean filter's background child")
+	if wt := gitOut(t, r.Root, "worktree", "list", "--porcelain"); strings.Count(wt, "worktree ") != 1 {
+		t.Fatalf("worktree entry left behind:\n%s", wt)
 	}
 }
 

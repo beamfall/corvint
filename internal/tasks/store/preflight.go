@@ -237,26 +237,34 @@ func postGateGit(wt string, args ...string) *exec.Cmd {
 }
 
 // startBounded starts c in its own process group and kills that group when
-// ctx ends. stop ends the watch once c has been waited for.
-func startBounded(ctx context.Context, c *exec.Cmd) (stop func() bool, err error) {
+// ctx ends. The caller defers retire as soon as c has started: it ends the
+// watch and kills whatever remains of the group, so a child that c left
+// running, such as one a clean filter put in the background, does not
+// outlive the call on any path, a clean exit included. The group keeps its
+// id while any member lives, so the kill cannot reach another group.
+func startBounded(ctx context.Context, c *exec.Cmd) (retire func(), err error) {
 	containGate(c)
 	c.WaitDelay = gateWaitDelay
 	if err := c.Start(); err != nil {
 		return nil, gitObservationFailed(err)
 	}
-	return context.AfterFunc(ctx, func() { killGate(c) }), nil
+	stop := context.AfterFunc(ctx, func() { killGate(c) })
+	return func() {
+		stop()
+		killGate(c)
+	}, nil
 }
 
 func postGateResolve(ctx context.Context, wt, rev string) (string, error) {
 	c := postGateGit(wt, "rev-parse", "--verify", "--end-of-options", rev)
 	var out bytes.Buffer
 	c.Stdout = &out
-	stop, err := startBounded(ctx, c)
+	retire, err := startBounded(ctx, c)
 	if err != nil {
 		return "", err
 	}
+	defer retire()
 	werr := c.Wait()
-	stop()
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -270,18 +278,18 @@ func postGateResolve(ctx context.Context, wt, rev string) (string, error) {
 // at most one byte: the first byte settles the answer, so c's process group
 // is then killed rather than read to the end, and a gate that left many
 // untracked files costs no more than one that left one. The group is also
-// killed when ctx ends, which returns ctx's error. A command that writes
-// nothing and fails is an error.
+// killed when ctx ends, which returns ctx's error, and on return in every
+// case. A command that writes nothing and fails is an error.
 func writesAnything(ctx context.Context, c *exec.Cmd) (bool, error) {
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		return false, gitObservationFailed(err)
 	}
-	stop, err := startBounded(ctx, c)
+	retire, err := startBounded(ctx, c)
 	if err != nil {
 		return false, err
 	}
-	defer stop()
+	defer retire()
 	var first [1]byte
 	n, rerr := io.ReadFull(stdout, first[:])
 	if n == 1 {

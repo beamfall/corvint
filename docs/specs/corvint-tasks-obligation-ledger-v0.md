@@ -352,17 +352,18 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   requires; otherwise that gate is a `DEEP_CHECK_FAILED` finding naming the change and no later gate
   runs. The status is streamed and read only to its first entry. Reading the worktree can run
   repository programs (a clean filter on a file the gate touched), so each post-gate Git command
-  runs in its own process group, killed on `SIGINT`/`SIGTERM` or when the gate's declared timeout
-  passes; a check that does not finish within that timeout is a `DEEP_CHECK_FAILED` finding, never a
-  pass, and no later gate runs. Each gate runs in its own process group, which is killed when the
-  gate exits, so nothing it left running outlives it. `SIGINT` or `SIGTERM` kills the running gate's
-  process group, waits for it, removes the worktree and refuses `UNSUPPORTED`; `SIGKILL` can leave
-  the worktree, which `git worktree prune` repairs. A process that leaves its gate's process group
-  (for example with `setsid`) is not tracked, and creating the worktree (its checkout, including
-  smudge filters) is not bounded. An undeclared gate refuses `GATE_UNKNOWN` and an unsupported one
-  `UNSUPPORTED`, before any worktree is created; `--gate` without `--deep` or `--deep` without a
-  gate is a usage `ERROR`. A gate that does not pass is a `DEEP_CHECK_FAILED` finding whose `id` is
-  the gate and whose detail quotes its first actionable line. Gate runs record no gate result.
+  runs in its own process group, which is killed when the command ends, on `SIGINT`/`SIGTERM`, or
+  when the gate's declared timeout passes; a check that does not finish within that timeout is a
+  `DEEP_CHECK_FAILED` finding, never a pass, and no later gate runs. Each gate runs in its own
+  process group, which is killed when the gate exits, so nothing it left running outlives it.
+  `SIGINT` or `SIGTERM` kills the running gate's process group, waits for it, removes the worktree
+  and refuses `UNSUPPORTED`; `SIGKILL` can leave the worktree, which `git worktree prune` repairs. A
+  process that leaves its gate's process group (for example with `setsid`) is not tracked, and
+  creating the worktree (its checkout, including smudge filters) is not bounded. An undeclared gate
+  refuses `GATE_UNKNOWN` and an unsupported one `UNSUPPORTED`, before any worktree is created;
+  `--gate` without `--deep` or `--deep` without a gate is a usage `ERROR`. A gate that does not pass
+  is a `DEEP_CHECK_FAILED` finding whose `id` is the gate and whose detail quotes its first
+  actionable line. Gate runs record no gate result.
   Status: (proposed, pending owner acceptance; GitHub #713).
 
 ## Failure modes and trust
@@ -427,7 +428,7 @@ fixture passes.
 | TOL-V0-009..013 | V1-1022 | report reader `internal/tasks/obligation` (no Node dependency), secret screen, receipt audit (`internal/tasks/transaction/obligation_audit.go`) | `TestTOLV0009_ReportAdmissionAndRetention`, `TestTOLV0009_SubsetIgnoresExcludedMatchBound`, `TestTOLV0010_StepOwnErrorCredits`, `TestTOLV0010_Retry0Only`, `TestTOLV0011_ConflictingMatches`, `TestTOLV0012_SourcePresence`, `TestTOLV0013_CreditMismatchAndAudit`, `TestTOLV0013_AuditAfterReportDeleted`, `TestTOLV0013_DeclaredWitnessAudit`, `TestTOLV0013_DeclaredCommitAudited`, `TestTOLV0013_TamperedWorkerGenerationInconsistent` (`internal/tasks/cli`), all on synthetic json reports | live Playwright 1.63 fixture on a PWP-V0-008 tuple producing each case (`NOT_RUN`: Playwright is not installed on this host; the qualified version list stays empty) |
 | TOL-V0-016..018, 021 | V1-1022 | `internal/tasks/dispatch` (roster, stall, ledger version, status), `internal/tasks/transaction/loop_detect.go` | `TestTOLV0016_HighWaterMonotone` (`internal/tasks/cli`); `TestTOLV0017_FingerprintLegacyIdentity`, `TestTOLV0017_LedgerChurnIsNotProgress`, `TestTOLV0017_HighWaterRaiseIsProgress`, `TestTOLV0021_StallRestartsOnRaise`, `TestTOLV0021_PreviousLedgerVersionAdopted` (`internal/tasks/dispatch`); `TestTOLV0018_LastRaiseEndsNoProgressRun` (`internal/tasks/transaction`) | live dispatcher run (`NOT_RUN`) |
 | TOL-V0-022..024 (proposed) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
-| TOL-V0-025..027 (proposed) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
+| TOL-V0-025..027 (proposed) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1

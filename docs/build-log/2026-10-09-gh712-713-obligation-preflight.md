@@ -189,3 +189,26 @@ Regression tests (both failed on 96d6cb1c):
   hanging until the 100 s test timeout. It now returns in about 2.7 s.
 - `TestTOLV0027_PreflightStatusStopsAtFirstEntry` gains a case where a silent command is stopped by
   its context.
+
+## Round-4 review (Codex) and fix
+
+- Finding: a post-gate status that ended cleanly (EOF, exit 0) only stopped its cancel watch. It did
+  not kill the process group. A clean filter such as
+  `cat; /bin/sleep 600 </dev/null >/dev/null 2>&1 &` exits 0 and passes the content through, so
+  its background child outlived preflight.
+- Fix: `startBounded` now returns `retire`, which the caller defers as soon as the command has
+  started. `retire` ends the watch and kills the group with SIGKILL. Both bounded post-gate calls
+  (`postGateResolve` and `writesAnything`) defer it, so every exit path retires the group: clean
+  EOF, error, cancel and deadline. The kill runs after `Wait` has reaped the leader. A group keeps
+  its id while any member lives, so the kill cannot reach another group.
+- No other post-gate Git call is affected. The worktree removal runs in the caller's checkout and
+  runs no clean filter or hook (round 3).
+- TOL-V0-027 now says the group is killed when the command ends, as well as on a signal or the
+  deadline.
+
+Regression test (failed on aebc7f77):
+- `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` uses a passing gate that rewrites the
+  filtered file at the same size. The filter backgrounds a sleep and records its pid. The test
+  asserts that the filter ran and that the sleep is gone once preflight returns. On aebc7f77 it
+  failed with "the clean filter's background child 48942 survived". The test's cleanup killed that
+  pid, and a `ps` check afterwards found no surviving `sleep 600`.
