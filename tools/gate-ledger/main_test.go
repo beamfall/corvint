@@ -451,7 +451,7 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	}
 	root := packageRepository(t, files)
 	log := filepath.Join(t.TempDir(), "ARGS")
-	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"`, log}
+	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
 	packageLines := func(out string) string {
 		var lines []string
 		for _, line := range strings.Split(out, "\n") {
@@ -495,5 +495,124 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	write(t, root, "docs/decisions/0001.md", "one, edited\n")
 	if _, out := ledgerRun(t, args...); strings.Contains(out, "RUN go-test-package example.com/fixture/") {
 		t.Fatalf("edit outside the bounds of core, dep and reader: %q", out)
+	}
+}
+
+// GL-V0-002/009: actual Go JSON, package keys and unresolved whole-tree
+// misses compose correctly on a same-tree retry after a failed batch.
+func TestGoTestPartialPassRerun(t *testing.T) {
+	for name, bad := range map[string]string{
+		"test failure":  "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { t.Fatal(\"expected failure\") }\n",
+		"build failure": "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { missingSymbol() }\n",
+	} {
+		t.Run(name, func(t *testing.T) { testGoTestPartialPassRerun(t, bad) })
+	}
+}
+
+func testGoTestPartialPassRerun(t *testing.T, bad string) {
+	packageRepository(t, map[string]string{
+		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
+		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
+		"main_test.go":      "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
+		"good/good_test.go": "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",
+		"bad/bad_test.go":   bad,
+		"wd/wd_test.go":     "package wd\nimport (\"testing\"; \"os\")\nfunc TestWd(t *testing.T) { os.Getwd(); t.Fatal(\"unresolved failure\") }\n",
+	})
+	args := []string{"go-test", "--", "go", "test", "-timeout", "30s"}
+	code, out := ledgerRun(t, args...)
+	if code != 1 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/good ") || strings.Contains(out, "RECORD go-test-package example.com/fixture/bad ") || strings.Contains(out, "RECORD go-test-unresolved") {
+		t.Fatalf("first failed batch: code %d, %s", code, out)
+	}
+	keyed, reason := open(&bytes.Buffer{}, &bytes.Buffer{}).packageKeys([]string{"example.com/fixture/bad"})
+	if reason != "" || len(keyed) != 1 || keyed[0].reason != "" {
+		t.Fatalf("bad package key unavailable: %q, %+v", reason, keyed)
+	}
+	if _, hit := open(&bytes.Buffer{}, &bytes.Buffer{}).lookup(keyed[0].key); hit {
+		t.Fatal("failed package recorded")
+	}
+	code, out = ledgerRun(t, args...)
+	if code != 1 || !strings.Contains(out, "HIT go-test-package example.com/fixture/good ") || !strings.Contains(out, "RUN go-test-package example.com/fixture/bad:") || !strings.Contains(out, "RUN go-test-unresolved:") {
+		t.Fatalf("same-tree rerun: code %d, %s", code, out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "RUN go-test-package") && !strings.Contains(line, "example.com/fixture/bad:") {
+			t.Fatalf("passed package repeated: %s", line)
+		}
+	}
+}
+
+// GL-V0-002: a package pass alone is insufficient if any requested outcome
+// is missing, contradictory, malformed or truncated, even on exit zero.
+func TestPackageOutcomesRefusesIncomplete(t *testing.T) {
+	start := `{"Action":"start","Package":"good"}` + "\n"
+	pass := `{"Action":"pass","Package":"good"}` + "\n"
+	for name, stream := range map[string]string{
+		"empty":                    "",
+		"unfinished test":          start + `{"Action":"run","Package":"good","Test":"TestOpen"}` + "\n" + pass,
+		"duplicate action":         start + `{"Action":"fail","Action":"pass","Package":"good"}` + "\n",
+		"build failure after pass": start + pass + `{"Action":"build-fail","ImportPath":"good"}` + "\n",
+		"missing package":          start + pass,
+		"truncated":                start + strings.TrimSpace(pass),
+		"malformed":                start + pass + "garbled\n",
+		"missing start":            pass,
+		"test failure then pass":   start + `{"Action":"fail","Package":"good","Test":"TestBad"}` + "\n" + pass,
+		"duplicate terminal":       start + pass + pass,
+		"build failure then pass":  start + `{"Action":"build-fail","ImportPath":"good"}` + "\n" + pass,
+		"oversize":                 start + strings.Repeat("x", (1<<20)+1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			pkgs := []packageKey{{pkg: "good"}}
+			if name == "missing package" {
+				pkgs = append(pkgs, packageKey{pkg: "bad"})
+			}
+			var out bytes.Buffer
+			o := newPackageOutcomes(pkgs, &out)
+			// Exercise arbitrary pipe-write boundaries, not only whole lines.
+			for len(stream) > 0 {
+				n := min(17, len(stream))
+				_, _ = o.Write([]byte(stream[:n]))
+				stream = stream[n:]
+			}
+			if got := o.passes(); got != nil {
+				t.Fatalf("invalid stream admitted: %v", got)
+			}
+		})
+	}
+}
+
+func TestPackageOutcomesPassAndFailure(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+	stream := `{"Action":"start","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"output","Package":"good","Output":"ok output\n"}
+{"Action":"pass","Package":"good"}
+{"Action":"build-output","ImportPath":"bad","Output":"build diagnostic\n"}
+{"Action":"build-fail","ImportPath":"bad"}
+{"Action":"fail","Package":"bad"}
+`
+	_, _ = o.Write([]byte(stream))
+	passes := o.passes()
+	if !passes["good"] || passes["bad"] || out.String() != "ok output\nbuild diagnostic\n" {
+		t.Fatalf("passes %v, output %q", passes, out.String())
+	}
+}
+
+// GL-V0-002: stream refusal also reaches the record-writing boundary.
+func TestRunPackagesRefusesPartialOutput(t *testing.T) {
+	for _, ending := range []string{"", "garbled\n"} {
+		t.Run(fmt.Sprintf("ending-%q", ending), func(t *testing.T) {
+			fixtureRepository(t)
+			var out bytes.Buffer
+			l := open(&out, &out)
+			keyed := []packageKey{{pkg: "good", key: strings.Repeat("a", 64), bound: "fixture"}, {pkg: "bad", key: strings.Repeat("b", 64), bound: "fixture"}}
+			command := []string{"sh", "-c", `printf '%s\n' '{"Action":"start","Package":"good"}' '{"Action":"pass","Package":"good"}'; printf '%s' "$0"`, ending}
+			if code := l.runPackages(keyed, command); code != 0 {
+				t.Fatalf("status %d", code)
+			}
+			if records(t) != 0 {
+				t.Fatalf("partial output recorded: %s", out.String())
+			}
+		})
 	}
 }

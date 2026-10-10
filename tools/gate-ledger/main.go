@@ -14,7 +14,7 @@
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
 // digest (skip-worktree or assume-unchanged entries, an ignored Go file, a failed
 // git), a ledger directory it does not own, or a record it cannot read. A failed
-// command leaves no record. CORVINT_GATE_LEDGER=off runs every command untouched;
+// command leaves no whole-step record; resolved package passes record independently. CORVINT_GATE_LEDGER=off runs every command untouched;
 // CORVINT_GATE_LEDGER_DIR overrides the per-user ledger directory.
 package main
 
@@ -537,7 +537,7 @@ func sortedKeys(set map[string]bool) []string {
 
 // runPackages runs the resolved packages whose key has no recorded pass in one
 // go test invocation, holding each key's lock, and records each package on
-// exit zero (GL-V0-009). A package with a reason runs in the same invocation
+// a proven package pass, even on batch failure (GL-V0-002/009). A package with a reason runs in the same invocation
 // and is not recorded.
 func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	var pending []packageKey
@@ -585,16 +585,19 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 		return 0
 	}
 	sort.Slice(run, func(i, j int) bool { return run[i].pkg < run[j].pkg })
-	command := append([]string{}, goTest...)
+	command := append(append([]string{}, goTest...), "-json")
 	for _, p := range run {
 		command = append(command, p.pkg)
 	}
 	started := time.Now()
-	if code := execute(command); code != 0 {
-		return code
+	outcomes := newPackageOutcomes(run, os.Stdout)
+	code := executeOutput(command, outcomes, os.Stderr)
+	passes := outcomes.passes()
+	if passes == nil {
+		fmt.Fprintf(l.stderr, "%sresolved output incomplete or invalid; no package records\n", prefixOut)
 	}
 	for _, p := range run {
-		if p.reason != "" {
+		if p.reason != "" || !passes[p.pkg] || code >= 128 {
 			continue
 		}
 		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound}
@@ -604,7 +607,191 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 		}
 		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s\n", prefixOut, packageStep, p.pkg, short(p.key))
 	}
-	return 0
+	return code
+}
+
+// packageOutcomes consumes newline-delimited go test JSON without retaining the
+// full test log. Nothing records until the command ends and all requested package
+// outcomes are complete. An invalid stream is drained and shown, never evidence.
+type packageOutcome struct {
+	started, failed bool
+	terminal        string
+	tests           map[string]bool
+}
+
+type packageOutcomes struct {
+	packages map[string]*packageOutcome
+	line     []byte
+	invalid  bool
+	stdout   io.Writer
+}
+
+func newPackageOutcomes(packages []packageKey, stdout io.Writer) *packageOutcomes {
+	o := &packageOutcomes{packages: map[string]*packageOutcome{}, stdout: stdout}
+	for _, p := range packages {
+		o.packages[p.pkg] = &packageOutcome{tests: map[string]bool{}}
+	}
+	return o
+}
+
+func (o *packageOutcomes) Write(data []byte) (int, error) {
+	n := len(data)
+	for len(data) > 0 {
+		i := bytes.IndexByte(data, '\n')
+		if i < 0 {
+			i = len(data) - 1
+		}
+		chunk := data[:i+1]
+		data = data[i+1:]
+		// A single event is bounded to 1 MiB; excess output remains visible.
+		if o.invalid {
+			_, _ = o.stdout.Write(chunk)
+			continue
+		}
+		if len(o.line)+len(chunk) > 1<<20 {
+			o.invalid = true
+			_, _ = o.stdout.Write(o.line)
+			o.line = nil
+			_, _ = o.stdout.Write(chunk)
+			continue
+		}
+		o.line = append(o.line, chunk...)
+		if chunk[len(chunk)-1] == '\n' {
+			o.event(o.line)
+			o.line = nil
+		}
+	}
+	return n, nil
+}
+
+// encoding/json otherwise permits duplicate keys with last-wins semantics,
+// which could erase a fail action. Require one object with unique field names.
+func uniqueEventFields(line []byte) bool {
+	d := json.NewDecoder(bytes.NewReader(line))
+	first, err := d.Token()
+	if err != nil || first != json.Delim('{') {
+		return false
+	}
+	seen := map[string]bool{}
+	for d.More() {
+		token, err := d.Token()
+		if err != nil {
+			return false
+		}
+		name, ok := token.(string)
+		// Field names are case-insensitive in encoding/json.
+		name = strings.ToLower(name)
+		if !ok || seen[name] {
+			return false
+		}
+		seen[name] = true
+		var value json.RawMessage
+		if d.Decode(&value) != nil {
+			return false
+		}
+	}
+	if _, err := d.Token(); err != nil {
+		return false
+	}
+	var extra json.RawMessage
+	return d.Decode(&extra) == io.EOF
+}
+
+func (o *packageOutcomes) event(line []byte) {
+	var e struct{ Action, Package, ImportPath, Test, Output string }
+	if !uniqueEventFields(line) || json.Unmarshal(line, &e) != nil {
+		o.invalid = true
+		_, _ = o.stdout.Write(line)
+		return
+	}
+	_, _ = io.WriteString(o.stdout, e.Output)
+	// Go's build events use ImportPath, and may name dependencies outside
+	// the requested set. A requested package still needs its terminal outcome.
+	if e.Action == "build-output" || e.Action == "build-fail" {
+		if e.ImportPath == "" {
+			o.invalid = true
+		}
+		if p := o.packages[e.ImportPath]; p != nil && e.Action == "build-fail" {
+			p.failed = true
+			if p.terminal != "" {
+				o.invalid = true
+			}
+		}
+		return
+	}
+	p := o.packages[e.Package]
+	if p == nil || p.terminal != "" {
+		o.invalid = true
+		return
+	}
+	if e.Action == "start" && e.Test == "" {
+		if p.started {
+			o.invalid = true
+		}
+		p.started = true
+		return
+	}
+	if !p.started {
+		o.invalid = true
+		return
+	}
+	if e.Test != "" {
+		switch e.Action {
+		case "run":
+			if p.tests[e.Test] || len(p.tests) >= 100000 {
+				o.invalid = true
+			}
+			p.tests[e.Test] = true
+		case "pass", "skip", "fail":
+			if !p.tests[e.Test] {
+				o.invalid = true
+			}
+			delete(p.tests, e.Test)
+		case "pause", "cont":
+			if !p.tests[e.Test] {
+				o.invalid = true
+			}
+		}
+	}
+	switch e.Action {
+	case "output", "run", "pause", "cont":
+		if e.Action != "output" && e.Test == "" {
+			o.invalid = true
+		}
+	case "fail":
+		p.failed = true
+		if e.Test == "" {
+			p.terminal = "fail"
+		}
+	case "pass", "skip":
+		if e.Test == "" {
+			p.terminal = e.Action
+			if e.Action == "pass" && (p.failed || len(p.tests) != 0) {
+				o.invalid = true
+			}
+		}
+	default:
+		o.invalid = true
+	}
+}
+
+func (o *packageOutcomes) passes() map[string]bool {
+	if len(o.line) > 0 {
+		_, _ = o.stdout.Write(o.line)
+		o.line = nil
+		o.invalid = true
+	}
+	if o.invalid {
+		return nil
+	}
+	passes := map[string]bool{}
+	for name, p := range o.packages {
+		if !p.started || p.terminal == "" {
+			return nil
+		}
+		passes[name] = p.terminal == "pass" && !p.failed
+	}
+	return passes
 }
 
 // inputs digests the tree entries scope selects; a tree scope is the tree id itself.
@@ -857,8 +1044,12 @@ func (l *ledger) lock(key, step string) (func(), error) {
 // execute runs command with inherited stdio and returns its exit status; a
 // command killed by a signal exits 128+signal.
 func execute(command []string) int {
+	return executeOutput(command, os.Stdout, os.Stderr)
+}
+
+func executeOutput(command []string, stdout, stderr io.Writer) int {
 	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, stdout, stderr
 	cmd.Env = withoutJobserver(os.Environ())
 	err := cmd.Run()
 	if err == nil {
@@ -871,7 +1062,7 @@ func execute(command []string) int {
 		}
 		return exit.ExitCode()
 	}
-	fmt.Fprintf(os.Stderr, "%s%s: %s\n", prefixOut, command[0], err)
+	fmt.Fprintf(stderr, "%s%s: %s\n", prefixOut, command[0], err)
 	return 1
 }
 
