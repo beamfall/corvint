@@ -354,8 +354,12 @@ func (t *constTable) quiet(f *constFile, name string, exempt bool) bool {
 // so these count too: a `with` statement (its object's keys shadow names), `eval` or `Function`
 // anywhere (`new Function`, `(0, eval)`), and a string or template whose value is exactly angular
 // (`{ 'angular': x }`, `window['angular']`) other than the specifier of an accepted package
-// binding. Then `angular.module('x', [...])` in any examined file may call another function, so
-// no dependency list is exempt.
+// binding. A file may also reach angular through a global object or a computed name, so these
+// count as well: a global object's name (globalObjects) other than a property or an object key,
+// a reflective name (reflective) in any position, as an identifier or an exact string, and a
+// computed member or object key whose name is not one number or string (computedName). Then
+// `angular.module('x', [...])` in any examined file may call another function, so no dependency
+// list is exempt.
 func (t *constTable) bindsAngular(f *constFile) bool {
 	toks := f.toks
 	for i, tok := range toks {
@@ -366,6 +370,10 @@ func (t *constTable) bindsAngular(f *constFile) bool {
 			if !angularSpecifier(toks, i) {
 				return true
 			}
+		case (tok.kind == tokIdent || literal(tok)) && reflective[tok.text],
+			tok.kind == tokIdent && globalObjects[tok.text] && !property(toks, i) && !objectKey(toks, i),
+			isPunct(tok, "[") && computedName(toks, i):
+			return true
 		case tok.kind != tokIdent || tok.text != "angular":
 		case next(toks, i+1, ".") && word(toks, i+2, "module") && next(toks, i+3, "("):
 		case !angularImport(toks, i) || !t.angularPackage(f):
@@ -373,6 +381,61 @@ func (t *constTable) bindsAngular(f *constFile) bool {
 		}
 	}
 	return false
+}
+
+var (
+	// globalObjects are the names of the global object, through which any global, angular
+	// included, can be read or replaced.
+	globalObjects = map[string]bool{"window": true, "globalThis": true, "self": true, "global": true,
+		"top": true, "parent": true, "frames": true}
+	// reflective are the names that can define or replace a property, or a whole object's
+	// behavior, without a visible member write; assign stands for Object.assign.
+	reflective = map[string]bool{"Reflect": true, "Proxy": true, "defineProperty": true,
+		"defineProperties": true, "setPrototypeOf": true, "__proto__": true, "__defineGetter__": true,
+		"__defineSetter__": true, "assign": true}
+	// arrayAfter is the punctuation after which a `[` can only open an array literal or pattern.
+	// `{`, `,` and `;` are decided by what follows the group; after `)`, `]`, `}`, `.` (an optional
+	// `?.[` or a spread) and any other punctuation a `[` counts as a computed member.
+	arrayAfter = map[string]bool{"(": true, "=": true, ":": true, "[": true, "?": true, "~": true,
+		"&": true, "|": true, "^": true, "*": true, "%": true, "/": true, "!": true, "+": true,
+		"-": true, "<": true, ">": true}
+	// arrayWords are the reserved words after which a `[` opens an array literal or pattern. The
+	// contextual words of, yield and await may also be plain names, so a `[` after them counts as
+	// a computed member.
+	arrayWords = map[string]bool{"return": true, "typeof": true, "case": true, "in": true,
+		"else": true, "do": true, "void": true, "delete": true, "throw": true, "new": true,
+		"instanceof": true, "extends": true, "default": true, "const": true, "let": true, "var": true}
+)
+
+// computedName reports whether the `[` at toks[i] opens a computed member (`x[k]`, `x?.[k]`) or
+// a computed object or class key (`{ [k]: v }`, `[k]() {}`, `[k] = v`) whose name is not exactly
+// one number or string, or a group that does not close. After `{`, `,` or `;` the group is a key
+// when a `:`, `(` or `=` follows it, so an array pattern assigned there counts too; after a name,
+// a literal or a closing bracket it is a member. Empty brackets (a TypeScript `T[]` type) and
+// array literals do not count.
+func computedName(toks []token, i int) bool {
+	end := closeParen(toks, i)
+	if !isPunct(toks[end], "]") || !balanced(toks, i, end) {
+		return true
+	}
+	if i == 0 {
+		return false
+	}
+	switch p := toks[i-1]; {
+	case next(toks, i-1, "{", ",", ";"):
+		if !next(toks, end+1, ":", "(", "=") {
+			return false
+		}
+	case p.kind == tokPunct && arrayAfter[p.text], p.kind == tokIdent && arrayWords[p.text]:
+		return false
+	}
+	switch end - i {
+	case 1:
+		return false
+	case 2:
+		return toks[i+1].kind != tokNumber && !literal(toks[i+1])
+	}
+	return true
 }
 
 // angularImport reports whether toks[i] is the binding of `import angular from 'angular'`,

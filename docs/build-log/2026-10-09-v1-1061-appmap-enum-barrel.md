@@ -265,6 +265,20 @@ injector.
   token outside a property position, an `eval` or `Function` token (`new Function`, `(0, eval)`),
   or a string or template whose value is exactly `angular` (`{ 'angular': x }`,
   `window['angular']`) other than the specifier of an accepted package binding.
+- Twentieth review (one fail-open path, no spec text change): `window['angu' + 'lar'].module =
+  function (l, a) { app.config(a); }` replaced angular.module through a computed name no string
+  shows. To close the class rather than each spelling, the exemption is now also removed for the
+  whole closure when any closure file holds: a computed member or object key (`x[...]`,
+  `x?.[...]`, `{ [...]: v }`, a class `[...]() {}`) whose name is not exactly one number or
+  string; a global object's name (`window`, `globalThis`, `self`, `global`, `top`, `parent`,
+  `frames`) other than a property or a plain object key; or a reflective name (`Reflect`,
+  `Proxy`, `defineProperty`, `defineProperties`, `setPrototypeOf`, `__proto__`,
+  `__defineGetter__`, `__defineSetter__`, `assign`) in any position, as a name or an exact
+  string. A `[` is an array literal or pattern only after punctuation that starts an expression
+  or after a reserved word such as `return` or `const`; after `{`, `,` or `;` it is a key when a
+  `:`, `(` or `=` follows the group; anything else, including a name, a literal, a closing bracket,
+  `.` and the contextual words `of`, `yield` and `await`, counts as a member. Empty brackets (a
+  TypeScript `T[]` type) never count.
 
 ## Evidence
 
@@ -488,6 +502,18 @@ injector.
   three `di angular package` cases, whose specifier is the string `'angular'`, still resolve. The
   full `go test -count=1 ./internal/appmap` passes (530 passing tests and subtests); `go vet` and
   `gofmt` are clean.
+- Twentieth review: `di global computed` (the review's input), `di assign key`
+  (`Object.assign(w, { ['angu' + 'lar']: 1 })`), `di reflect set` (`Reflect.set(w, 'x', 1)`), `di
+  identifier key` (`o[k] = 1`) and `di global self` (`var self = {}`) resolve silently against
+  `8724b245` (`v1061-r21-gap-before.txt`); `di global this` (`globalThis.angular.module = ...`)
+  was already caught by the angular-use rule and guards this one. All six fail closed with the
+  fix. Disabling each new rule alone reopens exactly its case (`identifier key` for computed
+  names, `global self` for global objects, `reflect set` for reflective names); the review's input
+  is caught by both the computed-name and global-object rules. `di literal brackets` (array
+  literals, an array pattern, `xs[0]`, `xs['1']`, `{ ['k']: [r], parent: 'home', top: 1 }`,
+  `string[]`, `=> [n]`) and the three `di angular package` cases still resolve, and
+  `TestAMAPV0025ComputedName` covers 26 bracket forms. The full `go test -count=1
+  ./internal/appmap` passes (538 passing tests and subtests); `go vet` and `gofmt` are clean.
 - `go test ./internal/appmap ./internal/testplan ./internal/specindex ./cmd/corvint-corpus-mcp`
   and the `cmd/corvint` flows-appmap tests pass; the lane doc gates pass.
 
@@ -578,5 +604,15 @@ injector.
   undeclared `angular` package leaves the closure unresolved. An examined file with a template
   substitution beyond a name, member chain or literal
   (`${fmt(x)}`, `${a + b}`) also fails. The opaque rule applies only to the injection check. The
-  global `angular` reassigned by a string key (`globalThis['angular'] = h`) or from a file outside
-  the closure is not seen; this is the off-chain global class above.
+  global `angular` reassigned from a file outside the closure is not seen; this is the off-chain
+  global class above.
+- Since the twentieth review, ordinary code also removes the exemption, so a dependency list of
+  two or more names fails, when any closure file holds: a computed member with a name, call,
+  expression or substituted template key (`items[i]`, `map[key]`, `obj[a + b]`); a computed
+  object or class key; an array literal after `of`, `yield` or `await` (`for (x of [a, b])`), a
+  `}` or `)`, or a spread (`...[a]`), each read as a member; an array pattern after `;`, `{` or
+  `,` followed by `=` (`[a, b] = [b, a]`); a TypeScript index signature (`{ [key: string]: T }`);
+  a global object's name other than a property or a plain object key, including the common
+  `var self = this`, a parameter or import named `parent` or `top`, and `window.location`; and
+  any `Reflect`, `Proxy`, `defineProperty`, `__proto__`, `assign` (including `Object.assign` and
+  `location.assign`) or similar name, as an identifier or exact string, in any position.

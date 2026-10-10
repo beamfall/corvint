@@ -624,9 +624,18 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 		// to reach angular by a computed name (round 20).
 		"angular with": {reg + "const app=angular.module('admin'); const fake={}; fake['module']=function(l,a){app.config(a);};\n" +
 			"with ({ 'angular': fake }) { angular.module('unused',['Section'+'Names',function(s){s.REPORTS='other';}]); }\n", nil},
-		"angular eval":            {reg + "eval('var x = 1');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"angular string key":      {reg + "const app = angular.module('admin');\nwindow['angular'].module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
-		"angular quoted key":      {reg + "const o = { \"angular\": 1 };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular eval":       {reg + "eval('var x = 1');\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular string key": {reg + "const app = angular.module('admin');\nwindow['angular'].module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"angular quoted key": {reg + "const o = { \"angular\": 1 };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		// The twentieth review's input, angular.module replaced through a computed global name,
+		// and other computed names, global objects and reflective writes (round 21).
+		"global computed": {reg + "const app = angular.module('admin');\nwindow['angu' + 'lar'].module = function (label, annotation) { app.config(annotation); };\n" +
+			"angular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"global this":             {reg + "const app = angular.module('admin');\nglobalThis.angular.module = function (l, a) { app.config(a); };\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"assign key":              {reg + "const w = {};\nObject.assign(w, { ['angu' + 'lar']: 1 });\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"reflect set":             {reg + "const w = {};\nReflect.set(w, 'x', 1);\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"identifier key":          {reg + "const o = {}; const k = 'x';\no[k] = 1;\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
+		"global self":             {reg + "var self = {};\nangular.module('unused', ['Section' + 'Names', function (s) { s.REPORTS = 'other'; }]);\n", nil},
 		"substitution underscore": {reg + "const app = angular.module('admin');\n`${app.config(function (_SectionNames_) {\n  _SectionNames_.REPORTS = 'other';\n})}`;\n", nil},
 		"substitution annotation": {reg + "const app = angular.module('admin');\nfunction mutate(s) { s.REPORTS = 'other'; }\n`${app.config(['Section' + 'Names', mutate])}`;\n", nil},
 	} {
@@ -655,6 +664,13 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 				"package.json": angularPkg["package.json"]}, "", index)
 		})
 	}
+	// Array literals, literal and empty brackets and a global object's name as an object key keep
+	// the exemption (round 21).
+	t.Run("di literal brackets", func(t *testing.T) {
+		checkBarrel(t, reg+"const xs = ['a', 'b', [1, 2]];\nconst [p, q] = xs;\nconst r = xs[0] + xs['1'];\nconst o = { ['k']: [r], parent: 'home', top: 1 };\n"+
+			"const f = (n: string[]) => [n];\nf([1, 2]);\nangular.module('m', [uiRouter, ngAnimate]);\n",
+			map[string]string{index: star, decl: table}, "", index)
+	})
 	// A template substitution that is one name, member chain or literal stays readable (round 17).
 	t.Run("di plain substitutions", func(t *testing.T) {
 		checkBarrel(t, reg+"const a = { b: 'x' };\nconst u = `/p/${a.b}/q/${ a?.b }`;\nconst v = `${'s'}${1}${`n${a}`}`;\nangular.module('m', [uiRouter]);\n",
@@ -1039,6 +1055,48 @@ func TestAMAPV0025SubstOpaque(t *testing.T) {
 		}
 		if got := substOpaque(toks[0].code); got != want {
 			t.Errorf("substOpaque(%s) = %v, want %v", src, got, want)
+		}
+	}
+}
+
+// AMAP-V0-025: a computed member or object key whose name is not one number or string removes
+// the angular.module exemption; array literals, patterns and literal or empty brackets do not.
+func TestAMAPV0025ComputedName(t *testing.T) {
+	for src, want := range map[string]bool{
+		"[a, b]":                  false,
+		"f([a, b])":               false,
+		"x = [a, [b]]":            false,
+		"const [a, b] = x":        false,
+		"return [a]":              false,
+		"(n) => [n]":              false,
+		"c ? [a] : [b]":           false,
+		"g(a, [b])":               false,
+		"let n: string[]":         false,
+		"x[0]":                    false,
+		"x['k']":                  false,
+		"x?.['k']":                false,
+		"o = { ['k']: 1 }":        false,
+		"x[k]":                    true,
+		"x['a' + 'b']":            true,
+		"x[f()]":                  true,
+		"x[`a${b}`]":              true,
+		"x?.[k]":                  true,
+		"f()[k]":                  true,
+		"x[0][k]":                 true,
+		"o = { [k]: 1 }":          true,
+		"o = { a: 1, [k]: 2 }":    true,
+		"class C { [k]() {} }":    true,
+		"a; [k] = v":              true,
+		"for (const x of [a, b])": true,
+		"x[k":                     true,
+	} {
+		toks, _ := lexJS(src)
+		got := false
+		for i := range toks {
+			got = got || isPunct(toks[i], "[") && computedName(toks, i)
+		}
+		if got != want {
+			t.Errorf("computedName(%s) = %v, want %v", src, got, want)
 		}
 	}
 }
