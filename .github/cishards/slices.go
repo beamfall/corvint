@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// AFP-V0-041 (proposed, experimental): test-level slices of owner-allowed packages.
+// AFP-V0-041 (accepted, decision 0488): test-level slices of owner-allowed packages.
 // Slice placement is advisory; every test still runs in exactly one slice.
 
 //go:embed test-split-allow.json

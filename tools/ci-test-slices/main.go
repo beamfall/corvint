@@ -1,4 +1,4 @@
-// Command ci-test-slices generates and replays the experimental test slices
+// Command ci-test-slices generates and replays the test slices
 // that split owner-allowed Go packages across CI shards (AFP-V0-041). Slices only
 // move tests between shards; the catch-all slice keeps every test in exactly one.
 //

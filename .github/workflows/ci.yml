@@ -405,7 +405,7 @@ jobs:
             # The same shard as without --order; a readable plan only moves its selected
             # packages to the front, so a failure in a changed package surfaces early.
             packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe")
-            # AFP-V0-041 (experimental): this shard's test slices of split packages, one
+            # AFP-V0-041 (decision 0488): this shard's test slices of split packages, one
             # "FLAG PATTERN PACKAGE" invocation per line; a split package is never whole.
             slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --slices < "$RUNNER_TEMP/ci-package-universe")
             if [ -z "$packages" ] && [ -z "$slices" ]; then

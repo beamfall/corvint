@@ -13,8 +13,9 @@ and its shard summed to 2,100.8 s. `cmd/corvint` took 764.6 s, which is below th
 
 ## Decision
 
-The new requirement is AFP-V0-041 in `docs/specs/affected-plan-v0.md`. It is proposed and
-experimental, pending owner acceptance, and it does not add an owner decision.
+The new requirement is AFP-V0-041 in `docs/specs/affected-plan-v0.md`. It was proposed as
+experimental. The owner accepted it in chat on 2026-10-10 ("accept AFP-V0-041", relayed by the
+coordinating agent), recorded as decision 0488.
 
 **Exactly once.** A split package runs as K invocations:
 
@@ -297,4 +298,3 @@ Choose either:
 - Linux enumeration (darwin was used).
 - A hosted run of the merged `ci.yml` (actionlint and the local slice-loop run only).
 - `make gate`.
-- Owner acceptance of AFP-V0-041.
