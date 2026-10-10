@@ -6,14 +6,21 @@
 // file per shard job, either raw or as printed by
 // `gh run view RUN --job JOB --log` (text before the JSON object is ignored):
 //
-//	ci-shard-costs refresh --revision SHA --run-url URL shard0.log ... shard3.log
-//	ci-shard-costs check shard0.log ... shard3.log
+//	ci-shard-costs refresh --shards 6 --revision SHA --run-url URL shard0.log ... shard5.log
+//	ci-shard-costs check --shards 6 shard0.log ... shard5.log
 //
-// refresh rewrites the table from the observed terminal package outcomes and
-// records the source run; it refuses logs that lack a package the current
-// table lists unless --allow-removed is given. check exits 1 and prints one line per package whose
-// observed time differs from its table entry by more than --factor, that the
-// table is missing, or that the table still lists but the run did not execute.
+// --shards declares the CI shard count, the go-product-shard matrix size, and
+// every mode needs exactly one log per shard. refresh rewrites the table from the
+// observed terminal package outcomes and records the source run; it refuses logs
+// that lack a package the current table lists unless --allow-removed is given. A
+// package that the committed allow-list and slice file split (AFP-V0-041) must end
+// exactly once per test slice, each in a different log: its cost is the sum of its
+// slices, and any missing, extra, failed or unfinished slice refuses the run, as
+// does a slice file that splits it into more slices than --shards, so neither a
+// run made before the split nor a partial run can measure it. check exits 1 and
+// prints one line per package whose observed time differs from its table entry
+// by more than --factor, that the table is missing, or that the table still
+// lists but the run did not execute.
 //
 //	ci-shard-costs check --advisory --shards 6 [--share 10] [--summary FILE] shard0.json ... shard5.json
 //
@@ -45,11 +52,15 @@ import (
 	"github.com/Beamfall/corvint/.github/cishards"
 )
 
-const defaultTable = ".github/cishards/package-costs.json"
+const (
+	defaultTable  = ".github/cishards/package-costs.json"
+	defaultAllow  = ".github/cishards/test-split-allow.json"
+	defaultSlices = ".github/cishards/test-slices.json"
+)
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: ci-shard-costs refresh|check [flags] LOG...")
+		fmt.Fprintln(os.Stderr, "usage: ci-shard-costs refresh|check --shards N [flags] LOG...")
 		os.Exit(2)
 	}
 	code, err := run(os.Args[1], os.Args[2:], os.Stdout)
@@ -68,36 +79,48 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	floor := fs.Duration("floor", 10*time.Second, "check: ignore differences smaller than this")
 	allowRemoved := fs.Bool("allow-removed", false, "refresh: accept that packages in the current table were not executed")
 	advisory := fs.Bool("advisory", false, "check: CI report that never fails on findings (AFP-V0-040)")
-	shards := fs.Int("shards", 0, "check --advisory: number of shard logs in one complete run")
+	shards := fs.Int("shards", 0, "CI shard count (the go-product-shard matrix): one log per shard of one complete run")
 	share := fs.Float64("share", 10, "check --advisory: percent of the ideal shard that makes a finding material")
 	summary := fs.String("summary", "", "check --advisory: append the Markdown report to this file")
+	allow := fs.String("allow", defaultAllow, "AFP-V0-041 test-split allow-list")
+	slices := fs.String("slices", defaultSlices, "AFP-V0-041 test slice file")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
 	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 {
-		return 2, errors.New("usage: ci-shard-costs refresh|check [flags] LOG...")
+		return 2, errors.New("usage: ci-shard-costs refresh|check --shards N [flags] LOG...")
 	}
 	if *advisory {
 		if mode != "check" || *shards < 1 || *shards > cishards.MaxShards || !(*share > 0 && *share <= 100) {
 			return 2, errors.New("usage: ci-shard-costs check --advisory --shards N [--share PERCENT] [--summary FILE] LOG...")
 		}
-		code, err := report(out, *summary, *table, fs.Args(), *shards, *share, *factor, floor.Milliseconds())
+		code, err := report(out, *summary, *table, *allow, *slices, fs.Args(), *shards, *share, *factor, floor.Milliseconds())
 		if err != nil && *summary != "" {
 			appendFile(*summary, fmt.Sprintf("%s\nAbstained: %v. No finding is reported for this run.\n", reportHeading, err))
 		}
 		return code, err
 	}
-	observed := map[string]int64{}
+	if *shards < 1 || *shards > cishards.MaxShards {
+		return 2, errors.New("usage: ci-shard-costs refresh|check --shards N [flags] LOG...")
+	}
+	if fs.NArg() != *shards {
+		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the table", fs.NArg(), *shards)
+	}
+	o := newOutcomes()
 	for _, name := range fs.Args() {
 		f, err := os.Open(name)
 		if err != nil {
 			return 2, err
 		}
-		err = observe(f, observed)
+		err = observe(f, o)
 		f.Close()
 		if err != nil {
 			return 2, fmt.Errorf("%s: %w", name, err)
 		}
+	}
+	observed, err := combine(o, *shards, *allow, *slices)
+	if err != nil {
+		return 2, err
 	}
 	if len(observed) == 0 {
 		return 2, errors.New("no terminal package outcome in the logs")
@@ -159,18 +182,31 @@ func replace(path string, raw []byte) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+// outcomes collects the terminal package outcomes of one run's shard logs
+// before combine turns them into one cost per package.
+type outcomes struct {
+	elapsed map[string]int64 // milliseconds, summed over the package's outcomes
+	count   map[string]int   // terminal outcomes, at most one per log
+	open    map[string]bool  // started in some log without a terminal outcome there
+}
+
+func newOutcomes() *outcomes {
+	return &outcomes{elapsed: map[string]int64{}, count: map[string]int{}, open: map[string]bool{}}
+}
+
 // observe adds each package's terminal outcome from one `go test -json` stream.
-// A failed or repeated package is refused: its time is not a cost of the suite.
-func observe(r io.Reader, observed map[string]int64) error {
-	_, err := scan(r, observed, false)
+// A failed package, or one with two outcomes in one log, is refused: its time is
+// not a cost of the suite.
+func observe(r io.Reader, o *outcomes) error {
+	_, err := scan(r, o, false)
 	return err
 }
 
 // observeStream is observe for a raw stream that must stand for one finished
 // shard (AFP-V0-040): every line is a JSON event, every started package ends in
 // a terminal outcome, and at least one package does.
-func observeStream(r io.Reader, observed map[string]int64) error {
-	n, err := scan(r, observed, true)
+func observeStream(r io.Reader, o *outcomes) error {
+	n, err := scan(r, o, true)
 	if err == nil && n == 0 {
 		err = errors.New("no terminal package outcome")
 	}
@@ -216,10 +252,11 @@ func checkEvent(line int, action, pkg, importPath, test string, started map[stri
 	return nil
 }
 
-func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
+func scan(r io.Reader, o *outcomes, strict bool) (int, error) {
 	s := bufio.NewScanner(r)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
 	started := map[string]bool{}
+	ended := map[string]bool{}
 	terminal := 0
 	for line := 1; s.Scan(); line++ {
 		raw := s.Bytes()
@@ -257,11 +294,14 @@ func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
 		case "fail":
 			return terminal, fmt.Errorf("package %s failed", e.Package)
 		case "pass", "skip":
-			if _, seen := observed[e.Package]; seen {
+			// Slice placement puts sibling slices in different shards, so no package
+			// ends twice in one log; combine decides how often it may end in a run.
+			if ended[e.Package] {
 				return terminal, fmt.Errorf("package %s has two terminal outcomes", e.Package)
 			}
-			// The table admits only positive costs; a package without tests costs the minimum.
-			observed[e.Package] = max(1, int64(math.Round(e.Elapsed*1000)))
+			ended[e.Package] = true
+			o.elapsed[e.Package] += int64(math.Round(e.Elapsed * 1000))
+			o.count[e.Package]++
 			delete(started, e.Package)
 			terminal++
 		}
@@ -277,7 +317,55 @@ func scan(r io.Reader, observed map[string]int64, strict bool) (int, error) {
 		sort.Strings(open)
 		return terminal, fmt.Errorf("package %s started without a terminal outcome (unfinished stream)", open[0])
 	}
+	for p := range started {
+		o.open[p] = true
+	}
 	return terminal, nil
+}
+
+// combine returns one cost per package. A package ends once, unless the committed
+// allow-list and slice file split it over a partition of the declared `shards`,
+// exactly as the partition does (AFP-V0-041): then it ends exactly once per slice
+// and its cost is the sum. Any other count is refused, a single outcome included:
+// one slice's time is indistinguishable from a whole run, so a run made before the
+// split cannot measure a split package. The slice count comes from the slice file,
+// so a package the file splits into more slices than `shards` is refused rather
+// than counted whole. A split package that started without ending in some log is
+// refused even in a hosted log, because its sum would be short. An unreadable or
+// unusable slice input splits nothing, as in CI.
+func combine(o *outcomes, shards int, allowPath, slicesPath string) (map[string]int64, error) {
+	universe := make([]string, 0, len(o.count)+len(o.open))
+	for p := range o.count {
+		universe = append(universe, p)
+	}
+	for p := range o.open {
+		if o.count[p] == 0 {
+			universe = append(universe, p)
+		}
+	}
+	sort.Strings(universe)
+	allowRaw, _ := os.ReadFile(allowPath)
+	slicesRaw, _ := os.ReadFile(slicesPath)
+	split := cishards.SplitPackages(universe, shards, allowRaw, slicesRaw)
+	declared := cishards.SplitPackages(universe, cishards.MaxSlices, allowRaw, slicesRaw)
+	observed := make(map[string]int64, len(o.count))
+	for _, p := range universe {
+		n, k := o.count[p], len(split[p])
+		switch {
+		case k == 0 && len(declared[p]) != 0:
+			return nil, fmt.Errorf("package %s is split into %d test slices, more than --shards %d", p, len(declared[p]), shards)
+		case k != 0 && o.open[p]:
+			return nil, fmt.Errorf("a test slice of package %s started without a terminal outcome", p)
+		case k != 0 && n != k:
+			return nil, fmt.Errorf("package %s has %d terminal outcomes for its %d test slices", p, n, k)
+		case n > 1 && k == 0:
+			return nil, fmt.Errorf("package %s has two terminal outcomes", p)
+		case n > 0:
+			// The table admits only positive costs; a package without tests costs the minimum.
+			observed[p] = max(1, o.elapsed[p])
+		}
+	}
+	return observed, nil
 }
 
 func encode(observed map[string]int64, revision, runURL string) ([]byte, error) {
@@ -362,21 +450,25 @@ const (
 
 // report is the advisory CI form of check. Findings never change its exit code;
 // only input that cannot stand for one complete run does, and then it abstains.
-func report(out io.Writer, summary, table string, logs []string, shards int, share, factor float64, floorMS int64) (int, error) {
+func report(out io.Writer, summary, table, allow, slices string, logs []string, shards int, share, factor float64, floorMS int64) (int, error) {
 	if len(logs) != shards {
 		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the table", len(logs), shards)
 	}
-	observed := map[string]int64{}
+	o := newOutcomes()
 	for _, name := range logs {
 		f, err := os.Open(name)
 		if err != nil {
 			return 2, err
 		}
-		err = observeStream(f, observed)
+		err = observeStream(f, o)
 		f.Close()
 		if err != nil {
 			return 2, fmt.Errorf("%s: %w", filepath.Base(name), err)
 		}
+	}
+	observed, err := combine(o, shards, allow, slices)
+	if err != nil {
+		return 2, err
 	}
 	if len(observed) == 0 {
 		return 2, errors.New("no terminal package outcome in the logs")
@@ -409,8 +501,8 @@ func report(out io.Writer, summary, table string, logs []string, shards int, sha
 
 	var b strings.Builder
 	b.WriteString(reportHeading)
-	fmt.Fprintf(&b, "\n%d shard logs, %d packages, %s observed; ideal shard %s. A finding is material when it misplaces at least %g%% of the ideal shard (%s). Costs change placement, never membership, and this report never fails CI. Refreshing `%s` is an operator step (`go run ./tools/ci-shard-costs refresh`, AFP-V0-022).\n\n",
-		shards, len(observed), seconds(total), seconds(int64(ideal)), share, seconds(materialMS), table)
+	fmt.Fprintf(&b, "\n%d shard logs, %d packages, %s observed; ideal shard %s. A finding is material when it misplaces at least %g%% of the ideal shard (%s). Costs change placement, never membership, and this report never fails CI. Refreshing `%s` is an operator step (`go run ./tools/ci-shard-costs refresh --shards %d`, AFP-V0-022).\n\n",
+		shards, len(observed), seconds(total), seconds(int64(ideal)), share, seconds(materialMS), table, shards)
 	if len(all) == 0 {
 		b.WriteString("No drift, missing or stale package.\n")
 	} else {
