@@ -263,4 +263,13 @@ func TestCALV0211_SetEffectsWarnsOnExactDirectoryKey(t *testing.T) {
 	if x := setEffects("dirs", "2", dirs); len(exactDirectoryKeys(x)) != 0 {
 		t.Fatalf("file and directory keys warned: %s", x.stdout)
 	}
+	// A claim of the exact keys commits as before and carries the same warnings.
+	setEffects("exact-again", "3", exact)
+	claim := atm(t, root, nil, "claim", id, "--holder", "agent", "--request-id", "claim-exact")
+	if claim.res.Outcome != wire.OutcomeOK || len(claim.res.Codes) != 0 || field(claim.res.Items[0], "outcome").Str != "COMPLETED" {
+		t.Fatalf("claim: %s", claim.stdout)
+	}
+	if w := exactDirectoryKeys(claim); len(w) != 2 || !strings.Contains(w[0], "PATH key lib ") || !strings.Contains(w[1], "PATH key src ") {
+		t.Fatalf("claim warnings = %q", w)
+	}
 }

@@ -33,10 +33,10 @@ owner acceptance. No decision record exists for it.
 - `TestCALV0211_ClaimWarnsOnExactDirectoryKey` and `TestCALV0211_ExactDirectoryKeyWarnings`
   (`internal/tasks/store`). A requested scope `absent lib/ src src/a.go` warns once, for `src`,
   naming the base tree and `src/`. The replay adds nothing, a `doc/ tool/d.go` claim adds nothing,
-  warnings come in key order, and an unresolvable revision warns nothing.
+  a claim based on an earlier commit does not warn for a directory that only `HEAD` has, warnings come in key order, and an unresolvable revision warns nothing.
 - `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`). In a real Git
   checkout, set-effects with resource `lib` and touchPaths `absent src src/a.go` commits and warns
-  for `lib` and `src`. The replay adds nothing, and file keys plus `/` directory keys add nothing.
+  for `lib` and `src`. The replay adds nothing, file keys plus `/` directory keys add nothing, and a CLI claim of the exact keys commits with no codes and carries the same two warnings.
 
 ## Limits
 

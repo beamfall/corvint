@@ -33,6 +33,19 @@ func TestCALV0211_ClaimWarnsOnExactDirectoryKey(t *testing.T) {
 	if r := s.claim(t, "claim-2", two, 0, "doc/", "tool/d.go"); len(r.ScopeWarnings) != 0 {
 		t.Fatalf("file and directory keys warned: %q", r.ScopeWarnings)
 	}
+	// The claim reads its base commit's tree, not HEAD's.
+	base := gitOut(t, s.root, "rev-parse", "HEAD")
+	s.commit(t, "late/e.go", "later/f.go")
+	three := s.ticket(t, "three")
+	l := claimOf(three, "late")
+	l.Base = base
+	if r := s.lease(t, "claim-3", l, 0, nil); r.Outcome.Outcome != mutation.OutcomeCompleted || len(r.ScopeWarnings) != 0 {
+		t.Fatalf("a directory absent at the base warned: %+v", r)
+	}
+	four := s.ticket(t, "four")
+	if r := s.claim(t, "claim-4", four, 0, "later"); len(r.ScopeWarnings) != 1 {
+		t.Fatalf("a directory at the base did not warn: %q", r.ScopeWarnings)
+	}
 }
 
 // TestCALV0211_ExactDirectoryKeyWarnings: only keys without a trailing "/"
