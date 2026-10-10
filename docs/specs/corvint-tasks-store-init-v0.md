@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (proposed, V1-0825) makes an unlocked journal audit wait out a writer's descriptor-less staging slots before refusing `MALFORMED`.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (proposed, V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -106,16 +106,23 @@ drains, the import-map writer, and writing or changing the foreign export.
   stays without them.
 - `CTS-V0-008`: (proposed (V1-0825)) A native writer holds staging slots `staging/aNN` with no
   `staging/active.json` descriptor under its writer lock for the whole of its publish (prepared,
-  linked or replaced, then removed). An audit that does not hold the writer lock and sees such
-  slots unchanged across both of its captures MUST treat them as a writer in flight: it MUST pause
-  with the CTS-V0-006 backoff (25 ms doubling to 400 ms) and audit again until the slots are gone
-  or two seconds of pauses are spent, and only then refuse with the unchanged `MALFORMED`
-  `unassigned stage slot` naming the byte-smallest slot (CAL-V0-114). The budget MUST NOT depend on
-  `DefaultPatience`, which test binaries zero. Slots that appear or vanish between the two captures
-  stay `SNAPSHOT_MOVED` under the TM-V0-008 attempt bound, which the pauses do not consume. An
-  unassigned slot beside a `staging/active.json` descriptor or an `active.json.tmp` temp MUST still
-  be refused at once, and the audit MUST NOT write, lock or remove a slot; a killed writer's orphan
-  slots stay refused until the next writer removes them (CAL-V0-019).
+  linked or replaced, then removed). A journal audit or an archive `export` that does not hold the
+  writer lock, and sees such slots unchanged across both of its captures with neither
+  `staging/active.json` nor `staging/active.json.tmp` present, MUST treat them as a writer in
+  flight: it MUST pause (25 ms doubling to 400 ms) and read again until the slots are gone or
+  exactly two seconds of pauses are spent, and only then refuse with the unchanged `MALFORMED`
+  `unassigned stage slot` naming the byte-smallest slot (CAL-V0-114; the export names it without
+  the `staging/` prefix, as before). The budget MUST NOT depend on `DefaultPatience`, which test
+  binaries zero, and the export's pauses MUST NOT draw on its CTS-V0-006 deadline. Slots that
+  appear or vanish between the two captures stay `SNAPSHOT_MOVED` under the four-attempt bound
+  (TM-V0-008, and the export's own four attempts): a pause does not spend an attempt, a moved
+  observation does not reset or extend the budget, and four moves still end in `SNAPSHOT_MOVED`.
+  An audit made by a caller that holds the writer lock (reconcile, barrier, policy, release,
+  import, ticket mutation and redo) MUST refuse such slots at once with no pause, since no other
+  writer can be publishing. An unassigned slot beside a `staging/active.json` descriptor or an
+  `active.json.tmp` temp MUST still be refused at once, and neither reader may write, lock or
+  remove a slot; a killed writer's orphan slots stay refused until the next writer removes them
+  (CAL-V0-019).
 
 ## Import export and batching
 
@@ -158,7 +165,8 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Read probes a writer between receipt link-in and head rename | Paused with backoff and probed again; succeeds on the new head once the writer finishes (CTS-V0-006). |
 | Writer stays inside the window beyond the two-second budget (crashed, or a loaded host) | `NOT_RUN`/`REDO_PENDING` naming the wait and that the read is retryable; the next mutating command redoes the receipt (CTS-V0-006). |
 | Store commits throughout the budget so no two probes agree | `NOT_RUN`/`SNAPSHOT_MOVED` after the budget plus the unpaused TM-V0-008 attempts, naming the wait (CTS-V0-006). |
-| Unlocked audit sees a writer's descriptor-less staging slots | Paused with backoff and audited again; succeeds once the writer removes its slots (CTS-V0-008). |
+| Unlocked journal audit or archive export sees a writer's descriptor-less staging slots | Paused with backoff and read again; succeeds once the writer removes its slots (CTS-V0-008). |
+| Audit under the writer lock (reconcile, barrier, policy, release, import, mutation, redo) sees descriptor-less staging slots | `MALFORMED` `unassigned stage slot` at once, with no pause: under the lock they can only be a killed writer's orphans (CTS-V0-008). |
 | Descriptor-less staging slots outlast the two-second budget (killed writer, or a loaded host) | `MALFORMED` `unassigned stage slot` naming the byte-smallest slot, as before; the next writer removes the orphans (CTS-V0-008, CAL-V0-019). |
 | Unassigned staging slot beside a stage descriptor or descriptor temp | `MALFORMED` at once, with no pause (CTS-V0-008). |
 | Journal already initialized | Unchanged: the existing already-initialized refusal applies first. |
@@ -221,14 +229,19 @@ keys byte-identical, one `acceptanceRevision` bump for the changed `source`, and
 audit. Rollback removes the carry-over in `importer.record`; no store migration is needed, and a
 later re-import then drops the keys again.
 
-CTS-V0-008 (proposed, V1-0825) is evidenced by journal tests that drive the race with the capture
-and sleep hooks rather than timing: a descriptor-less slot planted between the captures of the
-first attempt (moved), held across the second and removed during its single pause audits clean,
-and the same test against the unfixed reader reproduces the V1-0825 CI refusal; orphan slots
-still refuse `MALFORMED` at the byte-smallest slot after pauses that sum to exactly the budget;
-and a slot beside a descriptor or descriptor temp is refused with no pause. Rollback sets
-`stagePatience` to zero in `internal/tasks/journal/audit.go`, which restores the immediate
-refusal; no state format, code or envelope changes.
+CTS-V0-008 (proposed, V1-0825) is evidenced by journal and archive tests that drive the race with
+the capture and sleep hooks rather than timing: a descriptor-less slot planted between the captures
+of the first attempt (moved), held across the second and removed during its single pause audits
+clean, and the same test against the unfixed reader reproduces the V1-0825 CI refusal; an export
+started beside a held slot exports the settled store after one pause; orphan slots still refuse
+`MALFORMED` at the byte-smallest slot, unchanged, after pauses that sum to exactly the budget, in
+both readers; a slot beside a descriptor or descriptor temp is refused with no pause in both; moved
+observations before and after the budget is spent compose with it as required; a writer-locked
+audit (plain, request lookup and mutation audit) refuses an orphan slot with no pause, and a
+locked reconcile beside an orphan slot returns inside the budget, where the unlocked reader
+held the lock for the whole two seconds. Rollback sets `StageSlotPatience` to zero in
+`internal/tasks/snapshot/stage_slot_wait.go`, which restores the immediate refusal in both readers
+and makes the writer-locked mode a no-op; no state format, code or envelope changes.
 
 ## Traceability
 
@@ -241,4 +254,4 @@ refusal; no state format, code or envelope changes.
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
 | CTS-V0-007 | `internal/tasks/importer/importer.go` (`record`) | TestCTSV0007_ReimportKeepsRefinedPoolAndRoles |
-| CTS-V0-008 | `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `stagePatience`, `stageSleep`) | TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |
+| CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |

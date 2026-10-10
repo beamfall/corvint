@@ -1,4 +1,4 @@
-# V1-0825: unlocked audits wait out a writer's staging slots
+# V1-0825: unlocked audits and export wait out a writer's staging slots
 
 Date: 2026-10-10
 
@@ -31,14 +31,24 @@ non-goal to point at it.
   `slotsInFlight` with the CTS-V0-006 backoff (25 ms doubling to 400 ms) and audits again, up to
   `stagePatience` (2 s) of pauses. It then returns the wrapped `*wire.Error` unchanged: same code,
   path and text. Moved attempts keep their own four-attempt bound.
-- The budget is a journal package variable, not `snapshot.DefaultPatience`. The fixture package
-  zeroes that variable in every test binary, and the store tests that flaked are test binaries.
+- The backoff and budget are `snapshot.StageSlotWait` and its constants, shared with the archive
+  export, not `snapshot.DefaultPatience`. The fixture package zeroes that variable in every test
+  binary, and the store tests that flaked are test binaries.
+- A caller that holds the writer lock sets `journal.Reader.WriterLocked` through the store's
+  `lockedJournalReader` (reconcile, barrier, policy, release, import, `mutateLocked` and redo). No
+  other writer can be publishing then, so the audit refuses descriptor-less slots at once instead
+  of holding the lock for the budget. Unlocked lease, preparation, checkpoint-refresh, pool-sweep
+  replay and cli reads keep waiting.
+- `archive/stage_read.go` marks the same shape and `readArchive` waits for it with the same
+  `StageSlotWait`. A pause spends neither one of its four moved attempts nor its CTS-V0-006
+  deadline, and the slot's `MALFORMED` (at `aNN`, as before) is returned unchanged, without the
+  CTS-V0-006 wait annotation, once the budget is spent.
 - The writer-checkpoint audit (`AuditForWriter`) is unchanged: it already declines staging as a
   checkpoint miss.
 
-Cost: a store with real orphan slots now takes 2 s longer to refuse an unlocked read, and so does a
-barrier or reconcile write, which does not clear orphans. Every other write still clears orphans
-under its lock first (CAL-V0-019), so it does not wait.
+Cost: a store with real orphan slots now takes 2 s longer to refuse an unlocked read or an export.
+Writes do not wait: they either clear orphans under the lock first (CAL-V0-019) or audit as
+writer-locked and refuse at once, as before.
 
 ## Evidence
 
@@ -52,6 +62,20 @@ under its lock first (CAL-V0-019), so it does not wait.
   `active.json.tmp`.
 - `TestCALV0114_DivergentProjectionRefusalIsDeterministic` stubs the sleep. Its orphan case is
   otherwise unchanged.
+- `TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause`: `Audit`, `RequestIndex.Lookup`
+  and `AuditForMutation` on a writer-locked reader make zero pauses; a moved first observation is
+  retried once and the stable orphan is then refused. It fails without the `WriterLocked` check.
+- `TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting`: `store.Reconcile` beside an
+  orphan refuses `MALFORMED` at `staging/a00` in about 0.2 s; with `reconcile.go` reverted to the
+  unlocked reader it took 2.1 s and failed.
+- `TestCTSV0008_MovedObservationsAndSpentWaitCompose` (journal) and
+  `TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose`: moves while waiting, after the budget is
+  spent, and across both; the pauses still sum to exactly 2 s, a move after the budget costs no
+  pause, and four moves in all end in `SNAPSHOT_MOVED`.
+- `TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot`, `..._ArchiveOrphanSlotMalformedAfterBoundedWait`
+  and `..._ArchiveSlotBesideDescriptorRefusedAtOnce` mirror the journal cases through `Export`.
+  Against the unfixed `archive/stage_read.go` the first fails with `MALFORMED: a00: unassigned
+  stage slot`. `TestCTSV0008_StageSlotWaitBackoffAndBudget` pins the shared pause sequence.
 
 ## Related tickets
 
@@ -64,12 +88,14 @@ These share the root cause by code path; neither is reproduced here.
   (`readLeaseProof`, unlocked) and fails on any read error. Meanwhile the detached supervisor
   process journals heartbeats.
 
-## Residual
+## Review follow-up
 
-`internal/tasks/archive/stage_read.go` keeps its own copy of the unassigned-slot check. An
-`archive export` racing a writer can still be refused this way.
+An independent Codex review of the first commit found two P2 gaps, both fixed above. Writer-lock
+holders (reconcile reaches `audit` through `RequestIndex.Lookup`) waited the whole budget while
+holding the lock. The archive export kept its own immediate refusal. The spec text now names both
+readers and the writer-locked exception.
 
 ## Rollback
 
-Set `stagePatience` to zero in `internal/tasks/journal/audit.go`. No state format, wire code or
-envelope changes.
+Set `StageSlotPatience` to zero in `internal/tasks/snapshot/stage_slot_wait.go`. Both readers then
+refuse at once and `WriterLocked` has no effect. No state format, wire code or envelope changes.
