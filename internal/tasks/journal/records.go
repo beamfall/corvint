@@ -54,6 +54,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if r.writerCache {
 		result.RequestDigests = map[string]wire.Digest{}
 	}
+	if r.ReceiptFold != nil {
+		result.fold = r.ReceiptFold()
+	}
 	if r.handoffPolicy != nil {
 		result.HandoffPolicy = &HandoffPolicyHistory{Selector: *r.handoffPolicy, Compatible: true}
 	}
@@ -98,7 +101,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		}
 	}
 	result.Pending = count == headSeq+1
-	if result.Pending && (r.divergentIntent != "" || r.unpauseTickets) {
+	if result.Pending && (r.divergentIntent != "" || (r.unpauseTickets && !r.pendingUnpause)) {
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
 	st := &chain{canonical: map[string]latest{}}
@@ -148,7 +151,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		if result.IntentError != nil {
 			return result, result.IntentError
 		}
-		result.ProjectionAgreement = "PRE_OR_POST"
+		if !r.unpauseTickets {
+			result.ProjectionAgreement = "PRE_OR_POST"
+		}
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "one fully validated linked receipt awaits head projection; no redo performed")
 	}
 	return result, nil
@@ -308,7 +313,19 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	st.generation = rc.HeadGeneration.Uint64()
 	result.LastSeq = rc.Seq
 	result.LastReceiptSha256 = digest
+	if result.fold != nil && result.foldErr == nil {
+		if result.foldErr = result.fold(rc, digest); result.foldErr == nil {
+			result.folded = seq
+		}
+	}
 	return nil
+}
+
+// ReceiptFold reports the Reader.ReceiptFold outcome of a complete audit:
+// the last sequence folded without error, contiguously from 1 (0 when no
+// fold ran), and the fold's first error.
+func (r *Result) ReceiptFold() (folded uint64, err error) {
+	return r.folded, r.foldErr
 }
 
 func observeHandoffPolicy(h *HandoffPolicyHistory, st *chain, rc *snapshot.Receipt, p snapshot.PostEntry, raw []byte, receipt wire.Digest, lim limits) error {
@@ -696,6 +713,14 @@ func errCheckpoint(where, why string) error {
 	return wire.Errorf(wire.CodeUnsupported, where, "checkpoint unusable: %s", why)
 }
 
+// inFlight marks a checkpoint refusal that a writer between its receipt
+// link-in and its head rename causes: the head is moving, so the resumed read
+// is retried within the CAL-V0-061 movement bound before the complete audit
+// classifies what remains. Its code is the wrapped refusal's.
+type inFlight struct{ error }
+
+func (e inFlight) Unwrap() error { return e.error }
+
 // walkTail resumes the chain at a checkpoint (CAL-V0-059..061). It rebinds
 // the checkpoint to the retained receipt it names, validates every later
 // receipt exactly as walk does, and compares every non-request latest
@@ -704,6 +729,12 @@ func errCheckpoint(where, why string) error {
 func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]bool, lim limits) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeCheckpoint, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
 	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
+		if o.head != nil {
+			// A stage beside a head is a writer in flight (or one that
+			// crashed there): retried like a moved head, then classified by
+			// the complete audit (CAL-V0-061, V1-1060).
+			return result, inFlight{errCheckpoint("/", "journal is not plainly settled")}
+		}
 		return result, errCheckpoint("/", "journal is not plainly settled")
 	}
 	head := o.head
@@ -744,7 +775,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 		if err != nil {
 			return result, err
 		}
-		return result, errCheckpoint(next, "receipt beyond head")
+		return result, inFlight{errCheckpoint(next, "receipt beyond head")}
 	}
 	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64()}
 	for _, e := range cp.Entries {

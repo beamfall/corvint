@@ -429,8 +429,8 @@ func TestTMV0002_AS01_CommandResultEnvelope(t *testing.T) {
 			t.Errorf("code %s missing from the set", c)
 		}
 	}
-	if len(Codes) != 77 {
-		t.Errorf("TCP-00 §11 plus CAL-V0-044, ESC-V0-006, CAL-V0-099, CAL-V0-102, KHN-V0-008/010 and CAL-V0-195 list 77 codes, table has %d", len(Codes))
+	if len(Codes) != 78 {
+		t.Errorf("TCP-00 §11 plus CAL-V0-044, ESC-V0-006, CAL-V0-099, CAL-V0-102, KHN-V0-008/010, CAL-V0-195 and CAL-V0-017 (V1-1081) list 78 codes, table has %d", len(Codes))
 	}
 }
 

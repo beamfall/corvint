@@ -13,8 +13,8 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 ## Agent digest
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
 - Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
-- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with the corvint `1.0.0-rc.1` candidate build, reports retained (see Results)
-- Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`), so all three tuples are unqualified for `1.0.0-rc.2` until rerun against its build
+- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with the corvint `1.0.0-rc.1` candidate build, and the Claude Code tuple (2.1.293, adapter 0.3.1) also PASSES with the published `1.0.0-rc.2` build; reports retained (see Results)
+- Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`), so the CLI and Codex tuples are unqualified for `1.0.0-rc.2` until rerun against its build
 - Read next: Requirements; Results; Known gaps
 
 ## Intent and scope
@@ -205,6 +205,30 @@ unreleased build on a newer host version, not a tuple result or support promotio
 `results/2026-10-09-v1-0844-frontier/claude-code.tsv` (SHA-256
 `a9c910258fa5cf8637a91dd0e9028f31ce17b8fb8310b6868221dd79f14b2356`) with its boundary load reading
 `claude-code-load.txt` (SHA-256 `016f857b03aa77fbf5cf8a558ceca8d86e1c7cb0168273cb302fc8784cfbbaf8`).
+
+### V1-1072 Claude Code requalification, 2026-10-09
+
+The Claude Code tuple was rerun on darwin/arm64 for host `2.1.293` and adapter `0.3.1`, and passed all
+nine cases with exit 0 between 01:56:39 and 01:56:47 UTC. The one-minute load was 16.00/15.13 on 12
+CPUs. Plugin sources came from a clean checkout of `925c36b8d8317b77ae767dc14b78aef8261820e4`. An
+earlier run of the same binaries against adapter 0.3.0 (`6cb98aa0`) also passed 9/9; its report was
+replaced when review fixes moved the package to 0.3.1.
+
+- Current binary: the `corvint` from the published v1.0.0-rc.2 `corvint_darwin_arm64.tar.gz`
+  (archive sha256 `5041bdd99897830029593527959bc39627fcd1cf4a10e192474f9e7887930393`, matching
+  `SHA256SUMS`), binary sha256 `a7293de93d52e9e6296ab2eb42ac1b832901df6f0440f61118e84520fdee3e86`
+  (`Corvint 1.0.0-rc.2 (build 360)`).
+- N-1 binary: the published v1.0.0-rc.1 binary, sha256
+  `baac338555524a741fe70327cd95d56b5abf0186cac0cc14e199239639053ebf` (`Corvint 1.0.0-rc.1 (build 163)`).
+
+The report is `results/1.0.0-rc.2-darwin-arm64/claude-code.txt` (SHA-256
+`15a2d3289eaab95ea3c4050cf132d1fb5029a896b39ec08265223131386f591c`). It supersedes the Claude Code row
+of the rc.1 table above for the published matrix only. The CLI and Codex tuples were not rerun, so
+they keep their rc.1 results.
+
+A live compaction cycle is `NOT_RUN`: a nested `claude -p` session could not authenticate (OAuth
+session expired). The `PreCompact`/`PostCompact` hooks therefore remain statically verified against
+`2.1.267` only.
 
 ## Known gaps
 

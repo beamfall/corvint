@@ -150,12 +150,12 @@ export function decodeContextReceipt(
     uncertainty.push(`Excluded source count: ${exclusionCount}`);
   }
   // MCPV0-031: a capped impact result names its omitted rows; keep that gap visible.
-  rawResults.forEach((entry, index) => {
-    const item = object(entry, `context.results[${index}]`);
+  results.forEach((result, index) => {
+    const item = object(rawResults[index], `context.results[${index}]`);
     for (const [key, noun] of [["evidence_omitted", "evidence rows"], ["references_omitted", "references"]] as const) {
       if (item[key] !== undefined) {
         const omitted = integer(item[key], `context.results[${index}].${key}`, 1_000_000);
-        uncertainty.push(display(`${results[index].id}: ${omitted} ${noun} omitted`, 2_000));
+        uncertainty.push(display(`${result.id}: ${omitted} ${noun} omitted`, 2_000));
       }
     }
   });

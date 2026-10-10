@@ -155,20 +155,29 @@ func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (
 // obligation-ledger binding. Receipt audit and redo use it, so a rehashed
 // but untrue review, escalation or ledger event refuses as JOURNAL_FORKED.
 func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
+	return foldReceipts(repo, last, pending, ReceiptBindingFold(repo))
+}
+
+// ReceiptBindingFold returns a fresh FoldReceiptBindings step for receipts
+// supplied in sequence order from 1, so a complete journal audit can fold
+// the receipts it has just validated instead of reading them again. Each
+// ticket post is read and decoded once for the review and escalation audits.
+func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Digest) error {
 	blob := ExternalReviewBlob(repo)
 	reviews, escalations := &transaction.ExternalReviewReceiptAudit{}, &transaction.EscalationReceiptAudit{}
 	obligations := &transaction.ObligationReceiptAudit{Source: func(commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
 		return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
 	}}
-	return foldReceipts(repo, last, pending, func(rc *snapshot.Receipt, sum wire.Digest) error {
-		if err := reviews.Step(rc, sum, blob); err != nil {
+	memo := &transaction.TicketPosts{}
+	return func(rc *snapshot.Receipt, sum wire.Digest) error {
+		if err := reviews.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
 		}
-		if err := escalations.Step(rc, sum, blob); err != nil {
+		if err := escalations.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
 		}
 		return obligations.Step(rc, sum, blob)
-	})
+	}
 }
 
 func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {

@@ -271,7 +271,7 @@ func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 	if max < 0 || st.Size() > int64(max) {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, p, "file exceeds bound")
 	}
-	raw, e = io.ReadAll(io.LimitReader(f, int64(max)+1))
+	raw, e = readAllSized(io.LimitReader(f, int64(max)+1), st.Size())
 	if e != nil {
 		return nil, e
 	}
@@ -296,6 +296,30 @@ func (s *nativeRead) open(dir string, root *os.Root, name string) (*os.File, err
 		s.dirs[dir] = d
 	}
 	return safeopen.InDir(d, name, os.O_RDONLY, 0)
+}
+
+// readAllSized is io.ReadAll that starts from the opened file's stat size
+// plus one byte (the caller has already refused a size above its bound), so
+// an unchanged file is read with one allocation and no regrowth. Bytes and
+// errors are exactly io.ReadAll's.
+func readAllSized(r io.Reader, size int64) ([]byte, error) {
+	if size < 0 {
+		size = 0
+	}
+	b := make([]byte, 0, size+1)
+	for {
+		if len(b) == cap(b) {
+			b = append(b, 0)[:len(b)]
+		}
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return b, err
+		}
+	}
 }
 
 func joinReadClose(primary, cleanup error) error {
