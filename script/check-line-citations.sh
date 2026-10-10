@@ -400,3 +400,7 @@ if (@failures) {
     exit 1;
 }
 PERL
+
+# conformance/divergence-register.md is deliberately not in scanned_doc (V1-0267): it carries about
+# 90 legacy bare citations, so scanning it would raise the unpinned ceiling, which only a contract
+# diff may do. Its GPK-V0 range citations are repinned by hand instead.
