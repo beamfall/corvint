@@ -1,0 +1,69 @@
+diff --git a/conformance/host-lifecycle-v1/main.go b/conformance/host-lifecycle-v1/main.go
+index 58d9362e..a57b7a34 100644
+--- a/conformance/host-lifecycle-v1/main.go
++++ b/conformance/host-lifecycle-v1/main.go
+@@ -321,7 +321,13 @@ func (r *runner) exec(directory string, stdin []byte, extraEnvironment []string,
+ 	command.Stdin = bytes.NewReader(stdin)
+ 	var stdout, stderr bytes.Buffer
+ 	command.Stdout, command.Stderr = &stdout, &stderr
+-	err = command.Run()
++	diagStart := time.Now()
++	err = command.Start()
++	if err == nil {
++		fmt.Fprintf(os.Stderr, "DIAG exec pid=%d start=%s argv=%q\n", command.Process.Pid, diagStart.Format("15:04:05.000"), argv)
++		err = command.Wait()
++	}
++	fmt.Fprintf(os.Stderr, "DIAG exec end=%s elapsed=%s argv0=%s\n", time.Now().Format("15:04:05.000"), time.Since(diagStart).Round(time.Millisecond), filepath.Base(argv[0]))
+ 	var exit *exec.ExitError
+ 	if errors.As(err, &exit) {
+ 		return stdout.String(), stderr.String(), exit.ExitCode(), nil
+@@ -805,6 +811,7 @@ func (r *runner) runPlugin() {
+ 			return "", err
+ 		}
+ 		if len(residue) != 0 {
++			diagResidue(r.home, residue)
+ 			return "", fmt.Errorf("private HOME retains corvint state: %s", strings.Join(residue, ", "))
+ 		}
+ 		if err := r.worktreeClean(); err != nil {
+@@ -1431,3 +1438,41 @@ func (r *runner) lookPath(name string) (string, error) {
+ 	}
+ 	return "", fmt.Errorf("%s: not found on the private PATH", name)
+ }
++
++func diagResidue(home string, residue []string) {
++	fmt.Fprintf(os.Stderr, "DIAG residue at %s: %v\n", time.Now().Format("15:04:05.000"), residue)
++	out, _ := exec.Command("/bin/ps", "-ax", "-o", "pid,ppid,etime,command").Output()
++	for _, line := range strings.Split(string(out), "\n") {
++		if strings.Contains(line, home) || strings.Contains(line, "claude ") && strings.Contains(line, "plugin") {
++			fmt.Fprintf(os.Stderr, "DIAG ps %s\n", line)
++		}
++	}
++	for _, item := range residue {
++		name := strings.TrimSuffix(item, " (content)")
++		path := filepath.Join(home, name)
++		if parts := strings.Split(filepath.Base(name), "."); len(parts) >= 4 {
++			ps, _ := exec.Command("/bin/ps", "-p", parts[len(parts)-2], "-o", "pid,ppid,etime,command").Output()
++			fmt.Fprintf(os.Stderr, "DIAG writer pid %s: %q\n", parts[len(parts)-2], ps)
++		}
++		data, err := os.ReadFile(path)
++		fmt.Fprintf(os.Stderr, "DIAG %s size=%d err=%v\n", name, len(data), err)
++		lower := bytes.ToLower(data)
++		for at, n := 0, 0; n < 6; n++ {
++			i := bytes.Index(lower[at:], []byte("corvint"))
++			if i < 0 { break }
++			i += at
++			lo, hi := max(0, i-100), min(len(data), i+60)
++			fmt.Fprintf(os.Stderr, "DIAG excerpt %q\n", data[lo:hi])
++			at = i + 7
++		}
++		final, _ := os.ReadFile(filepath.Join(home, ".claude", ".claude.json"))
++		fmt.Fprintf(os.Stderr, "DIAG final .claude.json size=%d corvint=%v\n", len(final), bytes.Contains(bytes.ToLower(final), []byte("corvint")))
++		for _, wait := range []time.Duration{200 * time.Millisecond, time.Second, 3 * time.Second} {
++			time.Sleep(wait)
++			_, err := os.Stat(path)
++			fmt.Fprintf(os.Stderr, "DIAG after +%s exists=%v\n", wait, err == nil)
++		}
++	}
++	entries, _ := os.ReadDir(filepath.Join(home, ".claude"))
++	for _, e := range entries { info, _ := e.Info(); if info != nil { fmt.Fprintf(os.Stderr, "DIAG ls .claude/%s %d %s\n", e.Name(), info.Size(), info.ModTime().Format("15:04:05.000")) } }
++}

@@ -113,16 +113,29 @@ behaviour inside a live model session.
   rerun is safe because hook events are reads (`AGENTS.md` invariant 4). A pass after a retried
   time bound qualifies lifecycle semantics at that load, not latency; host timeouts stay outside the
   nine cases (`HLQ-V1-004`).
+- **HLQ-V1-010:** (proposed; V1-1121) With `--failed-reports DIR`, a run in which any case is
+  not `PASS`, or any case line names a time-bound hook retry (`HLQ-V1-009`), MUST also write its
+  report to a new file in `DIR` named for the host, the UTC time and the process id, and MUST NOT
+  replace an existing file there. A run whose nine cases all pass with no retry writes nothing
+  there. Retention keys on every case, never on one case a caller studies, so a repeated run keeps
+  the failure text of any case. The retained copy is the `HLQ-V1-007` report, in which every
+  received text is already quoted and bounded. The retained file, including its explicit
+  omitted-byte marker, is at most 64 KiB and is written with mode 0600. It holds nothing read
+  from outside the private workspace (`HLQ-V1-003`). A `DIR` that cannot be created, or in which a
+  file cannot be created, is a setup error (exit 2) before any case runs. A failed `--report`
+  write does not prevent the retained copy, and either failure exits 2.
 
 ## Runner
 
 ```sh
 GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
-  --host cli|claude-code|codex --corvint FILE --base-corvint N1_FILE --source CHECKOUT --report FILE
+  --host cli|claude-code|codex --corvint FILE --base-corvint N1_FILE --source CHECKOUT --report FILE [--failed-reports DIR]
 ```
 
 `--source` is a clean checkout whose `integrations/` supplies the plugin package. Without
-`--base-corvint`, the upgrade case is `NOT_RUN`, so the tuple does not pass.
+`--base-corvint`, the upgrade case is `NOT_RUN`, so the tuple does not pass. A repeated or loaded
+run passes `--failed-reports DIR` so the text of any failed or retried case survives the caller
+discarding its passing reports (proposed `HLQ-V1-010`).
 
 ## Results
 
@@ -264,6 +277,17 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
   unretained observation. A slowdown of roughly
   5x reaches the bound, which the rc.2 load of about 245 makes plausible; the rc.2 output itself
   stays unobserved, so the cause remains the most likely hypothesis, not an observation.
+- V1-1120: the frontier fail-open has a load envelope (`2026-10-10-hlq-load-failures`, Claude Code
+  2.1.293 / adapter 0.3.1, 12 CPUs). With a maximum boundary load1 below 150, 0 of 92 runs failed
+  open. At 150–199, 2 of 3 failed, and at 200 or more, 14 of 17 failed. Every failure line names
+  `dogfood-event-deadline` on all three `HLQ-V1-009` attempts, and every retained attempt took
+  1.53–2.07 s from spawn. That is the specified `LCP-V0-008` fail-open under the `AHI-017` bound,
+  so it is a known limit, not a defect. A tuple result recorded at such a load is a host-capacity
+  observation.
+- V1-1119: under heavy load, the Claude Code 2.1.293 uninstall case can fail on the host's own
+  `pluginUsage` record for `corvint@corvint`. It is left in `.claude.json`, or in an orphaned
+  `.claude.json.tmp.*` atomic-write file whose writer, `claude plugin enable`, has exited.
+  Corvint writes neither file. The case keeps reporting it as residue (same build-log entry).
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
@@ -286,6 +310,7 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
 | HLQ-V1-009 | `TestHookTimeBoundDegradation`, `TestDegradationCode`; `TestClaudeAdapterStopDeadlineFailsOpenVisibly` and the enrolled-Stop deadline subtest of `TestClaudeNativeDogfoodLifecycle` in `cmd/corvint` pin the fail-open Stop shape the retry keys on |
+| HLQ-V1-010 | `TestFailedReportRetention` (`retainReport`, `keepReport` in `conformance/host-lifecycle-v1`) |
 
 ## Rollback
 
