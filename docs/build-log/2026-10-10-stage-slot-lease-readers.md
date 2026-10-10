@@ -15,9 +15,10 @@ them at once.
 
 Only `readStage` in `internal/tasks/journal/stage_read.go` and the archive export's stage read
 produce this refusal. Every journal entry point reaches `readStage` through `Reader.audit`, which
-waits since #734. `AuditForWriter` is the one exception, and it hands any error back to the caller,
-which then runs the complete audit. No unlocked journal reader is left without the
-`CTS-V0-008` wait.
+waits since #734. `AuditForWriter` is the one exception. It runs only under the writer lock, where
+no other writer can hold a slot. Its caller `observeWriter` runs the complete audit after most
+errors, but a failed native cleanup is terminal and is not retried. No unlocked journal reader is
+left without the `CTS-V0-008` wait.
 
 - V1-0467: the race list at 30e306ec is renew, submit, gate, complete and so on. "Racer 2" is the
   zero-based index of `gate-a`, not `submit-a` as the V1-0825 build log said. `GateRun` reads the
@@ -45,12 +46,20 @@ The three failures before #734 were all
 `attempt_detach_test.go:179: MALFORMED: staging/a00: unassigned stage slot`, in `heartbeatAfter`.
 That is the V1-0949 symptom, at the reader #734 fixed.
 
-The new test `TestCTSV0008_UnlockedLeaseReadWaitsForStageSlot` (in `internal/tasks/store`) plants
-a descriptor-less slot and calls `store.AttemptRecord`. On main, the read refuses
-`MALFORMED staging/a00` only after the full two-second wait (`-race -count=3` PASS). Copied onto
-8b6af3ee, it fails because the read refuses after 80 ms. The test pins the lease read, which both
-tickets' failures share, to the wait. It extends `CTS-V0-008` coverage to that reader and changes no
-behaviour.
+Two new tests in `internal/tasks/store` plant a descriptor-less slot and call
+`store.AttemptRecord`:
+
+- `TestCTSV0008_UnlockedLeaseReadWaitsOutWriterHeldSlot` removes the slot after half the budget.
+  The read must succeed.
+- `TestCTSV0008_UnlockedLeaseReadWaitsForStageSlot` leaves the slot in place. The read must refuse
+  `MALFORMED staging/a00`, and only after the full two-second wait.
+
+Both pass on main (`-race -count=3`). Copied onto 8b6af3ee, both fail: the first refuses at once,
+and the second refuses after 28 ms. The journal package's stage-sleep seam already pins the pause
+sequence without timing. These tests pin the store's lease read, which both tickets' failures share,
+to that wait. That seam cannot reach the store's lease read, so these tests depend on timing. A host
+that stalls the read for a whole second before it first observes the slot could hide a regression.
+The tests extend `CTS-V0-008` coverage to that reader and change no behaviour.
 
 The original V1-0467 evidence under `/tmp/corvint-import-scaling-20260928` no longer exists, so
 the ticket body is the only record of that failure.
