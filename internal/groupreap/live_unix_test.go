@@ -436,3 +436,63 @@ func awaitGateWaiters(timeout time.Duration) (release, start bool) {
 		time.Sleep(time.Millisecond)
 	}
 }
+
+// PGO-V0-009 (V1-1056): Run, RunRetiring and RunContained record the group
+// they start for KillLive while the leader runs, and release it before the
+// reap, so an exiting adapter that reaches them retires the group and never
+// names a reaped leader's group.
+func TestPGOV0009RunFamilyRecordsGroupUntilPreReapRelease(t *testing.T) {
+	retirer, err := NewRetirer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs := map[string]func(*exec.Cmd) error{
+		"Run": Run,
+		"RunRetiring": func(command *exec.Cmd) error {
+			return RunRetiring(command, retirer)
+		},
+		"RunContained": func(command *exec.Cmd) error {
+			_, err := RunContained(command)
+			return err
+		},
+	}
+	for name, run := range runs {
+		t.Run(name, func(t *testing.T) {
+			read, write, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer read.Close()
+			command := exec.Command("/bin/sh", "-c", "echo $$; read line; exit 0")
+			command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			stdin, err := command.StdinPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			command.Stdout = write
+			done := make(chan error, 1)
+			go func() { done <- run(command) }()
+			line, err := bufio.NewReader(read).ReadString('\n')
+			if err != nil {
+				t.Fatal(err)
+			}
+			leader, err := strconv.Atoi(strings.TrimSpace(line))
+			if err != nil {
+				t.Fatal(err)
+			}
+			recorded := liveGroups.recorded(leader)
+			stdin.Close()
+			err = <-done
+			write.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !recorded {
+				t.Fatalf("%s did not record the group its leader %d started", name, leader)
+			}
+			if liveGroups.recorded(leader) {
+				t.Fatalf("%s reaped leader %d without releasing its group", name, leader)
+			}
+		})
+	}
+}
