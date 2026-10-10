@@ -64,7 +64,7 @@ func TestCALV0051_CreateHelpAndMeaningfulIDs(t *testing.T) {
 	})
 }
 
-func TestCALV0211_TopLevelHelpCreateUsage(t *testing.T) {
+func TestCALV0212_TopLevelHelpCreateUsage(t *testing.T) {
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	h := handoffCLI(t, root, "help")
 	if h.code != 0 {

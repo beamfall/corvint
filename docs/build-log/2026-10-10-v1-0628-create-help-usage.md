@@ -7,8 +7,8 @@ show, claim and plan preview, collisions and invalid tokens). The remaining misl
 top-level `help` usage line `ticket <mutation> ... [--target TICKET|LOCAL --expected-revision N]`.
 
 Change: that line is split into a `ticket create` line (names `localToken`, no target) and a line for
-the target-taking mutations. Proposed `CAL-V0-211` (pending owner acceptance, V1-0628) records it;
-`TestCALV0211_TopLevelHelpCreateUsage` covers it.
+the target-taking mutations. Proposed `CAL-V0-212` (pending owner acceptance, V1-0628) records it;
+`TestCALV0212_TopLevelHelpCreateUsage` covers it.
 
 Decision: no caller-chosen ID mechanism beyond the existing `localToken`, no alias, no serial or wire
 change. The ticket's first option (explicit ID) is already delivered by `localToken`; an alias would
