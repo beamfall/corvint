@@ -325,7 +325,7 @@ jobs:
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
           cd "$d"
@@ -405,15 +405,30 @@ jobs:
             # The same shard as without --order; a readable plan only moves its selected
             # packages to the front, so a failure in a changed package surfaces early.
             packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe")
-            if [ -z "$packages" ]; then
+            # AFP-V0-041 (decision 0488): this shard's test slices of split packages, one
+            # "FLAG PATTERN PACKAGE" invocation per line; a split package is never whole.
+            slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --slices < "$RUNNER_TEMP/ci-package-universe")
+            if [ -z "$packages" ] && [ -z "$slices" ]; then
               echo "Complete-universe shard $SHARD has no packages."
               exit 0
             fi
-            # The protected helper validates each package as a typed, non-option word.
+            # The protected helper validates each package as a typed, non-option word and
+            # each slice pattern as one anchored element of plain test names.
             # Declared packages run confined to their read scopes (AFP-V0-023).
             run_tests() {
-              # shellcheck disable=SC2086
-              CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages
+              # AFP-V0-041: every invocation runs, whole packages first and then each slice;
+              # any failed invocation fails the shard.
+              local failed=0
+              if [ -n "$packages" ]; then
+                # shellcheck disable=SC2086
+                CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages < /dev/null || failed=1
+              fi
+              if [ -n "$slices" ]; then
+                while read -r flag pattern pkg; do
+                  CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" < /dev/null || failed=1
+                done <<< "$slices"
+              fi
+              return "$failed"
             }
             # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
             # report. Only go test's own status decides this step: a capture file that cannot
@@ -529,7 +544,7 @@ jobs:
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
           t="$RUNNER_TEMP/test-confine-source"
