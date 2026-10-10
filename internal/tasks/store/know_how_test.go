@@ -44,6 +44,7 @@ func knowHowEntry(seq int64, at string, anchors ...ticket.KnowHowAnchor) ticket.
 // commit and each anchor's blob; a missing file, a directory or an unknown
 // revision is refused, and no checkout is refused.
 func TestKHNV0001_PinsResolveTheWritersCommit(t *testing.T) {
+	t.Parallel()
 	root, head, blobs := knowHowRepo(t)
 	files := func(paths ...string) []ticket.KnowHowAnchor {
 		out := make([]ticket.KnowHowAnchor, len(paths))
@@ -78,6 +79,7 @@ func TestKHNV0001_PinsResolveTheWritersCommit(t *testing.T) {
 // STALE over UNKNOWN over CURRENT; an uncommitted edit does not count; no Git
 // or no commit makes every note UNKNOWN, never CURRENT.
 func TestKHNV0005_FreshnessIsComputedAtReadTime(t *testing.T) {
+	t.Parallel()
 	root, _, blobs := knowHowRepo(t)
 	a := ticket.KnowHowAnchor{Path: "a.go", Blob: blobs["a.go"]}
 	b := ticket.KnowHowAnchor{Path: "b.go", Blob: blobs["b.go"]}
@@ -170,6 +172,7 @@ func TestKHNV0005_FreshnessIsComputedAtReadTime(t *testing.T) {
 // ticket; the projection keeps the ordered prefix that fits the byte cap and
 // counts the rest.
 func TestKHNV0006_SelectionAndProjection(t *testing.T) {
+	t.Parallel()
 	blob := strings.Repeat("a", 40)
 	one, two := fixture.Ticket("AT-01"), fixture.Ticket("AT-02")
 	reason := "r"

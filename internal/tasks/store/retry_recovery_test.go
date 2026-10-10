@@ -33,6 +33,7 @@ func exhaustedCancelled(t *testing.T, s *leaseStore, id string) *store.Report {
 }
 
 func TestCALV0043_OwnerReopensExhaustedCancelledTicket(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-013 CAL-V0-043 owner readmission", func(t *testing.T) {
 		s := newLeaseStore(t)
 		id := s.ticket(t, "recovery")
@@ -92,6 +93,7 @@ func TestCALV0043_OwnerReopensExhaustedCancelledTicket(t *testing.T) {
 }
 
 func TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-043 canonical journal authority", func(t *testing.T) {
 		s := newLeaseStore(t)
 		id := s.ticket(t, "tamper")
@@ -119,6 +121,7 @@ func TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts(t *testing.T) {
 }
 
 func TestCALV0043_RecoveryPreservesRequiredGateFailures(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-043 fresh acceptance needs fresh gates", func(t *testing.T) {
 		s := newLeaseStore(t, commandGate("verify", "test -f pass", "30", true))
 		id := s.ticket(t, "gates")
@@ -161,6 +164,7 @@ func TestCALV0043_RecoveryPreservesRequiredGateFailures(t *testing.T) {
 }
 
 func TestCALV0043_RecoveryInvalidatesOldApprovals(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-043 prior acceptance approvals cannot authorize new claim", func(t *testing.T) {
 		s := newLeaseStore(t)
 		payload := createPayload("approval")

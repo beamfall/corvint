@@ -11,6 +11,7 @@ import (
 // and otherwise refolds from receipt 1; every answer equals the whole-history
 // fold.
 func TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 120)
 	full := func(last uint64) any {
 		t.Helper()

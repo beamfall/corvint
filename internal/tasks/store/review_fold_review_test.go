@@ -13,6 +13,7 @@ import (
 // earlier receipt removed after the fold was carried falls back to the
 // whole-history fold and refuses exactly as FoldExternalReviews does.
 func TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved(t *testing.T) {
+	t.Parallel()
 	repo := historyStore(t, 120)
 	var f ReviewFold
 	if _, err := f.Fold(repo, 120); err != nil {
@@ -42,6 +43,7 @@ func TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved(t *testing.T
 // a regular file, so an earlier receipt replaced by a symlink or a directory
 // falls back to the whole-history fold and refuses exactly as it does.
 func TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name    string
 		replace func(path string) error

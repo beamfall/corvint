@@ -38,6 +38,7 @@ func loopHandoffs(t *testing.T, s *leaseStore, id, prefix string, n, minute int)
 // admits. Without the policy the same history records no loopEvidence key
 // and keeps admitting (D8).
 func TestCALV0102_StoreLoopHoldAndOwnerReopen(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-102 CAL-V0-103 StoreLoopHoldAndOwnerReopen", func(t *testing.T) {
 		s := newLeaseStore(t)
 		handoffPolicyUpdate(t, s, func(v wire.Value) {
@@ -89,6 +90,7 @@ func TestCALV0102_StoreLoopHoldAndOwnerReopen(t *testing.T) {
 // owner reopen of a ticket that is neither retry-exhausted nor loop-held
 // still refuses with the unchanged recovery reason.
 func TestCALV0103_ReopenRefusesUnheldTicket(t *testing.T) {
+	t.Parallel()
 	t.Run("CAL-V0-103 ReopenRefusesUnheldTicket", func(t *testing.T) {
 		s := newLeaseStore(t)
 		handoffPolicyUpdate(t, s, func(v wire.Value) {

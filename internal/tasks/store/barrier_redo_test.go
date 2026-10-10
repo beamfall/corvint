@@ -160,6 +160,7 @@ func TestV10309_PendingUnpauseRecovers(t *testing.T) {
 // head is published: the transaction is settled, so a retry replays and
 // changes nothing.
 func TestV10309_PendingUnpauseAfterHeadReplays(t *testing.T) {
+	t.Parallel()
 	repo, _ := initialized(t)
 	changeBarrier(t, repo, transaction.Pause, "pause")
 	done := changeBarrier(t, repo, transaction.Unpause, "remove")
@@ -319,6 +320,7 @@ func TestV10309_PendingUnpauseRecoversOffIntentBranch(t *testing.T) {
 // TestV10309_BarrierSettlesPendingMutation: the barrier command, like every
 // other writer, settles a pending receipt before it models its own request.
 func TestV10309_BarrierSettlesPendingMutation(t *testing.T) {
+	t.Parallel()
 	repo := pendingMutation(t)
 	report, err := store.Barrier(context.Background(), repo, operator(), barrierRequest(transaction.Pause, "pause"), now(t))
 	if err != nil || !report.Redone || report.Receipt == "" {
