@@ -103,9 +103,7 @@ func writerMutate(t *testing.T, repo *intent.Repository, id string, hook func(st
 func writerStore(t *testing.T, receipts int) *intent.Repository {
 	t.Helper()
 	repo := historyStore(t, receipts)
-	old := minWriterCheckpointSeq
-	minWriterCheckpointSeq = 2
-	t.Cleanup(func() { minWriterCheckpointSeq = old })
+	lowerWriterCheckpoint(t, repo)
 	if run := writerMutate(t, repo, "writer-seed", nil); !run.completed() || run.fast() {
 		t.Fatalf("seed: %+v %v %v", run.rep, run.err, run.stages)
 	}
@@ -114,6 +112,14 @@ func writerStore(t *testing.T, receipts int) *intent.Repository {
 		t.Fatalf("complete route retained %+v, want a checkpoint at %d", wc, receipts)
 	}
 	return repo
+}
+
+// lowerWriterCheckpoint lowers repo's writer-checkpoint threshold to 2 until
+// t ends, leaving every other store at the production threshold.
+func lowerWriterCheckpoint(t *testing.T, repo *intent.Repository) {
+	t.Helper()
+	writerCheckpointFloors.Store(repo.StateDir, uint64(2))
+	t.Cleanup(func() { writerCheckpointFloors.Delete(repo.StateDir) })
 }
 
 func headSeqOf(t *testing.T, repo *intent.Repository) uint64 {
@@ -217,8 +223,10 @@ func forkReceipt(t *testing.T, repo *intent.Repository, seq uint64) func() {
 // CAL-V0-119 (proposed): a fast write advances the read checkpoint to the
 // head it observed, as the complete route does.
 func TestCALV0115_WriterCheckpointFallsBackToCompleteAudit(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	other := historyStore(t, 70)
+	lowerWriterCheckpoint(t, other)
 	if run := writerMutate(t, other, "foreign-seed", nil); !run.completed() {
 		t.Fatalf("foreign seed: %+v %v", run.rep, run.err)
 	}
@@ -298,6 +306,7 @@ func TestCALV0115_WriterCheckpointFallsBackToCompleteAudit(t *testing.T) {
 // is WriterFullBound receipts or more behind the head, even when its tail is
 // short: the write runs the complete audit, which re-derives FullSeq.
 func TestCALV0116_WriterFullBoundDeclines(t *testing.T) {
+	t.Parallel()
 	receipts := journal.WriterFullBound + 8
 	repo := writerStore(t, receipts)
 	writerCheckpointRewrite(t, repo, func(wc *journal.WriterCheckpoint) { wc.FullSeq = 8 })
@@ -498,6 +507,7 @@ func sameDecision(t *testing.T, got, want writerRun) {
 // then decides exactly as it does with no checkpoint, and a refusal publishes
 // nothing. Retained requests are CAL-V0-190's.
 func TestCALV0116_WriterRouteCounterexamples(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "tail-request", nil); !run.completed() || !run.fast() {
 		t.Fatalf("tail write: %+v %v %v", run.rep, run.err, run.stages)
@@ -718,6 +728,7 @@ func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
 // before the checkpoint is not bound by the route; the complete route
 // replays it.
 func TestCALV0190_WriterReplayBeyondBoundDeclines(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, journal.MaxWriterTail+40)
 	write := writerEnvelope(repo, historyCreate("history-create-0", "history history-create-0"), WallClock())
 	run := stagedWrite(write, nil)
@@ -962,6 +973,7 @@ func TestCALV0116_FastWriteRechecksIntentBranch(t *testing.T) {
 // route; a reference changed without its note event declines it, publishes
 // nothing, and the complete route refuses.
 func TestCALV0116_TailNoteReferenceChangeWithoutEvent(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	created := writerMutate(t, repo, "note-target", nil)
 	if !created.completed() {
@@ -1069,6 +1081,7 @@ func TestCALV0116_TailNoteReferenceChangeWithoutEvent(t *testing.T) {
 // the scheduled complete audit removes the writer checkpoint, and every
 // later write then refuses through the complete route.
 func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	requestFile, _ := mutationBoundaryFiles(t, repo)
 	rewriteFile(t, requestFile, func([]byte) []byte { return []byte("{}\n") })
@@ -1103,6 +1116,7 @@ func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
 // newer refresh removed on finding the tamper, so the next writer still
 // takes the complete route and refuses the fork.
 func TestCALV0117_OlderRefreshCannotUndoInvalidation(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "before-refreshes", nil); !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
@@ -1145,6 +1159,7 @@ func TestCALV0117_OlderRefreshCannotUndoInvalidation(t *testing.T) {
 // that window fails the next writer's rebinding, and the complete route
 // refuses the fork.
 func TestCALV0117_RefreshWriteInterleave(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "before-refresh", nil); !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
@@ -1205,6 +1220,7 @@ func TestCALV0117_RefreshWriteInterleave(t *testing.T) {
 // write that takes the head WriterRefreshInterval receipts past FullSeq runs
 // the scheduled complete audit after its lock is released.
 func TestCALV0117_WriterAdvanceAndScheduledRefresh(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	full := readWriterCheckpoint(repo).FullSeq
 	for headSeqOf(t, repo)+1+journal.WriterAdvanceTail+1-full < journal.WriterRefreshInterval {
@@ -1238,6 +1254,7 @@ func TestCALV0117_WriterAdvanceAndScheduledRefresh(t *testing.T) {
 // published under, so the next write declines the fast route and the
 // complete route refuses the corruption the refresh found.
 func TestCALV0117_InvalidationSurvivesStopBeforeRemoval(t *testing.T) {
+	t.Parallel()
 	repo := writerStore(t, 70)
 	if run := writerMutate(t, repo, "before-stop", nil); !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
