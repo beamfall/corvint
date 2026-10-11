@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -18,22 +19,7 @@ func AcquireSnapshotRefreshLock(root string) (*os.File, error) {
 	if err := refuseLinkedSnapshotDirectory(root, store.directory); err != nil {
 		return nil, err
 	}
-	relative, err := filepath.Rel(store.base, store.directory)
-	if err != nil {
-		return nil, err
-	}
-	directory, err := openBlobShardDirectory(store.base, relative, true)
-	if err != nil {
-		return nil, err
-	}
-	defer directory.Close()
-	flags := os.O_RDWR | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
-	// EXCL prevents even os.Root's in-root symlink resolution from creating a
-	// dangling link's target. Existing entries are opened without CREATE.
-	file, err := directory.OpenFile("refresh.lock", os.O_CREATE|os.O_EXCL|flags, 0o600)
-	if errors.Is(err, os.ErrExist) {
-		file, err = directory.OpenFile("refresh.lock", flags, 0)
-	}
+	file, err := openSnapshotRefreshLock(store, true)
 	if err != nil {
 		return nil, err
 	}
@@ -45,10 +31,6 @@ func AcquireSnapshotRefreshLock(root string) (*os.File, error) {
 	if stat, ok := info.Sys().(*syscall.Stat_t); !ok || stat.Nlink != 1 {
 		file.Close()
 		return nil, errors.New("hardlinked index refresh lock refused")
-	}
-	if !sameBlobShardEntry(directory, "refresh.lock", file) {
-		file.Close()
-		return nil, errors.New("linked index refresh lock refused")
 	}
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		file.Close()
@@ -65,7 +47,7 @@ func AcquireSnapshotRefreshLock(root string) (*os.File, error) {
 // arbitrary inherited file to be truncated.
 func ValidateSnapshotRefreshLock(root string, file *os.File) error {
 	store := locateSnapshotStore(root)
-	expected, err := openBlobShard(store.base, filepath.Join(store.directory, "refresh.lock"))
+	expected, err := openSnapshotRefreshLock(store, false)
 	if err != nil {
 		return err
 	}
@@ -85,4 +67,53 @@ func ValidateSnapshotRefreshLock(root string, file *os.File) error {
 		return errors.New("hardlinked index refresh lock refused")
 	}
 	return syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+}
+
+// Walk from the store anchor using native openat, not os.Root.OpenFile: os.Root
+// resolves in-root symlinks even when O_NOFOLLOW is passed. An opened directory
+// stays pinned if its pathname is subsequently replaced. No leaf is truncated
+// until ValidateSnapshotRefreshLock has independently repeated this same walk.
+func openSnapshotRefreshLock(store snapshotStore, create bool) (*os.File, error) {
+	relative, err := filepath.Rel(store.base, store.directory)
+	if err != nil || !filepath.IsLocal(relative) {
+		return nil, errors.New("index refresh store path refused")
+	}
+	current, err := os.OpenFile(store.base, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, component := range strings.Split(relative, string(filepath.Separator)) {
+		if !validComponent(component) {
+			current.Close()
+			return nil, errors.New("index refresh directory component refused")
+		}
+		if create {
+			err = snapshotRefreshMkdirat(int(current.Fd()), component, 0o755)
+			if err != nil && !errors.Is(err, syscall.EEXIST) {
+				current.Close()
+				return nil, &os.PathError{Op: "mkdirat", Path: component, Err: err}
+			}
+		}
+		fd, err := snapshotRefreshOpenat(int(current.Fd()), component, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+		current.Close()
+		if err != nil {
+			return nil, &os.PathError{Op: "openat directory", Path: component, Err: err}
+		}
+		current = os.NewFile(uintptr(fd), component)
+	}
+	defer current.Close()
+	flags := os.O_RDWR | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
+	var fd int
+	if create {
+		// Separate creation from opening the stable inode: concurrent Darwin
+		// O_CREAT opens can return ENOENT while another caller creates it.
+		fd, err = snapshotRefreshOpenat(int(current.Fd()), "refresh.lock", flags|os.O_CREATE|os.O_EXCL, 0o600)
+	}
+	if !create || errors.Is(err, syscall.EEXIST) {
+		fd, err = snapshotRefreshOpenat(int(current.Fd()), "refresh.lock", flags, 0)
+	}
+	if err != nil {
+		return nil, &os.PathError{Op: "openat lock", Path: "refresh.lock", Err: err}
+	}
+	return os.NewFile(uintptr(fd), "refresh.lock"), nil
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,6 +19,7 @@ import (
 )
 
 const snapshotRefreshWorkerEnv = "CORVINT_INTERNAL_INDEX_REFRESH"
+const snapshotRefreshPriorityEnv = "CORVINT_INTERNAL_INDEX_REFRESH_PRIORITY"
 const snapshotRefreshWallBound = time.Minute
 
 // Tests can substitute only the scheduler syscall in their exec'd helper when
@@ -71,7 +73,7 @@ func startSnapshotRefresh(ctx context.Context, root string) string {
 	// boundary. It performs no shell lookup and inherits no hook pipe.
 	command.Env = make([]string, 0, len(env)+2)
 	for _, entry := range env {
-		if !strings.HasPrefix(entry, snapshotRefreshWorkerEnv+"=") && !strings.HasPrefix(entry, "GOMAXPROCS=") {
+		if !strings.HasPrefix(entry, snapshotRefreshWorkerEnv+"=") && !strings.HasPrefix(entry, snapshotRefreshPriorityEnv+"=") && !strings.HasPrefix(entry, "GOMAXPROCS=") {
 			command.Env = append(command.Env, entry)
 		}
 	}
@@ -96,7 +98,20 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 	// Keep the lock held until the group dies. Never trust or signal a PID from
 	// stale metadata: the kernel owns lock recovery even after SIGKILL.
 	defer syscall.Kill(-os.Getpid(), syscall.SIGKILL)
-	timer := time.AfterFunc(wallBound, func() { _ = syscall.Kill(-os.Getpid(), syscall.SIGKILL) })
+	deadline := time.Now().Add(wallBound)
+	if runtime.GOOS == "linux" {
+		if stage := os.Getenv(snapshotRefreshPriorityEnv); stage != "" {
+			nanos, err := strconv.ParseInt(stage, 10, 64)
+			if err != nil {
+				return 2
+			}
+			deadline = time.Unix(0, nanos)
+		}
+	}
+	if !time.Now().Before(deadline) {
+		return 2
+	}
+	timer := time.AfterFunc(time.Until(deadline), func() { _ = syscall.Kill(-os.Getpid(), syscall.SIGKILL) })
 	defer timer.Stop()
 	lock := os.NewFile(3, "index-refresh-lock")
 	if lock == nil {
@@ -110,6 +125,11 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 		fmt.Fprintln(os.Stderr, "index refresh lock:", err)
 		return 2
 	}
+	// Linux retains fd 3 and the original wall deadline across its self-exec.
+	if err := prepareSnapshotRefreshPriority(deadline); err != nil {
+		fmt.Fprintln(os.Stderr, "index refresh priority:", err)
+		return 2
+	}
 	// FD 3 belongs only to this worker, never its Git children.
 	syscall.CloseOnExec(3)
 	if err := lock.Truncate(0); err != nil {
@@ -119,17 +139,6 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 		return 2
 	}
 	defer lock.Truncate(0)
-	priority, err := syscall.Getpriority(syscall.PRIO_PROCESS, 0)
-	if err != nil {
-		return 2
-	}
-	if runtime.GOOS == "linux" {
-		priority = 20 - priority // Linux getpriority returns 20 minus the nice value.
-	}
-	if err := snapshotRefreshSetpriority(syscall.PRIO_PROCESS, 0, max(priority, 10)); err != nil {
-		fmt.Fprintln(os.Stderr, "index refresh priority:", err)
-		return 2
-	}
 	runtime.GOMAXPROCS(1)
 	interrupted := make(chan os.Signal, 1)
 	signal.Notify(interrupted, syscall.SIGINT, syscall.SIGTERM)
@@ -140,7 +149,46 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 		// retire the whole group even there; atomic rename protects readers.
 		_ = syscall.Kill(-os.Getpid(), syscall.SIGKILL)
 	}()
-	ctx, cancel := context.WithTimeout(context.Background(), wallBound-wallBound/12)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline.Add(-wallBound/12))
 	defer cancel()
 	return runIndex(ctx, invocation, os.Stdout, os.Stderr)
+}
+
+// Linux nice is per-thread. Exec on the lowered, locked thread discards the
+// other runtime threads; every thread in the new image inherits its priority.
+// Darwin's PRIO_PROCESS already covers the process and needs no second image.
+func prepareSnapshotRefreshPriority(deadline time.Time) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	priority, err := syscall.Getpriority(syscall.PRIO_PROCESS, 0)
+	if err != nil {
+		return err
+	}
+	if runtime.GOOS == "linux" {
+		priority = 20 - priority
+		if os.Getenv(snapshotRefreshPriorityEnv) != "" {
+			if priority < 10 {
+				return fmt.Errorf("exec inherited nice %d, want >=10", priority)
+			}
+			return nil
+		}
+	}
+	if err := snapshotRefreshSetpriority(syscall.PRIO_PROCESS, 0, max(priority, 10)); err != nil {
+		return err
+	}
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, snapshotRefreshPriorityEnv+"=") {
+			env = append(env, entry)
+		}
+	}
+	env = append(env, snapshotRefreshPriorityEnv+"="+strconv.FormatInt(deadline.UnixNano(), 10))
+	return syscall.Exec(executable, os.Args, env)
 }

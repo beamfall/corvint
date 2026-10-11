@@ -154,3 +154,32 @@ Logs: /private/tmp/v1-1128-repair-contextindex.log,
 failure. The integrator still needs to stage the seven follow-up files and rerun the real-index
 citation gate; this builder leaves all seven unstaged. Original acceptance, integration and
 native completion obligations are unchanged and were not claimed complete.
+
+## P2 repair (bc773cd1 follow-up)
+
+Fixed both independent-review findings. Linux now lowers a locked OS thread and self-execs
+once, preserving fd 3 and the original deadline; all new runtime threads inherit nice >=10.
+Darwin retains process-wide setpriority. Denial still prevents building. Regressions observe
+worker/thread/Git-descendant priority and prove denied priority never dispatches Git.
+Refresh lock acquisition and inherited validation now use native per-component no-follow
+opens. Existing Core safeopen wrappers were inspected; their read-only API cannot create the
+lock, so the small syscall boundary follows that repository precedent without a dependency.
+Post-preflight directory swaps refuse both lock creation and inherited validation. Analyzer
+schema stays /113; only its audited digest changes. Spec clauses and traceability are updated.
+Independent read-only review passed, including the deadline follow-up. No decision, commit,
+push, real-index change or Tasks write is part of this repair. Corvint query/affected were used;
+index refresh remains blocked by the external common-directory sandbox boundary, and official
+update checks still fail version smoke. Account usage telemetry remains unavailable.
+
+The final race rerun exposed intermittent Darwin ENOENT at concurrent lock creation.
+An isolated 100-round/12-caller reproducer localized it to the native O_CREAT leaf open;
+restoring exclusive-create then existing-open removed the failure. The retained regression
+also requires exactly one admitted writer per round. Diagnostic logging was removed.
+
+Final verification: requested cmd/corvint race matrix PASS (37.101s); requested contextindex
+matrix PASS (24.173s); native and GOOS=linux vet PASS. All requested spec/doc gates, receipt
+regressions (five cases), and receipt freshness check (18 current) PASS using a disposable
+candidate index; real index unchanged. Effective-priority test SKIPPED because this sandbox
+denies setpriority; other lifecycle tests retain their explicit test-only substitution.
+Linux runtime behavior remains NOT_OBSERVED. Final review passed the concurrent-create delta.
+Logs: /private/tmp/v1-1128-p2-{race,contextindex,vet,linux-vet,doc-gates}-verified.log.

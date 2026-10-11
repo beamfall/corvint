@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,11 +35,14 @@ func TestSnapshotRefreshWorkerHelper(t *testing.T) {
 		os.Stderr = file
 	}
 	snapshotRefreshSetpriority = func(which, who, priority int) error {
+		if os.Getenv("V1128_PRIORITY_DENIED") == "1" {
+			return syscall.EPERM
+		}
 		if priority < 10 {
 			return fmt.Errorf("priority request %d is not lowered", priority)
 		}
 		err := syscall.Setpriority(which, who, priority)
-		if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) {
+		if os.Getenv("V1128_PRIORITY_STRICT") != "1" && (errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES)) {
 			// This is a test-only scheduling substitution, never production fallback.
 			fmt.Fprintln(os.Stderr, "NOT_OBSERVED: sandbox denied lowering priority; testing remaining lifecycle with requested priority >=10")
 			return nil
@@ -387,4 +392,87 @@ func TestSnapshotRefreshInterrupted(t *testing.T) {
 			}
 		})
 	}
+}
+
+// IDX-SNAP-V0-033: inspect effective priority, not the requested syscall value.
+// Linux checks every runtime thread while Git is blocked and a Git descendant.
+func TestSnapshotRefreshEffectivePriority(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	path, ready := slowRefreshGit(t, root)
+	ctx, commands := refreshTestContext(t, root, path, "V1128_PRIORITY_STRICT=1", snapshotRefreshPriorityEnv+"=untrusted-parent-marker")
+	if status := startSnapshotRefresh(ctx, root); status != "started" {
+		t.Fatal(status)
+	}
+	worker := (*commands)[0].Process.Pid
+	waitRefresh(t, func() bool {
+		_, err := os.Stat(ready)
+		return err == nil || errors.Is(syscall.Kill(worker, 0), syscall.ESRCH)
+	})
+	data, err := os.ReadFile(ready)
+	if err != nil {
+		output, _ := os.ReadFile(filepath.Join(root, "refresh-test-stderr"))
+		if strings.Contains(string(output), "index refresh priority: operation not permitted") || strings.Contains(string(output), "index refresh priority: permission denied") {
+			t.Skipf("NOT_OBSERVED: sandbox denies real niceness: %s", output)
+		}
+		t.Fatalf("worker failed before Git witness: %s (%v)", output, err)
+	}
+	var descendant int
+	if _, err := fmt.Sscan(string(data), &descendant); err != nil || descendant <= 0 {
+		t.Fatalf("Git descendant missing: %s", data)
+	}
+	pids := []int{worker, descendant}
+	if runtime.GOOS == "linux" {
+		entries, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", worker))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) < 2 {
+			t.Fatal("multiple runtime threads not exercised")
+		}
+		for _, entry := range entries {
+			tid, err := strconv.Atoi(entry.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			pids = append(pids, tid)
+		}
+	}
+	for _, pid := range pids {
+		priority, err := syscall.Getpriority(syscall.PRIO_PROCESS, pid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if runtime.GOOS == "linux" {
+			priority = 20 - priority
+		}
+		if priority < 10 {
+			t.Fatalf("pid/tid %d effective nice=%d, want >=10", pid, priority)
+		}
+	}
+}
+
+// IDX-SNAP-V0-033: denied priority must never reach Git or publish a snapshot.
+func TestSnapshotRefreshPriorityDenied(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	path, ready := slowRefreshGit(t, root)
+	ctx, commands := refreshTestContext(t, root, path, "V1128_PRIORITY_DENIED=1")
+	if status := startSnapshotRefresh(ctx, root); status != "started" {
+		t.Fatal(status)
+	}
+	waitRefreshExit(t, (*commands)[0])
+	output, _ := os.ReadFile(filepath.Join(root, "refresh-test-stderr"))
+	if !strings.Contains(string(output), "index refresh priority: operation not permitted") {
+		t.Fatalf("denial not exercised: %s", output)
+	}
+	if _, err := os.Stat(ready); !os.IsNotExist(err) {
+		t.Fatalf("denied worker dispatched Git: %v", err)
+	}
+	if _, fresh, err := contextindex.ProbeSnapshot(context.Background(), root); err != nil || fresh {
+		t.Fatalf("denied worker published: %t %v", fresh, err)
+	}
+	lock, err := contextindex.AcquireSnapshotRefreshLock(root)
+	if err != nil || lock == nil {
+		t.Fatalf("denied worker retained lock: %v", err)
+	}
+	lock.Close()
 }

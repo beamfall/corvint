@@ -711,11 +711,18 @@ snapshots refreshed automatically without a manual warmup.
   Completion clears metadata and releases the lock. The empty inode remains to prevent an
   unlink/recreate race. Dead or expired writers release their kernel lock; subsequent triggers
   overwrite stale metadata without trusting a recycled PID or stealing a live lock based on age.
-  Directory walks and the leaf MUST refuse links, non-regular files and blocking opens.
+  Acquisition and inherited-descriptor validation MUST open every store directory component
+  relative to a pinned directory descriptor with O_NOFOLLOW|O_DIRECTORY, and open the lock leaf
+  with O_NOFOLLOW|O_NONBLOCK. A component swapped for a symlink cannot redirect lock creation
+  or metadata writes; linked leaves, hardlinks and non-regular lock files are refused.
 - `IDX-SNAP-V0-033`: proposed, pending owner acceptance (V1-1128). The child owns a new session,
   redirects all standard streams to `/dev/null`, uses nice priority at least +10 and GOMAXPROCS=1,
   cancels work at 55 seconds and kills its process group at a hard 60-second wall bound. It
-  refuses to build if lowering priority is denied; a started notice still acknowledges only spawn. Git
+  refuses to build if lowering priority is denied; a started notice still acknowledges only spawn.
+  Nice >= +10 covers every worker thread and inherited Git priority. On Linux a locked OS thread
+  lowers its priority, then execs the same image once using an internal deadline/stage marker; fd 3 retains
+  the flock across exec and becomes close-on-exec before Git dispatch. Darwin lowers process-wide
+  priority without that extra exec. No external nice executable is required. Git
   descendants remain in that owned group. Normal completion and INT/TERM retire the group too.
   External SIGKILL of the worker PID alone cannot execute its timer or defers: its Git
   descendants may survive until their own exit. Operators needing forced retirement MUST kill
@@ -946,8 +953,8 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-027 | `sweepLegacyStore`, `WriteSnapshot`, `runIndex`, `legacyLeftPayload` | `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`, `TestIndexReceiptNamesTheSweptLegacyStore` |
 | IDX-SNAP-V0-026 | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |
 | IDX-SNAP-V0-031 (proposed, pending owner acceptance (V1-1128)) | `startSnapshotRefresh`, `runSnapshotRefreshWorker` | `TestSnapshotRefreshCommitThenEvent` |
-| IDX-SNAP-V0-032 (proposed, pending owner acceptance (V1-1128)) | `AcquireSnapshotRefreshLock` | `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshStaleLock` |
-| IDX-SNAP-V0-033 (proposed, pending owner acceptance (V1-1128)) | `runSnapshotRefreshWorker` | `TestSnapshotRefreshSlowChild`, `TestSnapshotRefreshInterrupted` |
+| IDX-SNAP-V0-032 (proposed, pending owner acceptance (V1-1128)) | `AcquireSnapshotRefreshLock`, `ValidateSnapshotRefreshLock` | `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshStaleLock`, `TestSnapshotRefreshLockDirectorySwap`, `TestSnapshotRefreshLockConcurrentCreate` |
+| IDX-SNAP-V0-033 (proposed, pending owner acceptance (V1-1128)) | `runSnapshotRefreshWorker` | `TestSnapshotRefreshSlowChild`, `TestSnapshotRefreshInterrupted`, `TestSnapshotRefreshEffectivePriority`, `TestSnapshotRefreshPriorityDenied` |
 | IDX-SNAP-V0-034 (proposed, pending owner acceptance (V1-1128)) | `runIndex`, `WriteSnapshot` | `TestSnapshotRefreshInterrupted`, `TestEvictSnapshotsRemovesStaleTemporaries` |
 | IDX-SNAP-V0-035 (proposed, pending owner acceptance (V1-1128)) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
 | IDX-SNAP-V0-036 (proposed, pending owner acceptance (V1-1128)) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
