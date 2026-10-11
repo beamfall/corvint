@@ -250,7 +250,7 @@ Commands:
   breakage  cross-repository API relations
   harness event  one agent-harness lifecycle event
   adapter  one native host adapter
-  dogfood  local evidence workflow; change, check, seal
+  dogfood  local evidence workflow; change, check, seal, batch-check
   dogfood-ocm  verify dogfood OCM maps
   cem  Change Evidence Map producer/verifier
   ocm  Obligation Closure Map producer/verifier
@@ -1165,6 +1165,7 @@ Usage:
     [--override-verifier PATH] BASE
   corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
+  corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1200,6 +1201,10 @@ never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
 DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. The root, the
 current directory unless --root names one, must be the worktree top level.
+
+batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
+sealed change the range adds, verifies each sealed CEM against its own base, and
+re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

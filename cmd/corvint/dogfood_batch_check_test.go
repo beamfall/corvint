@@ -1,0 +1,118 @@
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// sealPortableLane runs the daily loop for HEAD against base with one
+// citation plan, as docs/DOGFOOD.md §4 prescribes, and returns the bind commit.
+func sealPortableLane(t *testing.T, run portableRun, root, base, plan string) string {
+	t.Helper()
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	for path, content := range map[string]string{citations: plan, intents: "intent.md\n"} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "local-outcome: record-index-failed") {
+		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	bind := cemGit(t, root, "rev-parse", "HEAD")
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 0 {
+		t.Fatalf("bind exit=%d stderr=%s", code, stderr)
+	}
+	if code, _, stderr := run.exec(t, root, nil, "dogfood", "seal", base); code != 0 {
+		t.Fatalf("seal exit=%d stderr=%s", code, stderr)
+	}
+	return bind
+}
+
+// DCW-V0-041: a citation plan may cite code at BASE, not only spec spans,
+// and may cite one hunk more than once; an unregistered relation and a path
+// absent at BASE each name their fix. DCW-V0-039: two such sealed changes
+// merged into one batch pass batch-check with the real verifier, and a commit
+// no sealed change binds fails it.
+func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	bindA := sealPortableLane(t, run, root, base, "1\tfixture/fixture.go\t1:1\timplementation\n1\tintent.md\t5:5\tspecification\n")
+	sealA := cemGit(t, root, "rev-parse", "HEAD")
+	var cem struct {
+		Hunks []struct {
+			Basis []struct {
+				Relation string `json:"relation"`
+			} `json:"basis"`
+		} `json:"hunks"`
+	}
+	raw := cemGit(t, root, "show", "HEAD:.corvint/changes/"+bindA+".cem.json")
+	if err := json.Unmarshal([]byte(raw), &cem); err != nil || len(cem.Hunks) != 1 || len(cem.Hunks[0].Basis) != 2 ||
+		cem.Hunks[0].Basis[0].Relation != "implementation" || cem.Hunks[0].Basis[1].Relation != "specification" {
+		t.Fatalf("code citation basis %s err=%v", raw, err)
+	}
+
+	// Lane B runs as in its own clone: lane A's local trace store names
+	// commits lane B's HEAD cannot reach.
+	if err := os.RemoveAll(filepath.Join(root, ".context-corvint")); err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, root, "checkout", "-q", "-b", "lane-b", base)
+	cemWrite(t, root, "fixture/extra.go", "package fixture\nfunc Extra() int { return 3 }\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "extra")
+	inputsDir := t.TempDir()
+	intents := filepath.Join(inputsDir, "intents")
+	if err := os.WriteFile(intents, []byte("intent.md\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for plan, fix := range map[string]string{
+		"1\tfixture/fixture.go\t1:1\timplements\n": "  cem-cite: invalid-arguments\n    fix: plan row 1: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
+		"1\tfixture/extra.go\t1:1\tdependency\n":   "  cem-cite: missing-evidence\n    fix: plan row 1 cites a path that is not a regular file at BASE",
+	} {
+		citations := filepath.Join(inputsDir, "bad.tsv")
+		if err := os.WriteFile(citations, []byte(plan), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		inputs := []string{"DOGFOOD_TASK=Extra.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+		if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code == 0 || !strings.Contains(stderr, fix) {
+			t.Fatalf("plan %q exit=%d stderr=%s", plan, code, stderr)
+		}
+		if err := os.Remove(filepath.Join(root, ".corvint/change.cem.json")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bindB := sealPortableLane(t, run, root, base, "1\tfixture/fixture.go\t1:1\tdependency\n")
+	sealB := cemGit(t, root, "rev-parse", "HEAD")
+
+	cemGit(t, root, "checkout", "-q", "-b", "batch", base)
+	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealA)
+	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealB)
+	code, stdout, stderr := run.exec(t, root, nil, "dogfood", "batch-check", base)
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "CONSTITUENT bind="+bindA+" base="+base+" hunks=1 supported=1 unknown=0 bootstrapUnknown=0 state=ready-for-ci\n") ||
+		!strings.Contains(stdout, "CONSTITUENT bind="+bindB) || !strings.HasSuffix(stdout, "dogfood-batch-check: PASS constituents=2 commits=8\n") {
+		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	// DCW-V0-040: rebinding the batch as one change names batch-check instead.
+	if code, _, stderr := run.exec(t, root, nil, "dogfood", "change", base); code != 2 ||
+		!strings.Contains(stderr, "REFUSE sealed-cem-in-change\n") || !strings.Contains(stderr, "  fix: for a merge batch of sealed changes, run corvint dogfood batch-check "+base+" instead of rebinding it") {
+		t.Fatalf("rebind exit=%d stderr=%s", code, stderr)
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+		t.Fatalf("worktree after batch-check and refused rebind: %s", status)
+	}
+	cemWrite(t, root, "AGENTS.md", "# Fixture authority\nUse intent.md.\n")
+	cemGit(t, root, "commit", "-qam", "unbound fix-up")
+	fixup := cemGit(t, root, "rev-parse", "HEAD")
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+fixup+"\n") {
+		t.Fatalf("unbound exit=%d stderr=%s", code, stderr)
+	}
+}

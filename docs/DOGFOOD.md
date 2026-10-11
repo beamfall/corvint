@@ -17,7 +17,9 @@ gate ran (`DCW-V0-015`).
 
 In any Git repository, run the steps from the installed binary at the worktree top level:
 `corvint dogfood change $BASE`, `corvint dogfood check $BASE` and `corvint dogfood seal $BASE`
-(`DCW-V0-020`). They read the inputs below from the environment, need no script, `VERSION`, Go
+(`DCW-V0-020`). A merge of changes sealed that way is checked with the read-only
+`corvint dogfood batch-check $BASE` (`DCW-V0-039`, section 4 "Check a merge batch of sealed
+changes"). They read the inputs below from the environment, need no script, `VERSION`, Go
 toolchain or `rg`, and use the running binary for every step and verifier. A subdirectory refuses
 `not-repository-root` (`DCW-V0-021`). Before the first pass, ignore the private outputs and the
 local trace store (`DCW-V0-023`); without them the worktree is dirty or the recorder refuses
@@ -377,6 +379,50 @@ unbound and is not normally bound: it is reported on stderr as
 `  retroactive SHA binding=BINDING_SHA` line per commit, newest first, naming the newest such
 binding. A normal binding of the same commit takes precedence. The retroactive label is read from
 the binding commit's trailer and is not re-verified by the check, just as window CEMs are not.
+
+#### Check a merge batch of sealed changes
+
+One change is bounded: a verifier pass of 1,024 Git operations (`git-budget-exceeded`), a local
+outcome of 200 changed paths (`local-outcome: admitted-path-limit`) and 16 intents. A batch that
+merges many changes exceeds them and also drifts the intent scope
+(`ocm-aggregate: intent-scope-drift`), so it is never rebound as one change. The
+`git-budget-exceeded` and `admitted-path-limit` refusals and `dogfood-change: REFUSE
+sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift` names the
+`ocm-prepare` or `ocm-status` row above it, which carries that `git-budget-exceeded` fix
+(`DCW-V0-040`). The limits are not raised. Instead (`DCW-V0-039`, proposed):
+
+1. Bind, check and seal each change with this loop on its own branch, in its own clone (the local
+   trace store of one change refuses another's unreachable commits), against its own base.
+2. Merge the sealed branches into the batch branch one at a time, two parents per merge. Resolve a
+   conflict with `git merge -X ours` or `-X theirs`; commit any other edit to the batch, such as an
+   orchestrator's index or decision update or a hand-merged file, as its own sealed change on a
+   branch and merge that.
+3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or
+   `corvint dogfood batch-check $BASE`).
+
+The check is read-only: it writes no object, ref, index, worktree file, trace or ledger. Its
+constituents are the `.corvint/changes/<bind>.cem.json` files `BASE..HEAD` adds. For each it
+requires the bind commit in `HEAD`, the sealed bytes equal to that commit's
+`.corvint/change.cem.json`, and `cem status --max-mechanical 0` `ready-for-ci` against the CEM's own
+base, printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
+a constituent's own range, to be its rename-only seal commit, or to be a two-parent merge whose tree
+is its first parent's tree or the tree `git merge-tree` derives with the default, `-Xours` or
+`-Xtheirs` strategy (`MERGE <sha> derivation=...`). Each failure prints `FAIL <reason> count=N`, the
+listed commits, paths or binds, and one `fix:` line; it exits 1. A dirty worktree, an empty range,
+a range over 1,024 commits or more than 256 sealed changes refuses with exit 2; split the range
+by checking out a piece's last commit and using the previous piece's last commit as `BASE`.
+
+A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
+not reverified (each change's own check already did), the merged changes' interaction is not
+observed, the count of merges that dropped one conflict side, and that one verifier ran. The CEM
+alone does not say which paths a change declared as intents, so the unknown allowance is every
+whole-file `no-evidence` hunk on a path absent at the change's base; each is printed as
+`bootstrap-unknown PATH` and counted in `SUMMARY`, and is wider than the exact allowance the
+change's own `dogfood check` applied. A retroactive binding (below) is not a constituent: its map
+exists only in the binding commit, and the verifier reads a map only from a worktree path, which
+the read-only check cannot write; a batch containing one fails `unbound-commits`. On the 2026-10-11 batch of 18 sealed lanes (354 paths, 873 hunks) a replay that
+merged only the seal tips passed; the batch as landed failed on 18 hand-resolved merges and 16
+direct orchestrator commits (`docs/build-log/2026-10-10-dogfood-batch-check.md`).
 
 #### Bind a landed range after the fact
 

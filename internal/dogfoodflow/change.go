@@ -119,6 +119,7 @@ func (c *change) run() int {
 	if c.gitValue("diff", "--name-only", c.base, c.target, "--", ".corvint/changes") != "" {
 		c.say("dogfood-change: REFUSE sealed-cem-in-change\n")
 		c.say("  BASE..HEAD adds a sealed CEM; revert or drop the seal commit, then rebind\n")
+		c.say("  fix: for a merge batch of sealed changes, run corvint dogfood batch-check %s instead of rebinding it (DCW-V0-039)\n", c.base)
 		c.exit(2)
 	}
 	// Query and impact run after the change, so they are coordination-time
@@ -1015,6 +1016,7 @@ func (c *change) packetCoverage(name string) string {
 // (DCW-V0-014, docs/DOGFOOD.md "Daily adopter path"); the first matching
 // STEP:REASON pattern wins and "*" matches any text.
 var fixHints = []struct{ pattern, hint string }{
+	{"*:git-budget-exceeded", "the change is larger than one 1,024-Git-operation verifier pass; bind and seal it as smaller changes on their own branches, merge them, and check the merge batch with corvint dogfood batch-check {base} instead of rebinding it (DCW-V0-039, DCW-V0-040)"},
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
@@ -1038,6 +1040,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-link-*", "read {evidence}/{step}.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed"},
 	{"ocm-aggregate:intent-scope-drift", "fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run"},
 	{"*:unsupported-object-alternates", "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change {base}"},
+	{"local-outcome:admitted-path-limit", "a local outcome admits at most 200 changed paths; bind and seal the change as smaller changes, merge them, and check the merge batch with corvint dogfood batch-check {base} instead of rebinding it (DCW-V0-039, DCW-V0-040)"},
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 	{"local-outcome:verify-file-unavailable", "DOGFOOD_VERIFY_FILE must be the path of a regular file holding one verification command per line, not the commands themselves"},
 	{"local-outcome:verify-file-over-bound", "DOGFOOD_VERIFY_FILE is larger than 64 KiB; keep at most 50 verification commands of at most 512 characters, one per line"},
