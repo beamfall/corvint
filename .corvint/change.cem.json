@@ -1,0 +1,129 @@
+{
+  "baseRevision": "55aa6bb9f1e9d8db81f8185b5d185fc8c1bbc821",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:84cd5827d249627de38e95d27e8127106c622f195d483710cd634c16aa0ce1d3",
+      "newRange": {
+        "count": 27,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-10-v1-0913-idle-safety-net.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:959892cc45d9a5991762562d4cbfbd598ce1e0136e08f9483599205341b0f3a9",
+      "newRange": {
+        "count": 206,
+        "start": 382
+      },
+      "oldRange": {
+        "count": 205,
+        "start": 382
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:081f3bdbc20a4bc99c9c815934f93b995f51e0517759a68f8da8fc873959f717",
+      "newRange": {
+        "count": 7,
+        "start": 128
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 128
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:51a8b0f45ce21084b1278ab7a589a6493cc6d1951486c8e0acaa55dd069a2b48",
+      "newRange": {
+        "count": 7,
+        "start": 4072
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 4071
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:50f93649fc217c4b047ad296be1b5baa8dfc70c52f04ed06fb279463366fa653",
+      "newRange": {
+        "count": 29,
+        "start": 5704
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 5703
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:de76b8d5e31ff1b4d763ef0df46a40f4c15a2737b58dba16b9acb56957c55bdc",
+      "newRange": {
+        "count": 7,
+        "start": 6162
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6138
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8a77a51d2a091da10a9c12411828e41228e717a201c5e555a5ca782f1a1dbfee",
+      "newRange": {
+        "count": 11,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 17
+      },
+      "path": "internal/tasks/dispatch/idle.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:416ea7ecf5b1b14683d07b69853f0e72b7e9ddd7f90331bb1a2a98da43dfada9",
+      "newRange": {
+        "count": 11,
+        "start": 180
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 180
+      },
+      "path": "internal/tasks/dispatch/idle_test.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "a3a989e3ec9be36a3f43b5867fcfb54f89fff1802a35d6e3ae214131f7eb9716",
+  "spec": "cem/0.2"
+}
