@@ -309,10 +309,11 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 		}
 		release := make(chan struct{})
 		defer close(release)
+		entered := make(chan struct{})
 		old := readRefsFile
-		readRefsFile = func(string) ([]byte, bool, error) { <-release; return nil, false, nil }
+		readRefsFile = func(string) ([]byte, bool, error) { close(entered); <-release; return nil, false, nil }
 		defer func() { readRefsFile = old }()
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		done := make(chan error, 1)
 		go func() {
@@ -320,9 +321,15 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 			done <- e
 		}()
 		select {
+		case <-entered:
+		case <-time.After(30 * time.Second):
+			t.Fatal("reader never entered")
+		}
+		cancel()
+		select {
 		case e := <-done:
-			if e == nil {
-				t.Fatal("stalled read accepted")
+			if e == nil || e.Error() != "changes-git-unavailable" {
+				t.Fatalf("error=%v", e)
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("Compile outlived its context")

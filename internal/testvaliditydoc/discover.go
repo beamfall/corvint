@@ -159,8 +159,7 @@ func Discover(root string) (Document, error) {
 		discovery.Abstention = runtimeAbstention(input)
 		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
 		revision := receiptRevision(input)
-		if head := headRevision(worktree); document.Run.Freshness.State == testvalidity.FreshnessStale ||
-			(revision != AbstentionUnknown && head != "" && head != revision) {
+		if document.Run.Freshness.State == testvalidity.FreshnessStale || revisionDiffersFromHead(worktree, revision) {
 			abstention := producerAbstention(AbstentionStaleEvidence)
 			abstention.ReceiptRevision = revision
 			if discovery.Abstention != nil {
@@ -178,28 +177,59 @@ func Discover(root string) (Document, error) {
 	return withDiscovery(Unsupported(), discovery), nil
 }
 
+// revisionDiffersFromHead reports a difference only when the receipt revision is
+// known and HEAD resolves; every other case is unknown and makes no claim.
+func revisionDiffersFromHead(worktree *os.Root, revision string) bool {
+	if revision == AbstentionUnknown {
+		return false
+	}
+	head := headRevision(worktree)
+	return head != "" && head != revision
+}
+
 // headRevision resolves HEAD to an object ID by reading .git files inside the
-// worktree root, starting no process. A linked worktree (.git is a file), a
-// symlink, an oversized file or any unresolved ref yields "" (unknown), which
-// never produces a staleness claim.
+// worktree root through the no-follow, nonblocking, bounded receipt reader,
+// starting no process. A linked worktree (.git is a file), a symlink, a special
+// file, an oversized file, an unreadable or malformed ref all yield "" (unknown),
+// which never produces a staleness claim. Packed refs are consulted only when
+// the loose ref is confirmed absent.
 func headRevision(worktree *os.Root) string {
-	head := readSmall(worktree, ".git/HEAD")
+	head, err := readGitFile(worktree, ".git/HEAD")
+	if err != nil {
+		return ""
+	}
 	if object := strings.TrimSpace(head); isObjectID(object) {
 		return object
 	}
 	name, ok := strings.CutPrefix(strings.TrimSpace(head), "ref: ")
-	if !ok || !strings.HasPrefix(name, "refs/") || strings.Contains(name, "..") || strings.ContainsAny(name, "\\\x00") {
+	if !ok || !strings.HasPrefix(name, "refs/") || !filepath.IsLocal(name) || strings.ContainsAny(name, "\\\x00") {
 		return ""
 	}
-	if object := strings.TrimSpace(readSmall(worktree, ".git/"+name)); isObjectID(object) {
-		return object
+	loose, err := readGitFile(worktree, ".git/"+name)
+	if err == nil {
+		if object := strings.TrimSpace(loose); isObjectID(object) {
+			return object
+		}
+		return ""
 	}
-	for _, line := range strings.Split(readSmall(worktree, ".git/packed-refs"), "\n") {
+	if !errors.Is(err, fs.ErrNotExist) {
+		return ""
+	}
+	packed, err := readGitFile(worktree, ".git/packed-refs")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(packed, "\n") {
 		if object, ref, ok := strings.Cut(line, " "); ok && ref == name && isObjectID(object) {
 			return object
 		}
 	}
 	return ""
+}
+
+func readGitFile(worktree *os.Root, name string) (string, error) {
+	data, err := ReadFileBounded(worktree, name, 1<<20)
+	return string(data), err
 }
 
 func isObjectID(value string) bool {
@@ -212,21 +242,6 @@ func isObjectID(value string) bool {
 		}
 	}
 	return true
-}
-
-// readSmall reads at most 1 MiB of a regular file confined to the root; any
-// failure yields "".
-func readSmall(worktree *os.Root, name string) string {
-	file, err := worktree.Open(name)
-	if err != nil {
-		return ""
-	}
-	defer file.Close()
-	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
-		return ""
-	}
-	raw, _ := io.ReadAll(io.LimitReader(file, 1<<20))
-	return string(raw)
 }
 
 // receiptRevision echoes only the retained test-repository identity at run start.

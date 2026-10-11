@@ -347,6 +347,9 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 			return r, errors.New("changes-refs-unavailable")
 		}
 		data, cut, e := readRefsContext(ctx, path)
+		if ctx.Err() != nil {
+			return r, errors.New("changes-git-unavailable")
+		}
 		if e != nil {
 			return r, errors.New("changes-refs-unavailable")
 		}
