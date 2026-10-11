@@ -54,11 +54,16 @@ session. A handoff must retain the original worktree and explicit enrollment key
 `FileChanged` hook: Claude Code watches only the file names a `FileChanged` matcher lists, so a
 matcherless registration never fires, and Edit/Write changes already reach `PostToolUse`.
 
-Automatic hooks never create a persistent index or launch a detached refresh. An existing current
-snapshot is read when available; the existing bounded in-memory cold fallback may succeed within
-the hook deadline. Run `corvint index --if-stale` explicitly under an owned supervisor after binary
-or committed-tree changes. Missing, stale, or over-budget context remains visible uncertainty;
-manual warmup does not qualify the unresolved automatic-refresh performance contract.
+An existing current snapshot is read when available; the bounded in-memory cold fallback may
+succeed within the hook deadline. The experimental V1-1128 implementation (proposed, pending owner
+acceptance; `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`, `AHI-053`) starts a separate bounded
+`corvint index --if-stale` writer when an event reports a stale snapshot. One background writer
+per shared store runs at lowered priority and exits within its 60-second wall bound. The current
+hook still fails open and retains the manual refresh argv; a started notice is not completion.
+Set `CORVINT_INDEX_AUTO_REFRESH=0` to retain manual-only refresh. Forced SIGKILL cleanup must target
+the writer's process group: killing only its PID cannot run descendant cleanup. This proposal
+supersedes the accepted no-detached-refresh clause only once the owner accepts it; it does not
+qualify the unresolved automatic-refresh performance contract.
 
 Prompt context is produced once by the native event and preserves separate governance, declared
 scope and current-task evidence. The adapter validates the full receipt, then injects only its
