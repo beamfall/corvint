@@ -276,6 +276,9 @@ AMAP-V0-062	docs/specs/application-map-v0.md	510	Unknown reasons MUST be grouped
 AMAP-V0-063	docs/specs/application-map-v0.md	515	Output MUST be capped like other projections (default 6144 bytes, `--budget`
 AMAP-V0-064	docs/specs/application-map-v0.md	518	`--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when t
 AMAP-V0-065	docs/specs/application-map-v0.md	523	The report is a measure of the declared router and test scope only; it MUST NOT
+AMAP-V0-070	docs/specs/application-map-v0.md	527	An injected `.constant(...)` table imported through a directory specifier that
+AMAP-V0-071	docs/specs/application-map-v0.md	533	When several star exports of a barrel declare the imported name, the name MUST
+AMAP-V0-072	docs/specs/application-map-v0.md	538	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read

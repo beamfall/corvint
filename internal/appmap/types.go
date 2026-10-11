@@ -277,6 +277,9 @@ type Unknown struct {
 	Reason string `json:"reason"`
 	Path   string `json:"path,omitempty"`
 	Line   int    `json:"line,omitempty"`
+	// Detail names the failed hop of a di-constant not-read-whole, or the candidate paths of an
+	// ambiguous re-export (AMAP-V0-072); absent otherwise.
+	Detail string `json:"detail,omitempty"`
 }
 
 // Import statuses.

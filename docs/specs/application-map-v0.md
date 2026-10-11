@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -523,6 +523,25 @@ V1-1061; GitHub #705).
 - `AMAP-V0-065`: The report is a measure of the declared router and test scope only; it MUST NOT
   claim equivalence with a hand-built map, and adopter-scale qualification remains `NOT_RUN`.
   Status: proposed, pending owner acceptance (V1-1138).
+
+- `AMAP-V0-070`: An injected `.constant(...)` table imported through a directory specifier that
+  resolves to `index.{ts,js}`, through exactly one `export * from` module declaring the name, whose
+  string enum or object has only literal members, MUST resolve every state name and parent through
+  it, anchored as AMAP-V0-025 does. This pins behavior the reader already has for the reported
+  shape; the reported failure was not reproduced on a minimal fixture (see V1-1144 build log).
+  Status: proposed, pending owner acceptance (V1-1144).
+- `AMAP-V0-071`: When several star exports of a barrel declare the imported name, the name MUST
+  stay UNKNOWN and the `di-constant` unknown MUST carry `detail` `ambiguous-reexport:` plus the
+  sorted candidate paths joined by commas. The reason stays `ambiguous-barrel`, so existing
+  reasons and fixtures are unchanged.
+  Status: proposed, pending owner acceptance (V1-1144).
+- `AMAP-V0-072`: A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming the
+  failed hop: `registering-file-use`, `registering-file-bindings`, `registering-file-examined`,
+  `declaring-file-unread`, `import-chain-bindings`, `import-chain-examined` or
+  `registration-examined`. `detail` is an optional member of an unknown and absent otherwise, so a
+  map without such unknowns compiles to the same bytes; a map with one gains the member and a new
+  digest. This is the one deliberate byte change of this requirement.
+  Status: proposed, pending owner acceptance (V1-1144).
 
 ## Wire contract
 
