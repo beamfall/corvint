@@ -110,3 +110,12 @@ Slice: a read-only grouping view over the existing `test-consolidation-input/0`,
 state-preserving variations with all anchors group; changes are blocked rather than keyed to a
 post-change state. Follow-ups: `test-plan extract` from Playwright specs (needs page-object
 resolution), `check` drift detection against a pasted grouping, ordering inside a shared visit.
+
+## V1-1137 / #779: change impact on screens and edges (ANL-V0-015..016)
+
+Slice: `flows appmap impact` over the paths in `git diff --name-only BASE HEAD`. The map stores
+templates as URL templates, not files, and has no component binding, so the ticket's
+template/component hop and the contextindex import graph are not delivered: such paths read
+unknown and force `full-suite-required`. Descendants use the existing `parent` lineage. Follow-ups:
+declared component/template bindings with the import graph, per-app verdicts for multi-map input,
+and routing the verdict into `corvint affected`.

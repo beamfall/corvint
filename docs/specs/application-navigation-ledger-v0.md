@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -103,6 +103,22 @@ are URL templates, not component source files. This slice makes neither missing 
   order, carries the input digest and a digest of the report, is read-only and offline, and does not
   alter `consolidate` or `check`. Invalid input or use exits 2. (proposed, pending owner acceptance (V1-1135))
 
+- `ANL-V0-015`: `flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
+  `application-map-impact/0` for the paths changed between `--base` and the evaluated revision. A
+  changed router file (a screen's anchor, name or parent anchor) selects that screen and every
+  descendant by lineage (`router-anchor`, `lineage:<screen>`); a changed attributed test file or flow
+  anchor selects its screens (`test-attribution`, `test-file`, `flow-anchor`). The report lists the
+  edges touching selected screens (with ledger status, `flipped` for `UNVERIFIED_AT_HEAD` and the
+  cheapest re-proving test), the redundant crossing test keys and the attributed spec files; without
+  a ledger the map's edges are listed as `NOT_IN_LEDGER`. (proposed, pending owner acceptance (V1-1137))
+- `ANL-V0-016`: A changed UI path (html, script, style or template extension) that no map element
+  places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
+  verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
+  `no-navigation-impact`. The map binds no template or component files, so template changes are
+  unknown until a component binding exists. The report is deterministic, byte-capped with omitted
+  counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
+  base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
+
 ## Wire and limits
 
 `corvint flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
@@ -146,6 +162,8 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState` |
 | ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
+| ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
+| ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 
 ## Follow-ups and promotion
 

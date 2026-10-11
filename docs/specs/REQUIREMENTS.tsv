@@ -275,6 +275,8 @@ ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	89	The report is deter
 ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	93	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
 ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	98	A variation joins no group and is listed as blocked with a reason when any ancho
 ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	102	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
+ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	106	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
+ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	114	A changed UI path (html, script, style or template extension) that no map elemen
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

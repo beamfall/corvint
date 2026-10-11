@@ -31,6 +31,14 @@ Single-map declared adjacency ledger; UNKNOWN triggers retain missing interactio
 The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
 requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
+Navigation impact (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
+      [--revision REV] [--budget N | --full]
+Maps paths changed since --base to screens (router anchors, lineage descendants, attributed test
+files, flow anchors), touched edges with ledger status and re-proving test, and spec files. An
+unplaceable UI path (templates are not bound by the map) lists as unknown and the verdict is
+full-suite-required. Learned, read-only, offline.
+
 Navigation observation (experimental, ANL-V0):
   corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
 Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
@@ -60,11 +68,14 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges, observe or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
 		return runFlowsAppmapEdges(ctx, root, args, out)
+	}
+	if verb == "impact" {
+		return runFlowsAppmapImpact(ctx, root, args, out)
 	}
 	if verb == "observe" {
 		return runFlowsAppmapObserve(args, out)
