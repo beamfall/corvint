@@ -201,9 +201,14 @@ it: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused
 Native query/context/impact/affected/test-validity/work observe/propose-wave and CEM
 status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no task
 or test-selection authority. Read commands print bounded JSON and never collect tests.
+Every operation: corvint help docs corpus; its options: corvint docs corpus OPERATION --help.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
 
-Playwright qualified receipt (DCP-V1-053): the producer is corvint-js-test-provider e2e
+` + playwrightReceiptHelp
+
+// playwrightReceiptHelp is the DCP-V1-053 receipt guidance that docs help and the
+// discover-playwright and witness-playwright help topics share.
+const playwrightReceiptHelp = `Playwright qualified receipt (DCP-V1-053): the producer is corvint-js-test-provider e2e
 --external-server. Its stdout is the canonical qualified receipt, and --retain writes the same
 bytes under .corvint/test-evidence/. Managed-server e2e output is not a qualified receipt.
 discover-playwright --receipt reads the file unchanged. witness-playwright --receipt-input names a

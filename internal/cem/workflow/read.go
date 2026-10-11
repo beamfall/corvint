@@ -32,6 +32,13 @@ type ReadOptions struct {
 	// verify passes to the stable verifier (CEM-V1-017); a 0.x map refuses it.
 	ArtifactRoot   string
 	ArtifactsGiven bool // whether --artifacts appeared at all
+	// SingleSpec, when set, runs the single-profile operation for exactly
+	// that spec (CEM-SM-018): any other spec refuses unsupported-spec at the
+	// wire stage, and the independent base and target must be full lowercase
+	// commit OIDs of one width, else invalid-arguments. Empty keeps the
+	// multi-version reader, which admits symbolic revisions such as HEAD.
+	// A cem/1.0 map never reaches the stable reader under SingleSpec.
+	SingleSpec string
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -52,11 +59,12 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	if err != nil {
 		return nil, err
 	}
-	document, err := wire.ParseMap(raw)
+	document, err := wire.ParseMapSpec(raw, options.SingleSpec)
 	if err != nil {
 		// CEM-V1-019: only an exact cem/1.0 root that the 0.x parser refused
-		// reaches the stable reader; every other refusal is returned unchanged.
-		if cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
+		// reaches the stable reader; every other refusal, and every refusal of
+		// a single-profile read (CEM-SM-018), is returned unchanged.
+		if options.SingleSpec == "" && cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
 			return s.readStable(ctx, action, raw, options)
 		}
 		return nil, err
@@ -81,6 +89,10 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		if options.Target == "" {
 			return nil, cemcode.New(cemcode.TargetRequired, "%s %s requires --target", document.Spec, action)
 		}
+	}
+	if options.SingleSpec != "" && (!wire.IsGitOid(options.ExpectedBase) || !wire.IsGitOid(options.Target) ||
+		len(options.ExpectedBase) != len(options.Target)) {
+		return nil, invalidArguments("%s %s requires full lowercase base and target commit OIDs of one width", document.Spec, action)
 	}
 	// Stages 5–6: repository validation, after every stage-2/3/4 judgment.
 	if err := s.openRepository(); err != nil {
