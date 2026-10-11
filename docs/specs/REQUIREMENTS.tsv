@@ -935,27 +935,27 @@ CWT-V0-011	docs/specs/confidently-wrong-trial-v0.md	161	Held-out import. `cw-tri
 CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	169	Unseen set generation. `cw-trial generate --repo DIR --name OWNER/NAME --since
 CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	190	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each
 CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	211	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`
-DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	The gate MUST check every backticked citation in `docs/specs/*.md`,
-DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	86	For every checked citation the gate MUST fail when the named file is not tracked
-DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	91	The gate MUST additionally fail when a cited line is blank or contains only
-DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	94	A bare continuation MUST resolve only to an anchor its own paragraph states: the
-DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	98	Content inside a fenced code block MUST be exempt, and a Go standard-library pat
-DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	100	A citation MAY carry a content anchor written as `@<hex>` appended to its line
-DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	105	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili
-DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	109	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi
-DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	111	A written anchor MUST compare equal when it is a prefix of the full digest, so t
-DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	114	When a pinned citation's content no longer matches, the gate MUST fail and MUST
-DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	118	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each
-DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	122	The gate MUST be read-only over the repository on every path, including every
-DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	124	Every path the gate reads MUST be resolved against the Git index and never the
-DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	133	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level
-DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	143	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or
-DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	150	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or
-DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	157	The gate MUST count every checked citation that carries no content anchor and MU
-DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	163	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
-DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	177	A citation a citing document explicitly frames as historical — reviewed once aga
-DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	183	`script/line-citation-drift-waivers.txt` MAY name one citation, as
-DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	191	When a file the gate read from the index (a scanned document, a cited file, or o
+DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	accepted, decision 0506. The gate MUST check every backticked citation in `docs/
+DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	88	For every checked citation the gate MUST fail when the named file is not tracked
+DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	93	The gate MUST additionally fail when a cited line is blank or contains only
+DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	96	A bare continuation MUST resolve only to an anchor its own paragraph states: the
+DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	100	Content inside a fenced code block MUST be exempt, and a Go standard-library pat
+DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	102	A citation MAY carry a content anchor written as `@<hex>` appended to its line
+DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	107	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili
+DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	111	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi
+DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	113	A written anchor MUST compare equal when it is a prefix of the full digest, so t
+DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	116	When a pinned citation's content no longer matches, the gate MUST fail and MUST
+DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	120	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each
+DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	124	The gate MUST be read-only over the repository on every path, including every
+DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	126	Every path the gate reads MUST be resolved against the Git index and never the
+DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	135	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level
+DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	145	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or
+DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	152	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or
+DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	159	The gate MUST count every checked citation that carries no content anchor and MU
+DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	165	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
+DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	179	A citation a citing document explicitly frames as historical — reviewed once aga
+DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	185	`script/line-citation-drift-waivers.txt` MAY name one citation, as
+DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	193	When a file the gate read from the index (a scanned document, a cited file, or o
 DCI-V0-001	docs/specs/documentation-ci-v0.md	33	The classifier MUST read a clean checkout at the full captured target SHA, requi
 DCI-V0-002	docs/specs/documentation-ci-v0.md	40	The closed path scope MUST be modified existing mode-100644 `README.md` and,
 DCI-V0-003	docs/specs/documentation-ci-v0.md	44	README fenced and indented code bytes MUST remain identical. The admitted Markdo
@@ -2780,7 +2780,6 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood ha
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	227	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	236	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	243	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --
-SHA-256	docs/specs/operator-update-v0.md	188	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c
@@ -2825,13 +2824,13 @@ SOP-V0-010	docs/specs/stable-operations-v0.md	117	`SECURITY.md` MUST state the p
 SOP-V0-011	docs/specs/stable-operations-v0.md	120	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
 SOP-V0-012	docs/specs/stable-operations-v0.md	123	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
-SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	The generator MUST recognise a requirement id as a token matching an uppercase
-SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	79	The generator MUST classify each occurrence of an id into exactly one of three
-SRG-V0-004	docs/specs/spec-requirement-index-generator-v0.md	85	Among retained occurrences of one id the generator MUST select exactly one
-SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	89	For a rank 0 winner the generator MUST strip the leading bullet, emphasis,
-SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	94	The generator MUST write to stdout a single header line `id`, `file`, `line`,
-SRG-V0-007	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write no file, mutate no repository state, and produce
-SRG-V0-008	docs/specs/spec-requirement-index-generator-v0.md	101	`spec-requirements-check` MUST regenerate the index and byte-compare it against
+SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	accepted, decision 0506. The generator MUST recognise a requirement id as a toke
+SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	80	accepted, decision 0506. The generator MUST classify each occurrence of an id in
+SRG-V0-004	docs/specs/spec-requirement-index-generator-v0.md	89	Among retained occurrences of one id the generator MUST select exactly one
+SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	93	For a rank 0 winner the generator MUST strip the leading bullet, emphasis,
+SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write to stdout a single header line `id`, `file`, `line`,
+SRG-V0-007	docs/specs/spec-requirement-index-generator-v0.md	102	The generator MUST write no file, mutate no repository state, and produce
+SRG-V0-008	docs/specs/spec-requirement-index-generator-v0.md	105	`spec-requirements-check` MUST regenerate the index and byte-compare it against
 SRR-V1-001	docs/specs/stable-readiness-record-v1.md	53	The record MUST be one JSON document with profile `corvint-stable-readiness-reco
 SRR-V1-002	docs/specs/stable-readiness-record-v1.md	57	The identity MUST come from a candidate admitted by `VerifyContext`: version, ta
 SRR-V1-003	docs/specs/stable-readiness-record-v1.md	62	The core section MUST record the candidate profile and the SHA-256 of the
