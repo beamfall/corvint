@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -496,6 +496,33 @@ V1-1061; GitHub #705).
   and bind loads/redirect/error receipts to revision and entry identity before ledger use.
   Runtime execution and its receipt format remain deferred, not implemented by this slice.
   Status: proposed, pending owner acceptance (V1-1136).
+
+- `AMAP-V0-060`: `flows appmap stats --map FILE` MUST emit a deterministic
+  `application-map-stats/0` projection computed from the map file alone: screens total, resolved
+  and unknown with the resolved percentage, unknown reasons, test-file join resolved/UNKNOWN
+  counts, page objects and unbound page objects, edges by basis and the selector strength
+  histogram. It MUST NOT read the repository or any URL.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-061`: Every count MUST reconcile with the map: resolved plus unknown screens equals
+  `screens`, the unknown-reason counts (all of them, including omitted) equal the map's `unknowns`
+  entries (each unresolved screen already carries one), edge counts sum to `edges`, and join counts sum to `files`.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-062`: Unknown reasons MUST be grouped by kind and reason (the `source` member is always
+  `unknown`), ordered by count descending then kind and reason, limited to the top 5 with an
+  `unknown_reasons_omitted` count, each with at most 3 example anchors ordered by path, line and
+  reference.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-063`: Output MUST be capped like other projections (default 6144 bytes, `--budget`
+  256..65536 or exclusive `--full` up to 1 MiB) and identical for identical maps.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-064`: `--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when the
+  resolved percentage is below PCT, with a message naming the dominant unknown reasons; at or above
+  PCT, or when absent, build-style success (exit 0) holds. Out-of-range values refuse with exit 2.
+  An empty map reads 0 percent.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-065`: The report is a measure of the declared router and test scope only; it MUST NOT
+  claim equivalence with a hand-built map, and adopter-scale qualification remains `NOT_RUN`.
+  Status: proposed, pending owner acceptance (V1-1138).
 
 ## Wire contract
 

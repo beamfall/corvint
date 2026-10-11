@@ -60,3 +60,38 @@ func TestEntriesCLI(t *testing.T) {
 		t.Fatalf("mutated repo: %s %v", status, err)
 	}
 }
+
+// AMAP-V0-060 AMAP-V0-064: stats writes the report and --min-resolved gates the exit code.
+func TestStatsCLI(t *testing.T) {
+	root := appmapCLIRepo(t)
+	code, out, diag := runFlowsCLI(root, "appmap", "build", "--manifest", "appmap.json")
+	if code != 0 {
+		t.Fatalf("build: %s", diag)
+	}
+	filename := filepath.Join(t.TempDir(), "map.json")
+	if err := os.WriteFile(filename, []byte(out), 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, diag = runFlowsCLI(root, "appmap", "stats", "--map", filename)
+	var doc map[string]any
+	if code != 0 || json.Unmarshal([]byte(out), &doc) != nil || doc["schema"] != "application-map-stats/0" || len(out) > 6144 {
+		t.Fatalf("stats: %d %s %s", code, diag, out)
+	}
+	if code, _, _ = runFlowsCLI(root, "appmap", "stats", "--map", filename, "--min-resolved", "0"); code != 0 {
+		t.Fatalf("0%% gate: %d", code)
+	}
+	code, out, diag = runFlowsCLI(root, "appmap", "stats", "--map", filename, "--min-resolved", "100")
+	resolved, total := doc["screens_resolved"].(float64), doc["screens_total"].(float64)
+	if resolved == total {
+		if code != 0 {
+			t.Fatalf("full map failed gate: %d %s", code, diag)
+		}
+	} else if code != 1 || out == "" || !strings.Contains(diag, "dominant unknown reasons") {
+		t.Fatalf("gate: %d %q %s", code, out, diag)
+	}
+	for _, flags := range [][]string{{"--min-resolved", "101"}, {"--budget", "1"}, {"extra"}} {
+		if code, out, _ = runFlowsCLI(root, append([]string{"appmap", "stats", "--map", filename}, flags...)...); code != 2 || out != "" {
+			t.Fatalf("admitted %v: %d", flags, code)
+		}
+	}
+}

@@ -139,8 +139,14 @@ func runFlowSubcommand(ctx context.Context, run flowSubcommand, root string, arg
 		err = run(ctx, root, args, out)
 	}
 	var coded *gokernel.Error
-	if err != nil && !errors.As(err, &coded) {
+	var gate0 *gateFailure
+	if err != nil && !errors.As(err, &coded) && !errors.As(err, &gate0) {
 		err = argumentError(err.Error())
+	}
+	var gate *gateFailure
+	if errors.As(err, &gate) {
+		fmt.Fprintln(diagnostic, gate.Error())
+		return 1
 	}
 	if err != nil {
 		emitError(diagnostic, err)

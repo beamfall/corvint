@@ -22,6 +22,7 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap entries --map FILE [--budget N | --full] [--revision REV]
+  corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
@@ -44,6 +45,11 @@ Static entries (experimental, V1-1136): entries classifies UI-router entry candi
 parameters and guards; default cap 6144 bytes. It never visits a URL or verifies loading.
 Changed source reads UNVERIFIED_AT_HEAD. Runtime and PROVEN edge paths are deferred.
 
+Qualification report (experimental, V1-1138): stats reads only the map file and reports
+screens resolved/total, the top 5 unknown reasons with example anchors, test-join and
+page-object binding counts, edges by basis and the selector strength histogram (default cap
+6144 bytes). --min-resolved PCT exits 1 below the threshold, naming the dominant reasons.
+
 Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
 external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
 printed step then gets a learned fact (source run-verification) whose kind is VERIFIED at the
@@ -54,7 +60,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats or plan")
 	}
 	verb, args := args[0], args[1:]
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
@@ -94,6 +100,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "entries" {
 		return runFlowsAppmapEntries(ctx, root, args, out)
 	}
+	if verb == "stats" {
+		return runFlowsAppmapStats(ctx, root, args, out)
+	}
 	if verb == "plan" {
 		return runFlowsAppmapPlan(ctx, root, args, out)
 	}
@@ -102,7 +111,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")
