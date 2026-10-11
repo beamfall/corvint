@@ -401,3 +401,24 @@ func TestPreRetirementXCTestPlanRefusedForExecution(t *testing.T) {
 		t.Fatal("plan added retirement outside its fixed profile")
 	}
 }
+
+// TestPreIsolationGradlePlanRefusedForExecution binds TRE-V0-042's
+// compatibility rule: a historical gradle-junit plan, whose Gradle used the
+// account's shared user home and daemon registry, keeps its identity but is
+// refused for new execution; the current plan runs with retirement.
+func TestPreIsolationGradlePlanRefusedForExecution(t *testing.T) {
+	r := tr.Request{Runner: "gradle-junit", Root: "/source", Project: "app", Config: "/source/app/build.gradle", ConfigSha256: strings.Repeat("a", 64), Target: ":test", Executable: "/tools/gradle/bin/gradle", ExecutableSha256: strings.Repeat("b", 64), Tools: map[string]tr.Tool{"java": {Executable: "/jdk/bin/java", Sha256: strings.Repeat("c", 64)}}, ReportDir: "/fresh", TimeoutSeconds: 60, InputFiles: map[string]string{"app/build.gradle": strings.Repeat("a", 64)}}
+	current, e := registry.Build(r)
+	if e != nil || !current.RetireDetachedDescendants {
+		t.Fatalf("%+v %v", current, e)
+	}
+	if v, e := admittedInvocation(plan{Request: r, Invocation: current}); e != nil || !v.RetireDetachedDescendants {
+		t.Fatalf("current Gradle plan not admitted: %+v %v", v, e)
+	}
+	historical := current
+	historical.RetireDetachedDescendants = false
+	historical.Argv = []string{"--offline", "--no-daemon", "--console=plain", "--project-dir", "/source/app", "--init-script", "/fresh/corvint.init.gradle", "-Dcorvint.testTask=:test", "-Dcorvint.reportsDir=/fresh", ":test"}
+	if _, e := admittedInvocation(plan{Request: r, Invocation: historical}); e == nil {
+		t.Fatal("pre-isolation Gradle plan admitted for execution")
+	}
+}

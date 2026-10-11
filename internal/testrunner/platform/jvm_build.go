@@ -30,6 +30,12 @@ var gradleSelector = regexp.MustCompile(`^[a-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A
 
 var gradleTask = regexp.MustCompile(`^(:[A-Za-z_][A-Za-z0-9_-]*)+$`)
 
+// gradleUserHome is the per-run Gradle user home: beneath the executor's fresh
+// private HOME, never the account's shared ~/.gradle (TRE-V0-042).
+func gradleUserHome(reportDir string) string {
+	return filepath.Join(reportDir, ".home", ".gradle")
+}
+
 func buildJVMProject(r tr.Request, i *tr.Invocation) error {
 	if !relative(r.Project) || !filepath.IsAbs(r.Config) || !digest.MatchString(r.ConfigSha256) {
 		return fmt.Errorf("JVM project runner requires a literal project directory and pinned native configuration")
@@ -49,7 +55,13 @@ func buildJVMProject(r tr.Request, i *tr.Invocation) error {
 			return fmt.Errorf("Gradle requires one exact task path")
 		}
 		i.Files["corvint.init.gradle"] = []byte(gradleReportScript)
-		i.Argv = []string{"--offline", "--no-daemon", "--console=plain", "--project-dir", project, "--init-script", filepath.Join(r.ReportDir, "corvint.init.gradle"), "-Dcorvint.testTask=" + r.Target, "-Dcorvint.reportsDir=" + r.ReportDir, r.Target}
+		// Java derives user.home from the account database, not HOME, so without
+		// an explicit user home Gradle reads the shared ~/.gradle properties,
+		// init scripts, caches and daemon registry. The per-run home beneath the
+		// fresh executor HOME scopes every daemon, registry, cache and native file
+		// to this run (TRE-V0-042); escaped daemons are retired (TRE-V0-043).
+		i.RetireDetachedDescendants = true
+		i.Argv = []string{"--offline", "--no-daemon", "--console=plain", "--gradle-user-home", gradleUserHome(r.ReportDir), "--project-dir", project, "--init-script", filepath.Join(r.ReportDir, "corvint.init.gradle"), "-Dcorvint.testTask=" + r.Target, "-Dcorvint.reportsDir=" + r.ReportDir, r.Target}
 		for _, s := range r.Selectors {
 			if !gradleSelector.MatchString(s) {
 				return fmt.Errorf("Gradle selectors require a fully package-qualified class#method with non-uppercase package prefix")

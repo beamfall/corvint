@@ -45,6 +45,9 @@ actually emitted by the specifically named pytest, Bun and Deno versions.
 no `npx`, installation, shell expansion or caller argv passthrough. `Config` is the runner's
 configuration except for Rails, where it is an explicit boot helper. Legacy Storybook uses native config discovery: pin those files in `InputFiles`; custom `Config` is rejected. Ruby Minitest, Rails and
 Test::Unit require exact selected files; legacy Storybook accepts a complete story set only.
+Legacy Storybook `Target`, when set, is a comma-separated list of 1..16 distinct story tags
+(`[A-Za-z0-9][A-Za-z0-9_-]{0,63}`) appended as one fixed native `--skipTags` value, which
+overrides configured `tags.skip`; any other value is refused (TRE-V0-044).
 Playwright literal file selections are regex-escaped and anchored. Bun paths receive an
 explicit relative-path prefix. Vitest substring selection cannot prove exact-file selection
 and is rejected; use pinned configuration for its test set.
