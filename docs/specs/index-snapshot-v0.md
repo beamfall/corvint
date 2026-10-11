@@ -132,7 +132,7 @@ what any packet says.
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
   the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1071-1073@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1382-1383@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1385-1386@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
   (`cmd/corvint/prove.go:534@7ad2b2af`, `cmd/corvint/prove.go:554-555@38c3dce4`, `cmd/corvint/prove.go:576-577@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
