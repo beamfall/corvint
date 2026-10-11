@@ -3,7 +3,7 @@
 ## Intent, scope and baseline
 
 Owning intent: `docs/specs/process-group-owner-v0.md`, PGO-V0-010,
-**proposed, pending owner acceptance (V1-0691)**. Base:
+**accepted, decision 0507**. Base:
 `29e1f653486fca13216606683d3a5c2b05cacd36`. This is per-command stderr
 capture evidence, separate from V1-0689 cumulative identity-cap evidence.
 No decision file, ticket-store mutation, commit or publication is authorized.

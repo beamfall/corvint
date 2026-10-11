@@ -1,6 +1,6 @@
 # Acceptance temporary output scope (V1-0686)
 
-Intent: proposed, pending owner acceptance (V1-0686). No decision or promotion is made.
+Intent: accepted, decision 0507 (NEA-V0-010, BBF-V0-014). No promotion is made.
 Baseline: `29e1f653486fca13216606683d3a5c2b05cacd36`. Scope is the existing experimental
 acceptance and browser falsification specs, not a new worker environment profile.
 
