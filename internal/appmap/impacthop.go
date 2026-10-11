@@ -110,6 +110,7 @@ func resolvesTo(literal, referrer, target string) bool {
 // computed, aliased, escaped or ambiguous reference the hop cannot prove).
 func (g *referenceGraph) references(name, target string) ([]int, bool) {
 	text := string(g.files[name])
+	code, lexed := hopLexed(name, text)
 	set := map[int]bool{}
 	for _, token := range mentionTokens(target) {
 		for from := 0; ; {
@@ -130,7 +131,13 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 				le += i
 			}
 			q, end := hopLiteralAround(text[ls:le], i-ls)
-			if q < 0 || hopInTemplate(text[:ls]) || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
+			if q < 0 || !resolvesTo(text[ls+q+1:ls+end], name, target) {
+				return nil, false
+			}
+			if lexed && (code == "" || !hopLexedLiteral(text, code, ls+q, ls+end)) {
+				return nil, false
+			}
+			if !lexed && (strings.Contains(text[:le], "`") || hopInComment(text, ls, ls+q)) {
 				return nil, false
 			}
 			set[strings.Count(text[:i], "\n")+1] = true
@@ -144,17 +151,38 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 	return lines, true
 }
 
-// hopInTemplate reports whether a line starting after prefix may sit inside a multi-line template
-// literal. Telling a template's backtick from one inside a regex, string or comment needs a full
-// lexer, so any earlier backtick counts: the hop refuses more, never accepts template text.
-func hopInTemplate(prefix string) bool {
-	return strings.Contains(prefix, "`")
+// hopLexed lexes a plain script file (not .vue or .svelte, which mix markup) with the JavaScript
+// lexer. It returns the source with comment, regex and literal bodies blanked, or "" when the lexer
+// cannot be sure it placed every literal; lexed is false for a file the lexer does not read.
+func hopLexed(name, text string) (string, bool) {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs":
+	default:
+		return "", false
+	}
+	toks, code := lexJS(text)
+	for _, t := range toks {
+		if t.unsure || t.inexact {
+			return "", true
+		}
+	}
+	return code, true
+}
+
+// hopLexedLiteral reports whether text[open] and text[end] are the lexer's own delimiters of one
+// quoted string literal: both survive blanking and everything between them was blanked.
+func hopLexedLiteral(text, code string, open, end int) bool {
+	if text[open] != '\'' && text[open] != '"' || code[open] != text[open] || code[end] != text[end] {
+		return false
+	}
+	return strings.TrimSpace(code[open+1:end]) == ""
 }
 
 // hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the
 // opening and closing quote offsets of the literal holding offset at, or -1 when none does
-// (including a literal left open at the end of the line). A caller refuses a line hopInTemplate
-// places inside a multi-line template.
+// (including a literal left open at the end of the line). In a script file the lexer then confirms
+// the pair; in any other file a line at or after a backtick, or after an open comment marker,
+// refuses.
 func hopLiteralAround(line string, at int) (int, int) {
 	open := -1
 	for k := 0; k < len(line); k++ {

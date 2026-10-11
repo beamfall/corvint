@@ -137,12 +137,13 @@ are URL templates, not component source files. This slice makes neither missing 
   This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
 - `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
   files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
-  A file references the path when the path's token (a script's stem, an index file's directory or `index`,
-  any other file's base name) occurs inside one quoted string literal delimited on that line (escapes
-  honoured; a line after any backtick of the file, which may sit inside a multi-line
-  template refuses; a property `x.token` is a mention too) that resolves to it
-  (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
-  extensions and `/index.*` tried; no `${`) and not after a `//`, `/*`, `<!--` or `{{!` comment
+  A file references the path when every occurrence of the path's token (a script's stem, an index
+  file's directory or `index`, any other file's base name; a property `x.token` counts) lies inside
+  one quoted string literal on its line that resolves to it (relative to the referrer for `./` and
+  `../`, repository-relative otherwise, with script extensions and `/index.*` tried; no `${`). In a
+  `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file the JavaScript lexer must confirm that literal
+  (a lexer doubt refuses every mention); in any other file a line at or after a backtick, or after a
+  `//`, `/*`, `<!--` or `{{!` comment
   marker that could still be open. A walk ends at a router file anchoring screens, which
   selects the screens whose anchor spans hold its reference lines (every screen of the file when a
   reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
