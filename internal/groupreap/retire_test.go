@@ -230,7 +230,13 @@ func TestRetirerWaitsOutRefusedTokenReads(t *testing.T) {
 	if len(got.Retired) != 1 || got.Retired[0].PID != 106 || got.Retired[0].Owner != OwnerToken || len(got.Unretired) != 0 {
 		t.Fatalf("transient refusal not waited out: %+v", got)
 	}
-	if reads[106] != 4 || f.signals[0] != 106 || len(f.signals) != 2 {
+	// Stop then kill; where sigStop and sigKill share one placeholder
+	// (retire_other.go), the first signal already removes the fake row.
+	signals := 2
+	if sigStop == sigKill {
+		signals = 1
+	}
+	if reads[106] != 4 || f.signals[0] != 106 || len(f.signals) != signals {
 		t.Fatalf("reads %v signals %v", reads, f.signals)
 	}
 	if len(got.Problems) == 0 {
