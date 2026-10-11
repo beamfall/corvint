@@ -336,7 +336,16 @@ func Run(ctx context.Context, root string, arguments []string, stdout, stderr io
 // RunWithOCM supplies the optional owning OCM verifier per invocation. The
 // standalone CEM dependency closure stays independent of that capability.
 func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
-	envelope, err := dispatchCEMWithOCM(ctx, root, arguments, reader)
+	return RunWithCallerRoot(ctx, root, root, arguments, stdout, stderr, reader)
+}
+
+// RunWithCallerRoot is RunWithOCM for an entry point that normalized the root
+// it was given. Every 0.x command reads root; a cem/1.0 status or verify passes
+// callerRoot, the absolute root exactly as the caller named it, to stable
+// admission, which refuses a symlinked root as `cem verify-stable` does
+// (CEM-V1-017).
+func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
+	envelope, err := dispatchCEMWithOCM(ctx, root, callerRoot, arguments, reader)
 	if err != nil {
 		emitCEMError(stderr, err)
 		return 2
@@ -392,10 +401,10 @@ func appendUnicodeEscape(output []byte, character rune) []byte {
 }
 
 func dispatchCEM(ctx context.Context, root string, arguments []string) (map[string]any, error) {
-	return dispatchCEMWithOCM(ctx, root, arguments, nil)
+	return dispatchCEMWithOCM(ctx, root, root, arguments, nil)
 }
 
-func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
+func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
 	action, spec, err := parseAction(arguments)
 	if err != nil {
 		return nil, err
@@ -411,6 +420,7 @@ func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, re
 	if err != nil {
 		return nil, err
 	}
+	session.SetStableRepository(callerRoot)
 	switch action {
 	case "begin":
 		return session.Begin(ctx, workflow.BeginOptions{

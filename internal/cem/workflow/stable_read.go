@@ -30,10 +30,17 @@ func (v StableVerification) MarshalJSON() ([]byte, error) {
 // the 0.x ready-for-ci, invalid or incomplete states (CEM-V1-017).
 var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected", "UNSUPPORTED": "unsupported"}
 
+// SetStableRepository records the absolute repository root exactly as the
+// caller named it, before any entry-point symlink resolution of the session
+// root. Only a stable read uses it: stable admission refuses a symlinked root
+// or ancestor, so it must judge the caller's path, never a resolved one
+// (CEM-V1-017). An empty path keeps the session root.
+func (s *Session) SetStableRepository(path string) { s.stableRepository = path }
+
 // stableRefusal marks a refusal Core issues for an exact cem/1.0 map before the
 // stable verifier runs. It keeps the wrapped code and message, and lets a
 // projection such as the MCP bridge name it apart from a malformed 0.x map
-// (CEM-V1-031, MCPV0-037).
+// (CEM-V1-036, MCPV0-037).
 type stableRefusal struct{ error }
 
 func (r stableRefusal) Unwrap() error { return r.error }
@@ -50,7 +57,7 @@ func IsStableRefusal(err error) bool {
 // worklist and opens no repository first: the verifier performs its own
 // metadata admission before any Git process runs (CEM-V1-017, CEM-V1-018). A
 // report embeds the complete result beside a review projection derived only
-// from it (CEM-V1-029, CEM-V1-030).
+// from it (CEM-V1-034, CEM-V1-035).
 func (s *Session) readStable(ctx context.Context, action string, raw []byte, options ReadOptions) (map[string]any, error) {
 	report := action == "report" || action == ActionReportPreview
 	if action != "status" && action != "verify" && !report {
@@ -65,8 +72,12 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if report && options.OCMPath != "" {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm", wire.StableSpec, action)}
 	}
+	repository := s.stableRepository
+	if repository == "" {
+		repository = s.root
+	}
 	result, exit := verify.Stable(ctx, raw, verify.StableOptions{
-		Repository: s.root, ExpectedBase: options.ExpectedBase,
+		Repository: repository, ExpectedBase: options.ExpectedBase,
 		Target: options.Target, ArtifactRoot: options.ArtifactRoot,
 	})
 	envelope := map[string]any{
@@ -86,7 +97,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 // stableReport completes a stable report envelope. JSON adds the review
 // projection; a preview adds the Markdown; a published report writes the same
 // Markdown for every verifier outcome, opening the repository only after the
-// verifier has run (CEM-V1-029, CEM-V1-030).
+// verifier has run (CEM-V1-034, CEM-V1-035).
 func (s *Session) stableReport(action string, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
 	envelope["tool"] = "cem-report"
 	projection, err := stableReviewProjection(result)

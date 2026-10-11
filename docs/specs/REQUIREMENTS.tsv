@@ -814,10 +814,10 @@ CEM-V1-015	docs/specs/cem-stable-v1.md	71	Candidate assembly MUST require indepe
 CEM-V1-016	docs/specs/cem-stable-v1.md	72	Assembly MUST compare each declared runner source input with its self-hashed imm
 CEM-V1-017	docs/specs/cem-stable-v1.md	214	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
 CEM-V1-018	docs/specs/cem-stable-v1.md	215	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
-CEM-V1-019	docs/specs/cem-stable-v1.md	216	0.x reads MUST keep their arguments, precedence, output bytes and exit codes. Th
-CEM-V1-029	docs/specs/cem-stable-v1.md	245	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-030	docs/specs/cem-stable-v1.md	246	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-031	docs/specs/cem-stable-v1.md	247	A stable report MUST refuse `--ocm`, `--patch` and policy ceilings with `invalid
+CEM-V1-019	docs/specs/cem-stable-v1.md	216	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
+CEM-V1-034	docs/specs/cem-stable-v1.md	247	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	248	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	249	A stable report MUST refuse `--ocm`, `--patch` and policy ceilings with `invalid
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -2193,17 +2193,17 @@ MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	420	Legacy calls MUST reuse eac
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	484	`corvint.context` MUST compile the same packet as `corvint context` in process,
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	496	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	467	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
-MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	552	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
-MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	560	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	586	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	594	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	604	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	611	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	619	proposed (V1-0944; no GitHub issue). When a successful tool result carries
-MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	629	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c
+MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	554	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
+MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	562	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	588	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	596	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	606	proposed (V1-0944; no GitHub issue). Each impact result carries at most four
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	613	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	621	proposed (V1-0944; no GitHub issue). When a successful tool result carries
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	631	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c
 MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	107	accepted, decision 0512. Cancellation of an active
 MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	512	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`
-MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	520	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (
+MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	522	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the

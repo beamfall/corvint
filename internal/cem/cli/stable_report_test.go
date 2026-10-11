@@ -19,7 +19,7 @@ import (
 )
 
 // stableReport0xKeys are the 0.x report fields a stable report must never
-// synthesize (CEM-V1-029).
+// synthesize (CEM-V1-034).
 var stableReport0xKeys = []string{"verification", "counts", "worklist", "policyIssues", "state", "patchSource", "excludedPath", "warnings", "selfModifiedAuthority"}
 
 func envelopeKeys(envelope map[string]any) []string {
@@ -71,7 +71,7 @@ func stableResultDigest(t *testing.T, result map[string]any) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// CEM-V1-029: `cem report --format json` over an exact cem/1.0 map embeds the
+// CEM-V1-034: `cem report --format json` over an exact cem/1.0 map embeds the
 // complete verifier result unchanged beside a stable review projection, exits
 // with the verifier's code, and never folds into 0.x verification.
 func TestCoreStableReportJSONEmbedsVerifierResult(t *testing.T) {
@@ -122,7 +122,7 @@ func TestCoreStableReportJSONEmbedsVerifierResult(t *testing.T) {
 	}
 }
 
-// CEM-V1-030: the Markdown report publishes for every verifier outcome, its
+// CEM-V1-035: the Markdown report publishes for every verifier outcome, its
 // bytes equal the read-only preview, and both carry the complete result.
 func TestCoreStableReportPublishesMarkdown(t *testing.T) {
 	f := materializeStableRead(t)
@@ -179,7 +179,7 @@ func TestCoreStableReportPublishesMarkdown(t *testing.T) {
 	}
 }
 
-// CEM-V1-031: a stable report refuses --ocm, --patch, policy ceilings and an
+// CEM-V1-036: a stable report refuses --ocm, --patch, policy ceilings and an
 // output that names the map, with exit 2 and nothing published; the refusals
 // before the verifier are marked as stable refusals, and 0.x refusals are not.
 func TestCoreStableReportRefusals(t *testing.T) {
@@ -238,7 +238,7 @@ func TestCoreStableReportRefusals(t *testing.T) {
 	}
 }
 
-// CEM-V1-031: a 0.x report refuses --artifacts at stage 3 exactly as status
+// CEM-V1-036: a 0.x report refuses --artifacts at stage 3 exactly as status
 // and verify do.
 func TestCoreStableReportRefusesArtifactsFor0x(t *testing.T) {
 	root := t.TempDir()

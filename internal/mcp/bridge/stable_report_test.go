@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -51,7 +52,7 @@ func TestCEMReportToolResolvesArtifactsUnderTheRoot(t *testing.T) {
 	oid := strings.Repeat("a", 40)
 	var seen []workflow.ReadOptions
 	operations := registry.operations
-	operations.cemReport = func(_ context.Context, _ string, options workflow.ReadOptions) (map[string]any, error) {
+	operations.cemReport = func(_ context.Context, _, _ string, options workflow.ReadOptions) (map[string]any, error) {
 		seen = append(seen, options)
 		return map[string]any{"tool": "cem-report", "mutates": false, "markdown": "report"}, nil
 	}
@@ -210,5 +211,82 @@ func TestCEMReportToolRefusesArtifactsFor0xMap(t *testing.T) {
 	arguments := `{"map":".corvint/change.cem.json","artifacts":"artifacts","expectedBase":"` + base + `","target":"` + target + `"}`
 	if result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(arguments)); callErr == nil || callErr.Code != "cem-map-unsupported" {
 		t.Fatalf("0.x map with artifacts = %#v %#v, want cem-map-unsupported", result, callErr)
+	}
+}
+
+// MCPV0-036, CEM-V1-017: the server resolves --root for its 0.x reads, but a
+// cem/1.0 report is admitted against the root exactly as the caller named it,
+// so a symlinked alias reproduces `cem verify-stable --repository <alias>`
+// instead of passing admission through the resolved root.
+func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
+	if runtimeUnsupported() {
+		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
+	}
+	root := makeRepository(t)
+	alias := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	if resolved, err := filepath.EvalSymlinks(alias); err != nil || resolved != root {
+		t.Fatalf("alias resolves to %q, %v", resolved, err)
+	}
+	data, err := os.ReadFile(stablePacketMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the structural mechanical hunks so every Go release reaches
+	// repository admission instead of the structural runtime refusal.
+	document, err := wire.ParseStable(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept := document.Change.Hunks[:0]
+	for _, hunk := range document.Change.Hunks {
+		if hunk.Disposition != "mechanical" || !wire.StructuralReasons[hunk.Reason] {
+			kept = append(kept, hunk)
+		}
+	}
+	document.Change.Hunks = kept
+	if data, err = wire.EncodeStable(document); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "change.cem.json"), string(data))
+	if err := os.MkdirAll(filepath.Join(root, "artifacts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	base := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
+	registry, newErr := NewTaskReview(alias)
+	if newErr != nil {
+		t.Fatal(newErr)
+	}
+	if registry.root != root {
+		t.Fatalf("registry root = %q, want the resolved %q", registry.root, root)
+	}
+	stable := func(repository string) any {
+		result, _ := verify.Stable(context.Background(), data, verify.StableOptions{
+			Repository: repository, ExpectedBase: base, Target: base, ArtifactRoot: filepath.Join(repository, "artifacts"),
+		})
+		encoded, _ := json.Marshal(result)
+		var value any
+		if err := json.Unmarshal(encoded, &value); err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	viaAlias, viaRoot := stable(alias), stable(root)
+	if reflect.DeepEqual(viaAlias, viaRoot) {
+		t.Fatalf("fixture does not discriminate the alias: %v", viaAlias)
+	}
+	result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(`{"map":"change.cem.json","artifacts":"artifacts","expectedBase":"`+base+`","target":"`+base+`"}`))
+	if callErr != nil {
+		t.Fatal(callErr)
+	}
+	encoded, _ := json.Marshal(result.Receipt["stableVerification"])
+	var got any
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, viaAlias) {
+		t.Fatalf("report through the alias = %v\nwant verify-stable --repository <alias> = %v", got, viaAlias)
 	}
 }

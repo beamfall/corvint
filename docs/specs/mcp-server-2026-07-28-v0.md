@@ -511,7 +511,9 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   the same start-time executable as the other kernels.
 - `MCPV0-036`: proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`
   argument under the same closed repository-relative path rule as `map`, resolved under the root
-  bound at start and passed to the CEM read as its artifact root. A canonical `cem/0.2` or `cem/0.3`
+  exactly as the caller named it at start and passed to the CEM read as its artifact root. A
+  `cem/1.0` map is admitted against that caller-named root, never the symlink-resolved root the
+  0.x reads use, so a symlinked `--root` is refused as `cem verify-stable --repository` refuses it. A canonical `cem/0.2` or `cem/0.3`
   map given `artifacts` fails as `cem-map-unsupported`. A `cem/1.0` map yields a READY receipt whose
   `stableVerification` is the stable verifier's complete result for the same map, revisions and
   artifact root, unchanged, with the `cem/1.0` review Markdown and `recordSetSha256`; it never carries
@@ -573,12 +575,12 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:443@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:452@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:712@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:712@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch, or a 0.x map given `artifacts` (`MCPV0-036`) |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:734@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:713@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:459@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:719@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:719@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch, or a 0.x map given `artifacts` (`MCPV0-036`) |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:741@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:720@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -721,7 +723,7 @@ that focused run.
 | `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 | `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
-| `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesArtifactsFor0xMap`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
+| `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesArtifactsFor0xMap`, `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

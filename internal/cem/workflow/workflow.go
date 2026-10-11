@@ -38,6 +38,9 @@ type Session struct {
 	workRoot   *publish.Root
 	repository *gitauth.Repository
 	gitRoot    *publish.Root
+	// stableRepository is the caller-named root a stable read admits; empty
+	// means root (see SetStableRepository).
+	stableRepository string
 }
 
 // Open validates the worktree root as a publication root only. Repository

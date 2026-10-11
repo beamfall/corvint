@@ -304,7 +304,7 @@ func TestCoreStableReadExplicitRefusals(t *testing.T) {
 		})
 	}
 	// The MCP report preview reads through the same workflow refusal; cem
-	// report itself is read since V1-0632 S2 (CEM-V1-029..031).
+	// report itself is read since V1-0632 S2 (CEM-V1-034..036).
 	session, err := workflow.Open(f.repo)
 	if err != nil {
 		t.Fatal(err)

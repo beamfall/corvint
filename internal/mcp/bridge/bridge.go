@@ -82,9 +82,11 @@ type repositoryOperations struct {
 	build      func(context.Context, string) (*contextindex.Index, error)
 	buildQuery func(context.Context, string, string) (*contextindex.Index, error)
 	context    func(context.Context, string, contextInput) (*contextindex.Index, map[string]any, error)
-	cemReport  func(context.Context, string, workflow.ReadOptions) (map[string]any, error)
-	platform   string
-	probe      func(context.Context, string) (gokernel.Repository, error)
+	// cemReport receives the resolved root and the root as the caller named
+	// it; only a cem/1.0 read admits the latter (MCPV0-036, CEM-V1-017).
+	cemReport func(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error)
+	platform  string
+	probe     func(context.Context, string) (gokernel.Repository, error)
 }
 
 func productionRepositoryOperations() repositoryOperations {
@@ -126,12 +128,16 @@ func compileContextWith(ctx context.Context, root string, input contextInput, lo
 	return index, packet, err
 }
 
-// previewCEMReport is `corvint cem report` rendered without publication.
-func previewCEMReport(ctx context.Context, root string, options workflow.ReadOptions) (map[string]any, error) {
+// previewCEMReport is `corvint cem report` rendered without publication. A
+// 0.x map reads the resolved root; a cem/1.0 map is admitted against
+// callerRoot, so a symlinked --root is refused exactly as
+// `cem verify-stable --repository` refuses it (MCPV0-036, CEM-V1-017).
+func previewCEMReport(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error) {
 	session, err := workflow.Open(root)
 	if err != nil {
 		return nil, err
 	}
+	session.SetStableRepository(callerRoot)
 	return session.Read(ctx, workflow.ActionReportPreview, options)
 }
 
@@ -264,6 +270,7 @@ var taskReviewTools = map[string]bool{ToolContext: true, ToolCEMReport: true}
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
 	root                   string
+	callerRoot             string
 	rootIdentity           os.FileInfo
 	gitIdentity            os.FileInfo
 	gitDirectories         []string
@@ -292,7 +299,7 @@ func New(root string) (*Registry, *Error) {
 	if err != nil || (!gitMarker.IsDir() && !gitMarker.Mode().IsRegular()) || gitMarker.Mode()&os.ModeSymlink != 0 {
 		return nil, failure("invalid-root")
 	}
-	registry := &Registry{root: resolved, rootIdentity: rootIdentity, gitIdentity: gitMarker, operations: productionRepositoryOperations()}
+	registry := &Registry{root: resolved, callerRoot: root, rootIdentity: rootIdentity, gitIdentity: gitMarker, operations: productionRepositoryOperations()}
 	if gitMarker.Mode().IsRegular() {
 		gitDir, commonDir, err := gitauth.WorktreeDirectories(resolved)
 		if err != nil {
@@ -675,10 +682,10 @@ func (registry *Registry) callCEMReport(ctx context.Context, arguments []byte) (
 	// MCPV0-036: the stable verifier needs an absolute artifact root; the
 	// caller names it relative to the bound root.
 	if input.Artifacts != nil {
-		options.ArtifactRoot = filepath.Join(registry.root, filepath.FromSlash(*input.Artifacts))
+		options.ArtifactRoot = filepath.Join(registry.callerRoot, filepath.FromSlash(*input.Artifacts))
 		options.ArtifactsGiven = true
 	}
-	receipt, err := registry.operations.cemReport(ctx, registry.root, options)
+	receipt, err := registry.operations.cemReport(ctx, registry.root, registry.callerRoot, options)
 	if err != nil {
 		return Result{}, cemFailure(ctx, err)
 	}

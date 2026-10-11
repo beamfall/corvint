@@ -263,7 +263,7 @@ var stableReviewNonClaims = []string{
 // stableReviewProjection is the review of a cem/1.0 report. It is a pure
 // function of the stable verifier's complete result: it reads no map,
 // repository or artifact, binds the result by digest, and lists the hunks the
-// map declares with the drift the verifier observed (CEM-V1-029).
+// map declares with the drift the verifier observed (CEM-V1-034).
 func stableReviewProjection(result verify.StableResult) (map[string]any, error) {
 	resultDigest, err := stableResultDigest(result)
 	if err != nil {
@@ -352,7 +352,7 @@ func stableClaimState(value any) string {
 
 // renderStableReport renders the Markdown of a stable report from the complete
 // verifier result and its review projection; every repository-derived string is
-// a code span (CEM-V1-030).
+// a code span (CEM-V1-035).
 func renderStableReport(result verify.StableResult, projection map[string]any) string {
 	text := func(value *string) string {
 		if value == nil {
