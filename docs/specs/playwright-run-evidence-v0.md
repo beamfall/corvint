@@ -45,7 +45,8 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   `config.metadata.corvintRunIdentity`. Nothing is inferred from paths, timestamps or report
   content; a report without the declaration, or a test whose file has no declared blob, yields
   `IDENTITY_INPUT_MISSING`, as does a file whose declared spellings (for example `a.spec.ts` and
-  `./a.spec.ts`) name different blobs. A changed test file blob is a different pool.
+  `./a.spec.ts`) name different blobs; those conflicting declarations still take part in the
+  `PWR-V0-008` within-side input comparison. A changed test file blob is a different pool.
 - `PWR-V0-003`: `Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
   differ or any run is Playwright-`flaky` (at any run count, listing the distinct first-error lines in
   run order); `DETERMINISTIC` only when at least `minRuns` (default 3, minimum 2, maximum 64) runs
@@ -80,7 +81,8 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   otherwise `SAME`.
 - `PWR-V0-007`: A failed assertion's origin MUST come only from its reported location: `TEST_FILE`
   when it is the test's own file, `SUPPORT` for any other file (a page object, helper or fixture), and
-  `UNKNOWN` without a location. The matcher is the `expect(...)` matcher name in the error text,
+  `UNKNOWN` without a location. The matcher is the complete `expect(...)` matcher identifier in the error text (custom matchers
+  included),
   including any `not`, `resolves` or `rejects` modifiers (for example `resolves.not.toHaveText`), or
   empty. A difference only in `SUPPORT` assertions keeps the test `SAME`, sets `supportDifference`,
   and is counted in `summary.supportDifferences` and the reason `SUPPORT_ASSERTIONS_DIFFER`.

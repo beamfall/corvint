@@ -186,6 +186,13 @@ func TestReaderAndCompareEdgeCases(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("failures = %+v", got)
 		}
+		custom := func(name string) []byte {
+			return reportJSON(t, "1.63.0", id, cartTest(false, fail("Error: expect(response)."+name+"() failed", fixtureRoot+"/cart.spec.ts", 9)))
+		}
+		r := Compare(loaded(t, custom("toHaveHTTPStatus2")), loaded(t, custom("toHaveHTTPStatus3")))
+		if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != "toHaveHTTPStatus2" {
+			t.Fatalf("custom matcher = %+v", e)
+		}
 	})
 	t.Run("PWR-V0-002 conflicting blob spellings are not resolved", func(t *testing.T) {
 		conflicting := identity("app-7", "cfg-1", map[string]string{"cart.spec.ts": "1111", "./cart.spec.ts": "2222"})
@@ -193,6 +200,14 @@ func TestReaderAndCompareEdgeCases(t *testing.T) {
 		e := Stability(runs, 2).Tests
 		if len(e) != 1 || e[0].Verdict != Insufficient || e[0].Reason != ReasonInputsMissing {
 			t.Fatalf("entries = %+v", e)
+		}
+		other := reportJSON(t, "1.63.0", identity("app-7", "cfg-1", map[string]string{"cart.spec.ts": "3333", "./cart.spec.ts": "4444"}), cartTest(false, pass()))
+		same := reportJSON(t, "1.63.0", conflicting, cartTest(false, pass()))
+		if r := Compare(loaded(t, same, other), loaded(t, same)); !reflect.DeepEqual(r.Reasons, []string{ReasonInputsDifferInSide}) {
+			t.Fatalf("different conflicts: reasons = %v", r.Reasons)
+		}
+		if r := Compare(loaded(t, same, same), loaded(t, same)); r.Verdict != Parity {
+			t.Fatalf("same conflicts = %+v", r)
 		}
 	})
 	t.Run("PWR-V0-001 identities are screened on output and never merged", func(t *testing.T) {

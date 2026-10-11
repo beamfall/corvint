@@ -51,3 +51,10 @@ expect (`expectedStatus` other than `skipped`) is now `notRun`. That is how Play
 test it never started. An ambiguous identity in compare gets an `AMBIGUOUS` row with no
 statistics, rather than a verdict built from an arbitrary observation. A side that lacks a test
 reports N `absent`. Assertion files are compared raw and screened only on output.
+
+## Review round 3
+
+Round 3 found two gaps, both fixed with tests. The matcher regex now keeps the complete identifier,
+so a custom `toHaveHTTPStatus2` no longer truncates to the same name as `toHaveHTTPStatus3`.
+Conflicting blob spellings are kept beside the normalized inputs, so two runs with different
+conflicts still give `INPUTS_DIFFER_WITHIN_SIDE`.

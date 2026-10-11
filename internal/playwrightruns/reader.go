@@ -67,6 +67,9 @@ type Inputs struct {
 	ApplicationRevision string            `json:"applicationRevision"`
 	ConfigDigest        string            `json:"configDigest"`
 	TestFileBlobs       map[string]string `json:"testFileBlobs"`
+	// conflicts keeps, per normalized file, the sorted blobs that conflicting spellings declared,
+	// so two runs with different conflicting declarations still compare as different inputs.
+	conflicts map[string][]string
 }
 
 // Assertion is one failed assertion or error of one result (PWR-V0-007). Matcher is empty when
@@ -172,7 +175,7 @@ var (
 	// matcherCall finds the expect matcher a Playwright assertion message names, such as
 	// `expect(locator).toHaveText(expected)`, `expect(received).not.toBe(expected)` or
 	// `expect(received).rejects.toThrow()`; promise and negation modifiers stay part of the name.
-	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[A-Za-z]+)`)
+	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[A-Za-z_$][A-Za-z0-9_$]*)`)
 )
 
 // ReadFile reads and parses one report. Only a regular file is read, without blocking on a FIFO,
@@ -401,18 +404,29 @@ func declaredInputs(raw json.RawMessage) (Inputs, bool) {
 		return Inputs{TestFileBlobs: map[string]string{}}, false
 	}
 	in := Inputs{ApplicationRevision: meta.Identity.ApplicationRevision, ConfigDigest: meta.Identity.ConfigDigest, TestFileBlobs: map[string]string{}}
-	conflicted := map[string]bool{}
+	declared := map[string]map[string]bool{}
 	for file, blob := range meta.Identity.TestFileBlobs {
 		key := slashPath(file)
-		if prior, ok := in.TestFileBlobs[key]; ok && prior != blob {
-			conflicted[key] = true
+		if declared[key] == nil {
+			declared[key] = map[string]bool{}
 		}
+		declared[key][blob] = true
 		in.TestFileBlobs[key] = blob
 	}
 	// Two spellings of one file that declare different blobs are ambiguous: the file's blob is
 	// dropped, so its tests abstain with IDENTITY_INPUT_MISSING (PWR-V0-002).
-	for key := range conflicted {
+	for key, blobs := range declared {
+		if len(blobs) < 2 {
+			continue
+		}
 		delete(in.TestFileBlobs, key)
+		if in.conflicts == nil {
+			in.conflicts = map[string][]string{}
+		}
+		for blob := range blobs {
+			in.conflicts[key] = append(in.conflicts[key], blob)
+		}
+		sort.Strings(in.conflicts[key])
 	}
 	return in, true
 }
