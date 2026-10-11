@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -106,10 +107,20 @@ func TestCIRoutesStableSpecToStableVerifier(t *testing.T) {
 	}
 }
 
-// TestExampleStableBranch drives examples/cem/verify-portable.sh with CEM_PROFILE=cem/1.0 over the
-// public stable positive repository and compares its output and exit with a direct
-// verify-stable-canonical invocation of the same executable (CEM-V1-PSR-004).
-func TestExampleStableBranch(t *testing.T) {
+// stableRouteFrozenTuple is the only Go runtime on which the stable canonical verifier admits the
+// S0e fixtures' structural hunks (cem.go verifyStable03 runtime stage).
+const stableRouteFrozenTuple = "go1.27.1"
+
+type exampleStable struct {
+	script, exe, mapFile string
+	run                  *s0eRun
+	env                  []string
+}
+
+// newExampleStable builds the verifier with the running toolchain and prepares the public S0e
+// repository and artifact root for examples/cem/verify-portable.sh (CEM-V1-PSR-004).
+func newExampleStable(t *testing.T) *exampleStable {
+	t.Helper()
 	script, err := filepath.Abs(filepath.Join("..", "..", "examples", "cem", "verify-portable.sh"))
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +133,9 @@ func TestExampleStableBranch(t *testing.T) {
 	}
 	exe := filepath.Join(t.TempDir(), "cem01-go")
 	build := exec.Command("go", "build", "-trimpath", "-o", exe, ".")
-	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	// The built verifier must run on the same toolchain as this test, so the tuple gate below
+	// describes the executable the script runs.
+	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN="+runtime.Version(), "GOPROXY=off")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v: %s", err, out)
 	}
@@ -135,53 +148,130 @@ func TestExampleStableBranch(t *testing.T) {
 	if err := os.WriteFile(mapFile, r.raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	direct := func() (int, []byte) {
-		code, stdout, _ := runWith(nil, nil, exe, "verify-stable-canonical", "--repository", r.repo, "--map", mapFile,
-			"--expected-base", s0eBase, "--target", r.target, "--artifacts", r.artifacts)
-		return code, stdout
-	}
-	env := []string{"CEM_REPOSITORY=" + r.repo, "CEM_BASE_SHA=" + s0eBase, "CEM_HEAD_SHA=" + r.target,
-		"CEM_VERIFIER=" + exe, "CEM_VERIFIER_SHA256=" + shaHex(body), "CEM_ARTIFACTS=" + r.artifacts, "CEM_PROFILE=cem/1.0"}
-	with := func(extra ...string) []string { return append(append([]string{}, env...), extra...) }
+	return &exampleStable{script: script, exe: exe, mapFile: mapFile, run: r, env: []string{
+		"CEM_REPOSITORY=" + r.repo, "CEM_BASE_SHA=" + s0eBase, "CEM_HEAD_SHA=" + r.target,
+		"CEM_VERIFIER=" + exe, "CEM_VERIFIER_SHA256=" + shaHex(body), "CEM_ARTIFACTS=" + r.artifacts, "CEM_PROFILE=cem/1.0"}}
+}
 
-	wantCode, want := direct()
-	code, stdout, stderr := runWith(nil, env, script)
+func (x *exampleStable) with(extra ...string) []string {
+	return append(append([]string{}, x.env...), extra...)
+}
+
+// direct runs verify-stable-canonical on the same executable and inputs the script uses.
+func (x *exampleStable) direct() (int, []byte) {
+	code, stdout, _ := runWith(nil, nil, x.exe, "verify-stable-canonical", "--repository", x.run.repo, "--map", x.mapFile,
+		"--expected-base", s0eBase, "--target", x.run.target, "--artifacts", x.run.artifacts)
+	return code, stdout
+}
+
+// script runs the example and requires its stdout and exit to equal the direct invocation.
+func (x *exampleStable) runScript(t *testing.T, label string) stableResult {
+	t.Helper()
+	wantCode, want := x.direct()
+	code, stdout, stderr := runWith(nil, x.env, x.script)
 	if code != wantCode || !bytes.Equal(stdout, want) {
-		t.Fatalf("CEM-V1-PSR-004 stable branch: exit %d want %d\nstdout %s\nwant   %s\nstderr %s", code, wantCode, stdout, want, stderr)
+		t.Fatalf("CEM-V1-PSR-004 %s: exit %d want %d\nstdout %s\nwant   %s\nstderr %s", label, code, wantCode, stdout, want, stderr)
 	}
-	var result map[string]json.RawMessage
-	if json.Unmarshal(stdout, &result) != nil || string(result["profile"]) != `"cem-stable-verification/1"` || string(result["spec"]) != `"cem/1.0"` {
-		t.Fatalf("CEM-V1-PSR-004 stable branch did not emit the stable result: %s", stdout)
+	var res stableResult
+	if err := json.Unmarshal(stdout, &res); err != nil || res.Profile != "cem-stable-verification/1" || res.Spec != stableSpec {
+		t.Fatalf("CEM-V1-PSR-004 %s did not emit the stable result (%v): %s", label, err, stdout)
 	}
+	return res
+}
 
-	// A tampered artifact root changes both runs identically; the script never masks the exit.
-	if err := os.WriteFile(filepath.Join(r.artifacts, "runner-plan.json"), []byte("{}"), 0o644); err != nil {
+func strOf(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// TestExampleStableBranchVerifies proves the opt-in branch reaches repository and artifact
+// verification: the sealed S0e change is accepted, and a tampered artifact is rejected at the
+// artifact stage (CEM-V1-PSR-004, migration row C19).
+func TestExampleStableBranchVerifies(t *testing.T) {
+	if runtime.Version() != stableRouteFrozenTuple {
+		t.Skipf("NOT_RUN: the stable S0e fixtures need the %s structural tuple; running %s", stableRouteFrozenTuple, runtime.Version())
+	}
+	x := newExampleStable(t)
+	res := x.runScript(t, "positive")
+	if res.Outcome != "ACCEPT" || res.Accept == nil || !*res.Accept {
+		t.Fatalf("CEM-V1-PSR-004 positive: outcome %s stage %s code %s", res.Outcome, res.Stage, strOf(res.Code))
+	}
+	if err := os.WriteFile(filepath.Join(x.run.artifacts, "runner-plan.json"), []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	wantCode, want = direct()
-	if code, stdout, stderr := runWith(nil, env, script); code != wantCode || code == 0 || !bytes.Equal(stdout, want) {
-		t.Fatalf("CEM-V1-PSR-004 tampered: exit %d want %d\nstdout %s\nwant   %s\nstderr %s", code, wantCode, stdout, want, stderr)
+	res = x.runScript(t, "tampered artifact")
+	if res.Outcome != "REJECT" || res.Stage != "artifacts" || !slices.Contains(res.IssueCodes, "artifact-digest-mismatch") {
+		t.Fatalf("CEM-V1-PSR-004 tampered artifact: outcome %s stage %s issues %v", res.Outcome, res.Stage, res.IssueCodes)
 	}
+}
 
-	// Input refusals exit before the verifier runs and write no report.
+// TestExampleStableBranchRuntimeRefusal shows an unqualified runtime is passed through as the
+// verifier's own UNSUPPORTED result, never masked or weakened by the script.
+func TestExampleStableBranchRuntimeRefusal(t *testing.T) {
+	if runtime.Version() == stableRouteFrozenTuple {
+		t.Skipf("NOT_RUN: %s is the qualified tuple; TestExampleStableBranchVerifies covers it", stableRouteFrozenTuple)
+	}
+	x := newExampleStable(t)
+	res := x.runScript(t, "unqualified runtime")
+	if res.Outcome != "UNSUPPORTED" || res.Stage != "runtime" || strOf(res.Code) != "unsupported-structural-runtime" {
+		t.Fatalf("CEM-V1-PSR-004 runtime refusal: outcome %s stage %s code %s", res.Outcome, res.Stage, strOf(res.Code))
+	}
+}
+
+// TestExampleStableBranchRefusals covers the script's own refusals, which precede the verifier and
+// do not depend on the runtime tuple, and the unchanged default path.
+func TestExampleStableBranchRefusals(t *testing.T) {
+	x := newExampleStable(t)
 	for name, extra := range map[string][]string{
 		"artifacts unset":    {"CEM_ARTIFACTS="},
 		"artifacts relative": {"CEM_ARTIFACTS=artifacts"},
-		"artifacts missing":  {"CEM_ARTIFACTS=" + filepath.Join(r.B, "absent")},
+		"artifacts missing":  {"CEM_ARTIFACTS=" + filepath.Join(x.run.B, "absent")},
 		"unknown profile":    {"CEM_PROFILE=cem/0.2"},
 		"digest mismatch":    {"CEM_VERIFIER_SHA256=" + strings.Repeat("0", 64)},
 	} {
-		if code, stdout, _ := runWith(nil, with(extra...), script); code != 2 || len(stdout) != 0 {
+		if code, stdout, _ := runWith(nil, x.with(extra...), x.script); code != 2 || len(stdout) != 0 {
 			t.Fatalf("CEM-V1-PSR-004 %s: exit %d stdout %q", name, code, stdout)
 		}
 	}
-	if code, stdout, _ := runWith(nil, with("CEM_MAP_PATH=.corvint/absent.cem.json"), script); code != 3 || len(stdout) != 0 {
+	if code, stdout, _ := runWith(nil, x.with("CEM_MAP_PATH=.corvint/absent.cem.json"), x.script); code != 3 || len(stdout) != 0 {
 		t.Fatalf("CEM-V1-PSR-004 absent map: exit %d stdout %q", code, stdout)
 	}
 
+	// A directory selector or tree entry never stands in for the map, even when the directory
+	// holds exactly one regular file whose bytes the verifier would otherwise read.
+	repo := filepath.Join(t.TempDir(), "repo")
+	gitIn := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "maps"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitIn("init", "-q")
+	if err := os.WriteFile(filepath.Join(repo, "maps", "one.cem.json"), x.run.raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn("add", "maps")
+	gitIn("commit", "-qm", "maps")
+	head := gitIn("rev-parse", "HEAD")
+	for _, selector := range []string{"maps/", "maps"} {
+		code, stdout, stderr := runWith(nil, x.with("CEM_REPOSITORY="+repo, "CEM_BASE_SHA="+head, "CEM_HEAD_SHA="+head,
+			"CEM_MAP_PATH="+selector), x.script)
+		if code != 2 || len(stdout) != 0 || !bytes.Contains(stderr, []byte("cem-ci: CEM_MAP_PATH")) {
+			t.Fatalf("CEM-V1-PSR-004 directory selector %q: exit %d stdout %q stderr %q", selector, code, stdout, stderr)
+		}
+	}
+
 	// Without the explicit profile the default ci path runs unchanged and routes the stable map.
-	code, stdout, _ = runWith(nil, with("CEM_PROFILE="), script)
-	wantCI := encodeCIReport(runCI([]string{"--repository", r.repo, "--base", s0eBase, "--head", r.target}))
+	code, stdout, _ := runWith(nil, x.with("CEM_PROFILE="), x.script)
+	wantCI := encodeCIReport(runCI([]string{"--repository", x.run.repo, "--base", s0eBase, "--head", x.run.target}))
 	if code != 4 || !bytes.Equal(stdout, wantCI) || !bytes.Contains(stdout, []byte(`"code":"`+ciStableRouteCode+`"`)) {
 		t.Fatalf("CEM-V1-PSR-004 default profile: exit %d\nstdout %s\nwant   %s", code, stdout, wantCI)
 	}

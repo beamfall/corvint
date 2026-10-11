@@ -116,10 +116,13 @@ The script reads the committed map at `CEM_HEAD_SHA:CEM_MAP_PATH` as Git object 
 pinned verifier's `verify-stable-canonical` against the base, the head and the artifact root. Its
 standard output is the one-line `cem-stable-verification/1` result, and its exit is the verifier's:
 0 accept, 1 reject, 2 unsupported. Bad input, a missing or relative `CEM_ARTIFACTS`, an unknown
-`CEM_PROFILE` or a digest mismatch exits 2 before the verifier runs. An absent map exits 3, and an
+`CEM_PROFILE`, a `CEM_MAP_PATH` that names a directory rather than one regular file, or a digest
+mismatch exits 2 before the verifier runs. An absent map exits 3, and an
 absent head commit exits 5. Acceptance is structural and reference integrity only. A completion
 claim still needs the native Tasks gate, and nothing switches an existing workflow to this branch
-automatically (`CEM-V1-PSR-004`).
+automatically (`CEM-V1-PSR-004`). The stable verifier accepts structural hunks only on its qualified
+Go runtime tuple (currently `go1.27.1`); a verifier built with another Go version returns
+`UNSUPPORTED` `unsupported-structural-runtime`, which the script passes through.
 
 ## Limits
 

@@ -135,17 +135,26 @@ if [ "$profile" = cem/1.0 ]; then
     printf '%s\n' 'cem-ci: CEM_HEAD_SHA is not in the repository.' >&2
     exit 5
   fi
+  # A directory selector would make ls-tree list the directory's children instead of one map.
+  case "$map_path" in */) fail 'CEM_MAP_PATH must name a file, not a directory.' ;; esac
   entry=$(git -C "$base_repo" ls-tree --full-tree "$head_sha" -- "$map_path") || \
     fail 'cannot read the PR-head tree.'
   if [ -z "$entry" ]; then
     printf '%s\n' 'cem-ci: no map at CEM_MAP_PATH in CEM_HEAD_SHA.' >&2
     exit 3
   fi
-  mode=${entry%% *}
-  oid=${entry#* blob }
-  oid=${oid%%"$(printf '\t')"*}
+  # Exactly one line "<mode> blob <oid><TAB><path>" whose path is the requested path.
+  tab=$(printf '\t')
+  meta=${entry%%"$tab"*}
+  entry_path=${entry#*"$tab"}
+  mode=${meta%% *}
+  rest=${meta#* }
+  kind=${rest%% *}
+  oid=${rest#* }
+  if [ "$entry_path" != "$map_path" ] || [ "$kind" != blob ] || ! is_oid "$oid"; then
+    fail 'CEM_MAP_PATH in CEM_HEAD_SHA is not a regular file.'
+  fi
   case "$mode" in 100644 | 100755) ;; *) fail 'CEM_MAP_PATH in CEM_HEAD_SHA is not a regular file.' ;; esac
-  is_oid "$oid" || fail 'CEM_MAP_PATH in CEM_HEAD_SHA is not a regular file.'
   size=$(git -C "$base_repo" cat-file -s "$oid") || fail 'cannot read the map size.'
   [ "$size" -le 4194304 ] || fail 'the map exceeds 4 MiB.'
   git -C "$base_repo" cat-file blob "$oid" >"$work_dir/change.cem.json" || fail 'cannot read the map.'
