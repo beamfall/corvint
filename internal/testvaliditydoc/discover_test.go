@@ -455,6 +455,8 @@ func TestDiscoverRetainedRevisionDiffersFromHead(t *testing.T) {
 		{"malformed loose ref does not fall back to packed", map[string]string{".git/HEAD": "ref: refs/heads/main\n", ".git/refs/heads/main": "garbage\n", ".git/packed-refs": other + " refs/heads/main\n"}, false},
 		{"oversized HEAD", map[string]string{".git/HEAD": other + strings.Repeat(" ", 2<<20)}, false},
 		{"unresolved ref", map[string]string{".git/HEAD": "ref: refs/heads/main\n"}, false},
+		{"invalid ref name with dots", map[string]string{".git/HEAD": "ref: refs/heads/bad..ref\n", ".git/refs/heads/bad..ref": other + "\n"}, false},
+		{"invalid ref name with lock suffix", map[string]string{".git/HEAD": "ref: refs/heads/x.lock\n", ".git/refs/heads/x.lock": other + "\n"}, false},
 		{"escaping ref", map[string]string{".git/HEAD": "ref: refs/../../x\n"}, false},
 		{"no git", nil, false},
 	}
