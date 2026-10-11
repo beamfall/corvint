@@ -52,14 +52,16 @@ type entryView struct {
 	Verification         string     `json:"verification"`
 	LastVerifiedRevision string     `json:"last_verified_revision"`
 	ProvenPath           []string   `json:"proven_path"`
+	ProvenBy             []string   `json:"proven_by,omitempty"`
 	PathStatus           string     `json:"path_status"`
 	PathReason           string     `json:"path_reason"`
 }
 
 // ProjectEntries is a static candidate projection, never a claim of runtime loading.
 // Complete source blobs bind its entry constraints, conservatively invalidating even changes
-// outside the old spans (AMAP-V0-050..059). Existing edge bases do not prove execution.
-func ProjectEntries(ctx context.Context, m *Map, o Options) ([]byte, error) {
+// outside the old spans (AMAP-V0-050..059). Existing edge bases do not prove execution; only a
+// revision-bound edge ledger l, when given, supplies shortest PROVEN paths (AMAP-V0-080..082).
+func ProjectEntries(ctx context.Context, m *Map, l *EdgeLedger, o Options) ([]byte, error) {
 	budget, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, err
@@ -77,6 +79,9 @@ func ProjectEntries(ctx context.Context, m *Map, o Options) ([]byte, error) {
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].ID < ordered[j].ID })
 	fresh := newFreshness(ctx, o, anchors)
+	if err = checkLedgerBinding(m, l, fresh.evaluated); err != nil {
+		return nil, err
+	}
 	sourceState := func(a Anchor) string {
 		if fresh.failed || a.Repo != "" || a.Path == "" || a.Blob == "" {
 			return FreshUnknown
@@ -96,7 +101,7 @@ func ProjectEntries(ctx context.Context, m *Map, o Options) ([]byte, error) {
 			guardUnknown[u.Ref] = true
 		}
 	}
-	rows := []any{}
+	views := []entryView{}
 	for _, s := range ordered {
 		row := entryView{ID: s.ID, State: s.State, URL: m.url(s),
 			Classification: "deep-linkable", Reasons: []string{}, RequiredParams: uniqueSorted(s.Params),
@@ -168,10 +173,102 @@ func ProjectEntries(ctx context.Context, m *Map, o Options) ([]byte, error) {
 			row.Reasons = append(row.Reasons, "entry-source-unavailable")
 		}
 		row.Reasons = uniqueSorted(row.Reasons)
-		rows = append(rows, row)
+		views = append(views, row)
 	}
 	p := newProjection(ctx, m, o)
 	p.fresh = fresh
 	head := append(p.envelope("application-map-entries/0", budget), field{"basis", "static-only"})
+	if l != nil {
+		provenPaths(views, l)
+		head[len(head)-1] = field{"basis", "static-entries+edge-ledger"}
+		head = append(head, field{"ledger_digest", l.Digest})
+	}
+	rows := make([]any, len(views))
+	for i := range views {
+		rows[i] = views[i]
+	}
 	return render(head, []section{{"entries", rows}}, budget)
+}
+
+// Path statuses with a ledger (AMAP-V0-081).
+const (
+	PathEntry       = "ENTRY"
+	PathNotObserved = "NOT_OBSERVED"
+)
+
+// provenPaths gives each row its shortest path of PROVEN, receipt-backed ledger edges from a
+// deep-linkable entry (AMAP-V0-081). Ties go to the lower entry ID, then the lower next screen ID
+// and test key. A path never crosses a screen whose entry evidence is not STATIC_ONLY at the
+// evaluated revision; nothing here visits a URL (AMAP-V0-082).
+func provenPaths(rows []entryView, l *EdgeLedger) {
+	type hop struct{ screen, test string }
+	fresh := map[string]bool{}
+	for _, r := range rows {
+		fresh[r.ID] = r.Verification == "STATIC_ONLY"
+	}
+	adj := map[string][]hop{}
+	for _, e := range l.Edges {
+		test, ok := provenBy(e)
+		if !ok || e.From == e.To || !fresh[e.From] || !fresh[e.To] {
+			continue
+		}
+		adj[e.From] = append(adj[e.From], hop{e.To, test})
+	}
+	for k := range adj {
+		hops := adj[k]
+		sort.Slice(hops, func(i, j int) bool {
+			if hops[i].screen != hops[j].screen {
+				return hops[i].screen < hops[j].screen
+			}
+			return hops[i].test < hops[j].test
+		})
+	}
+	prev := map[string]hop{}
+	queue := []string{}
+	reached := map[string]bool{}
+	for _, r := range rows { // rows are in screen ID order
+		if r.Classification == "deep-linkable" {
+			reached[r.ID] = true
+			queue = append(queue, r.ID)
+		}
+	}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, h := range adj[cur] {
+			if !reached[h.screen] {
+				reached[h.screen] = true
+				prev[h.screen] = hop{cur, h.test}
+				queue = append(queue, h.screen)
+			}
+		}
+	}
+	for i := range rows {
+		r := &rows[i]
+		switch {
+		case !fresh[r.ID]:
+			r.PathStatus, r.PathReason = StatusUnknown, "screen-source-not-fresh"
+		case !reached[r.ID]:
+			r.PathStatus, r.PathReason = PathNotObserved, "no-proven-path-from-entry"
+		case r.Classification == "deep-linkable":
+			r.ProvenPath, r.PathStatus, r.PathReason = []string{r.ID}, PathEntry, "static-deep-link"
+		default:
+			path, by := []string{r.ID}, []string{}
+			for cur := r.ID; ; {
+				h, ok := prev[cur]
+				if !ok {
+					break
+				}
+				path, by = append(path, h.screen), append(by, h.test)
+				cur = h.screen
+			}
+			for a, z := 0, len(path)-1; a < z; a, z = a+1, z-1 {
+				path[a], path[z] = path[z], path[a]
+			}
+			for a, z := 0, len(by)-1; a < z; a, z = a+1, z-1 {
+				by[a], by[z] = by[z], by[a]
+			}
+			r.ProvenPath, r.ProvenBy, r.PathStatus, r.PathReason = path, by, EdgeProven, "ledger-edges"
+		}
+	}
 }

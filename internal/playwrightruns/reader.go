@@ -1,0 +1,440 @@
+// Package playwrightruns is the shared, read-only Playwright run-evidence reader behind
+// `corvint runs stability` and `corvint runs compare` (docs/specs/playwright-run-evidence-v0.md,
+// PWR-V0). It reads Playwright json-reporter documents, keys every test by its stable identity
+// (project, file, title path) and keeps only what the two verdicts need. Failure text passes the
+// same run-evidence hygiene and secret screen as the provider receipt (internal/runhygiene,
+// internal/secretscreen). Nothing here writes a file, runs a process or opens a network connection.
+package playwrightruns
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"math"
+	"path"
+	"regexp"
+	"sort"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/runhygiene"
+	"github.com/Beamfall/corvint/internal/secretscreen"
+)
+
+// Bounds (PWR-V0-001). A report beyond any bound is refused whole, never truncated.
+const (
+	MaxReportBytes     = 64 << 20
+	MaxTests           = 50000
+	MaxResultsPerTest  = 100
+	MaxErrorsPerResult = 16
+	maxLineBytes       = 240
+)
+
+// Assertion origins (PWR-V0-007).
+const (
+	OriginTestFile = "TEST_FILE"
+	OriginSupport  = "SUPPORT"
+	OriginUnknown  = "UNKNOWN"
+)
+
+// Report refusal reasons (PWR-V0-001).
+var (
+	ErrUnreadable = errors.New("REPORT_UNREADABLE")
+	ErrTooLarge   = errors.New("REPORT_BOUND_EXCEEDED")
+	ErrShape      = errors.New("REPORT_NOT_PLAYWRIGHT_JSON")
+)
+
+// Identity is a test's stable identity: project, file relative to config.rootDir, and the
+// describe titles followed by the test title (PWR-V0-001).
+type Identity struct {
+	Project   string   `json:"project"`
+	File      string   `json:"file"`
+	TitlePath []string `json:"titlePath"`
+}
+
+// Key is an unambiguous map key for the identity.
+func (i Identity) Key() string {
+	raw, _ := json.Marshal([]any{i.Project, i.File, i.TitlePath})
+	return string(raw)
+}
+
+// Inputs are the identity inputs a run declares under config.metadata.corvintRunIdentity
+// (PWR-V0-002). An absent value is empty; it is never inferred.
+type Inputs struct {
+	ApplicationRevision string            `json:"applicationRevision"`
+	ConfigDigest        string            `json:"configDigest"`
+	TestFileBlobs       map[string]string `json:"testFileBlobs"`
+	// conflicts keeps, per normalized file, the sorted blobs that conflicting spellings declared,
+	// so two runs with different conflicting declarations still compare as different inputs.
+	conflicts map[string][]string
+}
+
+// Assertion is one failed assertion or error of one result (PWR-V0-007). Matcher is empty when
+// the error names no expect matcher.
+type Assertion struct {
+	Origin  string `json:"origin"`
+	Matcher string `json:"matcher"`
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+}
+
+// Result is one attempt of one test.
+type Result struct {
+	Retry       int
+	Status      string // passed | failed | timedOut | skipped | interrupted
+	WorkerIndex int    // -1 when the report omits it
+	DurationMS  int64
+	FirstError  string // screened first line of the first error, "" when none
+	Failures    []Assertion
+}
+
+// Test is one test of one project in one report.
+type Test struct {
+	Identity
+	Status       string // Playwright aggregate: expected | unexpected | flaky | skipped
+	Executed     bool   // false when no result ran: none recorded, or a skip the test did not expect
+	ExpectedFail bool   // test.fail(): a "fail" annotation or expectedStatus "failed"
+	Results      []Result
+}
+
+// Run is one admitted report.
+type Run struct {
+	Sha256             string
+	Version            string
+	Workers            int
+	Projects           []string // sorted distinct project names seen on tests
+	ConfiguredProjects []string // sorted distinct config.projects names
+	Inputs             Inputs
+	InputsDeclared     bool
+	ReportErrors       int // top-level report errors, such as a spec file that failed to load
+	Tests              []Test
+	Ambiguous          map[string]bool // identity keys that occur more than once
+}
+
+type jsonReport struct {
+	Config *struct {
+		Version  string          `json:"version"`
+		RootDir  string          `json:"rootDir"`
+		Workers  int             `json:"workers"`
+		Metadata json.RawMessage `json:"metadata"`
+		Projects []struct {
+			Name string `json:"name"`
+		} `json:"projects"`
+	} `json:"config"`
+	Errors []json.RawMessage `json:"errors"`
+	Suites *[]jsonSuite      `json:"suites"`
+}
+
+type jsonSuite struct {
+	Title  string      `json:"title"`
+	File   string      `json:"file"`
+	Specs  []jsonSpec  `json:"specs"`
+	Suites []jsonSuite `json:"suites"`
+}
+
+type jsonSpec struct {
+	Title string     `json:"title"`
+	File  string     `json:"file"`
+	Tests []jsonTest `json:"tests"`
+}
+
+type jsonTest struct {
+	ProjectName    *string `json:"projectName"`
+	ExpectedStatus string  `json:"expectedStatus"`
+	Status         string  `json:"status"`
+	Annotations    []struct {
+		Type string `json:"type"`
+	} `json:"annotations"`
+	Results []jsonResult `json:"results"`
+}
+
+type jsonResult struct {
+	Retry       int         `json:"retry"`
+	Status      string      `json:"status"`
+	WorkerIndex *int        `json:"workerIndex"`
+	Duration    float64     `json:"duration"`
+	Error       *jsonError  `json:"error"`
+	Errors      []jsonError `json:"errors"`
+}
+
+type jsonError struct {
+	Message  string `json:"message"`
+	Location *struct {
+		File string `json:"file"`
+		Line int    `json:"line"`
+	} `json:"location"`
+}
+
+var (
+	resultStatuses = map[string]bool{"passed": true, "failed": true, "timedOut": true, "skipped": true, "interrupted": true}
+	testStatuses   = map[string]bool{"expected": true, "unexpected": true, "flaky": true, "skipped": true}
+	ansi           = regexp.MustCompile("\x1b\\[[0-9;]*[A-Za-z]")
+	// matcherCall finds the expect matcher a Playwright assertion message names, such as
+	// `expect(locator).toHaveText(expected)`, `expect(received).not.toBe(expected)` or
+	// `expect(received).rejects.toThrow()`; promise and negation modifiers stay part of the name, and
+	// the name runs to the next space, dot or parenthesis, so any JavaScript identifier stays whole.
+	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[^\s().]+)`)
+)
+
+// ReadFile reads and parses one report. Only a regular file is read, without blocking on a FIFO,
+// and at most MaxReportBytes+1 bytes are taken from it.
+func ReadFile(name string) (*Run, error) {
+	f, err := openNonblocking(name)
+	if err != nil {
+		return nil, ErrUnreadable
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return nil, ErrUnreadable
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, MaxReportBytes+1))
+	if err != nil {
+		return nil, ErrUnreadable
+	}
+	return Parse(raw)
+}
+
+// Parse admits one json-reporter document (PWR-V0-001): one JSON object with config.version and
+// a suites array, known statuses, and every test carrying a project and file.
+func Parse(raw []byte) (*Run, error) {
+	if len(raw) > MaxReportBytes {
+		return nil, ErrTooLarge
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	var doc jsonReport
+	if err := dec.Decode(&doc); err != nil {
+		return nil, ErrShape
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, ErrShape
+	}
+	if doc.Config == nil || doc.Config.Version == "" || doc.Suites == nil {
+		return nil, ErrShape
+	}
+	sum := sha256.Sum256(raw)
+	run := &Run{Sha256: hex.EncodeToString(sum[:]), Version: doc.Config.Version, Workers: doc.Config.Workers,
+		ReportErrors: len(doc.Errors), Ambiguous: map[string]bool{}, Tests: []Test{}}
+	run.Inputs, run.InputsDeclared = declaredInputs(doc.Config.Metadata)
+	run.ConfiguredProjects = []string{}
+	configured := map[string]bool{}
+	for _, p := range doc.Config.Projects {
+		if !configured[p.Name] {
+			configured[p.Name] = true
+			run.ConfiguredProjects = append(run.ConfiguredProjects, p.Name)
+		}
+	}
+	sort.Strings(run.ConfiguredProjects)
+	r := reader{run: run, root: doc.Config.RootDir, seen: map[string]bool{}, projects: map[string]bool{}}
+	for _, s := range *doc.Suites {
+		if err := r.suite(s, nil, true); err != nil {
+			return nil, err
+		}
+	}
+	for p := range r.projects {
+		run.Projects = append(run.Projects, p)
+	}
+	sort.Strings(run.Projects)
+	return run, nil
+}
+
+type reader struct {
+	run      *Run
+	root     string
+	seen     map[string]bool
+	projects map[string]bool
+}
+
+// suite walks one suite. A top-level suite is the file suite, whose title is the file path and is
+// not part of the title path; nested suites are describe blocks.
+func (r *reader) suite(s jsonSuite, titles []string, top bool) error {
+	if !top {
+		titles = append(append([]string{}, titles...), s.Title)
+	}
+	for _, spec := range s.Specs {
+		file := spec.File
+		if file == "" {
+			file = s.File
+		}
+		for _, t := range spec.Tests {
+			if err := r.test(file, append(append([]string{}, titles...), spec.Title), t); err != nil {
+				return err
+			}
+		}
+	}
+	for _, sub := range s.Suites {
+		if err := r.suite(sub, titles, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *reader) test(file string, titles []string, t jsonTest) error {
+	if len(r.run.Tests) >= MaxTests || len(t.Results) > MaxResultsPerTest {
+		return ErrTooLarge
+	}
+	if file == "" || t.ProjectName == nil || !testStatuses[t.Status] {
+		return ErrShape
+	}
+	id := Identity{Project: *t.ProjectName, File: slashPath(file), TitlePath: titles}
+	if r.seen[id.Key()] {
+		r.run.Ambiguous[id.Key()] = true
+	}
+	r.seen[id.Key()] = true
+	r.projects[id.Project] = true
+	test := Test{Identity: id, Status: t.Status, ExpectedFail: t.ExpectedStatus == "failed", Results: []Result{}}
+	for _, a := range t.Annotations {
+		test.ExpectedFail = test.ExpectedFail || a.Type == "fail"
+	}
+	for _, res := range t.Results {
+		if !resultStatuses[res.Status] || res.Retry < 0 {
+			return ErrShape
+		}
+		out := Result{Retry: res.Retry, Status: res.Status, WorkerIndex: -1, DurationMS: durationMS(res.Duration), Failures: []Assertion{}}
+		if res.WorkerIndex != nil {
+			out.WorkerIndex = *res.WorkerIndex
+		}
+		errs := res.Errors
+		if len(errs) == 0 && res.Error != nil {
+			errs = []jsonError{*res.Error}
+		}
+		if len(errs) > MaxErrorsPerResult {
+			return ErrTooLarge
+		}
+		for i, e := range errs {
+			if i == 0 {
+				out.FirstError = FirstLine(e.Message)
+			}
+			out.Failures = append(out.Failures, r.assertion(id.File, e))
+		}
+		test.Results = append(test.Results, out)
+	}
+	// Playwright records a test it never started (after a setup or serial-suite failure) as a
+	// skipped result while expectedStatus stays "passed"; only an expected skip is an outcome.
+	test.Executed = len(test.Results) > 0 && (test.Results[len(test.Results)-1].Status != "skipped" || t.ExpectedStatus == "skipped")
+	r.run.Tests = append(r.run.Tests, test)
+	return nil
+}
+
+// assertion classifies one error by where it was raised (PWR-V0-007): the test's own file, another
+// source file (a page object, helper or fixture), or unknown when the error has no location.
+func (r *reader) assertion(testFile string, e jsonError) Assertion {
+	a := Assertion{Origin: OriginUnknown}
+	if m := matcherCall.FindStringSubmatch(ansi.ReplaceAllString(e.Message, "")); m != nil {
+		a.Matcher = m[1]
+	}
+	if e.Location == nil || e.Location.File == "" {
+		return a
+	}
+	file := r.relative(e.Location.File)
+	a.Origin, a.File, a.Line = OriginSupport, file, e.Location.Line
+	if file == testFile {
+		a.Origin = OriginTestFile
+	}
+	return a
+}
+
+// relative maps an error location under config.rootDir to the rootDir-relative slash path spec
+// files use; any other path is kept as reported.
+func (r *reader) relative(file string) string {
+	file = slashPath(file)
+	root := strings.TrimSuffix(slashPath(r.root), "/")
+	if r.root != "" && strings.HasPrefix(file, root+"/") {
+		return path.Clean(strings.TrimPrefix(file, root+"/"))
+	}
+	return file
+}
+
+// screenText applies the product secret screen to one emitted string.
+func screenText(s string) string {
+	out, _ := secretscreen.Screen(s)
+	return out
+}
+
+// presented is the identity as emitted: every part secret-screened. Pools and matches stay keyed
+// by the unscreened identity, so screening never merges two tests.
+func (i Identity) presented() Identity {
+	out := Identity{Project: screenText(i.Project), File: screenText(i.File), TitlePath: make([]string, len(i.TitlePath))}
+	for n, title := range i.TitlePath {
+		out.TitlePath[n] = screenText(title)
+	}
+	return out
+}
+
+// slashPath normalizes a reported path by the report's syntax rather than the reading host's:
+// a Windows-produced report uses backslashes, which filepath.ToSlash leaves alone on Unix.
+func slashPath(p string) string {
+	return path.Clean(strings.ReplaceAll(p, `\`, "/"))
+}
+
+// FirstLine is the screened first non-empty line of an error message: ANSI escapes removed, the
+// run-evidence hygiene and the product secret screen applied, and at most 240 bytes kept.
+func FirstLine(message string) string {
+	for _, line := range strings.Split(ansi.ReplaceAllString(message, ""), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		line, _ = secretscreen.Screen(runhygiene.ScrubFailure(line))
+		for len(line) > maxLineBytes {
+			line = line[:maxLineBytes]
+			for !utf8.ValidString(line) {
+				line = line[:len(line)-1]
+			}
+		}
+		return line
+	}
+	return ""
+}
+
+// declaredInputs reads config.metadata.corvintRunIdentity. Any other metadata is ignored; a
+// malformed declaration counts as absent.
+func declaredInputs(raw json.RawMessage) (Inputs, bool) {
+	var meta struct {
+		Identity *struct {
+			ApplicationRevision string            `json:"applicationRevision"`
+			ConfigDigest        string            `json:"configDigest"`
+			TestFileBlobs       map[string]string `json:"testFileBlobs"`
+		} `json:"corvintRunIdentity"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &meta) != nil || meta.Identity == nil {
+		return Inputs{TestFileBlobs: map[string]string{}}, false
+	}
+	in := Inputs{ApplicationRevision: meta.Identity.ApplicationRevision, ConfigDigest: meta.Identity.ConfigDigest, TestFileBlobs: map[string]string{}}
+	declared := map[string]map[string]bool{}
+	for file, blob := range meta.Identity.TestFileBlobs {
+		key := slashPath(file)
+		if declared[key] == nil {
+			declared[key] = map[string]bool{}
+		}
+		declared[key][blob] = true
+		in.TestFileBlobs[key] = blob
+	}
+	// Two spellings of one file that declare different blobs are ambiguous: the file's blob is
+	// dropped, so its tests abstain with IDENTITY_INPUT_MISSING (PWR-V0-002).
+	for key, blobs := range declared {
+		if len(blobs) < 2 {
+			continue
+		}
+		delete(in.TestFileBlobs, key)
+		if in.conflicts == nil {
+			in.conflicts = map[string][]string{}
+		}
+		for blob := range blobs {
+			in.conflicts[key] = append(in.conflicts[key], blob)
+		}
+		sort.Strings(in.conflicts[key])
+	}
+	return in, true
+}
+
+func durationMS(ms float64) int64 {
+	if ms < 0 || math.IsNaN(ms) || ms > math.MaxInt32 {
+		return 0
+	}
+	return int64(math.Round(ms))
+}

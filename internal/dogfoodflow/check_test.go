@@ -125,6 +125,14 @@ func TestSealRefusesToDropAnUnarchivedBaseCEM(t *testing.T) {
 	if code != 2 || !strings.HasPrefix(stderr, want) {
 		t.Fatalf("seal exit=%d stderr=%q; want exit 2 and %q", code, stderr, want)
 	}
+	// DCW-V0-043: the refusal names the exact archive command.
+	blob, archive := testGit(t, root, "rev-parse", earlier+":.corvint/change.cem.json"), ".corvint/changes/"+earlier+".cem.json"
+	fix := "  fix: mkdir -p .corvint/changes && git cat-file blob " + blob + " > " + archive + " && git add " + archive +
+		" && git commit -q -m \"chore: archive inherited change evidence\" -- " + archive + "\n" +
+		"  then rerun dogfood-change, bind, dogfood-check and dogfood-seal with the same BASE (DCW-V0-043)\n"
+	if !strings.HasSuffix(stderr, fix) {
+		t.Fatalf("seal stderr=%q; want suffix %q", stderr, fix)
+	}
 	if head := testGit(t, root, "log", "-1", "--format=%s"); head != "bind" {
 		t.Fatalf("refused seal committed %q", head)
 	}

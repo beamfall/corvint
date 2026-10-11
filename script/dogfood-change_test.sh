@@ -1044,6 +1044,10 @@ seal_unarchived=$(cd "$seal_repo" && script/dogfood-seal.sh "$seal_earlier" 2>&1
 test "$seal_unarchived_status" = 2
 rg -Fxq 'dogfood-seal: REFUSE unarchived-base-cem' <<< "$seal_unarchived"
 rg -Fq "  BASE tracks .corvint/change.cem.json (bound at $seal_earlier)" <<< "$seal_unarchived"
+# DCW-V0-043: the refusal names the exact archive command.
+seal_archive=".corvint/changes/$seal_earlier.cem.json"
+seal_blob=$(git -C "$seal_repo" rev-parse "$seal_earlier:.corvint/change.cem.json")
+rg -Fxq "  fix: mkdir -p .corvint/changes && git cat-file blob $seal_blob > $seal_archive && git add $seal_archive && git commit -q -m \"chore: archive inherited change evidence\" -- $seal_archive" <<< "$seal_unarchived"
 test "$(git -C "$seal_repo" log -1 --format=%s)" = later
 ) &
 phase_jobs="$phase_jobs $!"
