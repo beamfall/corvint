@@ -940,15 +940,17 @@ OpenJDK 17.0.20.1 on macOS 26.6.2 arm64 is the only observed tuple.
   a problem. Cleanup MUST NOT issue `gradle --stop`, `killall` or any
   registry-wide or name-based signal, so ambient daemons, including those of
   the account home, are untouched. Historical plans and receipts keep their
-  bytes and identities; a historical `gradle-junit` plan without the per-run
-  home or the flag MUST be refused for new execution with the existing re-plan
-  diagnosis. Execution is refused before launch where retirement is unproven.
+  bytes and identities. A plan whose invocation is exactly the historical
+  `gradle-junit` form (the rebuilt one without the flag and without the
+  `--gradle-user-home` pair) MUST be refused for new execution with the
+  diagnosis `plan predates per-run Gradle user home; re-plan it`; any other
+  difference keeps the generic profile-mismatch refusal. Execution is refused before launch where retirement is unproven.
   Status: proposed (V1-0622).
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-042 | `platform/jvm_build.go` `gradleUserHome`; `TestGradlePerRunUserHomeAndDaemonOwnership`, opt-in `TestGradleLiveOwnership` | Failing before the change (no `--gradle-user-home`, no retirement). Live run: every scenario creates `<ReportDir>/.home/.gradle/daemon`; no new entry in the account daemon directory came from these runs |
-| TRE-V0-043 | `platform/jvm_build.go`; `corvint-test-runner` `TestPreIsolationGradlePlanRefusedForExecution`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, opt-in `TestGradleLiveOwnership` | Live: pass/fail/`@Disabled` give exit 1, complete `proof.ProofTest#passes()` PASSED, `#fails()` FAILED, `#skipped()` SKIPPED; a no-match filter gives exit 1 with no report; a 90 s timeout and an interruption after test-body readiness each give exit `-1`, incomplete, and two processes retired by `ANCESTRY` with no `unretired` entry and no recorded test-body ancestor alive; a scoped ambient sentinel daemon survived all runs |
+| TRE-V0-043 | `platform/jvm_build.go`; `corvint-test-runner` `admittedInvocation` `preIsolationGradle`; `TestPreIsolationGradlePlanRefusedForExecution`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, opt-in `TestGradleLiveOwnership` | Live: pass/fail/`@Disabled` give exit 1, complete `proof.ProofTest#passes()` PASSED, `#fails()` FAILED, `#skipped()` SKIPPED; a no-match filter gives exit 1 with no report; a 90 s timeout and an interruption after test-body readiness each give exit `-1`, incomplete, and two processes retired by `ANCESTRY` with no `unretired` entry and no recorded test-body ancestor alive; a scoped ambient sentinel daemon survived all runs |
 
 Failure modes. A project whose build needs a remote repository fails offline
 in the empty home; that is retained as a native setup failure, not resolved
@@ -959,7 +961,8 @@ Non-goals. A shared read-only dependency cache (`GRADLE_RO_DEP_CACHE`), wrapper
 distribution download, configuration cache and build cache are not admitted.
 
 Recorded limits. Linux and every non-Darwin platform now refuse `gradle-junit`
-execution because `TRE-V0-030` retirement is unproven there; Linux live
+execution because `TRE-V0-030` retirement is unproven there. This known limit
+is accepted for now; Linux retirement is a separate follow-up, and Linux live
 qualification is NOT_OBSERVED. Gradle processes started outside the run's
 ancestry (for example by a toolchain provisioning service) are not retired.
 

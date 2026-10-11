@@ -16,8 +16,10 @@ timeout or interruption the group kill alone cannot retire them.
 - The profile now passes `--gradle-user-home <ReportDir>/.home/.gradle` next to `--offline
   --no-daemon` and sets `retireDetachedDescendants`.
 - No `--stop`, killall or registry-wide cleanup is issued.
-- Historical plans keep their identity and are refused for new execution with the existing re-plan
-  diagnosis.
+- Historical plans keep their identity. The exact historical invocation (no flag, no
+  `--gradle-user-home` pair) is refused for new execution with `plan predates per-run Gradle user
+  home; re-plan it`; other drift keeps the generic mismatch refusal. An independent review of the
+  first commit found that the historical form fell through to the generic refusal; this is fixed.
 - `TestPinnedGradleManifestFIFORefusedBeforeExecution` now expects the retirement-unsupported
   refusal where `groupreap.RetirementSupported` is false.
 
@@ -44,8 +46,10 @@ timeout or interruption the group kill alone cannot retire them.
 
 ## Limits
 
-- Linux and other non-Darwin platforms now refuse `gradle-junit` execution, because retirement is
-  unproven there. Linux live qualification is NOT_RUN.
+- Known limit, accepted for now: Linux and other non-Darwin platforms refuse `gradle-junit`
+  execution, because retirement is unproven there. Linux retirement is a separate follow-up, and
+  Linux live qualification is NOT_RUN.
+- Toolchain: all tests here ran with local Go 1.27.2, not the 1.27.1 named in `AGENTS.md`.
 - External module dependencies cannot resolve in the empty offline home. `GRADLE_RO_DEP_CACHE` is a
   non-goal.
 - Full `go test ./...`, `make gate` and `cmd/corvint` package tests are NOT_RUN. Independent review

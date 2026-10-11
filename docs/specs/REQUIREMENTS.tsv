@@ -3220,7 +3220,7 @@ TRE-V0-040	docs/specs/test-runner-execution-v0.md	870	A receipt phase MUST recor
 TRE-V0-041	docs/specs/test-runner-execution-v0.md	880	Runner plan and receipt decoders (`DecodeDocument` and the CEM
 TRE-V0-042	docs/specs/test-runner-execution-v0.md	925	The `gradle-junit` profile MUST pass `--gradle-user-home`
 TRE-V0-043	docs/specs/test-runner-execution-v0.md	936	New `gradle-junit` plans MUST set `retireDetachedDescendants`
-TRE-V0-044	docs/specs/test-runner-execution-v0.md	979	For `storybook-test-runner`, an empty `Target` MUST leave the
+TRE-V0-044	docs/specs/test-runner-execution-v0.md	982	For `storybook-test-runner`, an empty `Target` MUST leave the
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count

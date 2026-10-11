@@ -34,3 +34,4 @@ overrides configured `tags.skip`, and turns each matching story into a skipped t
 - Also NOT_RUN: pass/fail/tagged-skip, native report inventory, no-tests/setup failure, and browser
   descendant cleanup.
 - Independent review is NOT_RUN in this lane.
+- Toolchain: tests ran with local Go 1.27.2, not the 1.27.1 named in `AGENTS.md`.

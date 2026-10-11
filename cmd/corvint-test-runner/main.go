@@ -191,7 +191,25 @@ func admittedInvocation(p plan) (tr.Invocation, error) {
 	if v.RetireDetachedDescendants && tr.Identity(compare) == tr.Identity(p.Invocation) {
 		return v, fmt.Errorf("plan predates detached descendant retirement; re-plan it")
 	}
+	if p.Request.Runner == "gradle-junit" && tr.Identity(preIsolationGradle(compare)) == tr.Identity(p.Invocation) {
+		return v, fmt.Errorf("plan predates per-run Gradle user home; re-plan it")
+	}
 	return v, fmt.Errorf("plan does not match current fixed runner profile")
+}
+
+// preIsolationGradle reconstructs the exact historical gradle-junit invocation
+// (TRE-V0-043): the current one without its single --gradle-user-home pair.
+func preIsolationGradle(v tr.Invocation) tr.Invocation {
+	argv := make([]string, 0, len(v.Argv))
+	for i := 0; i < len(v.Argv); i++ {
+		if v.Argv[i] == "--gradle-user-home" && i+1 < len(v.Argv) {
+			i++
+			continue
+		}
+		argv = append(argv, v.Argv[i])
+	}
+	v.Argv = argv
+	return v
 }
 
 // read refuses a nonregular document before any blocking open (V1-0624): a

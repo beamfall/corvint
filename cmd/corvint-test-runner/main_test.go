@@ -418,7 +418,14 @@ func TestPreIsolationGradlePlanRefusedForExecution(t *testing.T) {
 	historical := current
 	historical.RetireDetachedDescendants = false
 	historical.Argv = []string{"--offline", "--no-daemon", "--console=plain", "--project-dir", "/source/app", "--init-script", "/fresh/corvint.init.gradle", "-Dcorvint.testTask=:test", "-Dcorvint.reportsDir=/fresh", ":test"}
-	if _, e := admittedInvocation(plan{Request: r, Invocation: historical}); e == nil {
-		t.Fatal("pre-isolation Gradle plan admitted for execution")
+	if _, e := admittedInvocation(plan{Request: r, Invocation: historical}); e == nil || e.Error() != "plan predates per-run Gradle user home; re-plan it" {
+		t.Fatalf("pre-isolation Gradle plan lacks the re-plan diagnosis: %v", e)
+	}
+	// Only the exact historical form gets the diagnosis; any other drift keeps
+	// the generic mismatch refusal.
+	drifted := historical
+	drifted.Argv = append([]string{"--daemon"}, historical.Argv...)
+	if _, e := admittedInvocation(plan{Request: r, Invocation: drifted}); e == nil || e.Error() != "plan does not match current fixed runner profile" {
+		t.Fatalf("drifted Gradle plan: %v", e)
 	}
 }
