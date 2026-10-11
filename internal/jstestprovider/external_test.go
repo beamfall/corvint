@@ -627,22 +627,29 @@ func TestQualifiedReportNamesUnboundSetupProjectFiles(t *testing.T) {
 		t.Fatalf("cause detail err=%v, want %q", err, want)
 	}
 
+	// Anchors arrive unsorted and one file anchors two tests; the detail names
+	// distinct files in bytewise order, eight at most, then the remainder count.
 	r, report = fixture()
 	base := r.Tests[1]
-	for i := range externalMaxUnboundNamed + 2 {
+	for _, i := range []int{9, 3, 7, 0, 5, 3, 8, 1, 6, 2, 4} {
 		extra := base
-		extra.FullName = fmt.Sprintf("one > extra %d", i)
-		extra.Anchor = &Anchor{File: fmt.Sprintf("/repo/extra-%02d.cjs", i), Line: 1}
+		extra.FullName = fmt.Sprintf("one > extra %d > %d", i, len(r.Tests))
+		extra.Anchor = &Anchor{File: fmt.Sprintf("/repo/extra-%02d.cjs", i), Line: len(r.Tests)}
 		report.Files[extra.Anchor.File] = "extra"
 		r.Tests = append(r.Tests, extra)
 	}
 	report.Tests = r.Tests
 	err = bindQualifiedReport(&r, report)
-	if err == nil || strings.Count(err.Error(), "(not passed with --test-file)") != externalMaxUnboundNamed || !strings.HasSuffix(err.Error(), "; +3 more") {
-		t.Fatalf("bounded detail err=%v", err)
+	want = "test-file-unbound: /repo/auth.setup.cjs (not passed with --test-file)"
+	for i := range 7 {
+		want += fmt.Sprintf("; /repo/extra-%02d.cjs (not passed with --test-file)", i)
+	}
+	want += "; +3 more"
+	if err == nil || err.Error() != want {
+		t.Fatalf("bounded detail err=%v, want %q", err, want)
 	}
 
-	if failure := externalReportFailure(SensitiveExternalProfile, "report-identity-unknown", want); failure.Detail != "untrusted reporter output rejected" {
+	if failure := externalReportFailure(SensitiveExternalProfile, "report-identity-unknown", want); failure.Detail != "untrusted reporter output rejected" || strings.Contains(failure.Detail, "/repo/") {
 		t.Fatalf("/2 detail echoed reporter paths: %q", failure.Detail)
 	}
 }

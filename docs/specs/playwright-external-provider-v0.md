@@ -171,8 +171,10 @@ reported files to bind, instead of an unexplained refusal of a run whose results
   detail `test-file-unbound: ` followed by each distinct unbound anchor file, sorted bytewise and
   separated by `; `, each with its cause in parentheses: `not passed with --test-file`,
   `not digested by the reporter`, or `reporter digest differs from the --test-file digest`. At most
-  8 files are named; any further files are summarized as `+N more`. The `/2` profile keeps its fixed
-  untrusted-output detail (`PWP-V2-005`). The provider never binds a reported file implicitly and
+  8 files are named; any further files are summarized as `+N more`. The `/2` profile names no file:
+  its detail is the fixed untrusted-output text, which `/2` risk-field redaction may further replace
+  with `[REDACTED]` (`PWP-V2-003`, `PWP-V2-005`). Owned-server (non-external) e2e runs do not apply
+  this binding check. The provider never binds a reported file implicitly and
   the refusal stays a refusal even when every result passed. `corvint-js-test-provider e2e` help
   states this rule.
 

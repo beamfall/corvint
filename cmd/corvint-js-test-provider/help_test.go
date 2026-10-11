@@ -141,9 +141,11 @@ func TestProviderHelpExplainsSetupProjectFileBinding(t *testing.T) {
 		"project dependencies",
 		"each setup file needs its own --test-file",
 		"test-file-unbound detail that names each unbound file",
+		"at most 8 then +N more",
+		"Under --sensitive-input-redaction the detail names no\nfile.",
 		"No file is bound unless it is passed with --test-file.",
-		"including setup files that project dependencies run",
-		"binds no file identity",
+		"with --external-server pass every file Playwright reports a result for, including setup files that project dependencies run",
+		"binds no file identity, so with --external-server --test-file is still required",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("usage omits %q", want)
