@@ -64,3 +64,12 @@ func cleanImpactRequest(paths []string, limit int) ([]string, error) {
 	}
 	return keys(cleanedSet), nil
 }
+
+// observedCommit prefers the opening observation's commit over the snapshot
+// writer's, which a same-tree snapshot may carry from an earlier commit.
+func observedCommit(observed, stored string) string {
+	if observed != "" {
+		return observed
+	}
+	return stored
+}
