@@ -820,27 +820,36 @@ CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/revi
 CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev
 CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int
 CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,
-CEM-V1-011	docs/specs/cem-stable-v1.md	59	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
-CEM-V1-012	docs/specs/cem-stable-v1.md	60	Publish the candidate schema and algorithms before the standalone consumer. Nati
-CEM-V1-013	docs/specs/cem-stable-v1.md	61	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
-CEM-V1-014	docs/specs/cem-stable-v1.md	62	Inventory every existing consumer's profile and migration disposition. An unsupp
-CEM-V1-015	docs/specs/cem-stable-v1.md	72	Candidate assembly MUST require independently supplied immutable base and target
-CEM-V1-016	docs/specs/cem-stable-v1.md	73	Assembly MUST compare each declared runner source input with its self-hashed imm
-CEM-V1-017	docs/specs/cem-stable-v1.md	237	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
-CEM-V1-018	docs/specs/cem-stable-v1.md	238	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
-CEM-V1-019	docs/specs/cem-stable-v1.md	239	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-030	docs/specs/cem-stable-v1.md	272	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
-CEM-V1-031	docs/specs/cem-stable-v1.md	273	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
-CEM-V1-032	docs/specs/cem-stable-v1.md	274	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
-CEM-V1-033	docs/specs/cem-stable-v1.md	275	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
-CEM-V1-034	docs/specs/cem-stable-v1.md	319	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-035	docs/specs/cem-stable-v1.md	320	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-036	docs/specs/cem-stable-v1.md	321	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
-CEM-V1-050	docs/specs/cem-stable-v1.md	199	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	349	The default `verify` path refuses a strictly parsed JSON object whose exact
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	353	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	356	Only that exact case changes. A duplicate, non-string, differently cased,
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	360	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
+CEM-V1-011	docs/specs/cem-stable-v1.md	60	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
+CEM-V1-012	docs/specs/cem-stable-v1.md	61	Publish the candidate schema and algorithms before the standalone consumer. Nati
+CEM-V1-013	docs/specs/cem-stable-v1.md	62	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
+CEM-V1-014	docs/specs/cem-stable-v1.md	63	Inventory every existing consumer's profile and migration disposition. An unsupp
+CEM-V1-015	docs/specs/cem-stable-v1.md	73	Candidate assembly MUST require independently supplied immutable base and target
+CEM-V1-016	docs/specs/cem-stable-v1.md	74	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-017	docs/specs/cem-stable-v1.md	238	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
+CEM-V1-018	docs/specs/cem-stable-v1.md	239	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
+CEM-V1-019	docs/specs/cem-stable-v1.md	240	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
+CEM-V1-030	docs/specs/cem-stable-v1.md	273	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
+CEM-V1-031	docs/specs/cem-stable-v1.md	274	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
+CEM-V1-032	docs/specs/cem-stable-v1.md	275	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
+CEM-V1-033	docs/specs/cem-stable-v1.md	276	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
+CEM-V1-034	docs/specs/cem-stable-v1.md	320	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	321	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	322	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-050	docs/specs/cem-stable-v1.md	200	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-051	docs/specs/cem-stable-v1.md	398	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
+CEM-V1-052	docs/specs/cem-stable-v1.md	408	The repository root, expected base, target and artifact root are explicit, with
+CEM-V1-053	docs/specs/cem-stable-v1.md	414	The OCM MUST bind the exact original stable map digest, the accepted target and
+CEM-V1-054	docs/specs/cem-stable-v1.md	418	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
+CEM-V1-055	docs/specs/cem-stable-v1.md	422	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
+CEM-V1-056	docs/specs/cem-stable-v1.md	428	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
+CEM-V1-057	docs/specs/cem-stable-v1.md	436	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
+CEM-V1-058	docs/specs/cem-stable-v1.md	439	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
+CEM-V1-059	docs/specs/cem-stable-v1.md	444	A stable universe verification is a read. It MUST NOT change the repository HEAD
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	350	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	354	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	357	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	361	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
