@@ -43,3 +43,7 @@ files restored temporarily, and against this change. `TestDocsCorpusOperationHel
 also compares each usage line with the same literal set. It also pins
 `docs corpus NAME --help` for an unknown operation, which keeps the preserved
 `unsupported corpus option` refusal.
+
+## Acceptance
+
+DCP-V1-056 and DCP-V1-057 were accepted under the owner's standing auto-accept (2026-10-11) after the second Codex review returned PASS at `c22c0469f`.

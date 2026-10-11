@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 proposed (GitHub #805); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -452,14 +452,14 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`,
   `TestDocsCorpusOperationFlagMatrix`.
   Rollback: remove the corpus help topics; `docs corpus ... --help` prints `docs` help again.
-  Status: proposed (GitHub #805), not accepted.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #805).
 - `DCP-V1-057`: `corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal,
   exit 2, empty stdout, with the existing envelope members. Its message follows the argparse
   invalid-choice convention: `unknown help topic: 'TOPIC' (choose from ...)` lists every
   `topLevelCommands` verb in order, then the nested topics `harness event`, `docs corpus`,
   `docs flows` and `docs maintain`, each of which `corvint help` accepts. Acceptance:
-  `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`. Status: proposed
-  (GitHub #805), not accepted.
+  `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`. Status: accepted
+  under the owner's standing auto-accept (2026-10-11; GitHub #805).
 
 ## Input and authority boundary
 
