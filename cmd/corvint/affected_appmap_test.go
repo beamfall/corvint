@@ -11,7 +11,7 @@ import (
 // ANL-V0-031: `corvint affected --appmap-impact` routes the navigation verdict into advice as a
 // learned, advisory member: full-suite-required stays explicit (also an advice.unknown line), a
 // targeted verdict lists spec files without changing checks, uncommitted paths the report cannot
-// cover fail closed, and a report for another range, app duplicate or tampered content refuses.
+// cover fail closed, and a report for another range, a repeated map or tampered content refuses.
 func TestANLV0031AffectedRoutesImpactVerdict(t *testing.T) {
 	root := appmapCLIRepo(t)
 	code, mapJSON, diag := runFlowsCLI(root, "appmap", "build", "--manifest", "appmap.json")
@@ -109,12 +109,12 @@ func TestANLV0031AffectedRoutesImpactVerdict(t *testing.T) {
 		t.Fatalf("full %v %v", nav, unknown)
 	}
 
-	// Refusals: a report for an older HEAD, a duplicate app, a tampered verdict, no --base.
+	// Refusals: a report for an older HEAD, a repeated map, a tampered verdict, no --base.
 	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", targeted); code == 0 {
 		t.Fatal("a report for another HEAD was accepted")
 	}
 	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", full, "--appmap-impact", full); code == 0 {
-		t.Fatal("a duplicate app was accepted")
+		t.Fatal("a repeated map was accepted")
 	}
 	raw, err := os.ReadFile(full)
 	if err != nil {
@@ -143,4 +143,73 @@ func equalJSON(t *testing.T, a, b any) bool {
 		t.Fatal(err)
 	}
 	return string(x) == string(y)
+}
+
+// ANL-V0-034: reports from several maps of one app aggregate into one app_navigation row (sorted
+// digests, union of screens and spec files, the most conservative verdict); the same map twice
+// refuses.
+func TestANLV0034AffectedAggregatesMapsPerApp(t *testing.T) {
+	root := appmapCLIRepo(t)
+	dir := t.TempDir()
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	build := func(name string, args ...string) string {
+		code, out, diag := runFlowsCLI(root, append([]string{"appmap", "build", "--manifest", "appmap.json"}, args...)...)
+		if code != 0 {
+			t.Fatal(diag)
+		}
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(out), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	commit := func(rel, text string) {
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		affectedGit(t, root, "add", "-A")
+		affectedGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", rel)
+	}
+	impact := func(mapFile, name string) string {
+		code, out, diag := runFlowsCLI(root, "appmap", "impact", "--map", mapFile, "--base", base, "--full")
+		if code != 0 {
+			t.Fatal(diag)
+		}
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(out), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	first := build("first.json")
+	routes, err := os.ReadFile(filepath.Join(root, "app", "routes.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit("app/routes.js", string(routes)+"\n")
+	second := build("second.json")
+	a, b := impact(first, "a.json"), impact(second, "b.json")
+	row := func(args ...string) map[string]any {
+		receipt, _, stderr, code := runAffectedCLI(t, root, append([]string{"--base", base}, args...)...)
+		if code != 0 {
+			t.Fatal(stderr)
+		}
+		navs := receipt["advice"].(map[string]any)["app_navigation"].([]any)
+		if len(navs) != 1 {
+			t.Fatalf("one row per app: %v", navs)
+		}
+		return navs[0].(map[string]any)
+	}
+	nav := row("--appmap-impact", a, "--appmap-impact", b)
+	if nav["verdict"] != "targeted" || len(nav["map_digests"].([]any)) != 2 || len(nav["impact_digests"].([]any)) != 2 || len(nav["spec_files"].([]any)) == 0 {
+		t.Fatalf("aggregate %v", nav)
+	}
+	commit("club.html", "<p></p>\n")
+	c, d := impact(first, "c.json"), impact(second, "d.json")
+	if nav = row("--appmap-impact", c, "--appmap-impact", d); nav["verdict"] != "full-suite-required" || nav["reported_verdict"] != "full-suite-required" {
+		t.Fatalf("full aggregate %v", nav)
+	}
+	if _, _, _, code := runAffectedCLI(t, root, "--base", base, "--appmap-impact", c, "--appmap-impact", c); code == 0 {
+		t.Fatal("the same map twice was accepted")
+	}
 }

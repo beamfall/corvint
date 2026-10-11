@@ -312,6 +312,7 @@ ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	117	A changed UI path 
 ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	125	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
 ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	138	A changed UI path no map element places is walked through the tracked UI-extensi
 ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	151	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	158	Several `--appmap-impact` reports may name one app when each comes from a differ
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

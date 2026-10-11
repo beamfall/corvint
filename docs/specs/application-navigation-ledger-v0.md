@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -123,11 +123,11 @@ are URL templates, not component source files. This slice makes neither missing 
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
 - `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
-  one report per app; refused without `--base` or with `--snapshot` or `--playwright-config`) reads
+  one report per map (ANL-V0-034); refused without `--base` or with `--snapshot` or `--playwright-config`) reads
   each complete `application-map-impact/0` report (a bounded regular file, strictly decoded, with no
   omitted rows, a verdict that follows from its own lists and a matching digest; otherwise refused) whose
   `base` is `--base` and whose `head` is the receipt revision, and adds `advice.app_navigation`: per
-  app, sorted, the learned authority, impact and map digests, `reported_verdict`, `screens` count,
+  app, sorted, the learned authority, sorted `impact_digests` and `map_digests`, `reported_verdict`, `screens` count,
   `spec_files` and the effective `verdict` with its `reasons`. The effective verdict is
   `full-suite-required` when the report lists unknown paths (`impact-unknown-paths`), the worktree
   has uncommitted paths the report cannot cover (`worktree-not-covered`) or the spec list exceeds 64
@@ -155,6 +155,12 @@ are URL templates, not component source files. This slice makes neither missing 
   member, or a blocked variation was added, removed or changed its reason, naming each set (at most
   eight IDs each, with the remaining count). An input edit that leaves every group and block
   unchanged is not drift. (proposed, pending owner acceptance (V1-1166))
+- `ANL-V0-034`: Several `--appmap-impact` reports may name one app when each comes from a different
+  map (two reports of one app and map digest refuse). They aggregate into one `app_navigation` row:
+  both digest lists, the count of distinct screen IDs, the union of spec files, and the most
+  conservative reported verdict (`full-suite-required` over `targeted` over `no-navigation-impact`);
+  any report with unknown paths gives `impact-unknown-paths`. An unknown in one map is never cleared
+  by another map placing the path. (proposed, pending owner acceptance (V1-1163))
 
 ## Wire and limits
 
@@ -204,6 +210,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
 | ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
 | ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` |
+| ANL-V0-034 | `cmd/corvint/affected_appmap.go` | `TestANLV0034AffectedAggregatesMapsPerApp` |
 
 ## Follow-ups and promotion
 

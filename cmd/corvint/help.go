@@ -659,10 +659,10 @@ proof. A global path change, missing or mismatched discovery, an inventory gap,
 or any unproven exclusion yields the full relevant suite with closed e2e-*
 codes. The strict and coverage profiles are unchanged.
 
---appmap-impact (up to 16, one per app, experimental ANL-V0-031) reads a complete
-application-map-impact/0 report built for --base at HEAD and adds the learned
-advice.app_navigation member: per app the reported and effective verdict, the
-reasons and the spec files. Uncommitted paths, unknown paths or a spec list over
+--appmap-impact (up to 16, experimental ANL-V0-031, ANL-V0-034) reads complete
+application-map-impact/0 reports built for --base at HEAD and adds the learned
+advice.app_navigation member: per app (several maps aggregate) the reported and
+effective verdict, the reasons and the spec files. Uncommitted paths, unknown paths or a spec list over
 64 make the effective verdict full-suite-required, which also adds an
 APP_NAVIGATION_FULL_SUITE_REQUIRED unknown. It never removes a check or changes
 the plan; a trimmed, tampered or mismatched report refuses.

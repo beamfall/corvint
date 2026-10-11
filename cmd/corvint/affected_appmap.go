@@ -11,16 +11,18 @@ import (
 // affectedMaxAppmapImpacts bounds repeatable --appmap-impact (ANL-V0-031).
 const affectedMaxAppmapImpacts = 16
 
-// affectedAppNavigation is one app's navigation verdict routed from an application-map-impact/0
-// report into the affected receipt (ANL-V0-031). It is learned and advisory: it never adds to or
-// removes from advice.checks, the plan or the provider projection. Verdict is the reported
-// verdict unless the receipt can see that the report does not cover the change, in which case it
-// is full-suite-required and Reasons say why; full-suite-required is also an advice.unknown line.
+// affectedAppNavigation is one app's navigation verdict routed from its application-map-impact/0
+// reports into the affected receipt (ANL-V0-031). An app may be mapped by several maps (one per
+// router or root); their reports aggregate into one row (ANL-V0-034). It is learned and advisory:
+// it never adds to or removes from advice.checks, the plan or the provider projection. Verdict is
+// the aggregated reported verdict unless the receipt can see that the reports do not cover the
+// change, in which case it is full-suite-required and Reasons say why; full-suite-required is also
+// an advice.unknown line.
 type affectedAppNavigation struct {
 	App             string   `json:"app"`
 	Authority       string   `json:"authority"`
-	ImpactDigest    string   `json:"impact_digest"`
-	MapDigest       string   `json:"map_digest"`
+	ImpactDigests   []string `json:"impact_digests"`
+	MapDigests      []string `json:"map_digests"`
 	Reasons         []string `json:"reasons"`
 	ReportedVerdict string   `json:"reported_verdict"`
 	Screens         int      `json:"screens"`
@@ -50,8 +52,13 @@ func affectedAppNavigations(invocation affectedInvocation, revision string, work
 	if len(invocation.AppmapImpacts) == 0 {
 		return nil
 	}
-	seen := map[string]bool{}
-	out := []affectedAppNavigation{}
+	type appReports struct {
+		nav     affectedAppNavigation
+		screens map[string]bool
+		specs   map[string]bool
+		unknown bool
+	}
+	apps, maps := map[string]*appReports{}, map[string]bool{}
 	for _, name := range invocation.AppmapImpacts {
 		r, err := appmap.LoadImpactReport(name)
 		if err != nil {
@@ -60,13 +67,43 @@ func affectedAppNavigations(invocation affectedInvocation, revision string, work
 		if r.Base != invocation.Base || r.Head != revision {
 			return &gokernel.Error{Code: "appmap-invalid-query", Message: "the impact report for app " + r.App + " was not built for --base " + invocation.Base + " at HEAD " + revision}
 		}
-		if seen[r.App] {
-			return &gokernel.Error{Code: "appmap-invalid-query", Message: "two impact reports name app " + r.App}
+		if maps[r.App+"\x00"+r.MapDigest] {
+			return &gokernel.Error{Code: "appmap-invalid-query", Message: "two impact reports name app " + r.App + " and map " + r.MapDigest}
 		}
-		seen[r.App] = true
-		nav := affectedAppNavigation{App: r.App, Authority: r.Authority, ImpactDigest: r.Digest, MapDigest: r.MapDigest,
-			Reasons: []string{}, ReportedVerdict: r.Verdict, Screens: len(r.Screens), SpecFiles: append([]string{}, r.SpecFiles...), Verdict: r.Verdict}
-		if len(r.Unknown) > 0 {
+		maps[r.App+"\x00"+r.MapDigest] = true
+		a := apps[r.App]
+		if a == nil {
+			a = &appReports{nav: affectedAppNavigation{App: r.App, Authority: r.Authority, ReportedVerdict: appmap.VerdictNoNavigation}, screens: map[string]bool{}, specs: map[string]bool{}}
+			apps[r.App] = a
+		}
+		a.nav.ImpactDigests = append(a.nav.ImpactDigests, r.Digest)
+		a.nav.MapDigests = append(a.nav.MapDigests, r.MapDigest)
+		a.unknown = a.unknown || len(r.Unknown) > 0
+		switch {
+		case r.Verdict == appmap.VerdictFullSuite:
+			a.nav.ReportedVerdict = appmap.VerdictFullSuite
+		case r.Verdict == appmap.VerdictTargeted && a.nav.ReportedVerdict == appmap.VerdictNoNavigation:
+			a.nav.ReportedVerdict = appmap.VerdictTargeted
+		}
+		for _, sc := range r.Screens {
+			a.screens[sc.ID] = true
+		}
+		for _, f := range r.SpecFiles {
+			a.specs[f] = true
+		}
+	}
+	out := []affectedAppNavigation{}
+	for _, a := range apps {
+		nav := a.nav
+		sort.Strings(nav.ImpactDigests)
+		sort.Strings(nav.MapDigests)
+		nav.Screens, nav.Reasons, nav.Verdict = len(a.screens), []string{}, nav.ReportedVerdict
+		nav.SpecFiles = []string{}
+		for f := range a.specs {
+			nav.SpecFiles = append(nav.SpecFiles, f)
+		}
+		sort.Strings(nav.SpecFiles)
+		if a.unknown {
 			nav.Reasons = append(nav.Reasons, "impact-unknown-paths")
 		}
 		if len(worktree) > 0 {
@@ -78,7 +115,7 @@ func affectedAppNavigations(invocation affectedInvocation, revision string, work
 		}
 		if len(nav.Reasons) > 0 {
 			nav.Verdict = appmap.VerdictFullSuite
-			advice.Unknown = append(advice.Unknown, affectedAppNavigationUnknown+": "+r.App+": "+strings.Join(nav.Reasons, ","))
+			advice.Unknown = append(advice.Unknown, affectedAppNavigationUnknown+": "+nav.App+": "+strings.Join(nav.Reasons, ","))
 		}
 		out = append(out, nav)
 	}
