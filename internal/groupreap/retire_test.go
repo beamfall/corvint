@@ -2,6 +2,7 @@ package groupreap
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -182,5 +183,70 @@ func TestRetirerKeepsReadFailuresAsUncertainty(t *testing.T) {
 	problems := strings.Join(got.Problems, "; ")
 	if !strings.Contains(problems, "owner token unreadable for pid 104") || !strings.Contains(problems, "snapshot refused") {
 		t.Fatalf("read failures not retained: %v", got.Problems)
+	}
+}
+
+// TestRetirerWaitsOutRefusedTokenReads binds TRE-V0-030's bounded token wait
+// (V1-1152): a token read refused while the identity persists is retried, so
+// a process whose arguments become readable is proved by token, one that
+// exits during the wait is neither owned nor a problem, and one that outlives
+// the wait is retained as a problem. The fake sleep records nominal time, so
+// the per-identity wait and the per-call budget are checked deterministically.
+func TestRetirerWaitsOutRefusedTokenReads(t *testing.T) {
+	now := time.Now().Unix()
+	uid := os.Getuid()
+	f := &fakeTable{rows: map[int]procRow{
+		106: {pid: 106, ppid: 1, uid: uid, sec: now}, // token readable after three refusals
+		107: {pid: 107, ppid: 1, uid: uid, sec: now}, // exits during the wait
+		108: {pid: 108, ppid: 1, uid: uid, sec: now}, // never readable
+	}, env: map[int]bool{106: true, 107: true}}
+	p := f.primitives()
+	identity, environ := p.identity, p.environ
+	reads := map[int]int{}
+	p.environ = func(pid int, entry string) (bool, error) {
+		reads[pid]++
+		if pid == 106 && reads[pid] <= 3 || pid == 107 || pid == 108 {
+			return false, errors.New("procargs refused")
+		}
+		return environ(pid, entry)
+	}
+	checks := 0
+	p.identity = func(pid int) (procRow, bool, error) {
+		if pid == 107 {
+			if checks++; checks > 2 {
+				delete(f.rows, 107)
+			}
+		}
+		return identity(pid)
+	}
+	var slept time.Duration
+	p.sleep = func(d time.Duration) { slept += d }
+	r, err := newRetirer(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Retire()
+	got := r.Result()
+	if len(got.Retired) != 1 || got.Retired[0].PID != 106 || got.Retired[0].Owner != OwnerToken || len(got.Unretired) != 0 {
+		t.Fatalf("transient refusal not waited out: %+v", got)
+	}
+	if reads[106] != 4 || f.signals[0] != 106 || len(f.signals) != 2 {
+		t.Fatalf("reads %v signals %v", reads, f.signals)
+	}
+	if len(got.Problems) == 0 {
+		t.Fatalf("persisting unreadable identity not retained: %+v", got)
+	}
+	for _, problem := range got.Problems {
+		if !strings.Contains(problem, "owner token unreadable for pid 108") {
+			t.Fatalf("exited or readable identity retained as a problem: %v", got.Problems)
+		}
+	}
+	// 106 waited three polls and 107 two before the per-identity bound was
+	// spent on 108 once; the second scan may not wait for 108 again.
+	if want := retireTokenWait + 5*retireTokenPoll; slept != want || slept > retireTokenBudget {
+		t.Fatalf("token wait %v, want %v within %v", slept, want, retireTokenBudget)
+	}
+	if waited := r.tokenWaits[fmt.Sprintf("108/%s", f.rows[108].start())]; waited != retireTokenWait {
+		t.Fatalf("per-identity wait %v, want %v", waited, retireTokenWait)
 	}
 }
