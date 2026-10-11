@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`) and explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), library-level stable witness, collapse, documentation and console projections (proposed `CEM-V1-070..079`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`) and explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -386,7 +386,8 @@ state changes.
 
 ## Stable projections (V1-0632 S5c)
 
-Status: proposed. Native work: V1-0632, migration rows C13, C14 and C16 of
+Status: accepted under the owner's standing auto-accept (2026-10-11) after independent review
+(Codex round 3 PASS); delivery stays library-level and unpromoted. Native work: V1-0632, migration rows C13, C14 and C16 of
 `protocol/cem-1.0/stable/MIGRATION.json`. Each family gains a read-only, library-level stable
 route beside its unchanged 0.x route. Every route admits an exact `cem/1.0` map only through the
 complete stable verifier (or, for the console, the strict stable wire reader with the verifier
