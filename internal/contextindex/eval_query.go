@@ -264,9 +264,24 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 		competitive = competitive[:limit]
 	}
 
-	results := make([]map[string]any, 0, len(admitted))
+	// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Records and
+	// documents precede confident symbols only as answers to the task, and
+	// GPK-V0-039 measures an answer by the
+	// query words a result rests on, never by its score. A confident symbol
+	// resting on more of those words than every record and document in the
+	// packet leads it once the packet has stood on its own (see the floor
+	// below); a symbol wider than none stays out, as before, and the records
+	// and documents keep their own class order behind the placed symbols. An
+	// empty record packet places no symbol: the confident selection below
+	// answers instead.
+	results := make([]map[string]any, 0, len(admitted)+2)
+	widest := len(ordered)
+	if len(admitted) != 0 || len(documents) != 0 {
+		widest = 0
+	}
 	for _, candidate := range admitted {
 		results = append(results, candidate.result)
+		widest = max(widest, evalSupportWidth(candidate.support, ordered))
 	}
 	// The document slot cap was min(2, limit-len(results)), which is the class's
 	// own cap of 2 narrowed by whatever the ceiling had already spent. Counting
@@ -274,6 +289,13 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// shrinks as `limit` shrinks, so the class cap alone is what admits here.
 	for _, candidate := range documents[:min(len(documents), 2)] {
 		results = append(results, candidate.result)
+		widest = max(widest, evalSupportWidth(candidate.support, ordered))
+	}
+	widerSymbols := make([]evalSymbolCandidate, 0, len(admittedConfident))
+	for _, candidate := range admittedConfident {
+		if evalSupportWidth(candidate.support, ordered) > widest {
+			widerSymbols = append(widerSymbols, candidate)
+		}
 	}
 	seenSymbols := make(map[string]struct{})
 	featureLists := make([][]map[string]any, 0, 2)
@@ -363,6 +385,9 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	emitted := results[:min(len(results), limit)]
 	floor := min(2, len(ordered))
 	supportIndex := evalQuerySupportIndex(competitive, documents, confident)
+	// GPK-V0-083 judges the floor over the packet as compiled without the
+	// placed symbols: a symbol placed ahead of records that answer nothing
+	// does not carry them past GPK-V0-066.
 	belowFloor := len(results) != 0 && evalStrongestSupport(emitted, supportIndex, ordered) < floor
 	// GPK-V0-066. Records and documents take precedence over symbols only as
 	// answers to the task. When the packet they built fails the floor, none of
@@ -373,16 +398,26 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	for _, candidate := range admittedConfident {
 		fallback = append(fallback, candidate.result)
 	}
-	if belowFloor && evalStrongestSupport(fallback[:min(len(fallback), limit)], supportIndex, ordered) >= floor {
+	substituted := belowFloor && evalStrongestSupport(fallback[:min(len(fallback), limit)], supportIndex, ordered) >= floor
+	if substituted {
 		results = append(fallback, learned[:min(len(learned), 3)]...)
 		records, competitive, belowFloor = nil, nil, false
 	}
 	if belowFloor {
 		results = results[:0]
 	}
+	if !belowFloor && !substituted {
+		results = evalLeadWithSymbols(widerSymbols, results)
+		for _, candidate := range widerSymbols {
+			supportIndex[evalResultIdentity(candidate.result)] = candidate.support
+		}
+	}
 
+	// A record tie is a choice the packet leaves to the reader only where the
+	// tied records lead it; records that GPK-V0-083 placed behind a wider
+	// symbol are not what the packet answers with.
 	state := ""
-	if len(records) > 1 && records[0].score == records[1].score {
+	if len(widerSymbols) == 0 && len(records) > 1 && records[0].score == records[1].score {
 		if _, exactFeature := index.Features[queryText]; !exactFeature {
 			state = "NEEDS_WIDENING"
 		}
@@ -1630,15 +1665,43 @@ func evalStrongestSupport(results []map[string]any, index map[string]map[string]
 		if !scored {
 			continue
 		}
-		matched := 0
-		for _, word := range ordered {
-			if intersectionCountSet(terms(word), support) != 0 {
-				matched++
-			}
-		}
-		widest = max(widest, matched)
+		widest = max(widest, evalSupportWidth(support, ordered))
 	}
 	return widest
+}
+
+// evalLeadWithSymbols places the confident symbols wider than every record
+// and document ahead of a packet that stood on its own (GPK-V0-083); a placed
+// symbol the packet already held is not repeated.
+func evalLeadWithSymbols(wider []evalSymbolCandidate, results []map[string]any) []map[string]any {
+	if len(wider) == 0 {
+		return results
+	}
+	placed := make(map[string]struct{}, len(wider))
+	led := make([]map[string]any, 0, len(wider)+len(results))
+	for _, candidate := range wider {
+		led = append(led, candidate.result)
+		placed[evalResultIdentity(candidate.result)] = struct{}{}
+	}
+	for _, result := range results {
+		if _, exists := placed[evalResultIdentity(result)]; !exists {
+			led = append(led, result)
+		}
+	}
+	return led
+}
+
+// evalSupportWidth counts the query words, as written, that a result's support
+// terms rest on: the measure GPK-V0-039 holds a packet to and GPK-V0-083 orders
+// the primary packet by.
+func evalSupportWidth(support map[string]struct{}, ordered []string) int {
+	matched := 0
+	for _, word := range ordered {
+		if intersectionCountSet(terms(word), support) != 0 {
+			matched++
+		}
+	}
+	return matched
 }
 
 // evalOmitsCompetingRecord reports whether the result limit dropped a

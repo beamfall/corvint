@@ -1611,3 +1611,39 @@ missed the importer, and nothing was disclosed.
   which FAILS without the whole-segment rule and, on the disclosure count, with a rule that
   accepts only `/`. Rollback: restore the leading-dot test in `Resolve` and
   `buildWebImportGraph`; no index, snapshot, receipt or trace changes.
+
+## Proposed amendment: wider symbols lead a standing record packet
+
+- `GPK-V0-083`: (proposed, pending owner acceptance (V1-0266)) For this experimental
+  amendment to `GPK-V0-066`, a confident symbol whose support width strictly exceeds
+  every competitive record and each of the two admitted document slots leads a standing
+  record/document packet. Width counts words of the query as written, using the
+  `GPK-V0-039` support measure, rather than ranking scores or expanded stem counts.
+  Compare against the whole competitive record universe before the result limit cuts it.
+  Place qualifying symbols in confident-selection order; retain the records, documents,
+  feature-implementation symbols and learned paths in their existing order behind them,
+  without repeating a placed symbol already carried in the packet. An empty record/document
+  packet places no symbol and retains the existing confident fallback.
+  Judge the relevance floor and `GPK-V0-066` substitution on the original emitted packet,
+  with its original support index, before placing wider symbols: proposed placement cannot
+  rescue unsupported records or change a substituted or withdrawn packet. Only after that
+  judgment may placed symbols add support for the existing omitted-competing-record check.
+  Record-score ties behind a placed symbol do not alone request widening; nearest negative
+  claims and omitted competing readings retain their existing abstention rules. With no
+  strictly wider symbol the packet stays byte-identical. This proposal does not accept or
+  rewrite `GPK-V0-066`'s existing intent.
+
+Acceptance evidence: a synthetic adopter-shaped fixture at limit 10 contains one-word
+plugin feature records, a two-word decision that independently clears the floor, and
+`PluginTrustRoots`/`NewModelLoader` symbols with wider support. The symbols lead the records
+in their own order. Equal/wider records or documents keep precedence; empty, substituted
+and withdrawn packets retain their prior behavior, and a carried symbol is emitted once.
+The orchestrator owns adopter before/after evaluation numbers; they are `NOT_RUN` here.
+Non-goals: score tuning, relaxed confidence admission, floor changes, new packet fields,
+learning changes, and accepted intent or broader retrieval promotion.
+Rollback: remove the wider-symbol placement in `evalQuery` and restore the prior analyzer
+schema/audit pins together; existing snapshots are derived state and require no store migration.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`; adopter evaluation remains orchestrator-owned |
