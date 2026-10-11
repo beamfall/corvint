@@ -25,12 +25,15 @@ Design choices:
 - Unknown TestRail members are ignored because exports carry many tool-specific fields. Structural
   faults are refused: unknown sections or suites, cycles, duplicate IDs and missing titles. A case
   naming a suite is refused when the export has no such suite, including an export with no suites
-  (independent review round 1).
+  (independent review round 1). Every section in a case's chain must name a declared suite
+  (round 2).
 
 Limits:
 - HTML stripping is a bounded tag scanner, not a parser. A tag ends at the first `>` outside a
   quoted attribute value, and an unterminated tag, comment or `script`/`style` body drops the rest
-  of the field (independent review round 1).
+  of the field (independent review round 1). Tag names match ASCII case-insensitively on the
+  original bytes, so a non-ASCII letter whose lower case changes length cannot shift offsets
+  (round 2).
 - Expected results are not searched.
 - Imported anchors carry no repository revision, so a behavior registry does not admit them until
   the caller binds them to a commit.
@@ -82,6 +85,7 @@ Limits:
 - `qualify` does not read sources (the issue names preflight, show and plan).
 - `--legacy-cases` reads only a regular file, without blocking, and the record must be exactly one
   JSON value with no repeated member (independent review round 1).
+- A `none` query of Unicode whitespace only counts as blank, the `readNonblank` rule (round 2).
 - An older binary meets a sources-bearing set request at its closed reader and reports the ledger
   `UNKNOWN`. This is the same open CAL-V0-131 profile question as aliases.
 

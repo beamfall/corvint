@@ -133,6 +133,9 @@ func TestImportLegacyCasesFullStripsHTML(t *testing.T) {
 		"a<script>x = '</b>'</script>b":                "a b",
 		"keep <b title=\"unterminated>LEAK":            "keep",
 		"open <!-- LEAK":                               "open",
+		"\u212a<script>LEAK</script>ok":                "\u212a ok",
+		strings.Repeat("\u212a", 20) + "<b>x</b>":      strings.Repeat("\u212a", 20) + " x",
+		"\u0130<SCRIPT>LEAK</Script>ok":                "\u0130 ok",
 	} {
 		if got := stripLegacyHTML(in); got != want {
 			t.Errorf("strip %q: %q, want %q", in, got, want)
@@ -237,7 +240,8 @@ func TestLegacyCasesRefusals(t *testing.T) {
 		"unknown section":  {LegacyFormatTestRailJSON, "", `{"suites":[],"sections":[],"cases":[{"id":1,"title":"x","section_id":9}]}`, ""},
 		"unknown suite":    {LegacyFormatTestRailJSON, "", `{"suites":[{"id":1,"name":"s"}],"sections":[],"cases":[{"id":1,"title":"x","suite_id":2}]}`, ""},
 		"suite, no suites": {LegacyFormatTestRailJSON, "", `{"suites":[],"sections":[],"cases":[{"id":1,"title":"x","suite_id":9}]}`, ""},
-		"cycle":            {LegacyFormatTestRailJSON, "", `{"sections":[{"id":1,"suite_id":0,"parent_id":2,"name":"a"},{"id":2,"suite_id":0,"parent_id":1,"name":"b"}],"cases":[{"id":1,"title":"x","section_id":1}]}`, ""},
+		"cycle":            {LegacyFormatTestRailJSON, "", `{"suites":[{"id":1,"name":"s"}],"sections":[{"id":1,"suite_id":1,"parent_id":2,"name":"a"},{"id":2,"suite_id":1,"parent_id":1,"name":"b"}],"cases":[{"id":1,"title":"x","section_id":1}]}`, ""},
+		"section suite":    {LegacyFormatTestRailJSON, "", `{"suites":[{"id":1,"name":"s"}],"sections":[{"id":10,"suite_id":9,"name":"a"}],"cases":[{"id":1,"title":"x","suite_id":1,"section_id":10}]}`, ""},
 		"duplicate id":     {LegacyFormatCSV, "", "ID,Title\nC1,a\n1,b\n", ""},
 		"bad id":           {LegacyFormatCSV, "", "ID,Title\nC01,a\n", ""},
 		"no title":         {LegacyFormatCSV, "", "ID,Title\nC1, \n", ""},

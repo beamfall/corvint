@@ -43,7 +43,7 @@ func sourceFindings(t *testing.T, v wire.Value) string {
 
 var reviewChanges = `[{"id":"AC-1","state":null,"core":null,"reason":"reviewed C7","sources":[{"kind":"legacy-case","ref":"C7","digest":"` + digestA + `"}]},` +
 	`{"id":"AC-2","state":null,"core":null,"reason":"searched","sources":[{"kind":"none","query":"soft step","searched":["testrail-json:sha256:` + digestA + `"],"at":"2026-10-11T09:00:00Z"}]},` +
-	`{"id":"AC-3","state":null,"core":null,"reason":"no query","sources":[{"kind":"none","query":" ","searched":["testrail-json:sha256:` + digestA + `"],"at":"2026-10-11T09:00:00Z"}]},` +
+	`{"id":"AC-3","state":null,"core":null,"reason":"no query","sources":[{"kind":"none","query":" \u00a0\u2003","searched":["testrail-json:sha256:` + digestA + `"],"at":"2026-10-11T09:00:00Z"}]},` +
 	`{"id":"AC-4","state":null,"core":null,"reason":"nothing searched","sources":[{"kind":"none","query":"conflicting","searched":[],"at":"2026-10-11T09:00:00Z"}]},` +
 	`{"id":"AC-9","state":"DEFERRED","core":null,"reason":"later"}]`
 
@@ -52,9 +52,9 @@ var digestA = strings.Repeat("a", 64)
 // TestTOLV0040_PreflightRequiresSourceReview: under requireSourceReview,
 // preflight refuses each OPEN obligation without sources
 // (SOURCE_REVIEW_MISSING) and each whose none source has a blank query or an
-// empty searched set (SOURCE_REVIEW_NONE_UNSEARCHED), naming the id; a
-// DEFERRED obligation is not checked; a secret in a source ref, query or
-// searched id refuses SECRET_DETECTED. Without the policy the same ledger
+// empty searched set (SOURCE_REVIEW_NONE_UNSEARCHED), naming the id, with
+// Unicode whitespace counted as blank; a DEFERRED obligation is not checked;
+// a secret in a source ref, query or searched id refuses SECRET_DETECTED. Without the policy the same ledger
 // has no source-review finding.
 func TestTOLV0040_PreflightRequiresSourceReview(t *testing.T) {
 	r, id, _ := obligationRepoWith(t, sourceReviewPolicy)

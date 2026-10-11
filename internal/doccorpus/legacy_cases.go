@@ -434,6 +434,9 @@ func parseTestRailJSON(data []byte) ([]legacyCase, error) {
 				if depth++; depth > legacyPathDepth {
 					return nil, fail("legacy case " + id + " has a section cycle or a path deeper than 32")
 				}
+				if _, ok := suites[s.suite]; !ok {
+					return nil, fail("legacy case " + id + " names a section in an unknown suite")
+				}
 				names = append([]string{s.name}, names...)
 				if !hasSuite {
 					suiteID, hasSuite = s.suite, true
@@ -609,7 +612,6 @@ func normalizeLegacyCase(id, title string, path []string, preconditions string, 
 // unterminated tag, comment or script/style body drops the rest of the text.
 func stripLegacyHTML(s string) string {
 	var b strings.Builder
-	lower := strings.ToLower(s)
 	for i := 0; i < len(s); {
 		if s[i] != '<' || i+1 >= len(s) || !(s[i+1] == '/' || s[i+1] == '!' || s[i+1] == '?' || s[i+1] < utf8.RuneSelf && unicode.IsLetter(rune(s[i+1]))) {
 			b.WriteByte(s[i])
@@ -630,8 +632,8 @@ func stripLegacyHTML(s string) string {
 			break
 		}
 		for _, raw := range []string{"script", "style"} {
-			if strings.HasPrefix(lower[i+1:], raw) {
-				close := strings.Index(lower[i+end:], "</"+raw)
+			if hasASCIIPrefixFold(s[i+1:], raw) {
+				close := indexASCIIFold(s[i+end:], "</"+raw)
 				if close < 0 {
 					return collapseSpace(html.UnescapeString(b.String()))
 				}
@@ -646,6 +648,35 @@ func stripLegacyHTML(s string) string {
 		b.WriteByte(' ')
 	}
 	return collapseSpace(html.UnescapeString(b.String()))
+}
+
+// hasASCIIPrefixFold reports whether s starts with the lower-case ASCII
+// prefix p, ignoring ASCII case only, so byte offsets stay those of s.
+func hasASCIIPrefixFold(s, p string) bool {
+	if len(s) < len(p) {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		c := s[i]
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != p[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// indexASCIIFold is the byte offset in s of the lower-case ASCII p,
+// ignoring ASCII case only, or -1.
+func indexASCIIFold(s, p string) int {
+	for i := 0; i+len(p) <= len(s); i++ {
+		if hasASCIIPrefixFold(s[i:], p) {
+			return i
+		}
+	}
+	return -1
 }
 
 // tagEnd is the offset of the `>` that closes the tag opening s, skipping

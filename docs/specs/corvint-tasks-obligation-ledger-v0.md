@@ -548,8 +548,8 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
   DEFERRED obligations are not checked. A policy without the key keeps the check off. Status:
   proposed (GitHub #813).
 - `TOL-V0-041`: Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`
-  finding naming each checked obligation that has a `none` source with a blank query or an empty
-  `searched` set. Each finding carries a remedy, and any finding refuses `PREFLIGHT_FAILED`
+  finding naming each checked obligation that has a `none` source with a blank query (Unicode
+  whitespace only) or an empty `searched` set. Each finding carries a remedy, and any finding refuses `PREFLIGHT_FAILED`
   (TOL-V0-025). Status: proposed (GitHub #813).
 - `TOL-V0-042`: When some entry records sources, `ticket obligations show` and `ticket obligations
   plan` MUST add `sourceReview`. Status: proposed (GitHub #813).

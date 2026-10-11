@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -49,14 +50,8 @@ func CheckReviewSources(l *ticket.ObligationLedger) []Finding {
 	return out
 }
 
-func blank(s string) bool {
-	for _, r := range s {
-		if r != ' ' && r != '\t' && r != '\n' && r != '\r' {
-			return false
-		}
-	}
-	return true
-}
+// blank reports a string of Unicode whitespace only, the readNonblank rule.
+func blank(s string) bool { return strings.TrimSpace(s) == "" }
 
 // LegacyCasesSchema is the corvint-legacy-cases/1 record that `corvint docs
 // corpus import-cases` emits (DCP-V1-070); MaxLegacyCasesBytes bounds it.
