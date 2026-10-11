@@ -137,8 +137,8 @@ are URL templates, not component source files. This slice makes neither missing 
   This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
 - `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
   files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
-  A file references the path when the path's token (a script's stem, an index file's directory, any
-  other file's base name) occurs inside one quoted string literal on that line that resolves to it
+  A file references the path when the path's token (a script's stem, an index file's directory or `index`,
+  any other file's base name) occurs inside one quoted string literal delimited on that line (escapes honoured) that resolves to it
   (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
   extensions and `/index.*` tried; no `${`) and not after a `//`, `/*`, `<!--` or `{{!` comment
   marker that could still be open. A walk ends at a router file anchoring screens, which

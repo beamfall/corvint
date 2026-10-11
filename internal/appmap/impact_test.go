@@ -125,7 +125,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "var shell = require('./shell/shell.html');\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
+	src := "var shell = require('./shell/shell.html');\nvar widgets = require('./widgets');\nvar label = \"prefix\\\"./esc/esc.html\";\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
 	src = strings.Replace(src, "url: '/settings'", "url: '/settings',\n      templateUrl: 'app/clubs/settings.html'", 1)
 	src = strings.Replace(src, "url: '/members'\n    })\n    .state('members2'", "url: '/members',\n      controller: require('./members/list.component')\n    })\n    .state('members2'", 1)
 	files := map[string]string{
@@ -142,6 +142,9 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		"app/ghost/ghost2.html":         "<p></p>\n",
 		"app/cyc/alpha.js":              "module.exports = require('./beta');\n",
 		"app/cyc/beta.js":               "module.exports = require('./alpha');\n",
+		"app/esc/esc.html":              "<p></p>\n",
+		"app/widgets/index.js":          "module.exports = {};\n",
+		"app/widgets/local.js":          "module.exports = require('./index');\n",
 	}
 	for p, body := range files {
 		dst := filepath.Join(root, p)
@@ -183,16 +186,20 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Reason != "unmapped-path" {
 		t.Fatalf("unbound root narrowed: %+v", r)
 	}
-	for p, reason := range map[string]string{"app/ghost/ghost.html": "unresolved-reference", "app/ghost/ghost2.html": "unresolved-reference", "app/cyc/alpha.js": "unmapped-path"} {
+	// Commented and escaped mentions, an import cycle, and an index file one referrer reaches by
+	// directory while another names ./index (any bare `index` word elsewhere is unresolved).
+	for p, c := range map[string][2]string{
+		"app/ghost/ghost.html":  {"unresolved-reference", "<p>v2</p>\n"},
+		"app/ghost/ghost2.html": {"unresolved-reference", "<p>v2</p>\n"},
+		"app/esc/esc.html":      {"unresolved-reference", "<p>v2</p>\n"},
+		"app/cyc/alpha.js":      {"unmapped-path", "module.exports = require('./beta'); // v2\n"},
+		"app/widgets/index.js":  {"unresolved-reference", "module.exports = { v: 2 };\n"},
+	} {
 		head = gitTest(t, root, "rev-parse", "HEAD")
-		body := "// v2\n"
-		if strings.HasSuffix(p, ".js") {
-			body = "module.exports = require('./beta'); // v2\n" // keeps the cycle
-		}
-		impactCommit(t, f, map[string]string{p: body})
+		impactCommit(t, f, map[string]string{p: c[1]})
 		r = impactRun(t, f, nil, head, Options{})
-		if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Path != p || r.Unknown[0].Reason != reason {
-			t.Fatalf("%s (commented reference or import cycle) narrowed: %+v", p, r)
+		if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Path != p || r.Unknown[0].Reason != c[0] {
+			t.Fatalf("%s narrowed: %+v", p, r)
 		}
 	}
 	head = gitTest(t, root, "rev-parse", "HEAD")

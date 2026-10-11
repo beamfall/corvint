@@ -58,21 +58,22 @@ func loadReferenceGraph(r repo, head string) (*referenceGraph, string) {
 	return g, ""
 }
 
-// mentionToken is the text any reference to target must contain: the stem of a script (imports
-// omit the extension), the directory of an index file, and the base name of anything else.
-func mentionToken(target string) string {
+// mentionTokens are the texts a reference to target must contain one of: the stem of a script
+// (imports omit the extension), and for an index file both its directory name and `index`; the
+// base name of anything else.
+func mentionTokens(target string) []string {
 	base := path.Base(target)
 	ext := path.Ext(base)
 	for _, s := range hopScriptExtensions {
 		if strings.EqualFold(ext, s) {
 			stem := strings.TrimSuffix(base, ext)
 			if stem == "index" {
-				return path.Base(path.Dir(target))
+				return []string{path.Base(path.Dir(target)), stem}
 			}
-			return stem
+			return []string{stem}
 		}
 	}
-	return base
+	return []string{base}
 }
 
 func hopNameByte(c byte) bool {
@@ -103,41 +104,66 @@ func resolvesTo(literal, referrer, target string) bool {
 	return false
 }
 
-// references finds every mention of target's token in the file at name. It returns the 1-based
-// lines of mentions that sit inside one string literal resolving to target, and false when any
-// mention does not (a computed, aliased or ambiguous reference the hop cannot prove).
+// references finds every mention of a token of target in the file at name. It returns the sorted
+// 1-based lines of mentions that sit inside one string literal (delimited on its line, escapes
+// honoured, not in a comment) resolving to target, and false when any mention does not (a
+// computed, aliased, escaped or ambiguous reference the hop cannot prove).
 func (g *referenceGraph) references(name, target string) ([]int, bool) {
-	body, token := g.files[name], mentionToken(target)
-	text := string(body)
-	lines, from := []int{}, 0
-	for {
-		i := strings.Index(text[from:], token)
-		if i < 0 {
-			return lines, true
+	text := string(g.files[name])
+	set := map[int]bool{}
+	for _, token := range mentionTokens(target) {
+		for from := 0; ; {
+			i := strings.Index(text[from:], token)
+			if i < 0 {
+				break
+			}
+			i += from
+			from = i + len(token)
+			if i > 0 && (hopNameByte(text[i-1]) || text[i-1] == '.') || from < len(text) && hopNameByte(text[from]) {
+				continue // part of a longer name
+			}
+			ls := strings.LastIndexByte(text[:i], '\n') + 1
+			le := strings.IndexByte(text[i:], '\n')
+			if le < 0 {
+				le = len(text)
+			} else {
+				le += i
+			}
+			q, end := hopLiteralAround(text[ls:le], i-ls)
+			if q < 0 || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
+				return nil, false
+			}
+			set[strings.Count(text[:i], "\n")+1] = true
 		}
-		i += from
-		from = i + len(token)
-		if i > 0 && (hopNameByte(text[i-1]) || text[i-1] == '.') || from < len(text) && hopNameByte(text[from]) {
-			continue // part of a longer name
-		}
-		ls := strings.LastIndexByte(text[:i], '\n') + 1
-		le := strings.IndexByte(text[i:], '\n')
-		if le < 0 {
-			le = len(text)
-		} else {
-			le += i
-		}
-		q := strings.LastIndexAny(text[ls:i], "'\"`")
-		if q < 0 {
-			return nil, false
-		}
-		q += ls
-		end := strings.IndexByte(text[i:le], text[q])
-		if end < 0 || hopInComment(text, ls, q) || !resolvesTo(text[q+1:i+end], name, target) {
-			return nil, false
-		}
-		lines = append(lines, strings.Count(text[:i], "\n")+1)
 	}
+	lines := []int{}
+	for n := range set {
+		lines = append(lines, n)
+	}
+	sort.Ints(lines)
+	return lines, true
+}
+
+// hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the
+// opening and closing quote offsets of the literal holding offset at, or -1 when none does
+// (including a literal left open at the end of the line).
+func hopLiteralAround(line string, at int) (int, int) {
+	open := -1
+	for k := 0; k < len(line); k++ {
+		c := line[k]
+		switch {
+		case open >= 0 && c == '\\':
+			k++
+		case open >= 0 && c == line[open]:
+			if open < at && at < k {
+				return open, k
+			}
+			open = -1
+		case open < 0 && (c == '\'' || c == '"' || c == '`'):
+			open = k
+		}
+	}
+	return -1, -1
 }
 
 // hopInComment reports whether the quote at q may sit in a comment: a `//` earlier on its line,
