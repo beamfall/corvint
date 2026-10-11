@@ -26,6 +26,28 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
+Navigation edge ledger (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
+      [--declarations FILE] [--require EDGE_ID]... [--budget N | --full]
+Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
+The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
+requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
+
+Navigation impact (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
+      [--revision REV] [--budget N | --full]
+Maps paths changed since --base to screens (router anchors, lineage descendants, attributed test
+files, flow anchors), touched edges with ledger status and re-proving test, and spec files. An
+unplaceable UI path (templates are not bound by the map) lists as unknown and the verdict is
+full-suite-required. Learned, read-only, offline.
+
+Navigation observation (experimental, ANL-V0):
+  corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
+Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
+application-navigation-observation/0: ordered screen visits resolved through the map, observed
+edges with their triggering action, redirects, UNKNOWN joins with candidates and unmapped-url.
+Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
+
 build compiles application-map/0 from the manifest's router definitions, flow intents and
 test suite read at REV (default HEAD) and writes it to stdout. Router dialects are
 ui-router-states/0, rails-routes/0 and react-router/0 (literal, experimental subsets).
@@ -60,9 +82,18 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
+	if verb == "edges" {
+		return runFlowsAppmapEdges(ctx, root, args, out)
+	}
+	if verb == "impact" {
+		return runFlowsAppmapImpact(ctx, root, args, out)
+	}
+	if verb == "observe" {
+		return runFlowsAppmapObserve(args, out)
+	}
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	revision := f.String("revision", "", "revision to compile or to check anchors against")
@@ -111,7 +142,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

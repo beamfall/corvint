@@ -138,6 +138,9 @@ func runFlowSubcommand(ctx context.Context, run flowSubcommand, root string, arg
 	if err == nil {
 		err = run(ctx, root, args, out)
 	}
+	if errors.Is(err, errAppmapEdgesUnproven) {
+		return 1
+	}
 	var coded *gokernel.Error
 	var gate0 *gateFailure
 	if err != nil && !errors.As(err, &coded) && !errors.As(err, &gate0) {
