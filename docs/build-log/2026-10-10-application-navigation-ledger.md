@@ -102,3 +102,11 @@ test-sequence edges on from/to only because sequence edges carry no trigger. A p
 be the flagged spec itself (receipt keys are titles, spec paths are files); not excluded here.
 Follow-ups: derive read-only/mutating classes from page-object method effects, use observed traces
 (ANL-V0-006) as sequence input, and exclude self-proofs once receipts map to files.
+
+## V1-1135 / #777: page-state assertion grouping (ANL-V0-012..014)
+
+Slice: a read-only grouping view over the existing `test-consolidation-input/0`, as
+`test-plan page-state`; `consolidate` and `check` are untouched. Only non-destructive,
+state-preserving variations with all anchors group; changes are blocked rather than keyed to a
+post-change state. Follow-ups: `test-plan extract` from Playwright specs (needs page-object
+resolution), `check` drift detection against a pasted grouping, ordering inside a shared visit.

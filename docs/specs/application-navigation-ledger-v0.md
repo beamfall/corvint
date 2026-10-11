@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -90,6 +90,18 @@ are URL templates, not component source files. This slice makes neither missing 
   omitted counts, learned authority, read-only and offline. With `--check` the command exits 1
   (`test-plan-mismatch`) when a flagged test is absent from `--baseline` (an earlier report; any flag
   fails without one), and 2 on invalid input. (proposed, pending owner acceptance (V1-1134))
+- `ANL-V0-012`: `test-plan page-state --input FILE` reads one `test-consolidation-input/0` document and
+  groups variations that share app, screen, setup, user, org and the exact required fact set. A group
+  has at least two variations (one visit can serve them), lists their IDs, specs and the union of
+  assertions, and reports `visits_saved` as the variation count minus one. Groups may span specs.
+  (proposed, pending owner acceptance (V1-1135))
+- `ANL-V0-013`: A variation joins no group and is listed as blocked with a reason when any anchor is
+  missing (`anchor-missing:<members>`), it is destructive or its destructive flag is unknown
+  (`destructive`), it declares changes (`changes-state`, so a post-change state is never merged with
+  a pre-change one) or it asserts nothing (`no-assertion`). (proposed, pending owner acceptance (V1-1135))
+- `ANL-V0-014`: The report (`test-page-state-groups/0`) is deterministic, sorted, independent of input
+  order, carries the input digest and a digest of the report, is read-only and offline, and does not
+  alter `consolidate` or `check`. Invalid input or use exits 2. (proposed, pending owner acceptance (V1-1135))
 
 ## Wire and limits
 
@@ -131,6 +143,9 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
 | ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges` |
 | ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` |
+| ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState` |
+| ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |
+| ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
 
 ## Follow-ups and promotion
 

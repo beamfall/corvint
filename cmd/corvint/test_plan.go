@@ -160,6 +160,9 @@ func runTestPlan(ctx context.Context, root string, arguments []string, stdout, s
 	if len(arguments) > 0 && arguments[0] == "prefixes" {
 		return runTestPlanPrefixes(ctx, root, arguments[1:], stdout, stderr)
 	}
+	if len(arguments) > 0 && arguments[0] == "page-state" {
+		return runTestPlanPageState(arguments[1:], stdout, stderr)
+	}
 	options, err := parseTestPlanOptions(arguments)
 	if err != nil {
 		emitError(stderr, err)
