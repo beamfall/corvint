@@ -403,6 +403,11 @@ func driftRows(document *wire.Map, outcome *verify.Outcome) []any {
 // readMapInput reads and validates a root-relative CEM map without following
 // symlinks.
 func (s *Session) readMapInput(relative string) ([]byte, *wire.Map, error) {
+	return s.readMapInputSpec(relative, "")
+}
+
+// readMapInputSpec admits only spec want when it is non-empty (CEM-SM-018).
+func (s *Session) readMapInputSpec(relative, want string) ([]byte, *wire.Map, error) {
 	if relative == "" {
 		return nil, nil, invalidArguments("--map is required")
 	}
@@ -413,7 +418,7 @@ func (s *Session) readMapInput(relative string) ([]byte, *wire.Map, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	document, err := wire.ParseMap(raw)
+	document, err := wire.ParseMapSpec(raw, want)
 	if err != nil {
 		return nil, nil, err
 	}

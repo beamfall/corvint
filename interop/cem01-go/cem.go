@@ -2086,6 +2086,24 @@ func range03(raw json.RawMessage) (lineRange, *cemError) {
 	}
 	return r, nil
 }
+
+// hunkRange03 admits any wire-integer start/count pair for a hunk's old and new
+// range; a zero start with a nonzero count is a hunk-mapping issue, not wire.
+func hunkRange03(raw json.RawMessage) (lineRange, *cemError) {
+	var r lineRange
+	o, e := object03(raw, []string{"start", "count"}, nil)
+	if e != nil {
+		return r, e
+	}
+	var ok bool
+	if r.Start, ok = uint03(o["start"]); !ok {
+		return r, invalid("invalid-field")
+	}
+	if r.Count, ok = uint03(o["count"]); !ok {
+		return r, invalid("invalid-field")
+	}
+	return r, nil
+}
 func coverageDecode03(raw json.RawMessage, hr lineRange) (*coverage03, *cemError) {
 	o, e := object03(raw, []string{"profileSha256", "testRun", "mode", "state", "covered"}, nil)
 	if e != nil {
@@ -2223,7 +2241,7 @@ func decode03(raw []byte) (map03, *cemError) {
 	}
 	var root map[string]json.RawMessage
 	if json.Unmarshal(raw, &root) != nil || root == nil {
-		return m, invalid("invalid-field")
+		return m, invalid("not-an-object")
 	}
 	if v, exists := root["spec"]; exists {
 		var ok bool
@@ -2275,7 +2293,9 @@ func decode03(raw []byte) (map03, *cemError) {
 		if v.Span.Start, ok = uint03(sp["start"]); !ok {
 			return m, invalid("invalid-field")
 		}
-		if v.Span.End, ok = uint03(sp["end"]); !ok || v.Span.End <= v.Span.Start {
+		// An empty or inverted span is well-formed wire; it resolves as
+		// unavailable evidence at verification, retaining native placement.
+		if v.Span.End, ok = uint03(sp["end"]); !ok || v.Span.End < 1 {
 			return m, invalid("invalid-field")
 		}
 		m.Evidence = append(m.Evidence, v)
@@ -2302,10 +2322,10 @@ func decode03(raw []byte) (map03, *cemError) {
 		if !validPath(v.Path) || !strings.HasPrefix(v.ID, "hunk:sha256:") || !validDigest(strings.TrimPrefix(v.ID, "hunk:sha256:")) {
 			return m, invalid("invalid-field")
 		}
-		if v.OldRange, e = range03(o["oldRange"]); e != nil {
+		if v.OldRange, e = hunkRange03(o["oldRange"]); e != nil {
 			return m, e
 		}
-		if v.NewRange, e = range03(o["newRange"]); e != nil {
+		if v.NewRange, e = hunkRange03(o["newRange"]); e != nil {
 			return m, e
 		}
 		bs, e := list03(o["basis"], maxBases)
@@ -2313,6 +2333,7 @@ func decode03(raw []byte) (map03, *cemError) {
 			return m, e
 		}
 		v.Basis = []basis{}
+		pairs := map[basis]bool{}
 		for _, raw := range bs {
 			b, e := object03(raw, []string{"evidenceId", "relation"}, nil)
 			if e != nil {
@@ -2325,11 +2346,18 @@ func decode03(raw []byte) (map03, *cemError) {
 			if item.Relation, ok = text03(b["relation"]); !ok || !relation03(item.Relation) {
 				return m, invalid("invalid-field")
 			}
+			if pairs[item] {
+				return m, invalid("invalid-field")
+			}
+			pairs[item] = true
 			v.Basis = append(v.Basis, item)
 		}
 		switch v.Disposition {
 		case "supported":
-			if v.Reason != "evidence-backed" || len(v.Basis) == 0 {
+			if len(v.Basis) == 0 {
+				return m, invalid("unsupported-without-basis")
+			}
+			if v.Reason != "evidence-backed" {
 				return m, invalid("invalid-field")
 			}
 		case "unknown":
@@ -2357,15 +2385,28 @@ func decode03(raw []byte) (map03, *cemError) {
 		}
 		m.Hunks = append(m.Hunks, v)
 	}
+	// References close the wire: a duplicate evidence ID, a basis citing
+	// unknown evidence, then uncited evidence, each refused before any
+	// repository read (native wire placement).
 	ids := map[string]bool{}
 	for _, ev := range m.Evidence {
+		if ids[ev.ID] {
+			return m, invalid("invalid-field")
+		}
 		ids[ev.ID] = true
 	}
+	cited := map[string]bool{}
 	for _, h := range m.Hunks {
 		for _, basis := range h.Basis {
 			if !ids[basis.EvidenceID] {
 				return m, invalid("invalid-field")
 			}
+			cited[basis.EvidenceID] = true
+		}
+	}
+	for _, ev := range m.Evidence {
+		if !cited[ev.ID] {
+			return m, invalid("orphan-evidence")
 		}
 	}
 	return m, nil
@@ -3077,6 +3118,10 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 	}
 	parsed, e := parsePatch(patch)
 	if e != nil {
+		if e == errModeChange {
+			// verify-03 retains the native name for mode-change metadata.
+			e = invalid("malformed-patch")
+		}
 		return failResult03(&r, "verification", e, true)
 	}
 	ph := map[string]*patchHunk{}
@@ -3086,9 +3131,6 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 			ph[h.ID] = h
 			groups[h.ID] = f
 		}
-	}
-	if len(m.Hunks) != len(ph) {
-		return failResult03(&r, "verification", invalid("invalid-field"), true)
 	}
 	seen := map[string]bool{}
 	for _, h := range m.Hunks {
@@ -3103,6 +3145,13 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 		}
 		if path == nil || h.Path != *path || h.OldRange != p.OldRange || h.NewRange != p.NewRange {
 			return failResult03(&r, "verification", invalid("invalid-field"), true)
+		}
+	}
+	for _, f := range parsed.files {
+		for _, h := range f.hunks {
+			if !seen[h.ID] {
+				return failResult03(&r, "verification", invalid("uncited-hunk"), true)
+			}
 		}
 	}
 	// Prove the Git change inventory independently, including changes which the
@@ -3175,13 +3224,8 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 	if len(mapped) != len(changed) {
 		return failResult03(&r, "repository", operational("unsupported-patch-inventory"), false)
 	}
-	evidenceIDs := map[string]bool{}
 	for i := range m.Evidence {
 		item := &m.Evidence[i]
-		if evidenceIDs[item.ID] {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
-		}
-		evidenceIDs[item.ID] = true
 		en := before[item.Path]
 		if en == nil || !regularFile(en) || en.oid != item.BlobOID {
 			return failResult03(&r, "verification", invalid("evidence-unavailable"), true)
@@ -3190,7 +3234,7 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 		if e != nil {
 			return failResult03(&r, "repository", e, false)
 		}
-		if item.Span.End > uint64(len(data)) {
+		if item.Span.Start >= item.Span.End || item.Span.End > uint64(len(data)) {
 			return failResult03(&r, "verification", invalid("evidence-unavailable"), true)
 		}
 		item.data = append([]byte(nil), data[item.Span.Start:item.Span.End]...)
@@ -3198,17 +3242,7 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 			return failResult03(&r, "verification", invalid("fabricated-evidence-id"), true)
 		}
 	}
-	cited := map[string]bool{}
 	for _, h := range m.Hunks {
-		pairs := map[string]bool{}
-		for _, b := range h.Basis {
-			key := b.EvidenceID + "\x00" + b.Relation
-			if !evidenceIDs[b.EvidenceID] || pairs[key] {
-				return failResult03(&r, "verification", invalid("invalid-field"), true)
-			}
-			pairs[key] = true
-			cited[b.EvidenceID] = true
-		}
 		if h.Disposition != "mechanical" {
 			continue
 		}
@@ -3227,11 +3261,6 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 		}
 		if !proven {
 			return failResult03(&r, "verification", invalid("unproven-mechanical"), true)
-		}
-	}
-	for id := range evidenceIDs {
-		if !cited[id] {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
 		}
 	}
 	unsafe := false
