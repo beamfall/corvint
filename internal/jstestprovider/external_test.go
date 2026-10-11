@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -563,6 +565,92 @@ func TestQualifiedReportRefusesConfigInputOverflow(t *testing.T) {
 	}
 	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != "report-output-overflow" {
 		t.Fatalf("config input overflow err=%v", err)
+	}
+}
+
+// PWP-V0-019: a Playwright config with a setup project dependency reports the
+// setup file's results beside the target spec. Binding only the target spec
+// refuses test-file-unbound naming each unbound file and its cause; binding the
+// setup file too admits the run. Nothing reported is bound implicitly.
+func TestQualifiedReportNamesUnboundSetupProjectFiles(t *testing.T) {
+	dir := t.TempDir()
+	config := filepath.Join(dir, "playwright.config.cjs")
+	if err := os.WriteFile(config, []byte("module.exports = {projects: [{name: 'setup'}, {name: 'one', dependencies: ['setup']}]};\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configDigest, err := digestFile(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setupFile := "/repo/auth.setup.cjs"
+	fixture := func() (Receipt, qualifiedReport) {
+		r := qualifiedFixture(t)
+		r.Identity.ConfigFile, r.Identity.ConfigDigest = config, configDigest
+		r.Tests[0].Project.ConfigDigest = configDigest
+		setup := r.Tests[0]
+		setup.Name, setup.FullName = "authenticate", "setup > authenticate"
+		setup.Anchor = &Anchor{File: setupFile, Line: 3}
+		setup.Project = &ProjectIdentity{Name: "setup", Browser: "chromium", Device: "unknown", Use: json.RawMessage(`{}`), ConfigDigest: configDigest}
+		setup.Attempts = []Attempt{{State: StatePassed, Retry: 0, FailureKind: "none"}}
+		r.Tests = []TestOutcome{setup, r.Tests[0]}
+		report := qualifiedReport{Version: r.Identity.RunnerVersion, Status: "passed", Tests: r.Tests, ConfigFiles: map[string]string{config: configDigest}, Files: map[string]string{setupFile: "setup", "/repo/test.cjs": "test"}}
+		return r, report
+	}
+
+	r, report := fixture()
+	err = bindQualifiedReport(&r, report)
+	want := "test-file-unbound: " + setupFile + " (not passed with --test-file)"
+	if err == nil || err.Error() != want {
+		t.Fatalf("setup-project run err=%v, want %q", err, want)
+	}
+	if r.Identity.TestFileDigests[setupFile] != "" {
+		t.Fatal("reported setup file was bound without --test-file")
+	}
+
+	r, report = fixture()
+	r.Identity.TestFileDigests[setupFile] = "setup"
+	if err := bindQualifiedReport(&r, report); err != nil {
+		t.Fatalf("setup file bound with --test-file still refused: %v", err)
+	}
+	for _, test := range r.Tests {
+		if test.ID == "" || !QualifiedReceiptBindingReady(r, test) {
+			t.Fatalf("bound setup-project run lost identity for %s", test.FullName)
+		}
+	}
+
+	r, report = fixture()
+	r.Identity.TestFileDigests[setupFile] = "changed"
+	delete(report.Files, "/repo/test.cjs")
+	err = bindQualifiedReport(&r, report)
+	want = "test-file-unbound: " + setupFile + " (reporter digest differs from the --test-file digest); /repo/test.cjs (not digested by the reporter)"
+	if err == nil || err.Error() != want {
+		t.Fatalf("cause detail err=%v, want %q", err, want)
+	}
+
+	// Anchors arrive unsorted and one file anchors two tests; the detail names
+	// distinct files in bytewise order, eight at most, then the remainder count.
+	r, report = fixture()
+	base := r.Tests[1]
+	for _, i := range []int{9, 3, 7, 0, 5, 3, 8, 1, 6, 2, 4} {
+		extra := base
+		extra.FullName = fmt.Sprintf("one > extra %d > %d", i, len(r.Tests))
+		extra.Anchor = &Anchor{File: fmt.Sprintf("/repo/extra-%02d.cjs", i), Line: len(r.Tests)}
+		report.Files[extra.Anchor.File] = "extra"
+		r.Tests = append(r.Tests, extra)
+	}
+	report.Tests = r.Tests
+	err = bindQualifiedReport(&r, report)
+	want = "test-file-unbound: /repo/auth.setup.cjs (not passed with --test-file)"
+	for i := range 7 {
+		want += fmt.Sprintf("; /repo/extra-%02d.cjs (not passed with --test-file)", i)
+	}
+	want += "; +3 more"
+	if err == nil || err.Error() != want {
+		t.Fatalf("bounded detail err=%v, want %q", err, want)
+	}
+
+	if failure := externalReportFailure(SensitiveExternalProfile, "report-identity-unknown", want); failure.Detail != "untrusted reporter output rejected" || strings.Contains(failure.Detail, "/repo/") {
+		t.Fatalf("/2 detail echoed reporter paths: %q", failure.Detail)
 	}
 }
 

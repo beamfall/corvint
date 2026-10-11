@@ -202,3 +202,22 @@ func TestStructuralProvenRefusesCreateAndDelete(t *testing.T) {
 		t.Error("nil group proven")
 	}
 }
+
+// TestCEMSM007RenameIsStrict pins the strict reading of the rename comment
+// rule (decision 0521): every non-directive comment must equal its whole-word
+// substitution image, and every occurrence of the source must be renamed.
+func TestCEMSM007RenameIsStrict(t *testing.T) {
+	base := "package p\n\n// a counts calls.\nvar a = 1\n\nfunc f() int { return a + a }\n"
+	refused := map[string]string{
+		"unchanged-comment": "package p\n\n// a counts calls.\nvar b = 1\n\nfunc f() int { return b + b }\n",
+		"partial-rename":    "package p\n\n// b counts calls.\nvar b = 1\n\nfunc f() int { return b + a }\n",
+	}
+	for name, image := range refused {
+		if renameProven([]byte(base), []byte(image)) {
+			t.Errorf("%s: rename accepted", name)
+		}
+	}
+	if !renameProven([]byte(base), []byte("package p\n\n// b counts calls.\nvar b = 1\n\nfunc f() int { return b + b }\n")) {
+		t.Error("whole rename with substituted comment refused")
+	}
+}

@@ -9,9 +9,9 @@ Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-0.2-canonic
 
 ## Agent digest
 - Claim: CEM 0.3 adds Go rename, move, import-reorder and formatter-only mechanical reasons that the verifier re-proves from the base blob and patch alone.
-- Status: proposed/experimental (ticket V1-0087, decision 0338)
-- Exists: `internal/cem/verify/structural.go`, `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go`.
-- Blocked on: a portable `protocol/cem-0.3` vector set, a `cem-0.3.schema.json` under the Apache-2.0 boundary, and frontier/dashboard profile acceptance.
+- Status: proposed/experimental (tickets V1-0087 and V1-0614, decisions 0338 and 0521)
+- Exists: `internal/cem/verify/structural.go`, `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go`; the proposed portable packet `protocol/cem-0.3` (221 cases, `CEM-SM-011`..`CEM-SM-018`, decision 0521; native and portable agree on all 221) and its generator `interop/cem01-go/packet03_test.go`.
+- Blocked on: Go 1.24 structural parity, independent external consumption (`CEM-V1-008`), owner acceptance of the packet, and frontier/dashboard profile acceptance.
 - Read next: `cem-0.2-canonical-binding.md`, `../CHANGE-EVIDENCE-MAP.md`.
 
 ## User and measurable job
@@ -61,7 +61,9 @@ and the canonical patch. A reason the consumer cannot reproduce fails verificati
   an experimental local copy (`CCF-V1-003`): it verifies against a target that commits no sidecar,
   and a target that commits the `cem/0.2` sidecar fails it with `excluded-artifact-mismatch`.
 - `CEM-SM-007`: `rename` MUST hold only when the token streams differ by one identifier pair
-  `from -> to` and comments differ only by whole-word substitution of that pair; both names are
+  `from -> to`, every occurrence of `from` becomes `to`, and every non-directive comment equals
+  its whole-word substitution image, so an unchanged comment that still names `from` is not a
+  proven rename (decision 0521); both names are
   unexported, `to` does not occur in the base file, `from` is declared in the file, and `from`
   never appears as a selector, composite-literal key, struct field, interface or concrete method,
   or package name. Directive comments (`//go:`, `//line `, `//export `) MUST be unchanged.
@@ -73,15 +75,54 @@ and the canonical patch. A reason the consumer cannot reproduce fails verificati
   declarations is unchanged.
 - `CEM-SM-010`: `formatter-only` MUST hold only when `go/format` renders the base and the image
   to identical bytes.
+- `CEM-SM-011`: The portable packet `protocol/cem-0.3` (Apache-2.0) MUST contain the algorithm
+  text, the shape schema, the `verify-03` operation contract and `vectors/manifest.json`. The
+  manifest MUST pin every raw map by SHA-256 and describe SHA-1 and SHA-256 repositories whose
+  commits a consumer rebuilds from literal bytes with Git plumbing alone, requiring each exact
+  tree and revision. Both consumers MUST pin the manifest digest and check every artifact before
+  executing any case.
+- `CEM-SM-012`: The packet MUST include a literal positive for each structural reason and each
+  byte mechanical reason, and the admitted overlaps (`formatter-only` on an import reorder,
+  `whitespace-only` on a CRLF-only change). It MUST include semantic near-misses for every
+  refusal rule in `CEM-SM-002`, `CEM-SM-005` and `CEM-SM-007`..`CEM-SM-010`, and cross-class
+  claims. Each case's outcome, stage and code MUST be declared by hand, not captured.
+- `CEM-SM-013`: The packet MUST include coverage and discriminates witness cases at every
+  declared byte, character, range, arithmetic and state boundary of the algorithm text. Accepted
+  witnesses MUST be retained by hunk ID in the result and MUST NOT change any hunk identity.
+- `CEM-SM-014`: A checked-in generator MUST regenerate the packet byte for byte from its declared
+  case table on the qualified runtime. It MUST refuse to write a packet when any observed outcome,
+  stage, code or drift status differs from the declaration.
+- `CEM-SM-015`: The packet MUST distinguish the sidecar at each side:
+  - Base: absent or `100644` passes. Any other kind is `excluded-path-not-file`.
+  - Target: absent, or a `100644` blob equal to the raw input map bytes, passes. A trailing
+    newline, a historical 0.2 sidecar, an executable bit, a symlink, a tree or a gitlink is
+    `excluded-artifact-mismatch`.
+- `CEM-SM-016`: For every case, the standalone `verify-03` process MUST reproduce the pinned
+  exit code and full result, apart from `runtime.goVersion`. The native status verifier MUST
+  reach the projection of that result on every case: ACCEPT is valid, a binding, verification or
+  drift REJECT is the first issue code, and a wire REJECT or any UNSUPPORTED is the error code. No
+  per-case divergence is admitted. The portable repository envelope
+  `primary-clean-config-bounded/1` is a declared implementation ceiling, tested only on the
+  portable side and not a packet case.
+- `CEM-SM-017`: On any runtime outside the admitted structural tuples (`go1.27.1`, the packet's
+  qualified runtime, and `go1.27.2` under decision 0522 and `CEM-V1-050`), a case that claims a
+  structural reason MUST yield UNSUPPORTED at stage `runtime` with
+  `unsupported-structural-runtime` and exit 2, never a byte-proof fallback. Every other case MUST
+  keep its pinned result on every runtime.
+- `CEM-SM-018`: The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).
+  In it, a map whose `spec` is another supported version is `unsupported-spec` at the wire
+  stage, before the key-set check. The base and target arguments MUST be full lowercase commit
+  OIDs of one width, else `invalid-arguments`. Without it the multi-version reader is unchanged and still admits
+  `--target HEAD`. The mode has no CLI exposure.
 
 ## Non-goals and simpler baseline
 
 Cross-file or type-aware renames, exported renames, languages other than Go, generated output,
 lockfile updates, and file moves across paths stay out of scope; they remain `unknown` or
 evidence-cited. The simpler baseline was to keep the two byte proofs and cite formatter runs as
-evidence; it was rejected because reviewers cannot audit large reorders by hand. No schema file
-ships in this change because `docs/cem-*.schema.json` sits inside the Apache-2.0 boundary that
-`LICENSING.md` enumerates.
+evidence; it was rejected because reviewers cannot audit large reorders by hand. The shape schema
+ships in `protocol/cem-0.3/cem-0.3.schema.json`, inside the Apache-2.0 `protocol/**` boundary,
+and not as a `docs/cem-*.schema.json` file.
 
 ## Trust boundary limits and failure modes
 
@@ -107,6 +148,9 @@ ships in this change because `docs/cem-*.schema.json` sits inside the Apache-2.0
 | workflow end to end | `prepare`, `mark import-reorder`, commit, `status` | spec `cem/0.3`, valid, one mechanical hunk |
 | workflow wrong class | `mark rename` on an import reorder | `valid:false`, `unproven-mechanical` |
 | profile gating | 0.3 accepts, 0.2 and 0.1 refuse structural reasons | `invalid-field` |
+| portable packet | `protocol/cem-0.3/vectors` (221 cases) through `verify-03` and native single-profile `status` | pinned result per case; native equals its projection on all 221 |
+| config ceiling | sha1 repository with a `[gc]` config section | portable UNSUPPORTED `unsupported-repository-envelope` |
+| runtime gate | structural cases on a runtime that is not an admitted structural tuple | UNSUPPORTED `unsupported-structural-runtime`, exit 2 |
 
 ## Rollout, rollback and compatibility
 
@@ -126,14 +170,22 @@ are widened under their own specs.
 | `CEM-SM-004` | `structuralImage` with `sim.ApplyHunks` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-005` | `parseBoth`, `formatterOnlyProven` | `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output`, `writeMap` (every writer, V1-0384) | `TestSpec03UpgradeNeverReplacesACoreMap`, `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
-| `CEM-SM-007` | `renameProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
+| `CEM-SM-007` | `renameProven`, `identSubstitution` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs`, `TestCEMSM007RenameIsStrict`, `TestCEMSM016NativePortable03Vectors` |
 | `CEM-SM-008` | `moveProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-009` | `importReorderProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
 | `CEM-SM-010` | `formatterOnlyProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
+| `CEM-SM-011` | `protocol/cem-0.3`, `interop/cem01-go/packet03_test.go` `readPacket03`, `internal/cem/workflow/portable03_test.go` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016NativePortable03Vectors` |
+| `CEM-SM-012` | `cases03` structural rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
+| `CEM-SM-013` | `cases03` witness rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
+| `CEM-SM-014` | `generatePacket03` | `TestCEMSM014PacketReproducible` |
+| `CEM-SM-015` | `cases03` sidecar rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
+| `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016NativePortable03Vectors`, `TestCEMSM016PortableConfigCeiling`, `TestCEMSM014PacketReproducible` |
+| `CEM-SM-017` | `run03` runtime stage | `TestCEMSM016PortablePacketConformance` (go1.27.1 pinned results; pre-0522 go1.27.2 refusal run, build log 2026-10-11; reproduced on admitted go1.27.2, build log 2026-10-11 cem03 tuple admission) |
+| `CEM-SM-018` | `internal/cem/wire/map.go` `ParseMapSpec`, `internal/cem/workflow/read.go` `ReadOptions.SingleSpec` | `TestCEMSM016NativePortable03Vectors` (cases `spec-0.2`, `argument-wire-precedes-missing-base`, `argument-uppercase-target`, `argument-width-mismatch`) |
 
 ## Unresolved decisions
 
-- Whether `protocol/cem-0.3` portable vectors and `docs/cem-0.3.schema.json` ship before or
-  after independent interop evidence.
+- The packet and schema now ship as `proposed` in `protocol/cem-0.3`, before independent interop
+  evidence (decision 0521). Freezing them still needs owner acceptance.
 - Whether a `mark`-time pre-check should refuse a structural reason the verifier will not prove,
   instead of leaving the refusal to `status`.
