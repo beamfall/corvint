@@ -212,6 +212,11 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 	if err != nil || cut {
 		return r, errors.New("changes-range-unavailable")
 	}
+	// A shallow checkout silently omits carried commits; refuse rather than report a complete range.
+	shallow, _, err := g.read(64, "rev-parse", "--is-shallow-repository")
+	if err != nil || strings.TrimSpace(string(shallow)) != "false" {
+		return r, errors.New("changes-range-unavailable")
+	}
 	ids, cut, err := g.ids("rev-list", "--first-parent", "--max-count=257", r.From+".."+r.To)
 	if err != nil {
 		return r, err
