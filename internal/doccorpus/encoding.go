@@ -45,15 +45,32 @@ func hashValue(value any) (string, error) {
 	}
 	return Digest(data), nil
 }
-func validPath(value string) bool {
-	if value == "" || len(value) > 1024 || !utf8.ValidString(value) {
-		return false
+func validPath(value string) bool { return LocalInputPathRule(value) == "" }
+
+// LocalInputPathRule names the rule a local input path breaks, or returns "" for a canonical path
+// relative to the input root (DCP-V1-054). The reader never admits absolute or parent paths.
+func LocalInputPathRule(value string) string {
+	switch {
+	case value == "":
+		return "got an empty path"
+	case len(value) > 1024:
+		return "got a path over 1024 bytes"
+	case !utf8.ValidString(value):
+		return "got a path that is not UTF-8"
+	case strings.ContainsAny(value, "\\\x00\r\n\t"):
+		return "got a backslash, NUL, tab, CR or LF"
+	case strings.HasPrefix(value, "/"):
+		return "got an absolute path"
+	case value == ".." || strings.HasPrefix(value, "../"):
+		return "got a parent traversal"
+	case value == ".":
+		return "got the root itself"
+	case path.Clean(value) != value:
+		return "got a non-canonical path"
 	}
-	if path.Clean(value) != value || strings.HasPrefix(value, "/") || value == "." || value == ".." || strings.HasPrefix(value, "../") {
-		return false
-	}
-	return !strings.ContainsAny(value, "\\\x00\r\n\t")
+	return ""
 }
+
 func textOK(value string) bool {
 	return len(value) > 0 && len(value) <= 64<<10 && utf8.ValidString(value) && !strings.ContainsRune(value, 0)
 }
@@ -89,8 +106,8 @@ func ReadCorpusFile(root, path string) ([]byte, error) {
 	return readFileBounded(root, path, MaxCorpusBytes)
 }
 func readFileBounded(root, path string, limit int64) ([]byte, error) {
-	if !validPath(path) {
-		return nil, fail("invalid local input path")
+	if rule := LocalInputPathRule(path); rule != "" {
+		return nil, fail("invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")")
 	}
 	dir, err := os.OpenRoot(root)
 	if err != nil {
