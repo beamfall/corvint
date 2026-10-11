@@ -172,7 +172,8 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	// interrupted pair's backup is restored before the map counts as missing
 	// and no concurrent cite or mark lands between read and replace. A stable
 	// sidecar or backup is refused first, before the lock or recovery touches
-	// either (CEM-V1-030); resumeCandidate re-checks under the lock.
+	// either, and again under the lock before recovery or resume cleanup
+	// (CEM-V1-030); resumeCandidate re-checks the sidecar strictly.
 	if err := s.preflightStableSidecar(); err != nil {
 		return nil, err
 	}
@@ -181,6 +182,9 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 		return nil, err
 	}
 	defer unlock()
+	if err := s.preflightStableSidecar(); err != nil {
+		return nil, err
+	}
 	if err := s.workRoot.RecoverPairBackup(wire.ExcludedCEMPath); err != nil {
 		return nil, err
 	}
@@ -667,6 +671,13 @@ func (s *Session) readMutableMap(tool, relative string) (*wire.Map, error) {
 // resolves without reading. A regular file must be read and must not declare
 // cem/1.0: one whose bytes cannot be read is refused, since it may be stable.
 func (s *Session) refuseStableDestination(tool, relative string) error {
+	return s.refuseStableEntry(tool, relative, "replace")
+}
+
+// refuseStableEntry is the strict probe shared by destinations and
+// interrupted-publication backups; action names what the tool would otherwise
+// do to the entry.
+func (s *Session) refuseStableEntry(tool, relative, action string) error {
 	info, err := os.Lstat(filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -680,8 +691,8 @@ func (s *Session) refuseStableDestination(tool, relative string) error {
 	}
 	if err != nil {
 		return cemcode.New(cemcode.MapUnavailable,
-			"existing %s cannot be read to resolve its spec, so Core cem %s does not replace it: it may be a %s map; make it readable or remove it",
-			relative, tool, wire.StableSpec)
+			"existing %s cannot be read to resolve its spec, so Core cem %s does not %s it: it may be a %s map; make it readable or remove it",
+			relative, tool, action, wire.StableSpec)
 	}
 	if wire.DeclaresStable(raw) {
 		return stableMutationRefusal(tool, relative)
@@ -702,9 +713,11 @@ func (s *Session) stableAt(relative string) bool {
 
 // preflightStableSidecar refuses prepare before it locks the sidecar or
 // restores an interrupted-publication backup when the sidecar, or a backup
-// that recovery would restore in its place, declares cem/1.0 (CEM-V1-030).
-// Backup names follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen
-// lowercase hex digits, regular files only.
+// that recovery would restore or resume cleanup would remove, declares
+// cem/1.0 (CEM-V1-030). A recognized backup gets the strict probe: one whose
+// bytes cannot be read is refused too, since it may be stable. Backup names
+// follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen lowercase hex
+// digits, regular files only.
 func (s *Session) preflightStableSidecar() error {
 	if s.stableAt(wire.ExcludedCEMPath) {
 		return stableMutationRefusal("prepare", wire.ExcludedCEMPath)
@@ -720,8 +733,8 @@ func (s *Session) preflightStableSidecar() error {
 		if !found || len(suffix) != 16 || strings.Trim(suffix, "0123456789abcdef") != "" || !entry.Type().IsRegular() {
 			continue
 		}
-		if backup := path.Join(directory, entry.Name()); s.stableAt(backup) {
-			return stableMutationRefusal("prepare", backup)
+		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove"); err != nil {
+			return err
 		}
 	}
 	return nil

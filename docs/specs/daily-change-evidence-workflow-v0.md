@@ -448,6 +448,8 @@ Base anchoring, refused by every subverb:
 - `cem-map-not-produced`: `cem-prepare` failed in this run or left no `.corvint/change.cem.json`,
   so nothing is cited; a map left by an earlier run is never cited (proposed 2026-09-25, V1-0228,
   not accepted).
+- `cem-map-stable-unsupported`: `.corvint/change.cem.json` declares `cem/1.0`, which the bind loop
+  does not cite or bind; `cem-cite` refuses it before reading the plan (`CEM-V1-032`).
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
   `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed.
 - `ocm-link-plan-row-limit-exceeded`: the `DOGFOOD_OCM_LINKS` plan has more than 256 rows; the fix
@@ -485,8 +487,6 @@ failures, each with one `fix:` line:
 
 - `sealed-cem-modified`, `sealed-cem-drift`, `unrecognized-sealed-cem`: a sealed file was modified
   or deleted, differs from its bind commit's map, or is not named for a 40-hex bind commit.
-- `cem-map-stable-unsupported`: `.corvint/change.cem.json` declares `cem/1.0`, which the bind loop
-  does not cite or bind; `cem-cite` refuses it before reading the plan (`CEM-V1-032`).
 - `unsealed-cem-at-head`: `HEAD` tracks a `.corvint/change.cem.json` that `BASE` does not.
 - `constituent-not-merged`, `constituent-cem-invalid`, `constituent-cem-policy`,
   `constituent-unverified`: a sealed change's bind commit is not in `HEAD`, its map is unreadable

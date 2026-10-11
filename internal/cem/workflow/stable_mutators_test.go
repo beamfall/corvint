@@ -418,3 +418,38 @@ func TestPrepareRefusesStableBackupBeforeRecovery(t *testing.T) {
 	}
 	requireUntouched(t, root, wire.ExcludedCEMPath, []byte(`{"spec": "cem/9.9"}`))
 }
+
+// CEM-V1-030: a recognized backup whose bytes cannot be read may be stable, so
+// prepare refuses it before resume cleanup would remove it or recovery would
+// restore it, and neither the backup nor the sidecar changes.
+func TestPrepareRefusesUnreadableBackup(t *testing.T) {
+	stable := stableMapBytes(t)
+	backup := wire.ExcludedCEMPath + ".bak-0123456789abcdef"
+
+	t.Run("resumable sidecar present", func(t *testing.T) {
+		root, base, target := makeRepo(t)
+		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+			t.Fatal(err)
+		}
+		sidecar, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeUnreadable(t, root, backup, stable)
+		_, err = openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target})
+		requireUnresolvedRefusal(t, err, "prepare", root, backup, stable)
+		requireUntouched(t, root, wire.ExcludedCEMPath, sidecar)
+	})
+
+	t.Run("sidecar missing", func(t *testing.T) {
+		root, base, target := makeRepo(t)
+		writeUnreadable(t, root, backup, stable)
+		_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Replace: true})
+		requireUnresolvedRefusal(t, err, "prepare", root, backup, stable)
+		for _, absent := range []string{wire.ExcludedCEMPath, wire.ExcludedCEMPath + ".lock"} {
+			if _, statErr := os.Lstat(filepath.Join(root, filepath.FromSlash(absent))); !os.IsNotExist(statErr) {
+				t.Fatalf("refusal created %s (%v)", absent, statErr)
+			}
+		}
+	})
+}

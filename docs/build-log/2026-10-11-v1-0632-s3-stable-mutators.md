@@ -69,6 +69,19 @@ fixed, with a regression test that fails against `8c040a90d`:
   stable map as `cem-map-stable-unsupported` before it reads the plan. The reason is
   admitted in `internal/observations` and has a fix hint (`TestCiteStepRefusesStableMap`).
 
+The Codex re-review of `41427384f..adb876d93` confirmed those fixes and found two more:
+
+- [P1] The backup preflight ignored read errors, so an unreadable stable backup could
+  still be removed by resume cleanup or restored by recovery. Recognized backups now
+  get the strict probe, so an unreadable one is refused with `map-unavailable`. The
+  check also runs again under the sidecar lock before recovery
+  (`TestPrepareRefusesUnreadableBackup`). Both of its scenarios failed against
+  `adb876d93`. With a resumable sidecar, `prepare` succeeded and removed the backup.
+  With no sidecar, recovery renamed the backup.
+- [P3] `cem-map-stable-unsupported` was listed under the batch-check failures. It now
+  sits with the change workflow's citation reasons in
+  `daily-change-evidence-workflow-v0.md`.
+
 ## Evidence
 
 - Failing before: with the new tests and the S1 implementation, these fail:
@@ -123,8 +136,8 @@ fixed, with a regression test that fails against `8c040a90d`:
   publication.
 - No exclusive create, and no re-check before the rename, guards against an
   uncooperative process that replaces the destination after the strict probe.
-- `prepare` refuses when any recognized backup declares `cem/1.0`, even with a
-  present sidecar, because resume removes a validated backup.
+- `prepare` refuses when any recognized backup declares `cem/1.0` or cannot be read,
+  even with a present sidecar, because resume removes a validated backup.
 - The requirement IDs start at `CEM-V1-030`. That keeps them clear of slices proposed
   in parallel, which would otherwise take `CEM-V1-020` next. Integration may
   renumber them.
