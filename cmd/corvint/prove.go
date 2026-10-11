@@ -315,8 +315,8 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	if parsed.impactWorktree {
 		return parsed, true, argumentError("prove judges tracked paths only: --working-tree-untracked is not supported")
 	}
-	if parsed.impactBudget != nil {
-		return parsed, true, argumentError("prove does not support --budget-bytes")
+	if err := proveUnsupportedOption(parsed); err != nil {
+		return parsed, true, err
 	}
 	if parsed.impactBaseSet {
 		parsed.proveMode = "change"
