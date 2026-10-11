@@ -23,7 +23,9 @@ const methodPattern = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const testKeyPattern = /^[^\s\p{Cc}]{1,256}$/u;
 
 // The ANL-V0-007 redaction observe applies, applied before writing so no secret-shaped query value
-// or URL credential is persisted (ANL-V0-044). Only the value is replaced; everything else is kept.
+// or URL credential is persisted (ANL-V0-044). It mirrors Go's url.ParseQuery: a pair holding ';' or
+// an undecodable escape is dropped, and a hash-route query is decoded once before its pairs are,
+// as url.Parse decodes the fragment. Only redacted values and dropped pairs change the URL.
 const secretKey = /token|secret|passw|pwd|auth|session|sig|key|code|credential|bearer|jwt|cookie/i;
 const opaqueValue = /^[A-Za-z0-9_\-+/=.]{24,}$/;
 const redacted = 'REDACTED';
@@ -33,18 +35,23 @@ function decodeQueryPart(v) {
 }
 
 function redactQuery(query) {
-  return query.split('&').map(pair => {
-    if (pair === '') return pair;
+  const kept = [];
+  for (const pair of query.split('&')) {
+    if (pair === '') continue;
+    if (pair.includes(';')) continue;
     const eq = pair.indexOf('=');
     const k = eq < 0 ? pair : pair.slice(0, eq);
     const v = eq < 0 ? '' : pair.slice(eq + 1);
+    let key, value;
     try {
-      if (!secretKey.test(decodeQueryPart(k)) && !opaqueValue.test(decodeQueryPart(v))) return pair;
+      key = decodeQueryPart(k);
+      value = decodeQueryPart(v);
     } catch {
-      // An undecodable pair is withheld whole rather than guessed at.
+      continue;
     }
-    return k + '=' + redacted;
-  }).join('&');
+    kept.push(secretKey.test(key) || opaqueValue.test(value) ? k + '=' + redacted : pair);
+  }
+  return kept.join('&');
 }
 
 function redactURL(raw) {
@@ -54,7 +61,19 @@ function redactURL(raw) {
   if (hash >= 0) url = url.slice(0, hash);
   const q = url.indexOf('?');
   if (q >= 0) url = url.slice(0, q + 1) + redactQuery(url.slice(q + 1));
-  if (fragment !== null && fragment.includes('?')) {
+  if (fragment !== null && fragment.includes('%')) {
+    let decoded;
+    try {
+      decoded = decodeURIComponent(fragment);
+    } catch {
+      return redacted; // url.Parse refuses the escape, so observe reads the whole URL as REDACTED
+    }
+    if (decoded.includes('?')) {
+      // Escape only '%' so observe's single fragment decode recovers exactly this redacted text.
+      const fq = decoded.indexOf('?');
+      fragment = (decoded.slice(0, fq + 1) + redactQuery(decoded.slice(fq + 1))).replace(/%/g, '%25');
+    }
+  } else if (fragment !== null && fragment.includes('?')) {
     const fq = fragment.indexOf('?');
     fragment = fragment.slice(0, fq + 1) + redactQuery(fragment.slice(fq + 1));
   }
@@ -147,8 +166,12 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
     const s = tests.get(testId);
     if (!s) return;
     const target = file(testId);
-    const doc = s.pages > 1 || s.overflow ? '' : JSON.stringify({schema, test_key: testId, events: s.events}) + '\n';
-    const reason = s.pages > 1 ? 'more than one page'
+    if (s.closed) s.reopened = true; // a second context of this attempt closed after the first
+    const doc = s.pages > 1 || s.overflow || s.reopened ? '' : JSON.stringify({schema, test_key: testId, events: s.events}) + '\n';
+    // Only the attempt's retry and page count outlive its write; the event buffer is released.
+    s.events = [];
+    s.closed = true;
+    const reason = s.reopened ? 'more than one browser context' : s.pages > 1 ? 'more than one page'
       : s.overflow ? 'more than 4096 events or a URL over 4096 bytes'
         : Buffer.byteLength(doc) > maxDocumentBytes ? 'document over 4 MiB' : '';
     if (reason) {

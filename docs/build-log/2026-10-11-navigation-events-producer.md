@@ -52,6 +52,18 @@ Codex round 1 failed the change; each repair was checked live on the same suite.
 - **Size bound (ANL-V0-043).** A document over 4 MiB is withheld.
 - **Directory limit.** The help text now names the 64-file directory limit.
 
+## Review round 2 repairs
+
+- **Redaction mirrors observe (ANL-V0-044).** The fragment is decoded once before its query is,
+  matching `url.Parse`; `;` and undecodable pairs are dropped, matching Go's query parser.
+  `TestANLV0044ProducerRedactionMatchesObserve` runs the producer's redaction through Node and
+  checks two things: no secret reaches the output, and observe's `redactURL` of the written URL
+  equals its `redactURL` of the raw URL.
+- **Memory (ANL-V0-045).** Event buffers are released after each write. A second browser context
+  closing in the same attempt withholds the document (ANL-V0-043).
+- **Live rerun.** After round 2, a retain-on-failure run wrote both documents byte-identical to
+  the fixtures. The `Browser.close()` test still wrote its redacted document.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:

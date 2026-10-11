@@ -293,7 +293,8 @@ are URL templates, not component source files. This slice makes neither missing 
   redirects needs no folding. The producer is a superset where snapshots are blind: it shows
   redirect hops, and a call that commits more than one URL (a client-side redirect) yields one
   event per commit where the trace shows only the last. (proposed; issue #814)
-- `ANL-V0-043`: A test attempt that opens a second page (a popup or another context), records more
+- `ANL-V0-043`: A test attempt that opens a second page (a popup or another context), closes a
+  second browser context after its first, records more
   than 4096 events, commits a URL longer than 4096 bytes, or whose document would exceed the 4 MiB
   reporter file limit gets no document: the producer removes
   any earlier file for that test and writes one stderr line naming the test and reason, mirroring the
@@ -301,11 +302,15 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-044`: The producer reads only main-frame URLs, navigation request redirect chains and each
   call's protocol method and selector. It never records typed or filled values, other call
   parameters, page content, headers or bodies. Before an event URL is kept it applies the ANL-V0-007
-  redaction: URL credentials are dropped, and a query value (also inside a hash route) whose name
-  is secret-shaped or whose value looks opaque, or which cannot be decoded, becomes `REDACTED`; no
-  other byte of the URL changes. `observe` redacts again with the same rule. (proposed; issue #814)
+  redaction as `observe` parses the URL: URL credentials are dropped; a query pair holding `;` or
+  an undecodable escape is dropped, as Go's query parser drops it; a value whose decoded name is
+  secret-shaped or whose decoded value looks opaque becomes `REDACTED`. A hash-route query is
+  decoded once first, as the fragment is, and a fragment with escapes is rewritten with only `%`
+  escaped; an undecodable fragment makes the whole URL `REDACTED`. `observe`'s own redaction of the
+  written URL then equals its redaction of the committed URL. (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event
-  listeners and one small file write per test; it opens no network, process or browser. The
+  listeners and one small file write per test; it opens no network, process or browser. A written
+  or withheld attempt keeps only its retry and page count, not its events. The
   measured overhead and the qualified Playwright version are recorded in the build log. It uses
   Playwright's private client instrumentation hook, qualified on Playwright 1.61.1 only; another
   version needs a fresh live parity run before its output is trusted. (proposed; issue #814)
@@ -381,7 +386,7 @@ line; the closed `playwright-navigation-events/0` format is unchanged.
 | ANL-V0-041 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit`, `TestANLV0042LiveParityWithTraceZip` |
 | ANL-V0-042 | `internal/appmap/navigation-events.cjs` | `TestANLV0042LiveParityWithTraceZip` |
 | ANL-V0-043 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit` |
-| ANL-V0-044 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit`, `TestANLV0039ObserveAcceptsProducerOutput` |
+| ANL-V0-044 | `internal/appmap/navigation-events.cjs` | `TestANLV0044ProducerRedactionMatchesObserve`, `TestANLV0037ProducerNodeUnit`, `TestANLV0039ObserveAcceptsProducerOutput` |
 | ANL-V0-045 | `docs/build-log/2026-10-11-navigation-events-producer.md` | `TestANLV0042LiveParityWithTraceZip` |
 | ANL-V0-046 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit` |
 

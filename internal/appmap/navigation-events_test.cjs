@@ -106,10 +106,27 @@ test('ANL-V0-039: a context closed by Browser.close() still writes once', async 
   assert.ok(!fs.existsSync(path.join(h.dir, 'browser-close.json')), 'already flushed');
 });
 
+test('ANL-V0-043: a second browser context in one attempt withholds; buffers are released', async () => {
+  const h = harness('two-contexts');
+  const a = await h.open();
+  await h.call('goto', {}, () => navigate(a.page, 'https://x.test/a'));
+  const b = new Context();
+  await h.rec.runAfterCreateBrowserContext(b);
+  await h.rec.runBeforeCloseBrowserContext(a.context);
+  assert.equal(JSON.parse(h.read()).events.length, 1);
+  await h.rec.runBeforeCloseBrowserContext(b);
+  assert.ok(!fs.existsSync(path.join(h.dir, 'two-contexts.json')));
+  assert.match(h.warnings[0], /two-contexts not written: more than one browser context/);
+});
+
 test('ANL-V0-044: URLs are redacted before they reach disk', () => {
   assert.equal(redactURL('https://u:p@x.test/a?token=zz&x=1#t'), 'https://x.test/a?token=REDACTED&x=1#t');
   assert.equal(redactURL('http://h/p?a=b&code=1&v=abcdefghijklmnopqrstuvwxyz'), 'http://h/p?a=b&code=REDACTED&v=REDACTED');
-  assert.equal(redactURL('http://h/#/r?session=9&q=%zz'), 'http://h/#/r?session=REDACTED&q=REDACTED');
+  assert.equal(redactURL('http://h/#/r?session=9&q=1'), 'http://h/#/r?session=REDACTED&q=1');
+  assert.equal(redactURL('http://h/p?a=1;token=zz&b=2&q=%zz'), 'http://h/p?b=2');
+  assert.equal(redactURL('http://h/#!/home?%2574oken=sekret1&a=1'), 'http://h/#!/home?%2574oken=REDACTED&a=1');
+  assert.equal(redactURL('http://h/#/r%3Fsession%3D9'), 'http://h/#/r?session=REDACTED');
+  assert.equal(redactURL('http://h/#/r?q=%zz'), 'REDACTED');
   assert.equal(redactURL('http://h/items/7#tab'), 'http://h/items/7#tab');
 });
 

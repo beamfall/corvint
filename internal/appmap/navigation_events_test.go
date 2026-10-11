@@ -113,3 +113,38 @@ func TestANLV0042LiveParityWithTraceZip(t *testing.T) {
 		}
 	}
 }
+
+// ANL-V0-044: the producer's redaction leaves nothing observe's redactURL would still remove, so
+// observe reads the same URL from the producer's file as from the raw commit, and no secret value
+// reaches the file.
+func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
+	raws := []string{
+		"https://u:p@x.test/a?token=sekret1&x=1#t",
+		"http://h/p?a=b&code=sekret2&v=abcdefghijklmnopqrstuvwxyz0123",
+		"http://h/p?a=1;token=sekret3&b=2&q=%zz",
+		"http://h/#/r?session=sekret4&q=1",
+		"http://h/#!/home?%2574oken=sekret5&a=1",
+		"http://h/#/r%3Fsession%3Dsekret6&b=%2526",
+		"http://h/#/r?q=%zz&token=sekret7",
+		"http://h/items/7#tab",
+		"http://h/search?q=hello+world&page=2",
+	}
+	in, _ := json.Marshal(raws)
+	script := `const {redactURL} = require('./navigation-events.cjs'); console.log(JSON.stringify(JSON.parse(process.argv[1]).map(redactURL)))`
+	out, err := exec.Command("node", "-e", script, string(in)).CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var produced []string
+	if err := json.Unmarshal(out, &produced); err != nil || len(produced) != len(raws) {
+		t.Fatalf("producer output %s: %v", out, err)
+	}
+	for i, raw := range raws {
+		if strings.Contains(produced[i], "sekret") {
+			t.Errorf("%s: secret written as %s", raw, produced[i])
+		}
+		if got, want := redactURL(produced[i]), redactURL(raw); got != want {
+			t.Errorf("%s: observe reads %s from the producer, %s from the raw URL", raw, got, want)
+		}
+	}
+}
