@@ -125,10 +125,19 @@ snapshot the worktree, or claim that revision-only context is complete.
   `--working-tree-untracked`; ordinary argument validation and read-only behavior remain.
   Structured abstention exits 0 (the existing context-receipt exit contract); invalid arguments
   exit 2. Ignored paths remain UNOBSERVED. This adds no index, trace, or repository writes.
+- `DIRTY-CACHE-016`: **proposed, pending owner acceptance (V1-1174)**. Every verb
+  `runContext` dispatches (`topLevelCommands`) MUST either honour `--require-clean` or refuse it;
+  none may accept and ignore it. Only `impact` (DIRTY-CACHE-015) and `affected` (AFP-V0-045)
+  honour it. Every other verb, every `prove` mode (path, `--task`, `--cem`, `--checkpoint`) and
+  `feature` MUST exit 2 with a typed diagnostic and no success document, without writing
+  repository state. Most verbs report `invalid-arguments`; verbs with their own input contract
+  keep their existing code (`work` emits its `ERROR` result document). A test enumerates the
+  dispatched verbs, so a new verb is checked without a list edit. Rollback: remove the test.
 
 ## V1-1141 scope and acceptance
 
-Intent for DIRTY-CACHE-014..015 is proposed, pending owner acceptance (V1-1141); implementation
+Intent for DIRTY-CACHE-014..015 is proposed, pending owner acceptance (V1-1141), and for
+DIRTY-CACHE-016 pending owner acceptance (V1-1174); implementation
 remains experimental. The user job is recognizing that a clean requested path in a dirty checkout
 is answered against a committed revision. The baseline is freshness metadata alone. Verify clean,
 all-dirty, partial-overlap, disjoint, renamed, normalized and untracked dirty-path cases; verify
@@ -207,3 +216,4 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-013` | `internal/contextindex/snapshot.go`, `internal/gitstatus/status.go` | `TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`, `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`, `TestSnapshotStoreBoundScalesByWorktreeUpToTheCap`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
 | `DIRTY-CACHE-014` | `internal/contextindex/receipt.go`, `internal/contextindex/impact_freshness.go` | `TestImpactMixedWarning`, `TestImpactMixedWarningBudget`, `TestImpactMixedCLIReadOnly` |
 | `DIRTY-CACHE-015` | `cmd/corvint/main.go`, `internal/contextindex/impact_freshness.go` | `TestImpactRequireCleanCLI`, `TestImpactRequireCleanArguments`, `TestImpactRequireCleanBudget`, `TestImpactRequireCleanValidatesRequest` |
+| `DIRTY-CACHE-016` | `cmd/corvint/prove_options.go`, `topLevelCommands` in `cmd/corvint/main.go` | `TestRequireCleanHonouredOrRefusedByEveryCommand`, `TestProveRefusesRequireClean` |
