@@ -614,6 +614,9 @@ func TestReadStableRefusesABundleChangedDuringTheRead(t *testing.T) {
 			}
 			return os.Symlink(filepath.Base(target)+".moved", filepath.Join(dir, target))
 		}},
+		{"rewritten after its read", func(dir string) error {
+			return os.WriteFile(filepath.Join(dir, StableMapName), []byte("{}"), 0o600)
+		}},
 		{"added file", func(dir string) error {
 			return os.WriteFile(filepath.Join(dir, StableArtifactDir, "late.json"), nil, 0o600)
 		}},

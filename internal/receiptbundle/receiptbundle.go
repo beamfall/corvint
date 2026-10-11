@@ -108,7 +108,7 @@ var gateLine = regexp.MustCompile(`\Acorvint-gate-receipt/0 ([0-9a-f]{40}|[0-9a-
 // declare exactly cem/1.0 takes the stable route; every other map keeps the
 // 0.x export, which refuses --artifacts (CEM-V1-060, CEM-V1-064).
 func Export(ctx context.Context, root string, options Options) (map[string]any, error) {
-	if raw, err := readRegular(root, options.MapPath); err == nil && wire.DeclaresStable(raw) {
+	if raw, err := readStableProbe(root, options.MapPath); err == nil && wire.DeclaresStable(raw) {
 		return exportStable(ctx, root, raw, options)
 	}
 	if options.ArtifactsGiven {

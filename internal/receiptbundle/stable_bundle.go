@@ -239,6 +239,11 @@ func ReadStable(dir string) (*StableBundle, error) {
 	}
 	bundle := &StableBundle{Base: manifest.Base, Target: manifest.Target, Map: mapBytes}
 	declared := map[string]bool{ManifestName: true, StableMapName: true}
+	type readFile struct {
+		sha256 string
+		bound  int
+	}
+	readFiles := map[string]readFile{ManifestName: {digest(raw), MaxReceiptBytes}, StableMapName: {manifest.Map.Sha256, wire.MaxMapBytes}}
 	total := 0
 	for i, a := range document.Artifacts {
 		entry := manifest.Artifacts[i]
@@ -257,6 +262,7 @@ func ReadStable(dir string) (*StableBundle, error) {
 			return nil, stableRefusal(CodeStableEntryDigest, "%s does not match its declared digest", name)
 		}
 		declared[name] = true
+		readFiles[name] = readFile{a.Sha256, wire.CandidateMaxArtifactBytes}
 		bundle.Artifacts = append(bundle.Artifacts, StableArtifact{a.Kind, a.Path, a.Sha256, data})
 	}
 	if !bytes.Equal(bundle.Manifest(), raw) {
@@ -274,7 +280,26 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if !maps.Equal(files, filesAfter) || !maps.Equal(dirs, dirsAfter) {
 		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 	}
+	// Every declared file is read again, so one rewritten after its own read
+	// is refused too.
+	for name, want := range readFiles {
+		data, err := readRootFile(root, filepath.FromSlash(name), want.bound)
+		if err != nil || digest(data) != want.sha256 {
+			return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
+		}
+	}
 	return bundle, nil
+}
+
+// readStableProbe reads the map only to select the export route, with the
+// same bound as readRegular but without blocking on a substituted FIFO.
+func readStableProbe(dir, name string) ([]byte, error) {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return readRootFile(root, name, MaxReceiptBytes)
 }
 
 // walkStable lists every regular file and directory under the bundle root by
