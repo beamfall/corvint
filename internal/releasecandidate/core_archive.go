@@ -51,7 +51,7 @@ func verifyCoreArchiveBinary(raw []byte, target coreTarget) ([]byte, error) {
 		return nil, fmt.Errorf("core archive %s internal checksum disagrees", target.ArchiveName)
 	}
 	info, err := buildinfo.Read(bytes.NewReader(binary))
-	if err != nil || info.GoVersion != "go1.27.1" || info.Path != "github.com/Beamfall/corvint/cmd/corvint" {
+	if err != nil || info.GoVersion != "go1.27.2" || info.Path != "github.com/Beamfall/corvint/cmd/corvint" {
 		return nil, fmt.Errorf("core archive %s build identity disagrees", target.ArchiveName)
 	}
 	settings := map[string]string{}

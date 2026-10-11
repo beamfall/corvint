@@ -139,7 +139,7 @@ Its native absolute cache path is never committed. Any other run-generated disco
 `DISCOVERY_INPUT`.
 
 `providerBuildSha256` is the bare digest of
-`H("go-provider-build","go-provider-build/0",{"executableRawSha256":<raw-digest>,"goVersion":"go1.27.1"})`.
+`H("go-provider-build","go-provider-build/0",{"executableRawSha256":<raw-digest>,"goVersion":"go1.27.2"})`.
 A bounded tree walk is the bare digest of
 `H("go-tree-walk","go-tree-walk/0",sorted [{mode,pathSha256,rawSha256}])`, with logical
 `TOOLCHAIN` paths. `gorootSha256` and `toolDirSha256` use that exact preimage. The bare
@@ -162,7 +162,7 @@ including a terminal LF where one existed.
 
 The operation and coverage arrays are frozen in the displayed order. `operations:["execute"]` is
 the complete local-experiment surface and explicitly does not satisfy LPCV-V0-021. V0 admits only
-the exact `go1.27.1` toolchain tuple named in the plan; this is format conformance, not LPCV
+the exact `go1.27.2` toolchain tuple named in the plan (decision 0522); this is format conformance, not LPCV
 qualification. A later Go release needs a new conformance tuple even when its output appears
 compatible.
 
@@ -188,7 +188,7 @@ unsupported until a separately specified kill-on-close Job Object or equivalent 
   "profile":"go-live-plan/0",
   "scope":{"conclusion":"UNKNOWN","excluded":[],"requestedPackagePatterns":["./..."],"unknownReasons":["BUILD_CONSTRAINT_VARIANTS","CROSS_PLATFORM_VARIANTS","DISCOVERY_INCOMPLETE","EXTERNAL_MODULE_FRONTIER","FUZZ_BENCHMARK_FRONTIER","MANDATORY_GATE_OUTSIDE_RUN","NESTED_MODULE_FRONTIER","NETWORK_STATE_UNKNOWN","NON_GO_TEST_FRONTIER","NO_AFFECTED_SELECTION_PROOF","PACKAGE_PATTERN_SEMANTICS","PARENT_TEST_UNAVAILABLE","SOURCE_ANCHOR_UNAVAILABLE","UNOBSERVED_DYNAMIC_SUBTESTS"]},
   "source":{"dependencyMaterializationSha256":"64-lowercase-hex","materializationSha256":"64-lowercase-hex","moduleMode":"MODULE|WORKSPACE|VENDOR","rootPathSha256":"64-lowercase-hex","wsi":"workspace-source:sha256:64-lowercase-hex"},
-  "toolchain":{"cgoEnabled":"0","goarch":"value","goenvSha256":"64-lowercase-hex","goexeSha256":"64-lowercase-hex","goos":"value","gorootSha256":"64-lowercase-hex","goversion":"go1.27.1","id":"go-toolchain:sha256:64-lowercase-hex","invokedToolsSha256":"64-lowercase-hex","pathSha256":"64-lowercase-hex","toolDirSha256":"64-lowercase-hex"}
+  "toolchain":{"cgoEnabled":"0","goarch":"value","goenvSha256":"64-lowercase-hex","goexeSha256":"64-lowercase-hex","goos":"value","gorootSha256":"64-lowercase-hex","goversion":"go1.27.2","id":"go-toolchain:sha256:64-lowercase-hex","invokedToolsSha256":"64-lowercase-hex","pathSha256":"64-lowercase-hex","toolDirSha256":"64-lowercase-hex"}
 }
 ```
 
@@ -705,7 +705,7 @@ production observations, toolchain hashes, and independent receipt checks use th
 It remains off by default and cannot become parent-qualified or current evidence until all of the
 following promotion evidence is recorded:
 
-1. all requirement-to-test mappings and hostile vectors pass under Go 1.27.1;
+1. all requirement-to-test mappings and hostile vectors pass under Go 1.27.2;
 2. independent canonical-byte verification is exact across 10,000 seeded runs;
 3. Corvint self-dogfood and Beamfall each complete 200 explicit full-package shadow runs with zero
    stale attachment, event loss, false package-pass, repository mutation, or cleanup residue;

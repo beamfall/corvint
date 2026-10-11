@@ -107,10 +107,6 @@ func TestCIRoutesStableSpecToStableVerifier(t *testing.T) {
 	}
 }
 
-// stableRouteFrozenTuple is the only Go runtime on which the stable canonical verifier admits the
-// S0e fixtures' structural hunks (cem.go verifyStable03 runtime stage).
-const stableRouteFrozenTuple = "go1.27.1"
-
 type exampleStable struct {
 	script, exe, mapFile string
 	run                  *s0eRun
@@ -190,8 +186,8 @@ func strOf(p *string) string {
 // verification: the sealed S0e change is accepted, and a tampered artifact is rejected at the
 // artifact stage (CEM-V1-PSR-004, migration row C19).
 func TestExampleStableBranchVerifies(t *testing.T) {
-	if runtime.Version() != stableRouteFrozenTuple {
-		t.Skipf("NOT_RUN: the stable S0e fixtures need the %s structural tuple; running %s", stableRouteFrozenTuple, runtime.Version())
+	if !structuralRuntimeAdmitted(runtime.Version()) {
+		t.Skipf("NOT_RUN: the stable S0e fixtures need an admitted structural tuple; running %s", runtime.Version())
 	}
 	if !stableOwnerSupported() {
 		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
@@ -213,8 +209,8 @@ func TestExampleStableBranchVerifies(t *testing.T) {
 // TestExampleStableBranchRuntimeRefusal shows an unqualified runtime is passed through as the
 // verifier's own UNSUPPORTED result, never masked or weakened by the script.
 func TestExampleStableBranchRuntimeRefusal(t *testing.T) {
-	if runtime.Version() == stableRouteFrozenTuple {
-		t.Skipf("NOT_RUN: %s is the qualified tuple; TestExampleStableBranchVerifies covers it", stableRouteFrozenTuple)
+	if structuralRuntimeAdmitted(runtime.Version()) {
+		t.Skipf("NOT_RUN: %s is an admitted tuple; TestExampleStableBranchVerifies covers it", runtime.Version())
 	}
 	x := newExampleStable(t)
 	res := x.runScript(t, "unqualified runtime")

@@ -24,6 +24,47 @@ func write(t *testing.T, name, body string) string {
 }
 
 // AFP-V0-022: costs come from retained hosted package outcomes, with the source recorded.
+// partitionGoVersion is the source toolchain the fixture tables record; the
+// partition admits it and go1.27.2 (.github/cishards, decision 0522). Tests
+// refresh as that toolchain unless they exercise another one.
+const partitionGoVersion = "go1.27.1"
+
+func TestMain(m *testing.M) {
+	sourceGoVersion = partitionGoVersion
+	os.Exit(m.Run())
+}
+
+// TestAFPV0022RefreshRecordsTheSourceToolchain proves refresh records the
+// toolchain it runs under, succeeds under each admitted one (go1.27.1 and the
+// pinned go1.27.2), and refuses, without writing, one the partition does not
+// admit.
+func TestAFPV0022RefreshRecordsTheSourceToolchain(t *testing.T) {
+	logs := write(t, "raw.log", passed("example.org/a", "0.5"))
+	t.Cleanup(func() { sourceGoVersion = partitionGoVersion })
+	refresh := func(version string) (string, int, error) {
+		table := filepath.Join(t.TempDir(), "costs.json")
+		sourceGoVersion = version
+		code, err := run("refresh", []string{"--table", table, "--shards", "1", "--revision", revision, "--run-url", runURL, logs}, nil)
+		return table, code, err
+	}
+	table, code, err := refresh("go1.27.99")
+	if code != 2 || err == nil || !strings.Contains(err.Error(), "source toolchain go1.27.99") {
+		t.Fatalf("unadmitted toolchain: code=%d err=%v", code, err)
+	}
+	if _, err := os.Stat(table); !os.IsNotExist(err) {
+		t.Fatalf("refused refresh wrote the table: %v", err)
+	}
+	for _, version := range []string{"go1.27.1", "go1.27.2"} {
+		table, code, err := refresh(version)
+		if code != 0 || err != nil {
+			t.Fatalf("admitted toolchain %s: code=%d err=%v", version, code, err)
+		}
+		if got, _ := os.ReadFile(table); !strings.Contains(string(got), `"goVersion": "`+version+`"`) {
+			t.Fatalf("source goVersion %s not recorded:\n%s", version, got)
+		}
+	}
+}
+
 func TestAFPV0022RefreshFromHostedOutcomes(t *testing.T) {
 	raw := write(t, "raw.log", `{"Action":"start","Package":"example.org/a"}
 {"Action":"pass","Package":"example.org/a","Test":"TestA","Elapsed":9}

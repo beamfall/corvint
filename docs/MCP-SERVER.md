@@ -10,7 +10,7 @@ a network listener. The binding contract is
 
 ## Build and run
 
-The server requires Go 1.27.1 and one absolute repository root:
+The server requires Go 1.27.2 and one absolute repository root:
 
 ```console
 $ GOTOOLCHAIN=local go build -o ./bin/corvint-mcp ./cmd/corvint-mcp

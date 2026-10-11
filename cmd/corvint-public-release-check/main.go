@@ -77,8 +77,8 @@ func run(args []string) int {
 
 func verifySelf(expectedCommit string) error {
 	info, ok := debug.ReadBuildInfo()
-	if !ok || info.GoVersion != "go1.27.1" {
-		return fmt.Errorf("checker was not built by Go 1.27.1")
+	if !ok || info.GoVersion != "go1.27.2" {
+		return fmt.Errorf("checker was not built by Go 1.27.2")
 	}
 	settings := map[string]string{}
 	for _, setting := range info.Settings {

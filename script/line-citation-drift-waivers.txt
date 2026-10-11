@@ -14,3 +14,8 @@ docs/decisions/0170-local-completion-intents-pin-at-enrollment-head-2026-09-12.m
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/worksource/git.go:191
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/dashboard/roadmap/atm.go:131
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/localcompletion/storage.go:429
+#
+# decision 0522 (existing decision bodies stay unedited): install.go:109 changed only its pinned
+# toolchain literal go1.27.1 -> go1.27.2; the exact-banner sentences in 0375 and 0384 still hold.
+docs/decisions/0375-build-number-is-provenance-not-order-2026-09-24.md	internal/releasecandidate/install.go:109
+docs/decisions/0384-1-0-0-rc-1-replaces-0-9-2026-09-24.md	internal/releasecandidate/install.go:109

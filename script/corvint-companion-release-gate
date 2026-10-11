@@ -142,8 +142,8 @@ export GOTOOLCHAIN=local
 
 cd "$repo"
 version=$(go env GOVERSION)
-if [ "$version" != go1.27.1 ]; then
-  echo "corvint-companion-release-gate: refusing — need go1.27.1, PATH has $version" >&2
+if [ "$version" != go1.27.2 ]; then
+  echo "corvint-companion-release-gate: refusing — need go1.27.2, PATH has $version" >&2
   exit 1
 fi
 

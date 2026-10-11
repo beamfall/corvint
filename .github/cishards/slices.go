@@ -105,7 +105,7 @@ func Allowed(raw []byte) (map[string]string, bool) {
 // usable source, whatever packages it splits.
 func decodeSlices(raw []byte) (sliceFile, bool) {
 	var f sliceFile
-	if !strict(raw, &f) || f.Profile != "corvint-ci-test-slices/0" || f.Source.GoVersion != "go1.27.1" || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
+	if !strict(raw, &f) || f.Profile != "corvint-ci-test-slices/0" || !SourceGoVersions[f.Source.GoVersion] || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
 		return f, false
 	}
 	if _, err := hex.DecodeString(f.Source.Revision); err != nil {

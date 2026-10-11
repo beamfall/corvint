@@ -101,7 +101,7 @@ qualification when applicable, and independent review. Do not start `make gate` 
 for it or a governing release policy explicitly requires repository-wide validation.
 
 ```sh
-test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.2"
 GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...
 GOTOOLCHAIN=local go vet ./...
 (cd interop/cem01-go && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...)

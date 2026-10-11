@@ -56,29 +56,29 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	408	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	434	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
 AFP-V0-021	docs/specs/affected-plan-v0.md	448	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFP-V0-022	docs/specs/affected-plan-v0.md	497	(accepted (decision 0431); amended by decision 0431; owner-directed experimental
-AFP-V0-023	docs/specs/affected-plan-v0.md	657	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
-AFP-V0-024	docs/specs/affected-plan-v0.md	695	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
-AFP-V0-025	docs/specs/affected-plan-v0.md	721	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
-AFP-V0-026	docs/specs/affected-plan-v0.md	756	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;
-AFP-V0-027	docs/specs/affected-plan-v0.md	781	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-028	docs/specs/affected-plan-v0.md	794	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL
-AFP-V0-029	docs/specs/affected-plan-v0.md	827	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted
-AFP-V0-030	docs/specs/affected-plan-v0.md	852	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit
-AFP-V0-031	docs/specs/affected-plan-v0.md	869	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-AFP-V0-032	docs/specs/affected-plan-v0.md	907	(accepted by decision 0438; V1-0865) Only a declaration path that
-AFP-V0-033	docs/specs/affected-plan-v0.md	916	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	932	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
-AFP-V0-035	docs/specs/affected-plan-v0.md	949	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
-AFP-V0-036	docs/specs/affected-plan-v0.md	968	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
-AFP-V0-037	docs/specs/affected-plan-v0.md	987	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
-AFP-V0-038	docs/specs/affected-plan-v0.md	1017	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
-AFP-V0-039	docs/specs/affected-plan-v0.md	1028	(proposed (V1-0662); no GitHub issue) A Go test fixture under
-AFP-V0-040	docs/specs/affected-plan-v0.md	1041	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
-AFP-V0-041	docs/specs/affected-plan-v0.md	536	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
-AFP-V0-042	docs/specs/affected-plan-v0.md	1087	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
-AFP-V0-043	docs/specs/affected-plan-v0.md	1107	(accepted, decision 0505) Cost-table
-AFP-V0-044	docs/specs/affected-plan-v0.md	1116	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
-AFP-V0-045	docs/specs/affected-plan-v0.md	1127	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
+AFP-V0-023	docs/specs/affected-plan-v0.md	659	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	697	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	723	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	758	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;
+AFP-V0-027	docs/specs/affected-plan-v0.md	783	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+AFP-V0-028	docs/specs/affected-plan-v0.md	796	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL
+AFP-V0-029	docs/specs/affected-plan-v0.md	829	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted
+AFP-V0-030	docs/specs/affected-plan-v0.md	854	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit
+AFP-V0-031	docs/specs/affected-plan-v0.md	871	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+AFP-V0-032	docs/specs/affected-plan-v0.md	909	(accepted by decision 0438; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	918	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	934	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	951	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+AFP-V0-036	docs/specs/affected-plan-v0.md	970	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+AFP-V0-037	docs/specs/affected-plan-v0.md	989	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
+AFP-V0-038	docs/specs/affected-plan-v0.md	1019	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+AFP-V0-039	docs/specs/affected-plan-v0.md	1030	(proposed (V1-0662); no GitHub issue) A Go test fixture under
+AFP-V0-040	docs/specs/affected-plan-v0.md	1043	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
+AFP-V0-041	docs/specs/affected-plan-v0.md	538	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
+AFP-V0-042	docs/specs/affected-plan-v0.md	1089	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
+AFP-V0-043	docs/specs/affected-plan-v0.md	1109	(accepted, decision 0505) Cost-table
+AFP-V0-044	docs/specs/affected-plan-v0.md	1118	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
+AFP-V0-045	docs/specs/affected-plan-v0.md	1129	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -812,26 +812,27 @@ CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/revi
 CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev
 CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int
 CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,
-CEM-V1-011	docs/specs/cem-stable-v1.md	58	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
-CEM-V1-012	docs/specs/cem-stable-v1.md	59	Publish the candidate schema and algorithms before the standalone consumer. Nati
-CEM-V1-013	docs/specs/cem-stable-v1.md	60	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
-CEM-V1-014	docs/specs/cem-stable-v1.md	61	Inventory every existing consumer's profile and migration disposition. An unsupp
-CEM-V1-015	docs/specs/cem-stable-v1.md	71	Candidate assembly MUST require independently supplied immutable base and target
-CEM-V1-016	docs/specs/cem-stable-v1.md	72	Assembly MUST compare each declared runner source input with its self-hashed imm
-CEM-V1-017	docs/specs/cem-stable-v1.md	214	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
-CEM-V1-018	docs/specs/cem-stable-v1.md	215	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
-CEM-V1-019	docs/specs/cem-stable-v1.md	216	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-030	docs/specs/cem-stable-v1.md	249	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
-CEM-V1-031	docs/specs/cem-stable-v1.md	250	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
-CEM-V1-032	docs/specs/cem-stable-v1.md	251	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
-CEM-V1-033	docs/specs/cem-stable-v1.md	252	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
-CEM-V1-034	docs/specs/cem-stable-v1.md	296	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-035	docs/specs/cem-stable-v1.md	297	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-036	docs/specs/cem-stable-v1.md	298	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	326	The default `verify` path refuses a strictly parsed JSON object whose exact
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	330	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	333	Only that exact case changes. A duplicate, non-string, differently cased,
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	337	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
+CEM-V1-011	docs/specs/cem-stable-v1.md	59	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
+CEM-V1-012	docs/specs/cem-stable-v1.md	60	Publish the candidate schema and algorithms before the standalone consumer. Nati
+CEM-V1-013	docs/specs/cem-stable-v1.md	61	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
+CEM-V1-014	docs/specs/cem-stable-v1.md	62	Inventory every existing consumer's profile and migration disposition. An unsupp
+CEM-V1-015	docs/specs/cem-stable-v1.md	72	Candidate assembly MUST require independently supplied immutable base and target
+CEM-V1-016	docs/specs/cem-stable-v1.md	73	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-017	docs/specs/cem-stable-v1.md	237	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
+CEM-V1-018	docs/specs/cem-stable-v1.md	238	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
+CEM-V1-019	docs/specs/cem-stable-v1.md	239	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
+CEM-V1-030	docs/specs/cem-stable-v1.md	272	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
+CEM-V1-031	docs/specs/cem-stable-v1.md	273	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
+CEM-V1-032	docs/specs/cem-stable-v1.md	274	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
+CEM-V1-033	docs/specs/cem-stable-v1.md	275	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
+CEM-V1-034	docs/specs/cem-stable-v1.md	319	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	320	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	321	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-050	docs/specs/cem-stable-v1.md	199	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	349	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	353	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	356	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	360	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and

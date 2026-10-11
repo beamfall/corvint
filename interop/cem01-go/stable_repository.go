@@ -749,7 +749,7 @@ func runStableCanonical(ctx context.Context, repo string, raw []byte, base, targ
 	for _, h := range m.Hunks {
 		if structuralReason03(h.Reason) {
 			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
-			if runtime.Version() != "go1.27.1" {
+			if !structuralRuntimeAdmitted(runtime.Version()) {
 				r.Runtime.StructuralQualification = "UNSUPPORTED"
 				r.Axes["structuralProof"] = "UNSUPPORTED_RUNTIME"
 				return failStable(&r, "runtime", operational("unsupported-structural-runtime"), false)
