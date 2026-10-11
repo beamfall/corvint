@@ -1,6 +1,6 @@
 # V1-0243: explicit reasons when local completion has no next action
 
-Intent: `LCP-V0-019` is proposed, pending owner acceptance (V1-0243), in
+Intent: `LCP-V0-020` is proposed, pending owner acceptance (V1-0243), in
 `docs/specs/local-completion-policy-v0.md`. No owner acceptance or decision is recorded.
 Base: `29e1f653486fca13216606683d3a5c2b05cacd36`.
 

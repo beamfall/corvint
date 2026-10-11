@@ -183,7 +183,7 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 			t.Fatalf("not satisfied: %#v", result)
 		}
 		if len(result.NextActions) != 0 || result.NoActionReason != "workflow-satisfied" {
-			t.Fatalf("LCP-V0-019 satisfied reason: %#v", result)
+			t.Fatalf("LCP-V0-020 satisfied reason: %#v", result)
 		}
 		for _, action := range []string{"status", "finish"} {
 			code, stdout, stderr := runCLI(t, "--root", root, "dogfood", action, "--session-key", key)
@@ -191,7 +191,7 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 				Policy localcompletion.Evaluation `json:"policy"`
 			}
 			if err := json.Unmarshal([]byte(stdout), &document); err != nil || code != 0 || document.Policy.NoActionReason != "workflow-satisfied" || len(document.Policy.NextActions) != 0 {
-				t.Fatalf("LCP-V0-019 satisfied %s: exit=%d stdout=%s stderr=%s err=%v", action, code, stdout, stderr, err)
+				t.Fatalf("LCP-V0-020 satisfied %s: exit=%d stdout=%s stderr=%s err=%v", action, code, stdout, stderr, err)
 			}
 		}
 		assertLocalCompletionUnassessed(t, root, base, result.Target)
@@ -400,7 +400,7 @@ func TestDogfoodBeginPlanIntentRefusalNamesTheRule(t *testing.T) {
 	}
 }
 
-// LCP-V0-019: unavailable Frontier authority does not erase workflow guidance.
+// LCP-V0-020: unavailable Frontier authority does not erase workflow guidance.
 func TestLocalCompletionFrontierUnavailableNextActionOrReason(t *testing.T) {
 	root, key := handoffRepository(t)
 	for _, lifecycle := range []string{"active", "inactive", "cancelled"} {
@@ -456,7 +456,7 @@ func TestLocalCompletionFrontierUnavailableNextActionOrReason(t *testing.T) {
 	}
 }
 
-// LCP-V0-019: pin the additive field without the all-mode enumeration registry.
+// LCP-V0-020: pin the additive field without the all-mode enumeration registry.
 func TestLocalCompletionInactiveStatusGolden(t *testing.T) {
 	document := runCoreMode(t, func(t *testing.T) []string {
 		return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
@@ -464,7 +464,7 @@ func TestLocalCompletionInactiveStatusGolden(t *testing.T) {
 	compareCoreGolden(t, "$", readCoreGolden(t, filepath.Join("testdata", "core-freeze", "dogfood-status-retained-outcome.json")), document)
 }
 
-// LCP-V0-019: a snapshot failure still explains why a partial policy has no action.
+// LCP-V0-020: a snapshot failure still explains why a partial policy has no action.
 func TestLocalCompletionUnavailableEvaluationReason(t *testing.T) {
 	root, key := handoffRepository(t)
 	if result, err := localcompletion.Evaluate(context.Background(), root, key); err != nil || len(result.NextActions) == 0 {

@@ -95,7 +95,7 @@ func TestCompletionNextActions(t *testing.T) {
 	})
 }
 
-// LCP-V0-019: no continuation is an explicit state, not a missing worklist.
+// LCP-V0-020: no continuation is an explicit state, not a missing worklist.
 func TestCompletionNoActionReasons(t *testing.T) {
 	root, key, plan := fixture(t, []string{"true"})
 	result, err := Evaluate(context.Background(), root, key)
