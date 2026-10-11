@@ -103,6 +103,13 @@ Subcommands:
   negate                  generate step-level negative controls for one Playwright test (LPCV-V0-057)
   help, -h, --help        print this usage and exit 0
 
+With e2e --external-server, --test-arg (what Playwright runs) and --test-file (what identity
+binds) are independent. When the config uses project dependencies, Playwright also reports the
+setup projects' results, so each setup file needs its own --test-file; otherwise the run refuses
+report-identity-unknown with a test-file-unbound detail that names each unbound file and its
+cause (PWP-V0-019). Under --sensitive-input-redaction the detail stays the fixed untrusted-output
+text. No file is bound unless it is passed with --test-file.
+
 --retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
 enclosing Git worktree (LPCV-V0-055). The flags of each subcommand follow.
 `
@@ -312,10 +319,10 @@ func runE2EMode(mode string, args []string) error {
 	var testArgv stringList
 	var sensitiveActionPatterns stringList
 	var sensitiveFields stringList
-	fs.Var(&testFiles, "test-file", "a test file to bind identity to (repeatable)")
+	fs.Var(&testFiles, "test-file", "a test file to bind identity to (repeatable); pass every file Playwright reports a result for, including setup files that project dependencies run, or the receipt refuses test-file-unbound naming each unbound file (PWP-V0-019)")
 	fs.Var(&envKeys, "env-key", "a declared environment variable name to observe (repeatable)")
 	fs.Var(&serverArgv, "server-arg", "one token of the app server command, in order (repeatable)")
-	fs.Var(&testArgv, "test-arg", "one token of the playwright test command, in order (repeatable)")
+	fs.Var(&testArgv, "test-arg", "one token of the playwright test command, in order (repeatable); selects what runs and binds no file identity, so --test-file is still required for every reported file")
 	fs.Var(&sensitiveActionPatterns, "sensitive-action-pattern", "additional case-insensitive input-action title pattern (repeatable; additive to defaults)")
 	fs.Var(&sensitiveFields, "sensitive-field", "additional step metadata field to redact (repeatable; additive to defaults)")
 	if err := fs.Parse(args); err != nil {

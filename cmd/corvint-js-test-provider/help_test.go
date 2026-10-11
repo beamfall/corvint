@@ -128,3 +128,25 @@ func TestDocsHelpProducerExampleUsesE2EFlags(t *testing.T) {
 		t.Fatal("docs help has no corvint-js-test-provider e2e example")
 	}
 }
+
+// PWP-V0-019: the help states that --test-arg selects what runs while --test-file binds identity,
+// that setup files reported through project dependencies need their own --test-file, and that
+// the refusal names each unbound file.
+func TestProviderHelpExplainsSetupProjectFileBinding(t *testing.T) {
+	var usage bytes.Buffer
+	printUsage(&usage)
+	text := usage.String()
+	for _, want := range []string{
+		"--test-arg (what Playwright runs) and --test-file (what identity\nbinds) are independent",
+		"project dependencies",
+		"each setup file needs its own --test-file",
+		"test-file-unbound detail that names each unbound file",
+		"No file is bound unless it is passed with --test-file.",
+		"including setup files that project dependencies run",
+		"binds no file identity",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("usage omits %q", want)
+		}
+	}
+}
