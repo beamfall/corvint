@@ -178,6 +178,14 @@ func TestRepeatCountMismatchAmbiguous(t *testing.T) {
 		}
 	})
 	eq(t, "moved", byTitle(t, Stability([]*Run{moved}, 2).Tests)["cart > adds item"].Reason, ReasonAmbiguous)
+	// Repeats without a reported spec location cannot be shown to be one spec.
+	unlocated := mutatedFixture(t, "repeat3.json", func(doc map[string]any) {
+		for _, s := range doc["suites"].([]any)[0].(map[string]any)["suites"].([]any)[0].(map[string]any)["specs"].([]any) {
+			delete(s.(map[string]any), "line")
+			delete(s.(map[string]any), "column")
+		}
+	})
+	eq(t, "unlocated", byTitle(t, Stability([]*Run{unlocated}, 2).Tests)["cart > removes item"].Reason, ReasonAmbiguous)
 }
 
 // N repeats in one report give the same k/N as N single-repeat reports (PWR-V0-014).
@@ -236,6 +244,10 @@ func TestShardSetRefusals(t *testing.T) {
 			delete(doc["config"].(map[string]any)["metadata"].(map[string]any), "corvintRunIdentity")
 		})
 	}
+	otherBlob := mutatedFixture(t, "shard-3-of-3.json", func(doc map[string]any) {
+		identity := doc["config"].(map[string]any)["metadata"].(map[string]any)["corvintRunIdentity"].(map[string]any)
+		identity["testFileBlobs"].(map[string]any)["a.spec.js"] = "blob-a2"
+	})
 	cases := map[string]struct {
 		runs    []*Run
 		reasons []string
@@ -246,6 +258,10 @@ func TestShardSetRefusals(t *testing.T) {
 		"duplicate shard": {runsFixtures(t, "shard-1-of-3.json", "shard-2-of-3.json", "shard-2-of-3-again.json", "shard-3-of-3.json"), []string{ReasonShardDuplicate},
 			[]ShardSet{{Run: 1, Total: 3, Reports: []int{1, 2, 3, 4}, Shards: []int{1, 2, 2, 3}, Status: ShardSetRefused, Reason: ReasonShardDuplicate, Missing: []int{}, Duplicate: []int{2}}}},
 		"mismatched identity": {runsFixtures(t, "shard-1-of-3.json", "shard-2-of-3.json", "shard-3-of-3-app-2.json"), []string{ReasonShardSetIncomplete},
+			[]ShardSet{
+				{Run: 1, Total: 3, Reports: []int{1, 2}, Shards: []int{1, 2}, Status: ShardSetRefused, Reason: ReasonShardSetIncomplete, Missing: []int{3}, Duplicate: []int{}},
+				{Run: 3, Total: 3, Reports: []int{3}, Shards: []int{3}, Status: ShardSetRefused, Reason: ReasonShardSetIncomplete, Missing: []int{1, 2}, Duplicate: []int{}}}},
+		"mismatched test-file blob": {[]*Run{runsFixture(t, "shard-1-of-3.json"), runsFixture(t, "shard-2-of-3.json"), otherBlob}, []string{ReasonShardSetIncomplete},
 			[]ShardSet{
 				{Run: 1, Total: 3, Reports: []int{1, 2}, Shards: []int{1, 2}, Status: ShardSetRefused, Reason: ReasonShardSetIncomplete, Missing: []int{3}, Duplicate: []int{}},
 				{Run: 3, Total: 3, Reports: []int{3}, Shards: []int{3}, Status: ShardSetRefused, Reason: ReasonShardSetIncomplete, Missing: []int{1, 2}, Duplicate: []int{}}}},
@@ -318,7 +334,8 @@ func TestShardedRepeatEachComposes(t *testing.T) {
 	eq(t, "half", half.ShardSets[0].Missing, []int{1})
 }
 
-// config.shard must name a shard within its total (PWR-V0-016).
+// config.shard must name a shard within its total, and declared counts are bounded (PWR-V0-011,
+// PWR-V0-016).
 func TestShardDeclarationValidated(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "runs", "shard-1-of-3.json"))
 	if err != nil {
@@ -332,5 +349,23 @@ func TestShardDeclarationValidated(t *testing.T) {
 		if _, err := Parse(bad); !errors.Is(err, ErrShape) {
 			t.Errorf("%s: err = %v, want ErrShape", shard, err)
 		}
+	}
+	// Declared counts are bounded before anything is laid out per shard or repeat.
+	huge := bytes.Replace(raw, []byte(`"shard": {`), []byte(`"shard": {"current":1,"total":1025}, "x": {`), 1)
+	if _, err := Parse(huge); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("shard total 1025: err = %v, want ErrTooLarge", err)
+	}
+	repeat, err := os.ReadFile(filepath.Join("testdata", "runs", "repeat3.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(repeat, []byte(`"repeatEach": 3`)) {
+		t.Fatal("fixture repeatEach key not found")
+	}
+	if _, err := Parse(bytes.Replace(repeat, []byte(`"repeatEach": 3`), []byte(`"repeatEach": 1025`), 1)); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("repeatEach 1025: err = %v, want ErrTooLarge", err)
+	}
+	if _, err := Parse(bytes.Replace(repeat, []byte(`"repeatEach": 3`), []byte(`"repeatEach": 1024`), 1)); err != nil {
+		t.Errorf("repeatEach 1024: %v", err)
 	}
 }

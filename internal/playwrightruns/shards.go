@@ -16,7 +16,8 @@ const (
 )
 
 // ShardSet is the shard reports of one logical run: the reports that declare one config.shard
-// total at one Playwright version, applicationRevision, configDigest and repeatEach declaration.
+// total at one Playwright version, applicationRevision, configDigest, test-file blob set and
+// repeatEach declaration.
 type ShardSet struct {
 	Run       int    `json:"run"`     // the logical run: the 1-based position of its first report
 	Total     int    `json:"total"`   // the declared shard count
@@ -111,36 +112,32 @@ func inputsComplete(run *Run) bool {
 	return run.InputsDeclared && run.Inputs.ApplicationRevision != "" && run.Inputs.ConfigDigest != ""
 }
 
-// shardGroupKey is what the shards of one logical run must share. Undeclared inputs group as
-// empty values, and such a group is refused rather than trusted.
+// shardGroupKey is what the shards of one logical run must share: every declared identity input,
+// including the test-file blobs. Undeclared inputs group as empty values, and such a group is
+// refused rather than trusted.
 func shardGroupKey(run *Run) string {
 	app, config := "", ""
+	var blobs map[string]string
+	var conflicts map[string][]string
 	if run.InputsDeclared {
 		app, config = run.Inputs.ApplicationRevision, run.Inputs.ConfigDigest
+		blobs, conflicts = run.Inputs.TestFileBlobs, run.Inputs.conflicts
 	}
-	raw, _ := json.Marshal([]any{run.Version, app, config, run.Shard.Total, inputsComplete(run), run.RepeatEach})
+	raw, _ := json.Marshal([]any{run.Version, app, config, blobs, conflicts, run.Shard.Total, inputsComplete(run), run.RepeatEach})
 	return string(raw)
 }
 
-// mergeShards is one run from the shard reports of one set, read in shard order: tests are
-// concatenated, projects and declared test-file blobs are united (a file two shards declare with
-// different blobs keeps both as a conflict, PWR-V0-002), and repeats are resolved over the whole
-// set, so a test in two shards is ambiguous unless repeatEach explains it (PWR-V0-018, PWR-V0-021).
+// mergeShards is one run from the shard reports of one set, read in shard order: the members share
+// every declared input (shardGroupKey), tests are concatenated, projects united, workers and report
+// errors summed, and repeats resolved over the whole set, so a test in two shards is ambiguous
+// unless repeatEach explains it (PWR-V0-018, PWR-V0-021).
 func mergeShards(members []*Run) *Run {
 	sorted := append([]*Run{}, members...)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Shard.Current < sorted[j].Shard.Current })
 	first := sorted[0]
-	out := &Run{Version: first.Version, Inputs: Inputs{ApplicationRevision: first.Inputs.ApplicationRevision,
-		ConfigDigest: first.Inputs.ConfigDigest, TestFileBlobs: map[string]string{}},
-		InputsDeclared: first.InputsDeclared, RepeatEach: first.RepeatEach, Shard: first.Shard, Tests: []Test{}}
+	out := &Run{Version: first.Version, Inputs: first.Inputs, InputsDeclared: first.InputsDeclared,
+		RepeatEach: first.RepeatEach, Shard: first.Shard, Tests: []Test{}}
 	projects, configured := map[string]bool{}, map[string]bool{}
-	blobs := map[string]map[string]bool{}
-	note := func(file, blob string) {
-		if blobs[file] == nil {
-			blobs[file] = map[string]bool{}
-		}
-		blobs[file][blob] = true
-	}
 	for _, m := range sorted {
 		out.Workers += m.Workers
 		out.ReportErrors += m.ReportErrors
@@ -151,27 +148,6 @@ func mergeShards(members []*Run) *Run {
 		for _, p := range m.ConfiguredProjects {
 			configured[p] = true
 		}
-		for file, blob := range m.Inputs.TestFileBlobs {
-			note(file, blob)
-		}
-		for file, list := range m.Inputs.conflicts {
-			for _, blob := range list {
-				note(file, blob)
-			}
-		}
-	}
-	for file, set := range blobs {
-		for blob := range set {
-			if len(set) == 1 {
-				out.Inputs.TestFileBlobs[file] = blob
-				continue
-			}
-			if out.Inputs.conflicts == nil {
-				out.Inputs.conflicts = map[string][]string{}
-			}
-			out.Inputs.conflicts[file] = append(out.Inputs.conflicts[file], blob)
-		}
-		sort.Strings(out.Inputs.conflicts[file])
 	}
 	// As Parse leaves them: test projects nil when there are none, configured projects never nil.
 	out.Projects, out.ConfiguredProjects = sortedKeys(projects), append([]string{}, sortedKeys(configured)...)

@@ -411,37 +411,35 @@ func screenAssertions(st *SideTest) {
 }
 
 // slots lays one test's occurrences out over a side's observation slots: per logical run, as many
-// slots as the run declares repeats for the project, the unfilled ones nil (absent). An ambiguous
-// identity never reaches here, so a run never holds more occurrences than slots.
-func slots(runs []*Run, occurrences [][]*Test, project string) []*Test {
-	out := []*Test{}
+// slots as the run declares repeats for the project. It returns the occurrences and the slot count;
+// the unfilled slots are absent and are counted, never materialized. An ambiguous identity never
+// reaches here, so a run never holds more occurrences than slots.
+func slots(runs []*Run, occurrences [][]*Test, project string) ([]*Test, int) {
+	present, total := []*Test{}, 0
 	for i, run := range runs {
-		var got []*Test
+		n := run.repeats(project)
+		total += n
 		if occurrences != nil {
-			got = occurrences[i]
-		}
-		for r := 0; r < run.repeats(project); r++ {
-			if r < len(got) {
-				out = append(out, got[r])
-			} else {
-				out = append(out, nil)
+			got := occurrences[i]
+			if len(got) > n {
+				got = got[:n]
 			}
+			present = append(present, got...)
 		}
 	}
-	return out
+	return present, total
 }
 
 // sideTest summarizes one test over one side's observation slots; a slot without the test counts as
 // the outcome "absent", and a test no report has is all absent.
-func sideTest(tests []*Test) *SideTest {
-	st := &SideTest{Reports: len(tests), Outcomes: []OutcomeCount{}, FailedAssertions: []Assertion{}}
+func sideTest(tests []*Test, total int) *SideTest {
+	st := &SideTest{Reports: total, Outcomes: []OutcomeCount{}, FailedAssertions: []Assertion{}}
 	counts := map[string]int{}
 	seen := map[Assertion]bool{}
+	if absent := total - len(tests); absent > 0 {
+		counts[outcomeAbsent] = absent
+	}
 	for _, t := range tests {
-		if t == nil {
-			counts[outcomeAbsent]++
-			continue
-		}
 		counts[outcomeOf(*t)]++
 		for _, r := range t.Results {
 			if r.Retry > st.MaxRetry {
@@ -464,7 +462,7 @@ func sideTest(tests []*Test) *SideTest {
 	}
 	sort.Slice(st.Outcomes, func(i, j int) bool { return st.Outcomes[i].Outcome < st.Outcomes[j].Outcome })
 	sort.Slice(st.FailedAssertions, func(i, j int) bool { return assertionLess(st.FailedAssertions[i], st.FailedAssertions[j]) })
-	st.Stability = fmt.Sprintf("%d/%d", top, len(tests))
+	st.Stability = fmt.Sprintf("%d/%d", top, total)
 	return st
 }
 

@@ -31,6 +31,10 @@ const (
 	MaxResultsPerTest  = 100
 	MaxErrorsPerResult = 16
 	maxLineBytes       = 240
+	// MaxShardTotal and MaxRepeatEach bound the declared config.shard.total and
+	// config.projects[].repeatEach (PWR-V0-016, PWR-V0-011).
+	MaxShardTotal = 1024
+	MaxRepeatEach = 1024
 )
 
 // Assertion origins (PWR-V0-007).
@@ -141,7 +145,8 @@ func (run *Run) repeats(project string) int {
 
 // resolveRepeats numbers the occurrences of each identity in report order and records as ambiguous
 // every identity whose several occurrences are not exactly the declared repeatEach occurrences of
-// one spec location (PWR-V0-011, PWR-V0-012).
+// one reported spec location (PWR-V0-011, PWR-V0-012). A spec without a line (Playwright lines
+// start at 1) has no location to share.
 func (run *Run) resolveRepeats() {
 	type tally struct {
 		count, line, column int
@@ -164,7 +169,7 @@ func (run *Run) resolveRepeats() {
 		s.count++
 	}
 	for key, s := range seen {
-		if s.count > 1 && (s.moved || s.count != run.repeats(s.project)) {
+		if s.count > 1 && (s.moved || s.line < 1 || s.count != run.repeats(s.project)) {
 			run.Ambiguous[key] = true
 		}
 	}
@@ -278,6 +283,9 @@ func Parse(raw []byte) (*Run, error) {
 	if sh := doc.Config.Shard; sh != nil && (sh.Total < 1 || sh.Current < 1 || sh.Current > sh.Total) {
 		return nil, ErrShape
 	}
+	if sh := doc.Config.Shard; sh != nil && sh.Total > MaxShardTotal {
+		return nil, ErrTooLarge
+	}
 	sum := sha256.Sum256(raw)
 	run := &Run{Sha256: hex.EncodeToString(sum[:]), Version: doc.Config.Version, Workers: doc.Config.Workers,
 		ReportErrors: len(doc.Errors), Ambiguous: map[string]bool{}, Tests: []Test{}}
@@ -293,6 +301,9 @@ func Parse(raw []byte) (*Run, error) {
 			repeatEach[p.Name] = map[int]bool{}
 		}
 		n := 1
+		if p.RepeatEach != nil && *p.RepeatEach > MaxRepeatEach {
+			return nil, ErrTooLarge
+		}
 		if p.RepeatEach != nil && *p.RepeatEach > 1 {
 			n = *p.RepeatEach
 		}

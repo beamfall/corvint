@@ -114,7 +114,9 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   `{passed, failed, passed}` is `INTERMITTENT` and is never `BELOW_THRESHOLD` at `--min-runs 3`.
 - `PWR-V0-012`: A test identity that occurs more than once in a logical run stays
   `IDENTITY_AMBIGUOUS` (compare `AMBIGUOUS`) unless every occurrence has one spec location and the
-  count equals the project's declared `repeatEach`. A single occurrence is one plain observation.
+  count equals the project's declared `repeatEach`; a spec without a reported line has no location
+  to share. A single occurrence is one plain observation. A `repeatEach` above 1024 refuses the
+  report as `REPORT_BOUND_EXCEEDED`.
 - `PWR-V0-013`: Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the repeat
   index of each observation, parallel to `runs[]`) to an entry only when a repeat-each run
   contributes, and `shard` to a run summary only when the report declares one; all are omitted
@@ -127,17 +129,17 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   byte-identical to the output before `PWR-V0-011`, pinned by goldens taken at
   `645304a2fb71065f9061d8d8d866600d703e84c6`.
 - `PWR-V0-016`: A report declaring `config.shard` MUST have `1 <= current <= total` (else
-  `REPORT_NOT_PLAYWRIGHT_JSON`). Shard reports group into one logical run by shard total, Playwright
-  version, declared `applicationRevision` and `configDigest`, and `repeatEach` declaration; reports
-  that differ in any of these are never merged. A logical run is indexed by its first report's
+  `REPORT_NOT_PLAYWRIGHT_JSON`) and `total <= 1024` (else `REPORT_BOUND_EXCEEDED`). Shard reports
+  group into one logical run by shard total, Playwright version, declared `applicationRevision`,
+  `configDigest` and `testFileBlobs`, and `repeatEach` declaration; reports that differ in any of
+  these are never merged. A logical run is indexed by its first report's
   position; a report without `config.shard` is its own logical run.
 - `PWR-V0-017`: A shard set is admitted only when shards 1..total are each present exactly once at
   declared inputs. Otherwise it is refused, in this precedence, with `SHARD_INPUTS_NOT_DECLARED`,
   `SHARD_SET_INCOMPLETE` or `SHARD_DUPLICATE`, and `shardSets[]` lists every set with its reports,
   shard indexes, status, reason, `missing` and `duplicate` indexes.
-- `PWR-V0-018`: An admitted set is read as one run: tests concatenated in shard order, projects and
-  declared test-file blobs united (differing blobs stay a conflict), workers and report errors
-  summed, and repeats resolved over the whole set, so the same test in two shards is ambiguous
+- `PWR-V0-018`: An admitted set is read as one run at its shared inputs: tests concatenated in shard
+  order, projects united, workers and report errors summed, and repeats resolved over the whole set, so the same test in two shards is ambiguous
   unless `repeatEach` explains it.
 - `PWR-V0-019`: Stability MUST count an admitted set as one run, giving the same entries as one
   unsharded report of the same tests; every test of a refused set is `INSUFFICIENT` with the set's

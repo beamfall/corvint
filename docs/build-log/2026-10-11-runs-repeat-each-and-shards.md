@@ -18,14 +18,17 @@ or CEM binding in this lane.
 ## Design
 
 - Logical runs (`shards.go`): an unsharded report is its own logical run; shard reports group by
-  shard total, Playwright version, declared application revision and config digest, and the
-  `repeatEach` declaration. A group is admitted only when shards 1..total are each present once at
-  declared inputs, else refused with `SHARD_INPUTS_NOT_DECLARED`, `SHARD_SET_INCOMPLETE` or
-  `SHARD_DUPLICATE` (that precedence; `missing` and `duplicate` always listed).
+  shard total, Playwright version, declared application revision, config digest and test-file
+  blobs, and the `repeatEach` declaration; shard total and `repeatEach` are bounded at 1024. A
+  group is admitted only when shards 1..total are each present once at declared inputs, else
+  refused with `SHARD_INPUTS_NOT_DECLARED`, `SHARD_SET_INCOMPLETE` or `SHARD_DUPLICATE` (that
+  precedence; `missing` and `duplicate` always listed).
 - Repeats (`reader.go`): occurrences are numbered in report order; a duplicated identity is
-  ambiguous unless all occurrences share one spec location and the count equals `repeatEach`.
+  ambiguous unless all occurrences share one reported spec location and the count equals
+  `repeatEach`.
 - Stability counts each repeat as an observation of its logical run (`repeats[]` beside `runs[]`);
-  compare lays tests out over per-run repeat slots, so k/N matches N single-repeat reports.
+  compare counts per-run repeat slots (absent slots counted, never allocated), so k/N matches N
+  single-repeat reports.
 - Byte identity: every new field is `omitempty`; goldens taken at the base pin unsharded
   single-repeat stability and compare documents (`TestSingleRepeatOutputByteIdentical`).
 
@@ -47,6 +50,15 @@ were produced with an existing local Playwright 1.61.1 install, read-only; no ne
 - Repeat order is report order; a reporter that reorders specs would renumber repeats.
 - Shard sets with undeclared inputs are refused rather than grouped on version alone.
 - `merge-reports` identity inputs are whatever the shard reports shared (shallow metadata merge).
+
+## Review
+
+Codex round 1 (`/private/tmp/claude-501/w13-runs-codex-r1.log`) found three P2s, all fixed with
+tests: shards declaring different test-file blobs were merged (blobs are now in the group key);
+repeats without a reported spec line counted as one location (now ambiguous); declared shard totals
+and repeat counts were unbounded (now 1024, `REPORT_BOUND_EXCEEDED`, and compare no longer
+allocates absent slots). The reviewer also filed V1-1248 to V1-1250 for these findings in the
+native queue from its read-only run; this lane wrote no tickets.
 
 ## Evidence
 

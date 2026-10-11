@@ -187,12 +187,13 @@ func runsProjectReport(status string) string {
 	return strings.Replace(runsReport(status, runsDeclared), `"workers":1,`, `"workers":1,"projects":[{"name":"chromium","repeatEach":1}],`, 1)
 }
 
-// runsRepeatReport is runsReport run with --repeat-each 2: one spec entry per repeat.
+// runsRepeatReport is runsReport run with --repeat-each 2: one spec entry per repeat, each at the
+// same reported location.
 func runsRepeatReport(first, second string) string {
 	spec := func(status string) string {
 		one := runsReport(status, runsDeclared)
 		start := strings.Index(one, `{"title":"adds item"`)
-		return one[start : len(one)-len(`]}]}]}`)]
+		return strings.Replace(one[start:len(one)-len(`]}]}]}`)], `"file":"cart.spec.ts",`, `"file":"cart.spec.ts","line":3,"column":3,`, 1)
 	}
 	head := runsReport(first, runsDeclared)
 	head = strings.Replace(head, `"workers":1,`, `"workers":1,"projects":[{"name":"chromium","repeatEach":2}],`, 1)
