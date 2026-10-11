@@ -175,6 +175,8 @@ func helpText(topic string) string {
 		return flowsHelp
 	case "step":
 		return stepHelp
+	case "changes":
+		return changesHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -248,6 +250,7 @@ Commands:
   context  task-context packet: files to read
   impact  path, untracked-file or range impact
   breakage  cross-repository API relations
+  changes  offline upgrade checklist
   harness event  one agent-harness lifecycle event
   adapter  one native host adapter
   dogfood  local evidence workflow; change, check, seal
@@ -1008,7 +1011,7 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
     [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
-    [--language-profile non-go-syntax-v0] PATH...
+    [--language-profile non-go-syntax-v0] [--require-clean] PATH...
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -1030,7 +1033,8 @@ Language capabilities (syntax evidence, never complete runtime impact):
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
-Default path receipts retain their immutable historical shape. Select
+Path receipts over MIXED roots warn with the bound commit and dirty count when
+requested paths are not all dirty. Mutable content remains excluded. Select
 --language-profile non-go-syntax-v0 for versioned structured non-Go unknowns.
 Non-Go range receipts and MCP paths name that experimental profile automatically.
 The path selector cannot be combined with --base or --working-tree-untracked.
@@ -1039,6 +1043,10 @@ MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
 
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
+  --require-clean            Experimental: on MIXED path impact, emit an empty
+                             NEEDS_WIDENING receipt (exit 0), with reason mixed-worktree.
+                             Does not run external providers when abstaining.
+                             Unavailable with --base or --working-tree-untracked.
   --working-tree-untracked   Explicitly select the separate revision-absent
                              nested-.go evidence profile. It accepts no value;
                              untracked-path impact is implemented for .go files only,
@@ -1250,6 +1258,21 @@ the plan is COMPLETE, 1 on test-plan-mismatch, test-plan-incomplete or
 test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
 The command reads only its named files and Git, runs no test and never writes.
 Experimental.
+
+Prefix lint (ANL-V0-009..011):
+  corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]
+      [--check [--baseline FILE]] [--revision REV] [--budget N | --full]
+Flags specs whose test-sequence prefix (two or more screen transitions) only crosses edges the
+--ledger (application-edge-ledger/0) proves and ends on a fresh deep-linkable screen, with the
+replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-only, mutating and
+assertion-target edges per spec; undeclared effects abstain. --check exits 1 when a flagged test is
+not in --baseline. Learned, read-only, offline.
+
+Page-state grouping (ANL-V0-012..014):
+  corvint [--root PATH] test-plan page-state --input FILE
+Groups non-destructive, state-preserving variations of one input that share app, screen, setup,
+user, org and required facts, so one visit can serve several assertions. Destructive, state-changing
+or anchor-missing variations are listed as blocked, never merged. Read-only, offline.
 `
 
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
@@ -1268,7 +1291,7 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0)
 
 `
 

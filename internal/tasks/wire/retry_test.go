@@ -35,7 +35,7 @@ func TestCALV0078_ClassificationCoversEveryCode(t *testing.T) {
 		}
 	}
 	sort.Strings(got)
-	want := []string{CodeLockTimeout, CodeRedoPending, CodeSnapshotMoved}
+	want := []string{CodeLockTimeout, CodeRedoPending, CodeResourceExhausted, CodeSnapshotMoved}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("retryable set = %v, want %v", got, want)
 	}

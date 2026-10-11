@@ -1,6 +1,7 @@
 package authority
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -105,7 +106,14 @@ func (s *Session) Link(stage *Stage, t Target) error {
 	if stage == nil {
 		return fixtureRefused
 	}
-	return s.inner.link(stage.inner, fixtureTarget{role: fixtureRole(t.Role), name: t.Name})
+	err := s.inner.link(stage.inner, fixtureTarget{role: fixtureRole(t.Role), name: t.Name})
+	var effect *fixtureEffectError
+	if t.Role == RoleReceipt && errors.As(err, &effect) {
+		// Link committed, but its completion failed before the caller could
+		// record the receipt. Conservatively forbid retry (CAL-V0-215).
+		return wire.WithoutRetry(err)
+	}
+	return err
 }
 
 // Replace publishes a stage over a mutable destination (head, barrier or

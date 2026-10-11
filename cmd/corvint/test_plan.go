@@ -157,6 +157,12 @@ func readTestPlanFile(path string) ([]byte, error) {
 // runTestPlan prints a candidate consolidation plan or checks a pasted one (TCN-V0-001,
 // TCN-V0-011). It writes stdout only on success; a failed check exits 1, invalid use exits 2.
 func runTestPlan(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) int {
+	if len(arguments) > 0 && arguments[0] == "prefixes" {
+		return runTestPlanPrefixes(ctx, root, arguments[1:], stdout, stderr)
+	}
+	if len(arguments) > 0 && arguments[0] == "page-state" {
+		return runTestPlanPageState(arguments[1:], stdout, stderr)
+	}
 	options, err := parseTestPlanOptions(arguments)
 	if err != nil {
 		emitError(stderr, err)

@@ -28,6 +28,8 @@ type constTable struct {
 	// marks a manifest the reader cannot read, after which any package may.
 	local    map[string]bool
 	anyLocal bool
+	// hop names the check of the last di lookup that failed (AMAP-V0-072); empty when none did.
+	hop string
 }
 
 // newConstTable prepares one build's constant resolution; a di_constants scope that names no
@@ -170,8 +172,9 @@ func (t *constTable) resolve(f *constFile, local, member string, allow int) (str
 // the AMAP-V0-016 rules.
 func (t *constTable) lookup(f *constFile, local, member string, allow int, inj string, roots ...*constFile) (string, []Anchor, string) {
 	di := inj != ""
+	t.hop = ""
 	if !f.onlyRead(local, allow) {
-		return "", nil, "not-read-whole"
+		return "", nil, t.fail("registering-file-use")
 	}
 	decl, declared := f.decls[local]
 	imp, imported := f.imports[local]
@@ -179,11 +182,11 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, inj s
 	case declared && imported, imported && imp.bad:
 		return "", nil, "ambiguous-binding" // two bindings for one name
 	case declared && di && !t.bindingsRead(f, f, "", tableNames(f, local)...):
-		return "", nil, "not-read-whole"
+		return "", nil, t.fail("registering-file-bindings")
 	case declared:
 		v, at, why := f.read(decl, member, di)
 		if why == "" && di && !t.examined(append(roots, f), []*constFile{f}, f, inj, tableNames(f, local)...) {
-			return "", nil, "not-read-whole"
+			return "", nil, t.fail("registering-file-examined")
 		}
 		return v, at, why
 	case !imported:
@@ -214,12 +217,12 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, inj s
 	}
 	// An unread file never yields a declaration, an `export default {...}` object included.
 	if g.unlisted || name != "default" && !g.onlyRead(name, -1) {
-		return "", nil, "not-read-whole"
+		return "", nil, t.fail("declaring-file-unread")
 	}
 	// Every file on the chain may hold the table under another binding (AMAP-V0-025).
 	if di && !(t.bindingsRead(f, g, local, imp.exported) && t.bindingsRead(g, g, "", tableNames(g, name)...) &&
 		(barrel == nil || t.bindingsRead(barrel, g, "", append(tableNames(g, name), imp.exported)...))) {
-		return "", nil, "not-read-whole"
+		return "", nil, t.fail("import-chain-bindings")
 	}
 	v, at, why := g.read(d, member, di)
 	if why != "" {
@@ -228,10 +231,16 @@ func (t *constTable) lookup(f *constFile, local, member string, allow int, inj s
 	// No file on the chain, nor one any examined file loads, may inject or look up the name another
 	// way, nor hold the table under a binding it may write.
 	if di && !t.examined(append(roots, f, g, barrel), []*constFile{f, g, barrel}, g, inj, append(tableNames(g, name), imp.exported)...) {
-		return "", nil, "not-read-whole"
+		return "", nil, t.fail("import-chain-examined")
 	}
 	// The bindings are evidence too: re-pointing the import or the re-export changes what the name reads.
 	return v, append(append(at, via...), spanOf(f.entry, f.data, imp.first, imp.last)), ""
+}
+
+// fail records the hop of a not-read-whole refusal and returns its reason.
+func (t *constTable) fail(hop string) string {
+	t.hop = hop
+	return "not-read-whole"
 }
 
 // bindingsRead reports whether every other binding f holds of a table that decl declares is only
@@ -495,6 +504,7 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 	var local string
 	var via reexport
 	found, deeper, unread := 0, false, false
+	var holders []string
 	for _, r := range cands {
 		h, why := t.target(g.entry.path, r.module)
 		if why != "" {
@@ -516,6 +526,7 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 			found, unread = found+1, true // an unread candidate may export or write name: never accept its declaration
 		case d != nil && (src == "default" || d.exported):
 			found, hit, local, via = found+1, h, l, r
+			holders = append(holders, h.entry.path)
 		case src != "default" && (h.exports[src] || h.unlisted):
 			found, unread = found+1, true // exported in a form the reader does not read as a table
 		case h.mayReexport(src):
@@ -524,6 +535,7 @@ func (t *constTable) reexported(g *constFile, name string) (*constFile, string, 
 	}
 	switch {
 	case found > 1:
+		t.hop = "ambiguous-reexport:" + strings.Join(uniqueSorted(holders), ",")
 		return nil, "", nil, "ambiguous-barrel"
 	case deeper:
 		return nil, "", nil, "barrel-depth-exceeded"

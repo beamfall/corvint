@@ -15,7 +15,7 @@ Authoritative inputs: AGENTS.md invariants 2, 4, 7 and 8; `public-release-v0.md`
 - Claim: A separate local stdio MCP tool projects repository-confined JavaScript receipts and completed Go preview-session events into the shared five-axis shape.
 - Status: accepted (decision 0147, 2026-09-12) / experimental
 - Exists: `cmd/corvint-test-validity-mcp`, `internal/mcp/testvaliditybridge`, `internal/testvaliditydoc` (shared with `corvint test-validity`), `conformance/mcp-test-validity-v0`.
-- Blocked on: no producer yet retains evidence into `.corvint/test-evidence` for `discover` (decision 0202); Go sessions remain preview-only and non-promotable; no qualified host run.
+- Blocked on: host qualification is not observed; opt-in producer retention is available under `LPCV-V0-055`; Go sessions remain preview-only and non-promotable; no qualified host run.
 - Read next: Requirements; Non-goals and failure modes.
 
 ## Owner intent and scope
@@ -174,3 +174,21 @@ persisted state, schema or client configuration needs migration.
 | `MTV-V0-007` | `internal/mcp/testvaliditybridge`, `internal/testvaliditydoc` | `TestToolPathImportsNoNetworkOrProcessPackage`; tree digest in `TestVectorsAndReadOnly`; `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (CLI-level `test-validity` verb sharing the same write-nothing `internal/testvaliditydoc` path) |
 | `MTV-V0-008` | `conformance/mcp-test-validity-v0/cases.json` | `TestVectorsAndReadOnly` |
 | `MTV-V0-009` | `testvaliditybridge.Registry.discover`, `decodeArguments`; `testvaliditydoc.Discover` | `TestTestValidityDiscoveryMatchesMCPDocument` (`cmd/corvint`, CLI and MCP documents canonically byte-equal); `TestToolCatalogueIsExactlyOneReadOnlyTool` (two schema members); vectors `discover-retained-evidence` and `discover-with-receipt-refused` in `TestVectorsAndReadOnly` |
+
+## Discovery guidance amendment (V1-1140)
+
+`LPCVD-V0-001..004` in the owning live-proof-carrying-verification spec are
+accepted (decision 0518; V1-1140). `MTV-V0-009` exposes those same
+shared discovery fields byte-for-byte: abstention `producers` (inert command
+and `qualification: "NOT_OBSERVED"`), `expectedEvidencePath`, and, for stale
+selected evidence, `receiptRevision` (the bounded retained test-repository revision
+at run start, otherwise `UNKNOWN`). The closed reason vocabulary
+is `no-retained-evidence`, `retained-evidence-unusable`,
+`runtime-tuple-unqualified`, `UNKNOWN`, plus `stale-evidence`;
+requires stays `retained-producer-run`, `qualified-runtime-tuple`, or `UNKNOWN`.
+`discovery.receiptAge` carries `basis: "retained-file-mtime"` and UTC `since`
+for the newest selected decodable receipt, otherwise `basis: "NOT_OBSERVED"`.
+The timestamp lets clients calculate elapsed age without a ticking field that
+would make CLI and MCP documents differ. File mtime is not execution time.
+These hints neither run providers nor assert they are installed or qualified.
+The no-input and explicit-receipt documents remain unchanged.

@@ -44,9 +44,12 @@ func decodeManifest(raw []byte) (Manifest, error) {
 			return m, invalidManifest("router path %q is not a unique repository-relative path", r.Path)
 		}
 		seen[r.Path] = true
-		if r.Dialect != DialectUIRouter {
-			return m, invalidManifest("router %s: dialect must be %s", r.Path, DialectUIRouter)
+		if r.Dialect != DialectUIRouter && r.Dialect != DialectRails && r.Dialect != DialectReact {
+			return m, invalidManifest("router %s: unsupported dialect %s", r.Path, r.Dialect)
 		}
+	}
+	if err := validateRouterGlobs(m.RouterGlobs); err != nil {
+		return m, err
 	}
 	if m.Flows != "" && !safeRelative(m.Flows) {
 		return m, invalidManifest("manifest flows must be a repository-relative directory")
@@ -55,7 +58,7 @@ func decodeManifest(raw []byte) (Manifest, error) {
 	if t.Repo != "" && !rootalias.Valid(t.Repo) {
 		return m, invalidManifest("tests.repo must be a root alias matching ^[a-z][a-z0-9-]{0,31}$")
 	}
-	if !safeRelative(t.Root) {
+	if t.Root != "." && !safeRelative(t.Root) {
 		return m, invalidManifest("tests.root must be a repository-relative directory")
 	}
 	if len(t.Specs) == 0 || len(t.PageObjects) == 0 {
@@ -91,4 +94,5 @@ func decodeManifest(raw []byte) (Manifest, error) {
 }
 
 // under reports whether p is dir or inside it.
-func under(p, dir string) bool { return p == dir || strings.HasPrefix(p, dir+"/") }
+// under reports whether p is dir or inside it; dir "." is the whole repository (AMAP-V0-075).
+func under(p, dir string) bool { return dir == "." || p == dir || strings.HasPrefix(p, dir+"/") }

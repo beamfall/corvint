@@ -21,11 +21,38 @@ Application map usage (experimental, AMAP-V0):
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
+  corvint [--root PATH] flows appmap entries --map FILE [--budget N | --full] [--revision REV]
+  corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
+Navigation edge ledger (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
+      [--declarations FILE] [--require EDGE_ID]... [--budget N | --full]
+Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
+The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
+requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
+
+Navigation impact (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
+      [--revision REV] [--budget N | --full]
+Maps paths changed since --base to screens (router anchors, lineage descendants, attributed test
+files, flow anchors), touched edges with ledger status and re-proving test, and spec files. An
+unplaceable UI path (templates are not bound by the map) lists as unknown and the verdict is
+full-suite-required. Learned, read-only, offline.
+
+Navigation observation (experimental, ANL-V0):
+  corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
+Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
+application-navigation-observation/0: ordered screen visits resolved through the map, observed
+edges with their triggering action, redirects, UNKNOWN joins with candidates and unmapped-url.
+Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
+
 build compiles application-map/0 from the manifest's router definitions, flow intents and
-test suite read at REV (default HEAD) and writes it to stdout. A manifest whose tests name
+test suite read at REV (default HEAD) and writes it to stdout. Router dialects are
+ui-router-states/0, rails-routes/0 and react-router/0 (literal, experimental subsets).
+Optional manifest router_globs report matched files absent from routers as router-not-declared
+in app_coverage; this measures only the declared glob scope. A manifest whose tests name
 "repo": ALIAS reads them from the root --repo binds to ALIAS, at its HEAD commit, which the
 map pins; --manifest-repo reads the manifest from such a root. An undeclared alias, a root
 that is not a Git worktree, or uncommitted changes under what the map reads from it refuse.
@@ -35,6 +62,15 @@ scaffold are capped projections of a map file: each writes one JSON document wit
 per-section omitted counts. Anchors are checked against --revision (default HEAD) and
 read FRESH, STALE or UNKNOWN. Unresolved routes, imports and steps read UNKNOWN. None of
 these commands writes to the repository.
+
+Static entries (experimental, V1-1136): entries classifies UI-router entry candidates,
+parameters and guards; default cap 6144 bytes. It never visits a URL or verifies loading.
+Changed source reads UNVERIFIED_AT_HEAD. Runtime and PROVEN edge paths are deferred.
+
+Qualification report (experimental, V1-1138): stats reads only the map file and reports
+screens resolved/total, the top 5 unknown reasons with example anchors, test-join and
+page-object binding counts, edges by basis and the selector strength histogram (default cap
+6144 bytes). --min-resolved PCT exits 1 below the threshold, naming the dominant reasons.
 
 Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
 external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
@@ -46,9 +82,18 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
+	if verb == "edges" {
+		return runFlowsAppmapEdges(ctx, root, args, out)
+	}
+	if verb == "impact" {
+		return runFlowsAppmapImpact(ctx, root, args, out)
+	}
+	if verb == "observe" {
+		return runFlowsAppmapObserve(args, out)
+	}
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	revision := f.String("revision", "", "revision to compile or to check anchors against")
@@ -83,6 +128,12 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		_, err = out.Write(data)
 		return err
 	}
+	if verb == "entries" {
+		return runFlowsAppmapEntries(ctx, root, args, out)
+	}
+	if verb == "stats" {
+		return runFlowsAppmapStats(ctx, root, args, out)
+	}
 	if verb == "plan" {
 		return runFlowsAppmapPlan(ctx, root, args, out)
 	}
@@ -91,7 +142,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

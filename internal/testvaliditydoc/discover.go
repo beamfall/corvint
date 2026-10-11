@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -30,9 +31,17 @@ const (
 // package.json nor a lockfile was named: sha256("=\n=\n").
 var emptyPackageDigest = digestHex([]byte("=\n=\n"))
 
+// ReceiptAge provides a stable age origin rather than a clock-dependent duration.
+// The local retained file's mtime is not an authenticated execution timestamp.
+type ReceiptAge struct {
+	Basis string `json:"basis"`
+	Since string `json:"since,omitempty"`
+}
+
 // Discovery records which retained document was selected and whether its
 // bound identity still matches the worktree. It is emitted only by discovery.
 type Discovery struct {
+	ReceiptAge ReceiptAge         `json:"receiptAge"`
 	Location   string             `json:"location"`
 	Evidence   string             `json:"evidence,omitempty"`
 	Freshness  *testvalidity.Axis `json:"freshness,omitempty"`
@@ -45,9 +54,33 @@ type Discovery struct {
 // cause is UNKNOWN, never a guess. Rediscovery alone cannot change any reason:
 // Requires names the change that can.
 type Abstention struct {
-	Reason   string           `json:"reason"`
-	Requires string           `json:"requires"`
-	Observed *ObservedRuntime `json:"observed,omitempty"`
+	Reason               string           `json:"reason"`
+	Requires             string           `json:"requires"`
+	Observed             *ObservedRuntime `json:"observed,omitempty"`
+	Producers            []ProducerHint   `json:"producers,omitempty"`
+	ExpectedEvidencePath string           `json:"expectedEvidencePath,omitempty"`
+	ReceiptRevision      string           `json:"receiptRevision,omitempty"`
+}
+
+// ProducerHint is an inert template, not an instruction to execute a provider.
+// Qualification is unknown on this host; retained runtime tuples cannot prove it.
+type ProducerHint struct {
+	Command       string `json:"command"`
+	Qualification string `json:"qualification"`
+}
+
+// producerAbstention names the opt-in retention entry points without probing
+// executables, inspecting arbitrary host paths or guessing a repository language.
+func producerAbstention(reason string) *Abstention {
+	return &Abstention{
+		Reason: reason, Requires: RequiresRetainedProducerRun,
+		ExpectedEvidencePath: EvidenceDirectory,
+		Producers: []ProducerHint{
+			{Command: "corvint-js-test-provider unit --retain --dir <project-directory> --config <vitest-config> --runner-version <vitest-version> --test-file <test-file>", Qualification: "NOT_OBSERVED"},
+			{Command: "corvint-js-test-provider e2e --retain --dir <project-directory> --config <playwright-config> --runner-version <playwright-version> --external-server --app-identity <application-identity> --server-ready-url <http-or-https-url> --test-file <test-file>", Qualification: "NOT_OBSERVED"},
+			{Command: "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle <bundle-file>", Qualification: "NOT_OBSERVED"},
+		},
+	}
 }
 
 // ObservedRuntime is the retained receipt's own runtime tuple. Platform and
@@ -59,6 +92,7 @@ type ObservedRuntime struct {
 
 // Closed abstention vocabulary (LPCV-V0-056).
 const (
+	AbstentionStaleEvidence            = "stale-evidence"
 	AbstentionNoRetainedEvidence       = "no-retained-evidence"
 	AbstentionRetainedEvidenceUnusable = "retained-evidence-unusable"
 	AbstentionRuntimeTupleUnqualified  = "runtime-tuple-unqualified"
@@ -94,9 +128,9 @@ func Discover(root string) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	discovery := &Discovery{Location: EvidenceDirectory}
+	discovery := &Discovery{Location: EvidenceDirectory, ReceiptAge: ReceiptAge{Basis: "NOT_OBSERVED"}}
 	if !found {
-		discovery.Abstention = &Abstention{Reason: AbstentionNoRetainedEvidence, Requires: RequiresRetainedProducerRun}
+		discovery.Abstention = producerAbstention(AbstentionNoRetainedEvidence)
 		return withDiscovery(Unsupported(), discovery), nil
 	}
 	defer evidence.Close()
@@ -121,15 +155,131 @@ func Discover(root string) (Document, error) {
 		})
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
 		discovery.Freshness = &binding
+		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
-		return withDiscovery(JoinStepNegation(applyFreshness(Project(input), binding), input, root), discovery), nil
+		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
+		revision := receiptRevision(input)
+		if document.Run.Freshness.State == testvalidity.FreshnessStale || revisionDiffersFromHead(worktree, revision) {
+			abstention := producerAbstention(AbstentionStaleEvidence)
+			abstention.ReceiptRevision = revision
+			if discovery.Abstention != nil {
+				abstention.Observed = discovery.Abstention.Observed
+			}
+			discovery.Abstention = abstention
+		}
+		return withDiscovery(document, discovery), nil
 	}
 	reason := AbstentionNoRetainedEvidence
 	if discovery.Skipped != 0 {
 		reason = AbstentionRetainedEvidenceUnusable
 	}
-	discovery.Abstention = &Abstention{Reason: reason, Requires: RequiresRetainedProducerRun}
+	discovery.Abstention = producerAbstention(reason)
 	return withDiscovery(Unsupported(), discovery), nil
+}
+
+// revisionDiffersFromHead reports a difference only when the receipt revision is
+// known and HEAD resolves; every other case is unknown and makes no claim.
+func revisionDiffersFromHead(worktree *os.Root, revision string) bool {
+	if revision == AbstentionUnknown {
+		return false
+	}
+	head := headRevision(worktree)
+	return head != "" && head != revision
+}
+
+// headRevision resolves HEAD to an object ID by reading .git files inside the
+// worktree root through the no-follow, nonblocking, bounded receipt reader,
+// starting no process. A linked worktree (.git is a file), a symlink, a special
+// file, an oversized file, an unreadable or malformed ref all yield "" (unknown),
+// which never produces a staleness claim. Packed refs are consulted only when
+// the loose ref is confirmed absent.
+func headRevision(worktree *os.Root) string {
+	head, err := readGitFile(worktree, ".git/HEAD")
+	if err != nil {
+		return ""
+	}
+	if object := strings.TrimSpace(head); isObjectID(object) {
+		return object
+	}
+	name, ok := strings.CutPrefix(strings.TrimSpace(head), "ref: ")
+	if !ok || !strings.HasPrefix(name, "refs/") || !validRefName(name) {
+		return ""
+	}
+	loose, err := readGitFile(worktree, ".git/"+name)
+	if err == nil {
+		if object := strings.TrimSpace(loose); isObjectID(object) {
+			return object
+		}
+		return ""
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return ""
+	}
+	packed, err := readGitFile(worktree, ".git/packed-refs")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(packed, "\n") {
+		if object, ref, ok := strings.Cut(line, " "); ok && ref == name && isObjectID(object) {
+			return object
+		}
+	}
+	return ""
+}
+
+func readGitFile(worktree *os.Root, name string) (string, error) {
+	data, err := ReadFileBounded(worktree, name, 1<<20)
+	return string(data), err
+}
+
+// validRefName applies the git check-ref-format rules relevant to a full
+// refs/ name; anything else is treated as malformed (unknown).
+func validRefName(name string) bool {
+	if len(name) > 255 || strings.HasSuffix(name, ".") || strings.Contains(name, "..") || strings.Contains(name, "@{") || strings.Contains(name, "//") {
+		return false
+	}
+	for _, c := range name {
+		if c < 0x21 || c == 0x7f || strings.ContainsRune("~^:?*[\\", c) {
+			return false
+		}
+	}
+	for _, part := range strings.Split(name, "/") {
+		if part == "" || strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".lock") {
+			return false
+		}
+	}
+	return true
+}
+
+func isObjectID(value string) bool {
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+// receiptRevision echoes only the retained test-repository identity at run start.
+// The application may belong to another repository. Missing or malformed object
+// IDs are unknown; arbitrary receipt strings must not become revision guidance.
+func receiptRevision(input Input) string {
+	if input.js == nil || input.js.TestRepositoryAtStart == nil {
+		return AbstentionUnknown
+	}
+	revision := input.js.TestRepositoryAtStart.Revision
+	if len(revision) != 40 && len(revision) != 64 {
+		return AbstentionUnknown
+	}
+	for _, c := range revision {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return AbstentionUnknown
+		}
+	}
+	return revision
 }
 
 // runtimeAbstention reuses the provider's own tuple classification of the

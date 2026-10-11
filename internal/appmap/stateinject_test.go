@@ -277,6 +277,7 @@ func diUnknown(m *Map) []Unknown {
 	out := []Unknown{}
 	for _, u := range m.Unknowns {
 		if u.Kind == "di-constant" {
+			u.Detail = "" // diDetails reads it; the fixtures below pin reasons (AMAP-V0-026)
 			out = append(out, u)
 		}
 	}
@@ -1118,5 +1119,52 @@ func TestAMAPV0025ComputedName(t *testing.T) {
 		if got != want {
 			t.Errorf("computedName(%s) = %v, want %v", src, got, want)
 		}
+	}
+}
+
+// diDetails returns the Detail of each di-constant unknown of a map.
+func diDetails(m *Map) []string {
+	out := []string{}
+	for _, u := range m.Unknowns {
+		if u.Kind == "di-constant" {
+			out = append(out, u.Detail)
+		}
+	}
+	return out
+}
+
+// AMAP-V0-070 AMAP-V0-071 AMAP-V0-072: the reported shape -- a directory import, `export * from`
+// and an enum with literal members -- resolves, a second star export declaring the name reads
+// UNKNOWN naming both candidate paths, and a not-read-whole unknown names the hop that failed.
+func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
+	reg := "import { SectionTable } from './routes';\nangular.module('core')\n  .constant('SectionNames', SectionTable);\n"
+	const decl, index, copy = "app/setup/routes/routes.constants.ts", "app/setup/routes/index.ts", "app/setup/routes/copy.ts"
+	enum := "export enum SectionTable { REPORTS = 'ledger', HOME = 'home' }\n"
+	star := "export * from './routes.constants';\n"
+	files := map[string]string{diRegAt: reg, index: star, decl: enum}
+	_, _, m, err := injectRepo(t, `["app/setup"]`, diRouter, files)
+	if err != nil || !diResolved(t, m) || len(diUnknown(m)) != 0 {
+		t.Fatalf("directory star enum: %v %+v", err, m.Unknowns)
+	}
+	files[index], files[copy] = star+"export * from './copy';\n", enum
+	_, _, m, err = injectRepo(t, `["app/setup"]`, diRouter, files)
+	if err != nil || diResolved(t, m) {
+		t.Fatalf("ambiguous star resolved: %v", err)
+	}
+	if got := diDetails(m); len(got) != 1 || got[0] != "ambiguous-reexport:"+copy+","+decl {
+		t.Fatalf("ambiguity detail %q", got)
+	}
+	files[index], files[copy] = star, ""
+	delete(files, copy)
+	files[decl] = enum + "SectionTable.REPORTS = 'other';\n"
+	_, _, m, err = injectRepo(t, `["app/setup"]`, diRouter, files)
+	if err != nil || diResolved(t, m) {
+		t.Fatalf("mutated resolved: %v", err)
+	}
+	if u := diUnknown(m); len(u) != 1 || u[0].Reason != "not-read-whole" {
+		t.Fatalf("diagnostic %+v", u)
+	}
+	if got := diDetails(m); len(got) != 1 || got[0] == "" {
+		t.Fatalf("hop not named: %q", got)
 	}
 }

@@ -5,6 +5,9 @@
   "server": "corvint-test-validity-mcp",
   "tools": ["corvint.test_validity"],
   "vectors": [
+    {"id": "discover-no-evidence-guidance", "requirement": "LPCVD-V0-001", "arguments": {"discover": true}, "expect": {"isError": false, "source": "none", "receipt": null, "tests": [], "abstentionReason": "no-retained-evidence", "receiptAgeBasis": "NOT_OBSERVED"}},
+    {"id": "discover-unusable-guidance", "requirement": "LPCVD-V0-001", "arguments": {"discover": true}, "expect": {"isError": false, "source": "none", "receipt": null, "tests": [], "abstentionReason": "retained-evidence-unusable", "receiptAgeBasis": "NOT_OBSERVED"}, "files": {".corvint/test-evidence/run.json": "invalid"}},
+    {"id": "discover-stale-guidance", "requirement": "LPCVD-V0-002", "arguments": {"discover": true}, "expect": {"isError": false, "source": "corvint-go-test-provider", "receipt": null, "tests": [], "abstentionReason": "stale-evidence", "receiptAgeBasis": "retained-file-mtime", "receiptRevision": "UNKNOWN"}, "files": {".corvint/test-evidence/run.json": "{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"stale\",\"identity\":\"abc\",\"sequence\":1,\"scope\":[],\"detail\":\"\",\"projection\":{},\"testProjections\":[],\"testProjectionsOmitted\":0}"}},
     {
       "id": "no-receipt-unsupported",
       "requirement": "MTV-V0-004",

@@ -967,7 +967,7 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 	for _, item := range observation.DirtyPaths {
 		dirty[item] = struct{}{}
 	}
-	index.Root, index.DirtyPaths, index.StatusSHA256 = root, keys(dirty), observation.StatusSHA256
+	index.Root, index.DirtyPaths, index.StatusSHA256, index.CommitRevision = root, keys(dirty), observation.StatusSHA256, observedCommit(observation.CommitRevision, index.CommitRevision)
 	return index, true, nil
 }
 

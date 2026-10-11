@@ -142,6 +142,18 @@ Failure modes:
   keeps the older mappings' address space until exit; this is recorded as a suspected defect, not
   claimed fixed here.
 
+## Linked worktrees (V1-1139, GitHub #781)
+
+Programs that run one agent per linked worktree already have a supported path: declare each worktree
+as its own alias (`MMR-V0-003` treats distinct linked worktrees as distinct roots) and have every
+call name its alias. Each result is bound to that worktree's own commit (`MMR-V0-007`), and
+`corvint.status` echoes `commitRevision`, `worktreeState` and `dirtyPathCount` per alias; this is
+tested with real linked worktrees. Not delivered, because it needs an owner decision against
+`MCPV0-015` and the non-goals above (no client-driven authority): an optional per-call `root`,
+`snapshot` or `revision` argument validated against repository identity with a typed refusal, cwd
+discovery per call, and a flag that the bound root differs from the caller's worktree. Those are
+proposed as follow-up tickets; no requirement is added or amended here.
+
 ## Acceptance evidence and rollback
 
 Acceptance evidence: the maintained tests in the traceability table pass; the existing
@@ -163,5 +175,5 @@ No persisted state, index format or wire field of the single-root profile change
 | `MMR-V0-004` | `roots.go` `multiRootTools`; `main.go` `Handle` | `TestMMRV0004RepositoryEnumOnEveryTool` |
 | `MMR-V0-005` | `roots.go` `route`; `main.go` `call` | `TestMMRV0005AliasRoutingAndRefusal`, `TestMMRV0005ClientRootsNeverSwitchRepository` |
 | `MMR-V0-006` | `roots.go` `statusAll`; `main.go` `toolErrorObject` | `TestMMRV0006StatusReportsEveryBinding` |
-| `MMR-V0-007` | `bridge.Registry` per root; `contextindex` path-keyed caches | `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls across three roots), `TestMMRV0006StatusReportsEveryBinding` (commit in one root) |
+| `MMR-V0-007` | `bridge.Registry` per root; `contextindex` path-keyed caches | `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls across three roots), `TestMMRV0006StatusReportsEveryBinding` (commit in one root), `TestMMRV0007LinkedWorktreesBindTheirOwnCommit` (linked worktrees, V1-1139) |
 | `MMR-V0-008` | `bridge.Registry` pin-only state; `contextindex` `packCacheCapacity` | Measurements above; `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls stay bound) |

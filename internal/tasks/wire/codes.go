@@ -3,6 +3,7 @@ package wire
 import (
 	"errors"
 	"fmt"
+	"syscall"
 )
 
 // Closed detail codes (SPEC §11). Only these strings may appear in a
@@ -78,6 +79,9 @@ const CodeQuiescenceUnproved = "QUIESCENCE_UNPROVED"
 const CodeRedoPending = "REDO_PENDING"
 const CodeRequestIDConflict = "REQUEST_ID_CONFLICT"
 const CodeResourceCollision = "RESOURCE_COLLISION"
+
+// CodeResourceExhausted reports transient descriptor exhaustion (CAL-V0-215).
+const CodeResourceExhausted = "RESOURCE_EXHAUSTED"
 const CodeRestored = "RESTORED"
 const CodeRestoreIncomplete = "RESTORE_INCOMPLETE"
 const CodeRetryExhausted = "RETRY_EXHAUSTED"
@@ -118,7 +122,7 @@ var Codes = []string{
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
 	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMilestoneRequired, CodeMissingEvidence, CodeMissingGate,
 	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied, CodeProvenanceUnverified,
-	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
+	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision, CodeResourceExhausted,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
 	CodeReviewRejected, CodeReviewReturned, CodeSecretDetected, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
 	CodeStaleTicket, CodeStaleTree, CodeSupervisorLost, CodeSurvivors, CodeTicketHeld,
@@ -169,7 +173,8 @@ func Errorf(detailCode, where, format string, args ...interface{}) *Error {
 }
 
 // CodeOf returns the §11 code carried by err or by any error it wraps, or
-// MALFORMED for any other error, or "" for nil. Wrapping with %w keeps the
+// RESOURCE_EXHAUSTED for EMFILE/ENFILE (CAL-V0-215), MALFORMED for any other
+// error, or "" for nil. Wrapping with %w keeps the
 // code (CAL-V0-131).
 func CodeOf(err error) string {
 	if err == nil {
@@ -178,6 +183,9 @@ func CodeOf(err error) string {
 	var e *Error
 	if errors.As(err, &e) {
 		return e.Code
+	}
+	if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) {
+		return CodeResourceExhausted
 	}
 	return CodeMalformed
 }

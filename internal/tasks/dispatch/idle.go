@@ -17,9 +17,11 @@ type StoreWitness interface {
 }
 
 // idleFullEvery bounds how long ticks may skip the store read: a full tick
-// still runs at least this often as a safety net (CAL-V0-139). Tests shorten
-// it.
-var idleFullEvery = 60 * time.Second
+// still runs at least this often as a safety net (CAL-V0-139, CAL-V0-217).
+// The witness covers every change the store makes through its own writers,
+// so the net only catches a file rewritten in place without a journal write;
+// each full read costs seconds of CPU at 10,000 tickets. Tests shorten it.
+var idleFullEvery = 15 * time.Minute
 
 // idleGate is armed by a full tick that changed nothing. It holds what that
 // tick read and the earliest time a clock-driven decision can change.

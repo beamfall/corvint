@@ -51,13 +51,25 @@ type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseF
 // with expired leases reaps each one in its own transaction and receipt,
 // then a claim is retried (CAL-V0-011).
 func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (out *Report, outErr error) {
-	defer func() { out, outErr = intentFix(repo, out, outErr) }()
+	unretryable := false
+	defer func() {
+		out, outErr = intentFix(repo, out, outErr)
+		if unretryable {
+			if out == nil {
+				out = &Report{}
+			}
+			out.Unretryable = true
+		}
+	}()
 	reaped := []transaction.ExpiredLease{}
 	reapReceipts := []ReapReceipt{}
 	for round := 0; round <= wire.MaxActiveAttempts; round++ {
 		report, err := leaseOnce(ctx, repo, actor, choice, now)
+		unretryable = unretryable || report != nil && report.Unretryable
 		if err == nil && (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext || choice.Lease.Verb == transaction.LeasePoolAcquire) && choice.Lease.Pool != "" && report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
 			report, err = healthClaim(ctx, repo, actor, choice, report)
+			// Reaping can replace this report in the next round (CAL-V0-215).
+			unretryable = unretryable || report != nil && report.Unretryable
 		}
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
@@ -69,6 +81,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		}
 		for _, x := range report.Expired {
 			child, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
+			unretryable = unretryable || child != nil && child.Unretryable
 			if err != nil {
 				return report, err
 			}
