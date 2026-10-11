@@ -152,8 +152,8 @@ are URL templates, not component source files. This slice makes neither missing 
   to screens whose trigger is `UNKNOWN` or equals the observed trigger (so an `UNKNOWN` observation
   never binds a typed edge), exactly as a declared `proves` would, but never creates an outcome: the
   key proves the edge only through ANL-V0-002 verification of its outcomes whose application
-  revision equals an observation revision; its outcomes at other revisions are not read for that
-  crossing, so a key with none reads `no-receipt-outcome` and, like an absent declared receipt, does
+  revision equals an observation revision or is unresolvable; its outcomes placed at other commits
+  are not read for that crossing, for proof or for ANL-V0-003 uncertainty, so a key with none reads `no-receipt-outcome` and, like an absent declared receipt, does
   not block another key's proof. At most 16 files are named; a 17th refuses before any is read.
   The ledger lists the observation digests, each row's `observed_by` test keys and the count of
   resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is

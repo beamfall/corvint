@@ -331,9 +331,6 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
-				if keyUncertain(e, key, append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)) {
-					blocked = true
-				}
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
 				single := &Verification{receipts: v.receipts, binds: map[string][]string{}}
 				if !declared[key] {
@@ -343,6 +340,9 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 				}
 				ve := *e
 				ve.v = single
+				if keyUncertain(&ve, key, append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)) {
+					blocked = true
+				}
 				a, b := occ.from, occ.to
 				a.Tests = []string{key}
 				b.Tests = []string{key}
@@ -482,12 +482,14 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 	}
 }
 
-// receiptsAt keeps the receipts holding an outcome for key at one of the revisions.
+// receiptsAt keeps the receipts holding an outcome for key at one of the revisions or at no
+// resolvable revision: only an outcome placed at another commit is set aside, so uncertainty that
+// might be at an observed revision still blocks.
 func receiptsAt(receipts []receiptInput, key string, revisions map[string]bool) []receiptInput {
 	var kept []receiptInput
 	for _, in := range receipts {
 		for _, t := range in.r.Tests {
-			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); t.ID == key && revisions[rev] {
+			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); t.ID == key && (revisions[rev] || !commitOID.MatchString(rev)) {
 				kept = append(kept, in)
 				break
 			}

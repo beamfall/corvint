@@ -296,6 +296,20 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 			t.Fatalf("revision %s: %+v", o.Revision, got)
 		}
 	}
+	// A skipped outcome placed at another revision does not block the observed revision's pass;
+	// the same skip at the observed revision does.
+	skipped := pwpReceipt(t, rev2, js.StateSkipped)
+	if skipped.Tests[0].ID != key {
+		t.Fatal("fixture key differs for a skip")
+	}
+	v3 := verification(t, m, []string{writeReceipt(t, r), writeReceipt(t, skipped)})
+	if l, ok = observedLedger(t, m, v3, []*Observation{loaded}, Options{Root: root, Full: true}, row.ID); !ok || edgeRow(t, l, row.ID).Status != EdgeProven {
+		t.Fatalf("skip elsewhere blocked: %+v", l)
+	}
+	v4 := verification(t, m, []string{writeReceipt(t, r2), writeReceipt(t, skipped)})
+	if l, ok = observedLedger(t, m, v4, []*Observation{at2}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatalf("skip at the observed revision did not block: %+v", l)
+	}
 	unreceipted, _ := sealedObservation(t, m, rev, "unreceipted-test", crossing)
 	if l, ok = observedLedger(t, m, v, []*Observation{unreceipted}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
 		t.Fatal("observation alone proved the edge")
