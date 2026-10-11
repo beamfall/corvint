@@ -287,6 +287,10 @@ func screenObligations(p *ObligationsPayload) *refusal {
 	case p.Set != nil:
 		for _, ch := range p.Set.Changes {
 			fields = append(fields, ch.Reason)
+			for _, src := range ch.Sources {
+				fields = append(fields, src.Ref, src.Query)
+				fields = append(fields, src.Searched...)
+			}
 		}
 	case p.Witness != nil:
 		if d := p.Witness.Declaration; d != nil {
@@ -302,7 +306,7 @@ func screenObligations(p *ObligationsPayload) *refusal {
 	}
 	for _, s := range fields {
 		if matchesSecretScreen(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "/payload: a title, alias, reason, path or test id matches the secret screen; remove the secret and retry with a new request ID")
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "/payload: a title, alias, reason, path, test id or review source matches the secret screen; remove the secret and retry with a new request ID")
 		}
 	}
 	return nil

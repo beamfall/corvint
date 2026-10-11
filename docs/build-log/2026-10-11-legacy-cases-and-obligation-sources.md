@@ -44,3 +44,44 @@ Evidence:
 - `TestBehaviorLegacyParity` (`manual case baseline`)
 - `TestDocsCorpusLegacyCasesCLI`
 - `TestDCPV1077CorpusMCPSearchCases`
+
+## Issue #813: obligation review sources (TOL-V0-037..046)
+
+An obligation entry, and an `OBLIGATIONS_SET` change, may now carry an optional `sources` list:
+`{kind: legacy-case|legacy-spec|manual-case, ref, digest}` for a reviewed source, or `{kind: none,
+query, searched, at}` for a recorded empty search. The member is absent when unused, so existing
+entries and set requests keep their bytes, and the event profile stays
+`taskman-obligation-event/0`, following the TOL-V0-034 alias precedent.
+
+The policy key `obligations` gains an optional `requireSourceReview`. With it set, `preflight` adds
+`SOURCE_REVIEW_MISSING` for each OPEN, DEFECT or BLOCKED obligation without sources, and
+`SOURCE_REVIEW_NONE_UNSEARCHED` for a `none` with a blank query or an empty searched set. Each
+finding names the obligation and carries a remedy.
+
+`show` and `plan` add `sourceReview` (stale and unresolved lists) only when some entry has sources.
+`legacy-case` and `manual-case` refs resolve by case ID in a `corvint-legacy-cases/1` record passed
+as `--legacy-cases FILE`, which joins #812's import to the ledger. `legacy-spec` refs resolve as
+repository paths at `HEAD`, from Git objects.
+
+Design choices:
+- The empty-query and empty-searched refusals sit in preflight, not the codec, so turning the policy
+  on never makes a stored ledger unreadable.
+- `plan`'s `ok` is unaffected by staleness.
+- Review sources never reach witness evidence, counts or high water. The issue asks for review
+  records, not credit.
+- `workerWitness` stays required inside the `obligations` object. Only `requireSourceReview` is
+  optional, which keeps the policy change additive.
+
+Limits:
+- A `none` source's searched ids are recorded, not checked against a corpus.
+- Staleness of `legacy-spec` is read at `HEAD` only.
+- `qualify` does not read sources (the issue names preflight, show and plan).
+- An older binary meets a sources-bearing set request at its closed reader and reports the ledger
+  `UNKNOWN`. This is the same open CAL-V0-131 profile question as aliases.
+
+Evidence:
+- `TestTOLV0037_ReviewSourceCodec`
+- `TestTOLV0039_LegacyLedgerBytesUnchanged` (`internal/tasks/ticket`)
+- `TestTOLV0039_PolicyLeavesLedgerBytes`
+- `TestTOLV0040_PreflightRequiresSourceReview`
+- `TestTOLV0042_StaleSourcesListed` (`internal/tasks/cli`)
