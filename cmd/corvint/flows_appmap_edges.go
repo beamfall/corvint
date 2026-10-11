@@ -19,11 +19,12 @@ func runFlowsAppmapEdges(ctx context.Context, root string, args []string, out io
 	declarations := f.String("declarations", "", "edge proves/assumes JSON sidecar")
 	budget := f.Int("budget", 0, "byte cap")
 	full := f.Bool("full", false, "full byte cap")
-	var receipts, required []string
+	var receipts, required, observations []string
 	f.Func("receipt", "receipt file (repeatable)", func(v string) error { receipts = append(receipts, v); return nil })
 	f.Func("require", "required edge ID (repeatable)", func(v string) error { required = append(required, v); return nil })
+	f.Func("observation", "navigation observation file (repeatable)", func(v string) error { observations = append(observations, v); return nil })
 	if f.Parse(args) != nil || f.NArg() != 0 || *mapFile == "" {
-		return errors.New("flows appmap edges requires --map FILE; optional --receipt, --revision, --declarations, --require, --budget or --full")
+		return errors.New("flows appmap edges requires --map FILE; optional --receipt, --revision, --declarations, --require, --observation, --budget or --full")
 	}
 	m, err := appmap.LoadMap(*mapFile)
 	if err != nil {
@@ -40,7 +41,15 @@ func runFlowsAppmapEdges(ctx context.Context, root string, args []string, out io
 			return err
 		}
 	}
-	data, ok, err := appmap.ProjectEdges(ctx, m, v, d, required, appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full})
+	var observed []*appmap.Observation
+	for _, name := range observations {
+		obs, oerr := appmap.LoadObservation(m, name)
+		if oerr != nil {
+			return oerr
+		}
+		observed = append(observed, obs)
+	}
+	data, ok, err := appmap.ProjectObservedEdges(ctx, m, v, d, observed, required, appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full})
 	if err != nil {
 		return err
 	}

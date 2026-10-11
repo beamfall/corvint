@@ -62,6 +62,7 @@ type LedgerEdge struct {
 	Evidence          *EdgeCrossing `json:"evidence,omitempty"`
 	RedundantCrossers []string      `json:"redundant-crossers"`
 	RedundantCount    int           `json:"redundant_count"`
+	ObservedBy        []string      `json:"observed_by,omitempty"`
 }
 type EdgeLedger struct {
 	Schema       string         `json:"schema"`
@@ -73,6 +74,8 @@ type EdgeLedger struct {
 	Total        int            `json:"total"`
 	Proven       int            `json:"proven"`
 	UnknownPairs int            `json:"unknown_pairs"`
+	Observations []string       `json:"observations,omitempty"`
+	Unmatched    int            `json:"observed_unmatched,omitempty"`
 	Satisfied    bool           `json:"satisfied"`
 	Unsatisfied  []string       `json:"unsatisfied"`
 	Omitted      map[string]int `json:"omitted"`
@@ -98,9 +101,46 @@ func ledgerIdentity(from, to Step) LedgerEdge {
 	return LedgerEdge{ID: "edge:" + digest(b), From: from.Screen, To: to.Screen, Trigger: trigger, Selector: selector, Status: EdgeUnproven, RedundantCrossers: []string{}}
 }
 
+const maxLedgerObservations = 16
+
+// LoadObservation reads one complete application-navigation-observation/0 document built from m:
+// same app and map digest, nothing omitted and an intact digest (ANL-V0-023).
+func LoadObservation(m *Map, name string) (*Observation, error) {
+	bad := verifyError("appmap-invalid-query", "--observation must name an untrimmed application-navigation-observation/0 file of at most 4 MiB built from --map")
+	raw, ok := readRegular(name, 4<<20)
+	if !ok {
+		return nil, bad
+	}
+	var obs Observation
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&obs) != nil || dec.Decode(new(any)) != io.EOF || obs.Schema != ObservationSchema || obs.App != m.App || obs.MapDigest != m.Digest || obs.Traces == nil {
+		return nil, bad
+	}
+	for _, n := range obs.Omitted {
+		if n != 0 {
+			return nil, bad
+		}
+	}
+	check := obs
+	check.Digest = ""
+	complete, _ := json.Marshal(check)
+	if digest(complete) != obs.Digest {
+		return nil, bad
+	}
+	return &obs, nil
+}
+
 // ProjectEdges returns a capped projection and the full-ledger assumption verdict. It does not
 // mutate the map or verification input. All run qualification is delegated to RVN (ANL-V0-002).
 func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarations, required []string, o Options) ([]byte, bool, error) {
+	return ProjectObservedEdges(ctx, m, v, d, nil, required, o)
+}
+
+// ProjectObservedEdges is ProjectEdges with navigation observations: an observed crossing binds its
+// test key to the matching ledger edge, like a declared proves, and still needs a qualified receipt
+// at the observation's revision to prove it (ANL-V0-023).
+func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarations, observations []*Observation, required []string, o Options) ([]byte, bool, error) {
 	cap, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, false, err
@@ -156,6 +196,42 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 		}
 	}
+	if len(observations) > maxLedgerObservations {
+		return nil, false, verifyError("appmap-invalid-query", "at most %d --observation", maxLedgerObservations)
+	}
+	// observedAt[edge][key] holds the revisions at which key's trace crossed the edge.
+	observedAt := map[string]map[string]map[string]bool{}
+	for _, obs := range observations {
+		if obs == nil || obs.App != m.App || obs.MapDigest != m.Digest {
+			return nil, false, verifyError("appmap-invalid-query", "observation not built from --map")
+		}
+		ledger.Observations = append(ledger.Observations, obs.Digest)
+		for _, tr := range obs.Traces {
+			for _, oe := range tr.Edges {
+				if oe.Status != StatusResolved {
+					continue
+				}
+				matched := false
+				for id, row := range rows {
+					if row.From != oe.From || row.To != oe.To || (row.Trigger != StatusUnknown && row.Trigger != oe.Trigger) {
+						continue
+					}
+					matched = true
+					if observedAt[id] == nil {
+						observedAt[id] = map[string]map[string]bool{}
+					}
+					if observedAt[id][tr.TestKey] == nil {
+						observedAt[id][tr.TestKey] = map[string]bool{}
+					}
+					observedAt[id][tr.TestKey][obs.Revision] = true
+				}
+				if !matched {
+					ledger.Unmatched++
+				}
+			}
+		}
+	}
+	sort.Strings(ledger.Observations)
 	for id := range needs {
 		if len(id) != 69 || id[:5] != "edge:" {
 			return nil, false, verifyError("appmap-invalid-query", "edge IDs must be edge:SHA256")
@@ -186,7 +262,15 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 					keys[k] = true
 				}
 			}
+			declared := map[string]bool{}
+			for k := range keys {
+				declared[k] = true
+			}
 			for _, k := range proves[id] {
+				keys[k] = true
+				declared[k] = true
+			}
+			for k := range observedAt[id] {
 				keys[k] = true
 			}
 			if len(keys) > 256 {
@@ -232,6 +316,11 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 				case av.Revision != bv.Revision || av.Receipt == nil || bv.Receipt == nil || *av.Receipt != *bv.Receipt:
 					sv = StepVerification{Status: Unverified, Reason: "crossing-evidence-mismatch", Authority: AuthorityLearned}
 					blocked = true
+				}
+				if !declared[key] && sv.Status != Unverified && !observedAt[id][key][sv.Revision] {
+					// An observation-only binding proves nothing unless the receipt ran at the
+					// revision the trace was observed at.
+					sv = StepVerification{Status: Unverified, Reason: "observation-revision-mismatch", Authority: AuthorityLearned}
 				}
 				if sv.Status != Unverified {
 					anchors := []Anchor{occ.flow.Anchor}
@@ -279,6 +368,10 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 				break
 			}
 		}
+		for k := range observedAt[id] {
+			row.ObservedBy = append(row.ObservedBy, k)
+		}
+		sort.Strings(row.ObservedBy)
 		if row.Status == EdgeProven {
 			ledger.Proven++
 			seen := map[string]bool{row.Evidence.Verification.Receipt.TestKey: true}

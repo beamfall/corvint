@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -183,5 +185,95 @@ func TestANLV0003SameKeyUncertaintyBlocks(t *testing.T) {
 	l, _, ok := readLedger(t, m, v, edgeBindings(row.ID, pass.Tests[0].ID, pass.Tests[1].ID), Options{Root: root, Full: true}, row.ID)
 	if ok || edgeRow(t, l, row.ID).Status == EdgeProven {
 		t.Fatal("same-key uncertainty laundered by a pass", l)
+	}
+}
+
+func sealedObservation(t *testing.T, m *Map, rev string, key string, edges ...ObservedEdge) (*Observation, string) {
+	t.Helper()
+	obs := Observation{Schema: ObservationSchema, App: m.App, Revision: rev, MapDigest: m.Digest, Authority: AuthorityLearned,
+		Traces: []ObservedTrace{{TestKey: key, TraceDigest: "d", Visits: []ObservedVisit{}, Edges: edges}}, Omitted: map[string]int{"visits": 0, "edges": 0}}
+	complete, _ := json.Marshal(obs)
+	obs.Digest = digest(complete)
+	raw, _ := json.Marshal(obs)
+	name := filepath.Join(t.TempDir(), "obs.json")
+	if err := os.WriteFile(name, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return &obs, name
+}
+
+func observedLedger(t *testing.T, m *Map, v *Verification, obs []*Observation, o Options, require ...string) (EdgeLedger, bool) {
+	t.Helper()
+	raw, ok, err := ProjectObservedEdges(context.Background(), m, v, nil, obs, require, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var l EdgeLedger
+	if err = json.Unmarshal(raw, &l); err != nil {
+		t.Fatal(err)
+	}
+	return l, ok
+}
+
+// ANL-V0-023: an observed crossing binds its test key to the matching edge without a declaration;
+// proof still needs a qualified receipt at the observed revision; foreign or trimmed input refuses.
+func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
+	root, rev, m, f, row := ledgerFixture(t)
+	r := pwpReceipt(t, rev, js.StatePassed)
+	key := r.Tests[0].ID
+	v := verification(t, m, []string{writeReceipt(t, r)})
+	crossing := ObservedEdge{FromSeq: 0, ToSeq: 1, From: row.From, To: row.To, Trigger: "click", Status: StatusResolved}
+	stray := ObservedEdge{FromSeq: 1, ToSeq: 2, From: row.To, To: "screen:nowhere", Trigger: "click", Status: StatusResolved}
+	obs, name := sealedObservation(t, m, rev, key, crossing, stray)
+	loaded, err := LoadObservation(m, name)
+	if err != nil || loaded.Digest != obs.Digest {
+		t.Fatal(err)
+	}
+	if l, _ := observedLedger(t, m, v, nil, Options{Root: root, Full: true}); edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatal("proved without observation or declaration")
+	}
+	l, ok := observedLedger(t, m, v, []*Observation{loaded}, Options{Root: root, Full: true}, row.ID)
+	got := edgeRow(t, l, row.ID)
+	if !ok || got.Status != EdgeProven || len(got.ObservedBy) != 1 || got.ObservedBy[0] != key || l.Unmatched != 1 || l.Observations[0] != obs.Digest {
+		t.Fatalf("%+v", l)
+	}
+	// An observation at another revision, or one without a receipt, proves nothing.
+	other, _ := sealedObservation(t, m, strings.Repeat("0", 40), key, crossing)
+	if l, ok = observedLedger(t, m, v, []*Observation{other}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatal("revision mismatch proved the edge")
+	}
+	unreceipted, _ := sealedObservation(t, m, rev, "unreceipted-test", crossing)
+	if l, ok = observedLedger(t, m, v, []*Observation{unreceipted}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatal("observation alone proved the edge")
+	}
+	// An UNKNOWN observed trigger never binds a typed ledger edge.
+	copied := *m
+	typed := &copied
+	typed.Flows = append([]Flow{}, m.Flows...)
+	tf := f
+	tf.Steps = append([]Step{}, f.Steps...)
+	tf.Steps[1].Action = "click"
+	typed.Flows[0] = tf
+	unknown := crossing
+	unknown.Trigger = StatusUnknown
+	uo, _ := sealedObservation(t, typed, rev, key, unknown)
+	typedRow := ledgerIdentity(tf.Steps[0], tf.Steps[1])
+	if l, _ = observedLedger(t, typed, v, []*Observation{uo}, Options{Root: root, Full: true}); len(edgeRow(t, l, typedRow.ID).ObservedBy) != 0 {
+		t.Fatal("UNKNOWN observation bound a typed edge")
+	}
+	// Tampered, trimmed and foreign observations refuse.
+	raw, _ := os.ReadFile(name)
+	for label, body := range map[string]string{
+		"tampered": strings.Replace(string(raw), `"click"`, `"goto"`, 1),
+		"trimmed":  strings.Replace(string(raw), `"edges":0`, `"edges":1`, 1),
+		"foreign":  strings.Replace(string(raw), m.Digest, "sha256:other", 1),
+	} {
+		p := filepath.Join(t.TempDir(), "o.json")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadObservation(m, p); err == nil {
+			t.Fatal(label, "accepted")
+		}
 	}
 }

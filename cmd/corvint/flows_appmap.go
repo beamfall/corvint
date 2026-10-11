@@ -26,9 +26,11 @@ Application map usage (experimental, AMAP-V0):
 
 Navigation edge ledger (experimental, ANL-V0):
   corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
-      [--declarations FILE] [--require EDGE_ID]... [--budget N | --full]
+      [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]
 Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
-The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
+The JSON sidecar declares tests with test_key, proves and assumes edge lists. --observation
+(observe output) binds each observed crossing's test key to the matching edge; a receipt at the
+observed revision still has to prove it. Unproven
 requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
 Navigation impact (experimental, ANL-V0):

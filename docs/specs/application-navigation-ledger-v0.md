@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1161; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -141,11 +141,23 @@ are URL templates, not component source files. This slice makes neither missing 
   reads `UNKNOWN`. Intermediate redirect hops are invisible to snapshots and are not claimed. The
   trace digest is the archive digest; the test key is the caller's, since the archive carries none.
   `--test-key` is refused without a zip. (proposed, pending owner acceptance (V1-1159))
+- `ANL-V0-023`: `edges --observation FILE` (repeatable, at most 16) feeds observed navigation edges
+  into the ledger only when named; no read command applies observations implicitly or writes them.
+  A file must be a complete `application-navigation-observation/0` document of at most 4 MiB built
+  from the same app and map digest, with no omitted visit or edge and an intact digest, else exit 2.
+  Each resolved observed edge binds its trace's test key to every ledger edge with the same from and
+  to screens whose trigger is `UNKNOWN` or equals the observed trigger (so an `UNKNOWN` observation
+  never binds a typed edge), exactly as a declared `proves` would, but never creates an outcome: the
+  key proves the edge only through ANL-V0-002 verification with a receipt whose application revision
+  equals the observation revision, else that key's crossing reads `observation-revision-mismatch`.
+  The ledger lists the observation digests, each row's `observed_by` test keys and the count of
+  resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is
+  unchanged. (proposed, pending owner acceptance (V1-1160))
 
 ## Wire and limits
 
 `corvint flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
-[--declarations FILE] [--require EDGE_ID]... [--budget N | --full]`
+[--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]`
 
 Sidecar: `{"schema":"application-edge-declarations/0","tests":[{"test_key":"KEY",
 "proves":["edge:HEX"],"assumes":["edge:HEX"]}]}`. At most 64 test declarations, 64 IDs per
@@ -189,6 +201,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
 | ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
+| ANL-V0-023 | `internal/appmap/ledger.go`, `cmd/corvint/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
 
 ## Follow-ups and promotion
 
