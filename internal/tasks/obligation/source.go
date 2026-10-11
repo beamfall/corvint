@@ -457,6 +457,7 @@ func CheckSources(l *ticket.ObligationLedger, files map[string][]byte) []Finding
 	}
 	sort.Strings(paths)
 	contract := contractPattern(l.Prefix)
+	names := NamesOf(l)
 	for _, path := range paths {
 		toks := lex(string(files[path]))
 		for _, t := range toks {
@@ -464,19 +465,22 @@ func CheckSources(l *ticket.ObligationLedger, files map[string][]byte) []Finding
 				for _, id := range contractIDs(contract, t.text) {
 					named[id] = true
 				}
-			}
-		}
-		nodes := parseNodes(toks)
-		tests := fileTests(path, nodes, l.Prefix)
-		for _, n := range nodes {
-			if n.kind != nodeFail {
-				for _, id := range FindIDs(n.title, l.Prefix) {
+				for _, id := range names.contractAliases(t.text) {
 					named[id] = true
 				}
 			}
 		}
-		findings = append(findings, mixedFindings(tests, open, l.Prefix)...)
-		findings = append(findings, splitFindings(tests, nodes, open, l.Prefix)...)
+		nodes := parseNodes(toks)
+		tests := fileTests(path, nodes, names)
+		for _, n := range nodes {
+			if n.kind != nodeFail {
+				for _, id := range names.Find(n.title) {
+					named[id] = true
+				}
+			}
+		}
+		findings = append(findings, mixedFindings(tests, open, names)...)
+		findings = append(findings, splitFindings(tests, nodes, open, names)...)
 	}
 	for id := range open {
 		if !named[id] {
@@ -491,7 +495,7 @@ func CheckSources(l *ticket.ObligationLedger, files map[string][]byte) []Finding
 // fileTests gathers each test declaration with its steps and the test.fail
 // annotation that covers it: its own declaration or call, else the
 // innermost describe's, else a file-level call.
-func fileTests(path string, nodes []node, prefix string) []sourceTest {
+func fileTests(path string, nodes []node, names Names) []sourceTest {
 	fileFail, fileDesc := false, ""
 	describeFail := map[int]string{}
 	testFail := map[int]string{}
@@ -515,7 +519,7 @@ func fileTests(path string, nodes []node, prefix string) []sourceTest {
 			continue
 		}
 		st := sourceTest{path: path, title: n.title, line: n.line, describe: n.parentDescr, fail: n.fail || fileFail,
-			failDesc: fileDesc, isolated: n.isolated, titleIDs: FindIDs(n.title, prefix)}
+			failDesc: fileDesc, isolated: n.isolated, titleIDs: names.Find(n.title)}
 		if d, ok := testFail[k]; ok {
 			st.fail, st.failDesc = true, st.failDesc+d
 		}
@@ -547,24 +551,24 @@ func fileTests(path string, nodes []node, prefix string) []sourceTest {
 // the title naming it says expected-fail, the fail description names it, or,
 // for a title-path id (a describe or the test title), the fail description
 // or that title names a defect id.
-func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []Finding {
+func mixedFindings(tests []sourceTest, open map[string]string, names Names) []Finding {
 	var out []Finding
 	for _, t := range tests {
 		if !t.fail {
 			continue
 		}
 		described := map[string]bool{}
-		for _, id := range FindIDs(t.failDesc, prefix) {
+		for _, id := range names.Find(t.failDesc) {
 			described[id] = true
 		}
-		describedDefect := len(DefectIDs(t.failDesc, prefix)) > 0
+		describedDefect := len(names.DefectIDs(t.failDesc)) > 0
 		seen := map[string]bool{}
 		check := func(id, title string, titleID bool) {
 			state, ok := open[id]
 			if !ok || seen[id] {
 				return
 			}
-			defect := titleID && (describedDefect || len(DefectIDs(title, prefix)) > 0)
+			defect := titleID && (describedDefect || len(names.DefectIDs(title)) > 0)
 			if state == ticket.ObligationDefect || SaysExpectedFail(title) || described[id] || defect {
 				return
 			}
@@ -573,7 +577,7 @@ func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []
 				Detail: "test.fail test " + quote(t.title) + " also names " + id + ", which is not marked expected-fail", Remedy: MixedRemedy})
 		}
 		for _, title := range t.describes {
-			for _, id := range FindIDs(title, prefix) {
+			for _, id := range names.Find(title) {
 				check(id, title, true)
 			}
 		}
@@ -581,7 +585,7 @@ func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []
 			check(id, t.title, true)
 		}
 		for _, s := range t.steps {
-			for _, id := range FindIDs(s.title, prefix) {
+			for _, id := range names.Find(s.title) {
 				check(id, s.title, false)
 			}
 		}
@@ -593,7 +597,7 @@ func mixedFindings(tests []sourceTest, open map[string]string, prefix string) []
 // exactly one open obligation in their title path and steps, when two or
 // more distinct obligations are split that way; test.fail and isolated
 // tests are exempt (TOL-V0-025).
-func splitFindings(tests []sourceTest, nodes []node, open map[string]string, prefix string) []Finding {
+func splitFindings(tests []sourceTest, nodes []node, open map[string]string, names Names) []Finding {
 	type single struct {
 		t  sourceTest
 		id string
@@ -606,7 +610,7 @@ func splitFindings(tests []sourceTest, nodes []node, open map[string]string, pre
 		}
 		ids := map[string]bool{}
 		for _, title := range t.describes {
-			for _, id := range FindIDs(title, prefix) {
+			for _, id := range names.Find(title) {
 				if _, ok := open[id]; ok {
 					ids[id] = true
 				}
@@ -618,7 +622,7 @@ func splitFindings(tests []sourceTest, nodes []node, open map[string]string, pre
 			}
 		}
 		for _, s := range t.steps {
-			for _, id := range FindIDs(s.title, prefix) {
+			for _, id := range names.Find(s.title) {
 				if _, ok := open[id]; ok {
 					ids[id] = true
 				}

@@ -388,7 +388,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		if resolved, err := filepath.EvalSymlinks(rep.RootDir); err == nil {
 			rep.RootDir = resolved
 		}
-		paths := rep.SourcePaths(ledger.Prefix, root)
+		paths := rep.SourcePaths(obligation.NamesOf(ledger), root)
 		resolved, present, content, err := store.FilesAtCommit(root, commit, paths)
 		witnessEvidenceReadHook()
 		if err != nil {

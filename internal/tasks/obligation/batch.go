@@ -72,12 +72,12 @@ func (r *Report) Errors() int { return r.errors }
 // outside repoRoot (TOL-V0-012).
 func (r *Report) RepoPath(repoRoot, file string) string { return r.repoPath(repoRoot, file) }
 
-// FailureErrors returns, for each id of prefix with a failing ordinary
+// FailureErrors returns, for each obligation n names with a failing ordinary
 // retry-0 match, the first such match's error line, screened ("" when the
 // report gives none).
-func (r *Report) FailureErrors(prefix string) map[string]string {
+func (r *Report) FailureErrors(n Names) map[string]string {
 	out := map[string]string{}
-	for id, ms := range r.collect(prefix) {
+	for id, ms := range r.collect(n) {
 		for _, m := range ms {
 			if m.kind == kindOrdinary && !m.passed {
 				if _, ok := out[id]; !ok || out[id] == "" {
@@ -89,8 +89,8 @@ func (r *Report) FailureErrors(prefix string) map[string]string {
 	return out
 }
 
-// NamedTest is one test declaration in a spec file with every obligation id
-// of the prefix that its title path or one of its steps names.
+// NamedTest is one test declaration in a spec file with the native id of
+// every obligation that its title path or one of its steps names.
 type NamedTest struct {
 	Path      string
 	TitlePath []string
@@ -98,9 +98,9 @@ type NamedTest struct {
 }
 
 // NamedTests scans files (path to content) with the TOL-V0-025 heuristic
-// scanner and returns each test that names at least one id of prefix,
-// sorted by path and line.
-func NamedTests(files map[string][]byte, prefix string) []NamedTest {
+// scanner and returns each test that names at least one obligation by its
+// native id or alias, sorted by path and line.
+func NamedTests(files map[string][]byte, n Names) []NamedTest {
 	paths := make([]string, 0, len(files))
 	for p := range files {
 		paths = append(paths, p)
@@ -108,14 +108,14 @@ func NamedTests(files map[string][]byte, prefix string) []NamedTest {
 	sort.Strings(paths)
 	var out []NamedTest
 	for _, p := range paths {
-		for _, t := range fileTests(p, parseNodes(lex(string(files[p]))), prefix) {
+		for _, t := range fileTests(p, parseNodes(lex(string(files[p]))), n) {
 			titlePath := append(append([]string{}, t.describes...), t.title)
 			var ids []string
 			for _, title := range titlePath {
-				ids = append(ids, FindIDs(title, prefix)...)
+				ids = append(ids, n.Find(title)...)
 			}
 			for _, s := range t.steps {
-				ids = append(ids, FindIDs(s.title, prefix)...)
+				ids = append(ids, n.Find(s.title)...)
 			}
 			if len(ids) > 0 {
 				out = append(out, NamedTest{Path: p, TitlePath: titlePath, IDs: sortedUnique(ids)})
@@ -158,7 +158,7 @@ type Cause struct {
 // files at the commit; repoRoot maps the report's spec files. ids, when not
 // nil, is the batch's --ids subset.
 func BatchCauses(r *Report, l *ticket.ObligationLedger, res *Result, repoRoot string, named []NamedTest, ids []string, credited bool, refusal string) []Cause {
-	errs := r.FailureErrors(l.Prefix)
+	errs := r.FailureErrors(NamesOf(l))
 	inSubset := map[string]bool{}
 	for _, id := range ids {
 		inSubset[id] = true
