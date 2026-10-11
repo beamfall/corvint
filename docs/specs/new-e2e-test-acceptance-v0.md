@@ -65,6 +65,35 @@ Core/MCP/flows, generic falsifier authority or the whole requested capability.
   isolation states) and each test's reasons and the report unknowns. Every rendered value must match
   its closed identifier, OID, digest, build or reason-code shape; anything else renders `UNVALIDATED`.
 
+- `NEA-V0-010`: accepted, decision 0507. Optional operator-only
+  `accept --temp-root` selects an existing clean absolute directory with no symlink components.
+  The parent allocates a private per-run child, propagates it as TMPDIR to all workers, native
+  providers and control executors, and removes that child after joined execution or cancellation.
+  Workers still require exactly PATH/LANG/LC_ALL/TMPDIR; fixed values remain unchanged except
+  TMPDIR may name an existing canonical private directory. Request environment keys cannot
+  select the root. Omission preserves TMPDIR=/tmp and the existing wire/digest.
+
+## Temporary output scope (V1-0686)
+
+The direct producers are worker `corvint-new-test-output-*` (runner --output), native provider
+`corvint-playwright-*` (generated config/reporter, JSON report, Playwright output and staged
+application attestation executable/config; scoped runs override native project outputDir inside
+that scratch without admitting a caller --output option), and executor `corvint-behavior-control-*` (staged
+control/cleanup executable). They use os.TempDir; scoped runs place all beneath the parent-owned
+`corvint-acceptance-run-*` child. Control hooks receive that same validated TMPDIR without
+adding request-declared environment keys. Cleanup failure refuses report publication. The parent removes residual worker files even when
+forced worker retirement prevents deferred cleanup. Abrupt parent SIGKILL/crash cannot run
+cleanup: the operator must reserve and retire the selected root, retaining failure evidence.
+
+This is cooperative output placement, not filesystem containment. Node/Playwright/Chromium
+profiles and temporary artifacts that honor TMPDIR follow the root; hard-coded paths, browser
+installation/cache defaults, arbitrary reporters, server/build outputs, hook workspace artifacts
+and transitive imports/runtime caches remain unqualified and may write elsewhere. Reserve those
+outputs explicitly by actual producer provenance, with INCOMPLETE coverage where unknown; an
+equality-only GENERATED_OUTPUT family label is not a path reservation. Default runs require
+reservations for /tmp families and transitive outputs. No hostile concurrent filesystem or
+complete browser interruption claim is added. Rollback omits --temp-root; no migration occurs.
+
 ## Trust boundary and resource limits
 
 Operator-approved executable/config/plan bytes are trusted code, not third-party author authority.
@@ -98,9 +127,10 @@ They confer no positive freshness or acceptance qualification.
 | `command-invalid` (internal/testacceptance/input.go:222), `executable-drift` (internal/testacceptance/input.go:226), `argv-invalid` (internal/testacceptance/input.go:230) | Runner/server executable or argv count/hash/file shape is invalid, observed executable bytes drift, or an argument exceeds its size/character limits. |
 | `server-entrypoint-not-pinned` (internal/testacceptance/input.go:235), `runner-prefix-invalid` (internal/testacceptance/input.go:240), `runner-entrypoint-invalid` (internal/testacceptance/input.go:245) | The server entrypoint must be pinned inside the product repository; the runner prefix cannot exceed executable plus one independently byte-pinned CLI entrypoint. |
 | `ready-url-not-loopback` (internal/testacceptance/input.go:250), `build-root-invalid` (internal/testacceptance/input.go:253), `runner-version-invalid` (internal/testacceptance/input.go:261) | Readiness requires an HTTP loopback IP without user/query/fragment; build root must be clean/absolute inside the product root; declared runner version must be nonempty and bounded. |
-| `self-worker-invalid` (internal/testacceptance/execute.go:296), `self-worker-unreadable` (internal/testacceptance/execute.go:305), `report-bound` (internal/testacceptance/execute.go:383) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
+| `temporary-root-invalid` (internal/testacceptance/execute.go:336), `temporary-root-allocation-failed` (internal/testacceptance/execute.go:340), `temporary-root-cleanup-failed` (internal/testacceptance/execute.go:345) | Selected root is noncanonical/absent, per-run allocation fails, or post-join scope removal fails; no report is published. |
+| `self-worker-invalid` (internal/testacceptance/execute.go:331), `self-worker-unreadable` (internal/testacceptance/execute.go:360), `report-bound` (internal/testacceptance/execute.go:438) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
 | `verified-approved-control-survived` (internal/testacceptance/report.go:82), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:85) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
-| `isolation-index-invalid` (internal/testacceptance/execute.go:137), `isolation-not-observed` (internal/testacceptance/execute.go:225), `isolation-incomplete` (internal/testacceptance/report.go:201) | An isolation job names no declared test, an isolation run observed another declared test, or fewer than two passed/failed isolated rows were retained; order evidence stays incomplete. |
+| `isolation-index-invalid` (internal/testacceptance/execute.go:159), `isolation-not-observed` (internal/testacceptance/execute.go:250), `isolation-incomplete` (internal/testacceptance/report.go:201) | An isolation job names no declared test, an isolation run observed another declared test, or fewer than two passed/failed isolated rows were retained; order evidence stays incomplete. |
 
 ## Non-goals
 
@@ -119,6 +149,7 @@ operator-controlled redirection; no product file writer or store migration.
 | NEA-V0-006 | sanitized worker/observer | sentinel isolation, nested group cancellation and cleanup tests |
 | NEA-V0-007 | fixed report/body | bounded body and unknown preservation tests |
 | NEA-V0-008 | per-test summary, isolation probes | `TestNEAV0008AttachedOrderEvidence` (all isolation statuses, cleanup attribution, grep anchoring); actual browser `NEA-V0-008/attached-order-evidence` |
+| NEA-V0-010 | validated per-run root and standalone worker scope | `TestNEAV0010TempRootValidation`, `TestNEAV0010StandaloneScope`, `TestNEAV0010NativeTempScope`, `TestNEAV0010NativeOutputSelection` |
 | NEA-V0-009 | Markdown change-request body | `TestNEAV0009ChangeRequestBody` (bindings, row, `UNVALIDATED` substitution, no title text); actual browser `NEA-V0-007/fixed-body` |
 
 Focused conformance and independent review qualify only their named local paths. Synthetic tests

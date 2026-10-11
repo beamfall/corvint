@@ -39,6 +39,7 @@ func run(ctx context.Context, args []string, in io.Reader, out io.Writer) error 
 	approved := f.String("approve-plan", "", "independently reviewed request digest")
 	repeat := f.Int("repeat", 0, "repeat count")
 	env := f.String("environment", "", "environment label")
+	tempRoot := f.String("temp-root", "", "operator-owned canonical temporary output root (accept only)")
 	var newFiles paths
 	f.Var(&newFiles, "new", "new test file (repeat flag)")
 	if e := f.Parse(args[1:]); e != nil || f.NArg() != 0 {
@@ -58,6 +59,9 @@ func run(ctx context.Context, args []string, in io.Reader, out io.Writer) error 
 		return e
 	}
 	if args[0] == "plan" {
+		if *tempRoot != "" {
+			return fmt.Errorf("flags-invalid")
+		}
 		if e = testacceptance.Validate(r); e != nil {
 			return e
 		}
@@ -84,7 +88,7 @@ func run(ctx context.Context, args []string, in io.Reader, out io.Writer) error 
 	if e != nil {
 		return fmt.Errorf("self-unavailable")
 	}
-	report, e := testacceptance.Execute(ctx, r, *approved, exe, buildIdentity())
+	report, e := testacceptance.ExecuteWithTempRoot(ctx, r, *approved, exe, buildIdentity(), *tempRoot)
 	if e != nil {
 		return e
 	}
