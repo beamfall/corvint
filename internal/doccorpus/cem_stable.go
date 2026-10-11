@@ -33,12 +33,15 @@ var stableCEMLimits = []string{
 // receipt that keeps the complete verifier result and no claim row, so a wrong
 // base or edited input never fabricates authority (CEM-V1-075, CEM-V1-076).
 func StableCEMProjection(ctx context.Context, a *Artifact, data []byte, claimID string, inputs StableCEMInputs) (map[string]any, error) {
-	if !wire.DeclaresStable(data) {
-		return nil, &Error{Code: "corpus-stable-refused", Message: "the stable documentation projection reads only an exact " + wire.StableSpec + " map"}
+	// A map that does not declare exactly cem/1.0 still goes through the
+	// verifier, which refuses it, so every refusal carries the full result.
+	declared := "UNSUPPORTED"
+	if wire.DeclaresStable(data) {
+		declared = wire.StableSpec
 	}
 	result, _ := verify.Stable(ctx, data, verify.StableOptions{Repository: inputs.Repository, ExpectedBase: inputs.ExpectedBase,
 		Target: inputs.Target, ArtifactRoot: inputs.ArtifactRoot})
-	receipt := map[string]any{"schema": StableCEMSchema, "artifact_sha256": a.SHA256, "cem_spec": wire.StableSpec, "cem_sha256": Digest(data),
+	receipt := map[string]any{"schema": StableCEMSchema, "artifact_sha256": a.SHA256, "cem_spec": declared, "cem_sha256": Digest(data),
 		"cem_verification": result, "authority": "generated-documentation", "native_authority": "NOT_OBSERVED", "mutates": false,
 		"limitations": append([]string(nil), stableCEMLimits...)}
 	refuse := func(message string) (map[string]any, error) {
@@ -47,6 +50,9 @@ func StableCEMProjection(ctx context.Context, a *Artifact, data []byte, claimID 
 			receipt["sha256"] = digest
 		}
 		return receipt, &Error{Code: "corpus-stable-refused", Message: message}
+	}
+	if declared != wire.StableSpec {
+		return refuse("the stable documentation projection reads only an exact " + wire.StableSpec + " map")
 	}
 	if result.Outcome != "ACCEPT" || result.Accept == nil || !*result.Accept {
 		code := ""

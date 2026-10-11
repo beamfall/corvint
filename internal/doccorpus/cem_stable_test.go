@@ -101,9 +101,8 @@ func TestStableCEMProjectionRefusals(t *testing.T) {
 	noArtifacts.ArtifactRoot = ""
 	refused("no artifact root", fixture.raw, noArtifacts)
 	refused("edited map", []byte(strings.Replace(string(fixture.raw), "caller metadata only", "caller metadata ONLY", 1)), inputs)
-	if _, err := StableCEMProjection(ctx, artifact, []byte(`{"spec":"cem/0.3"}`), "", inputs); err == nil {
-		t.Fatal("a 0.x map was projected as stable")
-	}
+	refused("0.x map", []byte(`{"spec":"cem/0.3"}`), inputs)
+	refused("case-variant spec", []byte(`{"spec":"cem/0.3","Spec":"cem/1.0"}`), inputs)
 
 	edited := *artifact
 	edited.Claims = []Claim{artifact.Claims[0]}

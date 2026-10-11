@@ -1,10 +1,11 @@
 package witnesscollapse
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"reflect"
+	"encoding/json"
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -98,8 +99,37 @@ func VerifyStable(ctx context.Context, rawCEM []byte, report Report, inputs Stab
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(report, recompiled) {
+	// The verifier result holds interface-typed values that a decoded report
+	// carries as generic JSON, so equality is over the key-sorted JSON value of
+	// each report, not over Go types.
+	got, err := stableJSONValue(report)
+	if err != nil {
+		return err
+	}
+	want, err := stableJSONValue(recompiled)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(got, want) {
 		return failure("report-mismatch", "report differs from deterministic recompilation")
 	}
 	return nil
+}
+
+func stableJSONValue(report Report) ([]byte, error) {
+	document, _, err := Canonical(report)
+	if err != nil {
+		return nil, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, failure("report-encode-failed", "report cannot be decoded")
+	}
+	normalized, err := json.Marshal(value)
+	if err != nil {
+		return nil, failure("report-encode-failed", "report cannot be encoded")
+	}
+	return normalized, nil
 }

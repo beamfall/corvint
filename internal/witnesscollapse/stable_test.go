@@ -3,6 +3,7 @@ package witnesscollapse
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,6 +58,17 @@ func TestStableCollapseRetainsFullMap(t *testing.T) {
 	}
 	if err := VerifyStable(ctx, fixture.raw, report, inputs); err != nil {
 		t.Fatalf("verify stable: %v", err)
+	}
+	var decoded Report
+	if err := json.Unmarshal(document, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyStable(ctx, fixture.raw, decoded, inputs); err != nil {
+		t.Fatalf("a serialized stable report did not verify: %v", err)
+	}
+	decoded.Stable.CriterionSatisfaction = "SATISFIED"
+	if err := VerifyStable(ctx, fixture.raw, decoded, inputs); CodeOf(err) != "report-mismatch" {
+		t.Fatalf("a serialized report claiming criterion satisfaction verified: %v", err)
 	}
 	report.Hunks[0].RawWitnessCount++
 	if err := VerifyStable(ctx, fixture.raw, report, inputs); CodeOf(err) != "report-mismatch" {

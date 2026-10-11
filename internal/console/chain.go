@@ -325,13 +325,14 @@ func decodeSealed(sealed *Blob) (wireCEM, error) {
 	if err := json.Unmarshal([]byte(sealed.Text), &document); err != nil {
 		return document, errors.New("the sealed map is not decodable JSON: " + err.Error())
 	}
-	if !cemProfiles[document.Spec] {
-		return document, errors.New(GapUnsupported + ": the sealed map states profile " + strconv.Quote(document.Spec) + ", which this pane does not read")
-	}
-	if document.Spec == wire.StableSpec {
+	if document.Spec == wire.StableSpec || wire.DeclaresStable([]byte(sealed.Text)) {
 		if _, err := admitStable(sealed.Text); err != nil {
 			return document, err
 		}
+		document.Spec = wire.StableSpec
+	}
+	if !cemProfiles[document.Spec] {
+		return document, errors.New(GapUnsupported + ": the sealed map states profile " + strconv.Quote(document.Spec) + ", which this pane does not read")
 	}
 	return document, nil
 }
