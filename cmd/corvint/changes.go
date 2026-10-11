@@ -15,16 +15,22 @@ const changesHelp = `Inspect an experimental offline upgrade checklist (UCL1142-
 
 Usage:
   corvint [--root SOURCE] changes --from BUILD_SHA --to BUILD_SHA
-    [--refs-file FILE ...]
+    [--refs-file FILE ...] [--issue-state-file FILE]
 
 Reads only local Git merge evidence; never fetches or writes repository state.
 Repeat --refs-file for explicit regular files (no globs or symlink following).
 Closes/Fixes/Resolves evidence can suggest "workaround may be removable";
-Refs alone is unknown. JSON includes truncation and NOT_OBSERVED issue state,
-reopen/revert semantics and per-PR new flags/commands. Review every hint.
+Refs alone is unknown. Each PR lists new_flags added by literal in non-test
+cmd/corvint Go source, from the local diff against its first parent.
+--issue-state-file takes an operator-supplied export, for example
+  gh issue list --state all --limit 1000 --json number,state > issues.json
+Corvint never queries GitHub; without the file github_state is NOT_OBSERVED.
+JSON includes truncation and NOT_OBSERVED reopen/revert semantics and per-PR
+new commands. Review every hint.
 Refusals: changes-invalid-arguments, changes-build-unavailable,
-changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable.
-Contract: docs/specs/upgrade-checklist-v0.md (proposed, V1-1142).
+changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable,
+changes-issue-state-unavailable.
+Contract: docs/specs/upgrade-checklist-v0.md (proposed, V1-1142, V1-1158).
 `
 
 func changesInvocation(args []string) (string, []string, bool) {
@@ -57,7 +63,7 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 	}
 	f := flag.NewFlagSet("changes", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	from, to := "", ""
+	from, to, issueState := "", "", ""
 	files := []string{}
 	setOnce := func(dst *string) func(string) error {
 		return func(v string) error {
@@ -70,6 +76,7 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 	}
 	f.Func("from", "installed base build", setOnce(&from))
 	f.Func("to", "installed target build", setOnce(&to))
+	f.Func("issue-state-file", "operator-supplied issue state export", setOnce(&issueState))
 	f.Func("refs-file", "explicit adopter file", func(v string) error {
 		if v == "" || len(files) >= 16 {
 			return errChangesArgument{}
@@ -87,7 +94,7 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 			return refuse("changes-git-unavailable")
 		}
 	}
-	report, err := upgradechanges.Compile(ctx, upgradechanges.Request{Root: root, From: from, To: to, Files: files})
+	report, err := upgradechanges.Compile(ctx, upgradechanges.Request{Root: root, From: from, To: to, Files: files, IssueStateFile: issueState})
 	if err != nil {
 		return refuse(err.Error())
 	}

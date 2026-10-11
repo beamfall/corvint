@@ -78,7 +78,7 @@ func TestCompileRangeAndRefs(t *testing.T) {
 			t.Fatal(e)
 		}
 		before := treeBytes(t, root)
-		req := Request{root, from, to, []string{"holds  notes.txt"}}
+		req := Request{Root: root, From: from, To: to, Files: []string{"holds  notes.txt"}}
 		r, e := Compile(context.Background(), req)
 		if e != nil {
 			t.Fatal(e)
@@ -159,7 +159,7 @@ func TestCompileUnsafeRefs(t *testing.T) {
 			t.Fatal(e)
 		}
 		for _, path := range []string{"link", "dirlink/file", ".", "missing"} {
-			_, e := Compile(context.Background(), Request{root, base, base, []string{path}})
+			_, e := Compile(context.Background(), Request{Root: root, From: base, To: base, Files: []string{path}})
 			if e == nil || e.Error() != "changes-refs-unavailable" {
 				t.Fatalf("%s: %v", path, e)
 			}
@@ -174,7 +174,7 @@ func TestCompileBounds(t *testing.T) {
 		if e := os.WriteFile(filepath.Join(root, "refs"), []byte(content), 0600); e != nil {
 			t.Fatal(e)
 		}
-		r, e := Compile(context.Background(), Request{root, base, to, []string{"refs"}})
+		r, e := Compile(context.Background(), Request{Root: root, From: base, To: to, Files: []string{"refs"}})
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -273,14 +273,14 @@ func TestCompileReferenceAndIssueCaps(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, "refs"), []byte(strings.Repeat("#9999 ", maxRefs)+"#1\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
-		r, err := Compile(context.Background(), Request{root, base, to, []string{"refs"}})
+		r, err := Compile(context.Background(), Request{Root: root, From: base, To: to, Files: []string{"refs"}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !r.Truncated || len(r.Issues) != maxRows || len(r.Hints) != 0 {
 			t.Fatalf("truncated=%v issues=%d hints=%d", r.Truncated, len(r.Issues), len(r.Hints))
 		}
-		_, err = Compile(context.Background(), Request{root, base, to, make([]string, maxFiles+1)})
+		_, err = Compile(context.Background(), Request{Root: root, From: base, To: to, Files: make([]string, maxFiles+1)})
 		if err == nil || err.Error() != "changes-invalid-arguments" {
 			t.Fatalf("file cap: %v", err)
 		}
@@ -432,6 +432,139 @@ func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Fatal("Compile outlived its context")
+		}
+	})
+}
+
+func commitFile(t *testing.T, root, name, content, message string) {
+	t.Helper()
+	path := filepath.Join(root, name)
+	if e := os.MkdirAll(filepath.Dir(path), 0o700); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(path, []byte(content), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	gitTest(t, root, "add", "--", name)
+	gitTest(t, root, "commit", "-q", "-m", message)
+}
+
+func TestCompileNewFlags(t *testing.T) {
+	t.Run("UCL1142-V0-007 per-PR new flags from the local source diff", func(t *testing.T) {
+		root, _ := repoTest(t)
+		commitFile(t, root, "cmd/corvint/old.go", "package main\n\nfunc old() { f.Bool(\"moved\", false, \"\") }\n", "seed")
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "flags")
+		commitFile(t, root, "cmd/corvint/new.go", "package main\n\nfunc add() {\n\tf.Bool(\"dry-run\", false, \"\")\n\tf.StringVar(&x, \"out-file\", \"\", \"\")\n\tswitch a {\n\tcase \"--host\", \"--limit=\":\n\t}\n}\n", "Add flags\n\nCloses #3")
+		commitFile(t, root, "cmd/corvint/new_test.go", "package main\n\nfunc t() { f.Bool(\"test-only\", false, \"\") }\n", "test flag")
+		commitFile(t, root, "cmd/corvint/testdata/x.go", "package x\n\nfunc t() { f.Bool(\"fixture-only\", false, \"\") }\n", "fixture flag")
+		commitFile(t, root, "internal/other.go", "package other\n\nfunc t() { f.Bool(\"elsewhere\", false, \"\") }\n", "other flag")
+		gitTest(t, root, "rm", "-q", "cmd/corvint/old.go")
+		commitFile(t, root, "cmd/corvint/moved.go", "package main\n\nfunc old() { f.Bool(\"moved\", false, \"\") }\n", "move flag")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "flags", "-m", "Merge pull request #4 from fixture/flags")
+		to := mergeTest(t, root, "none", "No flags", "Merge pull request #5 from fixture/none")
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+		if e != nil || len(r.PRs) != 2 || r.Truncated {
+			t.Fatalf("report: %+v %v", r, e)
+		}
+		want := []string{"--dry-run", "--host", "--limit", "--out-file"}
+		if r.PRs[0].FlagsBasis != "cmd-corvint-go-source-diff" || !reflect.DeepEqual(r.PRs[0].NewFlags, want) || r.PRs[0].Commands != "NOT_OBSERVED" {
+			t.Fatalf("flags PR: %+v", r.PRs[0])
+		}
+		if r.PRs[1].FlagsBasis != "cmd-corvint-go-source-diff" || len(r.PRs[1].NewFlags) != 0 || r.PRs[1].NewFlags == nil {
+			t.Fatalf("empty PR: %+v", r.PRs[1])
+		}
+		b, _ := json.Marshal(r.PRs[1])
+		if !strings.Contains(string(b), `"new_flags_basis":"cmd-corvint-go-source-diff","new_flags":[],"new_commands":"NOT_OBSERVED"`) {
+			t.Fatalf("wire: %s", b)
+		}
+	})
+	t.Run("UCL1142-V0-007 a diff over its bound is NOT_OBSERVED and truncated", func(t *testing.T) {
+		root, _ := repoTest(t)
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "big")
+		commitFile(t, root, "cmd/corvint/big.go", "package main\n\n// "+strings.Repeat("x", maxFlagDiff)+"\nfunc b() { f.Bool(\"late\", false, \"\") }\n", "big")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "big", "-m", "Merge pull request #6 from fixture/big")
+		to := gitTest(t, root, "rev-parse", "HEAD")
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+		if e != nil || len(r.PRs) != 1 || !r.Truncated || r.PRs[0].FlagsBasis != "NOT_OBSERVED" || len(r.PRs[0].NewFlags) != 0 {
+			t.Fatalf("bounded: %+v %v", r, e)
+		}
+	})
+}
+
+func TestCompileIssueStateFile(t *testing.T) {
+	root, _ := repoTest(t)
+	from := gitTest(t, root, "rev-parse", "HEAD")
+	to := mergeTest(t, root, "fix", "Fixes #12\nCloses #14\nRefs #15", "Merge pull request #20 from fixture/fix")
+	if e := os.WriteFile(filepath.Join(root, "holds.txt"), []byte("#12\n#14\n"), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	write := func(name, body string) string {
+		if e := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); e != nil {
+			t.Fatal(e)
+		}
+		return name
+	}
+	t.Run("UCL1142-V0-006 operator-supplied state annotates issues and hints", func(t *testing.T) {
+		state := write("issues.json", `[{"number":12,"state":"OPEN","title":"secret=never-emit"},{"number":14,"state":"CLOSED"},{"number":99,"state":"closed"}]`)
+		before := treeBytes(t, root)
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to, Files: []string{"holds.txt"}, IssueStateFile: state})
+		if e != nil || len(r.Issues) != 3 || len(r.Hints) != 2 {
+			t.Fatalf("report: %+v %v", r, e)
+		}
+		got := map[int64]string{}
+		for _, issue := range r.Issues {
+			got[issue.Number] = issue.GitHubState
+		}
+		if !reflect.DeepEqual(got, map[int64]string{12: "OPEN", 14: "CLOSED", 15: "NOT_OBSERVED"}) {
+			t.Fatalf("states: %v", got)
+		}
+		if r.Hints[0].Issue != 12 || r.Hints[0].GitHubState != "OPEN" || r.Hints[0].Message == "workaround may be removable" {
+			t.Fatalf("open hint: %+v", r.Hints[0])
+		}
+		if r.Hints[1].Issue != 14 || r.Hints[1].GitHubState != "CLOSED" || r.Hints[1].Message != "workaround may be removable" {
+			t.Fatalf("closed hint: %+v", r.Hints[1])
+		}
+		b, _ := json.Marshal(r)
+		if strings.Contains(string(b), "never-emit") || !strings.Contains(string(b), "operator-supplied file, not verified by Corvint") || !strings.Contains(string(b), "reopen/revert semantics: NOT_OBSERVED") {
+			t.Fatalf("wire: %s", b)
+		}
+		if !reflect.DeepEqual(before, treeBytes(t, root)) {
+			t.Fatal("read mutated checkout")
+		}
+	})
+	t.Run("UCL1142-V0-006 without a file every state stays NOT_OBSERVED", func(t *testing.T) {
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to, Files: []string{"holds.txt"}})
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, issue := range r.Issues {
+			if issue.GitHubState != "NOT_OBSERVED" {
+				t.Fatalf("invented state: %+v", issue)
+			}
+		}
+		if r.Unknowns[0] != "GitHub issue state: NOT_OBSERVED" || r.Hints[0].Message != "workaround may be removable" {
+			t.Fatalf("report: %+v", r)
+		}
+	})
+	t.Run("UCL1142-V0-006 malformed, conflicting, unsafe or missing files refuse", func(t *testing.T) {
+		if e := os.Symlink("issues.json", filepath.Join(root, "link.json")); e != nil {
+			t.Fatal(e)
+		}
+		for _, name := range []string{
+			write("bad-state.json", `[{"number":12,"state":"MERGED"}]`),
+			write("bad-number.json", `[{"number":-1,"state":"OPEN"}]`),
+			write("missing-state.json", `[{"number":12}]`),
+			write("conflict.json", `[{"number":12,"state":"OPEN"},{"number":12,"state":"CLOSED"}]`),
+			write("object.json", `{"number":12,"state":"OPEN"}`),
+			"link.json", "absent.json",
+		} {
+			if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: name}); e == nil || e.Error() != "changes-issue-state-unavailable" {
+				t.Fatalf("%s: %v", name, e)
+			}
 		}
 	})
 }

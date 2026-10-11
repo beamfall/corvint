@@ -4,6 +4,7 @@ package upgradechanges
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -28,6 +29,8 @@ const (
 	maxFileBytes = 1 << 20
 	maxRows      = 1024
 	maxRefs      = 4096
+	maxFlagDiff  = 256 << 10
+	maxFlags     = 64
 )
 
 var (
@@ -35,32 +38,49 @@ var (
 	mergePattern = regexp.MustCompile(`^Merge pull request #([1-9][0-9]{0,14}) from .+$`)
 	issuePattern = regexp.MustCompile(`(?i)\b(closes|fixes|resolves|refs)[ \t]+#([1-9][0-9]{0,14})\b`)
 	refPattern   = regexp.MustCompile(`#([1-9][0-9]{0,14})\b`)
+	// Flag names declared through the standard flag package or compared as
+	// "--name" literals in cmd/corvint Go source (UCL1142-V0-007).
+	flagDeclPattern    = regexp.MustCompile(`\.(?:String|Bool|Int|Int64|Uint|Uint64|Float64|Duration|Func|BoolFunc)\(\s*"([A-Za-z0-9][A-Za-z0-9-]{0,63})"`)
+	flagVarPattern     = regexp.MustCompile(`\.(?:StringVar|BoolVar|IntVar|Int64Var|UintVar|Uint64Var|Float64Var|DurationVar|Var|TextVar)\([^"\n]*?,\s*"([A-Za-z0-9][A-Za-z0-9-]{0,63})"`)
+	flagLiteralPattern = regexp.MustCompile(`"--([A-Za-z0-9][A-Za-z0-9-]{0,63})=?"`)
+)
+
+const (
+	notObserved     = "NOT_OBSERVED"
+	flagSourceBasis = "cmd-corvint-go-source-diff"
 )
 
 type Request struct {
 	Root, From, To string
 	Files          []string
+	// IssueStateFile is an optional operator-supplied issue-state export
+	// (UCL1142-V0-006); Corvint never queries GitHub itself.
+	IssueStateFile string
 }
 type PullRequest struct {
-	Number   int64  `json:"number"`
-	Merge    string `json:"merge"`
-	Summary  string `json:"summary"`
-	Commands string `json:"new_flags_commands"`
+	Number     int64    `json:"number"`
+	Merge      string   `json:"merge"`
+	Summary    string   `json:"summary"`
+	FlagsBasis string   `json:"new_flags_basis"`
+	NewFlags   []string `json:"new_flags"`
+	Commands   string   `json:"new_commands"`
 }
 type Issue struct {
-	Number   int64  `json:"number"`
-	PR       int64  `json:"pr"`
-	Commit   string `json:"commit"`
-	Evidence string `json:"evidence"`
-	State    string `json:"state"`
-	Summary  string `json:"summary"`
+	Number      int64  `json:"number"`
+	PR          int64  `json:"pr"`
+	Commit      string `json:"commit"`
+	Evidence    string `json:"evidence"`
+	State       string `json:"state"`
+	GitHubState string `json:"github_state"`
+	Summary     string `json:"summary"`
 }
 type Hint struct {
-	File      string `json:"file"`
-	Line      int    `json:"line"`
-	Issue     int64  `json:"issue"`
-	ClosingPR int64  `json:"closing_pr"`
-	Message   string `json:"message"`
+	File        string `json:"file"`
+	Line        int    `json:"line"`
+	Issue       int64  `json:"issue"`
+	ClosingPR   int64  `json:"closing_pr"`
+	GitHubState string `json:"github_state"`
+	Message     string `json:"message"`
 }
 type Report struct {
 	Profile   string        `json:"profile"`
@@ -186,9 +206,14 @@ func safeText(s string, limit int) string {
 }
 
 func Compile(ctx context.Context, req Request) (Report, error) {
+	issueStateUnknown := "GitHub issue state: NOT_OBSERVED"
+	if req.IssueStateFile != "" {
+		issueStateUnknown = "GitHub issue state: operator-supplied file, not verified by Corvint"
+	}
 	r := Report{Profile: "corvint-upgrade-checklist/0", PRs: []PullRequest{}, Issues: []Issue{}, Hints: []Hint{}, Unknowns: []string{
-		"GitHub issue state, reopen/revert semantics: NOT_OBSERVED",
-		"new flags/commands per PR: NOT_OBSERVED",
+		issueStateUnknown,
+		"reopen/revert semantics: NOT_OBSERVED",
+		"new commands per PR, and flags not declared by a literal in cmd/corvint Go source: NOT_OBSERVED",
 		"issue state without closing keywords, unassociated commits and unsupported merge forms: NOT_OBSERVED",
 		"closures before FROM and references outside this source repository: NOT_OBSERVED",
 	}}
@@ -197,6 +222,13 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	githubStates := map[int64]string{}
+	if req.IssueStateFile != "" {
+		var err error
+		if githubStates, err = readIssueStates(ctx, req.Root, req.IssueStateFile); err != nil {
+			return r, err
+		}
+	}
 	g := gitReader{ctx: ctx, root: req.Root, remaining: maxGitBytes}
 	var err error
 	if r.From, err = g.resolve(req.From); err != nil {
@@ -264,7 +296,14 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 				break
 			}
 		}
-		r.PRs = append(r.PRs, PullRequest{number, id, summary, "NOT_OBSERVED"})
+		flags, basis, e := g.newFlags(pp[0], id)
+		if e != nil {
+			return r, e
+		}
+		if basis == notObserved {
+			r.Truncated = true
+		}
+		r.PRs = append(r.PRs, PullRequest{number, id, summary, basis, flags, notObserved})
 		add := func(commit, message string) {
 			for _, m := range issuePattern.FindAllStringSubmatch(message, -1) {
 				num, _ := strconv.ParseInt(m[2], 10, 64)
@@ -283,7 +322,7 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 					continue
 				}
 				subject, _, _ := strings.Cut(message, "\n")
-				issueRows[key] = Issue{num, number, commit, keyword, state, safeText(subject, 240)}
+				issueRows[key] = Issue{num, number, commit, keyword, state, githubState(githubStates, num), safeText(subject, 240)}
 			}
 		}
 		add(id, msg)
@@ -388,7 +427,11 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 					r.Truncated = true
 					break scanRefs
 				}
-				r.Hints = append(r.Hints, Hint{screenedName, line, num, issue.PR, "workaround may be removable"})
+				message := "workaround may be removable"
+				if issue.GitHubState == "OPEN" {
+					message = "closing evidence, but the supplied issue state is OPEN; review"
+				}
+				r.Hints = append(r.Hints, Hint{screenedName, line, num, issue.PR, issue.GitHubState, message})
 			}
 		}
 	}
@@ -409,6 +452,117 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 		return r, errors.New("changes-git-unavailable")
 	}
 	return r, nil
+}
+
+// newFlags reports flag names added by one merge relative to its first parent
+// in non-test cmd/corvint Go source (UCL1142-V0-007). A name that the same diff
+// also removes is a move, not a new flag. Partial diff output is NOT_OBSERVED,
+// never a complete empty list.
+func (g *gitReader) newFlags(parent, merge string) ([]string, string, error) {
+	raw, cut, err := g.read(maxFlagDiff, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--no-relative",
+		"--unified=0", "--src-prefix=a/", "--dst-prefix=b/", parent, merge, "--", "cmd/corvint")
+	if err != nil {
+		return nil, "", err
+	}
+	if cut {
+		return []string{}, notObserved, nil
+	}
+	added, removed := map[string]bool{}, map[string]bool{}
+	oldSource, newSource, inHunk := false, false, false
+	for _, line := range strings.Split(string(raw), "\n") {
+		switch {
+		case strings.HasPrefix(line, "diff --git "):
+			oldSource, newSource, inHunk = false, false, false
+		case !inHunk && strings.HasPrefix(line, "--- "):
+			name, ok := strings.CutPrefix(line, "--- a/")
+			oldSource = ok && flagSourceFile(name)
+		case !inHunk && strings.HasPrefix(line, "+++ "):
+			name, ok := strings.CutPrefix(line, "+++ b/")
+			newSource = ok && flagSourceFile(name)
+		case strings.HasPrefix(line, "@@"):
+			inHunk = true
+		case inHunk && newSource && strings.HasPrefix(line, "+"):
+			collectFlags(added, line[1:])
+		case inHunk && oldSource && strings.HasPrefix(line, "-"):
+			collectFlags(removed, line[1:])
+		}
+	}
+	flags := []string{}
+	for name := range added {
+		if !removed[name] {
+			flags = append(flags, "--"+name)
+		}
+	}
+	sort.Strings(flags)
+	if len(flags) > maxFlags {
+		return []string{}, notObserved, nil
+	}
+	return flags, flagSourceBasis, nil
+}
+
+func flagSourceFile(name string) bool {
+	rest, ok := strings.CutPrefix(name, "cmd/corvint/")
+	return ok && !strings.Contains(rest, "/") && strings.HasSuffix(rest, ".go") && !strings.HasSuffix(rest, "_test.go")
+}
+
+func collectFlags(into map[string]bool, line string) {
+	for _, pattern := range []*regexp.Regexp{flagDeclPattern, flagVarPattern, flagLiteralPattern} {
+		for _, m := range pattern.FindAllStringSubmatch(line, -1) {
+			into[m[1]] = true
+		}
+	}
+}
+
+func githubState(states map[int64]string, issue int64) string {
+	if state, ok := states[issue]; ok {
+		return state
+	}
+	return notObserved
+}
+
+// readIssueStates reads an operator-supplied JSON array such as the output of
+// `gh issue list --state all --json number,state`. Only the issue number and
+// OPEN/CLOSED state are used; other members are ignored and never emitted. The
+// file is read with the same no-follow bounded reader as --refs-file
+// (UCL1142-V0-006).
+func readIssueStates(ctx context.Context, root, name string) (map[int64]string, error) {
+	refuse := errors.New("changes-issue-state-unavailable")
+	path := name
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	path, err := filepath.Abs(path)
+	if err != nil || len(name) > 4096 || len(path) > 4096 {
+		return nil, refuse
+	}
+	data, cut, err := readRefsContext(ctx, path)
+	if ctx.Err() != nil {
+		return nil, errors.New("changes-git-unavailable")
+	}
+	if err != nil || cut {
+		return nil, refuse
+	}
+	var rows []map[string]json.RawMessage
+	if json.Unmarshal(data, &rows) != nil || len(rows) > maxRows*4 {
+		return nil, refuse
+	}
+	states := map[int64]string{}
+	for _, row := range rows {
+		var number int64
+		var state string
+		if json.Unmarshal(row["number"], &number) != nil || number <= 0 || json.Unmarshal(row["state"], &state) != nil {
+			return nil, refuse
+		}
+		state = strings.ToUpper(state)
+		if state != "OPEN" && state != "CLOSED" {
+			return nil, refuse
+		}
+		if old, ok := states[number]; ok && old != state {
+			return nil, refuse
+		}
+		states[number] = state
+	}
+	return states, nil
 }
 
 // openRefsFile is replaceable so a test can model a stalled filesystem.

@@ -10,7 +10,7 @@ import (
 )
 
 func TestChangesCLI(t *testing.T) {
-	t.Run("UCL1142-V0-005 help and dispatch", func(t *testing.T) {
+	t.Run("UCL1142-V0-005 UCL1142-V0-006 help and dispatch", func(t *testing.T) {
 		for _, args := range [][]string{{"--help"}, {"changes", "--help"}, {"help", "changes"}} {
 			var out, err bytes.Buffer
 			if code := run(args, strings.NewReader(""), &out, &err); code != 0 || !strings.Contains(out.String(), "changes") {
@@ -37,7 +37,21 @@ func TestChangesCLI(t *testing.T) {
 		if code != 0 || json.Unmarshal(out.Bytes(), &report) != nil || report["profile"] != "corvint-upgrade-checklist/0" {
 			t.Fatalf("dispatch: %d %s %s", code, &out, &err)
 		}
-		for _, args := range [][]string{{"changes"}, {"changes", "--from", sha, "--from", sha, "--to", sha}, {"changes", "--unknown", "secret=do-not-echo"}, {"--root", root, "changes", "--from", strings.Repeat("a", 40), "--to", sha}} {
+		if e := os.WriteFile(root+"/issues.json", []byte(`[{"number":1,"state":"OPEN"}]`), 0o600); e != nil {
+			t.Fatal(e)
+		}
+		out.Reset()
+		err.Reset()
+		code = run([]string{"--root", root, "changes", "--from", sha, "--to", sha, "--issue-state-file", "issues.json"}, strings.NewReader(""), &out, &err)
+		if code != 0 || !strings.Contains(out.String(), "operator-supplied file, not verified by Corvint") {
+			t.Fatalf("issue state: %d %s %s", code, &out, &err)
+		}
+		out.Reset()
+		err.Reset()
+		if code := run([]string{"--root", root, "changes", "--from", sha, "--to", sha, "--issue-state-file", "absent.json"}, strings.NewReader(""), &out, &err); code != 2 || !strings.Contains(err.String(), "changes-issue-state-unavailable") {
+			t.Fatalf("issue state refusal: %d %s %s", code, &out, &err)
+		}
+		for _, args := range [][]string{{"changes"}, {"changes", "--from", sha, "--from", sha, "--to", sha}, {"changes", "--issue-state-file", "a", "--issue-state-file", "b", "--from", sha, "--to", sha}, {"changes", "--unknown", "secret=do-not-echo"}, {"--root", root, "changes", "--from", strings.Repeat("a", 40), "--to", sha}} {
 			out.Reset()
 			err.Reset()
 			if code := run(args, strings.NewReader(""), &out, &err); code != 2 || out.Len() != 0 || !strings.Contains(err.String(), "changes-") || strings.Contains(err.String(), "do-not-echo") {

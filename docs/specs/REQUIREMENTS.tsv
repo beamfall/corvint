@@ -3140,6 +3140,8 @@ UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	31	The deterministic range MUS
 UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	39	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC
 UCL1142-V0-004	docs/specs/upgrade-checklist-v0.md	44	Output MUST be one deterministic compact JSON document with profile
 UCL1142-V0-005	docs/specs/upgrade-checklist-v0.md	52	Root and topic help MUST mark the command experimental and document the workflow
+UCL1142-V0-006	docs/specs/upgrade-checklist-v0.md	57	(proposed, pending owner acceptance (V1-1158)) Optional `--issue-state-file FILE
+UCL1142-V0-007	docs/specs/upgrade-checklist-v0.md	70	(proposed, pending owner acceptance (V1-1158)) Each PR row MUST carry
 UCV0-001	docs/specs/use-case-conformance-v0.md	99	The canonical ledger MUST contain exactly one row for every governed job named a
 UCV0-002	docs/specs/use-case-conformance-v0.md	101	Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
 UCV0-003	docs/specs/use-case-conformance-v0.md	104	The promotion evidence classes are exactly `contract`, `implementation`,
