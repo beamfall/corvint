@@ -2393,6 +2393,14 @@ func relation03(s string) bool {
 	}
 	return false
 }
+
+// structuralTuples are the exact Go releases admitted for structural
+// mechanical proof: go1.27.1, the S0E prototype tuple, and go1.27.2, admitted
+// by the sealed protocol/cem-1.0/structural-tuples/go1.27.2 packet.
+var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+
+func structuralRuntimeAdmitted(version string) bool { return structuralTuples[version] }
+
 func structuralReason03(s string) bool {
 	switch s {
 	case "rename", "move", "import-reorder", "formatter-only":
@@ -3040,7 +3048,7 @@ func run03(ctx context.Context, repo string, raw []byte, base, target string) (r
 	for _, h := range m.Hunks {
 		if structuralReason03(h.Reason) {
 			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
-			if runtime.Version() != "go1.27.1" {
+			if !structuralRuntimeAdmitted(runtime.Version()) {
 				r.Runtime.StructuralQualification = "UNSUPPORTED"
 				return failResult03(&r, "runtime", operational("unsupported-structural-runtime"), false)
 			}
@@ -4142,7 +4150,7 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 	for _, h := range m.Hunks {
 		if structuralReason03(h.Reason) {
 			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
-			if runtime.Version() != "go1.27.1" {
+			if !structuralRuntimeAdmitted(runtime.Version()) {
 				r.Runtime.StructuralQualification = "UNSUPPORTED"
 				r.Axes["structuralProof"] = "UNSUPPORTED_RUNTIME"
 				return failStable(&r, "runtime", operational("unsupported-structural-runtime"), false)

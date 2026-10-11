@@ -542,7 +542,7 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if id.Container != nil && (id.Container.Source != id.Source || id.Container.Tools["corvint"] != id.Planner || id.Container.Tools["gate-affected-select"] != id.Selector || id.Container.Tools["corvint-pr-tests"] != id.Driver || runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
 		return id, errors.New("container trusted tool identity mismatch")
 	}
-	if id.GoVersion != "go1.27.1" {
+	if id.GoVersion != "go1.27.2" {
 		return id, errors.New("unsupported Go version")
 	}
 	return id, nil

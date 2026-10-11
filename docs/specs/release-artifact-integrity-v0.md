@@ -56,7 +56,7 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   backend in isolated interpreter mode with build isolation disabled only after validating the
   installed versions. This is not an operating-system network sandbox for backend code. The Python
   interpreter/build-package pinning this described no longer exists; `ARTIFACT-GO-V0-001` pins the
-  analogous builder identity instead (`go1.27.1`/`GOTOOLCHAIN=local`) and its manifest
+  analogous builder identity instead (`go1.27.2`/`GOTOOLCHAIN=local`) and its manifest
   (`conformance/release-artifact-v0/manifest.json`) sets `GOPROXY=off`, `GOSUMDB=off`, and
   `GOFLAGS=-mod=readonly` — the offline, no-installer, locked-dependency analog of a hash-locked
   requirements file. Coverage is translated, not identical: Go has no "build backend/isolation
@@ -139,7 +139,7 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   sdist-inclusion policy that has no packaging pipeline behind it. This stable ID is retained for
   the retirement record and MUST NOT be reused for a successor.
 - `ARTIFACT-GO-V0-001`: the archive builder MUST consume the exact clean commit, target matrix,
-  `go1.27.1` / `GOTOOLCHAIN=local` selection, `CGO_ENABLED=0`, `-trimpath`, offline module settings,
+  `go1.27.2` / `GOTOOLCHAIN=local` selection, `CGO_ENABLED=0`, `-trimpath`, offline module settings,
   binary names, and legal-file digests already pinned by
   `conformance/release-artifact-v0/manifest.json`. It MUST reject drift instead of selecting a
   toolchain, target, dependency, file, or notice from ambient state.

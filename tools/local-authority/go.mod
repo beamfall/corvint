@@ -1,6 +1,6 @@
 module github.com/Beamfall/corvint/tools/local-authority
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/Beamfall/corvint v0.0.0

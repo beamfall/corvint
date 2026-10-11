@@ -114,11 +114,11 @@ func (m Manifest) validate() error {
 }
 
 func (t Toolchain) validate() error {
-	if t.GoVersion != "go1.27.1" {
-		return fmt.Errorf("toolchain.goVersion must be exactly go1.27.1")
+	if t.GoVersion != "go1.27.2" {
+		return fmt.Errorf("toolchain.goVersion must be exactly go1.27.2")
 	}
-	if t.GoModDirective != "1.27.1" {
-		return fmt.Errorf("toolchain.goModDirective must be exactly 1.27.1")
+	if t.GoModDirective != "1.27.2" {
+		return fmt.Errorf("toolchain.goModDirective must be exactly 1.27.2")
 	}
 	if t.ForbiddenDirective != "toolchain" {
 		return fmt.Errorf("toolchain.forbiddenGoModDirective must be %q", "toolchain")

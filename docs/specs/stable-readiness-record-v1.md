@@ -88,7 +88,7 @@ Non-goals:
   `require` directives in the Core `go.mod` at the bound commit (read through git, with space, tab
   and carriage return separating words as in the go.mod lexer), and the
   toolchain reported by `GOTOOLCHAIN=local go env GOVERSION`. Its status MUST be PASS only when
-  there are no directives and both that toolchain and the candidate toolchain equal `go1.27.1`, and
+  there are no directives and both that toolchain and the candidate toolchain equal `go1.27.2`, and
   FAIL otherwise. The verifier MUST refuse a status that its recorded inputs contradict. The fixed
   row `owner/toolchain-security-review` MUST stay NOT_RUN: the owner compares the toolchain against
   Go security releases before tagging.

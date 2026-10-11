@@ -7,7 +7,7 @@ invalid event topology, profile drift or planner/selector failure executes `./..
 The workflow currently has empty tool/artifact pins and therefore runs the full suite.
 
 Build all three binaries from one reviewed clean immutable tool source outside the tested
-checkout with Go 1.27.1 and `go build -trimpath -buildvcs=false`. Pass their absolute paths and
+checkout with Go 1.27.2 and `go build -trimpath -buildvcs=false`. Pass their absolute paths and
 that source OID. The exact CLI is discoverable with `corvint-pr-tests -help`.
 
 ```sh
@@ -89,7 +89,7 @@ docker.io/library/golang@sha256:eef6a67266eeed3c86dd47fd01b32faa8bf0229eb83eb3d4
 ```
 
 This retained `corvint-pr-container/1` profile and its evidence reader remain exact Go 1.27.0.
-The current native driver requires Go 1.27.1 under decision 0293 and is not qualified to execute
+The current native driver requires Go 1.27.2 under decision 0522 and is not qualified to execute
 inside this image. A current-source container migration needs a separately reviewed image and
 new measurements; no image or qualification is supplied here.
 

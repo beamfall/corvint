@@ -4,7 +4,7 @@
 # Usage: authoring-proof.sh REPOSITORY COMMIT CORVINT
 # Checks out only examples/evidence-provider/v0 of REPOSITORY at COMMIT into a
 # fresh scratch clone, builds the conformance runner there offline, and runs it
-# against the CORVINT binary. Needs Git, local Go 1.27.1 and Darwin or Linux.
+# against the CORVINT binary. Needs Git, local Go 1.27.2 and Darwin or Linux.
 set -eu
 if [ "$#" -ne 3 ]; then
 	echo "usage: authoring-proof.sh REPOSITORY COMMIT CORVINT" >&2

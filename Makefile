@@ -76,7 +76,7 @@ host-adapter-test:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
 go-version:
-	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
+	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.2"
 
 go-test:
 	$(GO_TEST_COMMAND) ./...
