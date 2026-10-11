@@ -1684,8 +1684,12 @@ func evalLeadWithSymbols(wider []evalSymbolCandidate, results []map[string]any) 
 	placed := make(map[string]struct{}, len(wider))
 	led := make([]map[string]any, 0, len(wider)+len(results))
 	for _, candidate := range wider {
+		identity := evalResultIdentity(candidate.result)
+		if _, exists := placed[identity]; exists {
+			continue
+		}
 		led = append(led, candidate.result)
-		placed[evalResultIdentity(candidate.result)] = struct{}{}
+		placed[identity] = struct{}{}
 	}
 	for _, result := range results {
 		if _, exists := placed[evalResultIdentity(result)]; !exists {

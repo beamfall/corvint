@@ -1620,7 +1620,8 @@ missed the importer, and nothing was disclosed.
   record/document packet. Width counts words of the query as written, using the
   `GPK-V0-039` support measure, rather than ranking scores or expanded stem counts.
   Compare against the whole competitive record universe before the result limit cuts it.
-  Place qualifying symbols in confident-selection order; retain the records, documents,
+  Place qualifying symbols once per rendered identity (`kind:id`), keeping the first in
+  confident-selection order; retain the records, documents,
   feature-implementation symbols and learned paths in their existing order behind them,
   without repeating a placed symbol already carried in the packet. An empty record/document
   packet places no symbol and retains the existing confident fallback.
@@ -1642,6 +1643,7 @@ plugin feature records, a two-word decision that independently clears the floor,
 `PluginTrustRoots`/`NewModelLoader` symbols with wider support. The symbols lead the records
 in their own order. Equal/wider records or documents keep precedence; empty, substituted
 and withdrawn packets retain their prior behavior, and a carried symbol is emitted once.
+Distinct line-based candidates rendering the same symbol ID occupy only one result slot.
 A synthetic negative-claim fixture preserves its complete packet at limits 5 and 10,
 including a critical scenario that wider symbols would evict at limit 5. A positive control
 with the same nearest claim but no capability override still places the wider symbols.
@@ -1654,4 +1656,4 @@ schema/audit pins together; existing snapshots are derived state and require no 
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md` and `docs/build-log/2026-10-10-query-negative-claim-placement.md` |
+| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`, `docs/build-log/2026-10-10-query-negative-claim-placement.md` and `docs/build-log/2026-10-10-query-promoted-symbol-deduplication.md` |

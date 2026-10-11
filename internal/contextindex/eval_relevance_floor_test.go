@@ -448,6 +448,29 @@ func TestEvalLeadWithSymbolsPreservesPacket(t *testing.T) {
 	}
 }
 
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Same-named methods
+// on different receivers have distinct line-based candidate IDs but render one
+// path:name identity. Keep the first, leaving the next result slot for evidence.
+func TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity(t *testing.T) {
+	first := map[string]any{"kind": "symbol", "id": "internal/plugin/trust.go:Validate", "line": 10}
+	second := map[string]any{"kind": "symbol", "id": "internal/plugin/trust.go:Validate", "line": 20}
+	feature := map[string]any{"kind": "feature", "id": "internal/plugin/trust.go:Validate"}
+	document := map[string]any{"kind": "document", "id": "docs/trust.md"}
+	wider := []evalSymbolCandidate{
+		{id: "internal/plugin/trust.go:Validate:10", result: first},
+		{id: "internal/plugin/trust.go:Validate:20", result: second},
+	}
+	results := []map[string]any{feature, second, document}
+	got := evalLeadWithSymbols(wider, results)
+	want := []map[string]any{first, feature, document}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("placement=%v, want first symbol then original evidence once: %v", got, want)
+	}
+	if !reflect.DeepEqual(results, []map[string]any{feature, second, document}) {
+		t.Fatalf("placement mutated the original packet: %v", results)
+	}
+}
+
 // GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Wider lexical
 // matches are not answers to an override contradicted by project claims. At
 // limit 5 their placement would evict the critical scenario and its adjacent
