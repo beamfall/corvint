@@ -284,6 +284,9 @@ AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an 
 AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi
 AMAP-V0-078	docs/specs/application-map-v0.md	556	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one
 AMAP-V0-079	docs/specs/application-map-v0.md	566	When NAME in `createBrowserRouter(NAME)` is bound only by one named import
+AMAP-V0-080	docs/specs/application-map-v0.md	581	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an
+AMAP-V0-081	docs/specs/application-map-v0.md	589	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro
+AMAP-V0-082	docs/specs/application-map-v0.md	597	A path MUST NOT start at, end at or cross a screen whose entry verification is n
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read

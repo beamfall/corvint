@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are proposed, pending owner acceptance (V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is proposed, pending owner acceptance (V1-1169); a same-file `const` React route array only. AMAP-V0-079 is proposed, pending owner acceptance (V1-1220); an imported React route array read through one literal named-import hop.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are proposed, pending owner acceptance (V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is proposed, pending owner acceptance (V1-1169); a same-file `const` React route array only. AMAP-V0-079 is proposed, pending owner acceptance (V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are proposed, pending owner acceptance (V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -578,6 +578,28 @@ V1-1061; GitHub #705).
   `react:<module-path>:<ordinal>`, and carry the router file as a `name_from` anchor so a change to
   either file leaves them not FRESH. The read module counts toward the 64 router-file bound.
   Status: proposed, pending owner acceptance (V1-1220).
+- `AMAP-V0-080`: `flows appmap entries` MUST accept an optional `--ledger FILE` naming an
+  `application-edge-ledger/0` document. The ledger MUST name the map's app and digest and the
+  evaluated revision and carry no omitted edges, or the command refuses with
+  `appmap-invalid-query` and no stdout. With a ledger the head MUST read
+  `basis: "static-entries+edge-ledger"` and add `ledger_digest`; without one the output is
+  byte-for-byte the AMAP-V0-050..059 projection. This is the revision-bound edge-proof consumer
+  AMAP-V0-056 waits for.
+  Status: proposed, pending owner acceptance (V1-1168).
+- `AMAP-V0-081`: With a ledger, each row's `proven_path` MUST be the shortest screen sequence from
+  a `deep-linkable` entry to that screen that crosses only ledger edges with status PROVEN and a
+  receipt test key, with `proven_by` listing one test key per edge. Ties go to the lower entry
+  screen ID, then the lower next screen ID, then the lower test key. A deep-linkable screen reads
+  `path_status: "ENTRY"` (`static-deep-link`) with itself as the path; a reached screen reads
+  PROVEN (`ledger-edges`); any other screen reads `NOT_OBSERVED` (`no-proven-path-from-entry`) with
+  an empty path. Unproven, receipt-less and self-loop ledger edges never contribute.
+  Status: proposed, pending owner acceptance (V1-1168).
+- `AMAP-V0-082`: A path MUST NOT start at, end at or cross a screen whose entry verification is not
+  `STATIC_ONLY` at the evaluated revision; such a row reads `path_status: "UNKNOWN"`
+  (`screen-source-not-fresh`). Paths come only from retained ledger receipts: no URL is visited,
+  no application code runs, and the entry itself stays a static candidate, so classification,
+  `verification` and `last_verified_revision` are unchanged by the ledger (AMAP-V0-055/059).
+  Status: proposed, pending owner acceptance (V1-1168).
 
 ## Wire contract
 
@@ -880,6 +902,11 @@ rebuilds maps. No edge-ledger, test-plan or change-impact behavior is changed.
 | AMAP-V0-054, AMAP-V0-055 | `internal/appmap/entries.go` | `TestEntriesRevisionBinding` |
 | AMAP-V0-056, AMAP-V0-058 | `internal/appmap/entries.go` | `TestEntriesLegacyAndUnprovenEdges` |
 | AMAP-V0-057, AMAP-V0-059 | `cmd/corvint/flows_appmap_entries.go` | `TestEntriesCLI`, `TestEntriesBudget` |
+| AMAP-V0-080, AMAP-V0-081, AMAP-V0-082 | `internal/appmap/entries.go`, `cmd/corvint/flows_appmap_entries.go` | `TestAMAPV0080EntriesLedgerPaths`, `TestEntriesCLI` |
 
-Promotion needs owner acceptance; runtime verification, shortest PROVEN paths, non-UI-router entry
+V1-1168 (issue #778) adds `--ledger` (AMAP-V0-080..082): "runtime" paths are read from retained
+observed navigation evidence, the edge ledger's receipt-backed PROVEN edges, never by launching
+the application. Rollback removes the flag; the static projection is unchanged.
+
+Promotion needs owner acceptance; runtime verification, non-UI-router entry
 metadata, dynamic resolves/params interpretation and adopter-scale qualification remain deferred.
