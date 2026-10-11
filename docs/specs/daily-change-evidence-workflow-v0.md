@@ -485,6 +485,8 @@ failures, each with one `fix:` line:
 
 - `sealed-cem-modified`, `sealed-cem-drift`, `unrecognized-sealed-cem`: a sealed file was modified
   or deleted, differs from its bind commit's map, or is not named for a 40-hex bind commit.
+- `cem-map-stable-unsupported`: `.corvint/change.cem.json` declares `cem/1.0`, which the bind loop
+  does not cite or bind; `cem-cite` refuses it before reading the plan (`CEM-V1-032`).
 - `unsealed-cem-at-head`: `HEAD` tracks a `.corvint/change.cem.json` that `BASE` does not.
 - `constituent-not-merged`, `constituent-cem-invalid`, `constituent-cem-policy`,
   `constituent-unverified`: a sealed change's bind commit is not in `HEAD`, its map is unreadable

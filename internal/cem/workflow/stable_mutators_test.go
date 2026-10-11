@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -178,4 +179,242 @@ func TestMutatorsWriteNonStableDestination(t *testing.T) {
 			t.Fatalf("%s: destination not replaced by the 0.2 map: %v", existing, err)
 		}
 	}
+}
+
+// requireUnresolvedRefusal asserts the strict probe's refusal of an existing
+// regular file it could not read, and that the bytes at relative are unchanged.
+func requireUnresolvedRefusal(t *testing.T, err error, tool, root, relative string, want []byte) {
+	t.Helper()
+	if cemcode.CodeOf(err) != cemcode.MapUnavailable {
+		t.Fatalf("%s: got %v, want the unresolved-destination refusal", tool, err)
+	}
+	message := cemcode.MessageOf(err)
+	if !strings.Contains(message, "cannot be read to resolve its spec") ||
+		!strings.Contains(message, "cem "+tool) || !strings.Contains(message, wire.StableSpec) {
+		t.Fatalf("%s: got %v, want the unresolved-destination refusal", tool, err)
+	}
+	full := filepath.Join(root, filepath.FromSlash(relative))
+	if chmodErr := os.Chmod(full, 0o644); chmodErr != nil {
+		t.Fatalf("%s: %s is gone: %v", tool, relative, chmodErr)
+	}
+	got, readErr := os.ReadFile(full)
+	if readErr != nil || !bytes.Equal(got, want) {
+		t.Fatalf("%s: the file at %s changed (%v)", tool, relative, readErr)
+	}
+}
+
+// writeUnreadable writes data at relative with mode 000, which a non-root
+// process can neither read nor probe, though its directory stays writable.
+func writeUnreadable(t *testing.T, root, relative string, data []byte) {
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("root reads mode-000 files")
+	}
+	writeFile(t, root, relative, string(data))
+	full := filepath.Join(root, filepath.FromSlash(relative))
+	if err := os.Chmod(full, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(full, 0o644) })
+}
+
+// beginPatch prepares a candidate and copies its exact patch to exact.patch.
+func beginPatch(t *testing.T, root, base, target string) {
+	t.Helper()
+	prepared, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	patchBytes, err := os.ReadFile(prepared["patch"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "exact.patch", string(patchBytes))
+}
+
+// CEM-V1-030: --replace never regenerates a sidecar whose bytes cannot be read,
+// since it may be stable; without --replace the earlier refusal is unchanged.
+func TestPrepareReplaceRefusesUnreadableSidecar(t *testing.T) {
+	stable := stableMapBytes(t)
+	root, base, target := makeRepo(t)
+	writeUnreadable(t, root, wire.ExcludedCEMPath, stable)
+	session := openSession(t, root)
+	_, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target})
+	if cemcode.CodeOf(err) != cemcode.MapUnavailable || strings.Contains(cemcode.MessageOf(err), "resolve its spec") {
+		t.Fatalf("without --replace: got %v, want the earlier map-unavailable read refusal", err)
+	}
+	_, err = session.Prepare(ctx(), PrepareOptions{Base: base, Target: target, Replace: true})
+	if _, statErr := os.Lstat(filepath.Join(session.gitRoot.Path(), filepath.FromSlash(defaultPatchRelative))); !os.IsNotExist(statErr) {
+		t.Fatalf("refusal published the patch cache (%v)", statErr)
+	}
+	requireUnresolvedRefusal(t, err, "prepare", root, wire.ExcludedCEMPath, stable)
+}
+
+// CEM-V1-031: no Core map writer replaces an existing regular file it cannot
+// read to resolve its spec; only an absent destination proceeds unread.
+func TestMutatorsRefuseUnreadableDestination(t *testing.T) {
+	stable := stableMapBytes(t)
+	for tool, mutate := range stableMutators() {
+		root, base, target := makeRepo(t)
+		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+			t.Fatal(err)
+		}
+		writeUnreadable(t, root, "stable.cem.json", stable)
+		err := mutate(openSession(t, root), wire.ExcludedCEMPath, "stable.cem.json")
+		requireUnresolvedRefusal(t, err, tool, root, "stable.cem.json", stable)
+	}
+	root, base, target := makeRepo(t)
+	beginPatch(t, root, base, target)
+	writeUnreadable(t, root, "stable.cem.json", stable)
+	_, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "stable.cem.json"})
+	requireUnresolvedRefusal(t, err, "begin", root, "stable.cem.json", stable)
+}
+
+// CEM-V1-031: a destination replaced by a stable map while the strict probe
+// reads it is refused, never published over.
+func TestStrictProbeRefusesDestinationReplacedWhileRead(t *testing.T) {
+	stable := stableMapBytes(t)
+	writers := map[string]func(*Session, string) error{
+		"begin": func(session *Session, base string) error {
+			_, err := session.Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "out.cem.json"})
+			return err
+		},
+		"mark": func(session *Session, _ string) error {
+			_, err := session.Mark(ctx(), MarkOptions{
+				MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "unknown",
+				Reason: "insufficient-evidence", Output: "out.cem.json",
+			})
+			return err
+		},
+	}
+	for tool, write := range writers {
+		root, base, target := makeRepo(t)
+		beginPatch(t, root, base, target)
+		writeFile(t, root, "out.cem.json", `{"spec": "cem/0.2"}`)
+		session := openSession(t, root)
+		reads := 0
+		session.workRoot.BeforeReadOpen = func(full string) {
+			if filepath.Base(full) != "out.cem.json" {
+				return
+			}
+			// Read 1 is the unlocked preflight; read 2 is the locked probe.
+			if reads++; reads == 2 {
+				writeFile(t, root, "replacement.json", string(stable))
+				if err := os.Rename(filepath.Join(root, "replacement.json"), full); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		err := write(session, base)
+		if reads != 2 {
+			t.Fatalf("%s: destination read %d times, want the preflight and the locked probe", tool, reads)
+		}
+		requireUnresolvedRefusal(t, err, tool, root, "out.cem.json", stable)
+	}
+}
+
+// CEM-V1-031: begin holds the output lock across its strict probe and
+// publication, so it waits for a Core holder and then sees what it wrote.
+func TestBeginProbesUnderOutputLock(t *testing.T) {
+	stable := stableMapBytes(t)
+	root, base, target := makeRepo(t)
+	beginPatch(t, root, base, target)
+	holder := openSession(t, root)
+	release, err := holder.workRoot.Lock("out.cem.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := openSession(t, root)
+	done := make(chan error, 1)
+	go func() {
+		_, beginErr := writer.Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "out.cem.json"})
+		done <- beginErr
+	}()
+	select {
+	case err := <-done:
+		release()
+		t.Fatalf("begin finished while another update held the output lock: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if _, statErr := os.Lstat(filepath.Join(root, "out.cem.json")); !os.IsNotExist(statErr) {
+		release()
+		t.Fatalf("begin published while the lock was held (%v)", statErr)
+	}
+	writeFile(t, root, "out.cem.json", string(stable))
+	release()
+	select {
+	case err := <-done:
+		requireStableRefusal(t, err, "begin", root, "out.cem.json", stable)
+	case <-time.After(time.Minute):
+		t.Fatal("begin did not finish after the lock was released")
+	}
+}
+
+// requireUntouched asserts that relative still holds exactly want.
+func requireUntouched(t *testing.T, root, relative string, want []byte) {
+	t.Helper()
+	got, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("%s changed (%v)", relative, err)
+	}
+}
+
+// CEM-V1-030, CEM-V1-031: the stable refusal precedes every file system
+// mutation. A non-empty file at the lock path, which Lock itself refuses as
+// publish-failed, shows that no lock was attempted, and stays as it was.
+func TestStableRefusalPrecedesLock(t *testing.T) {
+	stable := stableMapBytes(t)
+	occupied := []byte("not a lock file\n")
+	for tool, mutate := range stableMutators() {
+		root, base, target := makeRepo(t)
+		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, root, "stable.cem.json", string(stable))
+		writeFile(t, root, "stable.cem.json.lock", string(occupied))
+		err := mutate(openSession(t, root), "stable.cem.json", "")
+		requireStableRefusal(t, err, tool, root, "stable.cem.json", stable)
+		requireUntouched(t, root, "stable.cem.json.lock", occupied)
+		writeFile(t, root, "out.cem.json", string(stable))
+		writeFile(t, root, "out.cem.json.lock", string(occupied))
+		err = mutate(openSession(t, root), wire.ExcludedCEMPath, "out.cem.json")
+		requireStableRefusal(t, err, tool, root, "out.cem.json", stable)
+		requireUntouched(t, root, "out.cem.json.lock", occupied)
+	}
+	root, base, target := makeRepo(t)
+	beginPatch(t, root, base, target)
+	writeFile(t, root, "out.cem.json", string(stable))
+	writeFile(t, root, "out.cem.json.lock", string(occupied))
+	_, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "out.cem.json"})
+	requireStableRefusal(t, err, "begin", root, "out.cem.json", stable)
+	requireUntouched(t, root, "out.cem.json.lock", occupied)
+
+	root, base, target = makeRepo(t)
+	writeFile(t, root, wire.ExcludedCEMPath, string(stable))
+	writeFile(t, root, wire.ExcludedCEMPath+".lock", string(occupied))
+	_, err = openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Replace: true})
+	requireStableRefusal(t, err, "prepare", root, wire.ExcludedCEMPath, stable)
+	requireUntouched(t, root, wire.ExcludedCEMPath+".lock", occupied)
+}
+
+// CEM-V1-030: prepare refuses a stable interrupted-publication backup before
+// recovery would restore it as the sidecar; the backup stays in place.
+func TestPrepareRefusesStableBackupBeforeRecovery(t *testing.T) {
+	stable := stableMapBytes(t)
+	backup := wire.ExcludedCEMPath + ".bak-0123456789abcdef"
+	root, base, target := makeRepo(t)
+	writeFile(t, root, backup, string(stable))
+	_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Replace: true})
+	requireStableRefusal(t, err, "prepare", root, backup, stable)
+	for _, absent := range []string{wire.ExcludedCEMPath, wire.ExcludedCEMPath + ".lock"} {
+		if _, statErr := os.Lstat(filepath.Join(root, filepath.FromSlash(absent))); !os.IsNotExist(statErr) {
+			t.Fatalf("refusal created %s (%v)", absent, statErr)
+		}
+	}
+	// A non-stable backup is still restored by the earlier recovery.
+	writeFile(t, root, backup, `{"spec": "cem/9.9"}`)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); cemcode.CodeOf(err) != cemcode.MapUnavailable {
+		t.Fatalf("non-stable backup: got %v, want recovery then the earlier map-unavailable refusal", err)
+	}
+	requireUntouched(t, root, wire.ExcludedCEMPath, []byte(`{"spec": "cem/9.9"}`))
 }

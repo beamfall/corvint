@@ -243,27 +243,40 @@ is frozen (`CEM-V1-007`). It adds no producer, default, help entry or promotion.
 The requirement IDs start at 030 so that slices proposed in parallel do not collide;
 integration may renumber them.
 
-- `CEM-V1-030`: Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose bytes declare exactly `cem/1.0` with `unsupported-spec`, with or without `--replace`. It MUST leave the map, the patch cache and any backup unchanged, and MUST NOT resume, downgrade or overwrite a stable sidecar.
-- `CEM-V1-031`: Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `cem/1.0` input map with `unsupported-spec` naming the command and the stable read, in place or with `--output`, and write nothing. Every Core map writer (`begin`, `cite`, `mark`, `cover`, `discriminate`) MUST refuse an output destination whose existing bytes declare exactly `cem/1.0`, leaving it unchanged. The check runs under the output lock that Core mutators already take.
-- `CEM-V1-032`: The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a map never counts as cited and never binds a citation plan. `dogfood batch-check` MUST refuse a sealed `cem/1.0` constituent with `constituent-cem-stable-unsupported` before any verifier run, never as `constituent-cem-invalid`.
+- `CEM-V1-030`: Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose bytes declare exactly `cem/1.0` with `unsupported-spec`, with or without `--replace`. It MUST leave the map, the patch cache and any backup unchanged, and MUST NOT resume, downgrade or overwrite a stable sidecar. It MUST refuse in the same way, before it takes the sidecar lock or recovers a backup, when a recognized interrupted-publication backup (`<map>.bak-` plus sixteen lowercase hex digits) declares `cem/1.0`. With `--replace`, it MUST refuse an existing regular sidecar it cannot read with `map-unavailable` instead of regenerating it, because unread bytes may be stable.
+- `CEM-V1-031`: Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `cem/1.0` input map with `unsupported-spec` naming the command and the stable read, in place or with `--output`, and write nothing. Every Core map writer (`begin`, `cite`, `mark`, `cover`, `discriminate`) MUST refuse an output destination whose existing bytes declare exactly `cem/1.0`, leaving it unchanged. Each writer first runs a non-mutating preflight that refuses a readable `cem/1.0` input or destination before any lock file, directory or backup recovery touches the file system. It then holds the output lock across a strict probe and publication. Only an absent destination, one that is not a regular file (publication replaces the directory entry, never a link target), or one over the map bound (which `wire.DeclaresStable` never selects) proceeds unread. A regular destination whose bytes cannot be read, or that changes while it is read, MUST be refused with `map-unavailable` naming the command and `cem/1.0`, leaving it unchanged.
+- `CEM-V1-032`: The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a map never counts as cited and never binds a citation plan. Its cite step MUST refuse such a map as `cem-cite` `NOT_PRODUCED` `cem-map-stable-unsupported` before it reads the plan, writing no plan binding, cite log or map, and never treat it as a map that owes no hunk. `dogfood batch-check` MUST refuse a sealed `cem/1.0` constituent with `constituent-cem-stable-unsupported` before any verifier run, never as `constituent-cem-invalid`.
 - `CEM-V1-033`: Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem/0.x` input, the experimental candidate and every other spec MUST keep the earlier arguments, precedence, output bytes, refusal codes and messages, including the `prepare` `map-unavailable` refusal and an explicit `--replace` regeneration of a non-stable existing map.
 
 Failure modes: a stable sidecar the 0.x workflow used to report as "not a valid
 CEM document; pass --replace" now refuses as `unsupported-spec`, so `--replace` is
-no longer suggested for it. A destination that cannot be read, or that is over the
-map bound, is left to publication and its existing refusals; such a file is not a
-valid stable map. A non-Core writer can still replace the destination after the
-check, because the output lock binds only Core writers. Rollback removes the
-checks; no 0.x byte, map or packet changes.
+no longer suggested for it. An unreadable existing regular destination of a 0.x
+writer, which publication used to replace, is now refused, because its spec cannot
+be resolved: it may be a valid stable map. A destination over the map bound, or not
+a regular file, is still left to publication and its existing refusals. The output
+lock is advisory and binds only Core writers. Nothing guards against an
+uncooperative process that replaces the destination after the strict probe and
+before the publication rename: the probe's identity-checked read refuses a
+replacement during the read, but no re-check or exclusive create closes the
+window that follows. Rollback removes the checks; no 0.x byte, map or packet
+changes.
 
 ### Core stable mutator refusal traceability
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-030 | `TestPrepareRefusesStableSidecar` | The public sealed positive map at the sidecar path is refused with and without `--replace`; its bytes are unchanged and no patch cache is published |
+| CEM-V1-030 | `TestPrepareReplaceRefusesUnreadableSidecar` | A mode-000 stable sidecar keeps the earlier refusal without `--replace` and is refused, not regenerated, with it; no patch cache is published |
+| CEM-V1-030 | `TestPrepareRefusesStableBackupBeforeRecovery` | A stable backup with no sidecar is refused before lock and recovery, leaving it in place with no sidecar or lock file; a non-stable backup is still restored |
 | CEM-V1-031 | `TestMutatorsRefuseStableInput` | cite, mark, cover and discriminate refuse a `cem/1.0` input in place and with `--output`; no output is written |
 | CEM-V1-031 | `TestMutatorsRefuseStableDestination` | Each mutator, and `cem begin`, refuses a stable `--output` destination; before this slice, cite overwrote it with `cem/0.2` |
+| CEM-V1-031 | `TestMutatorsRefuseUnreadableDestination` | Each mutator, and `cem begin`, refuses a mode-000 stable destination with `map-unavailable`; before the fix, each one replaced it |
+| CEM-V1-031 | `TestStrictProbeRefusesDestinationReplacedWhileRead` | `begin` and `mark` refuse a destination replaced by a stable map during the locked probe's read |
+| CEM-V1-031 | `TestBeginProbesUnderOutputLock` | `begin` waits for a held output lock, publishes nothing meanwhile, then refuses the stable map the holder wrote |
+| CEM-V1-030 | `TestStableRefusalPrecedesLock` | `prepare --replace` refuses a stable sidecar before locking; an occupied lock path, which `Lock` refuses as `publish-failed`, stays unchanged |
+| CEM-V1-031 | `TestStableRefusalPrecedesLock` | Each writer refuses a stable input or destination before locking, leaving an occupied lock path unchanged |
 | CEM-V1-032 | `TestMapHunksRefusesStableMap` | `mapHunks` and `citedHunks` read no hunks from the stable map, which a loose decode counted as two |
+| CEM-V1-032 | `TestCiteStepRefusesStableMap` | The cite step refuses a stable map as `cem-map-stable-unsupported` for empty and non-empty plans, writing no binding or cite log; before the fix, an empty plan returned `PRODUCED` |
 | CEM-V1-032 | `TestBatchCheckRefusesStableConstituent` | A sealed `cem/1.0` constituent fails `constituent-cem-stable-unsupported` with its recovery line, and the verifier never runs |
 | CEM-V1-033 | `TestPrepareNonStableExistingMapUnchanged` | Candidate, padded and other specs keep the `map-unavailable` refusal and guidance; `--replace` still regenerates them |
 | CEM-V1-033 | `TestMutatorsWriteNonStableDestination` | Candidate, truncated and non-JSON destinations are still replaced by the 0.x map |

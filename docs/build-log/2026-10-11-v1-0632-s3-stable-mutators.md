@@ -47,6 +47,28 @@ Every check selects on `wire.DeclaresStable`, the exact and bounded declared-spe
 probe from S1. A padded spec, a numeric spec or the experimental candidate spec is
 not selected.
 
+## Review fixes
+
+The independent Codex review of `5871c380a..8c040a90d` found four defects. Each is now
+fixed, with a regression test that fails against `8c040a90d`:
+
+- Unreadable stable files could be overwritten. The destination probe ignored read
+  errors, and `prepare --replace` regenerated a sidecar it could not read. The strict
+  probe now proceeds unread only for an absent path, a path that is not a regular
+  file, or a file over the map bound. Any other read failure is refused with
+  `map-unavailable` (`TestMutatorsRefuseUnreadableDestination`,
+  `TestPrepareReplaceRefusesUnreadableSidecar`,
+  `TestStrictProbeRefusesDestinationReplacedWhileRead`).
+- `begin` neither locked its probe nor its publication. It now holds the output lock
+  across both (`TestBeginProbesUnderOutputLock`).
+- The refusal came after file system mutations: the lock file, and `prepare`'s backup
+  recovery. A non-mutating preflight now refuses a readable stable input, destination,
+  sidecar or recognized backup first. The locked check stays
+  (`TestStableRefusalPrecedesLock`, `TestPrepareRefusesStableBackupBeforeRecovery`).
+- Zero hunks let an empty plan bind and return `PRODUCED`. The cite step now refuses a
+  stable map as `cem-map-stable-unsupported` before it reads the plan. The reason is
+  admitted in `internal/observations` and has a fix hint (`TestCiteStepRefusesStableMap`).
+
 ## Evidence
 
 - Failing before: with the new tests and the S1 implementation, these fail:
@@ -91,8 +113,13 @@ not selected.
   - The dogfood CEM bind and seal, which are left to the integrating lane.
 - The destination check binds only Core writers that take the output lock. Another
   process can still replace the file after the check.
-- A destination that is unreadable, or over the map bound, is left to publication.
-  Such a file is not a valid stable map.
+- An unreadable regular destination of a 0.x writer used to be replaced and is now
+  refused. Directories, links and files over the map bound are still left to
+  publication.
+- No exclusive create, and no re-check before the rename, guards against an
+  uncooperative process that replaces the destination after the strict probe.
+- `prepare` refuses when any recognized backup declares `cem/1.0`, even with a
+  present sidecar, because resume removes a validated backup.
 - The requirement IDs start at `CEM-V1-030`. That keeps them clear of slices proposed
   in parallel, which would otherwise take `CEM-V1-020` next. Integration may
   renumber them.
