@@ -430,9 +430,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   file is written) when any file under `.corvint/changes/` is modified, deleted, misnamed, not
   merged, drifted from its bind commit's map, not canonical, or not proved `ready-for-ci`,
   printing one line per refused path with its `DCW-V0-039` reason and the `DCW-V0-040` `fix:`
-  line; when more than 256 are added it refuses, verifying none, with the one line
-  `sealed CEMs=<n> exceed 256` in place of the per-path lines. This amends the decision 0319 consequence that any sealed CEM in the
-  range refuses; a sealed branch reworked in place now rebinds as a stacked change.
+  line; when more than 256 files under `.corvint/changes/` change it refuses, verifying none,
+  with the one line `sealed CEMs=<n> exceed 256` in place of the per-path lines. This amends the
+  decision 0319 consequence that any sealed CEM in the range refuses; a sealed branch reworked in
+  place now rebinds as a stacked change.
   Non-goals: reverifying the merged changes' OCM or local outcome; proving that merged changes
   compose; raising any limit of the single change loop.
   Failure modes: a merged sealed file that was edited after the merge fails `sealed-cem-drift`; a
