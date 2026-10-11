@@ -242,6 +242,22 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 	if l, ok = observedLedger(t, m, v, []*Observation{other}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
 		t.Fatal("revision mismatch proved the edge")
 	}
+	// With outcomes for the key at two revisions, the one at the observed revision is read,
+	// whichever sorts first; a declared key's proof is unaffected by another key's observation.
+	writeFile(t, root, "notes.txt", "unrelated\n")
+	rev2 := commitAll(t, root, "unrelated")
+	r2 := pwpReceipt(t, rev2, js.StatePassed)
+	if r2.Tests[0].ID != key {
+		t.Fatal("fixture key differs across revisions")
+	}
+	v2 := verification(t, m, []string{writeReceipt(t, r), writeReceipt(t, r2)})
+	at2, _ := sealedObservation(t, m, rev2, key, crossing)
+	for _, o := range []*Observation{loaded, at2} {
+		l, ok = observedLedger(t, m, v2, []*Observation{o}, Options{Root: root, Full: true}, row.ID)
+		if got := edgeRow(t, l, row.ID); !ok || got.Status != EdgeProven || got.Evidence.Verification.Revision != o.Revision {
+			t.Fatalf("revision %s: %+v", o.Revision, got)
+		}
+	}
 	unreceipted, _ := sealedObservation(t, m, rev, "unreceipted-test", crossing)
 	if l, ok = observedLedger(t, m, v, []*Observation{unreceipted}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
 		t.Fatal("observation alone proved the edge")

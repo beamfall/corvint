@@ -53,6 +53,11 @@ func LoadTraceZip(name, testKey string) (NavigationEvents, []byte, error) {
 	if !ok {
 		return none, nil, bad("--trace zip must be a regular file of at most 64 MiB, unchanged while read")
 	}
+	// Every central directory record starts with this signature, so its count bounds the entries
+	// the reader would allocate; refuse before building the directory.
+	if bytes.Count(raw, []byte("PK\x01\x02")) > traceZipEntryLimit {
+		return none, nil, bad("--trace is not a readable zip of at most 65536 entries")
+	}
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 	if err != nil || len(zr.File) > traceZipEntryLimit {
 		return none, nil, bad("--trace is not a readable zip of at most 65536 entries")
@@ -87,7 +92,7 @@ func LoadTraceZip(name, testKey string) (NavigationEvents, []byte, error) {
 			continue
 		}
 		var r traceRecord
-		if json.Unmarshal(line, &r) != nil {
+		if json.Unmarshal(line, &r) != nil || r.Type == "" {
 			return none, nil, bad("trace zip context trace has an invalid record")
 		}
 		switch {
@@ -131,7 +136,7 @@ func LoadTraceZip(name, testKey string) (NavigationEvents, []byte, error) {
 				return none, nil, bad("trace zip snapshot URL must be 1 to 4096 bytes")
 			}
 			ev := NavigationEvent{Kind: "navigate", URL: s.FrameURL}
-			if b, ok := beforeURL[call]; ok && phase != "before" && b == prev {
+			if b, ok := beforeURL[call]; ok && (phase == "input" || phase == "after") && b == prev {
 				if a := actions[call]; a != nil {
 					c := *a
 					ev.Action = &c

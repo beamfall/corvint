@@ -90,6 +90,7 @@ func TestANLV0022TraceZip(t *testing.T) {
 		"multi page":   {"trace.trace": body + traceLines(snap("call@9", "before", "https://x.test/home", "p2"))},
 		"no snapshots": {"trace.trace": traceLines(before("call@1", "goto", ""))},
 		"bad record":   {"trace.trace": body + "{not json\n"},
+		"null record":  {"trace.trace": body + "null\n"},
 	}
 	for name, entries := range refuse {
 		if _, _, err := LoadTraceZip(traceZip(t, entries), "k"); err == nil {
@@ -108,6 +109,17 @@ func TestANLV0022TraceZip(t *testing.T) {
 			t.Fatal(p, "accepted")
 		}
 	}
+	// Only input and after snapshots attribute; any other phase reads UNKNOWN.
+	custom := traceLines(before("c1", "click", "#a"), snap("c1", "before", "https://x.test/home", "p1"), snap("c1", "custom", "https://x.test/login", "p1"))
+	if doc, _, err := LoadTraceZip(traceZip(t, map[string]string{"trace.trace": custom}), "k"); err != nil || len(doc.Events) != 2 || doc.Events[1].Action != nil {
+		t.Fatal("custom phase attributed", doc, err)
+	}
+	defer func(n int) { traceZipEntryLimit = n }(traceZipEntryLimit)
+	traceZipEntryLimit = 3
+	if _, _, err := LoadTraceZip(z, "k"); err == nil {
+		t.Fatal("entry count bound not enforced")
+	}
+	traceZipEntryLimit = 65536
 	defer func(a, b int) { traceEntryLimit, traceLineLimit = a, b }(traceEntryLimit, traceLineLimit)
 	traceEntryLimit = 512
 	if _, _, err := LoadTraceZip(z, "k"); err == nil {

@@ -279,8 +279,8 @@ ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	109	`flows appmap impa
 ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	117	A changed UI path (html, script, style or template extension) that no map elemen
 ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	125	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
 ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	132	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
-ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	144	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
-ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	156	An edge cannot be proven only by the test it is used to select. An edge a declar
+ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	145	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
+ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	159	An edge cannot be proven only by the test it is used to select. An edge a declar
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

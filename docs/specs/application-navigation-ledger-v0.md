@@ -130,10 +130,11 @@ are URL templates, not component source files. This slice makes neither missing 
   replaces `trigger`, and an annotation outside the vocabulary is refused with exit 2. Amends the
   ANL-V0-006 action list. (proposed, pending owner acceptance (V1-1161))
 - `ANL-V0-022`: `observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regular,
-  unsymlinked file of at most 64 MiB, at most 65536 entries) in memory without extracting anything
+  unsymlinked file of at most 64 MiB whose central-directory record signatures number at most
+  65536, counted before the directory is built) in memory without extracting anything
   to disk. Exactly one root entry named `trace.trace` or `N-trace.trace` is decompressed, streamed
   as NDJSON within 64 MiB and 16 MiB per record; nested, `..` or other entries are never opened as
-  the trace, and two context traces, an invalid record, more than one page with main-frame
+  the trace, and two context traces, an invalid record (including one without a `type`), more than one page with main-frame
   snapshots, no main-frame snapshot, or more than 4096 navigations refuse with exit 2. Each change of
   the main-frame snapshot URL (ignoring `about:` URLs) is one `navigate` event; it carries the
   action (`before` record method and selector, never its other parameters) only when the change lies
@@ -148,8 +149,10 @@ are URL templates, not component source files. This slice makes neither missing 
   Each resolved observed edge binds its trace's test key to every ledger edge with the same from and
   to screens whose trigger is `UNKNOWN` or equals the observed trigger (so an `UNKNOWN` observation
   never binds a typed edge), exactly as a declared `proves` would, but never creates an outcome: the
-  key proves the edge only through ANL-V0-002 verification with a receipt whose application revision
-  equals the observation revision, else that key's crossing reads `observation-revision-mismatch`.
+  key proves the edge only through ANL-V0-002 verification of its outcomes whose application
+  revision equals an observation revision; its outcomes at other revisions are not read for that
+  crossing, so a key with none reads `no-receipt-outcome` and, like an absent declared receipt, does
+  not block another key's proof. At most 16 files are named; a 17th refuses before any is read.
   The ledger lists the observation digests, each row's `observed_by` test keys and the count of
   resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is
   unchanged. (proposed, pending owner acceptance (V1-1160))

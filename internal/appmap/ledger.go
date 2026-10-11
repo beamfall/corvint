@@ -101,7 +101,23 @@ func ledgerIdentity(from, to Step) LedgerEdge {
 	return LedgerEdge{ID: "edge:" + digest(b), From: from.Screen, To: to.Screen, Trigger: trigger, Selector: selector, Status: EdgeUnproven, RedundantCrossers: []string{}}
 }
 
-const maxLedgerObservations = 16
+const MaxLedgerObservations = 16
+
+// LoadObservations refuses more than MaxLedgerObservations names before reading any file.
+func LoadObservations(m *Map, names []string) ([]*Observation, error) {
+	if len(names) > MaxLedgerObservations {
+		return nil, verifyError("appmap-invalid-query", "at most %d --observation", MaxLedgerObservations)
+	}
+	var out []*Observation
+	for _, name := range names {
+		obs, err := LoadObservation(m, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, obs)
+	}
+	return out, nil
+}
 
 // LoadObservation reads one complete application-navigation-observation/0 document built from m:
 // same app and map digest, nothing omitted and an intact digest (ANL-V0-023).
@@ -198,8 +214,8 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 			}
 		}
 	}
-	if len(observations) > maxLedgerObservations {
-		return nil, false, verifyError("appmap-invalid-query", "at most %d --observation", maxLedgerObservations)
+	if len(observations) > MaxLedgerObservations {
+		return nil, false, verifyError("appmap-invalid-query", "at most %d --observation", MaxLedgerObservations)
 	}
 	// observedAt[edge][key] holds the revisions at which key's trace crossed the edge.
 	observedAt := map[string]map[string]map[string]bool{}
@@ -289,6 +305,11 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 				}
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
 				single := &Verification{receipts: v.receipts, binds: map[string][]string{}}
+				if !declared[key] {
+					// An observation-only key is read only from its outcomes at an observed
+					// revision; outcomes elsewhere are not evidence about this crossing.
+					single.receipts = receiptsAt(v.receipts, key, observedAt[id][key])
+				}
 				ve := *e
 				ve.v = single
 				a, b := occ.from, occ.to
@@ -323,6 +344,7 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 					// An observation-only binding proves nothing unless the receipt ran at the
 					// revision the trace was observed at.
 					sv = StepVerification{Status: Unverified, Reason: "observation-revision-mismatch", Authority: AuthorityLearned}
+					blocked = true
 				}
 				if sv.Status != Unverified {
 					anchors := []Anchor{occ.flow.Anchor}
@@ -427,6 +449,20 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 		}
 		return nil, false, budgetError("edge ledger header exceeds --budget")
 	}
+}
+
+// receiptsAt keeps the receipts holding an outcome for key at one of the revisions.
+func receiptsAt(receipts []receiptInput, key string, revisions map[string]bool) []receiptInput {
+	var kept []receiptInput
+	for _, in := range receipts {
+		for _, t := range in.r.Tests {
+			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); t.ID == key && revisions[rev] {
+				kept = append(kept, in)
+				break
+			}
+		}
+	}
+	return kept
 }
 
 // selfProvenOnly is true when some test assumes a proven edge that no other test proves: an

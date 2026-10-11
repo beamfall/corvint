@@ -41,13 +41,9 @@ func runFlowsAppmapEdges(ctx context.Context, root string, args []string, out io
 			return err
 		}
 	}
-	var observed []*appmap.Observation
-	for _, name := range observations {
-		obs, oerr := appmap.LoadObservation(m, name)
-		if oerr != nil {
-			return oerr
-		}
-		observed = append(observed, obs)
+	observed, err := appmap.LoadObservations(m, observations)
+	if err != nil {
+		return err
 	}
 	data, ok, err := appmap.ProjectObservedEdges(ctx, m, v, d, observed, required, appmap.Options{Root: root, Revision: *revision, Budget: *budget, Full: *full})
 	if err != nil {

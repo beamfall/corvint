@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -153,6 +154,14 @@ func TestANLV0023EdgesObservationCLI(t *testing.T) {
 	}
 	if code, _, _ = runFlowsCLI(root, append(base, "--observation", mapFile)...); code != 2 {
 		t.Fatal("non-observation accepted", code)
+	}
+	// The count bound refuses before any file is read: none of these paths exist.
+	many := append([]string{}, base...)
+	for i := 0; i <= appmap.MaxLedgerObservations; i++ {
+		many = append(many, "--observation", filepath.Join(dir, "absent", strconv.Itoa(i)))
+	}
+	if code, _, diag = runFlowsCLI(root, many...); code != 2 || !strings.Contains(diag, "at most 16 --observation") {
+		t.Fatal("observation count bound", code, diag)
 	}
 	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
 	cmd.Dir = root
