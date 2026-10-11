@@ -3603,7 +3603,7 @@
     "path": "docs/specs/playwright-run-evidence-v0.md",
     "title": "Playwright Run Evidence V0",
     "reqPrefix": "PWR-V0",
-    "intent": "proposed, pending owner acceptance (V1-1230, V1-1229)",
+    "intent": "accepted (decision 0520; V1-1230, V1-1229)",
     "delivery": "experimental",
     "claim": "A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.",
     "dependsOn": [],

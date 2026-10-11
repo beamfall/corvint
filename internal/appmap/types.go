@@ -174,6 +174,13 @@ type Edge struct {
 	Basis  string `json:"basis"`
 	Source string `json:"source"`
 	Anchor Anchor `json:"anchor"`
+	// Effect classifies a test-sequence step (ANL-V0-035): navigation-only, state-effect or
+	// unknown, with the deciding call and the page-object method spans read; absent on other
+	// edges and in older maps.
+	Effect     string   `json:"effect,omitempty"`
+	EffectRef  string   `json:"effect_ref,omitempty"`
+	EffectCall string   `json:"effect_call,omitempty"`
+	EffectFrom []Anchor `json:"effect_from,omitempty"`
 }
 
 // Flow is one AFU-V1 flow intent projected onto the screen graph.

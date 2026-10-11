@@ -4,13 +4,13 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518)
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1164 (issues #776/#777), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
 - Claim: A revision-evaluated edge ledger reuses qualified receipts and fails closed on unproven assumptions.
 - Status: accepted (decision 0518; V1-1132..1135, V1-1137); experimental.
-- Exists: smallest single-map CLI slice; synthetic receipts only.
+- Exists: smallest single-map CLI slice; synthetic receipts only; static page-object step effects for prefixes (ANL-V0-035/036, V1-1164, decision 0520).
 - Blocked on: live adopter qualification.
 - Read next: Requirements; Wire and limits; Traceability; Follow-ups.
 
@@ -89,7 +89,8 @@ are URL templates, not component source files. This slice makes neither missing 
   (`test-prefix-facts/0`, one entry per spec path; a duplicate path is refused; keyed `FROM_SCREEN>TO_SCREEN` per spec path), has no declared read-only
   effect (`effects-unknown`), is not proven (`edge-not-proven`), or ends on an entry that is not
   deep-linkable (`entry-not-deep-linkable`) or not FRESH (`entry-template-not-fresh`), or saves
-  nothing (`nothing-to-save`, a one-edge chain). (accepted, decision 0518; V1-1134)
+  nothing (`nothing-to-save`, a one-edge chain). An edge that carries a derived effect is governed
+  by ANL-V0-036 instead of the read-only declaration. (accepted, decision 0518; V1-1134; the derived-effect clause is ANL-V0-036, decision 0520)
 - `ANL-V0-011`: The report is deterministic with a digest of the complete report, byte-capped with
   omitted counts, learned authority, read-only and offline. A ledger not built from the map (app, map digest, evaluated revision) or trimmed to its byte cap is refused. With `--check` the command exits 1
   (`test-plan-mismatch`) when a flagged test is absent from `--baseline` or any flagged row was trimmed by the byte cap (an earlier report; any flag
@@ -209,6 +210,50 @@ are URL templates, not component source files. This slice makes neither missing 
   conservative reported verdict (`full-suite-required` over `targeted` over `no-navigation-impact`);
   any report with unknown paths gives `impact-unknown-paths`. An unknown in one map is never cleared
   by another map placing the path. (accepted, decision 0519 (V1-1163))
+- `ANL-V0-035`: `flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by static
+  analysis of the spec tokens strictly between the two page-object constructions the edge joins,
+  stored as `effect` on the edge. A call on a page-object instance (`NAME = new CLASS(` or
+  `NAME: TYPE = new CLASS(`, CLASS imported from a test file; a name bound to two files, or
+  assigned, member-assigned or destructured anywhere else in the spec, is not followed) reads that
+  file's one class member of that name, following `this.m()` calls up to 8 deep. Constructing a
+  page-object class, in the step or at either construction that bounds it, reads everything the
+  construction runs: that file's tokens outside its recognized non-constructor methods, plus the
+  closing construction's arguments. A page-object file whose class `extends` another or declares a
+  `get`/`set` accessor is not read: its methods and constructions are `unknown` (`extends`,
+  `accessor`). A page object may assign its own fields (`this.NAME = ...`) when NAME is not one of
+  its members. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
+  clears, drags or submits; issues a request (`fetch(`, or an HTTP verb on a `request` receiver);
+  or writes storage or cookies (`setItem`, `removeItem`, `addCookies`, `clearCookies`). Otherwise
+  it is `unknown` when any call is not provable: a navigation, wait, read or click whose receiver is
+  not the Playwright page itself (`page`, or `this.page` in a page object, in a file that never
+  rebinds `page` and assigns `this.page` only `page`), a click, double-click or tap whose receiver
+  is not `getByRole('link', ...)` with exactly the literal `'link'` as its first argument
+  (optionally narrowed by `first`, `last` or `nth`), `evaluate`, `route`,
+  any unlisted method or bare helper (on `JSON`, `Math`, `Number`, `String`, `Object`, `Array`,
+  `Promise`, `Date` and `console` only listed non-mutating members are admitted), a computed,
+  optional, non-null asserted (`f!(`), chained, generic (`f<T>(`) or tagged-template invocation or
+  receiver, an assignment,
+  increment or decrement of a member, `delete`, a missing, duplicated or recursive member, a
+  member whose one-line header gives a parameter a default or holds a template substitution
+  (`default-parameter`), a `test.step`, `expect.poll`, `toPass`, `toThrow` or `toThrowError`
+  whose callback argument is not wholly a function written in place, so `function() {} && reset`
+  is not one (`callback`), a template substitution that
+  may call, assign, update or delete, or source the lexer cannot bound.
+  Otherwise it is `navigation-only`: navigation (`goto`, `reload`, `goBack`, `goForward`), waits,
+  locator construction, reads and `expect` assertions only; `hover`, `focus` and scrolling can run
+  application handlers and are `unknown`. A non-navigation step records the
+  deciding call's `effect_ref` (`PATH:LINE`) and `effect_call`; every step records whole-file anchors
+  (`effect_from`) for the spec and each page-object file read, since imports, bindings and other
+  members decide which methods are read. Other edges and older maps carry none of these fields.
+  (accepted, decision 0520; V1-1164)
+- `ANL-V0-036`: `test-plan prefixes` treats a derived `navigation-only` step as read-only without a
+  sidecar declaration, but only when the edge span and every `effect_from` anchor are FRESH at the
+  evaluated revision (otherwise `step-effect-not-fresh`). A `state-effect` step abstains with
+  `step-state-effect` and an `unknown` step with `step-effect-unknown`; each names the step
+  (`edge`), the deciding call (`ref`, `call`). A `read_only_edges` declaration never upgrades a
+  derived `state-effect` or `unknown` step; declared assertion targets and mutations still abstain
+  as ANL-V0-010 states. An edge without a derived effect keeps the ANL-V0-010 sidecar rule.
+  (accepted, decision 0520; V1-1164)
 
 ## Wire and limits
 
@@ -263,6 +308,8 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
 | ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` |
 | ANL-V0-034 | `cmd/corvint/affected_appmap.go` | `TestANLV0034AffectedAggregatesMapsPerApp` |
+| ANL-V0-035 | `internal/appmap/effects.go`, `internal/appmap/compile.go` | `TestANLV0035StepEffects` |
+| ANL-V0-036 | `internal/appmap/prefixes.go` | `TestANLV0036PrefixesUseStepEffects` |
 
 ## Follow-ups and promotion
 

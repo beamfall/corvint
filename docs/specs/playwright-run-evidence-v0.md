@@ -2,13 +2,13 @@
 
 Owner: Russell Lewis
 Date: 2026-10-11
-Intent status: proposed, pending owner acceptance (V1-1230, V1-1229)
+Intent status: accepted (decision 0520; V1-1230, V1-1229)
 Delivery status: experimental
 Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
-- Status: proposed, pending owner acceptance (V1-1230, V1-1229)/experimental
+- Status: accepted (decision 0520; V1-1230, V1-1229)/experimental
 - Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands.
 - Blocked on: owner acceptance; fixture durations, cleanup and passing assertions are not in the JSON reporter output.
 - Read next: Requirements; Boundaries and failure modes; Delivery.

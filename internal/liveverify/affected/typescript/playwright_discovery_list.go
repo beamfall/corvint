@@ -174,7 +174,7 @@ func observePlaywrightListMembership(root, configPath string, listed map[Playwri
 		return nil, "", none, err
 	}
 	if revisionPaths != nil {
-		if err := checkPlaywrightRevisionMembership(root, configPath, configBytes, listed, revisionPaths); err != nil {
+		if err := checkPlaywrightRevisionMembership(root, configPath, configBytes, listed, revisionPaths, cases != nil, omissions); err != nil {
 			return nil, "", none, err
 		}
 	}
@@ -218,9 +218,11 @@ func staticPlaywrightProjects(configPath string, configBytes []byte, dynamicGrep
 // checkPlaywrightRevisionMembership refuses a listing that omits a project/file pair the config
 // selects among the regular files of a pinned revision, so a test file committed at that revision
 // but absent from the working tree the listing observed cannot shrink the denominator. Files below
-// a node_modules directory are not candidates, because Playwright never loads them.
-func checkPlaywrightRevisionMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string) error {
-	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes, false)
+// a node_modules directory are not candidates, because Playwright never loads them. A pair the
+// working-tree check accepted as a grep/grepInvert omission (TJAA-V0-021) is not refused again;
+// dynamicGrep tolerates a dynamic grep as that check does.
+func checkPlaywrightRevisionMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string, dynamicGrep bool, accepted playwrightGrepOmissions) error {
+	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes, dynamicGrep)
 	if err != nil {
 		return err
 	}
@@ -236,7 +238,8 @@ func checkPlaywrightRevisionMembership(root, configPath string, configBytes []by
 	}
 	sort.Strings(candidates)
 	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
-		if !listed[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] {
+		pair := PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}
+		if !listed[pair] && !slices.Contains(accepted.explained, pair) && !slices.Contains(accepted.unverified, pair) {
 			return fmt.Errorf("playwright listing omits project %q test %s, which the config selects at the source revision; the listing or working tree is stale", unit.Project, unit.Test)
 		}
 	}

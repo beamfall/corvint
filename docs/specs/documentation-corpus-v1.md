@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -422,6 +422,18 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   provider's canonical encoding, admits the witness step's arguments, and checks every flag of the
   producer step against the provider's `e2e` flags. Status: (accepted, decision
   0519; V1-1196; GitHub #794).
+- `DCP-V1-055`: `discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules of
+  `affected` Playwright discovery to the same listing. When a selected (project, file) pair is missing
+  and its project declares `grep` or `grepInvert`, the producer reads that file's listed cases. It
+  accepts the omission whether it is explained or unverified. An accepted omission has no listed
+  execution and adds none: the record holds only listed executions, so a registered test the omission
+  may hide is not discovered, and is not invented. The source-revision membership check accepts the
+  same omissions. Cases come only from specs that have a listed execution, attributed to the file that
+  execution carries. An unexplained omission still refuses, as does a selected file at the source
+  revision that the listing omits and the working tree lacks. A focused test runs the GitHub #790
+  three-project repro through the listed-tests producer with the revision's paths, and checks both
+  refusals. Status: (accepted, decision
+  0520; V1-1231; GitHub #800).
 
 ## Input and authority boundary
 
@@ -674,7 +686,7 @@ gap; explicitly requesting an unavailable provider implementation fails the buil
   states the root-relative rule for these flags. What the reader admits is unchanged; absolute paths
   stay refused. Acceptance: `TestDocsCorpusLocalInputPathRefusals`,
   `TestDocsCorpusHelpStatesRootRelativeInputs` and `TestLocalInputPathRuleNamesTheBrokenRule`.
-  Status: (proposed, pending owner acceptance (V1-1226); GitHub #796).
+  Status: (accepted, decision 0520; V1-1226; GitHub #796).
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
