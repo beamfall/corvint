@@ -118,7 +118,8 @@ type Observation struct {
 }
 
 // LoadNavigationEvents reads one reporter file or every *.json file of a directory (at most 64,
-// sorted by name). Playwright trace zips are not read in this slice and are refused.
+// sorted by name). A directory holding a Playwright trace zip is refused: LoadTraceZip reads one
+// zip for one named test key (ANL-V0-022).
 func LoadNavigationEvents(name string) ([]NavigationEvents, [][]byte, error) {
 	bad := func(msg string) error { return verifyError("appmap-invalid-query", "%s", msg) }
 	info, err := os.Lstat(name)
@@ -134,7 +135,7 @@ func LoadNavigationEvents(name string) ([]NavigationEvents, [][]byte, error) {
 		files = nil
 		for _, e := range entries {
 			if strings.HasSuffix(e.Name(), ".zip") {
-				return nil, nil, bad("trace zips are not supported; supply the reporter JSON")
+				return nil, nil, bad("a trace zip is read alone with --test-key; supply reporter JSON in a directory")
 			}
 			if e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".json") {
 				files = append(files, filepath.Join(name, e.Name()))
@@ -149,7 +150,7 @@ func LoadNavigationEvents(name string) ([]NavigationEvents, [][]byte, error) {
 	var raws [][]byte
 	for _, f := range files {
 		if strings.HasSuffix(f, ".zip") {
-			return nil, nil, bad("trace zips are not supported; supply the reporter JSON")
+			return nil, nil, bad("a trace zip is read with --test-key")
 		}
 		raw, err := readReceipt(f)
 		if err != nil {

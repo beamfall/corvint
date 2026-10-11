@@ -81,29 +81,38 @@ func verifyError(code, format string, args ...any) error {
 // blocking on a FIFO, unchanged in identity, size and modification time while read, within the
 // PWP bound.
 func readReceipt(filename string) ([]byte, error) {
-	bad := verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditydoc.MaxInputBytes)
+	raw, ok := readRegular(filename, testvaliditydoc.MaxInputBytes)
+	if !ok {
+		return nil, verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditydoc.MaxInputBytes)
+	}
+	return raw, nil
+}
+
+// readRegular reads a regular file of at most max bytes without following a final symlink, and
+// reports false unless its identity, size and modification time held while it was read.
+func readRegular(filename string, max int) ([]byte, bool) {
 	before, err := os.Lstat(filename)
 	if err != nil || !before.Mode().IsRegular() {
-		return nil, bad
+		return nil, false
 	}
 	f, err := openInput(filename)
 	if err != nil {
-		return nil, bad
+		return nil, false
 	}
 	defer f.Close()
 	opened, err := f.Stat()
 	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) || !unchanged(before, opened) {
-		return nil, bad
+		return nil, false
 	}
-	raw, err := io.ReadAll(io.LimitReader(f, testvaliditydoc.MaxInputBytes+1))
-	if err != nil || len(raw) > testvaliditydoc.MaxInputBytes {
-		return nil, bad
+	raw, err := io.ReadAll(io.LimitReader(f, int64(max)+1))
+	if err != nil || len(raw) > max {
+		return nil, false
 	}
 	after, err := f.Stat()
 	if err != nil || !unchanged(opened, after) || int64(len(raw)) != after.Size() {
-		return nil, bad
+		return nil, false
 	}
-	return raw, nil
+	return raw, true
 }
 
 // unchanged reports whether two observations of one file agree in size and modification time.

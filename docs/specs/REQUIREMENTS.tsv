@@ -278,6 +278,7 @@ ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	105	The report (`test-
 ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	109	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
 ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	117	A changed UI path (html, script, style or template extension) that no map elemen
 ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	125	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
+ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	132	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

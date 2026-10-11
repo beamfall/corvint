@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
 )
@@ -14,16 +15,28 @@ func runFlowsAppmapObserve(args []string, out io.Writer) error {
 	mapFile := f.String("map", "", "application map")
 	trace := f.String("trace", "", "navigation events file or directory")
 	revision := f.String("revision", "", "application revision the trace ran at")
+	testKey := f.String("test-key", "", "test key of a Playwright trace zip")
 	budget := f.Int("budget", 0, "byte cap")
 	full := f.Bool("full", false, "full byte cap")
 	if f.Parse(args) != nil || f.NArg() != 0 || *mapFile == "" || *trace == "" {
-		return errors.New("flows appmap observe requires --map FILE and --trace FILE|DIR; optional --revision, --budget or --full")
+		return errors.New("flows appmap observe requires --map FILE and --trace FILE|DIR|ZIP; optional --test-key (required with a zip), --revision, --budget or --full")
+	}
+	isZip := strings.HasSuffix(*trace, ".zip")
+	if isZip != (*testKey != "") {
+		return errors.New("flows appmap observe takes --test-key exactly when --trace names a Playwright trace zip")
 	}
 	m, err := appmap.LoadMap(*mapFile)
 	if err != nil {
 		return err
 	}
-	docs, raws, err := appmap.LoadNavigationEvents(*trace)
+	var docs []appmap.NavigationEvents
+	var raws [][]byte
+	if isZip {
+		doc, raw, zerr := appmap.LoadTraceZip(*trace, *testKey)
+		docs, raws, err = []appmap.NavigationEvents{doc}, [][]byte{raw}, zerr
+	} else {
+		docs, raws, err = appmap.LoadNavigationEvents(*trace)
+	}
 	if err != nil {
 		return err
 	}

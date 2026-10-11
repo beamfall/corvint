@@ -40,8 +40,10 @@ unplaceable UI path (templates are not bound by the map) lists as unknown and th
 full-suite-required. Learned, read-only, offline.
 
 Navigation observation (experimental, ANL-V0):
-  corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
-Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
+  corvint flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV]
+      [--budget N | --full]
+Reads playwright-navigation-events/0 reporter JSON, or one Playwright trace zip in memory (with
+--test-key; navigations from main-frame snapshot URLs, never extracted to disk), and prints
 application-navigation-observation/0: ordered screen visits resolved through the map, observed
 edges with their typed trigger (goto, click, form submit, key press, history back/forward, reload,
 redirect, else UNKNOWN) and any annotated declared_trigger, UNKNOWN joins and unmapped-url.

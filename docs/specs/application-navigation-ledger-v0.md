@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1161; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1161; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -64,7 +64,7 @@ are URL templates, not component source files. This slice makes neither missing 
   vocabulary of `ANL-V0-021` reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
   reads `unmapped-url`; an edge with an unresolved endpoint reads UNKNOWN. Observations are learned
   overlay facts carrying the trace digest and app revision and never add or change a static map
-  node or edge. Playwright trace zips are refused in this slice.
+  node or edge. A Playwright trace zip is read only as `ANL-V0-022` states; a directory holding one is refused.
   (proposed, pending owner acceptance (V1-1133))
 - `ANL-V0-007`: Observation output MUST NOT contain URL userinfo, query values (including those
   inside a hash-route fragment) whose name is secret-shaped or whose value is opaque (24 or more
@@ -129,6 +129,18 @@ are URL templates, not component source files. This slice makes neither missing 
   typed vocabulary (not `UNKNOWN`); it prints as the edge's `declared_trigger`, never sets or
   replaces `trigger`, and an annotation outside the vocabulary is refused with exit 2. Amends the
   ANL-V0-006 action list. (proposed, pending owner acceptance (V1-1161))
+- `ANL-V0-022`: `observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regular,
+  unsymlinked file of at most 64 MiB, at most 65536 entries) in memory without extracting anything
+  to disk. Exactly one root entry named `trace.trace` or `N-trace.trace` is decompressed, streamed
+  as NDJSON within 64 MiB and 16 MiB per record; nested, `..` or other entries are never opened as
+  the trace, and two context traces, an invalid record, more than one page with main-frame
+  snapshots, no main-frame snapshot, or more than 4096 navigations refuse with exit 2. Each change of
+  the main-frame snapshot URL (ignoring `about:` URLs) is one `navigate` event; it carries the
+  action (`before` record method and selector, never its other parameters) only when the change lies
+  between that action's `before` snapshot and its `input` or `after` snapshot, so any other change
+  reads `UNKNOWN`. Intermediate redirect hops are invisible to snapshots and are not claimed. The
+  trace digest is the archive digest; the test key is the caller's, since the archive carries none.
+  `--test-key` is refused without a zip. (proposed, pending owner acceptance (V1-1159))
 
 ## Wire and limits
 
@@ -176,6 +188,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
+| ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
 
 ## Follow-ups and promotion
 
