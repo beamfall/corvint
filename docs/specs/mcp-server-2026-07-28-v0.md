@@ -105,7 +105,7 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 ## Requirements
 
 - `MCPV0-035`: proposed, pending owner acceptance (V1-0279). Cancellation of an active
-  `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-057 and return the
+  `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-059 and return the
   existing `cancelled` failure without a ready receipt. A regression MUST cancel after the
   actual language walk begins and prove the call returns, under the race detector.
 
@@ -708,7 +708,7 @@ that focused run.
 | `MCPV0-031` | `contextindex.capImpactRows`; VS Code `decodeCorvintReceipt` | `TestMCPV0031ImpactCapsRowsWithVisibleOmissions`; extension test `strict CLI decoder keeps capped impact omissions visible` |
 | `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
-| `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1057FlowsImpactCancelledMidWalk` |
+| `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

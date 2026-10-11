@@ -143,6 +143,7 @@ AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1005	(proposed (V1-09
 AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1009	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i
 AFU-V1-057	docs/specs/application-flow-understanding-v1.md	505	(proposed, pending owner acceptance (V1-0276)) Navigation traffic
 AFU-V1-058	docs/specs/application-flow-understanding-v1.md	509	(proposed, pending owner acceptance (V1-0276)) Navigation MUST index traffic
+AFU-V1-059	docs/specs/application-flow-understanding-v1.md	624	proposed, pending owner acceptance (V1-0279). Impact graph construction MUST
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry

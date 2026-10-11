@@ -45,8 +45,8 @@ func (c *impactWalkContext) Err() error {
 	return c.Context.Err()
 }
 
-// AFU-V1-057, MCPV0-035: cancelling an impact call mid-walk retires the call.
-func TestAFUV1057FlowsImpactCancelledMidWalk(t *testing.T) {
+// AFU-V1-059, MCPV0-035: cancelling an impact call mid-walk retires the call.
+func TestAFUV1059FlowsImpactCancelledMidWalk(t *testing.T) {
 	root := flowsRepository(t)
 	for i := 0; i < 30; i++ {
 		dir := filepath.Join(root, fmt.Sprintf("walk%02d", i))

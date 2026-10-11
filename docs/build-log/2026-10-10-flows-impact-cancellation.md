@@ -2,13 +2,13 @@
 
 ## Intent and scope
 
-AFU-V1-057 and MCPV0-035 are proposed, pending owner acceptance (V1-0279).
+AFU-V1-059 and MCPV0-035 are proposed, pending owner acceptance (V1-0279).
 The user requests cancellation of an active MCP impact graph walk, including all language
 adapters and callers. No wire schema changes, new error codes, decision files, publication,
 or task-store writes. origin/main and HEAD were identical at
 `29e1f653486fca13216606683d3a5c2b05cacd36`; GitHub main compare was identical.
 All eight open PRs (747, 749–755) were checked for changed spec paths; none uses these
-owning specs or reserves AFU-V1-057/MCPV0-035.
+owning specs or reserves AFU-V1-059/MCPV0-035.
 
 ## Implementation and limits
 
@@ -64,7 +64,7 @@ the new MCP fixture's byte-to-string conversion was also corrected.
   failures remain recorded and are superseded only by the repaired focused runs.
 - PASS: focused graph cancellation, absolute-root admission, included/direct walks, source
   operations, shared-walk compatibility and cross-language selection regressions under `-race`.
-- PASS: `TestAFUV1057FlowsImpactCancelledMidWalk` under `-race` (107.580 seconds for fixture,
+- PASS: `TestAFUV1059FlowsImpactCancelledMidWalk` under `-race` (107.580 seconds for fixture,
   both healthy calls and the cancellation call together; cancel-to-return assertion <=5 seconds).
   The earlier ten-second preparation wait timed out before injection and is not cancellation evidence.
 - PASS: independent read-only review after the absolute-root repair and the final guidance caller

@@ -57,8 +57,8 @@ func cancellationRoot(t *testing.T) string {
 	return root
 }
 
-// AFU-V1-057: every adapter reaches a cancellable disk traversal.
-func TestAFUV1057AdaptersCancel(t *testing.T) {
+// AFU-V1-059: every adapter reaches a cancellable disk traversal.
+func TestAFUV1059AdaptersCancel(t *testing.T) {
 	root := cancellationRoot(t)
 	for _, language := range languages.All() {
 		t.Run(language.Name(), func(t *testing.T) {
@@ -79,8 +79,8 @@ func TestAFUV1057AdaptersCancel(t *testing.T) {
 	}
 }
 
-// AFU-V1-057: cancellation returns no partial graph; later builds are healthy.
-func TestAFUV1057BuildCancellation(t *testing.T) {
+// AFU-V1-059: cancellation returns no partial graph; later builds are healthy.
+func TestAFUV1059BuildCancellation(t *testing.T) {
 	root := cancellationRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -94,8 +94,8 @@ func TestAFUV1057BuildCancellation(t *testing.T) {
 	}
 }
 
-// AFU-V1-057: direct adapter walks and each source operation honor cancellation.
-func TestAFUV1057SourceWalkCancellation(t *testing.T) {
+// AFU-V1-059: direct adapter walks and each source operation honor cancellation.
+func TestAFUV1059SourceWalkCancellation(t *testing.T) {
 	root := cancellationRoot(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -114,8 +114,8 @@ func TestAFUV1057SourceWalkCancellation(t *testing.T) {
 	}
 }
 
-// AFU-V1-057: context-aware adapters preserve the absolute-root contract.
-func TestAFUV1057CancellationPreservesRootValidation(t *testing.T) {
+// AFU-V1-059: context-aware adapters preserve the absolute-root contract.
+func TestAFUV1059CancellationPreservesRootValidation(t *testing.T) {
 	for _, language := range languages.All() {
 		for _, root := range []string{"", "relative"} {
 			if _, err := language.Units(context.Background(), root); !errors.Is(err, affected.ErrInvalidLanguage) {
@@ -125,8 +125,8 @@ func TestAFUV1057CancellationPreservesRootValidation(t *testing.T) {
 	}
 }
 
-// AFU-V1-057: opted-in skipped subtrees and direct Source.Walk stop too.
-func TestAFUV1057IncludedAndDirectWalkCancellation(t *testing.T) {
+// AFU-V1-059: opted-in skipped subtrees and direct Source.Walk stop too.
+func TestAFUV1059IncludedAndDirectWalkCancellation(t *testing.T) {
 	root := cancellationRoot(t)
 	if err := os.Rename(filepath.Join(root, "dir00"), filepath.Join(root, "build")); err != nil {
 		t.Fatal(err)
