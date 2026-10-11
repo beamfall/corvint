@@ -115,4 +115,27 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 	if code, _, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+fixup+"\n") {
 		t.Fatalf("unbound exit=%d stderr=%s", code, stderr)
 	}
+
+	// A sealed map reused on a bind commit carrying an extra committed edit
+	// fails: canonical verification derives the patch from the bind commit
+	// itself, so the omitted edit cannot pass as bound.
+	cemGit(t, root, "checkout", "-q", "-b", "forged", bindA+"^")
+	cemWrite(t, root, "fixture/omitted.go", "package fixture\nfunc Omitted() int { return 4 }\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "omitted edit")
+	cemWrite(t, root, ".corvint/change.cem.json", raw+"\n")
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	forged := cemGit(t, root, "rev-parse", "HEAD")
+	if err := os.MkdirAll(filepath.Join(root, ".corvint/changes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, root, "mv", ".corvint/change.cem.json", ".corvint/changes/"+forged+".cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: seal change evidence")
+	sealForged := cemGit(t, root, "rev-parse", "HEAD")
+	cemGit(t, root, "checkout", "-q", "-b", "forged-batch", base)
+	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealForged)
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-policy count=1\n  bind="+forged+" state=") {
+		t.Fatalf("forged constituent exit=%d stderr=%s", code, stderr)
+	}
 }

@@ -11,9 +11,13 @@ Do not raise a limit and do not add a batch binding format. Add a read-only verb
 `corvint dogfood batch-check BASE` (`make dogfood-batch-check`), that treats the sealed CEMs a range
 adds as its constituents: it re-verifies each against its own base with `cem status`, and requires
 every other commit of the range to be a seal commit or a merge whose tree `git merge-tree` re-derives
-from its two parents (default, `-Xours`, `-Xtheirs`, or first-parent tree). Merge re-derivation writes
-only into a private temporary object directory (`GIT_OBJECT_DIRECTORY` with the repository's objects
-as alternates), so the repository is unchanged. What the check cannot prove (OCM, local outcome,
+from its two parents (default, `-Xours`, `-Xtheirs`, or first-parent tree). Only canonical
+(`cem/0.2`, `cem/0.3`) maps count, and only a verifier response that reports canonical `ready-for-ci`
+verification of exactly that bind and base, never an exit status alone. Merge re-derivation runs in a
+private temporary bare repository with the repository's objects as alternates and none of its
+configuration or attributes, so no merge driver or hook runs and the repository is unchanged; the
+shared dogfood Git reader now also disables fsmonitor and the untracked cache, which a
+repository-configured hook could otherwise have used (independent review round 1). What the check cannot prove (OCM, local outcome,
 composition, dropped conflict sides, verifier independence) is printed as `NOTE` lines, and each
 failure names its recovery. The over-limit refusals of `dogfood change` now name this path
 (DCW-V0-039, DCW-V0-040, proposed).

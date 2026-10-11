@@ -403,11 +403,14 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 The check is read-only: it writes no object, ref, index, worktree file, trace or ledger. Its
 constituents are the `.corvint/changes/<bind>.cem.json` files `BASE..HEAD` adds. For each it
 requires the bind commit in `HEAD`, the sealed bytes equal to that commit's
-`.corvint/change.cem.json`, and `cem status --max-mechanical 0` `ready-for-ci` against the CEM's own
-base, printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
+`.corvint/change.cem.json`, a canonical `cem/0.2` or `cem/0.3` map, and `cem status --max-mechanical 0`
+output that reports canonical `ready-for-ci` verification of exactly that bind against the CEM's own
+base (a zero exit alone is not evidence), printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
 a constituent's own range, to be its rename-only seal commit, or to be a two-parent merge whose tree
 is its first parent's tree or the tree `git merge-tree` derives with the default, `-Xours` or
-`-Xtheirs` strategy (`MERGE <sha> derivation=...`). Each failure prints `FAIL <reason> count=N`, the
+`-Xtheirs` strategy (`MERGE <sha> derivation=...`), derived in a private scratch repository that
+applies none of the repository's configuration or attributes, so a merge driver never runs and a
+merge that relied on one fails. Each failure prints `FAIL <reason> count=N`, the
 listed commits, paths or binds, and one `fix:` line; it exits 1. A dirty worktree, an empty range,
 a range over 1,024 commits or more than 256 sealed changes refuses with exit 2; split the range
 by checking out a piece's last commit and using the previous piece's last commit as `BASE`.

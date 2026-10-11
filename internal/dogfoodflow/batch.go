@@ -8,11 +8,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -41,7 +43,8 @@ var batchRecovery = map[string]string{
 	"unrecognized-sealed-cem":  "only .corvint/changes/<40-hex bind commit>.cem.json files are sealed CEMs; remove or rename the listed path",
 	"unsealed-cem-at-head":     "seal the bound change (make dogfood-seal) or restore BASE's .corvint/change.cem.json before the batch check",
 	"constituent-not-merged":   "a sealed CEM names a bind commit HEAD does not contain; merge that change's branch or drop the copied file",
-	"constituent-cem-invalid":  "the sealed CEM is unreadable at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
+	"constituent-cem-invalid":  "the sealed CEM is unreadable or not a canonical cem/0.2 or cem/0.3 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
+	"constituent-unverified":   "the verifier did not report canonical ready-for-ci verification of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
 	"constituent-cem-policy":   "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
 	"unbound-commits":          "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
 	"merge-resolution-unbound": "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
@@ -166,6 +169,7 @@ func (b *batch) sealedConstituents() []string {
 }
 
 type sealedMap struct {
+	Spec         string `json:"spec"`
 	BaseRevision string `json:"baseRevision"`
 	Hunks        []struct {
 		Disposition string `json:"disposition"`
@@ -178,19 +182,37 @@ type sealedMap struct {
 }
 
 type cemStatus struct {
+	OK     bool   `json:"ok"`
+	Tool   string `json:"tool"`
 	State  string `json:"state"`
 	Counts struct {
 		Total     int `json:"total"`
 		Supported int `json:"supported"`
 		Unknown   int `json:"unknown"`
 	} `json:"counts"`
+	Verification struct {
+		Valid          bool   `json:"valid"`
+		Assurance      string `json:"assurance"`
+		BaseRevision   string `json:"baseRevision"`
+		TargetRevision string `json:"targetRevision"`
+	} `json:"verification"`
+}
+
+// proves reports whether a status response is canonical ready-for-ci
+// verification of exactly this bind and base; an exit status alone is not
+// evidence.
+func (s cemStatus) proves(base, bind string) bool {
+	return s.OK && s.Tool == "cem-status" && s.State == "ready-for-ci" && s.Verification.Valid &&
+		s.Verification.Assurance == "canonical" && s.Verification.BaseRevision == base && s.Verification.TargetRevision == bind
 }
 
 // verifyConstituent re-verifies one sealed CEM against its own base and bind
 // commit. The bootstrap allowance is the decision-0055 shape the bind loop
 // admitted: an unknown, no-evidence hunk adding a whole file absent at the
 // change's base. Each such path is printed; the OCM that admitted it is not
-// re-run.
+// re-run. Only a canonical map is accepted: its verifier derives the patch from
+// the base and bind commits, whereas a cem/0.1 map verifies a cached patch
+// that need not equal the committed change.
 func (b *batch) verifyConstituent(bind string) {
 	path := ".corvint/changes/" + bind + ".cem.json"
 	if !b.gitSucceeds("merge-base", "--is-ancestor", bind, b.target) {
@@ -204,7 +226,7 @@ func (b *batch) verifyConstituent(bind string) {
 	}
 	data, status := b.git(true, "cat-file", "blob", sealedBlob)
 	var cem sealedMap
-	if status != 0 || json.Unmarshal([]byte(data), &cem) != nil || !fullRevision.MatchString(cem.BaseRevision) ||
+	if status != 0 || json.Unmarshal([]byte(data), &cem) != nil || !wire.Canonical(cem.Spec) || !fullRevision.MatchString(cem.BaseRevision) ||
 		!b.gitSucceeds("merge-base", "--is-ancestor", cem.BaseRevision, bind) {
 		b.failure("constituent-cem-invalid", "bind="+bind)
 		return
@@ -221,18 +243,26 @@ func (b *batch) verifyConstituent(bind string) {
 		"--target", bind, "--max-unknown", strconv.Itoa(len(bootstrap)), "--max-mechanical", "0"}, &stdout, &stderr)
 	b.checkpoint()
 	var observed cemStatus
-	_ = json.Unmarshal(firstLine(stdout.Bytes()), &observed)
+	parsed := json.Unmarshal(firstLine(stdout.Bytes()), &observed) == nil
 	if observed.State == "" {
 		observed.State = failureReason(stderr.Bytes(), code)
 	}
-	b.print("%s: CONSTITUENT bind=%s base=%s hunks=%d supported=%d unknown=%d bootstrapUnknown=%d state=%s\n",
-		b.prefix, bind, cem.BaseRevision, observed.Counts.Total, observed.Counts.Supported, observed.Counts.Unknown, len(bootstrap), observed.State)
+	counts := "hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED"
+	if parsed {
+		counts = fmt.Sprintf("hunks=%d supported=%d unknown=%d", observed.Counts.Total, observed.Counts.Supported, observed.Counts.Unknown)
+	}
+	b.print("%s: CONSTITUENT bind=%s base=%s %s bootstrapUnknown=%d state=%s\n",
+		b.prefix, bind, cem.BaseRevision, counts, len(bootstrap), observed.State)
 	for _, added := range bootstrap {
 		b.print("  bootstrap-unknown %s\n", added)
 	}
 	b.bootstrap += len(bootstrap)
 	if code != 0 {
 		b.failure("constituent-cem-policy", "bind="+bind+" state="+observed.State)
+		return
+	}
+	if !parsed || !observed.proves(cem.BaseRevision, bind) {
+		b.failure("constituent-unverified", "bind="+bind+" state="+observed.State)
 		return
 	}
 	covered := b.gitValue("rev-list", bind, "^"+cem.BaseRevision, "^"+b.base)
@@ -250,6 +280,8 @@ func (b *batch) verifyCoverage() {
 		commit, parents := fields[0], fields[1:]
 		switch {
 		case b.covered[commit]:
+		case len(parents) == 0:
+			b.failure("unbound-commits", commit)
 		case len(parents) == 1:
 			if !b.constituents[parents[0]] || !b.isSealCommit(commit) {
 				b.failure("unbound-commits", commit)
@@ -305,23 +337,34 @@ func (b *batch) derive(merge, derivation string) {
 	b.print("%s: MERGE %s derivation=%s\n", b.prefix, merge, derivation)
 }
 
-// scratchGit runs a Git command whose new objects land in a private temporary
-// object directory outside the repository, which reads the repository's
-// objects as an alternate; merge-tree therefore leaves the repository
-// unchanged (product invariant 4).
+// scratchGit runs a Git command in a private temporary bare repository outside
+// the checked repository, which reads the repository's objects as an
+// alternate. New objects land there, and neither the repository's
+// configuration nor its attributes apply: no configured merge driver or other
+// command can run or write, and a merge tree is derived from the parents
+// alone (product invariant 4).
 func (b *batch) scratchGit(args ...string) (string, int) {
 	b.checkpoint()
 	if b.scratch == "" {
 		b.objects = b.gitValue("rev-parse", "--path-format=absolute", "--git-path", "objects")
 		scratch, err := os.MkdirTemp("", "corvint-batch-check-")
 		if err != nil {
-			b.refuse("scratch-object-directory-unavailable")
+			b.refuse("scratch-repository-unavailable")
 		}
 		b.scratch = scratch
+		if _, status := b.runScratch("init", "-q", "--bare", "--template=", "repository.git"); status != 0 ||
+			os.WriteFile(filepath.Join(scratch, "repository.git", "objects", "info", "alternates"), []byte(b.objects+"\n"), 0o600) != nil {
+			b.refuse("scratch-repository-unavailable")
+		}
 	}
+	return b.runScratch(append([]string{"--git-dir=repository.git", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
+}
+
+func (b *batch) runScratch(args ...string) (string, int) {
 	var stdout bytes.Buffer
-	command := exec.CommandContext(b.ctx, "git", append([]string{"-C", b.root, "-c", "credential.helper="}, args...)...)
-	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_OBJECT_DIRECTORY="+b.scratch, "GIT_ALTERNATE_OBJECT_DIRECTORIES="+b.objects)
+	command := exec.CommandContext(b.ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
+	command.Dir = b.scratch
+	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
 	command.Stdout = &stdout
 	status := exitStatus(command.Run())
 	b.checkpoint()

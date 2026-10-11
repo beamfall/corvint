@@ -18,6 +18,8 @@ type batchRepo struct {
 	args [][]string
 	// status is the fake verifier's exit status for every constituent.
 	status int
+	// output, when set, replaces the fake verifier's canonical status line.
+	output func(base, bind string) string
 }
 
 // newBatchRepo is a repository whose base commit has two files that lanes
@@ -59,7 +61,7 @@ func (r *batchRepo) lane(name, path, data, cem string) (string, string) {
 	r.write(path, data)
 	r.commit("work " + name)
 	if cem == "" {
-		cem = `{"baseRevision": "` + r.base + `", "hunks": []}` + "\n"
+		cem = `{"spec": "cem/0.2", "baseRevision": "` + r.base + `", "hunks": []}` + "\n"
 	}
 	r.write(".corvint/change.cem.json", cem)
 	bind := r.commit("chore: bind change evidence")
@@ -85,7 +87,14 @@ func (r *batchRepo) check() (int, string, string) {
 	r.args = nil
 	verifier := Runner{Path: "/never-executed/corvint", Run: func(_ context.Context, _ string, args []string, stdout, _ io.Writer) int {
 		r.args = append(r.args, args)
-		fmt.Fprintf(stdout, `{"counts":{"mechanical":0,"supported":1,"total":1,"unknown":0},"state":"%s"}`+"\n", map[bool]string{true: "ready-for-ci", false: "incomplete"}[r.status == 0])
+		base, bind := args[5], args[7]
+		if r.output != nil {
+			fmt.Fprint(stdout, r.output(base, bind))
+			return r.status
+		}
+		state := map[bool]string{true: "ready-for-ci", false: "incomplete"}[r.status == 0]
+		fmt.Fprintf(stdout, `{"counts":{"mechanical":0,"supported":1,"total":1,"unknown":0},"ok":%t,"state":"%s","tool":"cem-status",`+
+			`"verification":{"assurance":"canonical","baseRevision":"%s","targetRevision":"%s","valid":true}}`+"\n", r.status == 0, state, base, bind)
 		return r.status
 	}}
 	var stdout, stderr bytes.Buffer
@@ -228,7 +237,7 @@ func TestBatchCheckDCWV0039RefusesDriftedEvidence(t *testing.T) {
 func TestBatchCheckDCWV0039BootstrapAllowanceIsVisible(t *testing.T) {
 	repo := newBatchRepo(t)
 	cem := func(base string) string {
-		return `{"baseRevision": "` + base + `", "hunks": [` +
+		return `{"spec": "cem/0.3", "baseRevision": "` + base + `", "hunks": [` +
 			`{"disposition": "unknown", "reason": "no-evidence", "path": "spec.md", "oldRange": {"count": 0, "start": 0}},` +
 			`{"disposition": "unknown", "reason": "no-evidence", "path": "a.txt", "oldRange": {"count": 0, "start": 2}}]}` + "\n"
 	}
@@ -291,5 +300,107 @@ func TestChangeDCWV0040NamesBatchRecoveryForOversizedChanges(t *testing.T) {
 		if hint := c.fixHint(row); !strings.Contains(hint, "corvint dogfood batch-check "+base+" instead of rebinding it") {
 			t.Fatalf("%s:%s hint %q", row.name, row.reason, hint)
 		}
+	}
+}
+
+// DCW-V0-039: only canonical evidence covers a constituent. A cem/0.1 map,
+// whose verifier reads a cached patch, is refused before verification, and a
+// zero exit without canonical ready-for-ci output of exactly this bind and
+// base is not evidence.
+func TestBatchCheckDCWV0039RequiresCanonicalVerification(t *testing.T) {
+	repo := newBatchRepo(t)
+	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "cem/0.1", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+	repo.batch(seal)
+	if code, _, stderr := repo.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-invalid count=1\n  bind="+bind+"\n") || len(repo.args) != 0 {
+		t.Fatalf("cem/0.1 exit=%d stderr=%s argv=%q", code, stderr, repo.args)
+	}
+	repo = newBatchRepo(t)
+	bind, seal = repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	repo.batch(seal)
+	canonical := func(state, assurance, target string) string {
+		return `{"ok":true,"state":"` + state + `","tool":"cem-status","verification":{"assurance":"` + assurance +
+			`","baseRevision":"` + repo.base + `","targetRevision":"` + target + `","valid":true}}` + "\n"
+	}
+	for name, output := range map[string]string{
+		"empty":        "",
+		"malformed":    "not json\n",
+		"incomplete":   canonical("incomplete", "canonical", bind),
+		"structural":   canonical("ready-for-ci", "structural", bind),
+		"other-target": canonical("ready-for-ci", "canonical", repo.base),
+	} {
+		repo.output = func(string, string) string { return output }
+		code, stdout, stderr := repo.check()
+		if code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1\n  bind="+bind+" state=") || strings.Contains(stdout, "PASS") {
+			t.Fatalf("%s exit=%d stdout=%s stderr=%s", name, code, stdout, stderr)
+		}
+		if name == "empty" && !strings.Contains(stdout, " hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED ") {
+			t.Fatalf("invented counts: %s", stdout)
+		}
+	}
+}
+
+// DCW-V0-039: the check is read-only even against hostile repository
+// configuration. A configured merge driver that would reproduce a manual
+// resolution neither runs nor makes it derivable, and a configured fsmonitor
+// hook never runs.
+func TestBatchCheckDCWV0039IgnoresRepositoryDriversAndHooks(t *testing.T) {
+	repo := newBatchRepo(t)
+	repo.write(".gitattributes", "a.txt merge=forge\n")
+	repo.commit("attributes")
+	repo.base = testGit(t, repo.root, "rev-parse", "HEAD")
+	_, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	_, sealB := repo.lane("lane-b", "a.txt", "a1\nB2\na3\n", "")
+	repo.batch(sealA)
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "-X", "ours", sealB)
+	repo.write("a.txt", "a1\nAB2\na3\n")
+	testGit(t, repo.root, "add", "a.txt")
+	testGit(t, repo.root, "commit", "-q", "--amend", "--no-edit")
+	merge := testGit(t, repo.root, "rev-parse", "HEAD")
+	scratch := t.TempDir()
+	driverRan, hookRan, hook := filepath.Join(scratch, "driver-ran"), filepath.Join(scratch, "hook-ran"), filepath.Join(scratch, "fsmonitor")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+hookRan+"'\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, repo.root, "config", "merge.forge.driver", "printf 'a1\\nAB2\\na3\\n' > %A; touch '"+driverRan+"'")
+	testGit(t, repo.root, "config", "core.fsmonitor", hook)
+	code, _, stderr := repo.check()
+	for _, marker := range []string{driverRan, hookRan} {
+		if _, err := os.Stat(marker); !os.IsNotExist(err) {
+			t.Fatalf("batch-check executed repository configuration %s: %v", marker, err)
+		}
+	}
+	if code != 1 || !strings.Contains(stderr, "FAIL merge-resolution-unbound count=1\n  "+merge+" paths=a.txt\n") {
+		t.Fatalf("driver-derived merge exit=%d stderr=%s", code, stderr)
+	}
+	entries, err := os.ReadDir(repo.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".merge_file_") {
+			t.Fatalf("merge driver temporary file in the worktree: %s", entry.Name())
+		}
+	}
+}
+
+// DCW-V0-039: a root commit an unrelated history brings in is unbound
+// content, reported rather than a panic.
+func TestBatchCheckDCWV0039ReportsUnrelatedRootCommit(t *testing.T) {
+	repo := newBatchRepo(t)
+	_, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	testGit(t, repo.root, "checkout", "-q", "--orphan", "orphan")
+	testGit(t, repo.root, "rm", "-rq", "--cached", ".")
+	for _, path := range []string{"a.txt", "b.txt", ".corvint"} {
+		if err := os.RemoveAll(filepath.Join(repo.root, path)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo.write("orphan.txt", "orphan\n")
+	root := repo.commit("orphan root")
+	repo.batch(seal)
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "--allow-unrelated-histories", root)
+	code, _, stderr := repo.check()
+	if code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+root+"\n") {
+		t.Fatalf("root commit exit=%d stderr=%s", code, stderr)
 	}
 }
