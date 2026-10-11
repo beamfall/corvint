@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -129,89 +130,134 @@ func CollectStable(mapBytes []byte, base, target, artifactRoot string) (*StableB
 // WriteStable creates the bundle as the new directory name under parent and
 // writes every file exclusively inside that directory, after checking that the
 // bundle is exactly the map's declared closure; a failed write removes only
-// that directory. The manifest is written last.
+// what it wrote. The manifest is written last.
 func WriteStable(parent *os.Root, name string, b *StableBundle) error {
-	_, err := writeStable(parent, name, b)
+	out, err := writeStable(parent, name, b)
+	if err == nil {
+		out.dir.Close()
+	}
 	return err
 }
 
-// stableWriteHook lets tests change the output parent between the bundle
-// directory's creation and its open; it is nil outside tests.
-var stableWriteHook func()
+// stableWriteHook lets tests change the output between the bundle directory's
+// creation and its identity check ("mkdir"), before its open ("open"), and
+// after each file is written (its path); it is nil outside tests.
+var stableWriteHook func(stage string)
 
-// writeStable is WriteStable that also returns the created directory's
-// identity, so a caller's later cleanup removes only that directory. Nothing is
-// written unless the opened root is the very directory Mkdir created and the
-// name still holds it as a real directory, never a symlink to another one.
-func writeStable(parent *os.Root, name string, b *StableBundle) (created os.FileInfo, err error) {
+func callStableWriteHook(stage string) {
+	if stableWriteHook != nil {
+		stableWriteHook(stage)
+	}
+}
+
+// stableOutput is a written bundle: its directory, opened as a root bound to
+// the identity Mkdir created, which stays the anchor for any later cleanup.
+type stableOutput struct {
+	parent  *os.Root
+	name    string
+	created os.FileInfo
+	dir     *os.Root
+	bundle  *StableBundle
+}
+
+// writeStable is WriteStable that keeps the written directory open for the
+// caller, which must call close or remove. Nothing is written unless the
+// opened root is the same real directory the name held right after Mkdir, the
+// name still holds it, and it is empty; otherwise nothing is removed either.
+func writeStable(parent *os.Root, name string, b *StableBundle) (*stableOutput, error) {
 	if err := b.checkClosure(); err != nil {
 		return nil, err
 	}
 	if err := parent.Mkdir(name, 0o700); err != nil {
 		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory cannot be created")
 	}
-	created, err = parent.Lstat(name)
+	callStableWriteHook("mkdir")
+	created, err := parent.Lstat(name)
 	if err != nil || !created.IsDir() {
 		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory changed after it was created")
 	}
-	if stableWriteHook != nil {
-		stableWriteHook()
-	}
+	callStableWriteHook("open")
 	dir, err := parent.OpenRoot(name)
 	if err != nil {
-		removeCreated(parent, name, created, nil)
 		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory cannot be opened")
 	}
-	defer dir.Close()
+	out := &stableOutput{parent: parent, name: name, created: created, dir: dir, bundle: b}
 	opened, statErr := dir.Stat(".")
 	named, lstatErr := parent.Lstat(name)
 	if statErr != nil || lstatErr != nil || !named.IsDir() || !os.SameFile(created, opened) || !os.SameFile(created, named) {
-		removeCreated(parent, name, created, nil)
+		dir.Close()
 		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory changed after it was created")
 	}
-	defer func() {
-		if err != nil {
-			removeCreated(parent, name, created, dir)
-		}
-	}()
-	if err := dir.Mkdir(StableArtifactDir, 0o700); err != nil {
-		return nil, cemcode.New(cemcode.PublishFailed, "bundle artifacts directory cannot be created")
+	if !emptyRoot(dir) {
+		dir.Close()
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory is not empty")
 	}
-	if err := writeFile(dir, StableMapName, b.Map); err != nil {
+	if err := out.write(); err != nil {
+		out.remove()
 		return nil, err
 	}
-	for _, a := range b.Artifacts {
-		destination := filepath.Join(StableArtifactDir, filepath.FromSlash(a.Path))
-		if err := dir.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
-			return nil, cemcode.New(cemcode.PublishFailed, "bundle artifact directory cannot be created")
-		}
-		if err := writeFile(dir, destination, a.data); err != nil {
-			return nil, err
-		}
-	}
-	if err := writeFile(dir, ManifestName, b.Manifest()); err != nil {
-		return nil, err
-	}
-	return created, nil
+	return out, nil
 }
 
-// removeCreated removes the bundle directory writeStable created and nothing
-// else: it empties the directory through its own opened root when one is
-// given, wherever the directory now is, and removes name only while name still
-// holds that same real directory.
-func removeCreated(parent *os.Root, name string, created os.FileInfo, dir *os.Root) {
-	if dir != nil {
-		if top, err := dir.Open("."); err == nil {
-			entries, _ := top.ReadDir(-1)
-			top.Close()
-			for _, entry := range entries {
-				dir.RemoveAll(entry.Name())
-			}
+func (o *stableOutput) write() error {
+	if err := o.dir.Mkdir(StableArtifactDir, 0o700); err != nil {
+		return cemcode.New(cemcode.PublishFailed, "bundle artifacts directory cannot be created")
+	}
+	if err := writeFile(o.dir, StableMapName, o.bundle.Map); err != nil {
+		return err
+	}
+	callStableWriteHook(StableMapName)
+	for _, a := range o.bundle.Artifacts {
+		destination := filepath.Join(StableArtifactDir, filepath.FromSlash(a.Path))
+		if err := o.dir.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
+			return cemcode.New(cemcode.PublishFailed, "bundle artifact directory cannot be created")
+		}
+		if err := writeFile(o.dir, destination, a.data); err != nil {
+			return err
 		}
 	}
-	if named, err := parent.Lstat(name); err == nil && named.IsDir() && os.SameFile(created, named) {
-		parent.RemoveAll(name)
+	return writeFile(o.dir, ManifestName, o.bundle.Manifest())
+}
+
+// remove deletes the bundle's declared files and then its declared
+// directories, deepest first, through the root opened on the created
+// directory wherever that directory now is, never recursively; it then
+// removes name, non-recursively, only while name still holds that directory.
+// An entry nothing declares keeps the directory in place.
+func (o *stableOutput) remove() {
+	files := []string{ManifestName, StableMapName}
+	dirs := map[string]bool{StableArtifactDir: true}
+	for _, a := range o.bundle.Artifacts {
+		destination := filepath.Join(StableArtifactDir, filepath.FromSlash(a.Path))
+		files = append(files, destination)
+		for d := filepath.Dir(destination); d != StableArtifactDir && d != "."; d = filepath.Dir(d) {
+			dirs[d] = true
+		}
 	}
+	for _, f := range files {
+		o.dir.Remove(f)
+	}
+	ordered := slices.SortedFunc(maps.Keys(dirs), func(a, b string) int {
+		return strings.Count(b, string(filepath.Separator)) - strings.Count(a, string(filepath.Separator))
+	})
+	for _, d := range ordered {
+		o.dir.Remove(d)
+	}
+	o.dir.Close()
+	if named, err := o.parent.Lstat(o.name); err == nil && named.IsDir() && os.SameFile(o.created, named) {
+		o.parent.Remove(o.name)
+	}
+}
+
+// emptyRoot reports whether the root directory holds no entry.
+func emptyRoot(dir *os.Root) bool {
+	top, err := dir.Open(".")
+	if err != nil {
+		return false
+	}
+	defer top.Close()
+	names, err := top.Readdirnames(1)
+	return len(names) == 0 && errors.Is(err, io.EOF)
 }
 
 // checkClosure refuses a bundle whose base, artifacts or bytes are not exactly
@@ -249,7 +295,8 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if !filepath.IsAbs(dir) || filepath.Clean(dir) != dir {
 		return nil, stableRefusal(cemcode.InvalidArguments, "bundle directory must be an absolute clean path")
 	}
-	if info, err := os.Lstat(dir); err != nil || !info.IsDir() {
+	info, err := os.Lstat(dir)
+	if err != nil || !info.IsDir() {
 		return nil, stableRefusal(CodeStableEntryMissing, "bundle directory is not a directory")
 	}
 	root, err := os.OpenRoot(dir)
@@ -257,6 +304,9 @@ func ReadStable(dir string) (*StableBundle, error) {
 		return nil, stableRefusal(CodeStableEntryMissing, "bundle directory cannot be opened")
 	}
 	defer root.Close()
+	if opened, err := root.Stat("."); err != nil || !os.SameFile(info, opened) {
+		return nil, stableRefusal(CodeStableEntryEscaping, "bundle directory changed while opened")
+	}
 	files, dirs, err := walkStable(root)
 	if err != nil {
 		return nil, err
@@ -336,6 +386,11 @@ func ReadStable(dir string) (*StableBundle, error) {
 		return nil, err
 	}
 	if !maps.Equal(files, filesAfter) || !maps.EqualFunc(dirs, dirsAfter, os.SameFile) {
+		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
+	}
+	// The caller's path must still name the opened directory itself, not a
+	// symlink to it or to a moved copy.
+	if named, err := os.Lstat(dir); err != nil || !named.IsDir() || !os.SameFile(info, named) {
 		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 	}
 	return bundle, nil
@@ -560,16 +615,17 @@ func exportStable(ctx context.Context, root string, raw []byte, options Options)
 		return nil, err
 	}
 	defer parent.Close()
-	created, err := writeStable(parent, name, bundle)
+	out, err := writeStable(parent, name, bundle)
 	if err != nil {
 		return nil, err
 	}
 	dir := filepath.Join(parent.Name(), name)
 	result, exit, _, err := VerifyStable(ctx, dir, options.Repository, bundle.Base, bundle.Target)
 	if err != nil || exit != 0 || !reflect.DeepEqual(result, source) {
-		removeCreated(parent, name, created, nil)
+		out.remove()
 		return nil, cemcode.New(cemcode.PublishFailed, "the written stable bundle does not reproduce the source verification")
 	}
+	out.dir.Close()
 	return map[string]any{
 		"ok": true, "mutates": false, "tool": "cem-export", "profile": StableProfile, "bundle": dir,
 		"manifestSha256":     digest(bundle.Manifest()),

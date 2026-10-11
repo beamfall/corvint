@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -597,7 +598,8 @@ func TestReadStableRefusesAnOversizedTree(t *testing.T) {
 // CEM-V1-063: a bundle changed between an entry's check and its read is
 // refused: an entry swapped for an in-root symlink to an undeclared sibling
 // (whose bytes still match), a file added after the walk, or, during the
-// re-reads, the artifacts directory moved aside and replaced by a symlink to it.
+// re-reads, the artifacts directory or the bundle itself moved aside and
+// replaced by a symlink to it.
 func TestReadStableRefusesABundleChangedDuringTheRead(t *testing.T) {
 	f := newStableFixture(t)
 	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
@@ -628,6 +630,12 @@ func TestReadStableRefusesABundleChangedDuringTheRead(t *testing.T) {
 			}
 			return os.Symlink(StableArtifactDir+".moved", filepath.Join(dir, StableArtifactDir))
 		}},
+		{"bundle root symlinked during the re-read", 2, func(dir string) error {
+			if err := os.Rename(dir, dir+".moved"); err != nil {
+				return err
+			}
+			return os.Symlink(filepath.Base(dir)+".moved", dir)
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dir := writeStableAt(t, filepath.Join(f.dir, "changed", strconv.Itoa(i)), bundle)
@@ -651,31 +659,46 @@ func TestReadStableRefusesABundleChangedDuringTheRead(t *testing.T) {
 	}
 }
 
-// CEM-V1-061: WriteStable writes only into the directory it created. A created
-// directory replaced before it is opened, by a symlink to an empty sibling or
-// by another real directory, is refused before anything is written, and the
-// cleanup removes neither the substitute nor anything it points to.
+// CEM-V1-061, CEM-V1-063: WriteStable writes only into the directory it
+// created and its cleanup removes only what it wrote. A created directory
+// replaced before its identity check by a non-empty sibling, or before its
+// open by a symlink to that sibling or by another real directory, is refused
+// with nothing written or removed; a write that fails part way removes the
+// bundle it started.
 func TestWriteStableRefusesASwappedBundleDirectory(t *testing.T) {
 	f := newStableFixture(t)
 	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
 	if err != nil {
 		t.Fatal(err)
 	}
+	moveAside := func(dir string) error {
+		return os.Rename(filepath.Join(dir, "bundle"), filepath.Join(dir, "created"))
+	}
 	for _, c := range []struct {
-		name string
-		swap func(dir string) error
+		name, stage string
+		want        []string // every regular file left under the output parent
+		change      func(dir string) error
 	}{
-		{"symlink to an empty sibling", func(dir string) error {
-			if err := os.Rename(filepath.Join(dir, "bundle"), filepath.Join(dir, "created")); err != nil {
+		{"non-empty sibling moved into place", "mkdir", []string{"bundle/keep"}, func(dir string) error {
+			if err := moveAside(dir); err != nil {
+				return err
+			}
+			return os.Rename(filepath.Join(dir, "sibling"), filepath.Join(dir, "bundle"))
+		}},
+		{"symlink to a sibling", "open", []string{"sibling/keep"}, func(dir string) error {
+			if err := moveAside(dir); err != nil {
 				return err
 			}
 			return os.Symlink("sibling", filepath.Join(dir, "bundle"))
 		}},
-		{"another real directory", func(dir string) error {
-			if err := os.Rename(filepath.Join(dir, "bundle"), filepath.Join(dir, "created")); err != nil {
+		{"another real directory", "open", []string{"sibling/keep"}, func(dir string) error {
+			if err := moveAside(dir); err != nil {
 				return err
 			}
 			return os.Mkdir(filepath.Join(dir, "bundle"), 0o700)
+		}},
+		{"write failing after the map", StableMapName, []string{"sibling/keep"}, func(dir string) error {
+			return os.Chmod(filepath.Join(dir, "bundle", StableArtifactDir), 0o500)
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -683,24 +706,39 @@ func TestWriteStableRefusesASwappedBundleDirectory(t *testing.T) {
 			if err := os.Mkdir(filepath.Join(dir, "sibling"), 0o700); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.WriteFile(filepath.Join(dir, "sibling", "keep"), []byte("keep"), 0o600); err != nil {
+				t.Fatal(err)
+			}
 			parent, err := os.OpenRoot(dir)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer parent.Close()
-			stableWriteHook = func() {
-				if err := c.swap(dir); err != nil {
-					t.Error(err)
+			stableWriteHook = func(stage string) {
+				if stage == c.stage {
+					if err := c.change(dir); err != nil {
+						t.Error(err)
+					}
 				}
 			}
 			defer func() { stableWriteHook = nil }()
 			if err := WriteStable(parent, "bundle", bundle); stableCode(err) != cemcode.PublishFailed {
-				t.Fatalf("swapped bundle directory: %v", err)
+				t.Fatalf("changed bundle directory: %v", err)
 			}
-			for _, name := range []string{"sibling", "created", "bundle"} {
-				entries, err := os.ReadDir(filepath.Join(dir, name))
-				if err != nil || len(entries) != 0 {
-					t.Fatalf("%s: %d entries, %v; want an empty directory left in place", name, len(entries), err)
+			var left []string
+			filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+				if err == nil && entry.Type().IsRegular() {
+					rel, _ := filepath.Rel(dir, path)
+					left = append(left, filepath.ToSlash(rel))
+				}
+				return nil
+			})
+			if !slices.Equal(left, c.want) {
+				t.Fatalf("files left %v, want %v", left, c.want)
+			}
+			if c.stage == StableMapName {
+				if _, err := os.Lstat(filepath.Join(dir, "bundle")); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("a failed write left its bundle directory: %v", err)
 				}
 			}
 		})

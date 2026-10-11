@@ -415,12 +415,15 @@ keeps its layout and bytes. The route stays hidden like the S1 read: help is unc
   or target than the caller supplies (`stable-bundle-revision`). `WriteStable` MUST refuse a bundle
   that is not exactly its map's declared closure (base, order, role, path, bytes) before creating
   anything, and MUST write only inside the new bundle directory: it MUST refuse, before writing, a
-  created directory whose name no longer holds that same real directory or whose opened root is
-  another directory, and its cleanup MUST remove only that directory. Readers MUST open entries
-  without following a final symlink or blocking on a substituted FIFO, MUST recheck each name,
-  re-read every declared file against the digest it was admitted with, and then walk the whole
-  tree again comparing names, kinds and directory identities, so a bundle changed during the read
-  (including an ancestor directory swapped for a symlink) is refused, and MUST read directories in
+  created directory whose name no longer holds that same real directory, whose opened root is
+  another directory, or that is not empty; its cleanup MUST remove, without recursion and through
+  the opened directory, only the files and directories the bundle declares, and then the name only
+  while it still holds that directory. Readers MUST open entries without following a final symlink
+  or blocking on a substituted FIFO, MUST recheck each name, re-read every declared file against
+  the digest it was admitted with, then walk the whole tree again comparing names, kinds and
+  directory identities and check that the caller's path still names the opened directory, so a
+  bundle changed during the read (including the bundle or an ancestor directory swapped for a
+  symlink) is refused, and MUST read directories in
   bounded batches so a tree over the entry bound is refused before it is held in memory. The Go API (`CollectStable`,
   `WriteStable`, `ReadStable`, `VerifyStable`) is the reusable read/write surface for later
   attestation, Git-notes and example-CI consumers. The export route probe that selects this path
@@ -454,7 +457,7 @@ changes.
 | CEM-V1-063 | `TestStableBundleRefusesIncompleteOrTamperedEntries` | Tampered snapshot-head or map byte, omitted artifact or map, extra file, extra directory, symlinked artifact or artifacts directory, inexact or extended manifest, and another target each refuse with their code (exit 2) |
 | CEM-V1-063 | `TestWriteStableRefusesAnAlteredClosure` | An escaping path, a duplicated path (each with the artifact count kept), an added artifact, a relabelled or omitted role, altered bytes and another base refuse before anything is created; the output parent stays empty |
 | CEM-V1-063 | `TestReadStableRefusesAnOversizedTree`, `TestStableEntryOpenDoesNotBlockOnAFIFO` | A tree over 4,096 entries refuses; opening a FIFO entry returns at once and the read refuses it |
-| CEM-V1-063 | `TestReadStableRefusesABundleChangedDuringTheRead` | Between an entry's check and its open, swapping it for an in-root symlink to an undeclared sibling with the same bytes, rewriting an already-read `cem.json`, adding a file, or, during the re-reads, moving `artifacts` aside and replacing it with a symlink to it, refuses as `stable-bundle-entry-escaping` |
-| CEM-V1-063 | `TestWriteStableRefusesASwappedBundleDirectory` | A created bundle directory replaced before it is opened, by a symlink to an empty sibling or by another real directory, refuses as `publish-failed` with nothing written; the sibling, the substitute and the moved directory stay in place and empty |
+| CEM-V1-063 | `TestReadStableRefusesABundleChangedDuringTheRead` | Between an entry's check and its open, swapping it for an in-root symlink to an undeclared sibling with the same bytes, rewriting an already-read `cem.json`, adding a file, or, during the re-reads, moving `artifacts` or the bundle itself aside and replacing it with a symlink to it, refuses as `stable-bundle-entry-escaping` |
+| CEM-V1-063 | `TestWriteStableRefusesASwappedBundleDirectory` | A created bundle directory replaced before its identity check by a non-empty sibling, or before its open by a symlink to that sibling or by another real directory, refuses as `publish-failed` with no file written or removed; a write failing after `cem.json` removes the bundle it started |
 | CEM-V1-060 | `TestCEMExportStableKeepsCallerRoot` | For the alias, `<alias>/../repo`, `<repo>/`, `./repo`, `repo`, `./alias` and `--repo`, `cem export --root` equals `cem verify-stable --repository` on the same string (complete result, exit) and publishes nothing |
 | CEM-V1-064 | `TestStableExportArgumentRefusals` | `--witness` and an in-worktree output refuse with nothing written; a 0.x export refuses `--artifacts` |
