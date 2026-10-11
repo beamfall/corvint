@@ -17,7 +17,10 @@ verification of exactly that bind and base, never an exit status alone. Merge re
 private temporary bare repository with the repository's objects as alternates and none of its
 configuration or attributes, so no merge driver or hook runs and the repository is unchanged; the
 shared dogfood Git reader now also disables fsmonitor and the untracked cache, which a
-repository-configured hook could otherwise have used (independent review round 1). What the check cannot prove (OCM, local outcome,
+repository-configured hook could otherwise have used (independent review round 1). The cleanliness
+probe is Core's hardened status, which refuses a configured clean or process filter instead of
+running it; system attributes are off during derivation; and a `TMPDIR` inside the repository is
+refused before any scratch file exists (round 2). What the check cannot prove (OCM, local outcome,
 composition, dropped conflict sides, verifier independence) is printed as `NOTE` lines, and each
 failure names its recovery. The over-limit refusals of `dogfood change` now name this path
 (DCW-V0-039, DCW-V0-040, proposed).

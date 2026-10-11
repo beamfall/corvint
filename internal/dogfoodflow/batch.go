@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -56,6 +57,7 @@ type batch struct {
 	options      BatchCheckOptions
 	stdout       io.Writer
 	scratch      string
+	tempParent   string
 	objects      string
 	constituents map[string]bool
 	covered      map[string]bool
@@ -110,7 +112,17 @@ func (b *batch) run() int {
 	if !b.gitSucceeds("merge-base", "--is-ancestor", b.base, b.target) {
 		b.refuse("base-not-ancestor-of-head")
 	}
-	if b.gitValue("status", "--porcelain", "--untracked-files=all") != "" {
+	b.requireScratchOutside()
+	// Core's hardened probe reads status against private metadata and refuses
+	// a configuration that could run a repository-owned filter or hook.
+	repository, err := gokernel.ProbeRepositoryContext(b.ctx, b.root)
+	b.checkpoint()
+	if err != nil {
+		b.say("%s: REFUSE worktree-status-unavailable\n  %s\n", b.prefix, oneLine(err.Error()))
+		b.say("  fix: remove the repository configuration the reason names, or run batch-check in a plain clone (git clone --no-hardlinks)\n")
+		b.exit(2)
+	}
+	if repository.DirtyPathCount != 0 {
 		b.refuse("dirty-worktree")
 	}
 	count, _ := strconv.Atoi(b.gitValue("rev-list", "--count", b.base+".."+b.target))
@@ -136,6 +148,27 @@ func (b *batch) run() int {
 	}
 	b.verifyCoverage()
 	return b.finish(count, len(sealed))
+}
+
+// requireScratchOutside refuses a temporary directory that resolves inside the
+// worktree or Git directory, before any scratch file exists, since merge
+// derivation and the status probe write their private copies there.
+func (b *batch) requireScratchOutside() {
+	common := b.gitValue("rev-parse", "--path-format=absolute", "--git-common-dir")
+	parent, err := filepath.EvalSymlinks(os.TempDir())
+	if err == nil && filepath.IsAbs(parent) {
+		err = gitstatus.ScratchOutside(b.ctx, parent, b.root, b.gitDir, common)
+	}
+	if err != nil {
+		b.say("%s: REFUSE scratch-inside-repository\n", b.prefix)
+		b.say("  fix: set TMPDIR to an existing directory outside the repository and its Git directory\n")
+		b.exit(2)
+	}
+	b.tempParent = parent
+}
+
+func oneLine(text string) string {
+	return strings.Join(strings.Fields(text), " ")
 }
 
 func (b *batch) gitRevision(spec string) string {
@@ -186,9 +219,9 @@ type cemStatus struct {
 	Tool   string `json:"tool"`
 	State  string `json:"state"`
 	Counts struct {
-		Total     int `json:"total"`
-		Supported int `json:"supported"`
-		Unknown   int `json:"unknown"`
+		Total     *int `json:"total"`
+		Supported *int `json:"supported"`
+		Unknown   *int `json:"unknown"`
 	} `json:"counts"`
 	Verification struct {
 		Valid          bool   `json:"valid"`
@@ -203,6 +236,7 @@ type cemStatus struct {
 // evidence.
 func (s cemStatus) proves(base, bind string) bool {
 	return s.OK && s.Tool == "cem-status" && s.State == "ready-for-ci" && s.Verification.Valid &&
+		s.Counts.Total != nil && s.Counts.Supported != nil && s.Counts.Unknown != nil &&
 		s.Verification.Assurance == "canonical" && s.Verification.BaseRevision == base && s.Verification.TargetRevision == bind
 }
 
@@ -247,12 +281,9 @@ func (b *batch) verifyConstituent(bind string) {
 	if observed.State == "" {
 		observed.State = failureReason(stderr.Bytes(), code)
 	}
-	counts := "hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED"
-	if parsed {
-		counts = fmt.Sprintf("hunks=%d supported=%d unknown=%d", observed.Counts.Total, observed.Counts.Supported, observed.Counts.Unknown)
-	}
-	b.print("%s: CONSTITUENT bind=%s base=%s %s bootstrapUnknown=%d state=%s\n",
-		b.prefix, bind, cem.BaseRevision, counts, len(bootstrap), observed.State)
+	b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d state=%s\n",
+		b.prefix, bind, cem.BaseRevision, observedCount(observed.Counts.Total), observedCount(observed.Counts.Supported),
+		observedCount(observed.Counts.Unknown), len(bootstrap), observed.State)
 	for _, added := range bootstrap {
 		b.print("  bootstrap-unknown %s\n", added)
 	}
@@ -269,6 +300,13 @@ func (b *batch) verifyConstituent(bind string) {
 	for _, commit := range nonEmpty(strings.Split(covered, "\n")) {
 		b.covered[commit] = true
 	}
+}
+
+func observedCount(value *int) string {
+	if value == nil {
+		return "NOT_OBSERVED"
+	}
+	return strconv.Itoa(*value)
 }
 
 // verifyCoverage requires every commit of the range outside a constituent's
@@ -347,7 +385,7 @@ func (b *batch) scratchGit(args ...string) (string, int) {
 	b.checkpoint()
 	if b.scratch == "" {
 		b.objects = b.gitValue("rev-parse", "--path-format=absolute", "--git-path", "objects")
-		scratch, err := os.MkdirTemp("", "corvint-batch-check-")
+		scratch, err := os.MkdirTemp(b.tempParent, "corvint-batch-check-")
 		if err != nil {
 			b.refuse("scratch-repository-unavailable")
 		}
@@ -357,14 +395,15 @@ func (b *batch) scratchGit(args ...string) (string, int) {
 			b.refuse("scratch-repository-unavailable")
 		}
 	}
-	return b.runScratch(append([]string{"--git-dir=repository.git", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
+	return b.runScratch(append([]string{"--git-dir=repository.git", "-c", "core.hooksPath=" + os.DevNull,
+		"-c", "core.attributesFile=" + os.DevNull}, args...)...)
 }
 
 func (b *batch) runScratch(args ...string) (string, int) {
 	var stdout bytes.Buffer
 	command := exec.CommandContext(b.ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
 	command.Dir = b.scratch
-	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
+	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_ATTR_NOSYSTEM=1", "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
 	command.Stdout = &stdout
 	status := exitStatus(command.Run())
 	b.checkpoint()

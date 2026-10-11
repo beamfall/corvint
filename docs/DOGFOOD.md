@@ -400,7 +400,9 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or
    `corvint dogfood batch-check $BASE`).
 
-The check is read-only: it writes no object, ref, index, worktree file, trace or ledger. Its
+The check is read-only: it writes no object, ref, index, worktree file, trace or ledger, runs no
+repository-configured filter, hook or merge driver (a configuration Core's hardened status cannot
+read safely refuses `worktree-status-unavailable`), and refuses a `TMPDIR` inside the repository. Its
 constituents are the `.corvint/changes/<bind>.cem.json` files `BASE..HEAD` adds. For each it
 requires the bind commit in `HEAD`, the sealed bytes equal to that commit's
 `.corvint/change.cem.json`, a canonical `cem/0.2` or `cem/0.3` map, and `cem status --max-mechanical 0`

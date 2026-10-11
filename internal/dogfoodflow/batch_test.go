@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type batchRepo struct {
@@ -327,13 +328,14 @@ func TestBatchCheckDCWV0039RequiresCanonicalVerification(t *testing.T) {
 		"incomplete":   canonical("incomplete", "canonical", bind),
 		"structural":   canonical("ready-for-ci", "structural", bind),
 		"other-target": canonical("ready-for-ci", "canonical", repo.base),
+		"no-counts":    canonical("ready-for-ci", "canonical", bind),
 	} {
 		repo.output = func(string, string) string { return output }
 		code, stdout, stderr := repo.check()
 		if code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1\n  bind="+bind+" state=") || strings.Contains(stdout, "PASS") {
 			t.Fatalf("%s exit=%d stdout=%s stderr=%s", name, code, stdout, stderr)
 		}
-		if name == "empty" && !strings.Contains(stdout, " hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED ") {
+		if (name == "empty" || name == "no-counts") && !strings.Contains(stdout, " hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED ") {
 			t.Fatalf("invented counts: %s", stdout)
 		}
 	}
@@ -402,5 +404,49 @@ func TestBatchCheckDCWV0039ReportsUnrelatedRootCommit(t *testing.T) {
 	code, _, stderr := repo.check()
 	if code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+root+"\n") {
 		t.Fatalf("root commit exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-039: the cleanliness probe is Core's hardened status, so a
+// repository-configured clean filter never runs; the check refuses instead.
+func TestBatchCheckDCWV0039RefusesRepositoryFilters(t *testing.T) {
+	repo := newBatchRepo(t)
+	repo.write(".gitattributes", "a.txt filter=hostile\n")
+	repo.commit("attributes")
+	repo.base = testGit(t, repo.root, "rev-parse", "HEAD")
+	_, seal := repo.lane("lane-a", "b.txt", "b1\nB2\nb3\n", "")
+	repo.batch(seal)
+	marker := filepath.Join(t.TempDir(), "filter-ran")
+	testGit(t, repo.root, "config", "filter.hostile.clean", "touch '"+marker+"'; cat")
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(filepath.Join(repo.root, "a.txt"), later, later); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := repo.check()
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("batch-check ran a repository clean filter: %v", err)
+	}
+	if code != 2 || !strings.HasPrefix(stderr, "dogfood-batch-check: REFUSE worktree-status-unavailable\n") || !strings.Contains(stderr, "  fix: ") || len(repo.args) != 0 {
+		t.Fatalf("filter exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-039: a temporary directory inside the repository's Git directory is
+// refused before any scratch file is created there.
+func TestBatchCheckDCWV0039RefusesScratchInsideRepository(t *testing.T) {
+	repo := newBatchRepo(t)
+	_, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	repo.batch(seal)
+	inside := filepath.Join(repo.root, ".git", "scratch")
+	if err := os.Mkdir(inside, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", inside)
+	code, _, stderr := repo.check()
+	if code != 2 || stderr != "dogfood-batch-check: REFUSE scratch-inside-repository\n  fix: set TMPDIR to an existing directory outside the repository and its Git directory\n" {
+		t.Fatalf("scratch exit=%d stderr=%s", code, stderr)
+	}
+	if entries, err := os.ReadDir(inside); err != nil || len(entries) != 0 {
+		t.Fatalf("scratch written inside the repository: %v %v", entries, err)
 	}
 }
