@@ -74,6 +74,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
 	handler := &toolHandler{reasonClass: reasonClass}
+	bindings := map[*bridge.Registry]string{}
 	if len(roots) == 1 && roots[0].alias == "" {
 		registry, registryErr := profileRegistries[profile](roots[0].root)
 		if registryErr != nil {
@@ -81,6 +82,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 			return 2
 		}
 		handler.registry = registry
+		bindings[registry] = roots[0].root
 	} else {
 		var refusal string
 		handler.repositories, handler.aliases, refusal = openRepositories(roots, profileRegistries[profile])
@@ -88,6 +90,13 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 			_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
 			return 2
 		}
+		for _, declared := range roots {
+			bindings[handler.repositories[declared.alias]] = declared.root
+		}
+	}
+	// The launch directory is observed once and only labels results (MMR-V0-009).
+	if launch, err := os.Getwd(); err == nil {
+		handler.notices = launchWorktreeNotices(launch, bindings)
 	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
@@ -190,6 +199,8 @@ type toolHandler struct {
 	// (MMR-V0); both are nil under the single-root contract.
 	repositories map[string]*bridge.Registry
 	aliases      []string
+	// notices holds the launch-worktree notice per binding (MMR-V0-009).
+	notices map[*bridge.Registry]string
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -258,7 +269,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		if bridgeErr.Code == "cancelled" || ctx.Err() != nil {
 			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 		}
-		return handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass)
+		return handler.withWorktreeNotice(registry)(handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass))
 	}
 	structured, full, text, err := structuredResult(result, bridge.EnvelopeOnly(name))
 	if err != nil {
@@ -268,7 +279,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	// The summary can drop the field that carries the terminator, so the full
 	// object is checked too: such a receipt stays refused, never emitted.
 	if frameErr != nil || strings.Contains(full, repoenvelope.Terminator) {
-		return handler.toolFailure(name, repoenvelope.CollisionCode, "")
+		return handler.withWorktreeNotice(registry)(handler.toolFailure(name, repoenvelope.CollisionCode, ""))
 	}
 	response := map[string]any{
 		"content":           []any{map[string]any{"type": "text", "text": framed}},
@@ -280,7 +291,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if bridge.EnvelopeOnly(name) {
 		delete(response, "structuredContent")
 	}
-	return response, nil
+	return handler.withWorktreeNotice(registry)(response, nil)
 }
 
 // toolFailure is the closed tool-error object: profile /0 by default, or /1

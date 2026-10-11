@@ -3,15 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-10-07
 Requirement prefix: `MMR-V0`
-Intent status: accepted (decision 0441)
+Intent status: accepted (decision 0441); MMR-V0-009 proposed, pending owner acceptance (V1-1173)
 Delivery status: experimental
 Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07-28-v0.md`
 `MCPV0-001`, `MCPV0-015`; native ticket `V1-0938`.
 
 ## Agent digest
 - Claim: One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.
-- Status: accepted (decision 0441; V1-0938) / experimental
-- Exists: `cmd/corvint-mcp/roots.go`, `cmd/corvint-mcp/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; tests in `cmd/corvint-mcp/roots_test.go` and `main_test.go`.
+- Status: accepted (decision 0441); MMR-V0-009 proposed, pending owner acceptance (V1-1173) / experimental
+- Exists: `cmd/corvint-mcp/roots.go`, `cmd/corvint-mcp/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; `cmd/corvint-mcp/worktree_notice.go`; tests in `cmd/corvint-mcp/roots_test.go`, `main_test.go` and `worktree_notice_test.go`.
 - Blocked on: owner acceptance; no qualified host run; `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` remain single-root.
 - Read next: Requirements; Bounded state and measurements.
 
@@ -87,6 +87,24 @@ into the tool catalogue.
   ceiling; the only cross-call retention is the existing process-wide snapshot mapping cache of 4
   pack plus 4 sectioned entries, independent of the root count. An idle server performs no background
   work. The status-all listing probes roots sequentially.
+- `MMR-V0-009`: (proposed, pending owner acceptance (V1-1173); GitHub #781) At startup,
+  after every root is pinned, `corvint-mcp` MUST read its own launch directory once (`os.Getwd`) and
+  find its enclosing worktree, the nearest ancestor holding a `.git` directory or gitfile, without
+  running Git. A binding is labelled exactly when that worktree is a different directory from the
+  bound root and both resolve to the same Git common directory, that is, the server was started from
+  another linked worktree of the bound repository. Every `tools/call` routed to a labelled binding,
+  including its tool-error result, MUST append a second `text` content block holding the canonical
+  JSON object `{"code":"launch-worktree-differs","message":TEXT,"mutates":false,"schema":"corvint-mcp-worktree-notice/0"}`,
+  whose fixed message names no path. The first block, `structuredContent`, `isError`, the bound root
+  and routing are unchanged; status-all and protocol errors carry no notice. The launch directory is
+  local process state, not request data: it never selects, adds or switches a root, and client roots,
+  `_meta` and arguments cannot set or clear the label (`MCPV0-015` and the client-authority non-goal
+  hold). An unreadable launch directory, no enclosing worktree, the bound worktree itself or a
+  subdirectory of it, or an unrelated repository yields no label, so those results stay
+  byte-identical. Under the label this is a bounded exception to the `MCPV0` single text block and
+  to `MMR-V0-001` single-root byte identity. The launch directory is the only caller-side signal the
+  stdio transport offers without client authority; a host that starts the server elsewhere than the
+  agent's worktree gets no label. Rollback: remove the notice and its startup read.
 
 ## Bounded state and measurements
 
@@ -120,8 +138,8 @@ observations, not a benchmark gate.
 Non-goals: client-provided roots, `roots/list`, or any other client-driven authority; adding or
 removing roots while running; a different tool profile per root; cross-root query, impact or context
 aggregation (only status lists every binding); Streamable HTTP or any listener; and changing any
-`MCPV0` requirement, vector or single-root byte. Follow-up non-goal: `corvint-test-validity-mcp`,
-`corvint-docs-mcp` and `corvint-corpus-mcp` each keep their own argument parser and registry and stay
+`MCPV0` requirement, vector or single-root byte, except the notice block of `MMR-V0-009`.
+Follow-up non-goal: `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` each keep their own argument parser and registry and stay
 single-root. The alias grammar, schema enum and routing in `cmd/corvint-mcp/roots.go` depend only on
 a registry that lists tools and serves calls, so they can move to a shared package when one of those
 servers needs this profile; that needs its own requirement rows.
@@ -148,11 +166,12 @@ Programs that run one agent per linked worktree already have a supported path: d
 as its own alias (`MMR-V0-003` treats distinct linked worktrees as distinct roots) and have every
 call name its alias. Each result is bound to that worktree's own commit (`MMR-V0-007`), and
 `corvint.status` echoes `commitRevision`, `worktreeState` and `dirtyPathCount` per alias; this is
-tested with real linked worktrees. Not delivered, because it needs an owner decision against
-`MCPV0-015` and the non-goals above (no client-driven authority): an optional per-call `root`,
-`snapshot` or `revision` argument validated against repository identity with a typed refusal, cwd
-discovery per call, and a flag that the bound root differs from the caller's worktree. Those are
-proposed as follow-up tickets; no requirement is added or amended here.
+tested with real linked worktrees. A server started from one linked worktree but bound by a fixed
+`--root` to another (the #781 case of a host configuration that hardcodes the root) labels each
+routed result with the informational notice of `MMR-V0-009` (V1-1173), which changes no authority.
+Not delivered, because it needs an owner decision against `MCPV0-015` and the non-goals above (no
+client-driven authority): an optional per-call `root`, `snapshot` or `revision` argument validated
+against repository identity with a typed refusal (V1-1172), and cwd discovery per call.
 
 ## Acceptance evidence and rollback
 
@@ -177,3 +196,4 @@ No persisted state, index format or wire field of the single-root profile change
 | `MMR-V0-006` | `roots.go` `statusAll`; `main.go` `toolErrorObject` | `TestMMRV0006StatusReportsEveryBinding` |
 | `MMR-V0-007` | `bridge.Registry` per root; `contextindex` path-keyed caches | `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls across three roots), `TestMMRV0006StatusReportsEveryBinding` (commit in one root), `TestMMRV0007LinkedWorktreesBindTheirOwnCommit` (linked worktrees, V1-1139) |
 | `MMR-V0-008` | `bridge.Registry` pin-only state; `contextindex` `packCacheCapacity` | Measurements above; `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls stay bound) |
+| `MMR-V0-009` | `cmd/corvint-mcp/worktree_notice.go` `launchWorktreeNotices`, `withWorktreeNotice`; `run`, `toolHandler.call` in `main.go` | `TestMMRV0009LaunchWorktreeNotice` (real linked worktrees: labelled only from another worktree, first block and structuredContent unchanged, client roots ignored, per-alias label, none on status-all), `TestMMRV0009NoticeOnToolError`, `TestMMRV0009NoticeOnRoutedToolError` (real routed envelope-collision tool error) |

@@ -77,6 +77,8 @@ AFP-V0-040	docs/specs/affected-plan-v0.md	1041	(accepted by decision 0487, 2026-
 AFP-V0-041	docs/specs/affected-plan-v0.md	536	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
 AFP-V0-042	docs/specs/affected-plan-v0.md	1087	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
 AFP-V0-043	docs/specs/affected-plan-v0.md	1107	(accepted, decision 0505) Cost-table
+AFP-V0-044	docs/specs/affected-plan-v0.md	1116	(proposed, pending owner acceptance (V1-1141); GitHub #783) When `--base`
+AFP-V0-045	docs/specs/affected-plan-v0.md	1127	(proposed, pending owner acceptance (V1-1141); GitHub #783) `affected` MUST
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1136,6 +1138,7 @@ DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
 DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	111	**accepted, decision 0518 (V1-1141)**. A normal
 DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	119	**accepted, decision 0518 (V1-1141)**. Path impact
+DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	128	**proposed, pending owner acceptance (V1-1174)**. Every verb
 DLT-V0-001	docs/specs/immutable-delta-v0.md	27	Delta MUST bind full lowercase base/head commit OIDs, head tree, complete
 DLT-V0-002	docs/specs/immutable-delta-v0.md	30	The affected graph MUST read every participating provider's source, config,
 DLT-V0-003	docs/specs/immutable-delta-v0.md	34	Git blob bodies MUST be admitted before allocation by expected OID/type/size,
@@ -2196,6 +2199,7 @@ MMR-V0-005	docs/specs/mcp-multi-root-v0.md	60	(accepted by decision 0441; V1-093
 MMR-V0-006	docs/specs/mcp-multi-root-v0.md	68	(accepted by decision 0441; V1-0938) `corvint.status` with no arguments
 MMR-V0-007	docs/specs/mcp-multi-root-v0.md	78	(accepted by decision 0441; V1-0938) Every result MUST bind to its own
 MMR-V0-008	docs/specs/mcp-multi-root-v0.md	84	(accepted by decision 0441; V1-0938) Per-root resident state MUST be only
+MMR-V0-009	docs/specs/mcp-multi-root-v0.md	90	(proposed, pending owner acceptance (V1-1173); GitHub #781) At startup,
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	38	The profile MUST be served by the separate executable `corvint-test-validity-mcp
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	47	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	54	Receipt location contract. The only receipt source MUST be the caller's `receipt
