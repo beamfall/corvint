@@ -1,0 +1,1320 @@
+{
+  "baseRevision": "f0951ea98c6da324b1f4bc1aa278c15d9b12faad",
+  "evidence": [
+    {
+      "blobOid": "326ad86be195b68a54b109c232d9d4f242f086ef",
+      "id": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+      "path": "docs/specs/cem-stable-v1.md",
+      "span": {
+        "end": 3090,
+        "start": 2059
+      },
+      "spanSha256": "be729f5214a0cdb0a341d93f9f2174ae0889003d0e1a4950e48866bb164d406b"
+    },
+    {
+      "blobOid": "dbc82b1bc2a57e37dd46cdff2f8d25392b2eb59b",
+      "id": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "span": {
+        "end": 2423,
+        "start": 2033
+      },
+      "spanSha256": "6da1faf7cc6f2ee087c10853cb60699bccb3f6a9a6b55de704a2156420faf9ef"
+    },
+    {
+      "blobOid": "f20ca717b97094f969cfc1294051aa94a866f180",
+      "id": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "span": {
+        "end": 3388,
+        "start": 2347
+      },
+      "spanSha256": "4880c79eba36347099cf0d218e34cc1ce7c5018a6ada8c86250920eee455e15d"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d38e748096e16cbb6971c19792c4de002288c54f747ec1f11cb7be00d4df6693",
+      "newRange": {
+        "count": 27,
+        "start": 128
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 128
+      },
+      "path": "cmd/corvint-js-test-provider/help_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b17ba6e14fb911efd6251d9f7ed740f343121fd1bc244b7695643a5fc0d1ddcb",
+      "newRange": {
+        "count": 13,
+        "start": 103
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 103
+      },
+      "path": "cmd/corvint-js-test-provider/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:aaff8aee22ea3dfc3898ab61aa4880d7d30dae2615a9b8d134481d0b85699828",
+      "newRange": {
+        "count": 10,
+        "start": 319
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 312
+      },
+      "path": "cmd/corvint-js-test-provider/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3a4c0c2e8ccb3f8c053104310003a87b618f661762a6180b344016919b04be70",
+      "newRange": {
+        "count": 118,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-11-cem03-portable-conformance.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d0aab9e73f153028cf8b46fe4147b8edec317ca07db0e4dd551da4e4cc62b2bd",
+      "newRange": {
+        "count": 34,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-11-cem03-tuple-admission.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6781b5a3dbaa82373b71915793c97382751f16a6110e9236c8b19353df84b699",
+      "newRange": {
+        "count": 37,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-11-cem03-untracked-empty-vector.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1cf9e53b0958428480a1f1217e94927a1d76d49d8b2c78cceb6aece5295c6364",
+      "newRange": {
+        "count": 40,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-11-gh807-setup-project-files.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e4e169bcf8875584a9cddf4cb4971acfc0b081fcac744b841848a68e0837a1d5",
+      "newRange": {
+        "count": 77,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0521-cem-1-0-in-rc3-scope-2026-10-11.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:50973d24ddfc21fc52e417f53fc3ce1073328d3aae413e0a55da221ad4926fec",
+      "newRange": {
+        "count": 7,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 23
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:965b52892cc23576c4c7a93ca9011334559e741fe9ab5b2491748bc71e4d74d4",
+      "newRange": {
+        "count": 7,
+        "start": 121
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 121
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a58930857fb6e4292863e115820679177302dc86c9d161ff4c543b8043493a24",
+      "newRange": {
+        "count": 17,
+        "start": 799
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 799
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:396618bf74977780e02db0b87b3bcf74378167a52b8b87b3f07eae32bb607c3f",
+      "newRange": {
+        "count": 28,
+        "start": 2661
+      },
+      "oldRange": {
+        "count": 27,
+        "start": 2653
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9ab17707850a404b33c12a27ce7899a0340fa0263af6cb9bd2bbcfa68fed9648",
+      "newRange": {
+        "count": 9,
+        "start": 9
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 9
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:15eae47fe76d363050542584805b699693d06dbd6b3a6528d19779ee08da29f5",
+      "newRange": {
+        "count": 9,
+        "start": 61
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 61
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ba3311b697a72273a9a7a1f5e289ebc55e62c134276a5de7f09faafab235bcaf",
+      "newRange": {
+        "count": 54,
+        "start": 75
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 73
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0015d46dacff86e61ff73351f01daa743ade637cb0a87a2488cd2a0bd85a4f07",
+      "newRange": {
+        "count": 9,
+        "start": 148
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 107
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb6e5f106102116639d64b4bae328e6661d61ccfb8f7626654ac118cff7a52e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d2cfd3767b1be3025c7f2cbba27b85b330cde396ade04a619677728648e2502a",
+      "newRange": {
+        "count": 22,
+        "start": 170
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 126
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6b9b033ccfeadb21c2ffb9961958af59330b6d85ccea0a79552153a70fd35d9e",
+      "newRange": {
+        "count": 7,
+        "start": 15
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 15
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9b38357426067d37b089a99f135ea48891d72426a080c6f81c39eb6089b79322",
+      "newRange": {
+        "count": 34,
+        "start": 158
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 158
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:33fa2379c18d5adaf7e0c67218e5a663963c80be9dfd607132d7214860a0fbf1",
+      "newRange": {
+        "count": 7,
+        "start": 289
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 261
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1ef17fb90cc4994fc8f666715bd1c2d2f0dd6409e826b6c438311b5eb42a7546",
+      "newRange": {
+        "count": 7,
+        "start": 418
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 390
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2ee72592ba25203028cad2ce63340a70b82bf51b98956d5773982ac98bccdc82",
+      "newRange": {
+        "count": 12,
+        "start": 431
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 402
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fe9b215d695c41acc02fc3e369e7471cf629ffd8b60d5e8865ad30b9c3cc7f0e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:11bdafc8bf451f2de6f52e123be3f1109c05f3fc71cd6fca3eeea37ea0196516",
+      "newRange": {
+        "count": 7,
+        "start": 445
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 416
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:65e472f89915bb3d95cef9c0dc14b42c6f5c8ec276ead8df729cd8b73a167fbe",
+      "newRange": {
+        "count": 33,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 29
+      },
+      "path": "internal/cem/cli/stable_read_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3063b73eb672eb03cf30c22bfa17e2d15cd9c1a55d58c8f6838a21221972d6b2",
+      "newRange": {
+        "count": 7,
+        "start": 97
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 70
+      },
+      "path": "internal/cem/cli/stable_read_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8d67945d41d0b46f4ef5ff78f00267cebba9fe329e1d3b2d564a2534c17d1ec0",
+      "newRange": {
+        "count": 9,
+        "start": 376
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 376
+      },
+      "path": "internal/cem/verify/structural.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d27fe0cf7fa59c8c946a10859e287a6c7f2458be446e55ceb3059d08abdb5421",
+      "newRange": {
+        "count": 16,
+        "start": 402
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 401
+      },
+      "path": "internal/cem/verify/structural.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2143e09be61dc2f3d39e448da22096e74abffe1dfb8d60ea5e4b799606d3445f",
+      "newRange": {
+        "count": 6,
+        "start": 427
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 424
+      },
+      "path": "internal/cem/verify/structural.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8f48d3204ef6dc68d7086dd8069a42abc861244b0b77409617f34e2e61bf6626",
+      "newRange": {
+        "count": 14,
+        "start": 434
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 432
+      },
+      "path": "internal/cem/verify/structural.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:da405e3b1ba5188bb8b660f190c3b1d57082ef503ef228cf958c46470fd905ca",
+      "newRange": {
+        "count": 22,
+        "start": 202
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 202
+      },
+      "path": "internal/cem/verify/structural_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d765f0a15efa99ad17f6754ee94e89f7cc1723adda398fe27e2c8ed28474a41a",
+      "newRange": {
+        "count": 14,
+        "start": 165
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 165
+      },
+      "path": "internal/cem/wire/map.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b2491431aa240bc36a8d1c3c361c2b3b201361249c6bd4a158b968188df1c4ee",
+      "newRange": {
+        "count": 9,
+        "start": 195
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 188
+      },
+      "path": "internal/cem/wire/map.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:41a3cf411eafbcdcc7db51e7930d9975ad2ba28720b648a415485d32542e6c6b",
+      "newRange": {
+        "count": 206,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/cem/workflow/portable03_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fdf7497bce58d6a952dccb782d96919b441a331f200be2819091a45c08f28c11",
+      "newRange": {
+        "count": 13,
+        "start": 32
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 32
+      },
+      "path": "internal/cem/workflow/read.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d8c72bb60a7ad70739964c59ef0086c03a032462fe976eace766a08a214dabfe",
+      "newRange": {
+        "count": 12,
+        "start": 59
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 52
+      },
+      "path": "internal/cem/workflow/read.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8792d22270d1fe98debae1571465a4802a71074d9636ff39d4464d21ba471d59",
+      "newRange": {
+        "count": 10,
+        "start": 90
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 82
+      },
+      "path": "internal/cem/workflow/read.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:502375e56b39322b57334768df63dc3d33cc26c92c2f6461c40d30dd6ea947f8",
+      "newRange": {
+        "count": 7,
+        "start": 15
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 15
+      },
+      "path": "internal/jstestprovider/external.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a19d311e6c606880aa4c7bfd665d755a1d5ee96f99f9b36502a0a347bec0e123",
+      "newRange": {
+        "count": 8,
+        "start": 524
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 523
+      },
+      "path": "internal/jstestprovider/external.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eb164254aadcf8caa87a1e9c63a51bc4f419b08fef816afe94b900862467f040",
+      "newRange": {
+        "count": 50,
+        "start": 542
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 541
+      },
+      "path": "internal/jstestprovider/external.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ed423c25b6b969a05969af05add99c4f3bfa8a8b7276181b6de6edeb380aacb2",
+      "newRange": {
+        "count": 9,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 7
+      },
+      "path": "internal/jstestprovider/external_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eaae3ff6cb3691d690707f2631f5deed7cf021b2f881b022a3b7896c90f1a15b",
+      "newRange": {
+        "count": 92,
+        "start": 568
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 566
+      },
+      "path": "internal/jstestprovider/external_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7fab2682ad5faa8a9675a4df6cf26b5015274783eb73baf435ebdc77755c53ab",
+      "newRange": {
+        "count": 24,
+        "start": 2102
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 2102
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:162072f38bf8cc3b02b041e7ed28aeb944426d6fae9005819cc7356d1407ffd2",
+      "newRange": {
+        "count": 7,
+        "start": 2257
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2239
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f6221219fcf9b584a8154ba24fdb262bd59c75ecf90f3435f6fd604f207dba88",
+      "newRange": {
+        "count": 9,
+        "start": 2309
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2291
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:db31481192b71055425423283da9b04d228f08f33be26020c561cb831182d1d9",
+      "newRange": {
+        "count": 10,
+        "start": 2338
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 2318
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:16e096b0aa4d2fb930f6dc039aa2e2a40096c88de61ca80ed8b7669420524410",
+      "newRange": {
+        "count": 7,
+        "start": 2349
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 2329
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d5d4ffd2ed58c37ece34e398469d1b57d4a587d548c61627eafd4bb2432abd53",
+      "newRange": {
+        "count": 18,
+        "start": 2362
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 2341
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c62413f22f02bae7c556a6bdff5f024e38aff77dad6cd5a9caeb937e59e1bccf",
+      "newRange": {
+        "count": 28,
+        "start": 2401
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 2373
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1ed75fe22e14be570f29d8bd9e0d02514fb9786782b746b605d9e9f060aea70a",
+      "newRange": {
+        "count": 10,
+        "start": 3142
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 3101
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:41443c04464d1dbe8c17a34d03f1ba1edf97989c3cad8e2b52ea909cd3086c54",
+      "newRange": {
+        "count": 6,
+        "start": 3156
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 3111
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2eb2da7a7a8e67fef7ce3c961cb28cf903650755e569a66335efc3fa15c67f46",
+      "newRange": {
+        "count": 13,
+        "start": 3171
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 3129
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4fb2574bc2e87d47df60d178f6bbc7b24a26082e44c288b41603ee1ca9abe72e",
+      "newRange": {
+        "count": 8,
+        "start": 3248
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 3199
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:926ad3ce0a9e4ee69ae085080b6599c4d322bc7a33d7eae09e57b547d80cfa25",
+      "newRange": {
+        "count": 7,
+        "start": 3258
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 3214
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:45ee9515452a52827eedd50e99c3af5f9292185a776e56a7274ca8faf4b60c89",
+      "newRange": {
+        "count": 7,
+        "start": 3266
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 3222
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:89bdef778b1d61884cb058813edcecbae808c8c1105161cd9452b5a457817574",
+      "newRange": {
+        "count": 6,
+        "start": 3287
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 3253
+      },
+      "path": "interop/cem01-go/cem.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f6d73e4409c28f1d2e9528adc8e863ced01f4d4fc34f3b1a848b8f80621201f6",
+      "newRange": {
+        "count": 1312,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/packet03_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2d1d69a9d984539a5b87acdc808769f5d5d63ddd43e309749302d1854ee050a2",
+      "newRange": {
+        "count": 7,
+        "start": 245
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 245
+      },
+      "path": "interop/cem01-go/patch.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:194503cc37a3ec34e112a45de0cdfbdcf538fc4e61ed55a93e4a0a9d56b4da35",
+      "newRange": {
+        "count": 8,
+        "start": 758
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 758
+      },
+      "path": "interop/cem01-go/patch.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7610868ebfb12b420c4b082bc2a6f9ab2e16ca8c5134e415e94b77588e65aefe",
+      "newRange": {
+        "count": 203,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/ALGORITHMS.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6c79f9b532ca84df55d69fec9cc3d2b1084dc7c81b28782ac9b0f8284638291c",
+      "newRange": {
+        "count": 210,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/LICENSE-APACHE-2.0",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e3d12d75b842a6fbd4fe505bb01a90acf3b82da681699672d08208993039ee85",
+      "newRange": {
+        "count": 141,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/OPERATION.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d6853d7d0baa6466c979a9dfe96799465709b117aa1e098a2e8367290611f87a",
+      "newRange": {
+        "count": 88,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:115125f3377cf7a97fb2c3c8db13dbd66f35a3767485cedc1cb23672fd41f0f7",
+      "newRange": {
+        "count": 84,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/WP1-OBSERVED.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:49e433e5e32752f15b7b11dda1e44fcad5b168e8d1f5d6da1775b98a99e3b8ba",
+      "newRange": {
+        "count": 497,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/cem-0.3.schema.json",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "c39f55b8db58d20678fd65f168620f1d383724a89bb68601fd5d611056a122a3",
+  "spec": "cem/0.2"
+}
