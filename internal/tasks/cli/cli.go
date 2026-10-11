@@ -43,12 +43,13 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
-	afterRead func() // deterministic snapshot-move tests only
-	Cwd       string
-	Args      []string
-	Stdin     io.Reader
-	Stdout    io.Writer
-	Stderr    io.Writer
+	afterRead  func()                                   // deterministic snapshot-move tests only
+	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
+	Cwd        string
+	Args       []string
+	Stdin      io.Reader
+	Stdout     io.Writer
+	Stderr     io.Writer
 	// ScopeDeriver derives a claim scope for a ticket that declares none
 	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
@@ -331,7 +332,8 @@ func prose(s string) string {
 func emit(w io.Writer, res *wire.Result) int {
 	data, err := res.Encode()
 	if err != nil {
-		fallback := &wire.Result{Command: res.Command, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}}
+		fallback := errorResult(res.Command, err)
+		fallback.NotRetryable = fallback.NotRetryable || res.NotRetryable
 		data, err = fallback.Encode()
 		if err != nil {
 			data = []byte(`{"codes":["MALFORMED"],"command":["help"],"items":[],"mutation":null,"outcome":"ERROR","page":null,"profile":"taskman-command-result/0","retryable":false,"snapshot":null,"untrusted":[],"warnings":["envelope could not be encoded"]}` + "\n")
@@ -558,7 +560,7 @@ func failure(cmd []string, rc *readCtx, err error) *wire.Result {
 		err = rc.repo.WithIntentRepair(err)
 	}
 	code := wire.CodeOf(err)
-	res := &wire.Result{Command: cmd, Outcome: outcomeFor(code), Codes: []string{code}, Warnings: []string{prose(err.Error())}}
+	res := &wire.Result{Command: cmd, Outcome: outcomeFor(code), Codes: []string{code}, Warnings: []string{prose(err.Error())}, NotRetryable: wire.RetryForbidden(err)}
 	if rc != nil && rc.snap != nil && rc.snap.Head != nil {
 		res.Snapshot = rc.snap.EnvelopeSnapshot(rc.repo.PrimaryWorktreeSha256(), code == wire.CodeRedoPending)
 	}

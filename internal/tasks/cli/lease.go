@@ -271,7 +271,11 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return fail(err)
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	probe := env.leaseProbe
+	if probe == nil {
+		probe = snapshot.Probe
+	}
+	observed, err := probe(repo.StateDir)
 	if err != nil {
 		return fail(err)
 	}

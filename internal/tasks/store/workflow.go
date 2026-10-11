@@ -120,6 +120,10 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 		return e
 	}
 	r, e := SupervisorTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.attempt.AttemptID, w.attempt.Generation, f)
+	if action == "DISPATCH" && r != nil && r.Receipt != "" {
+		// A failed post/head write can follow a committed dispatch (CAL-V0-215).
+		w.departed = true
+	}
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}

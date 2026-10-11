@@ -275,7 +275,7 @@ func prepareJob(env Env, a *commonRunArgs) (*runJob, wire.Digest, []string, erro
 	}
 	out, err := filepath.Abs(a.out)
 	if err != nil {
-		return nil, "", nil, wire.Errorf(wire.CodeMalformed, "--out", "cannot resolve the results directory: %v", err)
+		return nil, "", nil, wire.Errorf(wire.CodeOf(err), "--out", "cannot resolve the results directory: %v", err)
 	}
 	j := &runJob{env: env, cfg: cfg, root: root, commit: commit, dir: filepath.Join(out, a.requestID), requestID: a.requestID,
 		pool: a.pool, attempt: a.attempt, generation: a.generation}
@@ -301,17 +301,17 @@ func (j *runJob) unchanged() error {
 // job never overwrites an earlier run's evidence.
 func (j *runJob) open() error {
 	if err := os.MkdirAll(filepath.Dir(j.dir), 0o755); err != nil {
-		return wire.Errorf(wire.CodeMalformed, "--out", "cannot create the results directory: %v", err)
+		return wire.Errorf(wire.CodeOf(err), "--out", "cannot create the results directory: %v", err)
 	}
 	if err := os.Mkdir(j.dir, 0o755); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return wire.Errorf(wire.CodeRequestIDConflict, "--request-id", "%s already holds request %s; a job never overwrites earlier evidence, so use a new request id", filepath.Dir(j.dir), j.requestID)
 		}
-		return wire.Errorf(wire.CodeMalformed, "--out", "cannot create the results directory: %v", err)
+		return wire.Errorf(wire.CodeOf(err), "--out", "cannot create the results directory: %v", err)
 	}
 	out, err := os.OpenRoot(j.dir)
 	if err != nil {
-		return wire.Errorf(wire.CodeMalformed, "--out", "cannot open the results directory: %v", err)
+		return wire.WithoutRetry(wire.Errorf(wire.CodeOf(err), "--out", "cannot open the results directory: %v", err))
 	}
 	j.out = out
 	return nil
@@ -644,7 +644,7 @@ type batchWitness struct {
 	Detail  string   `json:"detail"`
 }
 
-func runBatch(env Env, cmd []string, args []string) *wire.Result {
+func runBatch(env Env, cmd []string, args []string) (result *wire.Result) {
 	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
@@ -709,6 +709,10 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
+	defer func() {
+		// The request directory exists; a same-request retry cannot resume it.
+		result.NotRetryable = true
+	}()
 	defer j.close()
 	ctx, stop := jobInterruptContext()
 	defer stop()
@@ -764,7 +768,7 @@ func runBatch(env Env, cmd []string, args []string) *wire.Result {
 			earlier, rep, notReached = "the checkout changed during the run: "+prose(err.Error()), nil, obligation.CauseUncredited
 		}
 	}
-	result := success(cmd, rc)
+	result = success(cmd, rc)
 	if rep == nil {
 		// Nothing ran to an admissible report, so every obligation in scope
 		// was not reached because an earlier step failed.
@@ -842,7 +846,7 @@ func readPriorSummary(file string) ([]byte, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeMalformed, "--out", "cannot read %s: %v", file, err)
+		return nil, wire.Errorf(wire.CodeOf(err), "--out", "cannot read %s: %v", file, err)
 	}
 	defer f.Close()
 	if st.Size() > maxSummaryBytes {
@@ -851,7 +855,7 @@ func readPriorSummary(file string) ([]byte, error) {
 	priorSummaryReadHook(file)
 	raw, err := io.ReadAll(io.LimitReader(f, maxSummaryBytes+1))
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeMalformed, "--out", "cannot read %s: %v", file, err)
+		return nil, wire.Errorf(wire.CodeOf(err), "--out", "cannot read %s: %v", file, err)
 	}
 	if len(raw) > maxSummaryBytes {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, "--out", "%s exceeds %d bytes", file, maxSummaryBytes)
@@ -929,7 +933,7 @@ func repeatFailures(out, ticketID, fixture string, l *ticket.ObligationLedger, i
 		return nil
 	}
 	if err != nil {
-		return wire.Errorf(wire.CodeMalformed, "--out", "cannot read the results directory: %v", err)
+		return wire.Errorf(wire.CodeOf(err), "--out", "cannot read the results directory: %v", err)
 	}
 	if len(entries) > maxPriorRuns {
 		return wire.Errorf(wire.CodeLimitExceeded, "--out", "the results directory holds more than %d entries; archive earlier runs", maxPriorRuns)

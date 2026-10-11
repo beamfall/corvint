@@ -168,10 +168,10 @@ func escalationSubmit(cmd []string, fl map[string]string, req ticket.EscalationR
 	raw, err := ticket.EncodeEscalationRequest(req)
 	if err != nil {
 		// Keep a typed bound refusal such as LIMIT_EXCEEDED; only untyped
-		// codec errors become MALFORMED.
+		// codec errors use the shared classification.
 		var typed *wire.Error
 		if !errors.As(err, &typed) {
-			err = wire.Errorf(wire.CodeMalformed, "request", "%v", err)
+			err = wire.Errorf(wire.CodeOf(err), "request", "%v", err)
 		}
 		return errorResult(cmd, err)
 	}
@@ -458,7 +458,7 @@ func escalationEntryValue(rec *ticket.Record, ref ticket.EscalationRef, m escala
 	}
 	origin, err := ticket.DecodeEscalationEvent(m.blobs[ref.OriginSha256])
 	if err != nil {
-		o.Set("material", wire.String("UNAVAILABLE")).Set("code", wire.String(wire.CodeMalformed))
+		o.Set("material", wire.String("UNAVAILABLE")).Set("code", wire.String(wire.CodeOf(err)))
 		return wire.ObjectValue(o)
 	}
 	o.Set("material", wire.String("AUDITED"))

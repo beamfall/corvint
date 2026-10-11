@@ -212,6 +212,10 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 		return &Report{}, wire.Errorf(wire.CodeUnsupported, "pool command", "no configured command")
 	}
 	report, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+	if report.Receipt != "" {
+		// The receipt may commit before a post/head write fails (CAL-V0-215).
+		report.Unretryable = true
+	}
 	if e != nil || report.Kind != "Transaction" {
 		return report, e
 	}
