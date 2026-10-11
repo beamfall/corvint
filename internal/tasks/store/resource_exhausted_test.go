@@ -16,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -185,8 +186,9 @@ func TestCALV0215_AutomaticHealthExhaustion(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	for _, errno := range []error{syscall.EMFILE, syscall.ENFILE} {
 		for _, verb := range []string{"claim", "acquire"} {
-			for _, committed := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%s/committed=%v", verb, errno, committed), func(t *testing.T) {
+			for _, boundary := range []string{"before-receipt", "after-receipt", "after-health"} {
+				t.Run(fmt.Sprintf("%s/%s/%s", verb, errno, boundary), func(t *testing.T) {
+					committed := boundary != "before-receipt"
 					s := newLeaseStore(t)
 					s.root = s.repo.PrimaryWorktree
 					gitRun(t, s.root, "init", "-q", "-b", "main")
@@ -223,18 +225,38 @@ func TestCALV0215_AutomaticHealthExhaustion(t *testing.T) {
 					})
 					t.Cleanup(restoreHealth)
 					restore := store.SetPublishFaultForTest(func(a transaction.Artifact) error {
-						if !armed {
+						if !armed || fired != 0 {
 							return nil
 						}
-						if a.Role == "RECEIPT" {
-							receipt = a
-						}
-						target := a.Role == "RECEIPT"
-						if committed {
-							target = a.Role == "POST" && a.Target == "pools.json"
-						}
-						if !target {
-							return nil
+						if boundary == "after-health" {
+							ran, err := os.ReadFile(marker)
+							if os.IsNotExist(err) {
+								if a.Role == "RECEIPT" {
+									receipt = a
+								}
+								return nil
+							}
+							if err != nil || string(ran) != "x" {
+								t.Fatalf("health marker: %q %v", ran, err)
+							}
+							if a.Role != "RECEIPT" {
+								return nil
+							}
+							r, err := snapshot.DecodeReceipt(a.Data)
+							if err != nil || r.RequestID == nil || *r.RequestID != "health-pressure" {
+								t.Fatalf("fault missed claim/acquire after passing health: %+v %v", r, err)
+							}
+						} else {
+							if a.Role == "RECEIPT" {
+								receipt = a
+							}
+							target := a.Role == "RECEIPT"
+							if committed {
+								target = a.Role == "POST" && a.Target == "pools.json"
+							}
+							if !target {
+								return nil
+							}
 						}
 						if receipt.Target == "" {
 							t.Fatal("fault did not reach receipt boundary")
@@ -262,7 +284,15 @@ func TestCALV0215_AutomaticHealthExhaustion(t *testing.T) {
 					if !armed || fired != 1 || res.Outcome != wire.OutcomeError || len(res.Codes) != 1 || res.Codes[0] != wire.CodeResourceExhausted || !strings.Contains(out.String(), fmt.Sprintf(`"retryable":%v`, !committed)) {
 						t.Fatalf("armed=%v fired=%d result=%s", armed, fired, out.Bytes())
 					}
-					if _, err := os.Stat(marker); !os.IsNotExist(err) {
+					if boundary == "after-health" {
+						if ran, err := os.ReadFile(marker); err != nil || string(ran) != "x" {
+							t.Fatalf("health did not run exactly once: %q %v", ran, err)
+						}
+						if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].State != "QUARANTINED" {
+							t.Fatalf("cleanup did not quarantine member: %+v", state)
+						}
+						auditOK(t, s.repo)
+					} else if _, err := os.Stat(marker); !os.IsNotExist(err) {
 						t.Fatalf("health program ran: %v", err)
 					}
 				})

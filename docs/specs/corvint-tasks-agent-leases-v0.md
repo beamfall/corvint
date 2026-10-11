@@ -5739,7 +5739,9 @@ if the writer has not yet recorded the receipt name in its report. This conserva
 may suppress a safe ordinary mutation retry; it avoids inviting an unfinished multi-step replay.
 Pool preparation (including automatic health preparation for claim and pool acquire), initial
 sweep ownership and supervised dispatch MUST record their non-retryable
-fact even when the writer returns both a receipt name and an error. `run-batch` and `qualify`
+fact even when the writer returns both a receipt name and an error. Automatic health MUST preserve
+this fact on every later return, including claim/acquire and cleanup failures after health passes.
+`run-batch` and `qualify`
 also forbid retry once their request directory exists, including an OpenRoot failure after mkdir,
 because an identical request cannot resume that directory. Configuration open/read failures before
 that directory exists and archive verification source-read failures preserve errno identity for
@@ -5766,7 +5768,8 @@ mark precedence. `TestCALV0215_ReceiptLinkExhaustion` (`internal/tasks/authority
 its fixture and canonical encoding, reaches the injected pre-write snapshot failure for each
 errno, then checks the envelope and byte-identical store/journal. CLI marked-error and committed
 report cases verify false survives envelope encoding. `TestCALV0215_AutomaticHealthExhaustion`
-checks claim/acquire envelopes on both sides of the preparation receipt; its outside-sandbox
+checks claim/acquire envelopes on both sides of the preparation receipt and after passing health,
+when the claim/acquire receipt write fails and cleanup quarantines the member; its outside-sandbox
 execution remains pending. `TestCALV0215_RunConfigResourceExhausted` checks config open/read
 errors before results-directory creation, and `TestCALV0215_ArchiveSourceExhausted` checks
 source errors at tar boundaries and an unchanged filesystem. Focused race tests, vet and documentation

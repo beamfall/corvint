@@ -257,7 +257,16 @@ func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 		return leaseOnce(WithClock(ctx, poolClock), repo, actor, c, poolClock())
 	})
 }
-func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (*Report, error) {
+func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (result *Report, err error) {
+	unretryable := initial != nil && initial.Unretryable
+	defer func() {
+		if unretryable {
+			if result == nil {
+				result = &Report{}
+			}
+			result.Unretryable = true
+		}
+	}()
 	report := initial
 	holder, stage := choice.Lease.Holder, choice.Lease.Stage
 	if choice.Lease.Verb == transaction.LeasePoolAcquire {
@@ -325,11 +334,9 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			healthPrepareHook(member)
 		}
 		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
-		if prepared.Receipt != "" {
-			// Replay cannot finish automatic health after its receipt commits,
-			// including a later post/head failure (CAL-V0-215).
-			prepared.Unretryable = true
-		}
+		// Replay cannot finish automatic health after its receipt commits.
+		// Preserve that prohibition across all later reports (CAL-V0-215).
+		unretryable = unretryable || prepared.Unretryable || prepared.Receipt != ""
 		if e != nil {
 			return prepared, e
 		}
