@@ -3097,7 +3097,8 @@ TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	155	The prof
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	163	Qualification requires a fixture with Chromium plus Angular/React project varian
 TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	170	(accepted, decision 0483; V1-1065; GitHub #709) In a global or project
 TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	234	(accepted, decision 0483; V1-1066; GitHub #709) The command
-TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	295	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
+TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	296	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
+TJAA-V0-021	docs/specs/typescript-javascript-affected-adapter-v0.md	305	(proposed, pending owner acceptance (V1-1175); GitHub #790) A project `grep` or
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	62	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	71	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	88	A folded obligation entry MUST be the closed object `{id, title, core, state,
