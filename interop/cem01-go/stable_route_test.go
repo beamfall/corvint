@@ -193,6 +193,9 @@ func TestExampleStableBranchVerifies(t *testing.T) {
 	if runtime.Version() != stableRouteFrozenTuple {
 		t.Skipf("NOT_RUN: the stable S0e fixtures need the %s structural tuple; running %s", stableRouteFrozenTuple, runtime.Version())
 	}
+	if !stableOwnerSupported() {
+		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
+	}
 	x := newExampleStable(t)
 	res := x.runScript(t, "positive")
 	if res.Outcome != "ACCEPT" || res.Accept == nil || !*res.Accept {
