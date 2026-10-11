@@ -198,7 +198,7 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
-				if keyUncertain(e, key, append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...)) {
+				if keyUncertain(e, key, append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)) {
 					blocked = true
 				}
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
