@@ -3050,7 +3050,7 @@
             "oracle": "\"frontier\":{\"reason\":"
           }
         ],
-        "reason": "AHI-054 (proposed, V1-1157): the stop frontier adds the fixed cause member ahead of reason; the frontier lies outside the counted packet, so packet_bytes is unchanged"
+        "reason": "AHI-054 (accepted, decision 0519; V1-1157): the stop frontier adds the fixed cause member ahead of reason; the frontier lies outside the counted packet, so packet_bytes is unchanged"
       },
       "identityRenameDivergence": {
         "register": "DR-0038",

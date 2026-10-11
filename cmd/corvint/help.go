@@ -253,7 +253,7 @@ Commands:
   changes  offline upgrade checklist
   harness event  one agent-harness lifecycle event
   adapter  one native host adapter
-  dogfood  local evidence workflow; change, check, seal, batch-check
+  dogfood  evidence: change, check, seal, batch-check
   dogfood-ocm  verify dogfood OCM maps
   cem  Change Evidence Map producer/verifier
   ocm  Obligation Closure Map producer/verifier

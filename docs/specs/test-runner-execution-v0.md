@@ -755,8 +755,8 @@ remain NOT_OBSERVED.
   retirement call, polled every 5 ms) before it is retained as a problem,
   because Darwin refuses `KERN_PROCARGS2` for an exiting or not yet executed
   process while `kern.proc.pid` still reports it alive; an identity that
-  persists past that bound is still retained as a problem (amended, proposed
-  pending owner acceptance, V1-1152). Owned processes that cannot be signalled (foreign uid,
+  persists past that bound is still retained as a problem (amended, accepted in
+  decision 0519, V1-1152). Owned processes that cannot be signalled (foreign uid,
   refused stop, unreadable identity) or survive SIGKILL, and an unconverged,
   failed or unbounded scan, MUST be
   retained as `unretired` or `problems` in the execution's `retirement` and MUST

@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-08
-Intent status: accepted (decisions 0456, 0484 and 0485; V1-1022)
+Intent status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022)
 Delivery status: experimental
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
@@ -16,7 +16,8 @@ as written in chat on 2026-10-10 (decision 0484). The agent-drafted TOL-V0-028..
 beamfall/corvint#714) were accepted on 2026-10-10, as amended by the first independent review round
 (decision 0485, recorded from the coordinating agent's relay of the owner's chat approval), and are
 experimental. The agent-drafted TOL-V0-034..036 (adopter obligation aliases, GitHub
-beamfall/corvint#792, V1-1177) are proposed, pending owner acceptance, and are experimental.
+beamfall/corvint#792, V1-1177) were accepted on 2026-10-11 under the owner's standing auto-accept
+(decision 0519), and are experimental.
 The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
@@ -28,7 +29,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484 and 0485; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) are proposed, pending owner acceptance; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -472,7 +473,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   0485; GitHub #714).
 - `TOL-V0-034`: A seed item MAY carry an optional adopter `alias`, so a suite that already names
   its obligations in another scheme (`M001`, `ABC-12.V4`) does not have to rename every test title.
-  Status: proposed, pending owner acceptance (V1-1177; GitHub #792).
+  Status: accepted (decision 0519; V1-1177; GitHub #792).
   - The seed item becomes `{id, alias?, title, core}` and the folded entry `{id, alias?, title,
     core, state, reason, evidence, updatedAt, updatedBy}`. A seed item or entry without `alias`
     keeps its exact TOL-V0-003/005 bytes, and the member is absent rather than null.
@@ -489,12 +490,12 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   TOL-V0-010 whole token, including the alias being a native id (`DUPLICATE_ID`, detail prefix
   `OBLIGATION_ALIAS_COLLISION:`). The collision check covers ids no seed has added yet, so a later
   seed can never make an alias ambiguous, and native-id matching never fires inside an alias.
-  Aliases are scoped to their ledger: two tickets may use the same alias. Status: proposed, pending
-  owner acceptance (V1-1177; GitHub #792).
+  Aliases are scoped to their ledger: two tickets may use the same alias. Status: accepted (decision
+  0519; V1-1177; GitHub #792).
 - `TOL-V0-036`: Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title,
   a `test.step` title, a spec source or a fail description, an alias MUST name its entry exactly as
-  the native id does, and every result MUST be keyed to the native id. Status: proposed, pending
-  owner acceptance (V1-1177; GitHub #792).
+  the native id does, and every result MUST be keyed to the native id. Status: accepted (decision
+  0519; V1-1177; GitHub #792).
   - An alias matches as a whole token: a maximal run of `[A-Za-z0-9_.:-]` equal to the alias once
     its trailing `.` and `:` bytes are dropped, so an alias never matches inside an identifier.
     `M001:`, `M001.` and `[M001]` name `M001`; `M001-login`, `M001_extra`, `xM001`, `M001.1`
@@ -588,7 +589,7 @@ fixture passes.
 | TOL-V0-022..024 (decision 0484) | GitHub #712 | `internal/tasks/obligation` (report reader, `expected_fail.go`), `internal/tasks/cli` (witness flags and lists) | `TestTOLV0022_ExpectedFailDefectConfirmed`, `TestTOLV0023_MixedExpectedFail`, `TestTOLV0024_PostCheckRefusesCredit` (`internal/tasks/cli`), on synthetic json reports | live Playwright 1.63 `test.fail` fixture (`NOT_RUN`) |
 | TOL-V0-025..027 (decision 0484) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
 | TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact`, `TestTOLV0033_ReportPathMustBeARegularFile` (a FIFO report, a FIFO or changed report swapped in by the capture, qualify), `TestTOLV0033_ManifestRecordsNonRegularEntriesByType` (symlink to `/dev/zero`, FIFO, 1025 MiB sparse file), `TestTOLV0033_PlantedSummarySymlinkIsRefused`, `TestTOLV0033_ZeroCreditInterruptIsLaneFailed`, `TestTOLV0032_AbnormalNeighbourRunDisqualifies` (neighbour and base timeouts), `TestTOLV0033_InterruptDuringLastManifestHashRefuses`, `TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor` (a prior summary that grows past 4 MiB or is swapped for a FIFO after its check) (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, the release refusal is injected, and the manifest-hash and prior-summary swap points are test hooks; the FIFO and symlink tests skip on Windows | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
-| TOL-V0-034..036 (proposed) | V1-1177 (GitHub #792) | `internal/tasks/wire/obligations.go` (alias grammar), `internal/tasks/ticket/obligations.go` (seed and entry codec, `admitAlias`), `internal/tasks/obligation/names.go` (alias whole-token matching), report, batch and source readers, `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0034_SeedWithAliases` (aliased and alias-free entries, later aliased seed, grammar refusals, audit), `TestTOLV0035_AliasDuplicateAndCollision` (in one seed, against the ledger, a ledger id, its own id, an id inside, an other-prefix alias admitted), `TestTOLV0036_PreflightMatchesAliases` (test title, `test.step` title, contract annotation, alias inside longer tokens stays `UNNAMED`), `TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID` (credit, evidence and lists keyed to native ids, defect-shaped alias in a `test.fail` step, audit `CONSISTENT`) (`internal/tasks/cli`); `TestTOLV0036_AliasWholeToken`, `TestTOLV0036_AliasMasksDefectIDs`, `TestTOLV0036_ContractAliasAndNamedTests` (`internal/tasks/obligation`), on synthetic json reports | the adopter's suite and a live Playwright 1.63 report naming aliases (`NOT_RUN`) |
+| TOL-V0-034..036 (accepted, decision 0519) | V1-1177 (GitHub #792) | `internal/tasks/wire/obligations.go` (alias grammar), `internal/tasks/ticket/obligations.go` (seed and entry codec, `admitAlias`), `internal/tasks/obligation/names.go` (alias whole-token matching), report, batch and source readers, `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0034_SeedWithAliases` (aliased and alias-free entries, later aliased seed, grammar refusals, audit), `TestTOLV0035_AliasDuplicateAndCollision` (in one seed, against the ledger, a ledger id, its own id, an id inside, an other-prefix alias admitted), `TestTOLV0036_PreflightMatchesAliases` (test title, `test.step` title, contract annotation, alias inside longer tokens stays `UNNAMED`), `TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID` (credit, evidence and lists keyed to native ids, defect-shaped alias in a `test.fail` step, audit `CONSISTENT`) (`internal/tasks/cli`); `TestTOLV0036_AliasWholeToken`, `TestTOLV0036_AliasMasksDefectIDs`, `TestTOLV0036_ContractAliasAndNamedTests` (`internal/tasks/obligation`), on synthetic json reports | the adopter's suite and a live Playwright 1.63 report naming aliases (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -660,7 +661,7 @@ witness path writes. Their summaries, logs, reports and verdict packs live only 
 operator's `--out` directory, and pool acquire and release use the existing verbs. Rolling them back
 is reverting the change; existing results directories become inert files.
 
-The proposed TOL-V0-034..036 keep the `taskman-obligation-event/0` profile, the record member and
+The accepted TOL-V0-034..036 keep the `taskman-obligation-event/0` profile, the record member and
 the wire shape of every alias-free ledger; only a seed that carries an alias writes new bytes, in
 its retained request and in the folded entry. This follows the TOL-V0-001 precedent (decision
 0456) of an optional member read by closed readers: an older binary refuses the alias-bearing seed

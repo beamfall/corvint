@@ -47,14 +47,14 @@ the checkout or contacting a service. This is evidence to review, not permission
   introduced commits per PR, 64 KiB per message, 4 MiB total Git output, 16 files of 1 MiB each,
   4096 scanned references per file, and 1024 issue/hint rows each. Any omitted evidence MUST set `truncated`; incomplete message
   bytes MUST NOT create closure evidence. A 30-second total deadline or Git failure refuses with
-  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment proposed, pending owner acceptance (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
+  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment accepted, decision 0519 (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
   and paths use the existing secret screen; paths preserve whitespace. Summaries are limited to 240 bytes after screening.
 - `UCL1142-V0-005`: Root and topic help MUST mark the command experimental and document the workflow,
   local evidence limits, explicit-file input, coded refusals and missing evidence. Reopen/revert
   semantics and per-PR new commands MUST remain `NOT_OBSERVED`; GitHub issue state is
   `NOT_OBSERVED` unless `UCL1142-V0-006` supplies it, and per-PR flags follow `UCL1142-V0-007`
-  (amendment proposed, pending owner acceptance (V1-1158)).
-- `UCL1142-V0-006`: (proposed, pending owner acceptance (V1-1158)) Optional `--issue-state-file FILE`
+  (amendment accepted, decision 0519 (V1-1158)).
+- `UCL1142-V0-006`: (accepted, decision 0519 (V1-1158)) Optional `--issue-state-file FILE`
   (at most once, relative to SOURCE or absolute) MUST be read with the `UCL1142-V0-003` no-follow,
   regular-file, 1 MiB reader and decoded as one JSON array of objects, each with a positive integer
   `number` and a `state` of `OPEN` or `CLOSED` (case-insensitive), the shape `gh issue list --state
@@ -67,7 +67,7 @@ the checkout or contacting a service. This is evidence to review, not permission
   supplied issue state is OPEN; review`. The unknowns name the state as operator-supplied and not
   verified by Corvint. The file is caller-reported evidence, never authority, and does not resolve
   reopen/revert semantics or closures before FROM.
-- `UCL1142-V0-007`: (proposed, pending owner acceptance (V1-1158)) Each PR row MUST carry
+- `UCL1142-V0-007`: (accepted, decision 0519 (V1-1158)) Each PR row MUST carry
   `new_flags_basis`, `new_flags` and `new_commands` (replacing `new_flags_commands`). `new_flags` lists,
   sorted and `--`-prefixed, flag names that appear on added lines and on no removed line of the
   local diff from the merge's first parent to the merge, restricted to non-test `cmd/corvint/*.go`
@@ -110,8 +110,8 @@ remain `NOT_RUN` and are not a prerequisite for this locally testable experiment
 | UCL1142-V0-003 | `internal/upgradechanges` | `TestCompileRangeAndRefs`, `TestCompileUnsafeRefs`, `TestReadRefsRejectsFIFO` | experimental |
 | UCL1142-V0-004 | `internal/upgradechanges` | `TestCompileBounds`, `TestCompileRangeAndRefs`, `TestCompileGitConfiguration`, `TestCappedOutput`, `TestCompileReferenceAndIssueCaps`, `TestCompileRefsReadHonoursContext`, `TestCompileShallowCheckCancellationKeepsGitUnavailable` | experimental |
 | UCL1142-V0-005 | `cmd/corvint/changes.go`, `docs/INSTALL.md` | `TestChangesCLI` | experimental |
-| UCL1142-V0-006 | `internal/upgradechanges` (`readIssueStates`), `cmd/corvint/changes.go` | `TestCompileIssueStateFile`, `TestChangesCLI` | proposed, pending owner acceptance (V1-1158); experimental |
-| UCL1142-V0-007 | `internal/upgradechanges` (`newFlags`) | `TestCompileNewFlags` | proposed, pending owner acceptance (V1-1158); experimental |
+| UCL1142-V0-006 | `internal/upgradechanges` (`readIssueStates`), `cmd/corvint/changes.go` | `TestCompileIssueStateFile`, `TestChangesCLI` | accepted (decision 0519; V1-1158); experimental |
+| UCL1142-V0-007 | `internal/upgradechanges` (`newFlags`) | `TestCompileNewFlags` | accepted (decision 0519; V1-1158); experimental |
 
 Acceptance requires the focused fixtures, CLI tests, documentation gates and independent review.
 Repository-wide gate and final committed CEM/OCM seal are `NOT_RUN` in this no-commit builder scope.
