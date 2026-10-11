@@ -125,26 +125,33 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "var shell = require('./shell/shell.html');\nvar widgets = require('./widgets');\nvar label = \"prefix\\\"./esc/esc.html\";\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
+	scenario, err := os.ReadFile(filepath.Join(root, "e2e/scenarios/club-with-slots.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := "var tpl = `\n'./tpl/tpl.html'\n`;\nvar shell = require('./shell/shell.html');\nvar widgets = require('./widgets');\nvar label = \"prefix\\\"./esc/esc.html\";\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
 	src = strings.Replace(src, "url: '/settings'", "url: '/settings',\n      templateUrl: 'app/clubs/settings.html'", 1)
 	src = strings.Replace(src, "url: '/members'\n    })\n    .state('members2'", "url: '/members',\n      controller: require('./members/list.component')\n    })\n    .state('members2'", 1)
 	files := map[string]string{
-		"app/routes.js":                 src,
-		"app/shell/shell.html":          "<nav></nav>\n",
-		"app/clubs/settings.html":       "<form></form>\n",
-		"app/members/list.component.js": "module.exports = { templateUrl: './row.html' };\n",
-		"app/members/row.html":          "<tr></tr>\n",
-		"app/shared/badge.html":         "<b></b>\n",
-		"app/shared/badge.js":           "// renders badge.html\nmodule.exports = { templateUrl: './badge.html' };\n",
-		"app/lonely.js":                 "module.exports = './orphan.html';\n",
-		"app/orphan.html":               "<i></i>\n",
-		"app/ghost/ghost.html":          "<p></p>\n",
-		"app/ghost/ghost2.html":         "<p></p>\n",
-		"app/cyc/alpha.js":              "module.exports = require('./beta');\n",
-		"app/cyc/beta.js":               "module.exports = require('./alpha');\n",
-		"app/esc/esc.html":              "<p></p>\n",
-		"app/widgets/index.js":          "module.exports = {};\n",
-		"app/widgets/local.js":          "module.exports = require('./index');\n",
+		"app/routes.js":                    src,
+		"app/shell/shell.html":             "<nav></nav>\n",
+		"app/clubs/settings.html":          "<form></form>\n",
+		"app/members/list.component.js":    "module.exports = { templateUrl: './row.html' };\n",
+		"app/members/row.html":             "<tr></tr>\n",
+		"app/shared/badge.html":            "<b></b>\n",
+		"app/shared/badge.js":              "// renders badge.html\nmodule.exports = { templateUrl: './badge.html' };\n",
+		"app/lonely.js":                    "module.exports = './orphan.html';\n",
+		"app/orphan.html":                  "<i></i>\n",
+		"app/ghost/ghost.html":             "<p></p>\n",
+		"app/ghost/ghost2.html":            "<p></p>\n",
+		"app/cyc/alpha.js":                 "module.exports = require('./beta');\n",
+		"app/cyc/beta.js":                  "module.exports = require('./alpha');\n",
+		"app/esc/esc.html":                 "<p></p>\n",
+		"app/tpl/tpl.html":                 "<p></p>\n",
+		"app/helped/helped.html":           "<p></p>\n",
+		"e2e/scenarios/club-with-slots.ts": string(scenario) + "export const helped = '../../app/helped/helped.html';\n",
+		"app/widgets/index.js":             "module.exports = {};\n",
+		"app/widgets/local.js":             "module.exports = require('./index');\n",
 	}
 	for p, body := range files {
 		dst := filepath.Join(root, p)
@@ -192,6 +199,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		"app/ghost/ghost.html":  {"unresolved-reference", "<p>v2</p>\n"},
 		"app/ghost/ghost2.html": {"unresolved-reference", "<p>v2</p>\n"},
 		"app/esc/esc.html":      {"unresolved-reference", "<p>v2</p>\n"},
+		"app/tpl/tpl.html":      {"unresolved-reference", "<p>v2</p>\n"},
 		"app/cyc/alpha.js":      {"unmapped-path", "module.exports = require('./beta'); // v2\n"},
 		"app/widgets/index.js":  {"unresolved-reference", "module.exports = { v: 2 };\n"},
 	} {
@@ -201,6 +209,13 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Path != p || r.Unknown[0].Reason != c[0] {
 			t.Fatalf("%s narrowed: %+v", p, r)
 		}
+	}
+	// A map test file selecting nothing (a scenario helper) is walked through, never a terminal.
+	head = gitTest(t, root, "rev-parse", "HEAD")
+	impactCommit(t, f, map[string]string{"app/helped/helped.html": "<p>v2</p>\n"})
+	r = impactRun(t, f, nil, head, Options{})
+	if len(r.SpecFiles)+len(r.Unknown) == 0 {
+		t.Fatalf("a helper-only reference narrowed: %+v", r)
 	}
 	head = gitTest(t, root, "rev-parse", "HEAD")
 	impactCommit(t, f, map[string]string{"app/shell/shell.html": "<nav>v2</nav>\n"})

@@ -251,12 +251,13 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 // `const NAME = [...]` (optionally typed `: Type` or `: Type[]`) binds in the same file. Any other
 // use of NAME may compute or mutate the array and stays UNKNOWN (`computed-react-routes`); a NAME
 // bound by an import is not read across files (`imported-react-routes`); a file holding any template
-// substitution is not read either, since its expression is opaque here (AMAP-V0-078).
+// substitution or an escaped identifier is not read either, since either could name NAME unseen
+// (AMAP-V0-078).
 func reactRoutesBinding(ts []token, use int) (jsValue, string) {
 	name, decl, depth := ts[use].text, -1, 0
 	for j, t := range ts {
-		if t.subst {
-			return jsValue{}, "computed-react-routes" // a ${} expression could touch NAME unseen
+		if t.subst || t.kind == tokPunct && t.text == "\\" {
+			return jsValue{}, "computed-react-routes" // a ${} expression or escaped identifier could touch NAME unseen
 		}
 		if t.kind == tokPunct {
 			switch t.text {

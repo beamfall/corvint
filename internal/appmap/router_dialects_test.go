@@ -384,6 +384,7 @@ func TestAMAPV0078ReactSameFileRouteArray(t *testing.T) {
 		"const routes = [{id: 'a', path: '/a'}];\nextend(routes);\ncreateBrowserRouter(routes);":                     "computed-react-routes",
 		"const routes = [{id: 'a', path: '/a'}]\n  .concat(more)\ncreateBrowserRouter(routes)":                       "computed-react-routes",
 		"const routes = [{id: 'a', path: '/a'}];\nconst x = `${routes.pop()}`;\ncreateBrowserRouter(routes);":        "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nrout\\u0065s.length = 0;\ncreateBrowserRouter(routes);":            "computed-react-routes",
 		"createBrowserRouter(routes);": "non-literal-react-routes",
 	} {
 		states, u := parseReactRouter(blobEntry{path: "routes.tsx"}, []byte(src))

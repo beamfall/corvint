@@ -130,7 +130,7 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 				le += i
 			}
 			q, end := hopLiteralAround(text[ls:le], i-ls)
-			if q < 0 || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
+			if q < 0 || strings.Count(text[:ls], "`")%2 == 1 || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
 				return nil, false
 			}
 			set[strings.Count(text[:i], "\n")+1] = true
@@ -146,7 +146,8 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 
 // hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the
 // opening and closing quote offsets of the literal holding offset at, or -1 when none does
-// (including a literal left open at the end of the line).
+// (including a literal left open at the end of the line). A caller refuses a line that an odd
+// number of earlier backticks may place inside a multi-line template.
 func hopLiteralAround(line string, at int) (int, int) {
 	open := -1
 	for k := 0; k < len(line); k++ {
@@ -222,20 +223,20 @@ func templateHop(m *Map, g *referenceGraph, start string) ([]hopTarget, string) 
 				reaches[cur] = true
 				continue
 			}
-			if fs := tests[name]; len(fs) > 0 {
-				t := hopTarget{via: name}
-				for _, f := range fs {
-					if f.Screen != "" {
-						t.screens = append(t.screens, f.Screen)
-					}
-					if f.Role == roleSpec {
-						t.specs = append(t.specs, f.Path)
-					}
+			t := hopTarget{via: name}
+			for _, f := range tests[name] {
+				if f.Screen != "" {
+					t.screens = append(t.screens, f.Screen)
 				}
+				if f.Role == roleSpec {
+					t.specs = append(t.specs, f.Path)
+				}
+			}
+			if len(t.screens)+len(t.specs) > 0 {
 				targets = append(targets, t)
 				reaches[cur] = true
 				continue
-			}
+			} // a map test file selecting nothing (a helper) is walked through like any other file
 			up[cur] = append(up[cur], name)
 			if !seen[name] {
 				if len(seen) >= hopMaxNodes {

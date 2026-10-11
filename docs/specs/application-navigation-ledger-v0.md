@@ -138,13 +138,14 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
   files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
   A file references the path when the path's token (a script's stem, an index file's directory or `index`,
-  any other file's base name) occurs inside one quoted string literal delimited on that line (escapes honoured) that resolves to it
+  any other file's base name) occurs inside one quoted string literal delimited on that line (escapes
+  honoured; a line an odd number of earlier backticks may place in a template refuses) that resolves to it
   (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
   extensions and `/index.*` tried; no `${`) and not after a `//`, `/*`, `<!--` or `{{!` comment
   marker that could still be open. A walk ends at a router file anchoring screens, which
   selects the screens whose anchor spans hold its reference lines (every screen of the file when a
   reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
-  file, which selects its screen and spec. Selected screens carry `template-reference:<file>` and
+  file selecting a screen or spec (a test file selecting neither is walked through). Selected screens carry `template-reference:<file>` and
   their lineage descendants. Any mention that is not such a literal (`unresolved-reference`), a walked
   file nothing references or that reaches no terminal (an import cycle, `unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
   path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
