@@ -393,3 +393,35 @@ func TestPlaywrightListedTestsGrepOmission_TJAA_V0_021(t *testing.T) {
 		t.Fatalf("unexplained omission accepted: %v", err)
 	}
 }
+
+// Codex review round 2 (GitHub #800): membership is checked against exactly the files and cases
+// PlaywrightListedTests returns, so a nested suite file the execution walker does not use cannot
+// stand in for the returned one, and a spec with no execution cannot explain an omission.
+func TestPlaywrightListedTestsCasesMatchExecutions_TJAA_V0_021(t *testing.T) {
+	listing := func(root string, suites string) []byte {
+		return []byte(`{"config":{"configFile":` + jsonString(filepath.Join(root, "playwright.config.ts")) + `,"rootDir":` + jsonString(filepath.Join(root, "e2e")) +
+			`,"shard":null,"argv":["/usr/local/bin/node","` + root + `/node_modules/.bin/playwright","test","--list","--reporter=json"]},"suites":` + suites + `,"errors":[]}`)
+	}
+	revision := []string{"e2e/plain.spec.ts", "e2e/tagged.spec.ts", "playwright.config.ts"}
+	t.Run("a nested suite file is not the returned execution's file", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', testIgnore: '**/plain.spec.ts' }")
+		raw := listing(root, `[{"title":"plain.spec.ts","file":"plain.spec.ts","specs":[],"suites":[{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[`+
+			`{"id":"tagged-main","title":"x @tagged","tags":["tagged"],"line":1,"column":1,"tests":[{"projectName":"main"}]}],"suites":[]}]}]`)
+		if tests, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil {
+			t.Fatalf("listing accepted with executions %+v", tests)
+		}
+	})
+	t.Run("a spec with no execution does not explain an omission", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grepInvert: /@tagged/ }")
+		raw := listing(root, `[{"title":"plain.spec.ts","file":"plain.spec.ts","specs":[{"id":"plain-main","title":"plain","tags":[],"line":1,"column":1,"tests":[{"projectName":"main"}]}],"suites":[]},`+
+			`{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[{"id":"tagged-none","title":"x @tagged","tags":["tagged"],"line":1,"column":1,"tests":[]}],"suites":[]}]`)
+		if _, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil || !strings.Contains(err.Error(), `omits project "main" test e2e/tagged.spec.ts`) {
+			t.Fatalf("empty spec explained the omission: %v", err)
+		}
+	})
+}
+
+func jsonString(value string) string {
+	raw, _ := json.Marshal(value)
+	return string(raw)
+}

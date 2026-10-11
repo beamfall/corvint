@@ -11,8 +11,11 @@ and every grep-filtered pair counted as missing.
 
 ## Change
 
-- `PlaywrightListedTests` collects units and per-file cases with the same walker discovery uses,
-  `collectPlaywrightListUnits`, and passes the cases.
+- `PlaywrightListedTests` collects the per-file cases in its own execution walker and derives the
+  checked units from the executions it returns. Membership is therefore checked against exactly the
+  files and cases the record carries. Only a spec with at least one execution supplies a case, so an
+  empty spec cannot explain an omission. Codex review round 2 found both gaps in an earlier version
+  that ran discovery's separate walker, `collectPlaywrightListUnits`.
 - An omission the rules explain, or leave unverified, is accepted. It adds no execution, because the
   corpus record lists only executions the listing shows.
 - Corpus discovery always passes the pinned revision's paths. The source-revision membership check
@@ -32,6 +35,10 @@ and every grep-filtered pair counted as missing.
 - It passes the revision's paths, as corpus discovery does.
 - It checks that an unexplained omission refuses, and that a revision-only test file refuses.
 
+`TestPlaywrightListedTestsCasesMatchExecutions_TJAA_V0_021` checks two more refusals. In the first, a
+nested suite names a file that the execution walker does not attribute. In the second, a spec with no
+executions would otherwise explain a `grepInvert` omission.
+
 Without the fix, the test reproduces the issue's refusal text exactly.
 
 ## Limits
@@ -40,3 +47,5 @@ The corpus record has no `unverifiedUnits` member, so an unverified omission is 
 record. It is accepted for the same reason the listing itself is: the listing is caller-declared
 evidence, and a test it hides stays undiscovered rather than invented. The listing walker also
 applies discovery's matcher-model path refusal, which `PlaywrightListedTests` did not apply before.
+`collectPlaywrightListUnits`, which `affected` discovery still uses, attributes nested suite files
+and empty specs differently. That walker was not changed here.

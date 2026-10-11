@@ -39,7 +39,8 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 		return nil, err
 	}
 	tests := []PlaywrightListedTest{}
-	if err := collectPlaywrightListedTests(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, &tests); err != nil {
+	cases := map[string][]playwrightListCase{}
+	if err := collectPlaywrightListedTests(realRoot, report.Config.RootDir, "", "", nil, report.Suites, 0, &tests, cases); err != nil {
 		return nil, err
 	}
 	seen := map[string]bool{}
@@ -50,9 +51,8 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 		seen[test.ID] = true
 	}
 	units := map[PlaywrightDiscoveryUnit]bool{}
-	cases := map[string][]playwrightListCase{}
-	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, units, cases); err != nil {
-		return nil, err
+	for _, test := range tests {
+		units[PlaywrightDiscoveryUnit{Project: test.Project, Test: test.Path}] = true
 	}
 	if _, _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths, cases); err != nil {
 		return nil, err
@@ -76,14 +76,17 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 	return tests, nil
 }
 
-func collectPlaywrightListedTests(realRoot, rootDir, file string, describe []string, suites []playwrightListSuite, depth int, tests *[]PlaywrightListedTest) error {
+// collectPlaywrightListedTests appends each listed execution to tests and, for the grep omission
+// rules (TJAA-V0-021), each spec that has an execution to cases under its file, so membership is
+// checked against exactly the files and cases it returns. fileTitle is the file suite's title.
+func collectPlaywrightListedTests(realRoot, rootDir, file, fileTitle string, describe []string, suites []playwrightListSuite, depth int, tests *[]PlaywrightListedTest, cases map[string][]playwrightListCase) error {
 	if depth > playwrightListMaxDepth {
 		return errors.New("playwright listing suites nest too deeply")
 	}
 	for _, suite := range suites {
-		suiteFile, titles := file, describe
+		suiteFile, suiteFileTitle, titles := file, fileTitle, describe
 		if suite.File != "" && depth == 0 {
-			suiteFile = suite.File
+			suiteFile, suiteFileTitle = suite.File, suite.Title
 		} else if suite.Title != "" {
 			titles = append(append([]string{}, describe...), suite.Title)
 		}
@@ -92,8 +95,11 @@ func collectPlaywrightListedTests(realRoot, rootDir, file string, describe []str
 			if spec.File != "" {
 				specFile = spec.File
 			}
+			if playwrightPathOutsideMatcherModel(rootDir) || playwrightPathOutsideMatcherModel(specFile) {
+				return fmt.Errorf("playwright listing file %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", specFile)
+			}
 			path, ok := playwrightListPath(realRoot, filepath.Join(rootDir, filepath.FromSlash(specFile)))
-			if !ok || !hasSourceExtension(path) {
+			if !ok || !hasSourceExtension(path) || playwrightPathOutsideMatcherModel(path) {
 				return fmt.Errorf("playwright listing file %q under rootDir is not a repository-relative source path", specFile)
 			}
 			if !playwrightListText(spec.ID) || !playwrightListText(spec.Title) || spec.Line < 1 || spec.Column < 1 {
@@ -105,8 +111,15 @@ func collectPlaywrightListedTests(realRoot, rootDir, file string, describe []str
 				}
 				*tests = append(*tests, PlaywrightListedTest{ID: spec.ID, Path: path, Line: spec.Line, Column: spec.Column, Project: *entry.ProjectName, Title: spec.Title, Describe: titles})
 			}
+			if len(spec.Tests) != 0 {
+				listCase := playwrightListCase{titles: append(append([]string{suiteFileTitle}, titles...), spec.Title)}
+				for _, tag := range spec.Tags {
+					listCase.tags = append(listCase.tags, "@"+tag)
+				}
+				cases[path] = append(cases[path], listCase)
+			}
 		}
-		if err := collectPlaywrightListedTests(realRoot, rootDir, suiteFile, titles, suite.Suites, depth+1, tests); err != nil {
+		if err := collectPlaywrightListedTests(realRoot, rootDir, suiteFile, suiteFileTitle, titles, suite.Suites, depth+1, tests, cases); err != nil {
 			return err
 		}
 	}

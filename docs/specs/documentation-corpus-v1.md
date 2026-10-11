@@ -428,7 +428,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   accepts the omission whether it is explained or unverified. An accepted omission has no listed
   execution and adds none: the record holds only listed executions, so a registered test the omission
   may hide is not discovered, and is not invented. The source-revision membership check accepts the
-  same omissions. An unexplained omission still refuses, as does a selected file at the source
+  same omissions. Cases come only from specs that have a listed execution, attributed to the file that
+  execution carries. An unexplained omission still refuses, as does a selected file at the source
   revision that the listing omits and the working tree lacks. A focused test runs the GitHub #790
   three-project repro through the listed-tests producer with the revision's paths, and checks both
   refusals. Status: (proposed, pending owner
