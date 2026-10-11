@@ -203,7 +203,8 @@ func fileEntry(full, rel string) (archive.FileEntry, bool, error) {
 }
 
 func fileEntryWithReader(full, rel string, read inventoryReader, observed ...map[string]journal.PhysicalFile) (archive.FileEntry, bool, error) {
-	bound, ok := intent.BoundFor(rel)
+	// Archive identities keep intent/, while BoundFor takes intent-relative names.
+	bound, ok := intent.BoundFor(strings.TrimPrefix(rel, "intent/"))
 	if !ok {
 		bound = wire.MaxEvidenceBlobBytes
 	}

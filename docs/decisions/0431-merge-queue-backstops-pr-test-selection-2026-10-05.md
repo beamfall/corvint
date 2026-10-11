@@ -6,9 +6,9 @@ Tickets: V1-0616 (umbrella), `ci-shadow-historical-compat`,
 V1-0760. Contract: `docs/specs/affected-plan-v0.md`. Amends `AFP-V0-013`, `AFP-V0-014`,
 `AFP-V0-016`, `AFP-V0-017`, `AFP-V0-026`, the `AFP-V0-022` promotion sentence and the closing
 sentence of the bounded documentation CI exception. Adds `AFP-V0-028` (queue-backstopped PR
-narrowing), `AFP-V0-029` (forward qualification rows) and `AFP-V0-030` (kill switch). The IDs are
-provisional (`AFP-V0-027` is the V1-0809 `ci:batched` constituent skip), and the spec amendment
-assigns the final IDs. Amends decisions 0289 and 0320 where cited; keeps 0319 and 0390.
+narrowing), `AFP-V0-029` (forward qualification rows) and `AFP-V0-030` (kill switch). The final IDs are
+`AFP-V0-028`, `AFP-V0-029` and `AFP-V0-030`; `AFP-V0-027` remains the V1-0809
+`ci:batched` constituent skip. Amends decisions 0289 and 0320 where cited; keeps 0319 and 0390.
 
 ## Context
 
