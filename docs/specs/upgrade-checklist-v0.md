@@ -47,7 +47,7 @@ the checkout or contacting a service. This is evidence to review, not permission
   introduced commits per PR, 64 KiB per message, 4 MiB total Git output, 16 files of 1 MiB each,
   4096 scanned references per file, and 1024 issue/hint rows each. Any omitted evidence MUST set `truncated`; incomplete message
   bytes MUST NOT create closure evidence. A 30-second total deadline or Git failure refuses with
-  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. No Git stderr, commit bodies or adopter text is reflected; summaries
+  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment proposed, pending owner acceptance (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
   and paths use the existing secret screen; paths preserve whitespace. Summaries are limited to 240 bytes after screening.
 - `UCL1142-V0-005`: Root and topic help MUST mark the command experimental and document the workflow,
   local evidence limits, explicit-file input, coded refusals and missing evidence. GitHub issue

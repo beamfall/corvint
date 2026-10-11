@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -301,18 +303,36 @@ func TestCompileRefusesShallowCheckout(t *testing.T) {
 	})
 }
 
+// stalledRefs models a descriptor whose read blocks until it is closed.
+type stalledRefs struct {
+	entered, closed, released chan struct{}
+	once                      sync.Once
+}
+
+func (s *stalledRefs) Read([]byte) (int, error) {
+	close(s.entered)
+	<-s.closed
+	close(s.released)
+	return 0, os.ErrClosed
+}
+
+func (s *stalledRefs) Close() error {
+	s.once.Do(func() { close(s.closed) })
+	return nil
+}
+
 func TestCompileRefsReadHonoursContext(t *testing.T) {
-	t.Run("UCL1142-V0-004 stalled refs read ends at the deadline", func(t *testing.T) {
+	t.Run("UCL1142-V0-004 V1-1155 stalled refs read ends at the deadline and releases its reader", func(t *testing.T) {
 		root, base := repoTest(t)
 		if e := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("holds #7\n"), 0o600); e != nil {
 			t.Fatal(e)
 		}
-		release := make(chan struct{})
-		defer close(release)
-		entered := make(chan struct{})
-		old := readRefsFile
-		readRefsFile = func(string) ([]byte, bool, error) { close(entered); <-release; return nil, false, nil }
-		defer func() { readRefsFile = old }()
+		stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
+		defer stalled.Close()
+		old := openRefsFile
+		openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
+		defer func() { openRefsFile = old }()
+		baseline := runtime.NumGoroutine()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		done := make(chan error, 1)
@@ -321,7 +341,7 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 			done <- e
 		}()
 		select {
-		case <-entered:
+		case <-stalled.entered:
 		case <-time.After(30 * time.Second):
 			t.Fatal("reader never entered")
 		}
@@ -334,7 +354,43 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			t.Fatal("Compile outlived its context")
 		}
+		// Cancellation closed the descriptor; the stalled read returned without
+		// any further release from the test.
+		select {
+		case <-stalled.released:
+		case <-time.After(5 * time.Second):
+			t.Fatal("stalled read goroutine was not released by cancellation")
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for runtime.NumGoroutine() > baseline {
+			if time.Now().After(deadline) {
+				t.Fatalf("goroutines=%d, baseline %d: refs reader leaked", runtime.NumGoroutine(), baseline)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 	})
+	t.Run("V1-1155 a completed read closes its descriptor", func(t *testing.T) {
+		closed := false
+		old := openRefsFile
+		openRefsFile = func(string) (io.ReadCloser, error) {
+			return closeRecorder{strings.NewReader("holds #7\n"), &closed}, nil
+		}
+		defer func() { openRefsFile = old }()
+		data, cut, err := readRefsContext(context.Background(), "/unused")
+		if err != nil || cut || string(data) != "holds #7\n" || !closed {
+			t.Fatalf("data=%q cut=%v err=%v closed=%v", data, cut, err, closed)
+		}
+	})
+}
+
+type closeRecorder struct {
+	io.Reader
+	closed *bool
+}
+
+func (c closeRecorder) Close() error {
+	*c.closed = true
+	return nil
 }
 
 func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -410,8 +411,14 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 	return r, nil
 }
 
-// readRefsFile is replaceable so a test can model a stalled filesystem.
-var readRefsFile = readRefs
+// openRefsFile is replaceable so a test can model a stalled filesystem.
+var openRefsFile = func(path string) (io.ReadCloser, error) {
+	file, err := openRefs(path)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
 
 type refsRead struct {
 	data []byte
@@ -420,17 +427,51 @@ type refsRead struct {
 }
 
 // readRefsContext returns when ctx ends even if the underlying read is stalled
-// (for example a regular file on an unresponsive remote filesystem). The
-// abandoned read goroutine holds only its descriptor until the process exits.
+// (for example a regular file on an unresponsive remote filesystem). On
+// cancellation it closes the open descriptor, which ends any read the platform
+// can interrupt, so the reading goroutine exits instead of living until process
+// exit. A read the kernel cannot interrupt still holds that goroutine until the
+// system call itself returns; nothing waits for it (V1-1155).
 func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
+	var mu sync.Mutex
+	var open io.Closer
+	cancelled := false
+	stop := context.AfterFunc(ctx, func() {
+		mu.Lock()
+		defer mu.Unlock()
+		cancelled = true
+		if open != nil {
+			_ = open.Close()
+		}
+	})
+	defer stop()
 	done := make(chan refsRead, 1)
-	read := readRefsFile
+	openFile := openRefsFile
 	go func() {
-		data, cut, err := read(path)
-		done <- refsRead{data, cut, err}
+		file, err := openFile(path)
+		if err != nil {
+			done <- refsRead{err: err}
+			return
+		}
+		mu.Lock()
+		if cancelled {
+			mu.Unlock()
+			_ = file.Close()
+			done <- refsRead{err: context.Canceled}
+			return
+		}
+		open = file
+		mu.Unlock()
+		raw, err := io.ReadAll(io.LimitReader(file, maxFileBytes+1))
+		_ = file.Close()
+		if len(raw) > maxFileBytes {
+			done <- refsRead{raw[:maxFileBytes], true, err}
+			return
+		}
+		done <- refsRead{raw, false, err}
 	}()
 	select {
 	case r := <-done:

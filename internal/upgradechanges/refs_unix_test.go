@@ -15,7 +15,8 @@ func TestReadRefsRejectsFIFO(t *testing.T) {
 		if err := syscall.Mkfifo(path, 0600); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := readRefs(path); err == nil {
+		if file, err := openRefs(path); err == nil {
+			file.Close()
 			t.Fatal("FIFO accepted")
 		}
 	})
