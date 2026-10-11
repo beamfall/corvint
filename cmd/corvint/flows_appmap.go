@@ -43,7 +43,8 @@ Navigation observation (experimental, ANL-V0):
   corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
 Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
 application-navigation-observation/0: ordered screen visits resolved through the map, observed
-edges with their triggering action, redirects, UNKNOWN joins with candidates and unmapped-url.
+edges with their typed trigger (goto, click, form submit, key press, history back/forward, reload,
+redirect, else UNKNOWN) and any annotated declared_trigger, UNKNOWN joins and unmapped-url.
 Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and

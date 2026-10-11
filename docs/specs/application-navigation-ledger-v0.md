@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1161; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -60,8 +60,8 @@ are URL templates, not component source files. This slice makes neither missing 
   per trace the ordered visits resolved through the map's URL lookup (hash prefix aware), and one
   observed edge per consecutive pair with trigger `goto`, `click`, `redirect`, `form submit` or
   `UNKNOWN`; `goto`, `click` or `form submit` (an action of kind `submit`) only when the event's
-  action says so, so an event without action metadata or with another action, including a key press,
-  reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
+  action says so, so an event without action metadata or with an action outside the typed-trigger
+  vocabulary of `ANL-V0-021` reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
   reads `unmapped-url`; an edge with an unresolved endpoint reads UNKNOWN. Observations are learned
   overlay facts carrying the trace digest and app revision and never add or change a static map
   node or edge. Playwright trace zips are refused in this slice.
@@ -122,6 +122,14 @@ are URL templates, not component source files. This slice makes neither missing 
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
 
+- `ANL-V0-021`: Observed triggers are typed from the triggering action's kind: `goto`, `click`,
+  `submit` (`form submit`), `press` (`key press`), `goBack` (`history back`), `goForward`
+  (`history forward`) and `reload` (`reload`); a `redirect` event reads `redirect`; any other kind
+  or no action reads `UNKNOWN`. An event may carry `annotation: {"trigger": T}` with T from that
+  typed vocabulary (not `UNKNOWN`); it prints as the edge's `declared_trigger`, never sets or
+  replaces `trigger`, and an annotation outside the vocabulary is refused with exit 2. Amends the
+  ANL-V0-006 action list. (proposed, pending owner acceptance (V1-1161))
+
 ## Wire and limits
 
 `corvint flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
@@ -167,10 +175,12 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
+| ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
 
 ## Follow-ups and promotion
 
-Proposed follow-ups: typed trigger declarations and spec annotation parsing; component/template
+Proposed follow-ups: typed trigger declarations in map flow steps and spec annotation parsing
+(ANL-V0-021 types observed triggers and reporter annotations only); component/template
 file and page-object anchors absent from AMAP; multi-map per-app aggregation; costs beyond declared
 step counts; test-plan integration; live adopter qualification. UNKNOWN trigger is not a typed
 trigger acceptance claim. Promotion needs owner acceptance plus demonstrated useful reuse on an

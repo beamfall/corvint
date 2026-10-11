@@ -33,10 +33,41 @@ type NavigationEvents struct {
 }
 
 // NavigationEvent kind is "navigate" or "redirect"; Action is the triggering action, if any.
+// Annotation is the test author's declared cause; it never sets the observed trigger (ANL-V0-021).
 type NavigationEvent struct {
-	Kind   string            `json:"kind"`
-	URL    string            `json:"url"`
-	Action *NavigationAction `json:"action,omitempty"`
+	Kind       string                `json:"kind"`
+	URL        string                `json:"url"`
+	Action     *NavigationAction     `json:"action,omitempty"`
+	Annotation *NavigationAnnotation `json:"annotation,omitempty"`
+}
+
+// NavigationAnnotation declares a trigger from the closed typed-trigger vocabulary.
+type NavigationAnnotation struct {
+	Trigger string `json:"trigger"`
+}
+
+// observedTriggers maps an observed action kind to its typed trigger (ANL-V0-006, ANL-V0-021).
+// Any other kind, or no action, reads UNKNOWN.
+var observedTriggers = map[string]string{
+	"goto":      "goto",
+	"click":     "click",
+	"submit":    "form submit",
+	"press":     "key press",
+	"goBack":    "history back",
+	"goForward": "history forward",
+	"reload":    "reload",
+}
+
+func typedTrigger(t string) bool {
+	if t == "redirect" {
+		return true
+	}
+	for _, v := range observedTriggers {
+		if v == t {
+			return true
+		}
+	}
+	return false
 }
 
 // NavigationAction is trace action metadata. Value (a typed or filled input) is read only to be
@@ -58,13 +89,14 @@ type ObservedVisit struct {
 }
 
 type ObservedEdge struct {
-	FromSeq  int    `json:"from_seq"`
-	ToSeq    int    `json:"to_seq"`
-	From     string `json:"from,omitempty"`
-	To       string `json:"to,omitempty"`
-	Trigger  string `json:"trigger"`
-	Selector string `json:"selector,omitempty"`
-	Status   string `json:"status"`
+	FromSeq         int    `json:"from_seq"`
+	ToSeq           int    `json:"to_seq"`
+	From            string `json:"from,omitempty"`
+	To              string `json:"to,omitempty"`
+	Trigger         string `json:"trigger"`
+	DeclaredTrigger string `json:"declared_trigger,omitempty"`
+	Selector        string `json:"selector,omitempty"`
+	Status          string `json:"status"`
 }
 
 type ObservedTrace struct {
@@ -132,6 +164,9 @@ func LoadNavigationEvents(name string) ([]NavigationEvents, [][]byte, error) {
 		for _, ev := range d.Events {
 			if (ev.Kind != "navigate" && ev.Kind != "redirect") || ev.URL == "" || len(ev.URL) > 4096 {
 				return nil, nil, bad("navigation event kind must be navigate or redirect with a URL of at most 4096 bytes")
+			}
+			if ev.Annotation != nil && !typedTrigger(ev.Annotation.Trigger) {
+				return nil, nil, bad("navigation annotation trigger must name a typed trigger")
 			}
 		}
 		docs = append(docs, d)
@@ -215,15 +250,13 @@ func Observe(m *Map, docs []NavigationEvents, raws [][]byte, revision string, o 
 				if ev.Kind == "redirect" {
 					e.Trigger = "redirect"
 				} else if a := ev.Action; a != nil {
-					switch a.Kind {
-					case "click", "goto":
-						e.Trigger = a.Kind
-					case "submit":
-						e.Trigger = "form submit"
-					default:
-						e.Trigger = StatusUnknown
+					if t, ok := observedTriggers[a.Kind]; ok {
+						e.Trigger = t
 					}
 					e.Selector = a.Selector
+				}
+				if ev.Annotation != nil && typedTrigger(ev.Annotation.Trigger) {
+					e.DeclaredTrigger = ev.Annotation.Trigger
 				}
 				if prev.Status != StatusResolved || v.Status != StatusResolved {
 					e.Status = StatusUnknown
