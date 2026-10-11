@@ -78,7 +78,10 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 		return nil, err
 	}
 	// A declared directory absent at the revision would silently drop its files from the join.
-	dirs := append([]string{m.Tests.Root}, m.Tests.Specs...)
+	dirs := append([]string{}, m.Tests.Specs...)
+	if m.Tests.Root != "." {
+		dirs = append([]string{m.Tests.Root}, dirs...) // "." is the repository itself (AMAP-V0-075)
+	}
 	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
 	if m.Flows != "" && m.Tests.Repo == "" {
 		dirs = append(dirs, m.Flows)
@@ -98,6 +101,11 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	}
 	if o := aliased[m.Tests.Repo]; o != nil {
 		o.inputs["tests"] = []string{m.Tests.Root}
+		if m.Tests.Root == "." {
+			// A whole-repository root reads only the declared directories, so only they can be dirty (AMAP-V0-076).
+			t := m.Tests
+			o.inputs["tests"] = append(append(append(append([]string{}, t.Specs...), t.PageObjects...), t.Workflows...), t.Scenarios...)
+		}
 	}
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}
@@ -194,8 +202,21 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		return err
 	}
 	raws := []rawState{}
-	for _, e := range ordered {
-		states, unknowns := parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
+	remainingRouters := maxRouterFiles - len(ordered)
+	for i, e := range ordered {
+		var states []rawState
+		var unknowns []Unknown
+		switch b.m.Routers[i].Dialect {
+		case DialectRails:
+			states, unknowns, err = readRailsRouter(r, b.rev, e, data[e.oid], &remainingRouters)
+		case DialectReact:
+			states, unknowns = parseReactRouter(e, data[e.oid])
+		default:
+			states, unknowns = parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
+		}
+		if err != nil {
+			return err
+		}
 		if err := consts.err(); err != nil {
 			return err
 		}
@@ -204,6 +225,9 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		if len(raws) > maxStates {
 			return bound(fmt.Sprintf("more than %d router states", maxStates))
 		}
+	}
+	if err := b.routerCoverage(r); err != nil {
+		return err
 	}
 	b.out.Unknowns = append(b.out.Unknowns, consts.diag...)
 	screens, unknowns := resolveScreens(b.m.App, raws)

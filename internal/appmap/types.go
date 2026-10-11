@@ -13,6 +13,8 @@ const (
 	ScaffoldSchema = "application-map-scaffold/0"
 
 	DialectUIRouter = "ui-router-states/0"
+	DialectRails    = "rails-routes/0"
+	DialectReact    = "react-router/0"
 
 	StatusResolved = "resolved"
 	StatusUnknown  = "UNKNOWN"
@@ -48,6 +50,8 @@ type Manifest struct {
 	// DIConstants scopes the AngularJS `.constant(...)` registrations a router's injected
 	// parameters resolve through (AMAP-V0-021); empty resolves none.
 	DIConstants []string `json:"di_constants,omitempty"`
+	// RouterGlobs declares the discovery scope compared with explicit routers (AMAP-V0-045).
+	RouterGlobs []string `json:"router_globs,omitempty"`
 }
 
 // RouterFile names one router definition file and its dialect.
@@ -95,14 +99,15 @@ type Map struct {
 	// map (AMAP-V0-018).
 	Roots []RootPin `json:"roots,omitempty"`
 	// HashPrefix is the manifest's hash-routing prefix, kept so projections can print a loadable URL.
-	HashPrefix string     `json:"hash_prefix"`
-	Manifest   Anchor     `json:"manifest"`
-	Screens    []Screen   `json:"screens"`
-	Edges      []Edge     `json:"edges"`
-	Flows      []Flow     `json:"flows"`
-	Files      []TestFile `json:"files"`
-	Unknowns   []Unknown  `json:"unknowns"`
-	Digest     string     `json:"digest"`
+	HashPrefix  string       `json:"hash_prefix"`
+	Manifest    Anchor       `json:"manifest"`
+	Screens     []Screen     `json:"screens"`
+	Edges       []Edge       `json:"edges"`
+	Flows       []Flow       `json:"flows"`
+	Files       []TestFile   `json:"files"`
+	Unknowns    []Unknown    `json:"unknowns"`
+	AppCoverage *AppCoverage `json:"app_coverage,omitempty"`
+	Digest      string       `json:"digest"`
 }
 
 // RootPin is one aliased root of a map: its alias, the commit read, and the manifest inputs it
@@ -115,6 +120,10 @@ type RootPin struct {
 
 // Screen is one router state: a node of the screen graph (AMAP-V0-002, AMAP-V0-003, AMAP-V0-006).
 type Screen struct {
+	// Entry records static entry constraints; absent in older maps (AMAP-V0-053/058).
+	Entry *EntryDeclaration `json:"entry,omitempty"`
+	// SplatNonEmpty preserves Rails required-glob semantics while sharing collision keys (AMAP-V0-046).
+	SplatNonEmpty   bool     `json:"splat_nonempty,omitempty"`
 	ID              string   `json:"id"`
 	State           string   `json:"state"`
 	Status          string   `json:"status"`
@@ -268,6 +277,9 @@ type Unknown struct {
 	Reason string `json:"reason"`
 	Path   string `json:"path,omitempty"`
 	Line   int    `json:"line,omitempty"`
+	// Detail names the failed hop of a di-constant not-read-whole, or the candidate paths of an
+	// ambiguous re-export (AMAP-V0-072); absent otherwise.
+	Detail string `json:"detail,omitempty"`
 }
 
 // Import statuses.

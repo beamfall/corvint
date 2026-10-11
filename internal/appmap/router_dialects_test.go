@@ -1,0 +1,361 @@
+package appmap
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func dialectData(t *testing.T, name string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", "dialects", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func dialectManifest(t *testing.T, root string, routers []RouterFile, globs []string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, "appmap.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m Manifest
+	if err = json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	m.Routers = routers
+	m.RouterGlobs = globs
+	m.HashPrefix = ""
+	m.Flows = ""
+	m.PageObjectScreens = nil
+	raw, err = json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "appmap.json", string(raw))
+}
+
+func dialectScreens(t *testing.T, states []rawState, unknowns []Unknown) map[string]Screen {
+	t.Helper()
+	screens, more := resolveScreens("test", states)
+	if len(unknowns)+len(more) > 0 {
+		t.Fatalf("unexpected unknowns: %+v %+v", unknowns, more)
+	}
+	out := map[string]Screen{}
+	for _, s := range screens {
+		out[s.State] = s
+	}
+	return out
+}
+
+// AMAP-V0-041: unique helper/path pairs for nested, scoped and shallow resources.
+func TestAMAPV0041RailsRoutes(t *testing.T) {
+	p := &railsParser{draw: func(string, railsScope, int) {}}
+	p.parse(blobEntry{path: "config/routes.rb", oid: "rails"}, dialectData(t, "routes.rb"), railsScope{}, 0)
+	screens := dialectScreens(t, p.states, p.unknowns)
+	for name, want := range map[string]string{
+		"root": "/", "welcome": "/welcome", "submit": "/submit",
+		"admin_v2_posts": "/admin/v2/posts", "admin_v2_post": "/admin/v2/posts/{id}",
+		"admin_v2_post_comments":    "/admin/v2/posts/{post_id}/comments",
+		"admin_v2_post_comment":     "/admin/v2/posts/{post_id}/comments/{id}",
+		"new_admin_v2_post_comment": "/admin/v2/posts/{post_id}/comments/new",
+		"preview_admin_v2_post":     "/admin/v2/posts/{id}/preview",
+		"search_admin_v2_posts":     "/admin/v2/posts/search",
+		"article_notes":             "/articles/{article_id}/notes", "note": "/notes/{id}",
+		"new_article_note": "/articles/{article_id}/notes/new", "edit_note": "/notes/{id}/edit",
+		"profile": "/profile", "new_profile": "/profile/new", "files": "/files/{*path}", "mounted": "/mounted",
+	} {
+		if s, ok := screens[name]; !ok || s.Template != want {
+			t.Errorf("%s: %+v, want %s", name, s, want)
+		}
+	}
+}
+
+// AMAP-V0-042: dynamic Ruby and deeper draws never supply guessed screens.
+func TestAMAPV0042RailsUnknownAndDraw(t *testing.T) {
+	for _, src := range []string{
+		"get `whoami`, as: :bad", `get "*", as: :bad`, `get route_path, as: :bad`, `get "#{prefix}/x", as: :bad`,
+		"constraints host: 'x' do\nget 'secret', as: :bad\nend",
+		"defaults format: 'json' do\nget 'secret', as: :bad\nend",
+		"constraints ->(req) do\nget 'secret', as: :bad\nend",
+		"constraints ->(req) { req.valid? } do\nget 'secret', as: :bad\nend",
+		"if enabled\nget 'secret', as: :bad\nend",
+		"scope dynamic do\nget 'secret', as: :bad\nend",
+		`resources :people`, `get 'x', constraints: pattern, as: :bad`,
+		"custom do |router|\nget 'secret', as: :bad\nend",
+		"content = <<~TEXT\nget 'secret', as: :bad\nTEXT",
+	} {
+		t.Run(src, func(t *testing.T) {
+			p := &railsParser{}
+			p.parse(blobEntry{path: "routes.rb"}, []byte(src), railsScope{}, 0)
+			if len(p.states) > 0 || len(p.unknowns) == 0 {
+				t.Fatalf("states=%+v unknowns=%+v", p.states, p.unknowns)
+			}
+		})
+	}
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "config/routes.rb", "Rails.application.routes.draw do\nnamespace :admin do\ndraw :extra\nend\nend\n")
+	writeFile(t, root, "config/routes/extra.rb", "get 'extra', as: :extra\ndraw :deeper\n")
+	dialectManifest(t, root, []RouterFile{{Path: "config/routes.rb", Dialect: DialectRails}}, nil)
+	rev := commitAll(t, root, "draw")
+	m := build(t, root, rev)
+	s := screenByID(t, m, "admin_extra")
+	if s.Template != "/admin/extra" || s.Anchor.Path != "config/routes/extra.rb" || len(s.NameFrom) == 0 {
+		t.Fatalf("draw: %+v", s)
+	}
+	if !hasUnknown(m, "router", "config/routes/extra.rb:2", "draw-depth-exceeded") {
+		t.Fatal(m.Unknowns)
+	}
+	writeFile(t, root, "config/routes.rb", "Rails.application.routes.draw do\nnamespace :staff do\ndraw :extra\nend\nend\n")
+	changed := commitAll(t, root, "scope changed")
+	if got := LineageFreshness(context.Background(), root, changed, m, []string{s.ID})[s.ID]; got != Stale {
+		t.Fatalf("draw scope freshness: %s", got)
+	}
+	writeFile(t, root, "config/routes.rb", "draw :missing\ndraw '../escape'\n")
+	rev = commitAll(t, root, "missing")
+	m = build(t, root, rev)
+	if !hasUnknown(m, "router", "config/routes.rb:1", "draw-unavailable") || !hasUnknown(m, "router", "config/routes.rb:2", "non-literal-draw") {
+		t.Fatal(m.Unknowns)
+	}
+}
+
+// AMAP-V0-043: object and JSX trees agree on hierarchy, index and splat semantics.
+func TestAMAPV0043ReactRoutes(t *testing.T) {
+	for _, file := range []string{"objects.tsx", "routes.jsx"} {
+		states, unknowns := parseReactRouter(blobEntry{path: file}, dialectData(t, file))
+		screens := dialectScreens(t, states, unknowns)
+		wants := map[string]string{"dashboard.index": "/dashboard", "dashboard.project": "/dashboard/projects/{projectId}", "dashboard.files": "/dashboard/files/{*splat}", "dashboard.absolute": "/dashboard/absolute", "dashboard.settings": "/dashboard/settings"}
+		if file == "routes.jsx" {
+			wants = map[string]string{"shop.index": "/shop", "shop.product": "/shop/products/{id}", "shop.files": "/shop/files/{*splat}"}
+		}
+		for name, want := range wants {
+			if s := screens[name]; s.Template != want {
+				t.Errorf("%s: %+v want %s", name, s, want)
+			}
+		}
+	}
+	states, u := parseReactRouter(blobEntry{path: "ui.jsx"}, []byte(`<Routes><Route path="/a" element={<A />} /><Route path={'/b'} /></Routes>`))
+	if len(dialectScreens(t, states, u)) != 2 {
+		t.Fatal(states)
+	}
+}
+
+// AMAP-V0-044: dynamic route data and JSX expressions cannot produce resolved screens.
+func TestAMAPV0044ReactUnknown(t *testing.T) {
+	for _, src := range []string{
+		`createBrowserRouter([{path: routePath}])`,
+		`createBrowserRouter([{path:'/x',lazy:()=>import('./x')}])`,
+		`createBrowserRouter([{path:'/x',...rest}])`,
+		`createBrowserRouter([{[key]:'/x'}])`,
+		`createBrowserRouter([{path:'/x',path:'/y'}])`,
+		`createBrowserRouter([{path:'/x',children:children}])`,
+		`createBrowserRouter([{path:'/x',index:enabled}])`,
+		`createBrowserRouter(routes)`,
+		`enabled && <Routes><Route id="secret" path="/secret" /></Routes>; <Routes>{children}</Routes>`,
+		`<Routes><Route id="amp" path="/a&amp;b" /></Routes>`,
+		`<Routes><Route id="escape" path="/a\u0062" /></Routes>`,
+		`enabled && createBrowserRouter([{id:'secret',path:'/secret'}])`,
+		`const ui = enabled && <Routes><Route id="secret" path="/secret" /></Routes>`,
+		`createBrowserRouter([{path:'/files/*rest'}])`,
+		`createBrowserRouter([{path:'/:user-id'}])`,
+		`createRoutesFromElements(<Route {...props} path="/x" />)`,
+		`createRoutesFromElements(<Route path={routePath} />)`,
+		`createRoutesFromElements(<Route path="/x">{enabled && <Route path="secret" />}</Route>)`,
+		`createBrowserRouter([{path:'/x/:id?'}])`,
+		`createBrowserRouter([{id:'bad',path:prefix,children:[{id:'child',path:'child'}]}])`,
+	} {
+		t.Run(src, func(t *testing.T) {
+			states, u := parseReactRouter(blobEntry{path: "routes.tsx"}, []byte(src))
+			screens, more := resolveScreens("test", states)
+			if len(u)+len(more) == 0 {
+				t.Fatal("no unknown")
+			}
+			for _, s := range screens {
+				if s.Status == StatusResolved {
+					t.Fatalf("guessed %+v", s)
+				}
+			}
+		})
+	}
+	// A regular expression's contents are not router calls.
+	states, u := parseReactRouter(blobEntry{path: "routes.ts"}, []byte(`const pattern = /createBrowserRouter([{path:'fake'}])/;`))
+	if len(states) != 0 || len(u) == 0 {
+		t.Fatalf("regex mined: %+v %+v", states, u)
+	}
+}
+
+// AMAP-V0-040 AMAP-V0-048: all dialects feed the existing test join and stable artifact encoding.
+func TestAMAPV0040MixedDialects(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "app/rails.rb", "get '/legacy/:id', to: 'legacy#show', as: :legacy\n")
+	writeFile(t, root, "app/react.tsx", `createBrowserRouter([{id:'island',path:'/island/:slug',Component:Island}])`)
+	writeFile(t, root, "e2e/specs/mixed.spec.ts", `test('mixed',async({page})=>{await page.goto('/legacy/7');await page.goto('/island/one');});`)
+	dialectManifest(t, root, []RouterFile{{"app/routes.js", DialectUIRouter}, {"app/rails.rb", DialectRails}, {"app/react.tsx", DialectReact}}, nil)
+	rev := commitAll(t, root, "mixed")
+	m := build(t, root, rev)
+	for _, name := range []string{"legacy", "island"} {
+		if s := screenByID(t, m, name); s.Status != StatusResolved || len(s.Specs) != 1 {
+			t.Fatalf("join: %+v", s)
+		}
+	}
+	a, err := Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := Encode(build(t, root, rev))
+	if !bytes.Equal(a, b) {
+		t.Fatal("non deterministic")
+	}
+	file := filepath.Join(t.TempDir(), "map.json")
+	if err = os.WriteFile(file, a, 0600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadMap(file)
+	if err != nil || loaded.Digest != m.Digest {
+		t.Fatalf("round trip: %v", err)
+	}
+}
+
+// AMAP-V0-045: discovery uses committed paths, de-duplicates globs and reports undeclared routers.
+func TestAMAPV0045RouterCoverage(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "app/other/routes.rb", "get 'other'\n")
+	dialectManifest(t, root, []RouterFile{{"app/routes.js", DialectUIRouter}}, []string{"app/**/routes.*", "app/*.js"})
+	rev := commitAll(t, root, "coverage")
+	writeFile(t, root, "app/untracked/routes.rb", "get 'untracked'\n")
+	m := build(t, root, rev)
+	c := m.AppCoverage
+	if c == nil || c.Status != StatusUnknown || len(c.Matched) != 2 || len(c.Undeclared) != 1 || c.Undeclared[0] != "app/other/routes.rb" {
+		t.Fatalf("coverage: %+v", c)
+	}
+	if !hasUnknown(m, "router", "app/other/routes.rb", "router-not-declared") {
+		t.Fatal(m.Unknowns)
+	}
+	a, _ := Encode(m)
+	file := filepath.Join(t.TempDir(), "map.json")
+	if err := os.WriteFile(file, a, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMap(file); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// AMAP-V0-046: common keys and ambiguity work across dialects; splats match several segments.
+func TestAMAPV0046SharedTemplates(t *testing.T) {
+	raw := []rawState{{name: "ui", url: "/mixed/:id"}, {name: "rails", url: "/mixed/:slug"}, {name: "react", url: "/mixed/{key}"}, {name: "files", url: "/files/*path"}}
+	screens, u := resolveScreens("test", raw)
+	if len(u) > 0 {
+		t.Fatal(u)
+	}
+	idx := newScreenIndex("", screens)
+	if _, reason := idx.byURL("/mixed/7"); reason != "ambiguous-template" {
+		t.Fatal(reason)
+	}
+	if id, reason := idx.byURL("/files/a/b"); id != "screen:test:files" || reason != "" {
+		t.Fatal(id, reason)
+	}
+	if a, b := templateKey("/files/{*path}"), templateKey("/files/{*splat}"); a != b {
+		t.Fatal(a, b)
+	}
+}
+
+// AMAP-V0-047: explicit bounds and malformed inputs refuse without evaluating source.
+func TestAMAPV0047Bounds(t *testing.T) {
+	for _, globs := range [][]string{{}, {"../routes.*"}, {"**x/routes.js"}, {"["}, {"app/*", "app/*"}} {
+		if validateRouterGlobs(globs) == nil {
+			t.Fatalf("accepted %v", globs)
+		}
+	}
+	states, u := parseReactRouter(blobEntry{path: "routes.ts"}, []byte(strings.Repeat("[", maxRouteDepth+1)))
+	if len(states) != 0 || len(u) == 0 {
+		t.Fatal("deep route not unknown")
+	}
+	root, _ := fixtureRepo(t)
+	routers := make([]RouterFile, maxRouterFiles+1)
+	for i := range routers {
+		routers[i] = RouterFile{"app/routes.js", DialectUIRouter}
+	}
+	dialectManifest(t, root, routers, nil)
+	rev := commitAll(t, root, "too many routers")
+	if _, err := Build(context.Background(), root, "appmap.json", rev); codeOf(err) != "appmap-invalid-manifest" {
+		t.Fatal(err)
+	}
+}
+
+// AMAP-V0-041: shallow nesting resets collection ancestry at each shallow parent.
+func TestAMAPV0041DeepShallow(t *testing.T) {
+	p := &railsParser{}
+	p.parse(blobEntry{path: "routes.rb"}, []byte("resources :posts, shallow: true do\nresources :comments do\nresources :notes\nend\nend"), railsScope{}, 0)
+	screens := dialectScreens(t, p.states, p.unknowns)
+	if s := screens["comment_notes"]; s.Template != "/comments/{comment_id}/notes" {
+		t.Fatalf("deep shallow: %+v", s)
+	}
+}
+
+// AMAP-V0-046: actual parsers, rather than fabricated states, share one collision index.
+func TestAMAPV0046MixedDialectCollision(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "app/routes.js", `app.state('ui', {url:'/shared/:id'});`)
+	writeFile(t, root, "app/routes.rb", "get 'shared/:other', to: 'shared#show', as: :rails\n")
+	writeFile(t, root, "app/routes.tsx", `createBrowserRouter([{id:'react',path:'/shared/:slug'}])`)
+	dialectManifest(t, root, []RouterFile{{"app/routes.js", DialectUIRouter}, {"app/routes.rb", DialectRails}, {"app/routes.tsx", DialectReact}}, nil)
+	m := build(t, root, commitAll(t, root, "collisions"))
+	if !hasUnknown(m, "template", "/shared/{}", "ambiguous-template") {
+		t.Fatal(m.Unknowns)
+	}
+	ids, reason := newScreenIndex("", m.Screens).urlMatches("/shared/42")
+	if len(ids) != 3 || reason != "" {
+		t.Fatalf("matches: %v %s", ids, reason)
+	}
+}
+
+// AMAP-V0-047: draws consume the existing file/byte bounds; no silent cap or bound swallowing.
+func TestAMAPV0047DrawBounds(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "config/routes.rb", "draw :huge\n")
+	writeFile(t, root, "config/routes/huge.rb", strings.Repeat("#", maxRouterBytes+1))
+	dialectManifest(t, root, []RouterFile{{"config/routes.rb", DialectRails}}, nil)
+	rev := commitAll(t, root, "large draw")
+	if _, err := Build(context.Background(), root, "appmap.json", rev); codeOf(err) != "appmap-bound-exceeded" {
+		t.Fatalf("large draw: %v", err)
+	}
+	var routes strings.Builder
+	for i := 0; i < maxRouterFiles; i++ {
+		fmt.Fprintf(&routes, "draw :part%d\n", i)
+		writeFile(t, root, fmt.Sprintf("config/routes/part%d.rb", i), "# empty\n")
+	}
+	writeFile(t, root, "config/routes.rb", routes.String())
+	rev = commitAll(t, root, "many draws")
+	if _, err := Build(context.Background(), root, "appmap.json", rev); codeOf(err) != "appmap-bound-exceeded" {
+		t.Fatalf("many draws: %v", err)
+	}
+}
+
+// AMAP-V0-046: Rails required globs and React empty splats share a key, not empty-path semantics.
+func TestAMAPV0046SplatEmptySemantics(t *testing.T) {
+	rails := &railsParser{}
+	rails.parse(blobEntry{path: "routes.rb"}, []byte("get 'files/*path', as: :rails\n"), railsScope{}, 0)
+	react, u := parseReactRouter(blobEntry{path: "routes.ts"}, []byte(`createBrowserRouter([{id:'react',path:'/files/*'}])`))
+	if len(u) > 0 || len(rails.unknowns) > 0 {
+		t.Fatal(u, rails.unknowns)
+	}
+	screens, u := resolveScreens("test", append(rails.states, react...))
+	if len(u) > 0 {
+		t.Fatal(u)
+	}
+	idx := newScreenIndex("", screens)
+	if id, why := idx.byURL("/files"); id != "screen:test:react" || why != "" {
+		t.Fatal(id, why)
+	}
+	if _, why := idx.byURL("/files/a/b"); why != "ambiguous-template" {
+		t.Fatal(why)
+	}
+}

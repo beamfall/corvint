@@ -728,20 +728,25 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 	r := regs[0]
 	var v, why string
 	var at []Anchor
+	t.hop = "" // a hop belongs to this lookup only
 	switch {
 	case r.bad:
 		why = "unreadable-registration"
 	case r.table != nil:
 		v, at, why = r.file.read(r.table, member, true)
 		if why == "" && !t.examined([]*constFile{own, r.file}, nil, nil, local) {
-			why = "not-read-whole" // another injection or lookup of the name may write the table
+			why = t.fail("registration-examined") // another injection or lookup of the name may write the table
 		}
 	default:
 		v, at, why = t.lookup(r.file, r.ident, member, r.at, local, own)
 	}
 	if why != "" {
 		// The one in-scope binding of local did not resolve: say why (AMAP-V0-026).
-		t.diag = append(t.diag, Unknown{Kind: "di-constant", Ref: local, Reason: why, Path: r.file.entry.path, Line: r.first})
+		u := Unknown{Kind: "di-constant", Ref: local, Reason: why, Path: r.file.entry.path, Line: r.first}
+		if why == "not-read-whole" || strings.HasPrefix(t.hop, "ambiguous-reexport:") {
+			u.Detail = t.hop
+		}
+		t.diag = append(t.diag, u)
 		return "", nil, false
 	}
 	if reg := spanOf(r.file.entry, r.file.data, r.first, r.last); len(at) == 0 || at[len(at)-1] != reg {

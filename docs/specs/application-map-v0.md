@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are proposed, pending owner acceptance (V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -392,6 +392,168 @@ V1-1061; GitHub #705).
   than one registration adds none, so its bytes are unchanged. The build still exits 0.
   Status: accepted (decision 0475; V1-1061; GitHub #705).
 
+- `AMAP-V0-040`: The experimental `rails-routes/0` and `react-router/0` dialects MUST
+  compile through the existing revision-pinned map builder alongside `ui-router-states/0`.
+  Existing manifests retain their encoding; unknown dialects and more than 64 explicit routers
+  still refuse. Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-041`: Rails literal `get`, `post`, `root` and `mount` declarations, `resources`
+  and `resource`, and nested `namespace`, `scope`, `member` and `collection` blocks MUST
+  produce route templates with named helpers as state names. Resource expansion represents
+  unique helper/path pairs (not HTTP actions); nested and literal `shallow: true` resources
+  preserve collection ancestry while shallow member routes drop resource ancestors. Only
+  conservative regular singularization is supported; custom inflections remain UNKNOWN.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-042`: Rails expressions, interpolation, constraints, defaults, lambdas, unsupported
+  options and unrecognized statements MUST emit named UNKNOWN reasons; an unsupported block
+  MUST NOT lend resolved routes to its descendants. A literal `draw :name` MUST read
+  `routes/name.rb` beside the declaring top-level router at the same revision, once per draw
+  site, at most one level; explicit routers and attempted draws share the 64-file bound. Missing, escaping, repeated or deeper draws
+  remain UNKNOWN. Draw and enclosing-scope anchors MUST join derived screen freshness.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-043`: React `createBrowserRouter` literal object arrays and
+  `createRoutesFromElements` / `Routes` literal JSX `Route` trees MUST compile nested
+  `children`, index routes and terminal splats. Literal `id` supplies the state name; otherwise
+  a deterministic file/ordinal name identifies the declaration. Parent containers with children
+  are abstract; pathless children inherit the parent path. Nested absolute paths must retain
+  the parent prefix. Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-044`: React lazy routes, non-literal paths/IDs/index values, computed or repeated
+  keys, spreads, non-literal children, conditional JSX and JSX quote escapes/entities not read exactly MUST emit named UNKNOWN reasons.
+  Unresolved parents make descendants UNKNOWN; unsupported syntax never invents a screen.
+  Element/Component expressions are opaque presentation references, never executed.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-045`: Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relative
+  patterns (segment glob syntax plus whole-segment `**`). At the pinned revision the builder
+  MUST compare regular tracked files matched by these patterns against explicit `routers`,
+  report each absent declaration as `router-not-declared`, and emit `app_coverage` with status,
+  patterns, matched, declared and undeclared paths. This is declared-scope coverage, never a
+  claim of whole-application completeness. No globs means no new wire member.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-046`: All dialects MUST use shared normalized parameter and template collision keys;
+  terminal Rails `*name` and React `*` splats normalize to `{*name}` and share `{*}` keys.
+  URL lookup MUST preserve ambiguity across dialects and match terminal splats across segments.
+  Rails required splats carry `splat_nonempty: true`; React splats may match an empty tail.
+  Unsupported optional/regex path syntax remains UNKNOWN rather than a guessed template.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-047`: Coverage discovery MUST read only bounded Git tree metadata (at most 20000
+  regular files), deduplicate overlapping globs and sort paths deterministically. Malformed
+  patterns refuse as `appmap-invalid-manifest`; resource breaches refuse as
+  `appmap-bound-exceeded`. Router parsing is bounded to 128 nesting levels and existing byte/state
+  limits; unsupported or malformed files produce router UNKNOWN evidence.
+  Status: proposed, pending owner acceptance (V1-1131).
+- `AMAP-V0-048`: Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,
+  test attribution, round-trip map loading and deterministic output, including omitted router
+  coverage. Tests MUST assert UNKNOWN without guessed resolved screens for dynamic constructs.
+  Status: proposed, pending owner acceptance (V1-1131).
+
+- `AMAP-V0-050`: `flows appmap entries --map FILE` MUST emit a deterministic static
+  `application-map-entries/0` projection with one row per retained screen, its entry URL template,
+  required path parameters, parent parameters, permission/flag guard, and last verified revision.
+  Static analysis MUST leave `last_verified_revision` empty and identify its basis as `static-only`.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-051`: Classification MUST be one of `deep-linkable`, `requires-parent-params`,
+  `abstract`, `guarded(permission/flag)`, or `UNKNOWN`. Precedence is unresolved/ambiguous,
+  abstract, unsupported entry constraints, guarded, parent parameters, then deep-linkable.
+  Deep-linkable means a static candidate with its required parameters, never proof of loading.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-052`: Required parameters MUST be the sorted unique union of path parameters on the
+  screen and its ancestors, including parent parameters absent from an absolute child URL.
+  Query parameters MUST be projected separately without claiming they are required. No fixture
+  values, role or data state may be invented; arbitrary `params` configuration remains UNKNOWN.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-053`: UI-router declarations MUST retain optional entry metadata distinguishing
+  an explicit URL from a URL-less state and identifying nonempty/dynamic resolves, transition
+  hooks, redirects and unsupported parameter configuration. Those constraints, dynamic guard
+  metadata, missing/cyclic lineage and unresolved parents MUST yield UNKNOWN with reasons.
+  Empty literal resolve/params objects add no constraint. Constraints inherit through ancestors.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-054`: Entry results MUST carry the map revision/digest and evaluated revision.
+  Freshness MUST check the manifest and complete blobs of the screen's lineage (including name
+  and parent bindings), conservatively invalidating on any change to those files. Unknown or
+  aliased evidence MUST NOT be upgraded to fresh. Reads inspect committed Git content only.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-055`: A changed template, guard, ancestor or manifest MUST make the projected
+  classification UNKNOWN and verification `UNVERIFIED_AT_HEAD`; unchanged evidence is
+  `STATIC_ONLY`, unavailable evidence is `UNKNOWN`. No static check may populate a runtime
+  last verified revision or emit VERIFIED. Rebuilding is the recovery path for stale entries.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-056`: The projection MUST retain `proven_path` as an empty list with status UNKNOWN
+  and reason `no-proven-edge-evidence` until a revision-bound edge-proof consumer is implemented.
+  Existing `flow-step` and `test-sequence` edges MUST NOT be treated as PROVEN execution.
+  Shortest PROVEN paths and edge-ledger receipt integration are explicitly deferred.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-057`: Entries MUST use the existing bounded map loader and projection renderer,
+  default 6144 bytes, `--budget` 256..65536 or exclusive `--full` capped at 1 MiB, with omitted
+  entry counts. Output order MUST be screen ID order; a head that cannot fit MUST refuse.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-058`: Old maps without entry metadata MUST remain readable and project UNKNOWN
+  (`entry-metadata-unavailable`) for otherwise routable screens. Other dialects stay UNKNOWN
+  until they supply equivalent entry constraints. Existing projections keep their contracts;
+  the optional metadata participates in the map digest. No new error codes are introduced.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-059`: This slice MUST remain static and read-only: it MUST NOT visit URLs or run
+  application code. Runtime flags MUST refuse. A future opt-in trusted-local runtime proposal
+  MUST require declared fixture/session and read-effect entries, refuse every other effect,
+  and bind loads/redirect/error receipts to revision and entry identity before ledger use.
+  Runtime execution and its receipt format remain deferred, not implemented by this slice.
+  Status: proposed, pending owner acceptance (V1-1136).
+
+- `AMAP-V0-060`: `flows appmap stats --map FILE` MUST emit a deterministic
+  `application-map-stats/0` projection computed from the map file alone: screens total, resolved
+  and unknown with the resolved percentage, unknown reasons, test-file join resolved/UNKNOWN
+  counts, page objects and unbound page objects, edges by basis and the selector strength
+  histogram. It MUST NOT read the repository or any URL.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-061`: Every count MUST reconcile with the map: resolved plus unknown screens equals
+  `screens`, the unknown-reason counts (all of them, including omitted) equal the map's `unknowns`
+  entries (each unresolved screen already carries one), edge counts sum to `edges`, and join counts sum to `files`.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-062`: Unknown reasons MUST be grouped by kind and reason (the `source` member is always
+  `unknown`), ordered by count descending then kind and reason, limited to the top 5 with an
+  `unknown_reasons_omitted` count, each with at most 3 example anchors ordered by path, line and
+  reference.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-063`: Output MUST be capped like other projections (default 6144 bytes, `--budget`
+  256..65536 or exclusive `--full` up to 1 MiB) and identical for identical maps.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-064`: `--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when the
+  resolved percentage is below PCT, with a message naming the dominant unknown reasons; at or above
+  PCT, or when absent, build-style success (exit 0) holds. Out-of-range values refuse with exit 2.
+  An empty map reads 0 percent.
+  Status: proposed, pending owner acceptance (V1-1138).
+- `AMAP-V0-065`: The report is a measure of the declared router and test scope only; it MUST NOT
+  claim equivalence with a hand-built map, and adopter-scale qualification remains `NOT_RUN`.
+  Status: proposed, pending owner acceptance (V1-1138).
+
+- `AMAP-V0-070`: An injected `.constant(...)` table imported through a directory specifier that
+  resolves to `index.{ts,js}`, through exactly one `export * from` module declaring the name, whose
+  string enum or object has only literal members, MUST resolve every state name and parent through
+  it, anchored as AMAP-V0-025 does. This pins behavior the reader already has for the reported
+  shape; the reported failure was not reproduced on a minimal fixture (see V1-1144 build log).
+  Status: proposed, pending owner acceptance (V1-1144).
+- `AMAP-V0-071`: When several star exports of a barrel declare the imported name, the name MUST
+  stay UNKNOWN and the `di-constant` unknown MUST carry `detail` `ambiguous-reexport:` plus the
+  sorted candidate paths joined by commas. The reason stays `ambiguous-barrel`, so existing
+  reasons and fixtures are unchanged.
+  Status: proposed, pending owner acceptance (V1-1144).
+- `AMAP-V0-072`: A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming the
+  failed hop: `registering-file-use`, `registering-file-bindings`, `registering-file-examined`,
+  `declaring-file-unread`, `import-chain-bindings`, `import-chain-examined` or
+  `registration-examined`. `detail` is an optional member of an unknown and absent otherwise, so a
+  map without such unknowns compiles to the same bytes; a map with one gains the member and a new
+  digest. This is the one deliberate byte change of this requirement.
+  Status: proposed, pending owner acceptance (V1-1144).
+- `AMAP-V0-075`: A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole
+  aliased test repository; the specs, page-object, workflow and scenario directories stay relative
+  to it. Every other value is validated as before (empty, absolute, `..` and `./` forms refuse).
+  Status: proposed, pending owner acceptance (V1-1145).
+- `AMAP-V0-076`: With `tests.root` `"."` and an aliased test repository, dirty-root detection MUST
+  cover only the declared directories plus the manifest file, so an untracked or modified file
+  outside them does not refuse, and one inside them refuses with `appmap-root-dirty`.
+  Status: proposed, pending owner acceptance (V1-1145).
+- `AMAP-V0-077`: A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and with
+  the same dirty-root scope as before this requirement.
+  Status: proposed, pending owner acceptance (V1-1145).
+
 ## Wire contract
 
 `corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
@@ -400,7 +562,12 @@ V1-1061; GitHub #705).
 `parent_from` as AMAP-V0-016 does. With an aliased tests root the map
 adds `roots: [{repo, revision, inputs}]` after `revision`, and `repo` as the first member of each
 anchor and unknown read from that root (AMAP-V0-017/017); projections print `repo` on
-those anchors.
+those anchors. Optional `router_globs` adds `app_coverage` with `status`, `patterns`, `matched`,
+`declared` and `undeclared` arrays. For example, `"router_globs": ["config/**/routes*.rb",
+"app/**/routes.*"]` discovers regular tracked files in that scope; it does not auto-admit them
+as routers. Rails helpers have no `_path`/`_url` suffix. Unnamed React declarations use
+`react:<router-path>:<ordinal>` state names. The new dialects use whole-file anchors so lexical
+scope changes cannot leave derived screens FRESH; draw context anchors join `name_from`.
 `corvint flows appmap screen|flow|find|scaffold --map FILE --screen|--flow|--text VALUE
 [--budget N | --full] [--revision REV]` writes `application-map-screen/0`,
 `application-map-flow/0`, `application-map-find/0` or `application-map-scaffold/0`. Refusals exit 2
@@ -434,7 +601,20 @@ with one coded JSON error on stderr and nothing on stdout.
 `member-not-found`. Unknown kinds are `state`, `screen`,
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse`, `overlay` and
-`di-constant`.
+`di-constant` and (V1-1131) `router`.
+
+V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rails-statement`,
+`rails-constraints`, `rails-defaults`, `non-literal-rails-scope`, `non-literal-rails-resource`,
+`unsupported-rails-inflection`, `unsupported-rails-scope`, `non-literal-rails-route`,
+`non-literal-draw`, `repeated-draw`, `draw-unavailable`, `draw-depth-exceeded`,
+`unsupported-react-syntax`, `react-routes-not-found`, `non-literal-react-routes`,
+`non-literal-react-route`, `non-literal-react-children`, `lazy-route`, `non-literal-path`,
+`non-literal-index`, `invalid-index-route`, `invalid-absolute-child`, `unsupported-react-option`,
+`dynamic-route-context`, `router-depth-exceeded` and `unsupported-route-pattern`. Unknown helper
+names also reuse `non-literal-name`; blocked descendants reuse `unresolved-parent`. Unsupported
+Ruby block structure invalidates the file's extracted states. React root conditionals invalidate
+its states, while JSX quote entities/escapes and unrepresentable optional/partial parameter
+patterns remain UNKNOWN. This does not evaluate Ruby custom inflections or JavaScript control flow.
 
 ## Overlay seam
 
@@ -449,8 +629,8 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 
 ## Non-goals and simpler baseline
 
-- No router dialect other than `ui-router-states/0`; React Router, Vue Router and Angular Router are
-  follow-ups. No Cypress `cy.visit` or Playwright fixture-injected page objects.
+- The accepted baseline is `ui-router-states/0`; Rails and React support below is proposed
+  experimental V1-1131 scope. Vue Router and Angular Router remain follow-ups. No Cypress `cy.visit` or Playwright fixture-injected page objects.
 - No TypeScript `paths`/`baseUrl` alias resolution (V1-0958 owns it).
 - No MCP tools, documentation-corpus records or persisted index; the map is an explicit file.
 - No revision other than `HEAD` for an aliased root, and no projection, planner or run-verification
@@ -542,6 +722,15 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-024 | `TestAMAPV0024InjectedStringEnum`, `TestAMAPV0025InjectedTableThroughBarrel` |
 | AMAP-V0-025 | `TestAMAPV0025InjectedTableThroughBarrel` |
 | AMAP-V0-026 | `TestAMAPV0026DIConstantDiagnostics`, `TestAMAPV0024InjectedStringEnum`, `TestAMAPV0025InjectedTableThroughBarrel` |
+| AMAP-V0-040 | `TestAMAPV0040MixedDialects` |
+| AMAP-V0-041 | `TestAMAPV0041RailsRoutes` |
+| AMAP-V0-042 | `TestAMAPV0042RailsUnknownAndDraw` |
+| AMAP-V0-043 | `TestAMAPV0043ReactRoutes` |
+| AMAP-V0-044 | `TestAMAPV0044ReactUnknown` |
+| AMAP-V0-045 | `TestAMAPV0045RouterCoverage` |
+| AMAP-V0-046 | `TestAMAPV0046SharedTemplates` |
+| AMAP-V0-047 | `TestAMAPV0047Bounds` |
+| AMAP-V0-048 | `TestAMAPV0048DialectCLI` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
@@ -632,3 +821,36 @@ Decision 0446 keeps every V0 default below; each question stays open for a later
     right way to say which `.constant(...)` registrations belong to the app, or should the map
     infer the scope from AngularJS module names or the router's import closure, and should a
     poisoned scope report its own unknown instead of leaving each name `non-literal-name`?
+
+## V1-1131 experimental scope and rollback
+
+The owner request is issue 773. These proposed additions do not accept new product intent.
+Implementation owns new router dialect/coverage files and the minimal manifest/build dispatch and
+shared-template seams; edge coverage, flow extraction, test grouping and change impact stay with
+the other lane. Start with parser fixtures, then committed build/CLI witnesses and focused gates.
+Rollback removes the new dialect declarations and router_globs from manifests and rebuilds maps;
+older closed-schema consumers must rebuild without the new optional coverage member. Full Ruby/JS
+evaluation, Rails custom inflections/engines, runtime route mutation, imported route arrays and
+adopter qualification are excluded. Dynamic route sets remain UNKNOWN. No network or interpreter
+is invoked by the builder. Model routing: current builder for bounded parser work, independent
+review for fail-closed and evidence-boundary mistakes; spend telemetry is NOT_OBSERVED.
+
+## Static entries slice (V1-1136)
+
+Owner input: issue #778 as supplied for this build. Implementation is experimental; numbered
+requirements above remain proposed. The smallest baseline reads the existing map without launching
+the adopter. `entries --map FILE [--revision REV] [--budget N | --full]` adds a separate projection;
+UI-router screens carry optional `entry` declaration metadata. Existing maps remain loadable by the
+new reader; older closed readers require rebuilding with their matching producer. No migration
+or runtime receipt is supplied. Rollback removes this projection and optional metadata, then
+rebuilds maps. No edge-ledger, test-plan or change-impact behavior is changed.
+
+| Requirement | Implementation | Focused evidence |
+| --- | --- | --- |
+| AMAP-V0-050, AMAP-V0-051, AMAP-V0-052, AMAP-V0-053 | `internal/appmap/entries.go`, `internal/appmap/router.go` | `TestEntriesClassification` |
+| AMAP-V0-054, AMAP-V0-055 | `internal/appmap/entries.go` | `TestEntriesRevisionBinding` |
+| AMAP-V0-056, AMAP-V0-058 | `internal/appmap/entries.go` | `TestEntriesLegacyAndUnprovenEdges` |
+| AMAP-V0-057, AMAP-V0-059 | `cmd/corvint/flows_appmap_entries.go` | `TestEntriesCLI`, `TestEntriesBudget` |
+
+Promotion needs owner acceptance; runtime verification, shortest PROVEN paths, non-UI-router entry
+metadata, dynamic resolves/params interpretation and adopter-scale qualification remain deferred.
