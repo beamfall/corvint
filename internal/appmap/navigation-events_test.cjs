@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {EventEmitter} = require('node:events');
-const {createRecorder, install} = require('./navigation-events.cjs');
+const {createRecorder, install, clearPrevious, redactURL} = require('./navigation-events.cjs');
 
 class Frame { constructor() { this.href = 'about:blank'; } url() { return this.href; } }
 class Page extends EventEmitter { constructor() { super(); this.main = new Frame(); } mainFrame() { return this.main; } }
@@ -76,6 +76,7 @@ test('ANL-V0-039..041: a walk writes the closed document byte-for-byte', async (
   const golden = fs.readFileSync(path.join(__dirname, 'testdata/navigation-events/synthetic.json'), 'utf8');
   assert.equal(h.read(), golden);
   assert.ok(!h.read().includes('typed-secret'));
+  assert.ok(!h.read().includes('token=zz'));
   assert.deepEqual(h.warnings, []);
 });
 
@@ -89,9 +90,41 @@ test('ANL-V0-038: listener state is per attempt; a retry replaces the earlier fi
   await h.call('goto', {}, () => navigate(page, 'https://x.test/b'));
   await h.rec.runBeforeCloseBrowserContext(context);
   assert.equal(JSON.parse(h.read('k')).events.map(e => e.url).join(), 'https://x.test/b');
+  h.current.retry = 2;
+  await h.open();
+  assert.ok(!fs.existsSync(path.join(h.dir, 'k.json')), 'a new attempt drops the earlier document');
 });
 
-test('ANL-V0-043: a second page, too many events or an oversized URL withholds the document', async () => {
+test('ANL-V0-039: a context closed by Browser.close() still writes once', async () => {
+  const h = harness('browser-close');
+  const {context, page} = await h.open();
+  await h.call('goto', {}, () => navigate(page, 'https://x.test/a'));
+  context.emit('close');
+  assert.equal(JSON.parse(h.read()).events.length, 1);
+  fs.rmSync(path.join(h.dir, 'browser-close.json'));
+  await h.rec.runBeforeCloseBrowserContext(context);
+  assert.ok(!fs.existsSync(path.join(h.dir, 'browser-close.json')), 'already flushed');
+});
+
+test('ANL-V0-044: URLs are redacted before they reach disk', () => {
+  assert.equal(redactURL('https://u:p@x.test/a?token=zz&x=1#t'), 'https://x.test/a?token=REDACTED&x=1#t');
+  assert.equal(redactURL('http://h/p?a=b&code=1&v=abcdefghijklmnopqrstuvwxyz'), 'http://h/p?a=b&code=REDACTED&v=REDACTED');
+  assert.equal(redactURL('http://h/#/r?session=9&q=%zz'), 'http://h/#/r?session=REDACTED&q=REDACTED');
+  assert.equal(redactURL('http://h/items/7#tab'), 'http://h/items/7#tab');
+});
+
+test('ANL-V0-046: the runner clears only earlier producer documents', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-nav-'));
+  fs.writeFileSync(path.join(dir, 'old.json'), '{"schema":"playwright-navigation-events/0","test_key":"old","events":[]}\n');
+  fs.writeFileSync(path.join(dir, 'half.json.tmp'), '{');
+  fs.writeFileSync(path.join(dir, 'other.json'), '{"schema":"something-else"}');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'keep');
+  clearPrevious(dir);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['notes.txt', 'other.json']);
+  clearPrevious(path.join(dir, 'missing'));
+});
+
+test('ANL-V0-043: a second page, too many events, an oversized URL or document withholds the document', async () => {
   const h = harness('two-pages');
   const {context, page} = await h.open();
   await h.call('goto', {}, () => navigate(page, 'https://x.test/a'));
@@ -105,6 +138,13 @@ test('ANL-V0-043: a second page, too many events or an oversized URL withholds t
   for (let i = 0; i <= 4096; i++) navigate(b.page, 'https://x.test/p' + i);
   await big.rec.runBeforeCloseBrowserContext(b.context);
   assert.ok(!fs.existsSync(path.join(big.dir, 'big.json')));
+
+  const huge = harness('huge');
+  const g = await huge.open();
+  for (let i = 0; i < 1100; i++) navigate(g.page, 'https://x.test/' + i + 'a'.repeat(4000));
+  await huge.rec.runBeforeCloseBrowserContext(g.context);
+  assert.ok(!fs.existsSync(path.join(huge.dir, 'huge.json')));
+  assert.match(huge.warnings[0], /huge not written: document over 4 MiB/);
 
   const long = harness('long');
   const l = await long.open();
@@ -122,6 +162,7 @@ test('ANL-V0-037/038: outside a test nothing is recorded; outputDir is required'
   await rec.runBeforeCloseBrowserContext(context);
   assert.deepEqual(fs.readdirSync(dir), []);
   assert.throws(() => createRecorder({currentTest: () => null}), /outputDir is required/);
+  assert.throws(() => install({}), /outputDir is required/);
 });
 
 test('ANL-V0-038: without a resolvable Playwright install warns once and records nothing', () => {

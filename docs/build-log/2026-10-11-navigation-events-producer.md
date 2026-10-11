@@ -1,6 +1,6 @@
 # 2026-10-11 navigation-events producer (issue #814)
 
-Branch `claude/issue-814-navigation-events`, from `645304a2f`. Requirements ANL-V0-037..045
+Branch `claude/issue-814-navigation-events`, from `645304a2f`. Requirements ANL-V0-037..046
 (proposed).
 
 ## Decision
@@ -36,6 +36,22 @@ from the main-frame navigation request's `redirectedFrom()` chain. The file live
 - **Test fixtures:** the zip fixtures keep only the run's `0-trace.trace` entry, byte for byte. The
   other entries could carry local paths. `TestANLV0042LiveParityWithTraceZip` replays both.
 
+## Review round 1 repairs
+
+Codex round 1 failed the change; each repair was checked live on the same suite.
+
+- **Redaction before writing (ANL-V0-044).** A `goto` to `http://u:p@…/login?token=abc&x=1` was
+  written as `…/login?token=REDACTED&x=1`. The URL credentials were dropped and no secret value was
+  written.
+- **`Browser.close()` (ANL-V0-039).** A test that launches its own browser and closes it with
+  `Browser.close()` now writes its document. The round-1 producer, run on the same test, wrote
+  nothing.
+- **Clearing earlier documents (ANL-V0-046).** The run started with a stale producer document and
+  an unrelated JSON file in `DIR`. After the run, the stale document was gone and the unrelated
+  file was kept. The two documents written were byte-identical to the fixtures.
+- **Size bound (ANL-V0-043).** A document over 4 MiB is withheld.
+- **Directory limit.** The help text now names the 64-file directory limit.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:
@@ -56,11 +72,15 @@ The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, t
   A missing hook warns once and records nothing (ANL-V0-038, ANL-V0-045).
 - **Test key.** `test_key` is Playwright's `testId`, not the qualified receipt test key, which the
   producer cannot compute.
-- **Abstention.** A second page, more than 4096 events or a URL over 4096 bytes writes no document
-  (ANL-V0-043).
+- **Abstention.** A second page, more than 4096 events, a URL over 4096 bytes or a document over
+  4 MiB writes no document (ANL-V0-043).
 - **Parity boundary.** A call that commits several URLs (a client-side redirect) yields extra visits
   that the trace's snapshots cannot see. The parity check covers only the two live shapes above.
 - **Adopter suite.** No adopter-suite run was made.
+- **Clearing scope.** The runner clears `DIR` whenever it loads the config, including on `--list`.
+  A retry that never opens a browser context leaves the earlier attempt's document in place.
+- **Overhead measurement.** The overhead was measured before the round-1 repairs. Those repairs add
+  string work only when a URL commits.
 
 ## Rollback
 

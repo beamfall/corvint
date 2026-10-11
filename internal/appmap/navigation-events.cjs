@@ -8,7 +8,8 @@
 // The config file is loaded by the runner and by every worker. In a worker the producer adds a
 // listener to Playwright's client instrumentation, so it runs with any trace setting and records
 // only main-frame URL commits and the Playwright call in flight when each committed. It never reads
-// page content, typed values or call parameters other than the selector.
+// page content, typed values or call parameters other than the selector, and it redacts URLs before
+// they reach disk. The runner process removes the previous run's documents from outputDir.
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -16,8 +17,77 @@ const schema = 'playwright-navigation-events/0';
 const maxEvents = 4096;
 const maxURLBytes = 4096;
 const maxSelectorBytes = 1024;
+const maxDocumentBytes = 4 << 20; // observe's reporter file limit
+const docPrefix = '{"schema":"' + schema + '"';
 const methodPattern = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const testKeyPattern = /^[^\s\p{Cc}]{1,256}$/u;
+
+// The ANL-V0-007 redaction observe applies, applied before writing so no secret-shaped query value
+// or URL credential is persisted (ANL-V0-044). Only the value is replaced; everything else is kept.
+const secretKey = /token|secret|passw|pwd|auth|session|sig|key|code|credential|bearer|jwt|cookie/i;
+const opaqueValue = /^[A-Za-z0-9_\-+/=.]{24,}$/;
+const redacted = 'REDACTED';
+
+function decodeQueryPart(v) {
+  return decodeURIComponent(v.replace(/\+/g, ' '));
+}
+
+function redactQuery(query) {
+  return query.split('&').map(pair => {
+    if (pair === '') return pair;
+    const eq = pair.indexOf('=');
+    const k = eq < 0 ? pair : pair.slice(0, eq);
+    const v = eq < 0 ? '' : pair.slice(eq + 1);
+    try {
+      if (!secretKey.test(decodeQueryPart(k)) && !opaqueValue.test(decodeQueryPart(v))) return pair;
+    } catch {
+      // An undecodable pair is withheld whole rather than guessed at.
+    }
+    return k + '=' + redacted;
+  }).join('&');
+}
+
+function redactURL(raw) {
+  let url = raw.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, '$1');
+  const hash = url.indexOf('#');
+  let fragment = hash < 0 ? null : url.slice(hash + 1);
+  if (hash >= 0) url = url.slice(0, hash);
+  const q = url.indexOf('?');
+  if (q >= 0) url = url.slice(0, q + 1) + redactQuery(url.slice(q + 1));
+  if (fragment !== null && fragment.includes('?')) {
+    const fq = fragment.indexOf('?');
+    fragment = fragment.slice(0, fq + 1) + redactQuery(fragment.slice(fq + 1));
+  }
+  return fragment === null ? url : url + '#' + fragment;
+}
+
+// clearPrevious removes earlier producer documents (and interrupted temporary files) directly in
+// dir, so a run's directory holds only that run's tests. Other files are never touched.
+function clearPrevious(dir) {
+  let names;
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const full = path.join(dir, name);
+    try {
+      if (name.endsWith('.json.tmp')) {
+        fs.rmSync(full, {force: true});
+        continue;
+      }
+      if (!name.endsWith('.json') || !fs.lstatSync(full).isFile()) continue;
+      const fd = fs.openSync(full, 'r');
+      const head = Buffer.alloc(docPrefix.length);
+      const n = fs.readSync(fd, head, 0, head.length, 0);
+      fs.closeSync(fd);
+      if (head.subarray(0, n).toString('utf8') === docPrefix) fs.rmSync(full, {force: true});
+    } catch {
+      // A file that vanished or cannot be read is left alone.
+    }
+  }
+}
 
 // createRecorder returns the instrumentation listener. currentTest() returns the running test's
 // {testId, retry} or null; warn receives one-line notices. Exported for tests.
@@ -49,6 +119,7 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
     const add = [first, ...hops.slice(1).map(u => ({kind: 'redirect', url: u}))];
     if (hops.length) add.push({kind: 'redirect', url});
     for (const ev of add) {
+      ev.url = redactURL(ev.url);
       if (Buffer.byteLength(ev.url) > maxURLBytes || s.events.length >= maxEvents) {
         s.overflow = true;
         return;
@@ -76,15 +147,26 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
     const s = tests.get(testId);
     if (!s) return;
     const target = file(testId);
-    if (s.pages > 1 || s.overflow) {
+    const doc = s.pages > 1 || s.overflow ? '' : JSON.stringify({schema, test_key: testId, events: s.events}) + '\n';
+    const reason = s.pages > 1 ? 'more than one page'
+      : s.overflow ? 'more than 4096 events or a URL over 4096 bytes'
+        : Buffer.byteLength(doc) > maxDocumentBytes ? 'document over 4 MiB' : '';
+    if (reason) {
       fs.rmSync(target, {force: true});
-      warn(`corvint navigation-events: ${testId} not written: ${s.pages > 1 ? 'more than one page' : 'more than 4096 events or a URL over 4096 bytes'}`);
+      warn(`corvint navigation-events: ${testId} not written: ${reason}`);
       return;
     }
     fs.mkdirSync(dir, {recursive: true});
     const tmp = target + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify({schema, test_key: testId, events: s.events}) + '\n');
+    fs.writeFileSync(tmp, doc);
     fs.renameSync(tmp, target);
+  }
+
+  function flush(context) {
+    const testId = contexts.get(context);
+    if (testId === undefined) return;
+    contexts.delete(context);
+    write(testId);
   }
 
   return {
@@ -104,18 +186,19 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
       if (!t || !testKeyPattern.test(t.testId)) return;
       let s = tests.get(t.testId);
       if (!s || s.retry !== t.retry) {
+        // A new attempt drops the earlier attempt's document before recording its own.
         s = {retry: t.retry, events: [], pages: 0, overflow: false, last: ''};
         tests.set(t.testId, s);
+        fs.rmSync(file(t.testId), {force: true});
       }
       contexts.set(context, t.testId);
       for (const page of context.pages()) watchPage(s, page);
       context.on('page', page => watchPage(s, page));
+      // Browser.close() and a browser crash close the context without the before-close hook.
+      context.on('close', () => flush(context));
     },
     async runBeforeCloseBrowserContext(context) {
-      const testId = contexts.get(context);
-      if (testId === undefined) return;
-      contexts.delete(context);
-      write(testId);
+      flush(context);
     },
   };
 }
@@ -123,6 +206,7 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
 // install wires the recorder into the suite's own Playwright copy, resolved from the working
 // directory. When the private instrumentation hook is missing it warns once and records nothing.
 function install({outputDir} = {}) {
+  if (typeof outputDir !== 'string' || outputDir === '') throw new Error('navigation-events: outputDir is required');
   const warn = msg => process.stderr.write(msg + '\n');
   const fromCwd = {paths: [process.cwd()]};
   let core, test;
@@ -134,6 +218,8 @@ function install({outputDir} = {}) {
     warn('corvint navigation-events: Playwright not found from the working directory; nothing recorded');
     return;
   }
+  // Playwright sets TEST_WORKER_INDEX in workers; the runner loads the config once before them.
+  if (!process.env.TEST_WORKER_INDEX) clearPrevious(path.resolve(outputDir));
   const inst = core._instrumentation;
   if (!inst || typeof inst.addListener !== 'function') {
     warn('corvint navigation-events: this Playwright has no client instrumentation hook; nothing recorded');
@@ -150,4 +236,4 @@ function install({outputDir} = {}) {
   inst.addListener(createRecorder({outputDir, currentTest, warn}));
 }
 
-module.exports = {install, createRecorder, schema};
+module.exports = {install, createRecorder, clearPrevious, redactURL, schema};

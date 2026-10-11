@@ -10,7 +10,7 @@ Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-
 ## Agent digest
 - Claim: A revision-evaluated edge ledger reuses qualified receipts and fails closed on unproven assumptions.
 - Status: accepted (decision 0518; V1-1132..1135, V1-1137); experimental.
-- Exists: smallest single-map CLI slice; synthetic receipts only; static page-object step effects for prefixes (ANL-V0-035/036, V1-1164, decision 0520); a config-installed Playwright navigation-events producer live-checked on Playwright 1.61.1 (ANL-V0-037..045, issue #814).
+- Exists: smallest single-map CLI slice; synthetic receipts only; static page-object step effects for prefixes (ANL-V0-035/036, V1-1164, decision 0520); a config-installed Playwright navigation-events producer live-checked on Playwright 1.61.1 (ANL-V0-037..046, issue #814).
 - Blocked on: live adopter qualification.
 - Read next: Requirements; Wire and limits; Traceability; Follow-ups.
 
@@ -267,10 +267,13 @@ are URL templates, not component source files. This slice makes neither missing 
   is absent, it writes one stderr line and records nothing, so no document is ever partial.
   Recording is per test attempt (`testInfo.testId`, `retry`); a context created outside a test
   records nothing. (proposed; issue #814)
-- `ANL-V0-039`: When a test's browser context closes, the producer writes one closed
+- `ANL-V0-039`: When a test's browser context closes (the before-close hook, or the context `close`
+  event when `Browser.close()` or a crash closes it), the producer writes once one closed
   `playwright-navigation-events/0` document as one JSON line to `DIR/<testId>.json` (through a
-  temporary file and rename), with `test_key` set to Playwright's stable test ID; a later attempt
-  of the same test replaces it. `observe --trace` accepts each file and the directory unchanged.
+  temporary file and rename), with `test_key` set to Playwright's stable test ID. A later attempt
+  of the same test removes the earlier attempt's file when its first context opens.
+  `observe --trace` accepts each file, and `DIR` itself while it holds at most 64 documents (the
+  ANL-V0-006 directory limit); a larger run is observed file by file.
   The test key is not a qualified receipt test key; binding observations to receipts stays the
   caller's mapping, as for `--test-key` (ANL-V0-022). (proposed; issue #814)
 - `ANL-V0-040`: Each URL commit of the test page's main frame (`framenavigated`) is one event,
@@ -291,18 +294,27 @@ are URL templates, not component source files. This slice makes neither missing 
   redirect hops, and a call that commits more than one URL (a client-side redirect) yields one
   event per commit where the trace shows only the last. (proposed; issue #814)
 - `ANL-V0-043`: A test attempt that opens a second page (a popup or another context), records more
-  than 4096 events, or commits a URL longer than 4096 bytes gets no document: the producer removes
+  than 4096 events, commits a URL longer than 4096 bytes, or whose document would exceed the 4 MiB
+  reporter file limit gets no document: the producer removes
   any earlier file for that test and writes one stderr line naming the test and reason, mirroring the
   ANL-V0-022 refusals instead of truncating. (proposed; issue #814)
 - `ANL-V0-044`: The producer reads only main-frame URLs, navigation request redirect chains and each
   call's protocol method and selector. It never records typed or filled values, other call
-  parameters, page content, headers or bodies. URLs are written as committed; `observe` redacts them
-  (ANL-V0-007), as for a trace zip. (proposed; issue #814)
+  parameters, page content, headers or bodies. Before an event URL is kept it applies the ANL-V0-007
+  redaction: URL credentials are dropped, and a query value (also inside a hash route) whose name
+  is secret-shaped or whose value looks opaque, or which cannot be decoded, becomes `REDACTED`; no
+  other byte of the URL changes. `observe` redacts again with the same rule. (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event
   listeners and one small file write per test; it opens no network, process or browser. The
   measured overhead and the qualified Playwright version are recorded in the build log. It uses
   Playwright's private client instrumentation hook, qualified on Playwright 1.61.1 only; another
   version needs a fresh live parity run before its output is trusted. (proposed; issue #814)
+- `ANL-V0-046`: The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
+  config once before any worker starts; there `install` removes from `DIR`, not recursively, every
+  regular `*.json` file that begins with `{"schema":"playwright-navigation-events/0"` and every
+  `*.json.tmp` file, so `DIR` holds only the current run's documents. Other files are never
+  removed. Any command that loads the config in the runner, including `--list`, clears `DIR`.
+  (proposed; issue #814)
 
 ## Wire and limits
 
@@ -328,7 +340,7 @@ Add `internal/appmap/ledger.go`, a CLI file and focused tests; minimal dispatch/
 hooks. Reuse the private RVN verifier and freshness cache. Run focused baseline, implementation
 tests, vet and requested doc gates; independent review before handoff. Remove these additive hooks
 and files to roll back; no store or map-format migration. Keep requirement IDs stable.
-The navigation-events producer (ANL-V0-037..045) is one CommonJS file, its Node unit test and
+The navigation-events producer (ANL-V0-037..046) is one CommonJS file, its Node unit test and
 fixtures; remove them and the `observe` help sentence to roll back. Suites remove their one config
 line; the closed `playwright-navigation-events/0` format is unchanged.
 
@@ -371,6 +383,7 @@ line; the closed `playwright-navigation-events/0` format is unchanged.
 | ANL-V0-043 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit` |
 | ANL-V0-044 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit`, `TestANLV0039ObserveAcceptsProducerOutput` |
 | ANL-V0-045 | `docs/build-log/2026-10-11-navigation-events-producer.md` | `TestANLV0042LiveParityWithTraceZip` |
+| ANL-V0-046 | `internal/appmap/navigation-events.cjs` | `TestANLV0037ProducerNodeUnit` |
 
 ## Follow-ups and promotion
 
@@ -381,5 +394,5 @@ step counts; test-plan integration; live adopter qualification. UNKNOWN trigger 
 trigger acceptance claim. Promotion needs owner acceptance plus demonstrated useful reuse on an
 owner-controlled suite; synthetic checks alone retain experimental status. Kill or revise the
 projection if declared adjacency cannot safely support that suite. Live qualification is NOT_RUN,
-except that the ANL-V0-037..045 producer ran live on a local two-test Playwright 1.61.1 suite
+except that the ANL-V0-037..046 producer ran live on a local two-test Playwright 1.61.1 suite
 (`docs/build-log/2026-10-11-navigation-events-producer.md`); an adopter suite run remains NOT_RUN.

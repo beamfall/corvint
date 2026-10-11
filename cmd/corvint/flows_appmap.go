@@ -54,7 +54,8 @@ redirect, else UNKNOWN) and any annotated declared_trigger, UNKNOWN joins and un
 Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
 internal/appmap/navigation-events.cjs writes that JSON per test, with any trace setting, from one
 line in playwright.config: require('<corvint>/internal/appmap/navigation-events.cjs')
-.install({outputDir: 'DIR'}); then pass --trace DIR.
+.install({outputDir: 'DIR'}). Each run clears DIR's earlier documents; pass --trace DIR (at most
+64 tests) or DIR/<testId>.json.
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and
 test suite read at REV (default HEAD) and writes it to stdout. Router dialects are
