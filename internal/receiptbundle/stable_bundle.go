@@ -130,39 +130,88 @@ func CollectStable(mapBytes []byte, base, target, artifactRoot string) (*StableB
 // writes every file exclusively inside that directory, after checking that the
 // bundle is exactly the map's declared closure; a failed write removes only
 // that directory. The manifest is written last.
-func WriteStable(parent *os.Root, name string, b *StableBundle) (err error) {
+func WriteStable(parent *os.Root, name string, b *StableBundle) error {
+	_, err := writeStable(parent, name, b)
+	return err
+}
+
+// stableWriteHook lets tests change the output parent between the bundle
+// directory's creation and its open; it is nil outside tests.
+var stableWriteHook func()
+
+// writeStable is WriteStable that also returns the created directory's
+// identity, so a caller's later cleanup removes only that directory. Nothing is
+// written unless the opened root is the very directory Mkdir created and the
+// name still holds it as a real directory, never a symlink to another one.
+func writeStable(parent *os.Root, name string, b *StableBundle) (created os.FileInfo, err error) {
 	if err := b.checkClosure(); err != nil {
-		return err
+		return nil, err
 	}
 	if err := parent.Mkdir(name, 0o700); err != nil {
-		return cemcode.New(cemcode.PublishFailed, "bundle directory cannot be created")
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory cannot be created")
+	}
+	created, err = parent.Lstat(name)
+	if err != nil || !created.IsDir() {
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory changed after it was created")
+	}
+	if stableWriteHook != nil {
+		stableWriteHook()
+	}
+	dir, err := parent.OpenRoot(name)
+	if err != nil {
+		removeCreated(parent, name, created, nil)
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory cannot be opened")
+	}
+	defer dir.Close()
+	opened, statErr := dir.Stat(".")
+	named, lstatErr := parent.Lstat(name)
+	if statErr != nil || lstatErr != nil || !named.IsDir() || !os.SameFile(created, opened) || !os.SameFile(created, named) {
+		removeCreated(parent, name, created, nil)
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle directory changed after it was created")
 	}
 	defer func() {
 		if err != nil {
-			parent.RemoveAll(name)
+			removeCreated(parent, name, created, dir)
 		}
 	}()
-	dir, err := parent.OpenRoot(name)
-	if err != nil {
-		return cemcode.New(cemcode.PublishFailed, "bundle directory cannot be opened")
-	}
-	defer dir.Close()
 	if err := dir.Mkdir(StableArtifactDir, 0o700); err != nil {
-		return cemcode.New(cemcode.PublishFailed, "bundle artifacts directory cannot be created")
+		return nil, cemcode.New(cemcode.PublishFailed, "bundle artifacts directory cannot be created")
 	}
 	if err := writeFile(dir, StableMapName, b.Map); err != nil {
-		return err
+		return nil, err
 	}
 	for _, a := range b.Artifacts {
 		destination := filepath.Join(StableArtifactDir, filepath.FromSlash(a.Path))
 		if err := dir.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
-			return cemcode.New(cemcode.PublishFailed, "bundle artifact directory cannot be created")
+			return nil, cemcode.New(cemcode.PublishFailed, "bundle artifact directory cannot be created")
 		}
 		if err := writeFile(dir, destination, a.data); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return writeFile(dir, ManifestName, b.Manifest())
+	if err := writeFile(dir, ManifestName, b.Manifest()); err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// removeCreated removes the bundle directory writeStable created and nothing
+// else: it empties the directory through its own opened root when one is
+// given, wherever the directory now is, and removes name only while name still
+// holds that same real directory.
+func removeCreated(parent *os.Root, name string, created os.FileInfo, dir *os.Root) {
+	if dir != nil {
+		if top, err := dir.Open("."); err == nil {
+			entries, _ := top.ReadDir(-1)
+			top.Close()
+			for _, entry := range entries {
+				dir.RemoveAll(entry.Name())
+			}
+		}
+	}
+	if named, err := parent.Lstat(name); err == nil && named.IsDir() && os.SameFile(created, named) {
+		parent.RemoveAll(name)
+	}
 }
 
 // checkClosure refuses a bundle whose base, artifacts or bytes are not exactly
@@ -271,15 +320,6 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if err := unusedEntries(files, dirs, declared); err != nil {
 		return nil, err
 	}
-	// A second walk after every read refuses a tree that changed meanwhile,
-	// such as an entry swapped for a symlink to an undeclared sibling.
-	filesAfter, dirsAfter, err := walkStable(root)
-	if err != nil {
-		return nil, err
-	}
-	if !maps.Equal(files, filesAfter) || !maps.Equal(dirs, dirsAfter) {
-		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
-	}
 	// Every declared file is read again, so one rewritten after its own read
 	// is refused too.
 	for name, want := range readFiles {
@@ -287,6 +327,16 @@ func ReadStable(dir string) (*StableBundle, error) {
 		if err != nil || digest(data) != want.sha256 {
 			return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 		}
+	}
+	// A second walk after every read, including the re-reads, refuses a tree
+	// that changed meanwhile: an entry or an ancestor directory swapped for a
+	// symlink, an undeclared entry, or a directory replaced by another one.
+	filesAfter, dirsAfter, err := walkStable(root)
+	if err != nil {
+		return nil, err
+	}
+	if !maps.Equal(files, filesAfter) || !maps.EqualFunc(dirs, dirsAfter, os.SameFile) {
+		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 	}
 	return bundle, nil
 }
@@ -303,25 +353,27 @@ func readStableProbe(dir, name string) ([]byte, error) {
 }
 
 // walkStable lists every regular file and directory under the bundle root by
-// slash path, reading each directory incrementally so an oversized tree is
-// refused before it is held in memory, and refusing any other entry kind.
-func walkStable(root *os.Root) (map[string]bool, map[string]bool, error) {
-	files, dirs := map[string]bool{}, map[string]bool{".": true}
+// slash path, with each directory's identity, reading each directory
+// incrementally so an oversized tree is refused before it is held in memory,
+// and refusing any other entry kind.
+func walkStable(root *os.Root) (map[string]bool, map[string]os.FileInfo, error) {
+	files, dirs := map[string]bool{}, map[string]os.FileInfo{".": nil}
 	pending := []string{"."}
 	for len(pending) > 0 {
 		dir := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		entries, err := readStableDir(root, dir, maxStableEntries-len(files)-len(dirs))
+		entries, info, err := readStableDir(root, dir, maxStableEntries-len(files)-len(dirs))
 		if err != nil {
 			return nil, nil, err
 		}
+		dirs[dir] = info
 		for _, entry := range entries {
 			name := path.Join(dir, entry.Name())
 			switch {
 			case entry.Type().IsRegular():
 				files[name] = true
 			case entry.IsDir():
-				dirs[name] = true
+				dirs[name] = nil
 				pending = append(pending, name)
 			default:
 				return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle entry %s is neither a regular file nor a directory", name)
@@ -332,32 +384,33 @@ func walkStable(root *os.Root) (map[string]bool, map[string]bool, error) {
 }
 
 // readStableDir reads one bundle directory in bounded batches, refusing more
-// than room entries and a directory replaced by any other entry kind.
-func readStableDir(root *os.Root, dir string, room int) ([]fs.DirEntry, error) {
+// than room entries and a directory replaced by any other entry kind, and
+// returns the directory's identity with its entries.
+func readStableDir(root *os.Root, dir string, room int) ([]fs.DirEntry, os.FileInfo, error) {
 	name := filepath.FromSlash(dir)
 	before, err := root.Lstat(name)
 	if err != nil || !before.IsDir() {
-		return nil, stableRefusal(CodeStableEntryEscaping, "bundle entry %s is not a directory", dir)
+		return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle entry %s is not a directory", dir)
 	}
 	file, err := openStableEntry(root, name)
 	if err != nil {
-		return nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s cannot be opened", dir)
+		return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s cannot be opened", dir)
 	}
 	defer file.Close()
 	if opened, err := file.Stat(); err != nil || !opened.IsDir() || !os.SameFile(before, opened) {
-		return nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s changed while opened", dir)
+		return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s changed while opened", dir)
 	}
 	var entries []fs.DirEntry
 	for {
 		batch, err := file.ReadDir(64)
 		if entries = append(entries, batch...); len(entries) > room {
-			return nil, stableRefusal(CodeStableEntryUnused, "bundle holds more than %d entries", maxStableEntries)
+			return nil, nil, stableRefusal(CodeStableEntryUnused, "bundle holds more than %d entries", maxStableEntries)
 		}
 		if errors.Is(err, io.EOF) {
-			return entries, nil
+			return entries, before, nil
 		}
 		if err != nil {
-			return nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s cannot be read", dir)
+			return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle directory %s cannot be read", dir)
 		}
 	}
 }
@@ -377,7 +430,7 @@ func readDeclared(root *os.Root, files map[string]bool, name string, bound int) 
 
 // unusedEntries refuses every file nothing declares and every directory that
 // is not "." or an ancestor of a declared file.
-func unusedEntries(files, dirs, declared map[string]bool) error {
+func unusedEntries(files map[string]bool, dirs map[string]os.FileInfo, declared map[string]bool) error {
 	needed := map[string]bool{".": true, StableArtifactDir: true}
 	for name := range declared {
 		for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
@@ -394,7 +447,7 @@ func unusedEntries(files, dirs, declared map[string]bool) error {
 			return stableRefusal(CodeStableEntryUnused, "bundle directory %s is not declared", name)
 		}
 	}
-	if !dirs[StableArtifactDir] {
+	if _, ok := dirs[StableArtifactDir]; !ok {
 		return stableRefusal(CodeStableEntryMissing, "bundle has no %s directory", StableArtifactDir)
 	}
 	return nil
@@ -507,13 +560,14 @@ func exportStable(ctx context.Context, root string, raw []byte, options Options)
 		return nil, err
 	}
 	defer parent.Close()
-	if err := WriteStable(parent, name, bundle); err != nil {
+	created, err := writeStable(parent, name, bundle)
+	if err != nil {
 		return nil, err
 	}
 	dir := filepath.Join(parent.Name(), name)
 	result, exit, _, err := VerifyStable(ctx, dir, options.Repository, bundle.Base, bundle.Target)
 	if err != nil || exit != 0 || !reflect.DeepEqual(result, source) {
-		parent.RemoveAll(name)
+		removeCreated(parent, name, created, nil)
 		return nil, cemcode.New(cemcode.PublishFailed, "the written stable bundle does not reproduce the source verification")
 	}
 	return map[string]any{
