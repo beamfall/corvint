@@ -3,10 +3,12 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -136,5 +138,34 @@ func TestTMV0022_AS09_BytesAndSourceError(t *testing.T) {
 	res, err := verifyLimit(r, uint64(len(stream)))
 	if err != nil || res.Bytes != exported.Bytes || !r.hit {
 		t.Fatalf("bytes+EOF/metrics: %v", err)
+	}
+}
+
+// CAL-V0-215: even a source error delivered with complete tar bytes retains
+// its errno; a genuine malformed archive keeps its existing classification.
+func TestCALV0215_ArchiveSourceExhausted(t *testing.T) {
+	r, repo := repoWithStore(t)
+	stream, _, err := export(t, repo, fixture.TempDirOutside(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(bytes.NewReader(stream)); err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	before := fixture.TreeSnapshot(t, r.Root)
+	for _, errno := range []error{syscall.EMFILE, syscall.ENFILE} {
+		for _, at := range []int{0, 512, len(stream)} {
+			input := &errorAt{data: stream, at: at, err: &os.PathError{Op: "read", Path: "archive.tar", Err: errno}}
+			res, err := Verify(input)
+			if !input.hit || res != nil || !errors.Is(err, errno) || wire.CodeOf(err) != wire.CodeResourceExhausted || wire.RetryForbidden(err) {
+				t.Fatalf("boundary=%d hit=%v result=%v err=%v", at, input.hit, res, err)
+			}
+			if !reflect.DeepEqual(before, fixture.TreeSnapshot(t, r.Root)) {
+				t.Fatal("verify changed filesystem")
+			}
+		}
+	}
+	if _, err := Verify(bytes.NewReader(stream[:len(stream)/2])); wire.CodeOf(err) != wire.CodeMalformed {
+		t.Fatalf("parse classification: %v", err)
 	}
 }

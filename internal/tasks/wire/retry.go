@@ -28,9 +28,10 @@ const (
 // retries classifies every member of Codes. TestCALV0078_ClassificationCoversEveryCode
 // pins it so a new §11 code cannot ship unclassified.
 var retries = map[string]Retry{
-	CodeLockTimeout:   {true, "the store lock or a preparation admission was held by another writer past the wait budget; nothing was locked or written, so the same command with the same --request-id can succeed once the holder releases"},
-	CodeRedoPending:   {true, "a writer is between receipt link-in and head rename; the read or command can succeed once that writer finishes, and if it outlives the budget the next mutating command redoes the pending receipt"},
-	CodeSnapshotMoved: {true, "the store, head, intent tree or worktree changed during a read or before commit; nothing was decided, so the same command can succeed against a quiet snapshot (a release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes)"},
+	CodeResourceExhausted: {true, "process or system file descriptors are exhausted; after bounded backoff the identical request with the same --request-id can succeed when pressure clears; explicit post-program or unfinished-commit marks still forbid retry (CAL-V0-215)"},
+	CodeLockTimeout:       {true, "the store lock or a preparation admission was held by another writer past the wait budget; nothing was locked or written, so the same command with the same --request-id can succeed once the holder releases"},
+	CodeRedoPending:       {true, "a writer is between receipt link-in and head rename; the read or command can succeed once that writer finishes, and if it outlives the budget the next mutating command redoes the pending receipt"},
+	CodeSnapshotMoved:     {true, "the store, head, intent tree or worktree changed during a read or before commit; nothing was decided, so the same command can succeed against a quiet snapshot (a release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes)"},
 
 	CodeFenced:         {false, whyFenced},
 	CodeBootFenced:     {false, whyFenced},
@@ -142,11 +143,14 @@ func ResultRetryable(outcome string, codes []string) (retryable, present bool) {
 // WithoutRetry returns err marked so that its result is never retryable
 // (CAL-V0-078), for a caller that carries the fact only through an error. A
 // *Error, or the *Error an error wraps, is copied with NotRetryable set; any
-// other error already reports MALFORMED, which is never retryable, and is
-// returned unchanged.
+// other retryable error is wrapped without losing its cause (CAL-V0-215).
+// Errors whose classification already forbids retry are returned unchanged.
 func WithoutRetry(err error) error {
 	var e *Error
 	if !errors.As(err, &e) {
+		if RetryOf(CodeOf(err)).Retryable {
+			return &retryForbiddenError{err}
+		}
 		return err
 	}
 	marked := *e
@@ -154,8 +158,16 @@ func WithoutRetry(err error) error {
 	return &marked
 }
 
+type retryForbiddenError struct{ error }
+
+func (e *retryForbiddenError) Unwrap() error { return e.error }
+
 // RetryForbidden reports whether err carries the WithoutRetry mark.
 func RetryForbidden(err error) bool {
+	var marked *retryForbiddenError
+	if errors.As(err, &marked) {
+		return true
+	}
 	var e *Error
 	return errors.As(err, &e) && e.NotRetryable
 }

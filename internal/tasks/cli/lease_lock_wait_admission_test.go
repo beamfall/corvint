@@ -1,0 +1,83 @@
+package cli_test
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/authority"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// TestCALV0216_LockWaitAdmissionVerbs: claim, renew, submit, pool acquire,
+// pool confirm-safe and pool release accept --lock-wait with the CAL-V0-111
+// value rules and help, and a contended command waits for the caller's bound
+// on preparation admission, not the 30-second default, without a write.
+func TestCALV0216_LockWaitAdmissionVerbs(t *testing.T) {
+	root, repo, _, attempt, generation := lockWaitStore(t)
+	digest := strings.Repeat("a", 64)
+	verbs := [][]string{
+		{"claim", "--next", "--holder", "h", "--request-id", "claim-wait"},
+		{"renew", "--attempt", attempt, "--generation", generation, "--request-id", "renew-wait"},
+		{"submit", "--attempt", attempt, "--generation", generation, "--request-id", "submit-wait", "--tree", strings.Repeat("0", 40)},
+		{"pool", "acquire", "--attempt", attempt, "--generation", generation, "--pool", "db", "--request-id", "acquire-wait"},
+		{"pool", "confirm-safe", "--member", "a", "--allocation", digest, "--evidence", "local:safe", "--reason", "checked", "--request-id", "safe-wait"},
+		{"pool", "release", "--attempt", attempt, "--generation", generation, "--allocation", digest, "--request-id", "pool-release-wait"},
+	}
+	limit := int64(authority.MaxCallerLockWait / time.Second)
+	before := fixture.TreeSnapshot(t, repo.StateDir)
+	for _, base := range verbs {
+		for _, value := range []string{"0", fmt.Sprint(limit + 1), "007", "5s", ""} {
+			x := atm(t, root, nil, append(append([]string{}, base...), "--lock-wait", value)...)
+			if x.code == 0 || !hasCode(x.res, wire.CodeMalformed) {
+				t.Fatalf("%v --lock-wait %q: %s", base[:2], value, x.stdout)
+			}
+		}
+		x := atm(t, root, nil, append(append([]string{}, base...), "--lock-wait", "5", "--lock-wait", "5")...)
+		if !hasCode(x.res, wire.CodeMalformed) {
+			t.Fatalf("%v repeated --lock-wait: %s", base[:2], x.stdout)
+		}
+		help := atm(t, root, nil, append(verbName(base), "--help", "--verbose")...)
+		usage, note := field(help.res.Items[0], "usage").Str, field(help.res.Items[0], "lockWait").Str
+		if help.code != 0 || !strings.Contains(usage, "[--lock-wait SECONDS]") || !strings.Contains(note, fmt.Sprintf("1..%d", limit)) {
+			t.Fatalf("%v help: %s", base[:2], help.stdout)
+		}
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
+		t.Fatal("a refused --lock-wait wrote state")
+	}
+
+	held := holdPreparation(t, repo)
+	defer held.Close()
+	for _, base := range verbs {
+		start := time.Now()
+		x := atm(t, root, nil, append(append([]string{}, base...), "--lock-wait", "1")...)
+		lockTimedOut(t, x, time.Since(start), time.Second)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
+		t.Fatal("a timed-out --lock-wait command wrote state")
+	}
+
+	// A holder that leaves within the bound admits the waiting command.
+	go func() {
+		time.Sleep(1500 * time.Millisecond)
+		_ = held.Close()
+	}()
+	start := time.Now()
+	x := atm(t, root, nil, append(append([]string{}, verbs[1]...), "--lock-wait", "20")...)
+	if x.code != 0 || field(x.res.Items[0], "replayed").Bool || time.Since(start) < time.Second {
+		t.Fatalf("renew queued behind the holder after %v: %s", time.Since(start), x.stdout)
+	}
+}
+
+// verbName is the command words of argv, up to its first flag.
+func verbName(argv []string) []string {
+	for i, a := range argv {
+		if strings.HasPrefix(a, "--") {
+			return append([]string{}, argv[:i]...)
+		}
+	}
+	return append([]string{}, argv...)
+}

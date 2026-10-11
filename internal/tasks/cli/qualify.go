@@ -58,7 +58,7 @@ type verdictPack struct {
 	Neighbours     []neighbourResult `json:"neighbours"`
 }
 
-func qualify(env Env, cmd []string, args []string) *wire.Result {
+func qualify(env Env, cmd []string, args []string) (result *wire.Result) {
 	a := commonRunArgs{commit: "HEAD"}
 	baseArg := ""
 	if res := pairFlags(cmd, args, a.singles(map[string]*string{"--base": &baseArg}), map[string]*[]string{"--spec": &a.specs}, nil); res != nil {
@@ -81,6 +81,10 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if err := j.open(); err != nil {
 		return errorResult(cmd, err)
 	}
+	defer func() {
+		// The request directory exists; a same-request retry cannot resume it.
+		result.NotRetryable = true
+	}()
 	defer j.close()
 	ctx, stop := jobInterruptContext()
 	defer stop()
@@ -134,7 +138,7 @@ func qualify(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	result := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Untrusted: true, NotRetryable: true}
+	result = &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Untrusted: true, NotRetryable: true}
 	if v.Verdict != "QUALIFIED" {
 		result.Outcome, result.Codes = wire.OutcomeRefused, []string{failCode}
 		result.Warnings = append(result.Warnings, prose(notQualifiedDetail+" "+strings.Join(v.Reasons, "; ")))

@@ -265,3 +265,13 @@ func DoctorPluginNamesForTest(dir string) ([]string, error) { return doctorPlugi
 // DoctorPluginRunForTest runs c as doctor runs a plugin (TQD-V0-010,
 // PGO-V0-009).
 func DoctorPluginRunForTest(c *exec.Cmd) error { return doctorPluginRun(c) }
+
+// ReadRunConfigForTest exercises classification without running a job.
+var ReadRunConfigForTest = readRunConfig
+
+// SetRunConfigOpenForTest injects a config open/read failure without descriptor pressure.
+func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
+	was := runConfigOpen
+	runConfigOpen = open
+	return func() { runConfigOpen = was }
+}

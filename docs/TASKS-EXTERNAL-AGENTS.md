@@ -619,14 +619,20 @@ means a writer crashed inside the window and the next mutating command redoes it
 
 Every non-`OK` result that carries a code also carries `retryable` (CAL-V0-078); `OK` and uncoded
 results do not. Branch on that boolean instead of matching codes. It is true only when every code
-is one of these three, and then the same command with the same `--request-id` can succeed after a
+is one of the following codes, and then the same command with the same `--request-id` can succeed after a
 bounded backoff:
 
+- `RESOURCE_EXHAUSTED` (proposed CAL-V0-215, pending owner acceptance): process or system
+  descriptor exhaustion (`EMFILE`/`ENFILE`); retry the identical request with the same request ID
+  after bounded backoff when descriptor pressure clears. An explicit `retryable:false` still
+  wins after a program or an unfinished committed step. Tasks does not raise `RLIMIT_NOFILE`.
 - `LOCK_TIMEOUT`: another writer held the store lock or a preparation admission past the wait;
   nothing was locked or written. This is the `ERROR` a renew or heartbeat reports under heavy
   concurrency while the lease is still FRESH; retry it before `expiresAt`. `release` and
   `attempt heartbeat` take `--lock-wait SECONDS` (whole seconds, 1..300) to wait longer than the
-  default 30 seconds for that command only (CAL-V0-111). The wait is not part of the request, so
+  default 30 seconds for that command only (CAL-V0-111); proposed CAL-V0-216 (pending owner
+  acceptance) adds it to `claim`, `renew`, `submit`, `pool acquire`, `pool confirm-safe` and
+  `pool release`. The wait is not part of the request, so
   resubmitting a timed-out `HANDOFF` release with the same request ID commits once or replays the
   committed receipt, still without a retry charge (CAL-V0-112). A plain release is never turned
   into a `HANDOFF` (CAL-V0-113); keep the reason and evidence when you retry.

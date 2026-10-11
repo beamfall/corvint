@@ -208,6 +208,8 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		return transaction.LeaseFacts{Pool: f}, nil
 	}
 	initial, e := sweepWrite(run, repo, actor, choice, transaction.PoolFacts{}, observer)
+	// Publication may fail after the owner receipt is already durable (CAL-V0-215).
+	committed = initial != nil && initial.Receipt != ""
 	// An ALL barrier forbids fresh preparation, but cannot erase an original
 	// request. Only an audited exact historical match can enter reconciliation.
 	if e == nil && initial != nil && initial.Outcome.HasCode(wire.CodePaused) {

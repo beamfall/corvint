@@ -31,7 +31,7 @@ func initActor(role string) (mutation.Binding, error) {
 	if id == "" {
 		u, err := user.Current()
 		if err != nil {
-			return mutation.Binding{}, wire.Errorf(wire.CodeMalformed, "actor",
+			return mutation.Binding{}, wire.Errorf(wire.CodeOf(err), "actor",
 				"no local operator identity: set CORVINT_TASKS_ACTOR (%v)", err)
 		}
 		id = u.Username
