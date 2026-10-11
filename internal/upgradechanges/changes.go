@@ -40,9 +40,9 @@ var (
 	refPattern   = regexp.MustCompile(`#([1-9][0-9]{0,14})\b`)
 	// Flag names declared through the standard flag package or compared as
 	// "--name" literals in cmd/corvint Go source (UCL1142-V0-007).
-	flagDeclPattern    = regexp.MustCompile(`\.(?:String|Bool|Int|Int64|Uint|Uint64|Float64|Duration|Func|BoolFunc)\(\s*"([A-Za-z0-9][A-Za-z0-9-]{0,63})"`)
-	flagVarPattern     = regexp.MustCompile(`\.(?:StringVar|BoolVar|IntVar|Int64Var|UintVar|Uint64Var|Float64Var|DurationVar|Var|TextVar)\([^"\n]*?,\s*"([A-Za-z0-9][A-Za-z0-9-]{0,63})"`)
-	flagLiteralPattern = regexp.MustCompile(`"--([A-Za-z0-9][A-Za-z0-9-]{0,63})=?"`)
+	flagDeclPattern    = regexp.MustCompile(`\.(?:String|Bool|Int|Int64|Uint|Uint64|Float64|Duration|Func|BoolFunc)\(\s*"([A-Za-z0-9][A-Za-z0-9_.-]{0,63})"`)
+	flagVarPattern     = regexp.MustCompile(`\.(?:StringVar|BoolVar|IntVar|Int64Var|UintVar|Uint64Var|Float64Var|DurationVar|Var|TextVar)\([^"\n]*?,\s*"([A-Za-z0-9][A-Za-z0-9_.-]{0,63})"`)
+	flagLiteralPattern = regexp.MustCompile(`"--([A-Za-z0-9][A-Za-z0-9_.-]{0,63})=?"`)
 )
 
 const (
@@ -542,6 +542,32 @@ func collectFlags(into map[string]bool, line string) {
 	}
 }
 
+// uniqueMembers decodes one JSON object, refusing a repeated member name so a
+// row such as {"state":"OPEN","state":"CLOSED"} cannot hide a conflict.
+func uniqueMembers(raw json.RawMessage) (map[string]json.RawMessage, bool) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if token, err := dec.Token(); err != nil || token != json.Delim('{') {
+		return nil, false
+	}
+	row := map[string]json.RawMessage{}
+	for dec.More() {
+		token, err := dec.Token()
+		key, isKey := token.(string)
+		if err != nil || !isKey {
+			return nil, false
+		}
+		if _, seen := row[key]; seen {
+			return nil, false
+		}
+		var value json.RawMessage
+		if dec.Decode(&value) != nil {
+			return nil, false
+		}
+		row[key] = value
+	}
+	return row, true
+}
+
 func githubState(states map[int64]string, issue int64) string {
 	if state, ok := states[issue]; ok {
 		return state
@@ -571,12 +597,16 @@ func readIssueStates(ctx context.Context, root, name string) (map[int64]string, 
 	if err != nil || cut {
 		return nil, refuse
 	}
-	var rows []map[string]json.RawMessage
-	if json.Unmarshal(data, &rows) != nil || rows == nil || len(rows) > maxRows*4 {
+	var raws []json.RawMessage
+	if json.Unmarshal(data, &raws) != nil || raws == nil || len(raws) > maxRows*4 {
 		return nil, refuse
 	}
 	states := map[int64]string{}
-	for _, row := range rows {
+	for _, raw := range raws {
+		row, ok := uniqueMembers(raw)
+		if !ok {
+			return nil, refuse
+		}
 		var number int64
 		var state string
 		if json.Unmarshal(row["number"], &number) != nil || number <= 0 || json.Unmarshal(row["state"], &state) != nil {

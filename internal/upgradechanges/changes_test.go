@@ -481,7 +481,7 @@ func TestCompileNewFlags(t *testing.T) {
 		commitFile(t, root, "cmd/corvint/old.go", "package main\n\nfunc old() { f.Bool(\"moved\", false, \"\") }\n", "seed")
 		from := gitTest(t, root, "rev-parse", "HEAD")
 		gitTest(t, root, "checkout", "-q", "-b", "flags")
-		commitFile(t, root, "cmd/corvint/new.go", "package main\n\nfunc add() {\n\tf.Bool(\"dry-run\", false, \"\")\n\tf.StringVar(&x, \"out-file\", \"\", \"\")\n\tswitch a {\n\tcase \"--host\", \"--limit=\":\n\t}\n}\n", "Add flags\n\nCloses #3")
+		commitFile(t, root, "cmd/corvint/new.go", "package main\n\nfunc add() {\n\tf.Bool(\"dry-run\", false, \"\")\n\tf.StringVar(&x, \"out-file\", \"\", \"\")\n\tf.Bool(\"snake_name\", false, \"\")\n\tf.StringVar(&y, \"dotted.name\", \"\", \"\")\n\tswitch a {\n\tcase \"--host\", \"--limit=\":\n\t}\n}\n", "Add flags\n\nCloses #3")
 		commitFile(t, root, "cmd/corvint/new_test.go", "package main\n\nfunc t() { f.Bool(\"test-only\", false, \"\") }\n", "test flag")
 		commitFile(t, root, "cmd/corvint/testdata/x.go", "package x\n\nfunc t() { f.Bool(\"fixture-only\", false, \"\") }\n", "fixture flag")
 		commitFile(t, root, "internal/other.go", "package other\n\nfunc t() { f.Bool(\"elsewhere\", false, \"\") }\n", "other flag")
@@ -494,7 +494,7 @@ func TestCompileNewFlags(t *testing.T) {
 		if e != nil || len(r.PRs) != 2 || r.Truncated {
 			t.Fatalf("report: %+v %v", r, e)
 		}
-		want := []string{"--dry-run", "--host", "--limit", "--out-file"}
+		want := []string{"--dotted.name", "--dry-run", "--host", "--limit", "--out-file", "--snake_name"}
 		if r.PRs[0].FlagsBasis != "cmd-corvint-go-source-diff" || !reflect.DeepEqual(r.PRs[0].NewFlags, want) || r.PRs[0].Commands != "NOT_OBSERVED" {
 			t.Fatalf("flags PR: %+v", r.PRs[0])
 		}
@@ -608,6 +608,7 @@ func TestCompileIssueStateFile(t *testing.T) {
 			write("conflict.json", `[{"number":12,"state":"OPEN"},{"number":12,"state":"CLOSED"}]`),
 			write("object.json", `{"number":12,"state":"OPEN"}`),
 			write("null.json", " null\n"),
+			write("duplicate-member.json", `[{"number":12,"state":"OPEN","state":"CLOSED"}]`),
 			"link.json", "absent.json",
 		} {
 			if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: name}); e == nil || e.Error() != "changes-issue-state-unavailable" {

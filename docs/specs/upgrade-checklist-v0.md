@@ -59,7 +59,7 @@ the checkout or contacting a service. This is evidence to review, not permission
   regular-file, 1 MiB reader and decoded as one JSON array of objects, each with a positive integer
   `number` and a `state` of `OPEN` or `CLOSED` (case-insensitive), the shape `gh issue list --state
   all --json number,state` produces. Other members are ignored and never emitted. More than 4096
-  rows, a malformed, `null` or truncated document, an invalid row, conflicting states for one number, or an
+  rows, a malformed, `null` or truncated document, an invalid row or repeated member, conflicting states for one number, or an
   unreadable/unsafe path refuse with `changes-issue-state-unavailable`. Corvint MUST NOT query
   GitHub or any network service. Each issue row and hint carries `github_state`: the supplied
   state, or `NOT_OBSERVED` when no file is given or the number is absent. A hint whose supplied
