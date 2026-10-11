@@ -95,6 +95,9 @@ type Report struct {
 	// EscalationEvents the events a committed or replayed one posted.
 	Escalation       *transaction.EscalationRefusal
 	EscalationEvents []ticket.EscalationEvent
+	// ScopeWarnings are the CAL-V0-211 warnings of a fresh claim: each
+	// exact PATH key of its scope that names a directory at its base commit.
+	ScopeWarnings []string
 }
 
 // ReapReceipt identifies one fresh per-attempt reap transaction.

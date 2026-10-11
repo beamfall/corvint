@@ -31,10 +31,10 @@ func descriptorCount() (int, error) {
 	return len(entries), err
 }
 
-// CAL-V0-213: exercise the complete route's actual merged observation and its
+// CAL-V0-220: exercise the complete route's actual merged observation and its
 // forced no-watch fallback. Large qualification is opt-in; the default pair
 // still catches the old RLIMIT-dependent watch on ordinary development runs.
-func TestCALV0213_CompleteRouteBoundedDescriptors(t *testing.T) {
+func TestCALV0220_CompleteRouteBoundedDescriptors(t *testing.T) {
 	sizes := []int{100, 2100}
 	if os.Getenv("CORVINT_V10906_LARGE") == "1" {
 		sizes = []int{1000, 100000}

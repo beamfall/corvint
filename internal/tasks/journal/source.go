@@ -73,7 +73,7 @@ func (n Native) List(p string, max int) (out Listing, err error) {
 // nativeRead lives for exactly one audit attempt. It retains every listed
 // no-follow parent; file reads never reopen the original absolute parent.
 // One read parent at a time is additionally pinned for no-follow openat reads.
-// Roots stay pinned for identity safety, with a fixed admission bound (CAL-V0-212).
+// Roots stay pinned for identity safety; roots are bounded by directory count, not receipts (CAL-V0-219).
 type nativeRead struct {
 	native   Native
 	roots    map[string]*os.Root
@@ -115,9 +115,6 @@ func (s *nativeRead) parent(p string) (*os.Root, error) {
 	if r := s.roots[p]; r != nil {
 		return r, nil
 	}
-	if len(s.roots) >= 512 {
-		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, p, "audit parent descriptor bound")
-	}
 	abs, e := s.native.path(p)
 	if e != nil {
 		return nil, e
@@ -129,9 +126,6 @@ func (s *nativeRead) parent(p string) (*os.Root, error) {
 		parent, e2 := s.parent(filepath.ToSlash(filepath.Dir(p)))
 		if e2 != nil {
 			return nil, e2
-		}
-		if len(s.roots) >= 512 {
-			return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, p, "audit parent descriptor bound")
 		}
 		root, e = safeopen.SubRoot(parent, filepath.Base(p))
 	}

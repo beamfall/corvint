@@ -4,16 +4,15 @@ package journal
 
 import (
 	"fmt"
-	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 )
 
-// CAL-V0-212: a scan keeps at most one duplicate pinned descriptor and refuses
-// excess roots, rather than evicting identity bindings and admitting replacements.
-func TestCALV0212_NativeDescriptorBound(t *testing.T) {
+// CAL-V0-219: a scan keeps at most one duplicate pinned descriptor and reads
+// past 511 parents successfully, keeping each root's identity binding.
+func TestCALV0219_NativeDescriptorBound(t *testing.T) {
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -41,20 +40,17 @@ func TestCALV0212_NativeDescriptorBound(t *testing.T) {
 	before := count()
 	s := newNativeRead(Native{StateDir: base, PrimaryWorktree: base})
 	defer s.close()
-	for i := 0; i < 511; i++ {
+	for i := 0; i < 513; i++ {
 		raw, err := s.Read(fmt.Sprintf("%d/x", i), 1)
 		if err != nil || string(raw) != "x" {
 			t.Fatalf("read %d: %q %v", i, raw, err)
 		}
-		if len(s.dirs) > 1 || len(s.roots) > 512 {
-			t.Fatalf("descriptors: %d roots %d pins", len(s.roots), len(s.dirs))
+		if len(s.dirs) > 1 {
+			t.Fatalf("%d read pins", len(s.dirs))
 		}
 	}
-	if got := count() - before; got > 513 {
+	if got := count() - before; got > 520 {
 		t.Fatalf("retained descriptor count: %d", got)
-	}
-	if _, err := s.Read("511/x", 1); wire.CodeOf(err) != wire.CodeUnsupportedFilesystem {
-		t.Fatalf("root admission: %v", err)
 	}
 	if err := s.close(); err != nil {
 		t.Fatal(err)

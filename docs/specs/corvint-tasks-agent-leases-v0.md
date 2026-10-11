@@ -127,6 +127,7 @@ one.
 | V1-0795 | CAL-V0-210 | Accepted (decision 0473): a replacement owner settles a dead owner's `SPAWNING` or `STOPPING` program `FINISHED` when its bound current attempt records a proved stop (no worker, no lane); an unproved stop stays refused; focused tests |
 | V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
 | Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
+| V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -5663,29 +5664,69 @@ unchanged: the transition writes the existing program record shape.
 
 ### V1-0906 bounded descriptors
 
-- `CAL-V0-211`: (proposed, pending owner acceptance (V1-0906)) Change observation
-  shall hold at most 16 regular-file vnode descriptors process-wide, 512 directory
-  vnode descriptors per guard and one event descriptor on Darwin; Linux retains one
+- `CAL-V0-218`: (proposed, pending owner acceptance (V1-0906)) Change observation
+  shall hold at most 16 regular-file vnode descriptors process-wide and one event
+  descriptor on Darwin, plus one vnode descriptor per watched directory; directory
+  descriptors scale with directory count, never with receipt count. Linux retains one
   inotify descriptor. Uncovered regular files retain the existing stat sweep and
-  locked event-check semantics. Directory-budget exhaustion refuses observation and
-  closes partial registration; it never silently drops directory event coverage.
-- `CAL-V0-212`: (proposed, pending owner acceptance (V1-0906)) A native journal audit
-  shall retain at most 512 parent roots and one additional pinned read directory,
-  independent of receipt count. Exceeding the root budget fails closed, with all
-  acquired descriptors released. Complete mutation observation and its no-watch
-  fallback preserve canonical outcomes and refusal codes for admitted stores.
-- `CAL-V0-213`: (proposed, pending owner acceptance (V1-0906)) Regression evidence
+  locked event-check semantics, and directory event coverage is never dropped.
+- `CAL-V0-219`: (proposed, pending owner acceptance (V1-0906)) A native journal audit
+  shall retain one identity-pinned root per listed parent directory and at most one
+  additional pinned read directory, independent of receipt count, and shall release
+  all descriptors on close. Complete mutation observation and its no-watch fallback
+  preserve canonical outcomes and refusal codes.
+- `CAL-V0-220`: (proposed, pending owner acceptance (V1-0906)) Regression evidence
   shall bound descriptors at two synthetic receipt counts, including 100,000, on
   complete mutation observation and forced no-watch fallback. Record five runs,
   median sampled peak open descriptors, sampling limits and host load band. The
-  route budget is 1,056 additional descriptors including transient opens; unrelated
-  process descriptors and concurrent operations are outside this per-operation bound.
+  measured peaks must not grow with receipt count; unrelated process descriptors and
+  concurrent operations are outside this per-operation bound.
 
 These requirements change descriptor admission only. Idle CPU, journal formats,
 checkpoint validity and the existing outside-writer in-place race bound are unchanged.
 Acceptance uses temporary stores, focused race tests and the existing refusal/identity
 suite. Rollback restores the previous descriptor strategy, with the known exhaustion
 risk; intent remains proposed until owner acceptance.
+### V1-1118 exact PATH key naming a directory (proposed)
+
+Status: proposed; experimental implementation with focused tests, not accepted. Human-owned input:
+native ticket V1-1118, found in RC3 lane C (V1-1090). CAL-V0-021 makes a `PATH` key without a
+trailing `/` name exactly one path, so a key that names a directory covers nothing beneath it, and
+`submit` later refuses `OUT_OF_SCOPE` (CAL-V0-024). `ticket set-effects` stored such a key and
+claim reserved it without saying so. The amendment warns and reports; it refuses nothing.
+
+- `CAL-V0-211`: (accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commits a fresh
+  transaction (not a replay, no-change or refusal), or a claim (`claim` or `claim --next`,
+  pooled or not) commits a fresh attempt, the command result MUST add one envelope `warnings`
+  entry for each distinct `PATH` key that does not end in `/` and names a directory (a Git tree
+  entry) in the base tree. The keys are, for `ticket set-effects`, the payload effects'
+  `touchPaths` and `PATH` resource keys, whatever their coverage, and the base tree is the tree of
+  `HEAD` in the caller's checkout; for a claim, they are the attempt's reserved scope's `PATH`
+  keys, and the base tree is the tree of the attempt's base commit. Each entry MUST start
+  `EXACT_KEY_NAMES_DIRECTORY: PATH key <key> `, name that tree, and end
+  `use <key>/ to cover them`; entries are in byte order of the key. A key that names a file or is
+  absent from the tree, and a key that ends in `/`, MUST add no such warning. When the base tree
+  cannot be read the command MUST add none. The command MUST still commit, and its items, codes,
+  outcome, stored effects and reserved scope MUST be those it produces without this amendment.
+  `EXACT_KEY_NAMES_DIRECTORY` is a warning prefix, not a result code.
+
+Non-goals: rewriting or refusing the key; changing the CAL-V0-021 key rule or the CAL-V0-024
+refusal; warning at `ticket create`, `ticket refine`, `widen`, `submit` or a replay; reading any
+tree other than the one named above.
+
+Failure modes: `set-effects` reads the caller's `HEAD`, which can differ from the base a later
+claim uses, so a key can warn at one and not the other; the warning is advisory and the committed
+state is unaffected. A Git failure while reading the tree drops the warning rather than failing
+a committed write.
+
+Acceptance evidence: `TestCALV0211_ClaimWarnsOnExactDirectoryKey`,
+`TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`) and
+`TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`);
+`docs/build-log/2026-10-10-v1-1118-exact-directory-key-warning.md`.
+
+Rollback: revert `internal/tasks/store/directory_keys.go`, the `ScopeWarnings` report member and
+its two result call sites, the tests and this amendment. No payload, receipt, journal record or
+store state depends on the warning.
 
 ## Amendments to TCP-00
 
@@ -6122,9 +6163,10 @@ and removes the new configuration members.
 | CAL-V0-208 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`) |
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
-| CAL-V0-211 | `TestCALV0211_ChangeGuardBoundedDescriptors`, `TestCALV0211_ChangeGuardDirectoryBound` (`internal/tasks/authority`) |
-| CAL-V0-212 | `TestCALV0212_NativeDescriptorBound` (`internal/tasks/journal`) |
-| CAL-V0-213 | `TestCALV0213_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
+| CAL-V0-218 | `TestCALV0218_ChangeGuardBoundedDescriptors`, `TestCALV0218_ChangeGuardManyDirectoriesAdmitted` (`internal/tasks/authority`) |
+| CAL-V0-219 | `TestCALV0219_NativeDescriptorBound` (`internal/tasks/journal`) |
+| CAL-V0-220 | `TestCALV0220_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
+| CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

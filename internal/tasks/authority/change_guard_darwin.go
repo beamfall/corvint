@@ -97,9 +97,6 @@ func (w *vnodeWatch) add(path string, contents bool) (os.FileInfo, error) {
 	}
 	// Directory coverage cannot use the regular-file sweep: entry changes
 	// after Sweep must still invalidate CheckEvents under the writer lock.
-	if int64(len(w.files))-w.budgeted >= 512 {
-		return nil, fsErr(path, "change watch directory descriptor bound")
-	}
 	return w.addVnode(path, before, contents)
 }
 
